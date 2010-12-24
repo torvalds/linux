@@ -125,6 +125,7 @@ struct context {
 	struct fw_ohci *ohci;
 	u32 regs;
 	int total_allocation;
+	bool running;
 	bool flushing;
 
 	/*
@@ -1174,6 +1175,7 @@ static void context_run(struct context *ctx, u32 extra)
 		  le32_to_cpu(ctx->last->branch_address));
 	reg_write(ohci, CONTROL_CLEAR(ctx->regs), ~0);
 	reg_write(ohci, CONTROL_SET(ctx->regs), CONTEXT_RUN | extra);
+	ctx->running = true;
 	flush_writes(ohci);
 }
 
@@ -1202,6 +1204,7 @@ static void context_stop(struct context *ctx)
 
 	ctx->active = false;
 	reg_write(ctx->ohci, CONTROL_CLEAR(ctx->regs), CONTEXT_RUN);
+	ctx->running = false;
 	flush_writes(ctx->ohci);
 
 	for (i = 0; i < 10; i++) {
@@ -1232,7 +1235,6 @@ static int at_context_queue_packet(struct context *ctx,
 	struct descriptor *d, *last;
 	__le32 *header;
 	int z, tcode;
-	u32 reg;
 
 	d = context_get_descriptors(ctx, 4, &d_bus);
 	if (d == NULL) {
@@ -1351,9 +1353,7 @@ static int at_context_queue_packet(struct context *ctx,
 
 	context_append(ctx, d, z, 4 - z);
 
-	/* If the context isn't already running, start it up. */
-	reg = reg_read(ctx->ohci, CONTROL_SET(ctx->regs));
-	if ((reg & CONTEXT_RUN) == 0)
+	if (!ctx->running)
 		context_run(ctx, 0);
 
 	return 0;
