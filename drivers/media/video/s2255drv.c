@@ -1097,15 +1097,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	return rc;
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidioc_cgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
-{
-	struct s2255_fh *fh = priv;
-
-	return videobuf_cgmbuf(&fh->vb_vidq, mbuf, 8);
-}
-#endif
-
 /* write to the configuration pipe, synchronously */
 static int s2255_write_config(struct usb_device *udev, unsigned char *pbuf,
 			      int size)
@@ -1909,9 +1900,6 @@ static const struct v4l2_ioctl_ops s2255_ioctl_ops = {
 	.vidioc_s_ctrl = vidioc_s_ctrl,
 	.vidioc_streamon = vidioc_streamon,
 	.vidioc_streamoff = vidioc_streamoff,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf = vidioc_cgmbuf,
-#endif
 	.vidioc_s_jpegcomp = vidioc_s_jpegcomp,
 	.vidioc_g_jpegcomp = vidioc_g_jpegcomp,
 	.vidioc_s_parm = vidioc_s_parm,

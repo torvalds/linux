@@ -2597,31 +2597,6 @@ static int bttv_s_fmt_vid_overlay(struct file *file, void *priv,
 	return setup_window_lock(fh, btv, &f->fmt.win, 1);
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
-{
-	int retval;
-	unsigned int i;
-	struct bttv_fh *fh = priv;
-
-	retval = __videobuf_mmap_setup(&fh->cap, gbuffers, gbufsize,
-				     V4L2_MEMORY_MMAP);
-	if (retval < 0) {
-		return retval;
-	}
-
-	gbuffers = retval;
-	memset(mbuf, 0, sizeof(*mbuf));
-	mbuf->frames = gbuffers;
-	mbuf->size   = gbuffers * gbufsize;
-
-	for (i = 0; i < gbuffers; i++)
-		mbuf->offsets[i] = i * gbufsize;
-
-	return 0;
-}
-#endif
-
 static int bttv_querycap(struct file *file, void  *priv,
 				struct v4l2_capability *cap)
 {
@@ -3354,9 +3329,6 @@ static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 	.vidioc_streamoff               = bttv_streamoff,
 	.vidioc_g_tuner                 = bttv_g_tuner,
 	.vidioc_s_tuner                 = bttv_s_tuner,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf                    = vidiocgmbuf,
-#endif
 	.vidioc_g_crop                  = bttv_g_crop,
 	.vidioc_s_crop                  = bttv_s_crop,
 	.vidioc_g_fbuf                  = bttv_g_fbuf,

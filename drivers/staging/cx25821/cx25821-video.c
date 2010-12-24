@@ -1188,34 +1188,6 @@ int cx25821_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-int cx25821_vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
-{
-	struct cx25821_fh *fh = priv;
-	struct videobuf_queue *q;
-	struct v4l2_requestbuffers req;
-	unsigned int i;
-	int err;
-
-	q = get_queue(fh);
-	memset(&req, 0, sizeof(req));
-	req.type = q->type;
-	req.count = 8;
-	req.memory = V4L2_MEMORY_MMAP;
-	err = videobuf_reqbufs(q, &req);
-	if (err < 0)
-		return err;
-
-	mbuf->frames = req.count;
-	mbuf->size = 0;
-	for (i = 0; i < mbuf->frames; i++) {
-		mbuf->offsets[i] = q->bufs[i]->boff;
-		mbuf->size += q->bufs[i]->bsize;
-	}
-	return 0;
-}
-#endif
-
 int cx25821_vidioc_reqbufs(struct file *file, void *priv, struct v4l2_requestbuffers *p)
 {
 	struct cx25821_fh *fh = priv;
@@ -2016,9 +1988,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
        .vidioc_log_status = vidioc_log_status,
        .vidioc_g_priority = cx25821_vidioc_g_priority,
        .vidioc_s_priority = cx25821_vidioc_s_priority,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-       .vidiocgmbuf = cx25821_vidiocgmbuf,
-#endif
 #ifdef TUNER_FLAG
        .vidioc_g_tuner = cx25821_vidioc_g_tuner,
        .vidioc_s_tuner = cx25821_vidioc_s_tuner,

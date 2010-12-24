@@ -1273,9 +1273,6 @@ static const struct v4l2_ioctl_ops usbvision_ioctl_ops = {
 	.vidioc_s_ctrl        = vidioc_s_ctrl,
 	.vidioc_streamon      = vidioc_streamon,
 	.vidioc_streamoff     = vidioc_streamoff,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-/*  	.vidiocgmbuf          = vidiocgmbuf, */
-#endif
 	.vidioc_g_tuner       = vidioc_g_tuner,
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,

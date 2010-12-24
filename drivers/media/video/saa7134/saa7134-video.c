@@ -2211,14 +2211,6 @@ static int saa7134_overlay(struct file *file, void *f, unsigned int on)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
-{
-	struct saa7134_fh *fh = file->private_data;
-	return videobuf_cgmbuf(saa7134_queue(fh), mbuf, 8);
-}
-#endif
-
 static int saa7134_reqbufs(struct file *file, void *priv,
 					struct v4l2_requestbuffers *p)
 {
@@ -2456,9 +2448,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_streamoff		= saa7134_streamoff,
 	.vidioc_g_tuner			= saa7134_g_tuner,
 	.vidioc_s_tuner			= saa7134_s_tuner,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf			= vidiocgmbuf,
-#endif
 	.vidioc_g_crop			= saa7134_g_crop,
 	.vidioc_s_crop			= saa7134_s_crop,
 	.vidioc_g_fbuf			= saa7134_g_fbuf,

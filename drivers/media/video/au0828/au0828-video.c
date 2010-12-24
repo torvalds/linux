@@ -1809,15 +1809,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 	return videobuf_dqbuf(&fh->vb_vidq, b, file->f_flags & O_NONBLOCK);
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
-{
-	struct au0828_fh *fh = priv;
-
-	return videobuf_cgmbuf(&fh->vb_vidq, mbuf, 8);
-}
-#endif
-
 static struct v4l2_file_operations au0828_v4l_fops = {
 	.owner      = THIS_MODULE,
 	.open       = au0828_v4l2_open,
@@ -1861,9 +1852,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_register          = vidioc_s_register,
 #endif
 	.vidioc_g_chip_ident        = vidioc_g_chip_ident,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf                = vidiocgmbuf,
-#endif
 };
 
 static const struct video_device au0828_video_template = {

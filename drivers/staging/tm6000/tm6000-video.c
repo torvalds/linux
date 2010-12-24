@@ -986,15 +986,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 				file->f_flags & O_NONBLOCK);
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
-{
-	struct tm6000_fh  *fh = priv;
-
-	return videobuf_cgmbuf(&fh->vb_vidq, mbuf, 8);
-}
-#endif
-
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct tm6000_fh  *fh = priv;
@@ -1438,9 +1429,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querybuf          = vidioc_querybuf,
 	.vidioc_qbuf              = vidioc_qbuf,
 	.vidioc_dqbuf             = vidioc_dqbuf,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf              = vidiocgmbuf,
-#endif
 };
 
 static struct video_device tm6000_template = {

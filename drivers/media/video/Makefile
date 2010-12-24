@@ -22,10 +22,6 @@ endif
 
 obj-$(CONFIG_VIDEO_V4L2_COMMON) += v4l2-common.o
 
-ifeq ($(CONFIG_VIDEO_V4L1_COMPAT),y)
-  obj-$(CONFIG_VIDEO_DEV) += v4l1-compat.o
-endif
-
 # All i2c modules must come first:
 
 obj-$(CONFIG_VIDEO_TUNER) += tuner.o

@@ -362,23 +362,6 @@ long pwc_video_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 
 	switch (cmd) {
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-		/* mmap() functions */
-		case VIDIOCGMBUF:
-		{
-			/* Tell the user program how much memory is needed for a mmap() */
-			struct video_mbuf *vm = arg;
-			int i;
-
-			memset(vm, 0, sizeof(*vm));
-			vm->size = pwc_mbufs * pdev->len_per_image;
-			vm->frames = pwc_mbufs; /* double buffering should be enough for most applications */
-			for (i = 0; i < pwc_mbufs; i++)
-				vm->offsets[i] = i * pdev->len_per_image;
-			break;
-		}
-#endif
-
 		/* V4L2 Layer */
 		case VIDIOC_QUERYCAP:
 		{

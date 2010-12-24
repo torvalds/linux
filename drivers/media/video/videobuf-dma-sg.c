@@ -570,29 +570,6 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	}
 
 	last = first;
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	if (size != (vma->vm_end - vma->vm_start)) {
-		/* look for last buffer to map */
-		for (last = first + 1; last < VIDEO_MAX_FRAME; last++) {
-			if (NULL == q->bufs[last])
-				continue;
-			if (V4L2_MEMORY_MMAP != q->bufs[last]->memory)
-				continue;
-			if (q->bufs[last]->map) {
-				retval = -EBUSY;
-				goto done;
-			}
-			size += PAGE_ALIGN(q->bufs[last]->bsize);
-			if (size == (vma->vm_end - vma->vm_start))
-				break;
-		}
-		if (VIDEO_MAX_FRAME == last) {
-			dprintk(1, "mmap app bug: size invalid [size=0x%lx]\n",
-					(vma->vm_end - vma->vm_start));
-			goto done;
-		}
-	}
-#endif
 
 	/* create mapping + update buffer list */
 	retval = -ENOMEM;

@@ -53,21 +53,6 @@ config VIDEO_ALLOW_V4L1
 
 	  If you are unsure as to whether this is required, answer Y.
 
-config VIDEO_V4L1_COMPAT
-	bool "Enable Video For Linux API 1 compatible Layer" if !VIDEO_ALLOW_V4L1
-	depends on VIDEO_DEV
-	default y
-	---help---
-	  Enables a compatibility API used by most V4L2 devices to allow
-	  its usage with legacy applications that supports only V4L1 api.
-
-	  Documentation for the original API is included in the file
-	  <Documentation/video4linux/API.html>.
-
-	  User tools for this are available from
-	  <ftp://ftp.uk.linux.org/pub/linux/video4linux/>.
-
-	  If you are unsure as to whether this is required, answer Y.
 
 #
 # DVB Core
