@@ -47,7 +47,6 @@ struct nfs_client {
 	u64			cl_clientid;	/* constant */
 	unsigned long		cl_state;
 
-	struct list_head	cl_delegations;
 	spinlock_t		cl_lock;
 
 	unsigned long		cl_lease_time;
@@ -152,6 +151,7 @@ struct nfs_server {
 	struct rb_root		openowner_id;
 	struct rb_root		lockowner_id;
 #endif
+	struct list_head	delegations;
 	void (*destroy)(struct nfs_server *);
 
 	atomic_t active; /* Keep trace of any activity to this server */
