@@ -496,13 +496,13 @@ config EZX_PCAP
 
 config AB8500_CORE
 	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
-	depends on GENERIC_HARDIRQS && ABX500_CORE && SPI_MASTER
+	depends on GENERIC_HARDIRQS && ABX500_CORE
 	select MFD_CORE
 	help
 	  Select this option to enable access to AB8500 power management
-	  chip. This connects to U8500 either on the SSP/SPI bus
-	  or the I2C bus via PRCMU. It also adds the irq_chip
-	  parts for handling the Mixed Signal chip events.
+	  chip. This connects to U8500 either on the SSP/SPI bus (deprecated
+	  since hardware version v1.0) or the I2C bus via PRCMU. It also adds
+	  the irq_chip parts for handling the Mixed Signal chip events.
 	  This chip embeds various other multimedia funtionalities as well.
 
 config AB8500_I2C_CORE
