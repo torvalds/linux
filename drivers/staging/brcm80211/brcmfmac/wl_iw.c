@@ -489,7 +489,7 @@ wl_iw_get_range(struct net_device *dev,
 	wl_rateset_t rateset;
 	s8 *channels;
 	int error, i, k;
-	uint sf, ch;
+	uint ch;
 
 	int phytype;
 	int bw_cap = 0, sgi_tx = 0, nmode = 0;
@@ -530,11 +530,10 @@ wl_iw_get_range(struct net_device *dev,
 
 		ch = dtoh32(list->element[i]);
 		if (ch <= CH_MAX_2G_CHANNEL) {
-			sf = WF_CHAN_FACTOR_2_4_G;
 			range->freq[i].m = ieee80211_dsss_chan_to_freq(ch);
 		} else {
-			sf = WF_CHAN_FACTOR_5_G;
-			range->freq[i].m = wf_channel2mhz(ch, sf);
+			range->freq[i].m = ieee80211_ofdm_chan_to_freq(
+						WF_CHAN_FACTOR_5_G/2, ch);
 		}
 		range->freq[i].e = 6;
 	}
@@ -1540,9 +1539,10 @@ wl_iw_get_scan_prep(wl_scan_results_t *list,
 			iwe.u.freq.m = ieee80211_dsss_chan_to_freq(
 						CHSPEC_CHANNEL(bi->chanspec));
 		else
-			iwe.u.freq.m = wf_channel2mhz(
-						CHSPEC_CHANNEL(bi->chanspec),
-						WF_CHAN_FACTOR_5_G);
+			iwe.u.freq.m = ieee80211_ofdm_chan_to_freq(
+						WF_CHAN_FACTOR_5_G/2,
+						CHSPEC_CHANNEL(bi->chanspec));
+
 		iwe.u.freq.e = 6;
 		event =
 		    IWE_STREAM_ADD_EVENT(info, event, end, &iwe,
@@ -1820,8 +1820,9 @@ wl_iw_iscan_get_scan(struct net_device *dev,
 				iwe.u.freq.m =
 					ieee80211_dsss_chan_to_freq(channel);
 			else
-				iwe.u.freq.m = wf_channel2mhz(channel,
-							WF_CHAN_FACTOR_5_G);
+				iwe.u.freq.m = ieee80211_ofdm_chan_to_freq(
+							WF_CHAN_FACTOR_5_G/2,
+							channel);
 
 			iwe.u.freq.e = 6;
 			event =

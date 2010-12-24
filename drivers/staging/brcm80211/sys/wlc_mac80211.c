@@ -6837,7 +6837,9 @@ prep_mac80211_status(struct wlc_info *wlc, d11rxhdr_t *rxh, struct sk_buff *p,
 	/* XXX  Channel/badn needs to be filtered against whether we are single/dual band card */
 	if (channel > 14) {
 		rx_status->band = IEEE80211_BAND_5GHZ;
-		rx_status->freq = wf_channel2mhz(channel, WF_CHAN_FACTOR_5_G);
+		rx_status->freq = ieee80211_ofdm_chan_to_freq(
+					WF_CHAN_FACTOR_5_G/2, channel);
+
 	} else {
 		rx_status->band = IEEE80211_BAND_2GHZ;
 		rx_status->freq = ieee80211_dsss_chan_to_freq(channel);

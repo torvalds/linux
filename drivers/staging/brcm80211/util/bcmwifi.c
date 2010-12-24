@@ -161,30 +161,3 @@ int wf_mhz2channel(uint freq, uint start_factor)
 	return ch;
 }
 
-/*
- * Return the center frequency in MHz of the given channel and base frequency.
- * The channel number is interpreted relative to the given base frequency.
- *
- * The valid channel range is [1, 14] in the 2.4 GHz band and [0, 200] otherwise.
- * The base frequency is specified as (start_factor * 500 kHz).
- * Constants WF_CHAN_FACTOR_2_4_G, WF_CHAN_FACTOR_4_G, and WF_CHAN_FACTOR_5_G
- * are defined for 2.4 GHz, 4 GHz, and 5 GHz bands.
- * The channel range of [1, 14] is only checked for a start_factor of
- * WF_CHAN_FACTOR_2_4_G (4814 = 2407 * 2).
- * Odd start_factors produce channels on .5 MHz boundaries, in which case
- * the answer is rounded down to an integral MHz.
- * -1 is returned for an out of range channel.
- *
- * Reference 802.11 REVma, section 17.3.8.3, and 802.11B section 18.4.6.2
- */
-int wf_channel2mhz(uint ch, uint start_factor)
-{
-	int freq;
-
-	if (ch > 200)
-		freq = -1;
-	else
-		freq = ch * 5 + start_factor / 2;
-
-	return freq;
-}
