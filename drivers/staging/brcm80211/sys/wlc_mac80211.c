@@ -1742,7 +1742,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	ASSERT(sizeof(cck_phy_hdr_t) == D11_PHY_HDR_LEN);
 	ASSERT(sizeof(d11txh_t) == D11_TXH_LEN);
 	ASSERT(sizeof(d11rxhdr_t) == RXHDR_LEN);
-	ASSERT(sizeof(struct dot11_header) == DOT11_A4_HDR_LEN);
+	ASSERT(sizeof(struct ieee80211_hdr) == DOT11_A4_HDR_LEN);
 	ASSERT(sizeof(struct ieee80211_rts) == DOT11_RTS_LEN);
 	ASSERT(sizeof(struct dot11_management_header) == DOT11_MGMT_HDR_LEN);
 	ASSERT(sizeof(struct dot11_bcn_prb) == DOT11_BCN_PRB_LEN);
@@ -5120,12 +5120,12 @@ wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 	uint fifo;
 	void *pkt;
 	struct scb *scb = &global_scb;
-	struct dot11_header *d11_header = (struct dot11_header *)(sdu->data);
+	struct ieee80211_hdr *d11_header = (struct ieee80211_hdr *)(sdu->data);
 	u16 type, fc;
 
 	ASSERT(sdu);
 
-	fc = ltoh16(d11_header->fc);
+	fc = ltoh16(d11_header->frame_control);
 	type = FC_TYPE(fc);
 
 	/* 802.11 standard requires management traffic to go at highest priority */
@@ -5658,7 +5658,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 		     uint nfrags, uint queue, uint next_frag_len,
 		     wsec_key_t *key, ratespec_t rspec_override)
 {
-	struct dot11_header *h;
+	struct ieee80211_hdr *h;
 	d11txh_t *txh;
 	u8 *plcp, plcp_fallback[D11_PHY_HDR_LEN];
 	struct osl_info *osh;
@@ -5701,8 +5701,8 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	osh = wlc->osh;
 
 	/* locate 802.11 MAC header */
-	h = (struct dot11_header *)(p->data);
-	fc = ltoh16(h->fc);
+	h = (struct ieee80211_hdr *)(p->data);
+	fc = ltoh16(h->frame_control);
 	type = FC_TYPE(fc);
 
 	qos = (type == FC_TYPE_DATA && FC_SUBTYPE_ANY_QOS(FC_SUBTYPE(fc)));
@@ -5748,7 +5748,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 			/* extract fragment number from frame first */
 			seq = ltoh16(seq) & FRAGNUM_MASK;
 			seq |= (SCB_SEQNUM(scb, p->priority) << SEQNUM_SHIFT);
-			h->seq = htol16(seq);
+			h->seq_ctrl = htol16(seq);
 
 			frameid = ((seq << TXFID_SEQ_SHIFT) & TXFID_SEQ_MASK) |
 			    (queue & TXFID_QUEUE_MASK);
@@ -5818,7 +5818,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 			rspec[k] = WLC_RATE_1M;
 		} else {
 			if (WLANTSEL_ENAB(wlc) &&
-			    !is_multicast_ether_addr(h->a1)) {
+			    !is_multicast_ether_addr(h->addr1)) {
 				/* set tx antenna config */
 				wlc_antsel_antcfg_get(wlc->asi, false, false, 0,
 						      0, &antcfg, &fbantcfg);
@@ -5981,11 +5981,11 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 
 	/* DUR field for main rate */
 	if ((fc != FC_PS_POLL) &&
-	    !is_multicast_ether_addr(h->a1) && !use_rifs) {
+	    !is_multicast_ether_addr(h->addr1) && !use_rifs) {
 		durid =
 		    wlc_compute_frame_dur(wlc, rspec[0], preamble_type[0],
 					  next_frag_len);
-		h->durid = htol16(durid);
+		h->duration_id = htol16(durid);
 	} else if (use_rifs) {
 		/* NAV protect to end of next max packet size */
 		durid =
@@ -5993,13 +5993,13 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 						 preamble_type[0],
 						 DOT11_MAX_FRAG_LEN);
 		durid += RIFS_11N_TIME;
-		h->durid = htol16(durid);
+		h->duration_id = htol16(durid);
 	}
 
 	/* DUR field for fallback rate */
 	if (fc == FC_PS_POLL)
-		txh->FragDurFallback = h->durid;
-	else if (is_multicast_ether_addr(h->a1) || use_rifs)
+		txh->FragDurFallback = h->duration_id;
+	else if (is_multicast_ether_addr(h->addr1) || use_rifs)
 		txh->FragDurFallback = 0;
 	else {
 		durid = wlc_compute_frame_dur(wlc, rspec[1],
@@ -6011,7 +6011,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	if (frag == 0)
 		mcl |= TXC_STARTMSDU;
 
-	if (!is_multicast_ether_addr(h->a1))
+	if (!is_multicast_ether_addr(h->addr1))
 		mcl |= TXC_IMMEDACK;
 
 	if (BAND_5G(wlc->band->bandtype))
@@ -6039,14 +6039,14 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	}
 
 	/* MacFrameControl */
-	bcopy((char *)&h->fc, (char *)&txh->MacFrameControl, sizeof(u16));
-
+	bcopy((char *)&h->frame_control, (char *)&txh->MacFrameControl,
+	    sizeof(u16));
 	txh->TxFesTimeNormal = htol16(0);
 
 	txh->TxFesTimeFallback = htol16(0);
 
 	/* TxFrameRA */
-	bcopy((char *)&h->a1, (char *)&txh->TxFrameRA, ETH_ALEN);
+	bcopy((char *)&h->addr1, (char *)&txh->TxFrameRA, ETH_ALEN);
 
 	/* TxFrameID */
 	txh->TxFrameID = htol16(frameid);
@@ -6133,10 +6133,10 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 
 		if (use_cts) {
 			rts->frame_control = htol16(FC_CTS);
-			bcopy((char *)&h->a2, (char *)&rts->ra, ETH_ALEN);
+			bcopy((char *)&h->addr2, (char *)&rts->ra, ETH_ALEN);
 		} else {
 			rts->frame_control = htol16((u16) FC_RTS);
-			bcopy((char *)&h->a1, (char *)&rts->ra,
+			bcopy((char *)&h->addr1, (char *)&rts->ra,
 			      2 * ETH_ALEN);
 		}
 
@@ -6240,7 +6240,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	if (SCB_WME(scb) && qos && wlc->edcf_txop[ac]) {
 		uint frag_dur, dur, dur_fallback;
 
-		ASSERT(!is_multicast_ether_addr(h->a1));
+		ASSERT(!is_multicast_ether_addr(h->addr1));
 
 		/* WME: Update TXOP threshold */
 		if ((!(tx_info->flags & IEEE80211_TX_CTL_AMPDU)) && (frag == 0)) {
@@ -6542,7 +6542,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	int tx_rts, tx_frame_count, tx_rts_count;
 	uint totlen, supr_status;
 	bool lastframe;
-	struct dot11_header *h;
+	struct ieee80211_hdr *h;
 	u16 fc;
 	u16 mcl;
 	struct ieee80211_tx_info *tx_info;
@@ -6598,8 +6598,8 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 		goto fatal;
 
 	tx_info = IEEE80211_SKB_CB(p);
-	h = (struct dot11_header *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
-	fc = ltoh16(h->fc);
+	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
+	fc = ltoh16(h->frame_control);
 
 	scb = (struct scb *)tx_info->control.sta->drv_priv;
 
@@ -6995,7 +6995,7 @@ void wlc_bss_list_free(struct wlc_info *wlc, wlc_bss_list_t *bss_list)
 void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 {
 	d11rxhdr_t *rxh;
-	struct dot11_header *h;
+	struct ieee80211_hdr *h;
 	struct osl_info *osh;
 	u16 fc;
 	uint len;
@@ -7025,7 +7025,7 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 		skb_pull(p, 2);
 	}
 
-	h = (struct dot11_header *)(p->data + D11_PHY_HDR_LEN);
+	h = (struct ieee80211_hdr *)(p->data + D11_PHY_HDR_LEN);
 	len = p->len;
 
 	if (rxh->RxStatus1 & RXS_FCSERR) {
@@ -7039,8 +7039,8 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	}
 
 	/* check received pkt has at least frame control field */
-	if (len >= D11_PHY_HDR_LEN + sizeof(h->fc)) {
-		fc = ltoh16(h->fc);
+	if (len >= D11_PHY_HDR_LEN + sizeof(h->frame_control)) {
+		fc = ltoh16(h->frame_control);
 	} else {
 		WLCNTINCR(wlc->pub->_cnt->rxrunt);
 		goto toss;
@@ -7052,10 +7052,10 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	if (!is_amsdu) {
 		/* CTS and ACK CTL frames are w/o a2 */
 		if (FC_TYPE(fc) == FC_TYPE_DATA || FC_TYPE(fc) == FC_TYPE_MNG) {
-			if ((is_zero_ether_addr(h->a2) ||
-			     is_multicast_ether_addr(h->a2))) {
+			if ((is_zero_ether_addr(h->addr2) ||
+			     is_multicast_ether_addr(h->addr2))) {
 				WL_ERROR("wl%d: %s: dropping a frame with invalid src mac address, a2: %pM\n",
-					 wlc->pub->unit, __func__, &h->a2);
+					 wlc->pub->unit, __func__, &h->addr2);
 				WLCNTINCR(wlc->pub->_cnt->rxbadsrcmac);
 				goto toss;
 			}
@@ -7829,7 +7829,7 @@ int wlc_prep_pdu(struct wlc_info *wlc, struct sk_buff *pdu, uint *fifop)
 	struct osl_info *osh;
 	uint fifo;
 	d11txh_t *txh;
-	struct dot11_header *h;
+	struct ieee80211_hdr *h;
 	struct scb *scb;
 	u16 fc;
 
@@ -7838,9 +7838,9 @@ int wlc_prep_pdu(struct wlc_info *wlc, struct sk_buff *pdu, uint *fifop)
 	ASSERT(pdu);
 	txh = (d11txh_t *) (pdu->data);
 	ASSERT(txh);
-	h = (struct dot11_header *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
+	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
 	ASSERT(h);
-	fc = ltoh16(h->fc);
+	fc = ltoh16(h->frame_control);
 
 	/* get the pkt queue info. This was put at wlc_sendctl or wlc_send for PDU */
 	fifo = ltoh16(txh->TxFrameID) & TXFID_QUEUE_MASK;

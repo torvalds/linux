@@ -44,16 +44,6 @@
 
 #define DOT11_OUI_LEN			3
 
-struct dot11_header {
-	u16 fc;
-	u16 durid;
-	u8 a1[ETH_ALEN];
-	u8 a2[ETH_ALEN];
-	u8 a3[ETH_ALEN];
-	u16 seq;
-	u8 a4[ETH_ALEN];
-} __attribute__((packed));
-
 #define	DOT11_RTS_LEN		16
 #define	DOT11_CTS_LEN		10
 #define	DOT11_ACK_LEN		10

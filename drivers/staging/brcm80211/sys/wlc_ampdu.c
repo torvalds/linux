@@ -154,10 +154,10 @@ static void wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu,
 static inline u16 pkt_txh_seqnum(struct wlc_info *wlc, struct sk_buff *p)
 {
 	d11txh_t *txh;
-	struct dot11_header *h;
+	struct ieee80211_hdr *h;
 	txh = (d11txh_t *) p->data;
-	h = (struct dot11_header *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
-	return ltoh16(h->seq) >> SEQNUM_SHIFT;
+	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
+	return ltoh16(h->seq_ctrl) >> SEQNUM_SHIFT;
 }
 
 struct ampdu_info *wlc_ampdu_attach(struct wlc_info *wlc)
@@ -510,7 +510,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 	u32 ampdu_len, maxlen = 0;
 	d11txh_t *txh = NULL;
 	u8 *plcp;
-	struct dot11_header *h;
+	struct ieee80211_hdr *h;
 	struct scb *scb;
 	scb_ampdu_t *scb_ampdu;
 	scb_ampdu_tid_ini_t *ini;
@@ -596,8 +596,8 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 		ASSERT(tx_info->flags & IEEE80211_TX_CTL_AMPDU);
 		txh = (d11txh_t *) p->data;
 		plcp = (u8 *) (txh + 1);
-		h = (struct dot11_header *)(plcp + D11_PHY_HDR_LEN);
-		seq = ltoh16(h->seq) >> SEQNUM_SHIFT;
+		h = (struct ieee80211_hdr *)(plcp + D11_PHY_HDR_LEN);
+		seq = ltoh16(h->seq_ctrl) >> SEQNUM_SHIFT;
 		index = TX_SEQ_TO_INDEX(seq);
 
 		/* check mcl fields and test whether it can be agg'd */
@@ -968,7 +968,7 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	u8 bitmap[8], queue, tid;
 	d11txh_t *txh;
 	u8 *plcp;
-	struct dot11_header *h;
+	struct ieee80211_hdr *h;
 	u16 seq, start_seq = 0, bindex, index, mcl;
 	u8 mcs = 0;
 	bool ba_recd = false, ack_recd = false;
@@ -1089,8 +1089,8 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		txh = (d11txh_t *) p->data;
 		mcl = ltoh16(txh->MacTxControlLow);
 		plcp = (u8 *) (txh + 1);
-		h = (struct dot11_header *)(plcp + D11_PHY_HDR_LEN);
-		seq = ltoh16(h->seq) >> SEQNUM_SHIFT;
+		h = (struct ieee80211_hdr *)(plcp + D11_PHY_HDR_LEN);
+		seq = ltoh16(h->seq_ctrl) >> SEQNUM_SHIFT;
 
 		if (tot_mpdu == 0) {
 			mcs = plcp[0] & MIMO_PLCP_MCS_MASK;
