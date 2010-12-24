@@ -47,11 +47,7 @@ struct nfs_client {
 	u64			cl_clientid;	/* constant */
 	unsigned long		cl_state;
 
-	struct rb_root		cl_openowner_id;
-	struct rb_root		cl_lockowner_id;
-
 	struct list_head	cl_delegations;
-	struct rb_root		cl_state_owners;
 	spinlock_t		cl_lock;
 
 	unsigned long		cl_lease_time;
@@ -150,6 +146,11 @@ struct nfs_server {
 						   filesystem */
 	struct pnfs_layoutdriver_type  *pnfs_curr_ld; /* Active layout driver */
 	struct rpc_wait_queue	roc_rpcwaitq;
+
+	/* the following fields are protected by nfs_client->cl_lock */
+	struct rb_root		state_owners;
+	struct rb_root		openowner_id;
+	struct rb_root		lockowner_id;
 #endif
 	void (*destroy)(struct nfs_server *);
 

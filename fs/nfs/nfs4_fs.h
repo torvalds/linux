@@ -110,7 +110,7 @@ struct nfs_unique_id {
 struct nfs4_state_owner {
 	struct nfs_unique_id so_owner_id;
 	struct nfs_server    *so_server;
-	struct rb_node	     so_client_node;
+	struct rb_node	     so_server_node;
 
 	struct rpc_cred	     *so_cred;	 /* Associated cred */
 
