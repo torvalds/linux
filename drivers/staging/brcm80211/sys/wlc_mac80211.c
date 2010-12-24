@@ -737,9 +737,11 @@ void wlc_switch_shortslot(struct wlc_info *wlc, bool shortslot)
 	FOREACH_BSS(wlc, idx, cfg) {
 		if (!cfg->associated)
 			continue;
-		cfg->current_bss->capability &= ~DOT11_CAP_SHORTSLOT;
+		cfg->current_bss->capability &=
+					~WLAN_CAPABILITY_SHORT_SLOT_TIME;
 		if (wlc->shortslot)
-			cfg->current_bss->capability |= DOT11_CAP_SHORTSLOT;
+			cfg->current_bss->capability |=
+					WLAN_CAPABILITY_SHORT_SLOT_TIME;
 	}
 
 	wlc_bmac_set_shortslot(wlc->hw, shortslot);
@@ -1178,9 +1180,9 @@ void wlc_protection_upd(struct wlc_info *wlc, uint idx, int val)
 
 static void wlc_ht_update_sgi_rx(struct wlc_info *wlc, int val)
 {
-	wlc->ht_cap.cap &= ~(HT_CAP_SHORT_GI_20 | HT_CAP_SHORT_GI_40);
-	wlc->ht_cap.cap |= (val & WLC_N_SGI_20) ? HT_CAP_SHORT_GI_20 : 0;
-	wlc->ht_cap.cap |= (val & WLC_N_SGI_40) ? HT_CAP_SHORT_GI_40 : 0;
+	wlc->ht_cap.cap &= ~(IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40);
+	wlc->ht_cap.cap |= (val & WLC_N_SGI_20) ? IEEE80211_HT_CAP_SGI_20 : 0;
+	wlc->ht_cap.cap |= (val & WLC_N_SGI_40) ? IEEE80211_HT_CAP_SGI_40 : 0;
 
 	if (wlc->pub->up) {
 		wlc_update_beacon(wlc);
@@ -1192,9 +1194,9 @@ static void wlc_ht_update_ldpc(struct wlc_info *wlc, s8 val)
 {
 	wlc->stf->ldpc = val;
 
-	wlc->ht_cap.cap &= ~HT_CAP_LDPC_CODING;
+	wlc->ht_cap.cap &= ~IEEE80211_HT_CAP_LDPC_CODING;
 	if (wlc->stf->ldpc != OFF)
-		wlc->ht_cap.cap |= HT_CAP_LDPC_CODING;
+		wlc->ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
 
 	if (wlc->pub->up) {
 		wlc_update_beacon(wlc);
@@ -1987,14 +1989,14 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	if (n_disabled & WLFEATURE_DISABLE_11N_STBC_TX) {
 		wlc->bandstate[BAND_2G_INDEX]->band_stf_stbc_tx = OFF;
 		wlc->bandstate[BAND_5G_INDEX]->band_stf_stbc_tx = OFF;
-		wlc->ht_cap.cap &= ~HT_CAP_TX_STBC;
+		wlc->ht_cap.cap &= ~IEEE80211_HT_CAP_TX_STBC;
 	}
 	if (n_disabled & WLFEATURE_DISABLE_11N_STBC_RX)
 		wlc_stf_stbc_rx_set(wlc, HT_CAP_RX_STBC_NO);
 
 	/* apply the GF override from nvram conf */
 	if (n_disabled & WLFEATURE_DISABLE_11N_GF)
-		wlc->ht_cap.cap &= ~HT_CAP_GF;
+		wlc->ht_cap.cap &= ~IEEE80211_HT_CAP_GRN_FLD;
 
 	/* initialize radio_mpc_disable according to wlc->mpc */
 	wlc_radio_mpc_upd(wlc);
@@ -2872,16 +2874,17 @@ int wlc_set_gmode(struct wlc_info *wlc, u8 gmode, bool config)
 
 	if ((AP_ENAB(wlc->pub) && preamble != WLC_PLCP_LONG)
 	    || preamble == WLC_PLCP_SHORT)
-		wlc->default_bss->capability |= DOT11_CAP_SHORT;
+		wlc->default_bss->capability |= WLAN_CAPABILITY_SHORT_PREAMBLE;
 	else
-		wlc->default_bss->capability &= ~DOT11_CAP_SHORT;
+		wlc->default_bss->capability &= ~WLAN_CAPABILITY_SHORT_PREAMBLE;
 
 	/* Update shortslot capability bit for AP and IBSS */
 	if ((AP_ENAB(wlc->pub) && shortslot == WLC_SHORTSLOT_AUTO) ||
 	    shortslot == WLC_SHORTSLOT_ON)
-		wlc->default_bss->capability |= DOT11_CAP_SHORTSLOT;
+		wlc->default_bss->capability |= WLAN_CAPABILITY_SHORT_SLOT_TIME;
 	else
-		wlc->default_bss->capability &= ~DOT11_CAP_SHORTSLOT;
+		wlc->default_bss->capability &=
+					~WLAN_CAPABILITY_SHORT_SLOT_TIME;
 
 	/* Use the default 11g rateset */
 	if (!rs.count)
@@ -8280,7 +8283,7 @@ void wlc_reset_bmac_done(struct wlc_info *wlc)
 void wlc_ht_mimops_cap_update(struct wlc_info *wlc, u8 mimops_mode)
 {
 	wlc->ht_cap.cap &= ~HT_CAP_MIMO_PS_MASK;
-	wlc->ht_cap.cap |= (mimops_mode << HT_CAP_MIMO_PS_SHIFT);
+	wlc->ht_cap.cap |= (mimops_mode << IEEE80211_HT_CAP_SM_PS_SHIFT);
 
 	if (AP_ENAB(wlc->pub) && wlc->clk) {
 		wlc_update_beacon(wlc);

@@ -607,14 +607,14 @@ wl_iw_get_range(struct net_device *dev,
 
 	range->max_encoding_tokens = DOT11_MAX_DEFAULT_KEYS;
 	range->num_encoding_sizes = 4;
-	range->encoding_size[0] = WEP1_KEY_SIZE;
-	range->encoding_size[1] = WEP128_KEY_SIZE;
+	range->encoding_size[0] = WLAN_KEY_LEN_WEP40;
+	range->encoding_size[1] = WLAN_KEY_LEN_WEP104;
 #if WIRELESS_EXT > 17
-	range->encoding_size[2] = TKIP_KEY_SIZE;
+	range->encoding_size[2] = WLAN_KEY_LEN_TKIP;
 #else
 	range->encoding_size[2] = 0;
 #endif
-	range->encoding_size[3] = AES_KEY_SIZE;
+	range->encoding_size[3] = WLAN_KEY_LEN_AES_CMAC;
 
 	range->min_pmp = 0;
 	range->max_pmp = 0;
@@ -909,7 +909,7 @@ wl_iw_get_aplist(struct net_device *dev,
 		ASSERT(((unsigned long)bi + dtoh32(bi->length)) <=
 		       ((unsigned long)list + buflen));
 
-		if (!(dtoh16(bi->capability) & DOT11_CAP_ESS))
+		if (!(dtoh16(bi->capability) & WLAN_CAPABILITY_ESS))
 			continue;
 
 		memcpy(addr[dwrq->length].sa_data, &bi->BSSID, ETH_ALEN);
@@ -981,7 +981,7 @@ wl_iw_iscan_get_aplist(struct net_device *dev,
 			ASSERT(((unsigned long)bi + dtoh32(bi->length)) <=
 			       ((unsigned long)list + WLC_IW_ISCAN_MAXLEN));
 
-			if (!(dtoh16(bi->capability) & DOT11_CAP_ESS))
+			if (!(dtoh16(bi->capability) & WLAN_CAPABILITY_ESS))
 				continue;
 
 			memcpy(addr[dwrq->length].sa_data, &bi->BSSID,
@@ -1522,9 +1522,10 @@ wl_iw_get_scan_prep(wl_scan_results_t *list,
 		iwe.u.data.flags = 1;
 		event = IWE_STREAM_ADD_POINT(info, event, end, &iwe, bi->SSID);
 
-		if (dtoh16(bi->capability) & (DOT11_CAP_ESS | DOT11_CAP_IBSS)) {
+		if (dtoh16(bi->capability) & (WLAN_CAPABILITY_ESS |
+		    WLAN_CAPABILITY_IBSS)) {
 			iwe.cmd = SIOCGIWMODE;
-			if (dtoh16(bi->capability) & DOT11_CAP_ESS)
+			if (dtoh16(bi->capability) & WLAN_CAPABILITY_ESS)
 				iwe.u.mode = IW_MODE_INFRA;
 			else
 				iwe.u.mode = IW_MODE_ADHOC;
@@ -1559,7 +1560,7 @@ wl_iw_get_scan_prep(wl_scan_results_t *list,
 		wl_iw_handle_scanresults_ies(&event, end, info, bi);
 
 		iwe.cmd = SIOCGIWENCODE;
-		if (dtoh16(bi->capability) & DOT11_CAP_PRIVACY)
+		if (dtoh16(bi->capability) & WLAN_CAPABILITY_PRIVACY)
 			iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
 		else
 			iwe.u.data.flags = IW_ENCODE_DISABLED;
@@ -1800,9 +1801,10 @@ wl_iw_iscan_get_scan(struct net_device *dev,
 						 bi->SSID);
 
 			if (dtoh16(bi->capability) &
-			    (DOT11_CAP_ESS | DOT11_CAP_IBSS)) {
+			    (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)) {
 				iwe.cmd = SIOCGIWMODE;
-				if (dtoh16(bi->capability) & DOT11_CAP_ESS)
+				if (dtoh16(bi->capability) &
+				    WLAN_CAPABILITY_ESS)
 					iwe.u.mode = IW_MODE_INFRA;
 				else
 					iwe.u.mode = IW_MODE_ADHOC;
@@ -1840,7 +1842,7 @@ wl_iw_iscan_get_scan(struct net_device *dev,
 			wl_iw_handle_scanresults_ies(&event, end, info, bi);
 
 			iwe.cmd = SIOCGIWENCODE;
-			if (dtoh16(bi->capability) & DOT11_CAP_PRIVACY)
+			if (dtoh16(bi->capability) & WLAN_CAPABILITY_PRIVACY)
 				iwe.u.data.flags =
 				    IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
 			else
@@ -2361,16 +2363,16 @@ wl_iw_set_encode(struct net_device *dev,
 
 		key.flags = WL_PRIMARY_KEY;
 		switch (key.len) {
-		case WEP1_KEY_SIZE:
+		case WLAN_KEY_LEN_WEP40:
 			key.algo = CRYPTO_ALGO_WEP1;
 			break;
-		case WEP128_KEY_SIZE:
+		case WLAN_KEY_LEN_WEP104:
 			key.algo = CRYPTO_ALGO_WEP128;
 			break;
-		case TKIP_KEY_SIZE:
+		case WLAN_KEY_LEN_TKIP:
 			key.algo = CRYPTO_ALGO_TKIP;
 			break;
-		case AES_KEY_SIZE:
+		case WLAN_KEY_LEN_AES_CMAC:
 			key.algo = CRYPTO_ALGO_AES_CCM;
 			break;
 		default:
@@ -2602,7 +2604,7 @@ wl_iw_set_encodeext(struct net_device *dev,
 			key.algo = CRYPTO_ALGO_OFF;
 			break;
 		case IW_ENCODE_ALG_WEP:
-			if (iwe->key_len == WEP1_KEY_SIZE)
+			if (iwe->key_len == WLAN_KEY_LEN_WEP40)
 				key.algo = CRYPTO_ALGO_WEP1;
 			else
 				key.algo = CRYPTO_ALGO_WEP128;

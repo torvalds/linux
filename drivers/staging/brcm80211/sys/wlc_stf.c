@@ -167,9 +167,9 @@ static bool wlc_stf_stbc_tx_set(struct wlc_info *wlc, s32 int_val)
 
 	if ((int_val == OFF) || (wlc->stf->txstreams == 1)
 	    || !WLC_STBC_CAP_PHY(wlc))
-		wlc->ht_cap.cap &= ~HT_CAP_TX_STBC;
+		wlc->ht_cap.cap &= ~IEEE80211_HT_CAP_TX_STBC;
 	else
-		wlc->ht_cap.cap |= HT_CAP_TX_STBC;
+		wlc->ht_cap.cap |= IEEE80211_HT_CAP_TX_STBC;
 
 	wlc->bandstate[BAND_2G_INDEX]->band_stf_stbc_tx = (s8) int_val;
 	wlc->bandstate[BAND_5G_INDEX]->band_stf_stbc_tx = (s8) int_val;

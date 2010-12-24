@@ -168,12 +168,6 @@ typedef struct wme_param_ie wme_param_ie_t;
 #define DOT11_MNG_WPA_ID			221
 #define DOT11_MNG_VS_ID				221
 
-#define DOT11_CAP_ESS				0x0001
-#define DOT11_CAP_IBSS				0x0002
-#define DOT11_CAP_PRIVACY			0x0010
-#define DOT11_CAP_SHORT				0x0020
-#define DOT11_CAP_SHORTSLOT			0x0400
-
 #define DOT11_BSSTYPE_INFRASTRUCTURE		0
 #define DOT11_BSSTYPE_ANY			2
 #define DOT11_SCANTYPE_ACTIVE			0
@@ -235,21 +229,12 @@ typedef struct ht_cap_ie ht_cap_ie_t;
 
 #define HT_CAP_IE_LEN		26
 
-#define HT_CAP_LDPC_CODING	0x0001
-#define HT_CAP_40MHZ		0x0002
 #define HT_CAP_MIMO_PS_MASK	0x000C
-#define HT_CAP_MIMO_PS_SHIFT	0x0002
 #define HT_CAP_MIMO_PS_OFF	0x0003
 #define HT_CAP_MIMO_PS_ON	0x0000
-#define HT_CAP_GF		0x0010
-#define HT_CAP_SHORT_GI_20	0x0020
-#define HT_CAP_SHORT_GI_40	0x0040
-#define HT_CAP_TX_STBC		0x0080
 #define HT_CAP_RX_STBC_MASK	0x0300
 #define HT_CAP_RX_STBC_SHIFT	8
 #define HT_CAP_MAX_AMSDU	0x0800
-#define HT_CAP_DSSS_CCK	0x1000
-#define HT_CAP_40MHZ_INTOLERANT 0x4000
 
 #define HT_CAP_RX_STBC_NO		0x0
 #define HT_CAP_RX_STBC_ONE_STREAM	0x1
@@ -280,11 +265,6 @@ typedef struct ht_cap_ie ht_cap_ie_t;
 #define DOT11_MAX_DEFAULT_KEYS	4
 #define DOT11_MAX_KEY_SIZE	32
 #define DOT11_WPA_KEY_RSC_LEN   8
-
-#define WEP1_KEY_SIZE		5
-#define WEP128_KEY_SIZE		13
-#define TKIP_KEY_SIZE		32
-#define AES_KEY_SIZE		16
 
 #define BRCM_OUI		"\x00\x10\x18"
 
