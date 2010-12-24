@@ -76,15 +76,17 @@ else
 fi
 tmpdir="$objtree/debian/tmp"
 fwdir="$objtree/debian/fwtmp"
+hdrdir="$objtree/debian/hdrtmp"
 packagename=linux-image-$version
 fwpackagename=linux-firmware-image
+hdrpackagename=linux-headers-$version
 
 if [ "$ARCH" = "um" ] ; then
 	packagename=user-mode-linux-$version
 fi
 
 # Setup the directory structure
-rm -rf "$tmpdir" "$fwdir"
+rm -rf "$tmpdir" "$fwdir" "$hdrdir"
 mkdir -m 755 -p "$tmpdir/DEBIAN"
 mkdir -p  "$tmpdir/lib" "$tmpdir/boot" "$tmpdir/usr/share/doc/$packagename"
 mkdir -m 755 -p "$fwdir/DEBIAN"
@@ -225,6 +227,30 @@ Description: Linux kernel, version $version
 EOF
 
 fi
+
+# Build header package
+find . -name Makefile -o -name Kconfig\* -o -name \*.pl > /tmp/files$$
+find arch/x86/include include scripts -type f >> /tmp/files$$
+(cd $objtree; find .config Module.symvers include scripts -type f >> /tmp/objfiles$$)
+destdir=$hdrdir/usr/src/linux-headers-$version
+mkdir -p "$destdir" "$hdrdir/DEBIAN" "$hdrdir/usr/share/doc/$hdrpackagename"
+tar -c -f - -T /tmp/files$$ | (cd $destdir; tar -xf -)
+(cd $objtree; tar -c -f - -T /tmp/objfiles$$) | (cd $destdir; tar -xf -)
+rm -f /tmp/files$$ /tmp/objfiles$$
+arch=$(dpkg --print-architecture)
+
+cat <<EOF >> debian/control
+
+Package: $hdrpackagename
+Provides: linux-headers, linux-headers-2.6
+Architecture: $arch
+Description: Linux kernel headers for $KERNELRELEASE on $arch
+ This package provides kernel header files for $KERNELRELEASE on $arch
+ .
+ This is useful for people who need to build external modules
+EOF
+
+create_package "$hdrpackagename" "$hdrdir"
 
 # Do we have firmware? Move it out of the way and build it into a package.
 if [ -e "$tmpdir/lib/firmware" ]; then
