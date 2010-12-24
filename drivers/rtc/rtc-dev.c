@@ -104,7 +104,7 @@ static int clear_uie(struct rtc_device *rtc)
 		}
 		if (rtc->uie_task_active) {
 			spin_unlock_irq(&rtc->irq_lock);
-			flush_scheduled_work();
+			flush_work_sync(&rtc->uie_task);
 			spin_lock_irq(&rtc->irq_lock);
 		}
 		rtc->uie_irq_active = 0;
