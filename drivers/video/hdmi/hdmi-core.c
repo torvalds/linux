@@ -7,6 +7,7 @@
 
 struct class *hdmi_class;
 struct hdmi_id_ref_info {
+	struct hdmi *hdmi;
 	int id;
 	int ref;
 }ref_info[HDMI_MAX_ID];
@@ -76,6 +77,7 @@ int hdmi_register(struct device *parent, struct hdmi *hdmi)
 	}
 
 	dev_set_drvdata(hdmi->dev, hdmi);
+	ref_info[i].hdmi = hdmi;
 
 	INIT_WORK(&hdmi->changed_work, hdmi_changed_work);
 
@@ -99,8 +101,15 @@ void hdmi_unregister(struct hdmi *hdmi)
 	hdmi_remove_attrs(hdmi);
 	device_unregister(hdmi->dev);
 	ref_info[hdmi->id].ref = 0;
+	ref_info[hdmi->id].hdmi = NULL;
 }
-
+struct hdmi *get_hdmi_struct(int nr)
+{
+	if(ref_info[nr].ref == 0)
+		return NULL;
+	else
+		return ref_info[nr].hdmi;
+}
 static int __init hdmi_class_init(void)
 {
 	int i;
@@ -112,6 +121,7 @@ static int __init hdmi_class_init(void)
 	for(i = 0; i < HDMI_MAX_ID; i++) {
 		ref_info[i].id = i;
 		ref_info[i].ref = 0;
+		ref_info[i].hdmi = NULL;
 	}
 	return 0;
 }

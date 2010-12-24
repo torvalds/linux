@@ -67,6 +67,8 @@ extern int hdmi_codec_set_audio_fs(unsigned char audio_fs);
 extern int hdmi_fb_set_resolution(unsigned char resolution);
 
 extern int hdmi_switch_fb(int resolution, int type);
+extern int hdmi_resolution_changed(struct hdmi *hdmi, int xres, int yres);
 
+extern struct hdmi *get_hdmi_struct(int nr);
 
 #endif
