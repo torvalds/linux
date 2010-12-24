@@ -677,7 +677,8 @@ struct wlc_info {
 	s8 cck_40txbw;	/* 11N, cck tx b/w override when in 40MHZ mode */
 	s8 ofdm_40txbw;	/* 11N, ofdm tx b/w override when in 40MHZ mode */
 	s8 mimo_40txbw;	/* 11N, mimo tx b/w override when in 40MHZ mode */
-	ht_cap_ie_t ht_cap;	/* HT CAP IE being advertised by this node */
+	/* HT CAP IE being advertised by this node: */
+	struct ieee80211_ht_cap ht_cap;
 
 	uint seckeys;		/* 54 key table shm address */
 	uint tkmickeys;		/* 12 TKIP MIC key table shm address */

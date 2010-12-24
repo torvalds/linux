@@ -76,8 +76,8 @@ static void wlc_stf_stbc_rx_ht_update(struct wlc_info *wlc, int val)
 			return;
 	}
 
-	wlc->ht_cap.cap &= ~HT_CAP_RX_STBC_MASK;
-	wlc->ht_cap.cap |= (val << HT_CAP_RX_STBC_SHIFT);
+	wlc->ht_cap.cap_info &= ~HT_CAP_RX_STBC_MASK;
+	wlc->ht_cap.cap_info |= (val << HT_CAP_RX_STBC_SHIFT);
 
 	if (wlc->pub->up) {
 		wlc_update_beacon(wlc);
@@ -153,7 +153,8 @@ wlc_stf_ss_algo_channel_get(struct wlc_info *wlc, u16 *ss_algo_channel,
 
 static s8 wlc_stf_stbc_rx_get(struct wlc_info *wlc)
 {
-	return (wlc->ht_cap.cap & HT_CAP_RX_STBC_MASK) >> HT_CAP_RX_STBC_SHIFT;
+	return (wlc->ht_cap.cap_info & HT_CAP_RX_STBC_MASK)
+		>> HT_CAP_RX_STBC_SHIFT;
 }
 
 static bool wlc_stf_stbc_tx_set(struct wlc_info *wlc, s32 int_val)
@@ -167,9 +168,9 @@ static bool wlc_stf_stbc_tx_set(struct wlc_info *wlc, s32 int_val)
 
 	if ((int_val == OFF) || (wlc->stf->txstreams == 1)
 	    || !WLC_STBC_CAP_PHY(wlc))
-		wlc->ht_cap.cap &= ~IEEE80211_HT_CAP_TX_STBC;
+		wlc->ht_cap.cap_info &= ~IEEE80211_HT_CAP_TX_STBC;
 	else
-		wlc->ht_cap.cap |= IEEE80211_HT_CAP_TX_STBC;
+		wlc->ht_cap.cap_info |= IEEE80211_HT_CAP_TX_STBC;
 
 	wlc->bandstate[BAND_2G_INDEX]->band_stf_stbc_tx = (s8) int_val;
 	wlc->bandstate[BAND_5G_INDEX]->band_stf_stbc_tx = (s8) int_val;

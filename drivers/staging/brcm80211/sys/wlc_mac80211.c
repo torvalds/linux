@@ -1180,9 +1180,12 @@ void wlc_protection_upd(struct wlc_info *wlc, uint idx, int val)
 
 static void wlc_ht_update_sgi_rx(struct wlc_info *wlc, int val)
 {
-	wlc->ht_cap.cap &= ~(IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40);
-	wlc->ht_cap.cap |= (val & WLC_N_SGI_20) ? IEEE80211_HT_CAP_SGI_20 : 0;
-	wlc->ht_cap.cap |= (val & WLC_N_SGI_40) ? IEEE80211_HT_CAP_SGI_40 : 0;
+	wlc->ht_cap.cap_info &= ~(IEEE80211_HT_CAP_SGI_20 |
+					IEEE80211_HT_CAP_SGI_40);
+	wlc->ht_cap.cap_info |= (val & WLC_N_SGI_20) ?
+					IEEE80211_HT_CAP_SGI_20 : 0;
+	wlc->ht_cap.cap_info |= (val & WLC_N_SGI_40) ?
+					IEEE80211_HT_CAP_SGI_40 : 0;
 
 	if (wlc->pub->up) {
 		wlc_update_beacon(wlc);
@@ -1194,9 +1197,9 @@ static void wlc_ht_update_ldpc(struct wlc_info *wlc, s8 val)
 {
 	wlc->stf->ldpc = val;
 
-	wlc->ht_cap.cap &= ~IEEE80211_HT_CAP_LDPC_CODING;
+	wlc->ht_cap.cap_info &= ~IEEE80211_HT_CAP_LDPC_CODING;
 	if (wlc->stf->ldpc != OFF)
-		wlc->ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
+		wlc->ht_cap.cap_info |= IEEE80211_HT_CAP_LDPC_CODING;
 
 	if (wlc->pub->up) {
 		wlc_update_beacon(wlc);
@@ -1747,7 +1750,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	ASSERT(sizeof(struct ieee80211_hdr) == DOT11_A4_HDR_LEN);
 	ASSERT(sizeof(struct ieee80211_rts) == DOT11_RTS_LEN);
 	ASSERT(sizeof(tx_status_t) == TXSTATUS_LEN);
-	ASSERT(sizeof(ht_cap_ie_t) == HT_CAP_IE_LEN);
+	ASSERT(sizeof(struct ieee80211_ht_cap) == HT_CAP_IE_LEN);
 #ifdef BRCM_FULLMAC
 	ASSERT(offsetof(wl_scan_params_t, channel_list) ==
 	       WL_SCAN_PARAMS_FIXED_SIZE);
@@ -1951,7 +1954,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	wlc_wme_initparams_sta(wlc, &wlc->wme_param_ie);
 
 	wlc->mimoft = FT_HT;
-	wlc->ht_cap.cap = HT_CAP;
+	wlc->ht_cap.cap_info = HT_CAP;
 	if (HT_ENAB(wlc->pub))
 		wlc->stf->ldpc = AUTO;
 
@@ -1988,14 +1991,14 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	if (n_disabled & WLFEATURE_DISABLE_11N_STBC_TX) {
 		wlc->bandstate[BAND_2G_INDEX]->band_stf_stbc_tx = OFF;
 		wlc->bandstate[BAND_5G_INDEX]->band_stf_stbc_tx = OFF;
-		wlc->ht_cap.cap &= ~IEEE80211_HT_CAP_TX_STBC;
+		wlc->ht_cap.cap_info &= ~IEEE80211_HT_CAP_TX_STBC;
 	}
 	if (n_disabled & WLFEATURE_DISABLE_11N_STBC_RX)
 		wlc_stf_stbc_rx_set(wlc, HT_CAP_RX_STBC_NO);
 
 	/* apply the GF override from nvram conf */
 	if (n_disabled & WLFEATURE_DISABLE_11N_GF)
-		wlc->ht_cap.cap &= ~IEEE80211_HT_CAP_GRN_FLD;
+		wlc->ht_cap.cap_info &= ~IEEE80211_HT_CAP_GRN_FLD;
 
 	/* initialize radio_mpc_disable according to wlc->mpc */
 	wlc_radio_mpc_upd(wlc);
@@ -8282,8 +8285,8 @@ void wlc_reset_bmac_done(struct wlc_info *wlc)
 
 void wlc_ht_mimops_cap_update(struct wlc_info *wlc, u8 mimops_mode)
 {
-	wlc->ht_cap.cap &= ~HT_CAP_MIMO_PS_MASK;
-	wlc->ht_cap.cap |= (mimops_mode << IEEE80211_HT_CAP_SM_PS_SHIFT);
+	wlc->ht_cap.cap_info &= ~HT_CAP_MIMO_PS_MASK;
+	wlc->ht_cap.cap_info |= (mimops_mode << IEEE80211_HT_CAP_SM_PS_SHIFT);
 
 	if (AP_ENAB(wlc->pub) && wlc->clk) {
 		wlc_update_beacon(wlc);

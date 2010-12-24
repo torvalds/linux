@@ -189,16 +189,6 @@ typedef struct d11cnt {
 
 #define MCSSET_LEN	16
 
-struct ht_cap_ie {
-	u16 cap;
-	u8 params;
-	u8 supp_mcs[MCSSET_LEN];
-	u16 ext_htcap;
-	u32 txbf_cap;
-	u8 as_cap;
-} __attribute__((packed));
-typedef struct ht_cap_ie ht_cap_ie_t;
-
 #define HT_CAP_IE_LEN		26
 
 #define HT_CAP_MIMO_PS_MASK	0x000C
