@@ -9,7 +9,7 @@
 /* Base */
 #define LCD_ACLK		312000000
 
-#define OUT_TYPE		SCREEN_RGB
+#define OUT_TYPE		SCREEN_HDMI
 #define OUT_FACE		OUT_P888
 #define DCLK_POL		1
 #define SWAP_RB			0

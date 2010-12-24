@@ -579,11 +579,11 @@ void load_screen(struct fb_info *info, bool initscreen)
 		return ;
     }
 
-    if(inf->cur_screen == &inf->panel1_info)    {
-        inf->dclk_parent = clk_get(NULL, "general_pll");
-    }    else    {
+    if((inf->cur_screen->type == SCREEN_HDMI) || (inf->cur_screen->type == SCREEN_TVOUT)){
         inf->dclk_parent = clk_get(NULL, "codec_pll");
 		clk_set_rate(inf->dclk_parent, 297000000);
+    }    else    {
+        inf->dclk_parent = clk_get(NULL, "general_pll");
     }
 
     if (IS_ERR(inf->dclk_parent))

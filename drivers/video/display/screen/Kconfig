@@ -23,20 +23,10 @@ config LCD_NT35582
 	bool "MCU NT35582"
 config LCD_NT35580
 	bool "MCU NT35580"
+config LCD_ANX7150_720P
+	bool "anx7150 720p for default panel"
+	---help---
+	if you want set anx7150(720p 50hz) for default panel, android UI size is 1280x720.
 endchoice
 
-choice
-    depends on DISPLAY_SUPPORT
-	prompt  "TVOUT Chip Select"
-config TV_NULL
-	bool "NULL"
-endchoice
 
-choice
-    depends on DISPLAY_SUPPORT
-	prompt  "HDMI Chip Select"
-config HDMI_NULL
-	bool "NULL"
-config HDMI_ANX7150
-	bool "HDMI ANX7150"
-endchoice
