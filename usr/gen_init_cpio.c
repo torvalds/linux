@@ -309,15 +309,15 @@ static int cpio_mkfile(const char *name, const char *location,
 
 	mode |= S_IFREG;
 
-	retval = stat (location, &buf);
-	if (retval) {
-		fprintf (stderr, "File %s could not be located\n", location);
-		goto error;
-	}
-
 	file = open (location, O_RDONLY);
 	if (file < 0) {
 		fprintf (stderr, "File %s could not be opened for reading\n", location);
+		goto error;
+	}
+
+	retval = fstat (file, &buf);
+	if (retval) {
+		fprintf (stderr, "File %s could not be stat()'ed\n", location);
 		goto error;
 	}
 
