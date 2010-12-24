@@ -134,7 +134,7 @@ struct rsn_parms {
  * buffer length needed for wlc_format_ssid
  * 32 SSID chars, max of 4 chars for each SSID char "\xFF", plus NULL.
  */
-#define SSID_FMT_BUF_LEN	((4 * DOT11_MAX_SSID_LEN) + 1)
+#define SSID_FMT_BUF_LEN	((4 * IEEE80211_MAX_SSID_LEN) + 1)
 
 #define RSN_FLAGS_SUPPORTED		0x1	/* Flag for rsn_params */
 #define RSN_FLAGS_PREAUTH		0x2	/* Flag for WPA2 rsn_params */

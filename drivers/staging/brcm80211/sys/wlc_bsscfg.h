@@ -63,7 +63,7 @@ struct wlc_bsscfg {
 	bool sup_auth_pending;	/* flag for auth timeout */
 #endif
 	u8 SSID_len;		/* the length of SSID */
-	u8 SSID[DOT11_MAX_SSID_LEN];	/* SSID string */
+	u8 SSID[IEEE80211_MAX_SSID_LEN]; /* SSID string */
 	struct scb *bcmc_scb[MAXBANDS];	/* one bcmc_scb per band */
 	s8 _idx;		/* the index of this bsscfg,
 				 * assigned at wlc_bsscfg_alloc()

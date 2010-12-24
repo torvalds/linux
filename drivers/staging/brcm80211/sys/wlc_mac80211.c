@@ -67,7 +67,7 @@
  * buffer length needed for wlc_format_ssid
  * 32 SSID chars, max of 4 chars for each SSID char "\xFF", plus NULL.
  */
-#define SSID_FMT_BUF_LEN	((4 * DOT11_MAX_SSID_LEN) + 1)
+#define SSID_FMT_BUF_LEN	((4 * IEEE80211_MAX_SSID_LEN) + 1)
 
 #define	TIMER_INTERVAL_WATCHDOG	1000	/* watchdog timer, in unit of ms */
 #define	TIMER_INTERVAL_RADIOCHK	800	/* radio monitor timer, in unit of ms */
@@ -4963,8 +4963,8 @@ int wlc_format_ssid(char *buf, const unsigned char ssid[], uint ssid_len)
 	char *p = buf;
 	char *endp = buf + SSID_FMT_BUF_LEN;
 
-	if (ssid_len > DOT11_MAX_SSID_LEN)
-		ssid_len = DOT11_MAX_SSID_LEN;
+	if (ssid_len > IEEE80211_MAX_SSID_LEN)
+		ssid_len = IEEE80211_MAX_SSID_LEN;
 
 	for (i = 0; i < ssid_len; i++) {
 		c = (uint) ssid[i];
@@ -5708,7 +5708,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 
 	/* compute length of frame in bytes for use in PLCP computations */
 	len = pkttotlen(osh, p);
-	phylen = len + DOT11_FCS_LEN;
+	phylen = len + FCS_LEN;
 
 	/* If WEP enabled, add room in phylen for the additional bytes of
 	 * ICV which MAC generates.  We do NOT add the additional bytes to
@@ -6104,9 +6104,9 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 		ASSERT(IS_ALIGNED((unsigned long)txh->RTSPhyHeader, sizeof(u16)));
 		rts_plcp = txh->RTSPhyHeader;
 		if (use_cts)
-			rts_phylen = DOT11_CTS_LEN + DOT11_FCS_LEN;
+			rts_phylen = DOT11_CTS_LEN + FCS_LEN;
 		else
-			rts_phylen = DOT11_RTS_LEN + DOT11_FCS_LEN;
+			rts_phylen = DOT11_RTS_LEN + FCS_LEN;
 
 		wlc_compute_plcp(wlc, rts_rspec[0], rts_phylen, rts_plcp);
 
@@ -6627,7 +6627,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	tx_rts_count =
 	    (txs->status & TX_STATUS_RTS_RTX_MASK) >> TX_STATUS_RTS_RTX_SHIFT;
 
-	lastframe = (fc & FC_MOREFRAG) == 0;
+	lastframe = (fc & IEEE80211_FCTL_MOREFRAGS) == 0;
 
 	if (!lastframe) {
 		WL_ERROR("Not last frame!\n");
@@ -6945,7 +6945,7 @@ wlc_recvctl(struct wlc_info *wlc, struct osl_info *osh, d11rxhdr_t *rxh,
 	prep_mac80211_status(wlc, rxh, p, &rx_status);
 
 	/* mac header+body length, exclude CRC and plcp header */
-	len_mpdu = p->len - D11_PHY_HDR_LEN - DOT11_FCS_LEN;
+	len_mpdu = p->len - D11_PHY_HDR_LEN - FCS_LEN;
 	skb_pull(p, D11_PHY_HDR_LEN);
 	__skb_trim(p, len_mpdu);
 
@@ -7259,7 +7259,7 @@ wlc_calc_ba_time(struct wlc_info *wlc, ratespec_t rspec, u8 preamble_type)
 	/* BA len == 32 == 16(ctl hdr) + 4(ba len) + 8(bitmap) + 4(fcs) */
 	return wlc_calc_frame_time(wlc, rspec, preamble_type,
 				   (DOT11_BA_LEN + DOT11_BA_BITMAP_LEN +
-				    DOT11_FCS_LEN));
+				    FCS_LEN));
 }
 
 static uint BCMFASTPATH
@@ -7278,7 +7278,7 @@ wlc_calc_ack_time(struct wlc_info *wlc, ratespec_t rspec, u8 preamble_type)
 	/* ACK frame len == 14 == 2(fc) + 2(dur) + 6(ra) + 4(fcs) */
 	dur =
 	    wlc_calc_frame_time(wlc, rspec, preamble_type,
-				(DOT11_ACK_LEN + DOT11_FCS_LEN));
+				(DOT11_ACK_LEN + FCS_LEN));
 	return dur;
 }
 
@@ -7647,7 +7647,7 @@ wlc_bcn_prb_template(struct wlc_info *wlc, uint type, ratespec_t bcn_rspec,
 	if (type == FC_BEACON && !MBSS_BCN_ENAB(cfg)) {
 		/* fill in PLCP */
 		wlc_compute_plcp(wlc, bcn_rspec,
-				 (DOT11_MAC_HDR_LEN + body_len + DOT11_FCS_LEN),
+				 (DOT11_MAC_HDR_LEN + body_len + FCS_LEN),
 				 (u8 *) plcp);
 
 	}
@@ -7757,13 +7757,13 @@ void wlc_shm_ssid_upd(struct wlc_info *wlc, wlc_bsscfg_t *cfg)
 {
 	u8 *ssidptr = cfg->SSID;
 	u16 base = M_SSID;
-	u8 ssidbuf[DOT11_MAX_SSID_LEN];
+	u8 ssidbuf[IEEE80211_MAX_SSID_LEN];
 
 	/* padding the ssid with zero and copy it into shm */
-	memset(ssidbuf, 0, DOT11_MAX_SSID_LEN);
+	memset(ssidbuf, 0, IEEE80211_MAX_SSID_LEN);
 	bcopy(ssidptr, ssidbuf, cfg->SSID_len);
 
-	wlc_copyto_shm(wlc, base, ssidbuf, DOT11_MAX_SSID_LEN);
+	wlc_copyto_shm(wlc, base, ssidbuf, IEEE80211_MAX_SSID_LEN);
 
 	if (!MBSS_BCN_ENAB(cfg))
 		wlc_write_shm(wlc, M_SSIDLEN, (u16) cfg->SSID_len);
@@ -7812,7 +7812,7 @@ wlc_bss_update_probe_resp(struct wlc_info *wlc, wlc_bsscfg_t *cfg, bool suspend)
 		 * Use the actual frame length covered by the PLCP header for the call to
 		 * wlc_mod_prb_rsp_rate_table() by subtracting the PLCP len and adding the FCS.
 		 */
-		len += (-D11_PHY_HDR_LEN + DOT11_FCS_LEN);
+		len += (-D11_PHY_HDR_LEN + FCS_LEN);
 		wlc_mod_prb_rsp_rate_table(wlc, (u16) len);
 
 		if (suspend)

@@ -22,13 +22,10 @@
 #define DOT11_A3_HDR_LEN		24
 #define DOT11_A4_HDR_LEN		30
 #define DOT11_MAC_HDR_LEN		DOT11_A3_HDR_LEN
-#define DOT11_FCS_LEN			4
 #define DOT11_ICV_AES_LEN		8
 #define DOT11_QOS_LEN			2
 
 #define DOT11_IV_MAX_LEN		8
-
-#define DOT11_MAX_SSID_LEN		32
 
 #define DOT11_DEFAULT_RTS_LEN		2347
 
@@ -131,7 +128,6 @@ typedef struct wme_param_ie wme_param_ie_t;
 #define FC_TYPE_SHIFT		2
 #define FC_SUBTYPE_MASK		0xF0
 #define FC_SUBTYPE_SHIFT	4
-#define FC_MOREFRAG		0x400
 
 #define SEQNUM_SHIFT		4
 #define SEQNUM_MAX		0x1000
@@ -150,12 +146,12 @@ typedef struct wme_param_ie wme_param_ie_t;
 
 #define FC_SUBTYPE_ANY_QOS(s)		(((s) & 8) != 0)
 
-#define FC_KIND_MASK		(FC_TYPE_MASK | FC_SUBTYPE_MASK)
+#define FC_KIND_MASK		(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)
 
 #define FC_KIND(t, s)	(((t) << FC_TYPE_SHIFT) | ((s) << FC_SUBTYPE_SHIFT))
 
-#define FC_SUBTYPE(fc)	(((fc) & FC_SUBTYPE_MASK) >> FC_SUBTYPE_SHIFT)
-#define FC_TYPE(fc)	(((fc) & FC_TYPE_MASK) >> FC_TYPE_SHIFT)
+#define FC_SUBTYPE(fc)	(((fc) & IEEE80211_FCTL_STYPE) >> FC_SUBTYPE_SHIFT)
+#define FC_TYPE(fc)	(((fc) & IEEE80211_FCTL_FTYPE) >> FC_TYPE_SHIFT)
 
 #define FC_PROBE_REQ	FC_KIND(FC_TYPE_MNG, FC_SUBTYPE_PROBE_REQ)
 #define FC_PROBE_RESP	FC_KIND(FC_TYPE_MNG, FC_SUBTYPE_PROBE_RESP)
