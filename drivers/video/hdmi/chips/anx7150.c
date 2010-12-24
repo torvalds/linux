@@ -392,7 +392,7 @@ static int anx7150_i2c_probe(struct i2c_client *client,const struct i2c_device_i
 		ANX7150_API_Initial(client);
 		queue_delayed_work(anx->dev.workqueue, &anx->dev.delay_work, 200);
 	}
-    hdmi_dbg(&client->dev, "anx7150 i2c probe ok\n");
+    dev_info(&client->dev, "anx7150 i2c probe ok\n");
     return 0;
 	
 err_request_irq:

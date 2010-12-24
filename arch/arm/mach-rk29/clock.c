@@ -2324,14 +2324,6 @@ static void __init clk_enable_init_clocks(void)
 #ifdef CONFIG_DEBUG_LL
 	clk_enable_nolock(&clk_uart1);
 #endif
-	/* vpu */
-	clk_enable_nolock(&aclk_vdpu);
-	clk_enable_nolock(&hclk_vdpu);
-	clk_enable_nolock(&clk_aclk_ddr_vdpu);
-	clk_enable_nolock(&aclk_vepu);
-	clk_enable_nolock(&hclk_vepu);
-	clk_enable_nolock(&clk_aclk_ddr_vepu);
-	clk_enable_nolock(&clk_hclk_cpu_vcodec);
 }
 
 static int __init clk_disable_unused(void)
@@ -2349,7 +2341,7 @@ static int __init clk_disable_unused(void)
 	}
 	mutex_unlock(&clocks_mutex);
 
-//	pmu_set_power_domain(PD_VCODEC, false);
+	pmu_set_power_domain(PD_VCODEC, false);
 //	pmu_set_power_domain(PD_DISPLAY, false);
 //	pmu_set_power_domain(PD_GPU, false);
 

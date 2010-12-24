@@ -7,9 +7,11 @@
 
 
 /* Base */
+#define LCD_ACLK		312000000
+
 #define OUT_TYPE		SCREEN_RGB
 #define OUT_FACE		OUT_P888
-#define DCLK_POL		0
+#define DCLK_POL		1
 #define SWAP_RB			0
 
 /* 720p@60Hz Timing */
@@ -86,6 +88,7 @@ static void hdmi_set_info(struct rk29fb_screen *screen)
 
     /* Timing */
     screen->pixclock = OUT_CLK;
+	screen4->lcdc_aclk = LCD_ACLK;
 	screen->left_margin = H_BP;
 	screen->right_margin = H_FP;
 	screen->hsync_len = H_PW;
@@ -122,6 +125,7 @@ static void hdmi_set_info(struct rk29fb_screen *screen)
 
     /* Timing */
     screen2->pixclock = OUT_CLK2;
+	screen2->lcdc_aclk = LCD_ACLK;
 	screen2->left_margin = H_BP2;
 	screen2->right_margin = H_FP2;
 	screen2->hsync_len = H_PW2;
@@ -157,6 +161,7 @@ static void hdmi_set_info(struct rk29fb_screen *screen)
 
 	/* Timing */
 	screen3->pixclock = OUT_CLK3;
+	screen3->lcdc_aclk = LCD_ACLK;
 	screen3->left_margin = H_BP3;
 	screen3->right_margin = H_FP3;
 	screen3->hsync_len = H_PW3;
@@ -191,6 +196,7 @@ static void hdmi_set_info(struct rk29fb_screen *screen)
 
 	/* Timing */
 	screen4->pixclock = OUT_CLK4;
+	screen4->lcdc_aclk = LCD_ACLK;
 	screen4->left_margin = H_BP4;
 	screen4->right_margin = H_FP4;
 	screen4->hsync_len = H_PW4;
@@ -243,4 +249,21 @@ int hdmi_switch_fb(int resolution, int type)
 	}
 	return rc;
 }
-
+int hdmi_resolution_changed(struct hdmi *hdmi, int xres, int yres)
+{
+	if(xres > 1280 && hdmi->resolution != HDMI_1920x1080p_50Hz) {
+		hdmi->resolution = HDMI_1920x1080p_50Hz;
+		hdmi->display_on = 1;
+		hdmi->hdmi_set_param(hdmi);
+	}
+	else if(xres >1024 && hdmi->resolution != HDMI_1280x720p_50Hz){
+		hdmi->resolution = HDMI_1280x720p_50Hz;
+		hdmi->display_on = 1;
+		hdmi->hdmi_set_param(hdmi);
+	}
+	else {
+		if(hdmi->display_on == 1)
+			hdmi->hdmi_display_off(hdmi);
+	}
+	return 0;
+}

@@ -1064,6 +1064,7 @@ int ANX7150_Interrupt_Process(struct anx7150_pdata *anx, int cur_state)
 		anx->dev.HPD_change_cnt = 0;
 		anx->dev.HPD_status = hot_plug;
 	}
+	return state;
 	if(state != HDMI_INITIAL && state != WAIT_HOTPLUG){
 		if(interrupt_staus.video_format_change){
 			if(state > SYSTEM_CONFIG){
