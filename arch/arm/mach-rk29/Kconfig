@@ -43,14 +43,6 @@ config RK29_VPU_DEBUG
           This is an option for the developers; most people should
           say N here.  This enables RK29 VPU driver debugging.
 
-config RK29_VPU_HW_PERFORMANCE
-	bool "RK29 VPU HW_PERFORMANCE ioctl support"
-        depends on RK29_VPU != n
-	default n
-        help
-          This is an option for the developers; most people should
-          say N here.  This enables RK29 VPU driver HW_PERFORMANCE ioctl.
-
 endmenu
 
 endif

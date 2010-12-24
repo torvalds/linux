@@ -31,18 +31,7 @@
 /* Use 'k' as magic number */
 #define VPU_IOC_MAGIC  'k'
 
-#define VPU_IOC_PP_INSTANCE     _IO(VPU_IOC_MAGIC, 1)   /* the client is pp instance */
-#define VPU_IOC_HW_PERFORMANCE  _IO(VPU_IOC_MAGIC, 2)   /* get monotonic time (struct timespec) for HW performance */
-
-#define VPU_IOC_GHWOFFSET       _IOR(VPU_IOC_MAGIC, 3, unsigned long *)
-#define VPU_IOC_GHWIOSIZE       _IOR(VPU_IOC_MAGIC, 4, unsigned int *)
-
-#define VPU_IOC_CLI             _IO(VPU_IOC_MAGIC, 5)
-#define VPU_IOC_STI             _IO(VPU_IOC_MAGIC, 6)
-
-#define VPU_IOC_DEC_INSTANCE    _IO(VPU_IOC_MAGIC, 7)
-#define VPU_IOC_ENC_INSTANCE    _IO(VPU_IOC_MAGIC, 8)
-
-#define VPU_IOC_MAXNR           8
+#define VPU_IOC_POWER_ON	_IO(VPU_IOC_MAGIC, 1)
+#define VPU_IOC_POWER_OFF	_IO(VPU_IOC_MAGIC, 2)
 
 #endif
