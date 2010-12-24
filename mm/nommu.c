@@ -328,6 +328,7 @@ void *vmalloc_node(unsigned long size, int node)
 {
 	return vmalloc(size);
 }
+EXPORT_SYMBOL(vmalloc_node);
 
 /**
  * vzalloc_node - allocate memory on a specific node with zero fill
