@@ -7971,13 +7971,14 @@ static int set_block_group_ro(struct btrfs_block_group_cache *cache)
 
 	if (sinfo->bytes_used + sinfo->bytes_reserved + sinfo->bytes_pinned +
 	    sinfo->bytes_may_use + sinfo->bytes_readonly +
-	    cache->reserved_pinned + num_bytes < sinfo->total_bytes) {
+	    cache->reserved_pinned + num_bytes <= sinfo->total_bytes) {
 		sinfo->bytes_readonly += num_bytes;
 		sinfo->bytes_reserved += cache->reserved_pinned;
 		cache->reserved_pinned = 0;
 		cache->ro = 1;
 		ret = 0;
 	}
+
 	spin_unlock(&cache->lock);
 	spin_unlock(&sinfo->lock);
 	return ret;
