@@ -54,13 +54,6 @@ struct dot11_header {
 	u8 a4[ETH_ALEN];
 } __attribute__((packed));
 
-struct dot11_rts_frame {
-	u16 fc;
-	u16 durid;
-	u8 ra[ETH_ALEN];
-	u8 ta[ETH_ALEN];
-} __attribute__((packed));
-
 #define	DOT11_RTS_LEN		16
 #define	DOT11_CTS_LEN		10
 #define	DOT11_ACK_LEN		10

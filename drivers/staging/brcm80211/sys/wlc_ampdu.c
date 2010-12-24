@@ -519,7 +519,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 	ratespec_t rspec = 0, rspec_fallback = 0;
 	ratespec_t rts_rspec = 0, rts_rspec_fallback = 0;
 	u16 mimo_ctlchbw = PHY_TXC1_BW_20MHZ;
-	struct dot11_rts_frame *rts;
+	struct ieee80211_rts *rts;
 	u8 rr_retry_limit;
 	wlc_fifo_info_t *f;
 	bool fbr_iscck;
@@ -639,8 +639,8 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 			mcl |= (TXC_AMPDU_FIRST << TXC_AMPDU_SHIFT);
 			/* refill the bits since might be a retx mpdu */
 			mcl |= TXC_STARTMSDU;
-			rts = (struct dot11_rts_frame *)&txh->rts_frame;
-			fc = ltoh16(rts->fc);
+			rts = (struct ieee80211_rts *)&txh->rts_frame;
+			fc = ltoh16(rts->frame_control);
 			if ((fc & FC_KIND_MASK) == FC_RTS) {
 				mcl |= TXC_SENDRTS;
 				use_rts = true;
@@ -837,7 +837,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 		/* update RTS dur fields */
 		if (use_rts || use_cts) {
 			u16 durid;
-			rts = (struct dot11_rts_frame *)&txh->rts_frame;
+			rts = (struct ieee80211_rts *)&txh->rts_frame;
 			if ((mch & TXC_PREAMBLE_RTS_MAIN_SHORT) ==
 			    TXC_PREAMBLE_RTS_MAIN_SHORT)
 				rts_preamble_type = WLC_SHORT_PREAMBLE;
@@ -851,7 +851,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 						   rspec, rts_preamble_type,
 						   preamble_type, ampdu_len,
 						   true);
-			rts->durid = htol16(durid);
+			rts->duration = htol16(durid);
 			durid = wlc_compute_rtscts_dur(wlc, use_cts,
 						       rts_rspec_fallback,
 						       rspec_fallback,
@@ -860,7 +860,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, wlc_txq_info_t *qi,
 						       ampdu_len, true);
 			txh->RTSDurFallback = htol16(durid);
 			/* set TxFesTimeNormal */
-			txh->TxFesTimeNormal = rts->durid;
+			txh->TxFesTimeNormal = rts->duration;
 			/* set fallback rate version of TxFesTimeNormal */
 			txh->TxFesTimeFallback = txh->RTSDurFallback;
 		}

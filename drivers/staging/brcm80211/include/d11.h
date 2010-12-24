@@ -736,7 +736,7 @@ struct d11txh {
 	u16 MaxABytes_FBR;	/* 0x2a corerev >=16 */
 	u16 MinMBytes;	/* 0x2b corerev >=16 */
 	u8 RTSPhyHeader[D11_PHY_HDR_LEN];	/* 0x2c - 0x2e */
-	struct dot11_rts_frame rts_frame;	/* 0x2f - 0x36 */
+	struct ieee80211_rts rts_frame;	/* 0x2f - 0x36 */
 	u16 PAD;		/* 0x37 */
 } __attribute__((packed));
 

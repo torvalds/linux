@@ -1743,7 +1743,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	ASSERT(sizeof(d11txh_t) == D11_TXH_LEN);
 	ASSERT(sizeof(d11rxhdr_t) == RXHDR_LEN);
 	ASSERT(sizeof(struct dot11_header) == DOT11_A4_HDR_LEN);
-	ASSERT(sizeof(struct dot11_rts_frame) == DOT11_RTS_LEN);
+	ASSERT(sizeof(struct ieee80211_rts) == DOT11_RTS_LEN);
 	ASSERT(sizeof(struct dot11_management_header) == DOT11_MGMT_HDR_LEN);
 	ASSERT(sizeof(struct dot11_bcn_prb) == DOT11_BCN_PRB_LEN);
 	ASSERT(sizeof(tx_status_t) == TXSTATUS_LEN);
@@ -4865,7 +4865,7 @@ void wlc_print_txdesc(d11txh_t *txh)
 	u16 mmbyte = ltoh16(txh->MinMBytes);
 
 	u8 *rtsph = txh->RTSPhyHeader;
-	struct dot11_rts_frame rts = txh->rts_frame;
+	struct ieee80211_rts rts = txh->rts_frame;
 	char hexbuf[256];
 
 	/* add plcp header along with txh descriptor */
@@ -5674,7 +5674,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	u8 preamble_type[2] = { WLC_LONG_PREAMBLE, WLC_LONG_PREAMBLE };
 	u8 rts_preamble_type[2] = { WLC_LONG_PREAMBLE, WLC_LONG_PREAMBLE };
 	u8 *rts_plcp, rts_plcp_fallback[D11_PHY_HDR_LEN];
-	struct dot11_rts_frame *rts = NULL;
+	struct ieee80211_rts *rts = NULL;
 	bool qos;
 	uint ac;
 	u32 rate_val[2];
@@ -6118,12 +6118,12 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 		      sizeof(txh->RTSPLCPFallback));
 
 		/* RTS frame fields... */
-		rts = (struct dot11_rts_frame *)&txh->rts_frame;
+		rts = (struct ieee80211_rts *)&txh->rts_frame;
 
 		durid = wlc_compute_rtscts_dur(wlc, use_cts, rts_rspec[0],
 					       rspec[0], rts_preamble_type[0],
 					       preamble_type[0], phylen, false);
-		rts->durid = htol16(durid);
+		rts->duration = htol16(durid);
 		/* fallback rate version of RTS DUR field */
 		durid = wlc_compute_rtscts_dur(wlc, use_cts,
 					       rts_rspec[1], rspec[1],
@@ -6132,10 +6132,10 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 		txh->RTSDurFallback = htol16(durid);
 
 		if (use_cts) {
-			rts->fc = htol16(FC_CTS);
+			rts->frame_control = htol16(FC_CTS);
 			bcopy((char *)&h->a2, (char *)&rts->ra, ETH_ALEN);
 		} else {
-			rts->fc = htol16((u16) FC_RTS);
+			rts->frame_control = htol16((u16) FC_RTS);
 			bcopy((char *)&h->a1, (char *)&rts->ra,
 			      2 * ETH_ALEN);
 		}
@@ -6150,7 +6150,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	} else {
 		memset((char *)txh->RTSPhyHeader, 0, D11_PHY_HDR_LEN);
 		memset((char *)&txh->rts_frame, 0,
-			sizeof(struct dot11_rts_frame));
+			sizeof(struct ieee80211_rts));
 		memset((char *)txh->RTSPLCPFallback, 0,
 		      sizeof(txh->RTSPLCPFallback));
 		txh->RTSDurFallback = 0;
@@ -6257,7 +6257,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 				    wlc_calc_cts_time(wlc, rts_rspec[1],
 						      rts_preamble_type[1]);
 				/* (SIFS + CTS) + SIFS + frame + SIFS + ACK */
-				dur += ltoh16(rts->durid);
+				dur += ltoh16(rts->duration);
 				dur_fallback += ltoh16(txh->RTSDurFallback);
 			} else if (use_rifs) {
 				dur = frag_dur;
