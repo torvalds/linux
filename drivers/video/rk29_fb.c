@@ -49,6 +49,7 @@
 #include <mach/gpio.h>
 #include <mach/board.h>
 #include <mach/rk29_iomap.h>
+#include <mach/pmu.h>
 //#include <asm/uaccess.h>
 
 #include "./display/screen/screen.h"
@@ -151,6 +152,9 @@ struct rk29fb_inf {
     struct clk      *dclk_divider;    //lcdc demodulator divider frequency
     struct clk      *aclk;   //lcdc share memory frequency
     struct clk      *aclk_parent;     //lcdc aclk divider frequency source
+    struct clk      *aclk_ddr_lcdc;   //DDR LCDC AXI clock disable.
+    struct clk      *aclk_disp_matrix;  //DISPLAY matrix AXI clock disable.
+    struct clk      *hclk_cpu_display;  //CPU DISPLAY AHB bus clock disable.
     unsigned long	dclk_rate;
 
     /* lcdc reg base address and backup reg */
@@ -405,12 +409,19 @@ int init_lcdc(struct fb_info *info)
 
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
+    pmu_set_power_domain(PD_DISPLAY, 1);
     inf->clk = clk_get(NULL, "hclk_lcdc");
-    if (IS_ERR(inf->clk))
+    inf->aclk_ddr_lcdc = clk_get(NULL, "aclk_ddr_lcdc");
+    inf->aclk_disp_matrix = clk_get(NULL, "aclk_disp_matrix");
+    inf->hclk_cpu_display = clk_get(NULL, "hclk_cpu_display");
+    if ((IS_ERR(inf->clk)) || (IS_ERR(inf->aclk_ddr_lcdc)) || (IS_ERR(inf->aclk_disp_matrix)) ||(IS_ERR(inf->hclk_cpu_display)))
     {
         printk(KERN_ERR "failed to get lcdc_hclk source\n");
         return PTR_ERR(inf->clk);
     }
+    clk_enable(inf->aclk_ddr_lcdc);
+    clk_enable(inf->aclk_disp_matrix);
+    clk_enable(inf->hclk_cpu_display);
     clk_enable(inf->clk);
 
 	// set AHB access rule and disable all windows
@@ -603,11 +614,16 @@ void load_screen(struct fb_info *info, bool initscreen)
         clk_disable(inf->aclk);
     }
 
+    clk_disable(inf->aclk_ddr_lcdc);
+    clk_disable(inf->aclk_disp_matrix);
+    clk_disable(inf->hclk_cpu_display);
+
+    clk_disable(inf->clk);
     clk_set_parent(inf->dclk_divider, inf->dclk_parent);
     clk_set_parent(inf->dclk, inf->dclk_divider);
-    clk_set_parent(inf->aclk, inf->aclk_parent);
+    ret = clk_set_parent(inf->aclk, inf->aclk_parent);
 
-    fbprintk(">>>>>> set lcdc dclk need %d HZ, clk_parent = %d hz \n ", screen->pixclock, screen->lcdc_aclk);
+    fbprintk(">>>>>> set lcdc dclk need %d HZ, clk_parent = %d hz ret =%d\n ", screen->pixclock, screen->lcdc_aclk, ret);
 
     ret = clk_set_rate(inf->dclk_divider, screen->pixclock);
     if(ret)
@@ -625,6 +641,11 @@ void load_screen(struct fb_info *info, bool initscreen)
 
     clk_enable(inf->dclk);
     clk_enable(inf->aclk);
+    clk_enable(inf->clk);
+
+    clk_enable(inf->aclk_ddr_lcdc);
+    clk_enable(inf->aclk_disp_matrix);
+    clk_enable(inf->hclk_cpu_display);
 
     // init screen panel
     if(screen->init)
@@ -1193,9 +1214,9 @@ static int fb0_set_par(struct fb_info *info)
     if(inf->video_mode == 1)
     {
         par->xpos = (screen->x_res - var->xres)/2;              //visiable offset in panel
-        par->ypos = (screen->y_res - var->yres)/2;
-        par->xsize = screen->x_res;                            //visiable size in panel
-        par->ysize = screen->y_res;
+        par->ypos = (screen->y_res - var->yres);
+        par->xsize = var->xres;                                //visiable size in panel
+        par->ysize = var->yres;
         win1_set_par(info);
     }
     else
@@ -1816,13 +1837,17 @@ void suspend(struct early_suspend *h)
 	{
 		fbprintk(">>>>>> diable the lcdc clk! \n");
 		msleep(100);
+        clk_disable(inf->aclk_ddr_lcdc);
+        clk_disable(inf->aclk_disp_matrix);
+        clk_disable(inf->hclk_cpu_display);
+        clk_disable(inf->clk);
     	if (inf->dclk){
             clk_disable(inf->dclk);
         }
         if(inf->clk){
             clk_disable(inf->aclk);
         }
-
+        pmu_set_power_domain(PD_DISPLAY, 0);
 		inf->in_suspend = 1;
 	}
 
@@ -1844,7 +1869,12 @@ void resume(struct early_suspend *h)
 	if(inf->in_suspend)
 	{
 	    inf->in_suspend = 0;
+        pmu_set_power_domain(PD_DISPLAY, 1);
     	fbprintk(">>>>>> enable the lcdc clk! \n");
+        clk_enable(inf->aclk_ddr_lcdc);
+        clk_enable(inf->aclk_disp_matrix);
+        clk_enable(inf->hclk_cpu_display);
+        clk_enable(inf->clk);
         if (inf->dclk){
             clk_enable(inf->dclk);
         }
