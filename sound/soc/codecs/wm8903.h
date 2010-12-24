@@ -1200,8 +1200,6 @@ extern int wm8903_mic_detect(struct snd_soc_codec *codec,
 #define WM8903_IRQ_POL_WIDTH                         1  /* IRQ_POL */
 
 /*
-
-/*
  * R164 (0xA4) - Clock Rate Test 4
  */
 #define WM8903_ADC_DIG_MIC                      0x0200  /* ADC_DIG_MIC */
