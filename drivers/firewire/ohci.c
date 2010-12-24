@@ -125,6 +125,7 @@ struct context {
 	struct fw_ohci *ohci;
 	u32 regs;
 	int total_allocation;
+	bool flushing;
 
 	/*
 	 * List of page-sized buffers for storing DMA descriptors.
@@ -1356,6 +1357,17 @@ static int at_context_queue_packet(struct context *ctx,
 	return 0;
 }
 
+static void at_context_flush(struct context *ctx)
+{
+	tasklet_disable(&ctx->tasklet);
+
+	ctx->flushing = true;
+	context_tasklet((unsigned long)ctx);
+	ctx->flushing = false;
+
+	tasklet_enable(&ctx->tasklet);
+}
+
 static int handle_at_packet(struct context *context,
 			    struct descriptor *d,
 			    struct descriptor *last)
@@ -1365,7 +1377,7 @@ static int handle_at_packet(struct context *context,
 	struct fw_ohci *ohci = context->ohci;
 	int evt;
 
-	if (last->transfer_status == 0)
+	if (last->transfer_status == 0 && !context->flushing)
 		/* This descriptor isn't done yet, stop iteration. */
 		return 0;
 
@@ -1399,11 +1411,15 @@ static int handle_at_packet(struct context *context,
 		break;
 
 	case OHCI1394_evt_missing_ack:
-		/*
-		 * Using a valid (current) generation count, but the
-		 * node is not on the bus or not sending acks.
-		 */
-		packet->ack = RCODE_NO_ACK;
+		if (context->flushing)
+			packet->ack = RCODE_GENERATION;
+		else {
+			/*
+			 * Using a valid (current) generation count, but the
+			 * node is not on the bus or not sending acks.
+			 */
+			packet->ack = RCODE_NO_ACK;
+		}
 		break;
 
 	case ACK_COMPLETE + 0x10:
@@ -1415,6 +1431,13 @@ static int handle_at_packet(struct context *context,
 	case ACK_TYPE_ERROR + 0x10:
 		packet->ack = evt - 0x10;
 		break;
+
+	case OHCI1394_evt_no_status:
+		if (context->flushing) {
+			packet->ack = RCODE_GENERATION;
+			break;
+		}
+		/* fall through */
 
 	default:
 		packet->ack = RCODE_SEND_ERROR;
@@ -1721,9 +1744,18 @@ static void bus_reset_tasklet(unsigned long data)
 	/* FIXME: Document how the locking works. */
 	spin_lock_irqsave(&ohci->lock, flags);
 
-	ohci->generation = generation;
+	ohci->generation = -1; /* prevent AT packet queueing */
 	context_stop(&ohci->at_request_ctx);
 	context_stop(&ohci->at_response_ctx);
+
+	spin_unlock_irqrestore(&ohci->lock, flags);
+
+	at_context_flush(&ohci->at_request_ctx);
+	at_context_flush(&ohci->at_response_ctx);
+
+	spin_lock_irqsave(&ohci->lock, flags);
+
+	ohci->generation = generation;
 	reg_write(ohci, OHCI1394_IntEventClear, OHCI1394_busReset);
 
 	if (ohci->quirks & QUIRK_RESET_PACKET)
