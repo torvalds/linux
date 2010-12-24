@@ -30,7 +30,7 @@
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhdioctl.h>
-
+#include <linux/ieee80211.h>
 typedef const struct si_pub si_t;
 #include <wlioctl.h>
 
@@ -529,12 +529,13 @@ wl_iw_get_range(struct net_device *dev,
 		range->freq[i].i = dtoh32(list->element[i]);
 
 		ch = dtoh32(list->element[i]);
-		if (ch <= CH_MAX_2G_CHANNEL)
+		if (ch <= CH_MAX_2G_CHANNEL) {
 			sf = WF_CHAN_FACTOR_2_4_G;
-		else
+			range->freq[i].m = ieee80211_dsss_chan_to_freq(ch);
+		} else {
 			sf = WF_CHAN_FACTOR_5_G;
-
-		range->freq[i].m = wf_channel2mhz(ch, sf);
+			range->freq[i].m = wf_channel2mhz(ch, sf);
+		}
 		range->freq[i].e = 6;
 	}
 	range->num_frequency = range->num_channels = i;
@@ -1534,11 +1535,14 @@ wl_iw_get_scan_prep(wl_scan_results_t *list,
 		}
 
 		iwe.cmd = SIOCGIWFREQ;
-		iwe.u.freq.m = wf_channel2mhz(CHSPEC_CHANNEL(bi->chanspec),
-					      CHSPEC_CHANNEL(bi->chanspec) <=
-					      CH_MAX_2G_CHANNEL ?
-					      WF_CHAN_FACTOR_2_4_G :
-					      WF_CHAN_FACTOR_5_G);
+
+		if (CHSPEC_CHANNEL(bi->chanspec) <= CH_MAX_2G_CHANNEL)
+			iwe.u.freq.m = ieee80211_dsss_chan_to_freq(
+						CHSPEC_CHANNEL(bi->chanspec));
+		else
+			iwe.u.freq.m = wf_channel2mhz(
+						CHSPEC_CHANNEL(bi->chanspec),
+						WF_CHAN_FACTOR_5_G);
 		iwe.u.freq.e = 6;
 		event =
 		    IWE_STREAM_ADD_EVENT(info, event, end, &iwe,
@@ -1811,12 +1815,14 @@ wl_iw_iscan_get_scan(struct net_device *dev,
 			channel =
 			    (bi->ctl_ch ==
 			     0) ? CHSPEC_CHANNEL(bi->chanspec) : bi->ctl_ch;
-			iwe.u.freq.m =
-			    wf_channel2mhz(channel,
-					   channel <=
-					   CH_MAX_2G_CHANNEL ?
-					   WF_CHAN_FACTOR_2_4_G :
-					   WF_CHAN_FACTOR_5_G);
+
+			if (channel <= CH_MAX_2G_CHANNEL)
+				iwe.u.freq.m =
+					ieee80211_dsss_chan_to_freq(channel);
+			else
+				iwe.u.freq.m = wf_channel2mhz(channel,
+							WF_CHAN_FACTOR_5_G);
+
 			iwe.u.freq.e = 6;
 			event =
 			    IWE_STREAM_ADD_EVENT(info, event, end, &iwe,

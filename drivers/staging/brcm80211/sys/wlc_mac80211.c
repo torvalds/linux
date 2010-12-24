@@ -6840,7 +6840,7 @@ prep_mac80211_status(struct wlc_info *wlc, d11rxhdr_t *rxh, struct sk_buff *p,
 		rx_status->freq = wf_channel2mhz(channel, WF_CHAN_FACTOR_5_G);
 	} else {
 		rx_status->band = IEEE80211_BAND_2GHZ;
-		rx_status->freq = wf_channel2mhz(channel, WF_CHAN_FACTOR_2_4_G);
+		rx_status->freq = ieee80211_dsss_chan_to_freq(channel);
 	}
 
 	rx_status->signal = wlc_rxh->rssi;	/* signal */

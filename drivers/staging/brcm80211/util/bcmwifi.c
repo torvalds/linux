@@ -181,11 +181,8 @@ int wf_channel2mhz(uint ch, uint start_factor)
 {
 	int freq;
 
-	if ((start_factor == WF_CHAN_FACTOR_2_4_G && (ch < 1 || ch > 14)) ||
-	    (ch > 200))
+	if (ch > 200)
 		freq = -1;
-	else if ((start_factor == WF_CHAN_FACTOR_2_4_G) && (ch == 14))
-		freq = 2484;
 	else
 		freq = ch * 5 + start_factor / 2;
 
