@@ -114,6 +114,9 @@ static int bq27510_battery_temperature(struct bq27510_device_info *di)
 	}
 	temp = get_unaligned_le16(buf);
 	temp = temp - 2731;
+	#if CONFIG_NO_BATTERY_IC
+	temp = 258;
+	#endif
 	DBG("Enter:%s %d--temp = %d\n",__FUNCTION__,__LINE__,temp);
 	return temp;
 }
