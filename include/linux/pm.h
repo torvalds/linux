@@ -572,4 +572,11 @@ extern unsigned int	pm_flags;
 #define PM_APM	1
 #define PM_ACPI	2
 
+extern int pm_generic_suspend(struct device *dev);
+extern int pm_generic_resume(struct device *dev);
+extern int pm_generic_freeze(struct device *dev);
+extern int pm_generic_thaw(struct device *dev);
+extern int pm_generic_restore(struct device *dev);
+extern int pm_generic_poweroff(struct device *dev);
+
 #endif /* _LINUX_PM_H */
