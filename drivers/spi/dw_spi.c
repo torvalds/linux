@@ -941,7 +941,7 @@ err_free_master:
 exit:
 	return ret;
 }
-EXPORT_SYMBOL(dw_spi_add_host);
+EXPORT_SYMBOL_GPL(dw_spi_add_host);
 
 void __devexit dw_spi_remove_host(struct dw_spi *dws)
 {
@@ -965,7 +965,7 @@ void __devexit dw_spi_remove_host(struct dw_spi *dws)
 	/* Disconnect from the SPI framework */
 	spi_unregister_master(dws->master);
 }
-EXPORT_SYMBOL(dw_spi_remove_host);
+EXPORT_SYMBOL_GPL(dw_spi_remove_host);
 
 int dw_spi_suspend_host(struct dw_spi *dws)
 {
@@ -978,7 +978,7 @@ int dw_spi_suspend_host(struct dw_spi *dws)
 	spi_set_clk(dws, 0);
 	return ret;
 }
-EXPORT_SYMBOL(dw_spi_suspend_host);
+EXPORT_SYMBOL_GPL(dw_spi_suspend_host);
 
 int dw_spi_resume_host(struct dw_spi *dws)
 {
@@ -990,7 +990,7 @@ int dw_spi_resume_host(struct dw_spi *dws)
 		dev_err(&dws->master->dev, "fail to start queue (%d)\n", ret);
 	return ret;
 }
-EXPORT_SYMBOL(dw_spi_resume_host);
+EXPORT_SYMBOL_GPL(dw_spi_resume_host);
 
 MODULE_AUTHOR("Feng Tang <feng.tang@intel.com>");
 MODULE_DESCRIPTION("Driver for DesignWare SPI controller core");
