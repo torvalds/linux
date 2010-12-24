@@ -5128,10 +5128,10 @@ wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 	ASSERT(sdu);
 
 	fc = ltoh16(d11_header->frame_control);
-	type = FC_TYPE(fc);
+	type = (fc & IEEE80211_FCTL_FTYPE);
 
 	/* 802.11 standard requires management traffic to go at highest priority */
-	prio = (type == FC_TYPE_DATA ? sdu->priority : MAXPRIO);
+	prio = (type == IEEE80211_FTYPE_DATA ? sdu->priority : MAXPRIO);
 	fifo = prio2fifo[prio];
 
 	ASSERT((uint) skb_headroom(sdu) >= TXOFF);
@@ -5705,9 +5705,10 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	/* locate 802.11 MAC header */
 	h = (struct ieee80211_hdr *)(p->data);
 	fc = ltoh16(h->frame_control);
-	type = FC_TYPE(fc);
+	type = (fc & IEEE80211_FCTL_FTYPE);
 
-	qos = (type == FC_TYPE_DATA && FC_SUBTYPE_ANY_QOS(FC_SUBTYPE(fc)));
+	qos = (type == IEEE80211_FTYPE_DATA &&
+	       FC_SUBTYPE_ANY_QOS(fc));
 
 	/* compute length of frame in bytes for use in PLCP computations */
 	len = pkttotlen(osh, p);
@@ -7053,11 +7054,13 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	/* explicitly test bad src address to avoid sending bad deauth */
 	if (!is_amsdu) {
 		/* CTS and ACK CTL frames are w/o a2 */
-		if (FC_TYPE(fc) == FC_TYPE_DATA || FC_TYPE(fc) == FC_TYPE_MNG) {
+		if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA ||
+		    (fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) {
 			if ((is_zero_ether_addr(h->addr2) ||
 			     is_multicast_ether_addr(h->addr2))) {
-				WL_ERROR("wl%d: %s: dropping a frame with invalid src mac address, a2: %pM\n",
-					 wlc->pub->unit, __func__, &h->addr2);
+				WL_ERROR("wl%d: %s: dropping a frame with "
+					 "invalid src mac address, a2: %pM\n",
+					 wlc->pub->unit, __func__, h->addr2);
 				WLCNTINCR(wlc->pub->_cnt->rxbadsrcmac);
 				goto toss;
 			}
@@ -7066,7 +7069,7 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	}
 
 	/* due to sheer numbers, toss out probe reqs for now */
-	if (FC_TYPE(fc) == FC_TYPE_MNG) {
+	if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) {
 		if ((fc & FC_KIND_MASK) == FC_PROBE_REQ)
 			goto toss;
 	}
@@ -7858,7 +7861,8 @@ int wlc_prep_pdu(struct wlc_info *wlc, struct sk_buff *pdu, uint *fifop)
 		return BCME_BUSY;
 	}
 
-	if (FC_TYPE(ltoh16(txh->MacFrameControl)) != FC_TYPE_DATA)
+	if ((ltoh16(txh->MacFrameControl) & IEEE80211_FCTL_FTYPE) !=
+	    IEEE80211_FTYPE_DATA)
 		WLCNTINCR(wlc->pub->_cnt->txctl);
 
 	return 0;
