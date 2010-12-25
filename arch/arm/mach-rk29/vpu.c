@@ -105,11 +105,6 @@ static void vpu_power_on(void)
 		return;
 	pr_debug("power domain on\n");
 	pmu_set_power_domain(PD_VCODEC, true);
-	udelay(10);	// max 5358 ns
-	while (!pmu_power_domain_is_on(PD_VCODEC)) {
-		pr_debug("waiting for on\n");
-		msleep(1);
-	}
 	clk_enable(aclk_vepu);
 	clk_enable(hclk_vepu);
 	clk_enable(aclk_ddr_vepu);

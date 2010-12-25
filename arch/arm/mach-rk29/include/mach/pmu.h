@@ -40,6 +40,11 @@ enum pmu_power_domain {
 	PD_MINI,
 };
 
+static inline bool pmu_power_domain_is_on(enum pmu_power_domain pd)
+{
+	return !(readl(RK29_PMU_BASE + PMU_PD_ST) & (1 << pd));
+}
+
 static inline void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 {
 	unsigned long flags;
@@ -50,11 +55,9 @@ static inline void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 	else
 		writel(readl(RK29_PMU_BASE + PMU_PD_CON) |  (1 << pd), RK29_PMU_BASE + PMU_PD_CON);
 	local_irq_restore(flags);
-}
 
-static inline bool pmu_power_domain_is_on(enum pmu_power_domain pd)
-{
-	return !(readl(RK29_PMU_BASE + PMU_PD_ST) & (1 << pd));
+	while (pmu_power_domain_is_on(pd) != on)
+		;
 }
 
 #endif
