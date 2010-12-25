@@ -320,17 +320,17 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 	for (i = 0; i < urb->number_of_packets; i++) {
 
 		/* check the packet status and length */
-		len = urb->iso_frame_desc[i].actual_length;
-		if (len == 0) {
-			if (gspca_dev->empty_packet == 0)
-				gspca_dev->empty_packet = 1;
-			continue;
-		}
 		st = urb->iso_frame_desc[i].status;
 		if (st) {
 			err("ISOC data error: [%d] len=%d, status=%d",
 				i, len, st);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
+			continue;
+		}
+		len = urb->iso_frame_desc[i].actual_length;
+		if (len == 0) {
+			if (gspca_dev->empty_packet == 0)
+				gspca_dev->empty_packet = 1;
 			continue;
 		}
 
