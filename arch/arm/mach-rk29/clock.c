@@ -290,6 +290,12 @@ static void delay_500ns(void)
            barrier();
 }
 
+static void delay_300us(void)
+{
+	int i;
+	for (i = 0; i < 600; i++)
+		delay_500ns();
+}
 
 #define GENERAL_PLL_IDX     0
 #define CODEC_PLL_IDX      1
@@ -458,7 +464,6 @@ void PWMInit(u32 nHz, u32 rate)
 static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	const struct arm_pll_set *ps, *pt;
-	int i;
 
 	/* find the arm_pll we want. */
 	ps = pt = &arm_pll[0];
@@ -495,8 +500,7 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	/* power up */
 	cru_writel(ps->apll_con, CRU_APLL_CON);
 
-	for (i = 0; i < 600; i++)
-		delay_500ns();
+	delay_300us();
 	pll_wait_lock(ARM_PLL_IDX, 2400000);
 
 	/* reparent to arm pll & set aclk/hclk/pclk */
@@ -578,21 +582,32 @@ static unsigned long codec_pll_clk_recalc(struct clk *clk)
 
 static int codec_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	u32 cpll_con;
+	u32 pll_con;
 	u32 mode_con;
 	struct clk *parent;
-	int i;
 
 	switch (rate) {
 	case 108 * MHZ:
 		/* 24 * 18 / 4 */
-		cpll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(18) | PLL_NO_4;
+		pll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(18) | PLL_NO_4;
+		mode_con = CODEC_PLL_PARENT_XIN24M;
+		parent = &xin24m;
+		break;
+	case 648 * MHZ:
+		/* 24 * 27 / 1 */
+		pll_con = PLL_HIGH_BAND | PLL_CLKR(1) | PLL_CLKF(27) | PLL_NO_1;
 		mode_con = CODEC_PLL_PARENT_XIN24M;
 		parent = &xin24m;
 		break;
 	case 297 * MHZ:
 		/* 27 * 22 / 2 */
-		cpll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(22) | PLL_NO_2;
+		pll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(22) | PLL_NO_2;
+		mode_con = CODEC_PLL_PARENT_XIN27M;
+		parent = &xin27m;
+		break;
+	case 594 * MHZ:
+		/* 27 * 22 / 1 */
+		pll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(22) | PLL_NO_1;
 		mode_con = CODEC_PLL_PARENT_XIN27M;
 		parent = &xin27m;
 		break;
@@ -609,15 +624,14 @@ static int codec_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 
 	delay_500ns();
 
-	cru_writel(cpll_con | PLL_PD, CRU_CPLL_CON);
+	cru_writel(pll_con | PLL_PD, CRU_CPLL_CON);
 
 	delay_500ns();
 
 	/* power up */
-	cru_writel(cpll_con, CRU_CPLL_CON);
+	cru_writel(pll_con, CRU_CPLL_CON);
 
-	for (i = 0; i < 600; i++)
-		delay_500ns();
+	delay_300us();
 	pll_wait_lock(CODEC_PLL_IDX, 2400000);
 
 	/* enter normal mode */
@@ -662,9 +676,21 @@ static unsigned long general_pll_clk_recalc(struct clk *clk)
 
 static int general_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	int i;
-	/* 624M: high-band, NR=1, NF=26, NO=1 */
-	u32 v = PLL_HIGH_BAND | PLL_CLKR(1) | PLL_CLKF(26) | PLL_NO_1;
+	u32 pll_con;
+
+	switch (rate) {
+	case 288 * MHZ:
+		/* 288M: low-band, NR=1, NF=24, NO=2 */
+		pll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(24) | PLL_NO_2;
+		break;
+	case 624 * MHZ:
+		/* 624M: high-band, NR=1, NF=26, NO=1 */
+		pll_con = PLL_HIGH_BAND | PLL_CLKR(1) | PLL_CLKF(26) | PLL_NO_1;
+		break;
+	default:
+		return -ENOENT;
+		break;
+	}
 
 	/* enter slow mode */
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_GENERAL_MODE_MASK) | CRU_GENERAL_MODE_SLOW, CRU_MODE_CON);
@@ -674,15 +700,14 @@ static int general_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 
 	delay_500ns();
 
-	cru_writel(v | PLL_PD, CRU_GPLL_CON);
+	cru_writel(pll_con | PLL_PD, CRU_GPLL_CON);
 
 	delay_500ns();
 
 	/* power up */
-	cru_writel(v, CRU_GPLL_CON);
+	cru_writel(pll_con, CRU_GPLL_CON);
 
-	for (i = 0; i < 600; i++)
-		delay_500ns();
+	delay_300us();
 	pll_wait_lock(GENERAL_PLL_IDX, 2400000);
 
 	/* enter normal mode */
@@ -917,33 +942,17 @@ static int clk_i2s_frac_div_set_rate(struct clk *clk, unsigned long rate)
 	u16 numerator, denominator;
 
 	switch (rate) {
-	case 8192000:	/* 624*128/9750 */
-		numerator = 128;
-		denominator = 9750;
+	case 8192000:	/* 288*32/1125 */
+		numerator = 32;
+		denominator = 1125;
 		break;
-	case 11289600:	/* 624*294/16250 */
-		numerator = 294;
-		denominator = 16250;
+	case 11289600:	/* 288*49/1250 */
+		numerator = 49;
+		denominator = 1250;
 		break;
-	case 12288000:	/* 624*64/3250 */
-		numerator = 64;
-		denominator = 3250;
-		break;
-	case 22579200:	/* 624*294/8125 */
-		numerator = 294;
-		denominator = 8125;
-		break;
-	case 24576000:	/* 624*64/1625 */
-		numerator = 64;
-		denominator = 1625;
-		break;
-	case 45158400:	/* 624*588/8125 */
-		numerator = 588;
-		denominator = 8125;
-		break;
-	case 49152000:	/* 624*128/1625 */
-		numerator = 128;
-		denominator = 1625;
+	case 12288000:	/* 288*16/375 */
+		numerator = 16;
+		denominator = 375;
 		break;
 	default:
 		return -ENOENT;
@@ -1203,7 +1212,6 @@ static int clk_uart_set_rate(struct clk *clk, unsigned long rate)
 	case 24*MHZ: /* 1.5M/0.5M/50/75/150/200/300/600/1200/2400 */
 		parent = clk->parents[2]; /* xin24m */
 		break;
-	case 9600*16:
 	case 19200*16:
 	case 38400*16:
 	case 57600*16:
@@ -1211,8 +1219,6 @@ static int clk_uart_set_rate(struct clk *clk, unsigned long rate)
 	case 230400*16:
 	case 460800*16:
 	case 576000*16:
-	case 921600*16:
-	case 1152000*16:
 		parent = clk->parents[1]; /* frac div */
 		/* reset div to 1 */
 		ret = clk_set_rate_nolock(clk_div, clk_div->parent->rate);
@@ -1241,45 +1247,33 @@ static int clk_uart_frac_div_set_rate(struct clk *clk, unsigned long rate)
 	u16 numerator, denominator;
 
 	switch (rate) {
-	case 9600*16:
+	case 19200*16:	/* 288*2/1875 */
 		numerator = 2;
-		denominator = 8125;
+		denominator = 1875;
 		break;
-	case 19200*16:
+	case 38400*16:	/* 288*4/1875 */
 		numerator = 4;
-		denominator = 8125;
+		denominator = 1875;
 		break;
-	case 38400*16:
+	case 57600*16:	/* 288*2/625 */
+		numerator = 2;
+		denominator = 625;
+		break;
+	case 115200*16:	/* 288*8/1250 */
 		numerator = 8;
-		denominator = 8125;
+		denominator = 1250;
 		break;
-	case 57600*16:
-		numerator = 12;
-		denominator = 8125;
+	case 230400*16:	/* 288*8/625 */
+		numerator = 8;
+		denominator = 625;
 		break;
-	case 115200*16:
-		numerator = 24;
-		denominator = 8125;
+	case 460800*16:	/* 288*16/25 */
+		numerator = 16;
+		denominator = 625;
 		break;
-	case 230400*16:
-		numerator = 48;
-		denominator = 8125;
-		break;
-	case 460800*16:
-		numerator = 96;
-		denominator = 8125;
-		break;
-	case 576000*16:
-		numerator = 24;
-		denominator = 1625;
-		break;
-	case 921600*16:
-		numerator = 192;
-		denominator = 8125;
-		break;
-	case 1152000*16:
-		numerator = 48;
-		denominator = 1625;
+	case 576000*16:	/* 288*20/625 */
+		numerator = 20;
+		denominator = 625;
 		break;
 	default:
 		return -ENOENT;
@@ -2276,11 +2270,11 @@ early_param("armclk", armclk_setup);
 static void __init rk29_clock_common_init(void)
 {
 	/* general pll */
-	clk_set_rate_nolock(&general_pll_clk, 624 * MHZ);
+	clk_set_rate_nolock(&general_pll_clk, 288 * MHZ);
 	clk_set_parent_nolock(&aclk_periph, &general_pll_clk);
-	clk_set_rate_nolock(&aclk_periph, 208 * MHZ);
-	clk_set_rate_nolock(&hclk_periph, 104 * MHZ);
-	clk_set_rate_nolock(&pclk_periph, 52 * MHZ);
+	clk_set_rate_nolock(&aclk_periph, 144 * MHZ);
+	clk_set_rate_nolock(&hclk_periph, 144 * MHZ);
+	clk_set_rate_nolock(&pclk_periph, 36 * MHZ);
 	clk_set_parent_nolock(&clk_uhost, &general_pll_clk);
 	clk_set_rate_nolock(&clk_uhost, 48 * MHZ);
 	clk_set_parent_nolock(&clk_i2s0_div, &general_pll_clk);
@@ -2294,10 +2288,14 @@ static void __init rk29_clock_common_init(void)
 	clk_set_parent_nolock(&aclk_lcdc, &general_pll_clk);
 	clk_set_parent_nolock(&aclk_vepu, &general_pll_clk);
 	clk_set_parent_nolock(&aclk_vdpu, &general_pll_clk);
-	clk_set_parent_nolock(&clk_gpu, &general_pll_clk);
 	clk_set_parent_nolock(&aclk_gpu, &general_pll_clk);
 	clk_set_parent_nolock(&clk_mac_ref_div, &general_pll_clk);
 	clk_set_parent_nolock(&clk_hsadc_div, &general_pll_clk);
+
+	/* codec pll */
+	clk_set_rate_nolock(&codec_pll_clk, 648 * MHZ);
+	clk_set_parent_nolock(&clk_gpu, &codec_pll_clk);
+	clk_set_parent_nolock(&clk_mac_ref_div, &codec_pll_clk);
 
 	/* arm pll */
 	clk_set_rate_nolock(&arm_pll_clk, armclk);
