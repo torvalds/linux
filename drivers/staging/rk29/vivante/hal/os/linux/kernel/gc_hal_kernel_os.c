@@ -5890,16 +5890,19 @@ gckOS_SetGPUPower(
 
     struct clk * clk_gpu = clk_get(NULL, "gpu");
     struct clk * clk_aclk_gpu = clk_get(NULL, "aclk_gpu");
+    struct clk * clk_aclk_ddr_gpu = clk_get(NULL, "aclk_ddr_gpu");
     struct clk * clk_hclk_gpu = clk_get(NULL, "hclk_gpu");
 
     if(Clock) {
-        if(!IS_ERR(clk_hclk_gpu))   clk_enable(clk_hclk_gpu);
-        if(!IS_ERR(clk_aclk_gpu))   clk_enable(clk_aclk_gpu);
-        if(!IS_ERR(clk_gpu))        clk_enable(clk_gpu);
+        clk_enable(clk_hclk_gpu);
+        clk_enable(clk_aclk_gpu);
+        clk_enable(clk_aclk_ddr_gpu);
+        clk_enable(clk_gpu);
     } else {
-        if(!IS_ERR(clk_gpu))        clk_disable(clk_gpu);
-        if(!IS_ERR(clk_aclk_gpu))   clk_disable(clk_aclk_gpu);
-        if(!IS_ERR(clk_hclk_gpu))   clk_disable(clk_hclk_gpu);
+        clk_disable(clk_gpu);
+        clk_disable(clk_aclk_gpu);
+        clk_disable(clk_aclk_ddr_gpu);
+        clk_disable(clk_hclk_gpu);
     }
 
     if(Power) {

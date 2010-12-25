@@ -490,6 +490,8 @@ static int drv_init(void)
     }
     clk_enable(clk_aclk_gpu);    
 
+    clk_enable(clk_get(NULL, "aclk_ddr_gpu"));
+
     // clk_gpu
     clk_gpu = clk_get(NULL, "gpu");
     if (IS_ERR(clk_gpu))

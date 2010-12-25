@@ -2305,11 +2305,6 @@ static void __init rk29_clock_common_init(void)
 
 static void __init clk_enable_init_clocks(void)
 {
-	clk_enable_nolock(&clk_hclk_cpu_display);
-	clk_enable_nolock(&clk_aclk_ddr_gpu);
-	clk_enable_nolock(&clk_hclk_disp_matrix);
-	clk_enable_nolock(&clk_aclk_disp_matrix);
-	clk_enable_nolock(&clk_aclk_ddr_lcdc);
 	clk_enable_nolock(&clk_nandc);
 	clk_enable_nolock(&clk_aclk_cpu_peri);
 	clk_enable_nolock(&clk_aclk_ddr_peri);
@@ -2343,7 +2338,7 @@ static int __init clk_disable_unused(void)
 
 	pmu_set_power_domain(PD_VCODEC, false);
 //	pmu_set_power_domain(PD_DISPLAY, false);
-//	pmu_set_power_domain(PD_GPU, false);
+	pmu_set_power_domain(PD_GPU, false);
 
 	return 0;
 }
