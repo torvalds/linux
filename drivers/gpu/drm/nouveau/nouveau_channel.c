@@ -253,6 +253,9 @@ nouveau_channel_get(struct drm_device *dev, struct drm_file *file_priv, int id)
 	struct nouveau_channel *chan;
 	unsigned long flags;
 
+	if (unlikely(id < 0 || id >= NOUVEAU_MAX_CHANNEL_NR))
+		return ERR_PTR(-EINVAL);
+
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
 	chan = nouveau_channel_get_unlocked(dev_priv->channels.ptr[id]);
 	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
