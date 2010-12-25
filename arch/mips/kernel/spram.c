@@ -197,10 +197,9 @@ static void probe_spram(char *type,
 }
 void spram_config(void)
 {
-	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int config0;
 
-	switch (c->cputype) {
+	switch (current_cpu_type()) {
 	case CPU_24K:
 	case CPU_34K:
 	case CPU_74K:
