@@ -203,13 +203,14 @@ static void ar9002_hw_spur_mitigate(struct ath_hw *ah,
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 		cur_bb_spur = ah->eep_ops->get_spur_channel(ah, i, is2GHz);
 
+		if (AR_NO_SPUR == cur_bb_spur)
+			break;
+
 		if (is2GHz)
 			cur_bb_spur = (cur_bb_spur / 10) + AR_BASE_FREQ_2GHZ;
 		else
 			cur_bb_spur = (cur_bb_spur / 10) + AR_BASE_FREQ_5GHZ;
 
-		if (AR_NO_SPUR == cur_bb_spur)
-			break;
 		cur_bb_spur = cur_bb_spur - freq;
 
 		if (IS_CHAN_HT40(chan)) {
