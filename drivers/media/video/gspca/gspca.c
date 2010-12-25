@@ -1708,12 +1708,13 @@ static int vidioc_g_parm(struct file *filp, void *priv,
 
 		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 			return -ERESTARTSYS;
-		gspca_dev->usb_err = 0;
-		if (gspca_dev->present)
-			ret = gspca_dev->sd_desc->get_streamparm(gspca_dev,
-								 parm);
-		else
+		if (gspca_dev->present) {
+			gspca_dev->usb_err = 0;
+			gspca_dev->sd_desc->get_streamparm(gspca_dev, parm);
+			ret = gspca_dev->usb_err;
+		} else {
 			ret = -ENODEV;
+		}
 		mutex_unlock(&gspca_dev->usb_lock);
 		return ret;
 	}
@@ -1738,12 +1739,13 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 
 		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 			return -ERESTARTSYS;
-		gspca_dev->usb_err = 0;
-		if (gspca_dev->present)
-			ret = gspca_dev->sd_desc->set_streamparm(gspca_dev,
-								 parm);
-		else
+		if (gspca_dev->present) {
+			gspca_dev->usb_err = 0;
+			gspca_dev->sd_desc->set_streamparm(gspca_dev, parm);
+			ret = gspca_dev->usb_err;
+		} else {
 			ret = -ENODEV;
+		}
 		mutex_unlock(&gspca_dev->usb_lock);
 		return ret;
 	}
