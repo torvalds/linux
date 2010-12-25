@@ -912,7 +912,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	if (sd->sensor == SENSOR_MI0360) {
 
 		/* no sensor probe for icam tracer */
-		if (gspca_dev->usb_buf[5] == 0xf6)	/* if CMOS */
+		if (gspca_dev->usb_buf[5] == 0xf6)	/* if ccd */
 			sd->sensor = SENSOR_ICX098BQ;
 		else
 			cmos_probe(gspca_dev);
