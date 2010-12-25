@@ -2676,8 +2676,8 @@ static void ov7xx0_configure(struct sd *sd)
 		high = i2c_r(sd, 0x0a);
 		low = i2c_r(sd, 0x0b);
 		/* info("%x, %x", high, low); */
-		if (high == 0x76 && low == 0x73) {
-			PDEBUG(D_PROBE, "Sensor is an OV7670");
+		if (high == 0x76 && (low & 0xf0) == 0x70) {
+			PDEBUG(D_PROBE, "Sensor is an OV76%02x", low);
 			sd->sensor = SEN_OV7670;
 		} else {
 			PDEBUG(D_PROBE, "Sensor is an OV7610");
