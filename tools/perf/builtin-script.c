@@ -117,6 +117,7 @@ static struct perf_event_ops event_ops = {
 	.tracing_data = event__process_tracing_data,
 	.build_id = event__process_build_id,
 	.lost = process_lost_event,
+	.ordering_requires_timestamps = true,
 	.ordered_samples = true,
 };
 
