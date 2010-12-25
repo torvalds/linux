@@ -352,12 +352,6 @@ static int soc_camera_open(struct file *file)
 		return -EINVAL;
 	}
 
-	/*
-	 * Protect against icd->ops->remove() until we module_get() both
-	 * drivers.
-	 */
-	mutex_lock(&icd->video_lock);
-
 	icd->use_count++;
 
 	/* Now we really have to activate the camera */
@@ -412,8 +406,6 @@ static int soc_camera_open(struct file *file)
 	file->private_data = icd;
 	dev_dbg(&icd->dev, "camera device open\n");
 
-	mutex_unlock(&icd->video_lock);
-
 	return 0;
 
 	/*
@@ -429,7 +421,6 @@ eiciadd:
 		icl->power(icd->pdev, 0);
 epower:
 	icd->use_count--;
-	mutex_unlock(&icd->video_lock);
 	module_put(ici->ops->owner);
 
 	return ret;
@@ -440,7 +431,6 @@ static int soc_camera_close(struct file *file)
 	struct soc_camera_device *icd = file->private_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 
-	mutex_lock(&icd->video_lock);
 	icd->use_count--;
 	if (!icd->use_count) {
 		struct soc_camera_link *icl = to_soc_camera_link(icd);
@@ -456,8 +446,6 @@ static int soc_camera_close(struct file *file)
 
 	if (icd->streamer == file)
 		icd->streamer = NULL;
-
-	mutex_unlock(&icd->video_lock);
 
 	module_put(ici->ops->owner);
 
@@ -517,7 +505,7 @@ static struct v4l2_file_operations soc_camera_fops = {
 	.owner		= THIS_MODULE,
 	.open		= soc_camera_open,
 	.release	= soc_camera_close,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 	.read		= soc_camera_read,
 	.mmap		= soc_camera_mmap,
 	.poll		= soc_camera_poll,
@@ -534,21 +522,15 @@ static int soc_camera_s_fmt_vid_cap(struct file *file, void *priv,
 	if (icd->streamer && icd->streamer != file)
 		return -EBUSY;
 
-	mutex_lock(&icd->vb_vidq.vb_lock);
-
 	if (icd->vb_vidq.bufs[0]) {
 		dev_err(&icd->dev, "S_FMT denied: queue initialised\n");
-		ret = -EBUSY;
-		goto unlock;
+		return -EBUSY;
 	}
 
 	ret = soc_camera_set_fmt(icd, f);
 
 	if (!ret && !icd->streamer)
 		icd->streamer = file;
-
-unlock:
-	mutex_unlock(&icd->vb_vidq.vb_lock);
 
 	return ret;
 }
@@ -622,14 +604,10 @@ static int soc_camera_streamon(struct file *file, void *priv,
 	if (icd->streamer != file)
 		return -EBUSY;
 
-	mutex_lock(&icd->video_lock);
-
 	v4l2_subdev_call(sd, video, s_stream, 1);
 
 	/* This calls buf_queue from host driver's videobuf_queue_ops */
 	ret = videobuf_streamon(&icd->vb_vidq);
-
-	mutex_unlock(&icd->video_lock);
 
 	return ret;
 }
@@ -648,8 +626,6 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 	if (icd->streamer != file)
 		return -EBUSY;
 
-	mutex_lock(&icd->video_lock);
-
 	/*
 	 * This calls buf_release from host driver's videobuf_queue_ops for all
 	 * remaining buffers. When the last buffer is freed, stop capture
@@ -657,8 +633,6 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 	videobuf_streamoff(&icd->vb_vidq);
 
 	v4l2_subdev_call(sd, video, s_stream, 0);
-
-	mutex_unlock(&icd->video_lock);
 
 	return 0;
 }
@@ -748,9 +722,7 @@ static int soc_camera_g_crop(struct file *file, void *fh,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	int ret;
 
-	mutex_lock(&icd->vb_vidq.vb_lock);
 	ret = ici->ops->get_crop(icd, a);
-	mutex_unlock(&icd->vb_vidq.vb_lock);
 
 	return ret;
 }
@@ -775,9 +747,6 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	dev_dbg(&icd->dev, "S_CROP(%ux%u@%u:%u)\n",
 		rect->width, rect->height, rect->left, rect->top);
 
-	/* Cropping is allowed during a running capture, guard consistency */
-	mutex_lock(&icd->vb_vidq.vb_lock);
-
 	/* If get_crop fails, we'll let host and / or client drivers decide */
 	ret = ici->ops->get_crop(icd, &current_crop);
 
@@ -794,8 +763,6 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	} else {
 		ret = ici->ops->set_crop(icd, a);
 	}
-
-	mutex_unlock(&icd->vb_vidq.vb_lock);
 
 	return ret;
 }
@@ -998,7 +965,13 @@ static int soc_camera_probe(struct device *dev)
 
 	icd->field = V4L2_FIELD_ANY;
 
-	/* ..._video_start() will create a device node, so we have to protect */
+	icd->vdev->lock = &icd->video_lock;
+
+	/*
+	 * ..._video_start() will create a device node, video_register_device()
+	 * itself is protected against concurrent open() calls, but we also have
+	 * to protect our data.
+	 */
 	mutex_lock(&icd->video_lock);
 
 	ret = soc_camera_video_start(icd);
@@ -1063,10 +1036,8 @@ static int soc_camera_remove(struct device *dev)
 	BUG_ON(!dev->parent);
 
 	if (vdev) {
-		mutex_lock(&icd->video_lock);
 		video_unregister_device(vdev);
 		icd->vdev = NULL;
-		mutex_unlock(&icd->video_lock);
 	}
 
 	if (icl->board_info) {

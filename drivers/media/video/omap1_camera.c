@@ -1365,12 +1365,12 @@ static void omap1_cam_init_videobuf(struct videobuf_queue *q,
 		videobuf_queue_dma_contig_init(q, &omap1_videobuf_ops,
 				icd->dev.parent, &pcdev->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				sizeof(struct omap1_cam_buf), icd, NULL);
+				sizeof(struct omap1_cam_buf), icd, &icd->video_lock);
 	else
 		videobuf_queue_sg_init(q, &omap1_videobuf_ops,
 				icd->dev.parent, &pcdev->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				sizeof(struct omap1_cam_buf), icd, NULL);
+				sizeof(struct omap1_cam_buf), icd, &icd->video_lock);
 
 	/* use videobuf mode (auto)selected with the module parameter */
 	pcdev->vb_mode = sg_mode ? OMAP1_CAM_DMA_SG : OMAP1_CAM_DMA_CONTIG;
