@@ -243,6 +243,19 @@ static void create_counter(int counter, int cpu)
 		u64 time_running;
 		u64 id;
 	} read_data;
+	/*
+ 	 * Check if parse_single_tracepoint_event has already asked for
+ 	 * PERF_SAMPLE_TIME.
+ 	 *
+	 * XXX this is kludgy but short term fix for problems introduced by
+	 * eac23d1c that broke 'perf script' by having different sample_types
+	 * when using multiple tracepoint events when we use a perf binary
+	 * that tries to use sample_id_all on an older kernel.
+ 	 *
+ 	 * We need to move counter creation to perf_session, support
+ 	 * different sample_types, etc.
+ 	 */
+	bool time_needed = attr->sample_type & PERF_SAMPLE_TIME;
 
 	attr->read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
 				  PERF_FORMAT_TOTAL_TIME_RUNNING |
@@ -285,7 +298,8 @@ static void create_counter(int counter, int cpu)
 	if (system_wide)
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 
-	if (sample_time || system_wide || !no_inherit || cpu_list)
+	if (sample_id_all_avail &&
+	    (sample_time || system_wide || !no_inherit || cpu_list))
 		attr->sample_type	|= PERF_SAMPLE_TIME;
 
 	if (raw_samples) {
@@ -293,9 +307,6 @@ static void create_counter(int counter, int cpu)
 		attr->sample_type	|= PERF_SAMPLE_RAW;
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 	}
-
-	if (!sample_type)
-		sample_type = attr->sample_type;
 
 	attr->mmap		= track;
 	attr->comm		= track;
@@ -327,7 +338,7 @@ try_again:
 				 * Old kernel, no attr->sample_id_type_all field
 				 */
 				sample_id_all_avail = false;
-				if (!sample_time && !raw_samples)
+				if (!sample_time && !raw_samples && !time_needed)
 					attr->sample_type &= ~PERF_SAMPLE_TIME;
 
 				goto retry_sample_id;
@@ -428,6 +439,9 @@ try_again:
 			}
 		}
 	}
+
+	if (!sample_type)
+		sample_type = attr->sample_type;
 }
 
 static void open_counters(int cpu)
