@@ -11,6 +11,7 @@ obj-$(CONFIG_VIDEO_TM6000)	+= tm6000/
 obj-$(CONFIG_VIDEO_CPIA)	+= cpia/
 obj-$(CONFIG_VIDEO_STRADIS)	+= stradis/
 obj-$(CONFIG_USB_VICAM)         += usbvideo/
+obj-$(CONFIG_USB_SE401)         += se401/
 obj-$(CONFIG_LIRC_STAGING)	+= lirc/
 obj-$(CONFIG_USB_IP_COMMON)	+= usbip/
 obj-$(CONFIG_W35UND)		+= winbond/
