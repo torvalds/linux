@@ -8,7 +8,7 @@
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
  * Portions Copyright (C) 2003		Red Hat Inc
- * Portions Copyright (C) 2005-2009	MontaVista Software, Inc.
+ * Portions Copyright (C) 2005-2010	MontaVista Software, Inc.
  *
  * TODO
  *	Look into engine reset on timeout errors. Should not be	required.
@@ -24,7 +24,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.15"
+#define DRV_VERSION	"0.6.16"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -298,6 +298,22 @@ static unsigned long hpt370a_filter(struct ata_device *adev, unsigned long mask)
 		if (hpt_dma_blacklisted(adev, "UDMA100", bad_ata100_5))
 			mask &= ~(0xE0 << ATA_SHIFT_UDMA);
 	}
+	return mask;
+}
+
+/**
+ *	hpt372_filter	-	mode selection filter
+ *	@adev: ATA device
+ *	@mask: mode mask
+ *
+ *	The Marvell bridge chips used on the HighPoint SATA cards do not seem
+ *	to support the UltraDMA modes 1, 2, and 3 as well as any MWDMA modes...
+ */
+static unsigned long hpt372_filter(struct ata_device *adev, unsigned long mask)
+{
+	if (ata_id_is_sata(adev->id))
+		mask &= ~((0xE << ATA_SHIFT_UDMA) | ATA_MASK_MWDMA);
+
 	return mask;
 }
 
@@ -586,11 +602,11 @@ static struct ata_port_operations hpt370a_port_ops = {
 };
 
 /*
- *	Configuration for HPT372, HPT371, HPT302. Slightly different PIO
- *	and DMA mode setting functionality.
+ *	Configuration for HPT371 and HPT302. Slightly different PIO and DMA
+ *	mode setting functionality.
  */
 
-static struct ata_port_operations hpt372_port_ops = {
+static struct ata_port_operations hpt302_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
 
 	.bmdma_stop	= hpt37x_bmdma_stop,
@@ -602,7 +618,17 @@ static struct ata_port_operations hpt372_port_ops = {
 };
 
 /*
- *	Configuration for HPT374. Mode setting works like 372 and friends
+ *	Configuration for HPT372. Mode setting works like 371 and 302
+ *	but we have a mode filter.
+ */
+
+static struct ata_port_operations hpt372_port_ops = {
+	.inherits	= &hpt302_port_ops,
+	.mode_filter	= hpt372_filter,
+};
+
+/*
+ *	Configuration for HPT374. Mode setting and filtering works like 372
  *	but we have a different cable detection procedure for function 1.
  */
 
@@ -753,13 +779,21 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.udma_mask = ATA_UDMA5,
 		.port_ops = &hpt370a_port_ops
 	};
-	/* HPT371, 372 and friends - UDMA133 */
+	/* HPT372 - UDMA133 */
 	static const struct ata_port_info info_hpt372 = {
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = ATA_PIO4,
 		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA6,
 		.port_ops = &hpt372_port_ops
+	};
+	/* HPT371, 302 - UDMA133 */
+	static const struct ata_port_info info_hpt302 = {
+		.flags = ATA_FLAG_SLAVE_POSS,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
+		.udma_mask = ATA_UDMA6,
+		.port_ops = &hpt302_port_ops
 	};
 	/* HPT374 - UDMA100, function 1 uses different prereset method */
 	static const struct ata_port_info info_hpt374_fn0 = {
@@ -828,7 +862,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	} else {
 		switch(dev->device) {
 			case PCI_DEVICE_ID_TTI_HPT372:
-				/* 372N if rev >= 2*/
+				/* 372N if rev >= 2 */
 				if (rev >= 2)
 					return -ENODEV;
 				ppi[0] = &info_hpt372;
@@ -838,14 +872,14 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 				/* 302N if rev > 1 */
 				if (rev > 1)
 					return -ENODEV;
-				ppi[0] = &info_hpt372;
+				ppi[0] = &info_hpt302;
 				/* Check this */
 				chip_table = &hpt302;
 				break;
 			case PCI_DEVICE_ID_TTI_HPT371:
 				if (rev > 1)
 					return -ENODEV;
-				ppi[0] = &info_hpt372;
+				ppi[0] = &info_hpt302;
 				chip_table = &hpt371;
 				/* Single channel device, master is not present
 				   but the BIOS (or us for non x86) must mark it

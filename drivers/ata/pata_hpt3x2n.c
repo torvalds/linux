@@ -8,7 +8,7 @@
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
  * Portions Copyright (C) 2003		Red Hat Inc
- * Portions Copyright (C) 2005-2009	MontaVista Software, Inc.
+ * Portions Copyright (C) 2005-2010	MontaVista Software, Inc.
  *
  *
  * TODO
@@ -25,7 +25,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt3x2n"
-#define DRV_VERSION	"0.3.10"
+#define DRV_VERSION	"0.3.11"
 
 enum {
 	HPT_PCI_FAST	=	(1 << 31),
@@ -110,6 +110,22 @@ static u32 hpt3x2n_find_mode(struct ata_port *ap, int speed)
 	}
 	BUG();
 	return 0xffffffffU;	/* silence compiler warning */
+}
+
+/**
+ *	hpt372n_filter	-	mode selection filter
+ *	@adev: ATA device
+ *	@mask: mode mask
+ *
+ *	The Marvell bridge chips used on the HighPoint SATA cards do not seem
+ *	to support the UltraDMA modes 1, 2, and 3 as well as any MWDMA modes...
+ */
+static unsigned long hpt372n_filter(struct ata_device *adev, unsigned long mask)
+{
+	if (ata_id_is_sata(adev->id))
+		mask &= ~((0xE << ATA_SHIFT_UDMA) | ATA_MASK_MWDMA);
+
+	return mask;
 }
 
 /**
@@ -328,10 +344,10 @@ static struct scsi_host_template hpt3x2n_sht = {
 };
 
 /*
- *	Configuration for HPT3x2n.
+ *	Configuration for HPT302N/371N.
  */
 
-static struct ata_port_operations hpt3x2n_port_ops = {
+static struct ata_port_operations hpt3xxn_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
 
 	.bmdma_stop	= hpt3x2n_bmdma_stop,
@@ -343,6 +359,15 @@ static struct ata_port_operations hpt3x2n_port_ops = {
 	.set_piomode	= hpt3x2n_set_piomode,
 	.set_dmamode	= hpt3x2n_set_dmamode,
 	.prereset	= hpt3x2n_pre_reset,
+};
+
+/*
+ *	Configuration for HPT372N. Same as 302N/371N but we have a mode filter.
+ */
+
+static struct ata_port_operations hpt372n_port_ops = {
+	.inherits	= &hpt3xxn_port_ops,
+	.mode_filter	= &hpt372n_filter,
 };
 
 /**
@@ -437,15 +462,23 @@ static int hpt3x2n_pci_clock(struct pci_dev *pdev)
 
 static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	/* HPT372N and friends - UDMA133 */
-	static const struct ata_port_info info = {
+	/* HPT372N - UDMA133 */
+	static const struct ata_port_info info_hpt372n = {
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = ATA_PIO4,
 		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA6,
-		.port_ops = &hpt3x2n_port_ops
+		.port_ops = &hpt372n_port_ops
 	};
-	const struct ata_port_info *ppi[] = { &info, NULL };
+	/* HPT302N and HPT371N - UDMA133 */
+	static const struct ata_port_info info_hpt3xxn = {
+		.flags = ATA_FLAG_SLAVE_POSS,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
+		.udma_mask = ATA_UDMA6,
+		.port_ops = &hpt3xxn_port_ops
+	};
+	const struct ata_port_info *ppi[] = { &info_hpt3xxn, NULL };
 	u8 rev = dev->revision;
 	u8 irqmask;
 	unsigned int pci_mhz;
@@ -461,24 +494,28 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	switch(dev->device) {
 		case PCI_DEVICE_ID_TTI_HPT366:
+			/* 372N if rev >= 6 */
 			if (rev < 6)
 				return -ENODEV;
-			break;
+			goto hpt372n;
 		case PCI_DEVICE_ID_TTI_HPT371:
+			/* 371N if rev >= 2 */
 			if (rev < 2)
 				return -ENODEV;
-			/* 371N if rev > 1 */
 			break;
 		case PCI_DEVICE_ID_TTI_HPT372:
-			/* 372N if rev >= 2*/
+			/* 372N if rev >= 2 */
 			if (rev < 2)
 				return -ENODEV;
-			break;
+			goto hpt372n;
 		case PCI_DEVICE_ID_TTI_HPT302:
+			/* 302N if rev >= 2 */
 			if (rev < 2)
 				return -ENODEV;
 			break;
 		case PCI_DEVICE_ID_TTI_HPT372N:
+hpt372n:
+			ppi[0] = &info_hpt372n;
 			break;
 		default:
 			printk(KERN_ERR "pata_hpt3x2n: PCI table is bogus please report (%d).\n", dev->device);
