@@ -543,14 +543,6 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 
 	retval = -EINVAL;
 
-	/* This function maintains backwards compatibility with V4L1 and will
-	 * map more than one buffer if the vma length is equal to the combined
-	 * size of multiple buffers than it will map them together.  See
-	 * VIDIOCGMBUF in the v4l spec
-	 *
-	 * TODO: Allow drivers to specify if they support this mode
-	 */
-
 	BUG_ON(!mem);
 	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
 
