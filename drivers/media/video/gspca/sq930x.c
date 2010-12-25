@@ -693,6 +693,13 @@ static void cmos_probe(struct gspca_dev *gspca_dev)
 		return;
 	}
 	sd->sensor = probe_order[i];
+	switch (sd->sensor) {
+	case SENSOR_OV7660:
+	case SENSOR_OV9630:
+		err("Sensor %s not yet treated", sensor_tb[sd->sensor].name);
+		gspca_dev->usb_err = -EINVAL;
+		break;
+	}
 }
 
 static void mt9v111_init(struct gspca_dev *gspca_dev)
