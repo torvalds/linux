@@ -6310,6 +6310,9 @@ void merge_like_dcb_entries(struct drm_device *dev, struct dcb_table *dcb)
 static bool
 apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct dcb_table *dcb = &dev_priv->vbios.dcb;
+
 	/* Dell Precision M6300
 	 *   DCB entry 2: 02025312 00000010
 	 *   DCB entry 3: 02026312 00000020
@@ -6325,6 +6328,18 @@ apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 	if (nv_match_device(dev, 0x040d, 0x1028, 0x019b)) {
 		if (*conn == 0x02026312 && *conf == 0x00000020)
 			return false;
+	}
+
+	/* GeForce3 Ti 200
+	 *
+	 * DCB reports an LVDS output that should be TMDS:
+	 *   DCB entry 1: f2005014 ffffffff
+	 */
+	if (nv_match_device(dev, 0x0201, 0x1462, 0x8851)) {
+		if (*conn == 0xf2005014 && *conf == 0xffffffff) {
+			fabricate_dcb_output(dcb, OUTPUT_TMDS, 1, 1, 1);
+			return false;
+		}
 	}
 
 	return true;
