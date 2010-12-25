@@ -915,8 +915,6 @@ source "drivers/media/video/cx231xx/Kconfig"
 
 source "drivers/media/video/usbvision/Kconfig"
 
-source "drivers/media/video/usbvideo/Kconfig"
-
 source "drivers/media/video/et61x251/Kconfig"
 
 config USB_SE401
