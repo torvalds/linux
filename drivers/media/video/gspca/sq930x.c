@@ -687,10 +687,12 @@ static void cmos_probe(struct gspca_dev *gspca_dev)
 		if (gspca_dev->usb_buf[0] != 0)
 			break;
 	}
-	if (i >= ARRAY_SIZE(probe_order))
+	if (i >= ARRAY_SIZE(probe_order)) {
 		err("Unknown sensor");
-	else
-		sd->sensor = probe_order[i];
+		gspca_dev->usb_err = -EINVAL;
+		return;
+	}
+	sd->sensor = probe_order[i];
 }
 
 static void mt9v111_init(struct gspca_dev *gspca_dev)
@@ -867,6 +869,9 @@ static int sd_init(struct gspca_dev *gspca_dev)
  */
 
 	reg_r(gspca_dev, SQ930_CTRL_GET_DEV_INFO, 8);
+	if (gspca_dev->usb_err < 0)
+		return gspca_dev->usb_err;
+
 /* it returns:
  * 03 00 12 93 0b f6 c9 00	live! ultra
  * 03 00 07 93 0b f6 ca 00	live! ultra for notebook
@@ -905,10 +910,10 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		else
 			cmos_probe(gspca_dev);
 	}
-
-	PDEBUG(D_PROBE, "Sensor %s", sensor_tb[sd->sensor].name);
-
-	global_init(sd, 1);
+	if (gspca_dev->usb_err >= 0) {
+		PDEBUG(D_PROBE, "Sensor %s", sensor_tb[sd->sensor].name);
+		global_init(sd, 1);
+	}
 	return gspca_dev->usb_err;
 }
 
