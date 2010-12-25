@@ -61,7 +61,7 @@
 #endif
 #define PMEM_GPU_SIZE       SZ_64M
 #define PMEM_UI_SIZE        SZ_32M
-#define PMEM_VPU_SIZE       SZ_32M
+#define PMEM_VPU_SIZE       SZ_64M
 #define PMEM_CAM_SIZE       0x00c00000
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
 #define MEM_CAMIPP_SIZE     SZ_4M
@@ -330,9 +330,9 @@ int p1003_init_platform_hw(void)
     }
     gpio_pull_updown(TOUCH_INT_PIN, 1);
     gpio_direction_output(TOUCH_RESET_PIN, 0);
-    mdelay(500);
+    msleep(500);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
-    mdelay(500);
+    msleep(500);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
 
     return 0;
