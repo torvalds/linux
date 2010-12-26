@@ -2266,19 +2266,21 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 	    memcmp(wl->bssid, bss_conf->bssid, ETH_ALEN)) {
 		memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
 
-		ret = wl1271_cmd_build_null_data(wl);
-		if (ret < 0)
-			goto out;
+		if (!is_zero_ether_addr(wl->bssid)) {
+			ret = wl1271_cmd_build_null_data(wl);
+			if (ret < 0)
+				goto out;
 
-		ret = wl1271_build_qos_null_data(wl);
-		if (ret < 0)
-			goto out;
+			ret = wl1271_build_qos_null_data(wl);
+			if (ret < 0)
+				goto out;
 
-		/* filter out all packets not from this BSSID */
-		wl1271_configure_filters(wl, 0);
+			/* filter out all packets not from this BSSID */
+			wl1271_configure_filters(wl, 0);
 
-		/* Need to update the BSSID (for filtering etc) */
-		do_join = true;
+			/* Need to update the BSSID (for filtering etc) */
+			do_join = true;
+		}
 	}
 
 	if ((changed & BSS_CHANGED_ASSOC)) {
