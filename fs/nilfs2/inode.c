@@ -104,6 +104,7 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 		nilfs_transaction_commit(inode->i_sb); /* never fails */
 		/* Error handling should be detailed */
 		set_buffer_new(bh_result);
+		set_buffer_delay(bh_result);
 		map_bh(bh_result, inode->i_sb, 0); /* dbn must be changed
 						      to proper value */
 	} else if (ret == -ENOENT) {

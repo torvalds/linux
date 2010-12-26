@@ -1763,6 +1763,7 @@ static void nilfs_clear_copied_buffers(struct list_head *list, int err)
 				if (!err) {
 					set_buffer_uptodate(bh);
 					clear_buffer_dirty(bh);
+					clear_buffer_delay(bh);
 					clear_buffer_nilfs_volatile(bh);
 				}
 				brelse(bh); /* for b_assoc_buffers */
@@ -1889,6 +1890,7 @@ static void nilfs_segctor_complete_write(struct nilfs_sc_info *sci)
 				    b_assoc_buffers) {
 			set_buffer_uptodate(bh);
 			clear_buffer_dirty(bh);
+			clear_buffer_delay(bh);
 			clear_buffer_nilfs_volatile(bh);
 			clear_buffer_nilfs_redirected(bh);
 			if (bh == segbuf->sb_super_root) {
