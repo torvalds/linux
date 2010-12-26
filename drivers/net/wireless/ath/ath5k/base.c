@@ -2703,11 +2703,11 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 
 	/* clear survey data and cycle counters */
 	memset(&sc->survey, 0, sizeof(sc->survey));
-	spin_lock(&common->cc_lock);
+	spin_lock_bh(&common->cc_lock);
 	ath_hw_cycle_counters_update(common);
 	memset(&common->cc_survey, 0, sizeof(common->cc_survey));
 	memset(&common->cc_ani, 0, sizeof(common->cc_ani));
-	spin_unlock(&common->cc_lock);
+	spin_unlock_bh(&common->cc_lock);
 
 	/*
 	 * Change channels and update the h/w rate map if we're switching;
