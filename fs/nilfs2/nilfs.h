@@ -190,11 +190,6 @@ static inline int nilfs_doing_construction(void)
 	return nilfs_test_transaction_flag(NILFS_TI_WRITER);
 }
 
-static inline struct inode *nilfs_dat_inode(const struct the_nilfs *nilfs)
-{
-	return nilfs->ns_dat;
-}
-
 /*
  * function prototype
  */

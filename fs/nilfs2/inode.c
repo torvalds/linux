@@ -58,7 +58,7 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 	__u64 blknum = 0;
 	int err = 0, ret;
-	struct inode *dat = nilfs_dat_inode(NILFS_I_NILFS(inode));
+	struct inode *dat = NILFS_I_NILFS(inode)->ns_dat;
 	unsigned maxblocks = bh_result->b_size >> inode->i_blkbits;
 
 	down_read(&NILFS_MDT(dat)->mi_sem);
@@ -420,13 +420,12 @@ static int __nilfs_read_inode(struct super_block *sb,
 			      struct nilfs_root *root, unsigned long ino,
 			      struct inode *inode)
 {
-	struct nilfs_sb_info *sbi = NILFS_SB(sb);
-	struct inode *dat = nilfs_dat_inode(sbi->s_nilfs);
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 	struct buffer_head *bh;
 	struct nilfs_inode *raw_inode;
 	int err;
 
-	down_read(&NILFS_MDT(dat)->mi_sem);	/* XXX */
+	down_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	err = nilfs_ifile_get_inode_block(root->ifile, ino, &bh);
 	if (unlikely(err))
 		goto bad_inode;
@@ -456,7 +455,7 @@ static int __nilfs_read_inode(struct super_block *sb,
 	}
 	nilfs_ifile_unmap_inode(root->ifile, ino, bh);
 	brelse(bh);
-	up_read(&NILFS_MDT(dat)->mi_sem);	/* XXX */
+	up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	nilfs_set_inode_flags(inode);
 	return 0;
 
@@ -465,7 +464,7 @@ static int __nilfs_read_inode(struct super_block *sb,
 	brelse(bh);
 
  bad_inode:
-	up_read(&NILFS_MDT(dat)->mi_sem);	/* XXX */
+	up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	return err;
 }
 

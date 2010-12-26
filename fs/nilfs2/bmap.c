@@ -35,7 +35,7 @@
 
 struct inode *nilfs_bmap_get_dat(const struct nilfs_bmap *bmap)
 {
-	return nilfs_dat_inode(NILFS_I_NILFS(bmap->b_inode));
+	return NILFS_I_NILFS(bmap->b_inode)->ns_dat;
 }
 
 static int nilfs_bmap_convert_error(struct nilfs_bmap *bmap,

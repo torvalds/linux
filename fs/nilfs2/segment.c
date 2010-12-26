@@ -757,9 +757,8 @@ static int nilfs_test_metadata_dirty(struct the_nilfs *nilfs,
 		ret++;
 	if (nilfs_mdt_fetch_dirty(nilfs->ns_sufile))
 		ret++;
-	if (ret || nilfs_doing_gc())
-		if (nilfs_mdt_fetch_dirty(nilfs_dat_inode(nilfs)))
-			ret++;
+	if ((ret || nilfs_doing_gc()) && nilfs_mdt_fetch_dirty(nilfs->ns_dat))
+		ret++;
 	return ret;
 }
 
@@ -795,7 +794,7 @@ static void nilfs_segctor_clear_metadata_dirty(struct nilfs_sc_info *sci)
 	nilfs_mdt_clear_dirty(sci->sc_root->ifile);
 	nilfs_mdt_clear_dirty(nilfs->ns_cpfile);
 	nilfs_mdt_clear_dirty(nilfs->ns_sufile);
-	nilfs_mdt_clear_dirty(nilfs_dat_inode(nilfs));
+	nilfs_mdt_clear_dirty(nilfs->ns_dat);
 }
 
 static int nilfs_segctor_create_checkpoint(struct nilfs_sc_info *sci)
@@ -904,7 +903,7 @@ static void nilfs_segctor_fill_in_super_root(struct nilfs_sc_info *sci,
 			      nilfs->ns_nongc_ctime : sci->sc_seg_ctime);
 	raw_sr->sr_flags = 0;
 
-	nilfs_write_inode_common(nilfs_dat_inode(nilfs), (void *)raw_sr +
+	nilfs_write_inode_common(nilfs->ns_dat, (void *)raw_sr +
 				 NILFS_SR_DAT_OFFSET(isz), 1);
 	nilfs_write_inode_common(nilfs->ns_cpfile, (void *)raw_sr +
 				 NILFS_SR_CPFILE_OFFSET(isz), 1);
@@ -1160,7 +1159,7 @@ static int nilfs_segctor_collect_blocks(struct nilfs_sc_info *sci, int mode)
 		sci->sc_stage.scnt++;  /* Fall through */
 	case NILFS_ST_DAT:
  dat_stage:
-		err = nilfs_segctor_scan_file(sci, nilfs_dat_inode(nilfs),
+		err = nilfs_segctor_scan_file(sci, nilfs->ns_dat,
 					      &nilfs_sc_dat_ops);
 		if (unlikely(err))
 			break;
