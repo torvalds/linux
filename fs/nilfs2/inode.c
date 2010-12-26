@@ -916,3 +916,134 @@ void nilfs_dirty_inode(struct inode *inode)
 	nilfs_mark_inode_dirty(inode);
 	nilfs_transaction_commit(inode->i_sb); /* never fails */
 }
+
+int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		 __u64 start, __u64 len)
+{
+	struct the_nilfs *nilfs = NILFS_I_NILFS(inode);
+	__u64 logical = 0, phys = 0, size = 0;
+	__u32 flags = 0;
+	loff_t isize;
+	sector_t blkoff, end_blkoff;
+	sector_t delalloc_blkoff;
+	unsigned long delalloc_blklen;
+	unsigned int blkbits = inode->i_blkbits;
+	int ret, n;
+
+	ret = fiemap_check_flags(fieinfo, FIEMAP_FLAG_SYNC);
+	if (ret)
+		return ret;
+
+	mutex_lock(&inode->i_mutex);
+
+	isize = i_size_read(inode);
+
+	blkoff = start >> blkbits;
+	end_blkoff = (start + len - 1) >> blkbits;
+
+	delalloc_blklen = nilfs_find_uncommitted_extent(inode, blkoff,
+							&delalloc_blkoff);
+
+	do {
+		__u64 blkphy;
+		unsigned int maxblocks;
+
+		if (delalloc_blklen && blkoff == delalloc_blkoff) {
+			if (size) {
+				/* End of the current extent */
+				ret = fiemap_fill_next_extent(
+					fieinfo, logical, phys, size, flags);
+				if (ret)
+					break;
+			}
+			if (blkoff > end_blkoff)
+				break;
+
+			flags = FIEMAP_EXTENT_MERGED | FIEMAP_EXTENT_DELALLOC;
+			logical = blkoff << blkbits;
+			phys = 0;
+			size = delalloc_blklen << blkbits;
+
+			blkoff = delalloc_blkoff + delalloc_blklen;
+			delalloc_blklen = nilfs_find_uncommitted_extent(
+				inode, blkoff, &delalloc_blkoff);
+			continue;
+		}
+
+		/*
+		 * Limit the number of blocks that we look up so as
+		 * not to get into the next delayed allocation extent.
+		 */
+		maxblocks = INT_MAX;
+		if (delalloc_blklen)
+			maxblocks = min_t(sector_t, delalloc_blkoff - blkoff,
+					  maxblocks);
+		blkphy = 0;
+
+		down_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
+		n = nilfs_bmap_lookup_contig(
+			NILFS_I(inode)->i_bmap, blkoff, &blkphy, maxblocks);
+		up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
+
+		if (n < 0) {
+			int past_eof;
+
+			if (unlikely(n != -ENOENT))
+				break; /* error */
+
+			/* HOLE */
+			blkoff++;
+			past_eof = ((blkoff << blkbits) >= isize);
+
+			if (size) {
+				/* End of the current extent */
+
+				if (past_eof)
+					flags |= FIEMAP_EXTENT_LAST;
+
+				ret = fiemap_fill_next_extent(
+					fieinfo, logical, phys, size, flags);
+				if (ret)
+					break;
+				size = 0;
+			}
+			if (blkoff > end_blkoff || past_eof)
+				break;
+		} else {
+			if (size) {
+				if (phys && blkphy << blkbits == phys + size) {
+					/* The current extent goes on */
+					size += n << blkbits;
+				} else {
+					/* Terminate the current extent */
+					ret = fiemap_fill_next_extent(
+						fieinfo, logical, phys, size,
+						flags);
+					if (ret || blkoff > end_blkoff)
+						break;
+
+					/* Start another extent */
+					flags = FIEMAP_EXTENT_MERGED;
+					logical = blkoff << blkbits;
+					phys = blkphy << blkbits;
+					size = n << blkbits;
+				}
+			} else {
+				/* Start a new extent */
+				flags = FIEMAP_EXTENT_MERGED;
+				logical = blkoff << blkbits;
+				phys = blkphy << blkbits;
+				size = n << blkbits;
+			}
+			blkoff += n;
+		}
+		cond_resched();
+	} while (true);
+
+	/* If ret is 1 then we just hit the end of the extent array */
+	if (ret == 1)
+		ret = 0;
+
+	mutex_unlock(&inode->i_mutex);
+	return ret;
+}

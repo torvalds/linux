@@ -264,6 +264,8 @@ extern int nilfs_set_file_dirty(struct nilfs_sb_info *, struct inode *,
 				unsigned);
 extern int nilfs_mark_inode_dirty(struct inode *);
 extern void nilfs_dirty_inode(struct inode *);
+int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		 __u64 start, __u64 len);
 
 /* super.c */
 extern struct inode *nilfs_alloc_inode(struct super_block *);
