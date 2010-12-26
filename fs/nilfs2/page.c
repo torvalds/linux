@@ -491,7 +491,7 @@ unsigned nilfs_page_count_clean_buffers(struct page *page,
 	}
 	return nc;
 }
- 
+
 void nilfs_mapping_init_once(struct address_space *mapping)
 {
 	memset(mapping, 0, sizeof(*mapping));
