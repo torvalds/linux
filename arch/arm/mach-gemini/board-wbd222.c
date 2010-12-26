@@ -130,6 +130,7 @@ static void __init wbd222_init(void)
 		wbd222_num_partitions);
 	platform_device_register(&wbd222_leds_device);
 	platform_device_register(&wbd222_keys_device);
+	platform_register_rtc();
 }
 
 MACHINE_START(WBD222, "Wiliboard WBD-222")
