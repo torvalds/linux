@@ -270,7 +270,6 @@ static unsigned int sfq_drop(struct Qdisc *sch)
 		/* It is difficult to believe, but ALL THE SLOTS HAVE LENGTH 1. */
 		d = q->next[q->tail];
 		q->next[q->tail] = q->next[d];
-		q->allot[q->next[d]] += q->quantum;
 		skb = q->qs[d].prev;
 		len = qdisc_pkt_len(skb);
 		__skb_unlink(skb, &q->qs[d]);
@@ -321,14 +320,13 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	sfq_inc(q, x);
 	if (q->qs[x].qlen == 1) {		/* The flow is new */
 		if (q->tail == SFQ_DEPTH) {	/* It is the first flow */
-			q->tail = x;
 			q->next[x] = x;
-			q->allot[x] = q->quantum;
 		} else {
 			q->next[x] = q->next[q->tail];
 			q->next[q->tail] = x;
-			q->tail = x;
 		}
+		q->tail = x;
+		q->allot[x] = q->quantum;
 	}
 	if (++sch->q.qlen <= q->limit) {
 		sch->bstats.bytes += qdisc_pkt_len(skb);
@@ -359,13 +357,13 @@ sfq_dequeue(struct Qdisc *sch)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *skb;
-	sfq_index a, old_a;
+	sfq_index a, next_a;
 
 	/* No active slots */
 	if (q->tail == SFQ_DEPTH)
 		return NULL;
 
-	a = old_a = q->next[q->tail];
+	a = q->next[q->tail];
 
 	/* Grab packet */
 	skb = __skb_dequeue(&q->qs[a]);
@@ -376,17 +374,15 @@ sfq_dequeue(struct Qdisc *sch)
 	/* Is the slot empty? */
 	if (q->qs[a].qlen == 0) {
 		q->ht[q->hash[a]] = SFQ_DEPTH;
-		a = q->next[a];
-		if (a == old_a) {
+		next_a = q->next[a];
+		if (a == next_a) {
 			q->tail = SFQ_DEPTH;
 			return skb;
 		}
-		q->next[q->tail] = a;
-		q->allot[a] += q->quantum;
+		q->next[q->tail] = next_a;
 	} else if ((q->allot[a] -= qdisc_pkt_len(skb)) <= 0) {
-		q->tail = a;
-		a = q->next[a];
 		q->allot[a] += q->quantum;
+		q->tail = a;
 	}
 	return skb;
 }
