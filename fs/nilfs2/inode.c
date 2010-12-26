@@ -181,10 +181,9 @@ static int nilfs_set_page_dirty(struct page *page)
 
 	if (ret) {
 		struct inode *inode = page->mapping->host;
-		struct nilfs_sb_info *sbi = NILFS_SB(inode->i_sb);
 		unsigned nr_dirty = 1 << (PAGE_SHIFT - inode->i_blkbits);
 
-		nilfs_set_file_dirty(sbi, inode, nr_dirty);
+		nilfs_set_file_dirty(inode, nr_dirty);
 	}
 	return ret;
 }
@@ -225,7 +224,7 @@ static int nilfs_write_end(struct file *file, struct address_space *mapping,
 						  start + copied);
 	copied = generic_write_end(file, mapping, pos, len, copied, page,
 				   fsdata);
-	nilfs_set_file_dirty(NILFS_SB(inode->i_sb), inode, nr_dirty);
+	nilfs_set_file_dirty(inode, nr_dirty);
 	err = nilfs_transaction_commit(inode->i_sb);
 	return err ? : copied;
 }
@@ -674,7 +673,7 @@ void nilfs_truncate(struct inode *inode)
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
 
 	nilfs_mark_inode_dirty(inode);
-	nilfs_set_file_dirty(NILFS_SB(sb), inode, 0);
+	nilfs_set_file_dirty(inode, 0);
 	nilfs_transaction_commit(sb);
 	/* May construct a logical segment and may fail in sync mode.
 	   But truncate has no return value. */
@@ -792,9 +791,9 @@ int nilfs_permission(struct inode *inode, int mask, unsigned int flags)
 	return generic_permission(inode, mask, flags, NULL);
 }
 
-int nilfs_load_inode_block(struct nilfs_sb_info *sbi, struct inode *inode,
-			   struct buffer_head **pbh)
+int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh)
 {
+	struct nilfs_sb_info *sbi = NILFS_SB(inode->i_sb);
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 	int err;
 
@@ -835,9 +834,9 @@ int nilfs_inode_dirty(struct inode *inode)
 	return ret;
 }
 
-int nilfs_set_file_dirty(struct nilfs_sb_info *sbi, struct inode *inode,
-			 unsigned nr_dirty)
+int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty)
 {
+	struct nilfs_sb_info *sbi = NILFS_SB(inode->i_sb);
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 
 	atomic_add(nr_dirty, &sbi->s_nilfs->ns_ndirtyblks);
@@ -870,11 +869,10 @@ int nilfs_set_file_dirty(struct nilfs_sb_info *sbi, struct inode *inode,
 
 int nilfs_mark_inode_dirty(struct inode *inode)
 {
-	struct nilfs_sb_info *sbi = NILFS_SB(inode->i_sb);
 	struct buffer_head *ibh;
 	int err;
 
-	err = nilfs_load_inode_block(sbi, inode, &ibh);
+	err = nilfs_load_inode_block(inode, &ibh);
 	if (unlikely(err)) {
 		nilfs_warning(inode->i_sb, __func__,
 			      "failed to reget inode block.\n");

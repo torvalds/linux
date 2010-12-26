@@ -257,11 +257,9 @@ extern void nilfs_truncate(struct inode *);
 extern void nilfs_evict_inode(struct inode *);
 extern int nilfs_setattr(struct dentry *, struct iattr *);
 int nilfs_permission(struct inode *inode, int mask, unsigned int flags);
-extern int nilfs_load_inode_block(struct nilfs_sb_info *, struct inode *,
-				  struct buffer_head **);
+int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh);
 extern int nilfs_inode_dirty(struct inode *);
-extern int nilfs_set_file_dirty(struct nilfs_sb_info *, struct inode *,
-				unsigned);
+int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty);
 extern int nilfs_mark_inode_dirty(struct inode *);
 extern void nilfs_dirty_inode(struct inode *);
 int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
