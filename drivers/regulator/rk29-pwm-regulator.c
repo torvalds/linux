@@ -57,7 +57,7 @@ REVISION 0.01
 
 
 const static int pwm_voltage_map[] = {
-	1200, 1250, 1300, 1350, 1400
+	950, 975, 1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225, 1250, 1275, 1300, 1325, 1350, 1375, 1400
 };
 
 static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
@@ -106,7 +106,7 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 	return -1;
 	}
 
-	msleep(50);
+	msleep(5);
 	
 	
     return (0);
@@ -129,11 +129,9 @@ static int pwm_init(struct pwm_platform_data *pdata, int nHz, int rate)
 
 static int pwm_regulator_list_voltage(struct regulator_dev *dev,unsigned int index)
 {
-	int *pwm_voltage_table = pwm_voltage_map;
-
        DBG("Enter %s, index =%d\n",__FUNCTION__,index);
        if (index < sizeof(pwm_voltage_map)/sizeof(int))
-	     	return pwm_voltage_table[index];
+		return pwm_voltage_map[index];
 	else
 		return -1;
 }
@@ -285,7 +283,7 @@ static void __exit pwm_regulator_module_exit(void)
 }
 
 
-module_init(pwm_regulator_module_init);
+subsys_initcall(pwm_regulator_module_init);
 
 module_exit(pwm_regulator_module_exit);
 
