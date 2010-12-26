@@ -493,9 +493,8 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 	 * different link partner.
 	 */
 	ret_val = e1000e_config_fc_after_link_up(hw);
-	if (ret_val) {
+	if (ret_val)
 		e_dbg("Error configuring flow control\n");
-	}
 
 	return ret_val;
 }
@@ -1496,9 +1495,8 @@ s32 e1000e_setup_led_generic(struct e1000_hw *hw)
 {
 	u32 ledctl;
 
-	if (hw->mac.ops.setup_led != e1000e_setup_led_generic) {
+	if (hw->mac.ops.setup_led != e1000e_setup_led_generic)
 		return -E1000_ERR_CONFIG;
-	}
 
 	if (hw->phy.media_type == e1000_media_type_fiber) {
 		ledctl = er32(LEDCTL);

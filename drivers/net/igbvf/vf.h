@@ -39,6 +39,7 @@
 struct e1000_hw;
 
 #define E1000_DEV_ID_82576_VF                 0x10CA
+#define E1000_DEV_ID_I350_VF                  0x1520
 #define E1000_REVISION_0 0
 #define E1000_REVISION_1 1
 #define E1000_REVISION_2 2
@@ -133,6 +134,7 @@ struct e1000_adv_tx_context_desc {
 enum e1000_mac_type {
 	e1000_undefined = 0,
 	e1000_vfadapt,
+	e1000_vfadapt_i350,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for true count. */
 };
 

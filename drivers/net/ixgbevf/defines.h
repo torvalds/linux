@@ -30,6 +30,7 @@
 
 /* Device IDs */
 #define IXGBE_DEV_ID_82599_VF           0x10ED
+#define IXGBE_DEV_ID_X540_VF            0x1515
 
 #define IXGBE_VF_IRQ_CLEAR_MASK         7
 #define IXGBE_VF_MAX_TX_QUEUES          1
