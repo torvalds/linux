@@ -329,7 +329,6 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 	printk(KERN_INFO "NILFS: recovery complete.\n");
 
  skip_recovery:
-	set_nilfs_loaded(nilfs);
 	nilfs_clear_recovery_info(&ri);
 	sbi->s_super->s_flags = s_flags;
 	return 0;
