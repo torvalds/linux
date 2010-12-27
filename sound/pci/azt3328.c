@@ -2195,6 +2195,7 @@ snd_azf3328_create(struct snd_card *card,
 	};
 	u8 dma_init;
 	enum snd_azf3328_codec_type codec_type;
+	struct snd_azf3328_codec *codec_setup;
 
 	*rchip = NULL;
 
@@ -2232,15 +2233,17 @@ snd_azf3328_create(struct snd_card *card,
 	chip->opl3_io  = pci_resource_start(pci, 3);
 	chip->mixer_io = pci_resource_start(pci, 4);
 
-	chip->codecs[AZF_CODEC_PLAYBACK].io_base =
-				chip->ctrl_io + AZF_IO_OFFS_CODEC_PLAYBACK;
-	chip->codecs[AZF_CODEC_PLAYBACK].name = "PLAYBACK";
-	chip->codecs[AZF_CODEC_CAPTURE].io_base =
-				chip->ctrl_io + AZF_IO_OFFS_CODEC_CAPTURE;
-	chip->codecs[AZF_CODEC_CAPTURE].name = "CAPTURE";
-	chip->codecs[AZF_CODEC_I2S_OUT].io_base =
-				chip->ctrl_io + AZF_IO_OFFS_CODEC_I2S_OUT;
-	chip->codecs[AZF_CODEC_I2S_OUT].name = "I2S_OUT";
+	codec_setup = &chip->codecs[AZF_CODEC_PLAYBACK];
+	codec_setup->io_base = chip->ctrl_io + AZF_IO_OFFS_CODEC_PLAYBACK;
+	codec_setup->name = "PLAYBACK";
+
+	codec_setup = &chip->codecs[AZF_CODEC_CAPTURE];
+	codec_setup->io_base = chip->ctrl_io + AZF_IO_OFFS_CODEC_CAPTURE;
+	codec_setup->name = "CAPTURE";
+
+	codec_setup = &chip->codecs[AZF_CODEC_I2S_OUT];
+	codec_setup->io_base = chip->ctrl_io + AZF_IO_OFFS_CODEC_I2S_OUT;
+	codec_setup->name = "I2S_OUT";
 
 	if (request_irq(pci->irq, snd_azf3328_interrupt,
 			IRQF_SHARED, card->shortname, chip)) {
