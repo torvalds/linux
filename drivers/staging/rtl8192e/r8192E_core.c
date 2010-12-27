@@ -2913,11 +2913,7 @@ static short rtl8192_init(struct net_device *dev)
 	init_timer(&priv->watch_dog_timer);
 	priv->watch_dog_timer.data = (unsigned long)dev;
 	priv->watch_dog_timer.function = watch_dog_timer_callback;
-#if defined(IRQF_SHARED)
-        if(request_irq(dev->irq, (void*)rtl8192_interrupt, IRQF_SHARED, dev->name, dev)){
-#else
-        if(request_irq(dev->irq, (void *)rtl8192_interrupt, SA_SHIRQ, dev->name, dev)){
-#endif
+        if (request_irq(dev->irq, rtl8192_interrupt, IRQF_SHARED, dev->name, dev)) {
 		printk("Error allocating IRQ %d",dev->irq);
 		return -1;
 	}else{
