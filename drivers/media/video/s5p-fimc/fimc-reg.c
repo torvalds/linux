@@ -13,7 +13,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <mach/map.h>
-#include <media/s3c_fimc.h>
+#include <media/s5p_fimc.h>
 
 #include "fimc-core.h"
 
@@ -532,7 +532,7 @@ void fimc_hw_set_output_addr(struct fimc_dev *dev,
 }
 
 int fimc_hw_set_camera_polarity(struct fimc_dev *fimc,
-				struct s3c_fimc_isp_info *cam)
+				struct s5p_fimc_isp_info *cam)
 {
 	u32 cfg = readl(fimc->regs + S5P_CIGCTRL);
 
@@ -557,7 +557,7 @@ int fimc_hw_set_camera_polarity(struct fimc_dev *fimc,
 }
 
 int fimc_hw_set_camera_source(struct fimc_dev *fimc,
-			      struct s3c_fimc_isp_info *cam)
+			      struct s5p_fimc_isp_info *cam)
 {
 	struct fimc_frame *f = &fimc->vid_cap.ctx->s_frame;
 	u32 cfg = 0;
@@ -624,7 +624,7 @@ int fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f)
 }
 
 int fimc_hw_set_camera_type(struct fimc_dev *fimc,
-			    struct s3c_fimc_isp_info *cam)
+			    struct s5p_fimc_isp_info *cam)
 {
 	u32 cfg, tmp;
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;

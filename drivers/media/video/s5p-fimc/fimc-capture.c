@@ -33,7 +33,7 @@
 #include "fimc-core.h"
 
 static struct v4l2_subdev *fimc_subdev_register(struct fimc_dev *fimc,
-					    struct s3c_fimc_isp_info *isp_info)
+					    struct s5p_fimc_isp_info *isp_info)
 {
 	struct i2c_adapter *i2c_adap;
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
@@ -86,8 +86,8 @@ static void fimc_subdev_unregister(struct fimc_dev *fimc)
 static int fimc_subdev_attach(struct fimc_dev *fimc, int index)
 {
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
-	struct s3c_platform_fimc *pdata = fimc->pdata;
-	struct s3c_fimc_isp_info *isp_info;
+	struct s5p_platform_fimc *pdata = fimc->pdata;
+	struct s5p_fimc_isp_info *isp_info;
 	struct v4l2_subdev *sd;
 	int i;
 
@@ -115,7 +115,7 @@ static int fimc_subdev_attach(struct fimc_dev *fimc, int index)
 
 static int fimc_isp_subdev_init(struct fimc_dev *fimc, int index)
 {
-	struct s3c_fimc_isp_info *isp_info;
+	struct s5p_fimc_isp_info *isp_info;
 	int ret;
 
 	ret = fimc_subdev_attach(fimc, index);
@@ -221,7 +221,7 @@ static int start_streaming(struct vb2_queue *q)
 {
 	struct fimc_ctx *ctx = q->drv_priv;
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct s3c_fimc_isp_info *isp_info;
+	struct s5p_fimc_isp_info *isp_info;
 	int ret;
 
 	ret = v4l2_subdev_call(fimc->vid_cap.sd, video, s_stream, 1);
@@ -570,8 +570,8 @@ static int fimc_cap_enum_input(struct file *file, void *priv,
 				     struct v4l2_input *i)
 {
 	struct fimc_ctx *ctx = priv;
-	struct s3c_platform_fimc *pldata = ctx->fimc_dev->pdata;
-	struct s3c_fimc_isp_info *isp_info;
+	struct s5p_platform_fimc *pldata = ctx->fimc_dev->pdata;
+	struct s5p_fimc_isp_info *isp_info;
 
 	if (i->index >= FIMC_MAX_CAMIF_CLIENTS)
 		return -EINVAL;
@@ -590,7 +590,7 @@ static int fimc_cap_s_input(struct file *file, void *priv,
 {
 	struct fimc_ctx *ctx = priv;
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct s3c_platform_fimc *pdata = fimc->pdata;
+	struct s5p_platform_fimc *pdata = fimc->pdata;
 
 	if (fimc_capture_active(ctx->fimc_dev))
 		return -EBUSY;

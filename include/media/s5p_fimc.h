@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef S3C_FIMC_H_
-#define S3C_FIMC_H_
+#ifndef S5P_FIMC_H_
+#define S5P_FIMC_H_
 
 enum cam_bus_type {
 	FIMC_ITU_601 = 1,
@@ -27,7 +27,7 @@ enum cam_bus_type {
 struct i2c_board_info;
 
 /**
- * struct s3c_fimc_isp_info - image sensor information required for host
+ * struct s5p_fimc_isp_info - image sensor information required for host
  *			      interace configuration.
  *
  * @board_info: pointer to I2C subdevice's board info
@@ -37,7 +37,7 @@ struct i2c_board_info;
  * @bus_width: camera data bus width in bits
  * @flags: flags defining bus signals polarity inversion (High by default)
  */
-struct s3c_fimc_isp_info {
+struct s5p_fimc_isp_info {
 	struct i2c_board_info *board_info;
 	enum cam_bus_type bus_type;
 	u16 i2c_bus_num;
@@ -50,11 +50,11 @@ struct s3c_fimc_isp_info {
 #define FIMC_MAX_CAMIF_CLIENTS	2
 
 /**
- * struct s3c_platform_fimc - camera host interface platform data
+ * struct s5p_platform_fimc - camera host interface platform data
  *
  * @isp_info: properties of camera sensor required for host interface setup
  */
-struct s3c_platform_fimc {
-	struct s3c_fimc_isp_info *isp_info[FIMC_MAX_CAMIF_CLIENTS];
+struct s5p_platform_fimc {
+	struct s5p_fimc_isp_info *isp_info[FIMC_MAX_CAMIF_CLIENTS];
 };
-#endif /* S3C_FIMC_H_ */
+#endif /* S5P_FIMC_H_ */

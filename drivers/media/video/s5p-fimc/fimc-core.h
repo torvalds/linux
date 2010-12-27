@@ -21,7 +21,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-mediabus.h>
-#include <media/s3c_fimc.h>
+#include <media/s5p_fimc.h>
 
 #include "regs-fimc.h"
 
@@ -421,7 +421,7 @@ struct fimc_dev {
 	spinlock_t			slock;
 	struct mutex			lock;
 	struct platform_device		*pdev;
-	struct s3c_platform_fimc	*pdata;
+	struct s5p_platform_fimc	*pdata;
 	struct samsung_fimc_variant	*variant;
 	int				id;
 	struct clk			*clock[NUM_FIMC_CLOCKS];
@@ -583,12 +583,12 @@ void fimc_hw_set_input_addr(struct fimc_dev *fimc, struct fimc_addr *paddr);
 void fimc_hw_set_output_addr(struct fimc_dev *fimc, struct fimc_addr *paddr,
 			     int index);
 int fimc_hw_set_camera_source(struct fimc_dev *fimc,
-			      struct s3c_fimc_isp_info *cam);
+			      struct s5p_fimc_isp_info *cam);
 int fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f);
 int fimc_hw_set_camera_polarity(struct fimc_dev *fimc,
-				struct s3c_fimc_isp_info *cam);
+				struct s5p_fimc_isp_info *cam);
 int fimc_hw_set_camera_type(struct fimc_dev *fimc,
-			    struct s3c_fimc_isp_info *cam);
+			    struct s5p_fimc_isp_info *cam);
 
 /* -----------------------------------------------------*/
 /* fimc-core.c */
