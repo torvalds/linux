@@ -813,8 +813,7 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Allocate tx status FIFO for driver use.
 	 */
-	if (test_bit(DRIVER_REQUIRE_TXSTATUS_FIFO, &rt2x00dev->flags) &&
-	    rt2x00dev->ops->lib->txstatus_tasklet) {
+	if (test_bit(DRIVER_REQUIRE_TXSTATUS_FIFO, &rt2x00dev->flags)) {
 		/*
 		 * Allocate txstatus fifo and tasklet, we use a size of 512
 		 * for the kfifo which is big enough to store 512/4=128 tx
@@ -828,9 +827,10 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 			return status;
 
 		/* tasklet for processing the tx status reports. */
-		tasklet_init(&rt2x00dev->txstatus_tasklet,
-			     rt2x00dev->ops->lib->txstatus_tasklet,
-			     (unsigned long)rt2x00dev);
+		if (rt2x00dev->ops->lib->txstatus_tasklet)
+			tasklet_init(&rt2x00dev->txstatus_tasklet,
+				     rt2x00dev->ops->lib->txstatus_tasklet,
+				     (unsigned long)rt2x00dev);
 
 	}
 
