@@ -561,37 +561,42 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 {
 	struct fimc_frame *f = &fimc->vid_cap.ctx->s_frame;
 	u32 cfg = 0;
+	u32 bus_width;
+	int i;
+
+	static const struct {
+		u32 pixelcode;
+		u32 cisrcfmt;
+		u16 bus_width;
+	} pix_desc[] = {
+		{ V4L2_MBUS_FMT_YUYV8_2X8, S5P_CISRCFMT_ORDER422_YCBYCR, 8 },
+		{ V4L2_MBUS_FMT_YVYU8_2X8, S5P_CISRCFMT_ORDER422_YCRYCB, 8 },
+		{ V4L2_MBUS_FMT_VYUY8_2X8, S5P_CISRCFMT_ORDER422_CRYCBY, 8 },
+		{ V4L2_MBUS_FMT_UYVY8_2X8, S5P_CISRCFMT_ORDER422_CBYCRY, 8 },
+		/* TODO: Add pixel codes for 16-bit bus width */
+	};
 
 	if (cam->bus_type == FIMC_ITU_601 || cam->bus_type == FIMC_ITU_656) {
+		for (i = 0; i < ARRAY_SIZE(pix_desc); i++) {
+			if (fimc->vid_cap.fmt.code == pix_desc[i].pixelcode) {
+				cfg = pix_desc[i].cisrcfmt;
+				bus_width = pix_desc[i].bus_width;
+				break;
+			}
+		}
 
-		switch (fimc->vid_cap.fmt.code) {
-		case V4L2_MBUS_FMT_YUYV8_2X8:
-			cfg = S5P_CISRCFMT_ORDER422_YCBYCR;
-			break;
-		case V4L2_MBUS_FMT_YVYU8_2X8:
-			cfg = S5P_CISRCFMT_ORDER422_YCRYCB;
-			break;
-		case V4L2_MBUS_FMT_VYUY8_2X8:
-			cfg = S5P_CISRCFMT_ORDER422_CRYCBY;
-			break;
-		case V4L2_MBUS_FMT_UYVY8_2X8:
-			cfg = S5P_CISRCFMT_ORDER422_CBYCRY;
-			break;
-		default:
-			err("camera image format not supported: %d",
-			    fimc->vid_cap.fmt.code);
+		if (i == ARRAY_SIZE(pix_desc)) {
+			v4l2_err(&fimc->vid_cap.v4l2_dev,
+				 "Camera color format not supported: %d\n",
+				 fimc->vid_cap.fmt.code);
 			return -EINVAL;
 		}
 
 		if (cam->bus_type == FIMC_ITU_601) {
-			if (cam->bus_width == 8) {
+			if (bus_width == 8)
 				cfg |= S5P_CISRCFMT_ITU601_8BIT;
-			} else if (cam->bus_width == 16) {
+			else if (bus_width == 16)
 				cfg |= S5P_CISRCFMT_ITU601_16BIT;
-			} else {
-				err("invalid bus width: %d", cam->bus_width);
-				return -EINVAL;
-			}
 		} /* else defaults to ITU-R BT.656 8-bit */
 	}
 

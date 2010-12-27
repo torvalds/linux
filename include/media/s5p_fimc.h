@@ -34,7 +34,6 @@ struct i2c_board_info;
  * @bus_type: determines bus type, MIPI, ITU-R BT.601 etc.
  * @i2c_bus_num: i2c control bus id the sensor is attached to
  * @mux_id: FIMC camera interface multiplexer index (separate for MIPI and ITU)
- * @bus_width: camera data bus width in bits
  * @flags: flags defining bus signals polarity inversion (High by default)
  */
 struct s5p_fimc_isp_info {
@@ -42,7 +41,6 @@ struct s5p_fimc_isp_info {
 	enum cam_bus_type bus_type;
 	u16 i2c_bus_num;
 	u16 mux_id;
-	u16 bus_width;
 	u16 flags;
 };
 
