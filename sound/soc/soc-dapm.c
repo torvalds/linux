@@ -110,7 +110,7 @@ static void pop_dbg(struct device *dev, u32 pop_time, const char *fmt, ...)
 
 	va_start(args, fmt);
 	vsnprintf(buf, PAGE_SIZE, fmt, args);
-	dev_info(dev, buf);
+	dev_info(dev, "%s", buf);
 	va_end(args);
 
 	kfree(buf);
