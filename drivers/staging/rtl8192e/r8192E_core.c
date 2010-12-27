@@ -5571,9 +5571,9 @@ static void TranslateRxSignalStuff819xpci(struct net_device *dev,
 
     /* Check if the received packet is acceptabe. */
     bpacket_match_bssid = ((IEEE80211_FTYPE_CTL != type) &&
-            (eqMacAddr(priv->ieee80211->current_network.bssid,	(fc & IEEE80211_FCTL_TODS)? hdr->addr1 : (fc & IEEE80211_FCTL_FROMDS )? hdr->addr2 : hdr->addr3))
+            (!compare_ether_addr(priv->ieee80211->current_network.bssid,	(fc & IEEE80211_FCTL_TODS)? hdr->addr1 : (fc & IEEE80211_FCTL_FROMDS )? hdr->addr2 : hdr->addr3))
             && (!pstats->bHwError) && (!pstats->bCRC)&& (!pstats->bICV));
-    bpacket_toself =  bpacket_match_bssid & (eqMacAddr(praddr, priv->ieee80211->dev->dev_addr));
+    bpacket_toself =  bpacket_match_bssid & (!compare_ether_addr(praddr, priv->ieee80211->dev->dev_addr));
 #if 1//cosa
     if(WLAN_FC_GET_FRAMETYPE(fc)== IEEE80211_STYPE_BEACON)
     {
@@ -5582,7 +5582,7 @@ static void TranslateRxSignalStuff819xpci(struct net_device *dev,
     }
     if(WLAN_FC_GET_FRAMETYPE(fc) == IEEE80211_STYPE_BLOCKACK)
     {
-        if((eqMacAddr(praddr,dev->dev_addr)))
+        if((!compare_ether_addr(praddr,dev->dev_addr)))
             bToSelfBA = true;
         //DbgPrint("BlockAck, MatchBSSID = %d, ToSelf = %d \n", bPacketMatchBSSID, bPacketToSelf);
     }
