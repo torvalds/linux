@@ -883,7 +883,6 @@ static int send_code(struct IR *ir, unsigned int code, unsigned int key)
 		return -EFAULT;
 	}
 
-done:
 	/* Oh good, it worked */
 	dprintk("sent code %u, key %u\n", code, key);
 	return 0;
