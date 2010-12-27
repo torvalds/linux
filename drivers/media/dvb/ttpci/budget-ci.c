@@ -184,6 +184,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	dev->input_phys = budget_ci->ir.phys;
 	dev->input_id.bustype = BUS_PCI;
 	dev->input_id.version = 1;
+	dev->scanmask = 0xff;
 	if (saa->pci->subsystem_vendor) {
 		dev->input_id.vendor = saa->pci->subsystem_vendor;
 		dev->input_id.product = saa->pci->subsystem_device;
