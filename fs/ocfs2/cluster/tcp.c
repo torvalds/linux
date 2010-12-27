@@ -257,6 +257,8 @@ static void o2net_update_recv_stats(struct o2net_sock_container *sc)
 
 # define o2net_update_send_stats(a, b)
 
+# define o2net_update_recv_stats(sc)
+
 #endif /* CONFIG_OCFS2_FS_STATS */
 
 static inline int o2net_reconnect_delay(void)
