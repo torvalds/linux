@@ -152,11 +152,6 @@ do { if(rt_global_debug_component & component) \
 
 #define RTL819x_DEBUG
 #ifdef RTL819x_DEBUG
-#define assert(expr) \
-        if (!(expr)) {                                  \
-                printk( "Assertion failed! %s,%s,%s,line=%d\n", \
-                #expr,__FILE__,__FUNCTION__,__LINE__);          \
-        }
 //wb added to debug out data buf
 //if you want print DATA buffer related BA, please set ieee80211_debug_level to DATA|BA
 #define RT_DEBUG_DATA(level, data, datalen)      \
@@ -174,7 +169,6 @@ do { if(rt_global_debug_component & component) \
                 }                                       \
         } while (0)
 #else
-#define assert(expr) do {} while (0)
 #define RT_DEBUG_DATA(level, data, datalen) do {} while(0)
 #endif /* RTL8169_DEBUG */
 

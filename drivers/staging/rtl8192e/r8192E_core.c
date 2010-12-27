@@ -978,7 +978,7 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev, 
 	u8 queue_index = tcb_desc->queue_index;
 
 	/* shall not be referred by command packet */
-	assert(queue_index != TXCMD_QUEUE);
+	BUG_ON(queue_index == TXCMD_QUEUE);
 
 	if (priv->bHwRadioOff || (!priv->up))
 	{
