@@ -32,8 +32,10 @@
 #include <linux/mutex.h>
 #include <linux/interrupt.h>
 #include <linux/completion.h>
+#include <linux/delay.h>
 
 #include <mach/arb_sema.h>
+#include <mach/clk.h>
 
 #include <crypto/scatterwalk.h>
 #include <crypto/aes.h>
@@ -152,6 +154,7 @@ struct tegra_aes_dev {
 	dma_addr_t ivkey_phys_base;
 	void __iomem *ivkey_base;
 	struct clk *iclk;
+	struct clk *pclk;
 	struct tegra_aes_ctx *ctx;
 	unsigned long flags;
 	struct completion op_complete;
@@ -206,6 +209,32 @@ static inline void aes_writel(struct tegra_aes_dev *dd, u32 val, u32 offset)
 	writel(val, dd->io_base + offset);
 }
 
+static int aes_hw_init(struct tegra_aes_dev *dd)
+{
+	int ret = 0;
+
+	ret = clk_enable(dd->pclk);
+	if (ret < 0) {
+		dev_err(dd->dev, "%s: pclock enable fail(%d)\n", __func__, ret);
+		return ret;
+	}
+
+	tegra_periph_reset_assert(dd->iclk);
+	udelay(50);
+	tegra_periph_reset_deassert(dd->iclk);
+	udelay(50);
+
+	ret = clk_enable(dd->iclk);
+	if (ret < 0) {
+		dev_err(dd->dev, "%s: iclock enable fail(%d)\n", __func__, ret);
+		clk_disable(dd->pclk);
+		return ret;
+	}
+
+	aes_writel(dd, 0x33, INT_ENB);
+	return ret;
+}
+
 static int aes_start_crypt(struct tegra_aes_dev *dd, u32 in_addr, u32 out_addr,
 	int nblocks, int mode, bool upd_iv)
 {
@@ -213,9 +242,9 @@ static int aes_start_crypt(struct tegra_aes_dev *dd, u32 in_addr, u32 out_addr,
 	int qlen = 0, i, eng_busy, icq_empty, dma_busy, ret = 0;
 	u32 value;
 
-	ret = clk_enable(dd->iclk);
+	ret = aes_hw_init(dd);
 	if (ret < 0) {
-		dev_err(dd->dev, "%s: clock enable fail(%d)\n", __func__, ret);
+		dev_err(dd->dev, "%s: hw init fail(%d)\n", __func__, ret);
 		return ret;
 	}
 
@@ -284,13 +313,13 @@ static int aes_start_crypt(struct tegra_aes_dev *dd, u32 in_addr, u32 out_addr,
 	aes_writel(dd, out_addr, SECURE_DEST_ADDR);
 
 	for (i = 0; i < qlen - 1; i++) {
-		aes_writel(dd, cmdq[i], ICMDQUE_WR);
 		do {
 			value = aes_readl(dd, INTR_STATUS);
 			eng_busy = value & (0x1);
 			icq_empty = value & (0x1<<3);
 			dma_busy = value & (0x1<<23);
 		} while (eng_busy & (!icq_empty) & dma_busy);
+		aes_writel(dd, cmdq[i], ICMDQUE_WR);
 	}
 
 	INIT_COMPLETION(dd->op_complete);
@@ -299,6 +328,7 @@ static int aes_start_crypt(struct tegra_aes_dev *dd, u32 in_addr, u32 out_addr,
 		dev_err(dd->dev, "timed out (0x%x)\n",
 			aes_readl(dd, INTR_STATUS));
 		clk_disable(dd->iclk);
+		clk_disable(dd->pclk);
 		return -ETIMEDOUT;
 	}
 
@@ -311,6 +341,7 @@ static int aes_start_crypt(struct tegra_aes_dev *dd, u32 in_addr, u32 out_addr,
 	} while (eng_busy & (!icq_empty) & dma_busy);
 
 	clk_disable(dd->iclk);
+	clk_disable(dd->pclk);
 	return 0;
 }
 
@@ -356,9 +387,9 @@ static int aes_set_key(struct tegra_aes_dev *dd)
 		use_ssk = true;
 	}
 
-	ret = clk_enable(dd->iclk);
+	ret = aes_hw_init(dd);
 	if (ret < 0) {
-		dev_err(dd->dev, "%s: clock enable fail(%d)\n", __func__, ret);
+		dev_err(dd->dev, "%s: hw init fail(%d)\n", __func__, ret);
 		return ret;
 	}
 
@@ -414,6 +445,7 @@ static int aes_set_key(struct tegra_aes_dev *dd)
 
 out:
 	clk_disable(dd->iclk);
+	clk_disable(dd->pclk);
 	return 0;
 }
 
@@ -839,6 +871,7 @@ static struct crypto_alg algs[] = {
 		.cra_u.ablkcipher = {
 			.min_keysize = AES_MIN_KEY_SIZE,
 			.max_keysize = AES_MAX_KEY_SIZE,
+			.ivsize = AES_MAX_KEY_SIZE,
 			.setkey = tegra_aes_setkey,
 			.encrypt = tegra_aes_cbc_encrypt,
 			.decrypt = tegra_aes_cbc_decrypt,
@@ -878,7 +911,6 @@ static int tegra_aes_probe(struct platform_device *pdev)
 	struct tegra_aes_dev *dd;
 	struct resource *res;
 	int err = -ENOMEM, i = 0, j;
-	bool clk_enabled = false;
 
 	if (aes_dev)
 		return -EEXIST;
@@ -919,21 +951,21 @@ static int tegra_aes_probe(struct platform_device *pdev)
 
 	dd->res_id = TEGRA_ARB_AES;
 
-	/* Initialize the clock */
-	dd->iclk = clk_get(dev, "vde");
-	if (!dd->iclk) {
-		dev_err(dev, "clock intialization failed.\n");
+	/* Initialise the master bsev clock */
+	dd->pclk = clk_get(dev, "bsev");
+	if (!dd->pclk) {
+		dev_err(dev, "pclock intialization failed.\n");
 		err = -ENODEV;
 		goto out;
 	}
 
-	err = clk_enable(dd->iclk);
-	if (err < 0) {
-		dev_err(dev, "clock enable failed(%d)\n", err);
+	/* Initialize the vde clock */
+	dd->iclk = clk_get(dev, "vde");
+	if (!dd->iclk) {
+		dev_err(dev, "iclock intialization failed.\n");
 		err = -ENODEV;
 		goto out;
 	}
-	clk_enabled = true;
 
 	/*
 	 * the foll contiguous memory is allocated as follows -
@@ -964,7 +996,6 @@ static int tegra_aes_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	aes_writel(dd, 0x33, INT_ENB);
 	init_completion(&dd->op_complete);
 
 	/* get the irq */
@@ -993,8 +1024,6 @@ static int tegra_aes_probe(struct platform_device *pdev)
 			goto out;
 	}
 
-	clk_disable(dd->iclk);
-
 	dev_info(dev, "registered");
 	return 0;
 
@@ -1012,10 +1041,10 @@ out:
 			dd->buf_out, dd->dma_buf_out);
 	if (dd->io_base)
 		iounmap(dd->io_base);
-	if (clk_enabled)
-		clk_disable(dd->iclk);
 	if (dd->iclk)
 		clk_put(dd->iclk);
+	if (dd->pclk)
+		clk_put(dd->pclk);
 
 	free_irq(INT_VDE_BSE_V, dd);
 	spin_lock(&list_lock);
@@ -1054,6 +1083,7 @@ static int __devexit tegra_aes_remove(struct platform_device *pdev)
 		dd->buf_out, dd->dma_buf_out);
 	iounmap(dd->io_base);
 	clk_put(dd->iclk);
+	clk_put(dd->pclk);
 	kfree(dd->slots);
 	kfree(dd);
 	aes_dev = NULL;
