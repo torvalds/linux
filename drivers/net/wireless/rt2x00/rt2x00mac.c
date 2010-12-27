@@ -610,10 +610,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 		return;
 
 	/*
-	 * Call rt2x00_config_intf() outside of the spinlock context since
-	 * the call will sleep for USB drivers. By using the ieee80211_if_conf
-	 * values as arguments we make keep access to rt2x00_intf thread safe
-	 * even without the lock.
+	 * Update the BSSID.
 	 */
 	if (changes & BSS_CHANGED_BSSID)
 		rt2x00lib_config_intf(rt2x00dev, intf, vif->type, NULL,
