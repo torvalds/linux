@@ -44,6 +44,8 @@ static int use_msr;
 module_param_named(msr, use_msr, int, 0644);
 MODULE_PARM_DESC(msr, "Force using MSR to configure IDE function (Default: 0)");
 #else
+#undef rdmsr	/* avoid accidental MSR usage on, e.g. x86-64 */
+#undef wrmsr
 #define rdmsr(x, y, z) do { } while (0)
 #define wrmsr(x, y, z) do { } while (0)
 #define use_msr 0
