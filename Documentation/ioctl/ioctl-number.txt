@@ -155,7 +155,6 @@ Code  Seq#(hex)	Include File		Comments
 'Q'	all	linux/soundcard.h
 'R'	00-1F	linux/random.h		conflict!
 'R'	01	linux/rfkill.h		conflict!
-'R'	01-0F	media/rds.h		conflict!
 'R'	C0-DF	net/bluetooth/rfcomm.h
 'S'	all	linux/cdrom.h		conflict!
 'S'	80-81	scsi/scsi_ioctl.h	conflict!

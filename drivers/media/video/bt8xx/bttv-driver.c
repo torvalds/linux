@@ -55,7 +55,7 @@
 #include <asm/io.h>
 #include <asm/byteorder.h>
 
-#include <media/rds.h>
+#include <media/saa6588.h>
 
 
 unsigned int bttv_num;			/* number of Bt848s in use */
@@ -3388,7 +3388,7 @@ static int radio_release(struct file *file)
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
-	struct rds_command cmd;
+	struct saa6588_command cmd;
 
 	v4l2_prio_close(&btv->prio, fh->prio);
 	file->private_data = NULL;
@@ -3396,7 +3396,7 @@ static int radio_release(struct file *file)
 
 	btv->radio_user--;
 
-	bttv_call_all(btv, core, ioctl, RDS_CMD_CLOSE, &cmd);
+	bttv_call_all(btv, core, ioctl, SAA6588_CMD_CLOSE, &cmd);
 
 	return 0;
 }
@@ -3523,13 +3523,13 @@ static ssize_t radio_read(struct file *file, char __user *data,
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
-	struct rds_command cmd;
+	struct saa6588_command cmd;
 	cmd.block_count = count/3;
 	cmd.buffer = data;
 	cmd.instance = file;
 	cmd.result = -ENODEV;
 
-	bttv_call_all(btv, core, ioctl, RDS_CMD_READ, &cmd);
+	bttv_call_all(btv, core, ioctl, SAA6588_CMD_READ, &cmd);
 
 	return cmd.result;
 }
@@ -3538,11 +3538,11 @@ static unsigned int radio_poll(struct file *file, poll_table *wait)
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
-	struct rds_command cmd;
+	struct saa6588_command cmd;
 	cmd.instance = file;
 	cmd.event_list = wait;
 	cmd.result = -ENODEV;
-	bttv_call_all(btv, core, ioctl, RDS_CMD_POLL, &cmd);
+	bttv_call_all(btv, core, ioctl, SAA6588_CMD_POLL, &cmd);
 
 	return cmd.result;
 }

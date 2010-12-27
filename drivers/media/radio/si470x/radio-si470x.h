@@ -37,7 +37,6 @@
 #include <linux/mutex.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
-#include <media/rds.h>
 #include <asm/unaligned.h>
 
 

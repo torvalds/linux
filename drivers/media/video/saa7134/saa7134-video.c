@@ -30,7 +30,7 @@
 #include "saa7134-reg.h"
 #include "saa7134.h"
 #include <media/v4l2-common.h>
-#include <media/rds.h>
+#include <media/saa6588.h>
 
 /* ------------------------------------------------------------------ */
 
@@ -1459,7 +1459,7 @@ static int video_release(struct file *file)
 {
 	struct saa7134_fh  *fh  = file->private_data;
 	struct saa7134_dev *dev = fh->dev;
-	struct rds_command cmd;
+	struct saa6588_command cmd;
 	unsigned long flags;
 
 	/* turn off overlay */
@@ -1494,7 +1494,7 @@ static int video_release(struct file *file)
 
 	saa_call_all(dev, core, s_power, 0);
 	if (fh->radio)
-		saa_call_all(dev, core, ioctl, RDS_CMD_CLOSE, &cmd);
+		saa_call_all(dev, core, ioctl, SAA6588_CMD_CLOSE, &cmd);
 
 	/* free stuff */
 	videobuf_mmap_free(&fh->cap);
@@ -1520,14 +1520,14 @@ static ssize_t radio_read(struct file *file, char __user *data,
 {
 	struct saa7134_fh *fh = file->private_data;
 	struct saa7134_dev *dev = fh->dev;
-	struct rds_command cmd;
+	struct saa6588_command cmd;
 
 	cmd.block_count = count/3;
 	cmd.buffer = data;
 	cmd.instance = file;
 	cmd.result = -ENODEV;
 
-	saa_call_all(dev, core, ioctl, RDS_CMD_READ, &cmd);
+	saa_call_all(dev, core, ioctl, SAA6588_CMD_READ, &cmd);
 
 	return cmd.result;
 }
@@ -1536,12 +1536,12 @@ static unsigned int radio_poll(struct file *file, poll_table *wait)
 {
 	struct saa7134_fh *fh = file->private_data;
 	struct saa7134_dev *dev = fh->dev;
-	struct rds_command cmd;
+	struct saa6588_command cmd;
 
 	cmd.instance = file;
 	cmd.event_list = wait;
 	cmd.result = -ENODEV;
-	saa_call_all(dev, core, ioctl, RDS_CMD_POLL, &cmd);
+	saa_call_all(dev, core, ioctl, SAA6588_CMD_POLL, &cmd);
 
 	return cmd.result;
 }

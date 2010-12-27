@@ -4,9 +4,6 @@
     saa6588.c and every driver (e.g. bttv-driver.c) that wants
     to use the saa6588 module.
 
-    Instead of having a separate rds.h, I'd prefer to include
-    this stuff in one of the already existing files like tuner.h
-
     (c) 2005 by Hans J. Koch
 
     This program is free software; you can redistribute it and/or modify
@@ -25,10 +22,10 @@
 
 */
 
-#ifndef _RDS_H
-#define _RDS_H
+#ifndef _SAA6588_H
+#define _SAA6588_H
 
-struct rds_command {
+struct saa6588_command {
 	unsigned int  block_count;
 	int           result;
 	unsigned char __user *buffer;
@@ -36,9 +33,10 @@ struct rds_command {
 	poll_table    *event_list;
 };
 
-#define RDS_CMD_OPEN	_IOW('R',1,int)
-#define RDS_CMD_CLOSE	_IOW('R',2,int)
-#define RDS_CMD_READ	_IOR('R',3,int)
-#define RDS_CMD_POLL	_IOR('R',4,int)
+/* These ioctls are internal to the kernel */
+#define SAA6588_CMD_OPEN	_IOW('R', 1, int)
+#define SAA6588_CMD_CLOSE	_IOW('R', 2, int)
+#define SAA6588_CMD_READ	_IOR('R', 3, int)
+#define SAA6588_CMD_POLL	_IOR('R', 4, int)
 
 #endif
