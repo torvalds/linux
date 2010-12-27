@@ -908,7 +908,7 @@ struct rt2x00_dev {
 	/*
 	 * FIFO for storing tx status reports between isr and tasklet.
 	 */
-	struct kfifo txstatus_fifo;
+	DECLARE_KFIFO_PTR(txstatus_fifo, u32);
 
 	/*
 	 * Tasklet for processing tx status reports (rt2800pci).
