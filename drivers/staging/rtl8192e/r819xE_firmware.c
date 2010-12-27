@@ -345,7 +345,7 @@ bool init_firmware(struct net_device *dev)
 	return rt_status;
 
 download_firmware_fail:
-	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
+	RT_TRACE(COMP_ERR, "ERR in %s() step %d\n", __func__, init_step);
 	rt_status = false;
 	return rt_status;
 }
