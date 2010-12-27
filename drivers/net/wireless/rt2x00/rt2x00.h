@@ -360,11 +360,6 @@ struct rt2x00_intf {
 	spinlock_t lock;
 
 	/*
-	 * MAC of the device.
-	 */
-	u8 mac[ETH_ALEN];
-
-	/*
 	 * beacon->skb must be protected with the mutex.
 	 */
 	struct mutex beacon_skb_mutex;

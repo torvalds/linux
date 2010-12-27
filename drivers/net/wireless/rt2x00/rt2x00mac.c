@@ -282,9 +282,8 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	 * STA interfaces at this time, since this can cause
 	 * invalid behavior in the device.
 	 */
-	memcpy(&intf->mac, vif->addr, ETH_ALEN);
 	rt2x00lib_config_intf(rt2x00dev, intf, vif->type,
-			      intf->mac, NULL);
+			      vif->addr, NULL);
 
 	/*
 	 * Some filters depend on the current working mode. We can force
@@ -492,7 +491,6 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		      struct ieee80211_key_conf *key)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct rt2x00_intf *intf = vif_to_intf(vif);
 	int (*set_key) (struct rt2x00_dev *rt2x00dev,
 			struct rt2x00lib_crypto *crypto,
 			struct ieee80211_key_conf *key);
@@ -516,7 +514,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (rt2x00dev->intf_sta_count)
 		crypto.bssidx = 0;
 	else
-		crypto.bssidx = intf->mac[5] & (rt2x00dev->ops->max_ap_intf - 1);
+		crypto.bssidx = vif->addr[5] & (rt2x00dev->ops->max_ap_intf - 1);
 
 	crypto.cipher = rt2x00crypto_key_to_cipher(key);
 	if (crypto.cipher == CIPHER_NONE)
