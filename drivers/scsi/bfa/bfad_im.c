@@ -1174,7 +1174,6 @@ bfad_im_queuecommand_lck(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd 
 	}
 
 	cmnd->host_scribble = (char *)hal_io;
-	bfa_trc_fp(bfad, hal_io->iotag);
 	bfa_ioim_start(hal_io);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 

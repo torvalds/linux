@@ -4670,8 +4670,6 @@ bfa_sgpg_malloc(struct bfa_s *bfa, struct list_head *sgpg_q, int nsgpgs)
 	struct bfa_sgpg_s *hsgpg;
 	int i;
 
-	bfa_trc_fp(bfa, nsgpgs);
-
 	if (mod->free_sgpgs < nsgpgs)
 		return BFA_STATUS_ENOMEM;
 
@@ -4690,8 +4688,6 @@ bfa_sgpg_mfree(struct bfa_s *bfa, struct list_head *sgpg_q, int nsgpg)
 {
 	struct bfa_sgpg_mod_s *mod = BFA_SGPG_MOD(bfa);
 	struct bfa_sgpg_wqe_s *wqe;
-
-	bfa_trc_fp(bfa, nsgpg);
 
 	mod->free_sgpgs += nsgpg;
 	WARN_ON(mod->free_sgpgs > mod->num_sgpgs);

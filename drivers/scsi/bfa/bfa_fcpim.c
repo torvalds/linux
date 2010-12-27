@@ -1367,9 +1367,6 @@ bfa_itnim_clear_stats(struct bfa_itnim_s *itnim)
 static void
 bfa_ioim_sm_uninit(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 {
-	bfa_trc_fp(ioim->bfa, ioim->iotag);
-	bfa_trc_fp(ioim->bfa, event);
-
 	switch (event) {
 	case BFA_IOIM_SM_START:
 		if (!bfa_itnim_is_online(ioim->itnim)) {
@@ -1479,9 +1476,6 @@ bfa_ioim_sm_sgalloc(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 static void
 bfa_ioim_sm_active(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 {
-	bfa_trc_fp(ioim->bfa, ioim->iotag);
-	bfa_trc_fp(ioim->bfa, event);
-
 	switch (event) {
 	case BFA_IOIM_SM_COMP_GOOD:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
@@ -1563,9 +1557,6 @@ bfa_ioim_sm_active(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 static void
 bfa_ioim_sm_cmnd_retry(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 {
-	bfa_trc_fp(ioim->bfa, ioim->iotag);
-	bfa_trc_fp(ioim->bfa, event);
-
 	switch (event) {
 	case BFA_IOIM_SM_FREE:
 		/* abts and rrq done. Now retry the IO with new tag */
@@ -1886,9 +1877,6 @@ bfa_ioim_sm_cleanup_qfull(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 static void
 bfa_ioim_sm_hcb(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 {
-	bfa_trc_fp(ioim->bfa, ioim->iotag);
-	bfa_trc_fp(ioim->bfa, event);
-
 	switch (event) {
 	case BFA_IOIM_SM_HCB:
 		bfa_sm_set_state(ioim, bfa_ioim_sm_uninit);
@@ -2529,9 +2517,7 @@ bfa_ioim_good_comp_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	ioim = BFA_IOIM_FROM_TAG(fcpim, iotag);
 	WARN_ON(BFA_IOIM_TAG_2_ID(ioim->iotag) != iotag);
 
-	bfa_trc_fp(ioim->bfa, ioim->iotag);
 	bfa_ioim_cb_profile_comp(fcpim, ioim);
-
 	bfa_sm_send_event(ioim, BFA_IOIM_SM_COMP_GOOD);
 }
 
@@ -2608,7 +2594,6 @@ bfa_ioim_alloc(struct bfa_s *bfa, struct bfad_ioim_s *dio,
 	fcpim->ios_active++;
 
 	list_add_tail(&ioim->qe, &itnim->io_q);
-	bfa_trc_fp(ioim->bfa, ioim->iotag);
 
 	return ioim;
 }
@@ -2617,12 +2602,6 @@ void
 bfa_ioim_free(struct bfa_ioim_s *ioim)
 {
 	struct bfa_fcpim_mod_s *fcpim = ioim->fcpim;
-
-	bfa_trc_fp(ioim->bfa, ioim->iotag);
-	bfa_assert_fp(bfa_sm_cmp_state(ioim, bfa_ioim_sm_uninit));
-
-	bfa_assert_fp(list_empty(&ioim->sgpg_q) ||
-			(ioim->nsges > BFI_SGE_INLINE));
 
 	if (ioim->nsgpgs > 0)
 		bfa_sgpg_mfree(ioim->bfa, &ioim->sgpg_q, ioim->nsgpgs);
@@ -2638,8 +2617,6 @@ bfa_ioim_free(struct bfa_ioim_s *ioim)
 void
 bfa_ioim_start(struct bfa_ioim_s *ioim)
 {
-	bfa_trc_fp(ioim->bfa, ioim->iotag);
-
 	bfa_ioim_cb_profile_start(ioim->fcpim, ioim);
 
 	/*

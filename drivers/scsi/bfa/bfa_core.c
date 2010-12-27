@@ -296,8 +296,6 @@ bfa_msix_rspq(struct bfa_s *bfa, int qid)
 	u32 pi, ci;
 	struct list_head *waitq;
 
-	bfa_trc_fp(bfa, qid);
-
 	qid &= (BFI_IOC_MAX_CQS - 1);
 
 	bfa->iocfc.hwif.hw_rspq_ack(bfa, qid);
@@ -305,16 +303,10 @@ bfa_msix_rspq(struct bfa_s *bfa, int qid)
 	ci = bfa_rspq_ci(bfa, qid);
 	pi = bfa_rspq_pi(bfa, qid);
 
-	bfa_trc_fp(bfa, ci);
-	bfa_trc_fp(bfa, pi);
-
 	if (bfa->rme_process) {
 		while (ci != pi) {
 			m = bfa_rspq_elem(bfa, qid, ci);
-			bfa_assert_fp(m->mhdr.msg_class < BFI_MC_MAX);
-
 			bfa_isrs[m->mhdr.msg_class] (bfa, m);
-
 			CQ_INCR(ci, bfa->iocfc.cfg.drvcfg.num_rspq_elems);
 		}
 	}

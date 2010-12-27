@@ -1166,7 +1166,6 @@ bfad_intx(int irq, void *dev_id)
 		spin_lock_irqsave(&bfad->bfad_lock, flags);
 		bfa_comp_free(&bfad->bfa, &doneq);
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		bfa_trc_fp(bfad, irq);
 	}
 
 	return IRQ_HANDLED;
