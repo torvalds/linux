@@ -471,17 +471,17 @@ EXPORT_SYMBOL_GPL(rt2x00mac_set_tim);
 static void memcpy_tkip(struct rt2x00lib_crypto *crypto, u8 *key, u8 key_len)
 {
 	if (key_len > NL80211_TKIP_DATA_OFFSET_ENCR_KEY)
-		memcpy(&crypto->key,
+		memcpy(crypto->key,
 		       &key[NL80211_TKIP_DATA_OFFSET_ENCR_KEY],
 		       sizeof(crypto->key));
 
 	if (key_len > NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY)
-		memcpy(&crypto->tx_mic,
+		memcpy(crypto->tx_mic,
 		       &key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
 		       sizeof(crypto->tx_mic));
 
 	if (key_len > NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY)
-		memcpy(&crypto->rx_mic,
+		memcpy(crypto->rx_mic,
 		       &key[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
 		       sizeof(crypto->rx_mic));
 }
@@ -532,7 +532,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (crypto.cipher == CIPHER_TKIP)
 		memcpy_tkip(&crypto, &key->key[0], key->keylen);
 	else
-		memcpy(&crypto.key, &key->key[0], key->keylen);
+		memcpy(crypto.key, &key->key[0], key->keylen);
 	/*
 	 * Each BSS has a maximum of 4 shared keys.
 	 * Shared key index values:
