@@ -998,18 +998,6 @@ bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t *wwns)
 	memcpy(wwns, cfgrsp->bootwwns.wwn, sizeof(cfgrsp->bootwwns.wwn));
 }
 
-void
-bfa_iocfc_get_pbc_boot_cfg(struct bfa_s *bfa, struct bfa_boot_pbc_s *pbcfg)
-{
-	struct bfa_iocfc_s *iocfc = &bfa->iocfc;
-	struct bfi_iocfc_cfgrsp_s *cfgrsp = iocfc->cfgrsp;
-
-	pbcfg->enable = cfgrsp->pbc_cfg.boot_enabled;
-	pbcfg->nbluns = cfgrsp->pbc_cfg.nbluns;
-	pbcfg->speed = cfgrsp->pbc_cfg.port_speed;
-	memcpy(pbcfg->pblun, cfgrsp->pbc_cfg.blun, sizeof(pbcfg->pblun));
-}
-
 int
 bfa_iocfc_get_pbc_vports(struct bfa_s *bfa, struct bfi_pbc_vport_s *pbc_vport)
 {

@@ -2180,7 +2180,7 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	else
 		m->cmnd.iodir = FCP_IODIR_NONE;
 
-	m->cmnd.cdb = *(scsi_cdb_t *) cmnd->cmnd;
+	m->cmnd.cdb = *(struct scsi_cdb_s *) cmnd->cmnd;
 	fcp_dl = scsi_bufflen(cmnd);
 	m->cmnd.fcp_dl = cpu_to_be32(fcp_dl);
 

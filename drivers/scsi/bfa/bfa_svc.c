@@ -1372,7 +1372,7 @@ bfa_lps_sm_online(struct bfa_lps_s *lps, enum bfa_lps_event event)
 	}
 }
 
-/**
+/*
  * login complete
  */
 static void
@@ -1691,7 +1691,7 @@ bfa_lps_send_logout(struct bfa_lps_s *lps)
 	bfa_reqq_produce(lps->bfa, lps->reqq);
 }
 
-/**
+/*
  * send n2n pid set request to firmware
  */
 static void
@@ -1930,7 +1930,7 @@ bfa_lps_get_base_pid(struct bfa_s *bfa)
 	return BFA_LPS_FROM_TAG(mod, 0)->lp_pid;
 }
 
-/**
+/*
  * Set PID in case of n2n (which is assigned during PLOGI)
  */
 void

@@ -334,8 +334,6 @@ void bfa_hwct_msix_get_rme_range(struct bfa_s *bfa, u32 *start,
 void bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t *wwns);
 wwn_t bfa_iocfc_get_pwwn(struct bfa_s *bfa);
 wwn_t bfa_iocfc_get_nwwn(struct bfa_s *bfa);
-void bfa_iocfc_get_pbc_boot_cfg(struct bfa_s *bfa,
-				struct bfa_boot_pbc_s *pbcfg);
 int bfa_iocfc_get_pbc_vports(struct bfa_s *bfa,
 				struct bfi_pbc_vport_s *pbc_vport);
 
