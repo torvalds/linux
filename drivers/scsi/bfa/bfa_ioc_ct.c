@@ -113,7 +113,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	/*
 	 * Use count cannot be non-zero and chip in uninitialized state.
 	 */
-	bfa_assert(ioc_fwstate != BFI_IOC_UNINIT);
+	WARN_ON(ioc_fwstate == BFI_IOC_UNINIT);
 
 	/*
 	 * Check if another driver with a different firmware is active
@@ -158,7 +158,7 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc)
 	 */
 	bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
 	usecnt = readl(ioc->ioc_regs.ioc_usage_reg);
-	bfa_assert(usecnt > 0);
+	WARN_ON(usecnt <= 0);
 
 	usecnt--;
 	writel(usecnt, ioc->ioc_regs.ioc_usage_reg);

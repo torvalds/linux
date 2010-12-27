@@ -163,16 +163,6 @@ __bfa_trc32(struct bfa_trc_mod_s *trcm, int fileno, int line, u32 data)
 #define bfa_trc_fp(_trcp, _data)
 #endif
 
-/*
- * @ BFA LOG interfaces
- */
-#define bfa_assert(__cond)	do {					\
-	if (!(__cond)) {						\
-		printk(KERN_ERR "assert(%s) failed at %s:%d\\n",         \
-		#__cond, __FILE__, __LINE__);				\
-	}								\
-} while (0)
-
 #define bfa_sm_fault(__mod, __event)	do {				\
 	bfa_trc(__mod, (((u32)0xDEAD << 16) | __event));		\
 	printk(KERN_ERR	"Assertion failure: %s:%d: %d",			\

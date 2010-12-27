@@ -111,7 +111,7 @@ bfa_hwcb_msix_init(struct bfa_s *bfa, int nvecs)
 {
 	int i;
 
-	bfa_assert((nvecs == 1) || (nvecs == __HFN_NUMINTS));
+	WARN_ON((nvecs != 1) && (nvecs != __HFN_NUMINTS));
 
 	bfa->msix.nvecs = nvecs;
 	if (nvecs == 1) {

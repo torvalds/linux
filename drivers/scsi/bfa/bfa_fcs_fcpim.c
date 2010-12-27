@@ -536,7 +536,7 @@ bfa_fcs_itnim_create(struct bfa_fcs_rport_s *rport)
 	if (bfa_itnim == NULL) {
 		bfa_trc(port->fcs, rport->pwwn);
 		bfa_fcb_itnim_free(port->fcs->bfad, itnim_drv);
-		bfa_assert(0);
+		WARN_ON(1);
 		return NULL;
 	}
 
@@ -700,7 +700,7 @@ bfa_fcs_itnim_lookup(struct bfa_fcs_lport_s *port, wwn_t rpwwn)
 	if (!rport)
 		return NULL;
 
-	bfa_assert(rport->itnim != NULL);
+	WARN_ON(rport->itnim == NULL);
 	return rport->itnim;
 }
 
@@ -729,7 +729,7 @@ bfa_fcs_itnim_stats_get(struct bfa_fcs_lport_s *port, wwn_t rpwwn,
 {
 	struct bfa_fcs_itnim_s *itnim = NULL;
 
-	bfa_assert(port != NULL);
+	WARN_ON(port == NULL);
 
 	itnim = bfa_fcs_itnim_lookup(port, rpwwn);
 
@@ -746,7 +746,7 @@ bfa_fcs_itnim_stats_clear(struct bfa_fcs_lport_s *port, wwn_t rpwwn)
 {
 	struct bfa_fcs_itnim_s *itnim = NULL;
 
-	bfa_assert(port != NULL);
+	WARN_ON(port == NULL);
 
 	itnim = bfa_fcs_itnim_lookup(port, rpwwn);
 
@@ -778,6 +778,6 @@ bfa_fcs_fcpim_uf_recv(struct bfa_fcs_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		WARN_ON(1);
 	}
 }

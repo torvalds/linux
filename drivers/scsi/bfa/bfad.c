@@ -532,7 +532,7 @@ bfad_hal_mem_release(struct bfad_s *bfad)
 					(dma_addr_t) meminfo_elem->dma);
 				break;
 			default:
-				bfa_assert(0);
+				WARN_ON(1);
 				break;
 			}
 		}

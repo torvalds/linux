@@ -32,12 +32,12 @@ static void bfa_itnim_update_del_itn_stats(struct bfa_itnim_s *itnim);
 #define bfa_fcpim_additn(__itnim)					\
 	list_add_tail(&(__itnim)->qe, &(__itnim)->fcpim->itnim_q)
 #define bfa_fcpim_delitn(__itnim)	do {				\
-	bfa_assert(bfa_q_is_on_q(&(__itnim)->fcpim->itnim_q, __itnim));      \
+	WARN_ON(!bfa_q_is_on_q(&(__itnim)->fcpim->itnim_q, __itnim));   \
 	bfa_itnim_update_del_itn_stats(__itnim);      \
 	list_del(&(__itnim)->qe);      \
-	bfa_assert(list_empty(&(__itnim)->io_q));      \
-	bfa_assert(list_empty(&(__itnim)->io_cleanup_q));      \
-	bfa_assert(list_empty(&(__itnim)->pending_q));      \
+	WARN_ON(!list_empty(&(__itnim)->io_q));				\
+	WARN_ON(!list_empty(&(__itnim)->io_cleanup_q));			\
+	WARN_ON(!list_empty(&(__itnim)->pending_q));			\
 } while (0)
 
 #define bfa_itnim_online_cb(__itnim) do {				\
@@ -1184,7 +1184,7 @@ bfa_itnim_iotov_start(struct bfa_itnim_s *itnim)
 	if (itnim->fcpim->path_tov > 0) {
 
 		itnim->iotov_active = BFA_TRUE;
-		bfa_assert(bfa_itnim_hold_io(itnim));
+		WARN_ON(!bfa_itnim_hold_io(itnim));
 		bfa_timer_start(itnim->bfa, &itnim->timer,
 			bfa_itnim_iotov, itnim, itnim->fcpim->path_tov);
 	}
@@ -1262,7 +1262,7 @@ bfa_itnim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	case BFI_ITNIM_I2H_CREATE_RSP:
 		itnim = BFA_ITNIM_FROM_TAG(fcpim,
 						msg.create_rsp->bfa_handle);
-		bfa_assert(msg.create_rsp->status == BFA_STATUS_OK);
+		WARN_ON(msg.create_rsp->status != BFA_STATUS_OK);
 		bfa_stats(itnim, create_comps);
 		bfa_sm_send_event(itnim, BFA_ITNIM_SM_FWRSP);
 		break;
@@ -1270,7 +1270,7 @@ bfa_itnim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	case BFI_ITNIM_I2H_DELETE_RSP:
 		itnim = BFA_ITNIM_FROM_TAG(fcpim,
 						msg.delete_rsp->bfa_handle);
-		bfa_assert(msg.delete_rsp->status == BFA_STATUS_OK);
+		WARN_ON(msg.delete_rsp->status != BFA_STATUS_OK);
 		bfa_stats(itnim, delete_comps);
 		bfa_sm_send_event(itnim, BFA_ITNIM_SM_FWRSP);
 		break;
@@ -1284,7 +1284,7 @@ bfa_itnim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 
 	default:
 		bfa_trc(bfa, m->mhdr.msg_id);
-		bfa_assert(0);
+		WARN_ON(1);
 	}
 }
 
@@ -1299,7 +1299,7 @@ bfa_itnim_create(struct bfa_s *bfa, struct bfa_rport_s *rport, void *ditn)
 	struct bfa_itnim_s *itnim;
 
 	itnim = BFA_ITNIM_FROM_TAG(fcpim, rport->rport_tag);
-	bfa_assert(itnim->rport == rport);
+	WARN_ON(itnim->rport != rport);
 
 	itnim->ditn = ditn;
 
@@ -1416,7 +1416,7 @@ bfa_ioim_sm_uninit(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 		 * requests immediately.
 		 */
 		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
-		bfa_assert(bfa_q_is_on_q(&ioim->itnim->pending_q, ioim));
+		WARN_ON(!bfa_q_is_on_q(&ioim->itnim->pending_q, ioim));
 		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe,
 				__bfa_cb_ioim_abort, ioim);
 		break;
@@ -1649,7 +1649,7 @@ bfa_ioim_sm_abort(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 		break;
 
 	case BFA_IOIM_SM_CLEANUP:
-		bfa_assert(ioim->iosp->abort_explicit == BFA_TRUE);
+		WARN_ON(ioim->iosp->abort_explicit != BFA_TRUE);
 		ioim->iosp->abort_explicit = BFA_FALSE;
 
 		if (bfa_ioim_send_abort(ioim))
@@ -1795,7 +1795,7 @@ bfa_ioim_sm_abort_qfull(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 		break;
 
 	case BFA_IOIM_SM_CLEANUP:
-		bfa_assert(ioim->iosp->abort_explicit == BFA_TRUE);
+		WARN_ON(ioim->iosp->abort_explicit != BFA_TRUE);
 		ioim->iosp->abort_explicit = BFA_FALSE;
 		bfa_sm_set_state(ioim, bfa_ioim_sm_cleanup_qfull);
 		break;
@@ -2236,7 +2236,7 @@ bfa_ioim_sgpg_alloc(struct bfa_ioim_s *ioim)
 {
 	u16	nsgpgs;
 
-	bfa_assert(ioim->nsges > BFI_SGE_INLINE);
+	WARN_ON(ioim->nsges <= BFI_SGE_INLINE);
 
 	/*
 	 * allocate SG pages needed
@@ -2444,7 +2444,7 @@ bfa_ioim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	iotag = be16_to_cpu(rsp->io_tag);
 
 	ioim = BFA_IOIM_FROM_TAG(fcpim, iotag);
-	bfa_assert(ioim->iotag == iotag);
+	WARN_ON(ioim->iotag != iotag);
 
 	bfa_trc(ioim->bfa, ioim->iotag);
 	bfa_trc(ioim->bfa, rsp->io_status);
@@ -2475,13 +2475,13 @@ bfa_ioim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 
 	case BFI_IOIM_STS_PROTO_ERR:
 		bfa_stats(ioim->itnim, iocom_proto_err);
-		bfa_assert(rsp->reuse_io_tag);
+		WARN_ON(!rsp->reuse_io_tag);
 		evt = BFA_IOIM_SM_COMP;
 		break;
 
 	case BFI_IOIM_STS_SQER_NEEDED:
 		bfa_stats(ioim->itnim, iocom_sqer_needed);
-		bfa_assert(rsp->reuse_io_tag == 0);
+		WARN_ON(rsp->reuse_io_tag != 0);
 		evt = BFA_IOIM_SM_SQRETRY;
 		break;
 
@@ -2510,7 +2510,7 @@ bfa_ioim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 		break;
 
 	default:
-		bfa_assert(0);
+		WARN_ON(1);
 	}
 
 	bfa_sm_send_event(ioim, evt);
@@ -2527,7 +2527,7 @@ bfa_ioim_good_comp_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	iotag = be16_to_cpu(rsp->io_tag);
 
 	ioim = BFA_IOIM_FROM_TAG(fcpim, iotag);
-	bfa_assert(BFA_IOIM_TAG_2_ID(ioim->iotag) == iotag);
+	WARN_ON(BFA_IOIM_TAG_2_ID(ioim->iotag) != iotag);
 
 	bfa_trc_fp(ioim->bfa, ioim->iotag);
 	bfa_ioim_cb_profile_comp(fcpim, ioim);
@@ -2944,7 +2944,7 @@ bfa_tskim_match_scope(struct bfa_tskim_s *tskim, struct scsi_lun lun)
 		return !memcmp(&tskim->lun, &lun, sizeof(lun));
 
 	default:
-		bfa_assert(0);
+		WARN_ON(1);
 	}
 
 	return BFA_FALSE;
@@ -3190,7 +3190,7 @@ bfa_tskim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	u16	tsk_tag = be16_to_cpu(rsp->tsk_tag);
 
 	tskim = BFA_TSKIM_FROM_TAG(fcpim, tsk_tag);
-	bfa_assert(tskim->tsk_tag == tsk_tag);
+	WARN_ON(tskim->tsk_tag != tsk_tag);
 
 	tskim->tsk_status = rsp->tsk_status;
 
@@ -3225,7 +3225,7 @@ bfa_tskim_alloc(struct bfa_s *bfa, struct bfad_tskim_s *dtsk)
 void
 bfa_tskim_free(struct bfa_tskim_s *tskim)
 {
-	bfa_assert(bfa_q_is_on_q_func(&tskim->itnim->tsk_q, &tskim->qe));
+	WARN_ON(!bfa_q_is_on_q_func(&tskim->itnim->tsk_q, &tskim->qe));
 	list_del(&tskim->qe);
 	list_add_tail(&tskim->qe, &tskim->fcpim->tskim_free_q);
 }

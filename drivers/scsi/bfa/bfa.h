@@ -120,8 +120,8 @@ bfa_reqq_winit(struct bfa_reqq_wait_s *wqe, void (*qresume) (void *cbarg),
 									\
 		struct list_head *waitq = bfa_reqq(__bfa, __reqq);      \
 									\
-		bfa_assert(((__reqq) < BFI_IOC_MAX_CQS));      \
-		bfa_assert((__wqe)->qresume && (__wqe)->cbarg);      \
+		WARN_ON(((__reqq) >= BFI_IOC_MAX_CQS));			\
+		WARN_ON(!((__wqe)->qresume && (__wqe)->cbarg));		\
 									\
 		list_add_tail(&(__wqe)->qe, waitq);      \
 	} while (0)

@@ -1219,7 +1219,7 @@ bfa_ioc_sem_get(void __iomem *sem_reg)
 	if (r32 == 0)
 		return BFA_TRUE;
 
-	bfa_assert(cnt < BFA_SEM_SPINCNT);
+	WARN_ON(cnt >= BFA_SEM_SPINCNT);
 	return BFA_FALSE;
 }
 
@@ -1274,7 +1274,7 @@ bfa_ioc_lmem_init(struct bfa_ioc_s *ioc)
 	 * If memory initialization is not successful, IOC timeout will catch
 	 * such failures.
 	 */
-	bfa_assert(pss_ctl & __PSS_LMEM_INIT_DONE);
+	WARN_ON(!(pss_ctl & __PSS_LMEM_INIT_DONE));
 	bfa_trc(ioc, pss_ctl);
 
 	pss_ctl &= ~(__PSS_LMEM_INIT_DONE | __PSS_LMEM_INIT_EN);
@@ -1503,7 +1503,7 @@ bfa_ioc_mbox_send(struct bfa_ioc_s *ioc, void *ioc_msg, int len)
 	bfa_trc(ioc, msgp[0]);
 	bfa_trc(ioc, len);
 
-	bfa_assert(len <= BFI_IOC_MSGLEN_MAX);
+	WARN_ON(len > BFI_IOC_MSGLEN_MAX);
 
 	/*
 	 * first write msg to mailbox registers
@@ -2010,7 +2010,7 @@ bfa_ioc_isr(struct bfa_ioc_s *ioc, struct bfi_mbmsg_s *m)
 
 	default:
 		bfa_trc(ioc, msg->mh.msg_id);
-		bfa_assert(0);
+		WARN_ON(1);
 	}
 }
 
@@ -2345,7 +2345,7 @@ bfa_ioc_get_type(struct bfa_ioc_s *ioc)
 	else if (ioc->ioc_mc == BFI_MC_LL)
 		return BFA_IOC_TYPE_LL;
 	else {
-		bfa_assert(ioc->ioc_mc == BFI_MC_LL);
+		WARN_ON(ioc->ioc_mc != BFI_MC_LL);
 		return BFA_IOC_TYPE_LL;
 	}
 }
@@ -2369,7 +2369,7 @@ bfa_ioc_get_adapter_fw_ver(struct bfa_ioc_s *ioc, char *fw_ver)
 void
 bfa_ioc_get_pci_chip_rev(struct bfa_ioc_s *ioc, char *chip_rev)
 {
-	bfa_assert(chip_rev);
+	WARN_ON(!chip_rev);
 
 	memset((void *)chip_rev, 0, BFA_IOC_CHIP_REV_LEN);
 
@@ -2401,7 +2401,7 @@ bfa_ioc_get_adapter_model(struct bfa_ioc_s *ioc, char *model)
 {
 	struct bfi_ioc_attr_s	*ioc_attr;
 
-	bfa_assert(model);
+	WARN_ON(!model);
 	memset((void *)model, 0, BFA_ADAPTER_MODEL_NAME_LEN);
 
 	ioc_attr = ioc->attr;
@@ -2772,8 +2772,8 @@ bfa_timer_begin(struct bfa_timer_mod_s *mod, struct bfa_timer_s *timer,
 		    void (*timercb) (void *), void *arg, unsigned int timeout)
 {
 
-	bfa_assert(timercb != NULL);
-	bfa_assert(!bfa_q_is_on_q(&mod->timer_q, timer));
+	WARN_ON(timercb == NULL);
+	WARN_ON(bfa_q_is_on_q(&mod->timer_q, timer));
 
 	timer->timeout = timeout;
 	timer->timercb = timercb;
@@ -2788,7 +2788,7 @@ bfa_timer_begin(struct bfa_timer_mod_s *mod, struct bfa_timer_s *timer,
 void
 bfa_timer_stop(struct bfa_timer_s *timer)
 {
-	bfa_assert(!list_empty(&timer->qe));
+	WARN_ON(list_empty(&timer->qe));
 
 	list_del(&timer->qe);
 }

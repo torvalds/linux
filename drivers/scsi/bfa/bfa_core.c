@@ -285,7 +285,7 @@ bfa_isr_unhandled(struct bfa_s *bfa, struct bfi_msg_s *m)
 	bfa_trc(bfa, m->mhdr.msg_class);
 	bfa_trc(bfa, m->mhdr.msg_id);
 	bfa_trc(bfa, m->mhdr.mtag.i2htok);
-	bfa_assert(0);
+	WARN_ON(1);
 	bfa_trc_stop(bfa->trcmod);
 }
 
@@ -433,7 +433,7 @@ bfa_iocfc_send_cfg(void *bfa_arg)
 	struct bfa_iocfc_cfg_s	*cfg = &iocfc->cfg;
 	int		i;
 
-	bfa_assert(cfg->fwcfg.num_cqs <= BFI_IOC_MAX_CQS);
+	WARN_ON(cfg->fwcfg.num_cqs > BFI_IOC_MAX_CQS);
 	bfa_trc(bfa, cfg->fwcfg.num_cqs);
 
 	bfa_iocfc_reset_queues(bfa);
@@ -753,7 +753,7 @@ bfa_iocfc_disable_cbfn(void *bfa_arg)
 		bfa_cb_queue(bfa, &bfa->iocfc.stop_hcb_qe, bfa_iocfc_stop_cb,
 			     bfa);
 	else {
-		bfa_assert(bfa->iocfc.action == BFA_IOCFC_ACT_DISABLE);
+		WARN_ON(bfa->iocfc.action != BFA_IOCFC_ACT_DISABLE);
 		bfa_cb_queue(bfa, &bfa->iocfc.dis_hcb_qe, bfa_iocfc_disable_cb,
 			     bfa);
 	}
@@ -894,7 +894,7 @@ bfa_iocfc_isr(void *bfaarg, struct bfi_mbmsg_s *m)
 		iocfc->updateq_cbfn(iocfc->updateq_cbarg, BFA_STATUS_OK);
 		break;
 	default:
-		bfa_assert(0);
+		WARN_ON(1);
 	}
 }
 
@@ -1063,7 +1063,7 @@ bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo)
 	int		i;
 	u32	km_len = 0, dm_len = 0;
 
-	bfa_assert((cfg != NULL) && (meminfo != NULL));
+	WARN_ON((cfg == NULL) || (meminfo == NULL));
 
 	memset((void *)meminfo, 0, sizeof(struct bfa_meminfo_s));
 	meminfo->meminfo[BFA_MEM_TYPE_KVA - 1].mem_type =
@@ -1117,7 +1117,7 @@ bfa_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 
 	bfa->fcs = BFA_FALSE;
 
-	bfa_assert((cfg != NULL) && (meminfo != NULL));
+	WARN_ON((cfg == NULL) || (meminfo == NULL));
 
 	/*
 	 * initialize all memory pointers for iterative allocation
