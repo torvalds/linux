@@ -988,7 +988,9 @@ int w_e_end_rsdata_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 		put_ldev(mdev);
 	}
 
-	if (likely((e->flags & EE_WAS_ERROR) == 0)) {
+	if (mdev->state.conn == C_AHEAD) {
+		ok = drbd_send_ack(mdev, P_RS_CANCEL, e);
+	} else if (likely((e->flags & EE_WAS_ERROR) == 0)) {
 		if (likely(mdev->state.pdsk >= D_INCONSISTENT)) {
 			inc_rs_pending(mdev);
 			ok = drbd_send_block(mdev, P_RS_DATA_REPLY, e);

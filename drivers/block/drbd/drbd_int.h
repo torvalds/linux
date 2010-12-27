@@ -205,8 +205,9 @@ enum drbd_packets {
 	/* P_CKPT_DISABLE_REQ    = 0x26, * currently reserved for protocol D */
 	P_DELAY_PROBE         = 0x27, /* is used on BOTH sockets */
 	P_OUT_OF_SYNC         = 0x28, /* Mark as out of sync (Outrunning), data socket */
+	P_RS_CANCEL           = 0x29, /* meta: Used to cancel RS_DATA_REQUEST packet by SyncSource */
 
-	P_MAX_CMD	      = 0x28,
+	P_MAX_CMD	      = 0x2A,
 	P_MAY_IGNORE	      = 0x100, /* Flag to test if (cmd > P_MAY_IGNORE) ... */
 	P_MAX_OPT_CMD	      = 0x101,
 

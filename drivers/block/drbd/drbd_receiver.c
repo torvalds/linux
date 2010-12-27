@@ -4361,7 +4361,16 @@ static int got_NegRSDReply(struct drbd_conf *mdev, struct p_header80 *h)
 
 	if (get_ldev_if_state(mdev, D_FAILED)) {
 		drbd_rs_complete_io(mdev, sector);
-		drbd_rs_failed_io(mdev, sector, size);
+		switch (be16_to_cpu(h->command)) {
+		case P_NEG_RS_DREPLY:
+			drbd_rs_failed_io(mdev, sector, size);
+		case P_RS_CANCEL:
+			break;
+		default:
+			D_ASSERT(0);
+			put_ldev(mdev);
+			return false;
+		}
 		put_ldev(mdev);
 	}
 
@@ -4459,6 +4468,7 @@ static struct asender_cmd *get_asender_cmd(int cmd)
 	[P_STATE_CHG_REPLY] = { sizeof(struct p_req_state_reply), got_RqSReply },
 	[P_RS_IS_IN_SYNC]   = { sizeof(struct p_block_ack), got_IsInSync },
 	[P_DELAY_PROBE]     = { sizeof(struct p_delay_probe93), got_skip },
+	[P_RS_CANCEL]       = { sizeof(struct p_block_ack), got_NegRSDReply},
 	[P_MAX_CMD]	    = { 0, NULL },
 	};
 	if (cmd > P_MAX_CMD || asender_tbl[cmd].process == NULL)
