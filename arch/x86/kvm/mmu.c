@@ -3538,14 +3538,18 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 		if (!test_bit(slot, sp->slot_bitmap))
 			continue;
 
-		if (sp->role.level != PT_PAGE_TABLE_LEVEL)
-			continue;
-
 		pt = sp->spt;
-		for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
+		for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
+			if (sp->role.level != PT_PAGE_TABLE_LEVEL
+			    && is_large_pte(pt[i])) {
+				drop_spte(kvm, &pt[i],
+					  shadow_trap_nonpresent_pte);
+				--kvm->stat.lpages;
+			}
 			/* avoid RMW */
 			if (is_writable_pte(pt[i]))
 				update_spte(&pt[i], pt[i] & ~PT_WRITABLE_MASK);
+		}
 	}
 	kvm_flush_remote_tlbs(kvm);
 }

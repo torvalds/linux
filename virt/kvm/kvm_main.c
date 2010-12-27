@@ -621,7 +621,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 			    struct kvm_userspace_memory_region *mem,
 			    int user_alloc)
 {
-	int r, flush_shadow = 0;
+	int r;
 	gfn_t base_gfn;
 	unsigned long npages;
 	unsigned long i;
@@ -741,8 +741,6 @@ skip_lpage:
 		if (kvm_create_dirty_bitmap(&new) < 0)
 			goto out_free;
 		/* destroy any largepage mappings for dirty tracking */
-		if (old.npages)
-			flush_shadow = 1;
 	}
 #else  /* not defined CONFIG_S390 */
 	new.user_alloc = user_alloc;
@@ -812,9 +810,6 @@ skip_lpage:
 
 	kvm_free_physmem_slot(&old, &new);
 	kfree(old_memslots);
-
-	if (flush_shadow)
-		kvm_arch_flush_shadow(kvm);
 
 	return 0;
 
