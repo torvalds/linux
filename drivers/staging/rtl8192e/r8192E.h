@@ -150,28 +150,6 @@ do { if(rt_global_debug_component & component) \
 #define COMP_ERR				BIT31  // for error out, always on
 #endif
 
-#define RTL819x_DEBUG
-#ifdef RTL819x_DEBUG
-//wb added to debug out data buf
-//if you want print DATA buffer related BA, please set ieee80211_debug_level to DATA|BA
-#define RT_DEBUG_DATA(level, data, datalen)      \
-        do{ if ((rt_global_debug_component & (level)) == (level))   \
-                {       \
-                        int i;                                  \
-                        u8* pdata = (u8*) data;                 \
-                        printk(KERN_DEBUG RTL819xE_MODULE_NAME ": %s()\n", __FUNCTION__);   \
-                        for(i=0; i<(int)(datalen); i++)                 \
-                        {                                               \
-                                printk("%2x ", pdata[i]);               \
-                                if ((i+1)%16 == 0) printk("\n");        \
-                        }                               \
-                        printk("\n");                   \
-                }                                       \
-        } while (0)
-#else
-#define RT_DEBUG_DATA(level, data, datalen) do {} while(0)
-#endif /* RTL8169_DEBUG */
-
 
 //
 // Queue Select Value in TxDesc
