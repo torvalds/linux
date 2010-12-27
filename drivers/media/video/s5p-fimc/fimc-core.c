@@ -30,7 +30,9 @@
 
 #include "fimc-core.h"
 
-static char *fimc_clock_name[NUM_FIMC_CLOCKS] = { "sclk_fimc", "fimc" };
+static char *fimc_clocks[MAX_FIMC_CLOCKS] = {
+	"sclk_fimc", "fimc", "sclk_cam"
+};
 
 static struct fimc_fmt fimc_formats[] = {
 	{
@@ -1478,7 +1480,7 @@ static void fimc_unregister_m2m_device(struct fimc_dev *fimc)
 static void fimc_clk_release(struct fimc_dev *fimc)
 {
 	int i;
-	for (i = 0; i < NUM_FIMC_CLOCKS; i++) {
+	for (i = 0; i < fimc->num_clocks; i++) {
 		if (fimc->clock[i]) {
 			clk_disable(fimc->clock[i]);
 			clk_put(fimc->clock[i]);
@@ -1489,15 +1491,16 @@ static void fimc_clk_release(struct fimc_dev *fimc)
 static int fimc_clk_get(struct fimc_dev *fimc)
 {
 	int i;
-	for (i = 0; i < NUM_FIMC_CLOCKS; i++) {
-		fimc->clock[i] = clk_get(&fimc->pdev->dev, fimc_clock_name[i]);
-		if (IS_ERR(fimc->clock[i])) {
-			dev_err(&fimc->pdev->dev,
-				"failed to get fimc clock: %s\n",
-				fimc_clock_name[i]);
-			return -ENXIO;
+	for (i = 0; i < fimc->num_clocks; i++) {
+		fimc->clock[i] = clk_get(&fimc->pdev->dev, fimc_clocks[i]);
+
+		if (!IS_ERR_OR_NULL(fimc->clock[i])) {
+			clk_enable(fimc->clock[i]);
+			continue;
 		}
-		clk_enable(fimc->clock[i]);
+		dev_err(&fimc->pdev->dev, "failed to get fimc clock: %s\n",
+			fimc_clocks[i]);
+		return -ENXIO;
 	}
 	return 0;
 }
@@ -1508,6 +1511,7 @@ static int fimc_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct samsung_fimc_driverdata *drv_data;
 	int ret = 0;
+	int cap_input_index = -1;
 
 	dev_dbg(&pdev->dev, "%s():\n", __func__);
 
@@ -1557,10 +1561,26 @@ static int fimc_probe(struct platform_device *pdev)
 		goto err_req_region;
 	}
 
+	fimc->num_clocks = MAX_FIMC_CLOCKS - 1;
+	/*
+	 * Check if vide capture node needs to be registered for this device
+	 * instance.
+	 */
+	if (fimc->pdata) {
+		int i;
+		for (i = 0; i < FIMC_MAX_CAMIF_CLIENTS; ++i)
+			if (fimc->pdata->isp_info[i])
+				break;
+		if (i < FIMC_MAX_CAMIF_CLIENTS) {
+			cap_input_index = i;
+			fimc->num_clocks++;
+		}
+	}
+
 	ret = fimc_clk_get(fimc);
 	if (ret)
 		goto err_regs_unmap;
-	clk_set_rate(fimc->clock[0], drv_data->lclk_frequency);
+	clk_set_rate(fimc->clock[CLK_BUS], drv_data->lclk_frequency);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
@@ -1590,19 +1610,12 @@ static int fimc_probe(struct platform_device *pdev)
 		goto err_irq;
 
 	/* At least one camera sensor is required to register capture node */
-	if (fimc->pdata) {
-		int i;
-		for (i = 0; i < FIMC_MAX_CAMIF_CLIENTS; ++i)
-			if (fimc->pdata->isp_info[i])
-				break;
-
-		if (i < FIMC_MAX_CAMIF_CLIENTS) {
-			ret = fimc_register_capture_device(fimc);
-			if (ret)
-				goto err_m2m;
-		}
+	if (cap_input_index >= 0) {
+		ret = fimc_register_capture_device(fimc);
+		if (ret)
+			goto err_m2m;
+		clk_disable(fimc->clock[CLK_CAM]);
 	}
-
 	/*
 	 * Exclude the additional output DMA address registers by masking
 	 * them out on HW revisions that provide extended capabilites.

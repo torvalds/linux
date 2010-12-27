@@ -37,7 +37,7 @@
 
 /* Time to wait for next frame VSYNC interrupt while stopping operation. */
 #define FIMC_SHUTDOWN_TIMEOUT	((100*HZ)/1000)
-#define NUM_FIMC_CLOCKS		2
+#define MAX_FIMC_CLOCKS		3
 #define MODULE_NAME		"s5p-fimc"
 #define FIMC_MAX_DEVS		4
 #define FIMC_MAX_OUT_BUFS	4
@@ -45,7 +45,13 @@
 #define SCALER_MAX_VRATIO	64
 #define DMA_MIN_SIZE		8
 
-/* FIMC device state flags */
+/* indices to the clocks array */
+enum {
+	CLK_BUS,
+	CLK_GATE,
+	CLK_CAM,
+};
+
 enum fimc_dev_flags {
 	/* for m2m node */
 	ST_IDLE,
@@ -407,7 +413,8 @@ struct fimc_ctx;
  * @lock:	the mutex protecting this data structure
  * @pdev:	pointer to the FIMC platform device
  * @pdata:	pointer to the device platform data
- * @id:		FIMC device index (0..2)
+ * @id:		FIMC device index (0..FIMC_MAX_DEVS)
+ * @num_clocks: the number of clocks managed by this device instance
  * @clock[]:	the clocks required for FIMC operation
  * @regs:	the mapped hardware registers
  * @regs_res:	the resource claimed for IO registers
@@ -423,8 +430,9 @@ struct fimc_dev {
 	struct platform_device		*pdev;
 	struct s5p_platform_fimc	*pdata;
 	struct samsung_fimc_variant	*variant;
-	int				id;
-	struct clk			*clock[NUM_FIMC_CLOCKS];
+	u16				id;
+	u16				num_clocks;
+	struct clk			*clock[MAX_FIMC_CLOCKS];
 	void __iomem			*regs;
 	struct resource			*regs_res;
 	int				irq;

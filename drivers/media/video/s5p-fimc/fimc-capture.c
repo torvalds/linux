@@ -113,26 +113,43 @@ static int fimc_subdev_attach(struct fimc_dev *fimc, int index)
 	return -ENODEV;
 }
 
-static int fimc_isp_subdev_init(struct fimc_dev *fimc, int index)
+static int fimc_isp_subdev_init(struct fimc_dev *fimc, unsigned int index)
 {
 	struct s5p_fimc_isp_info *isp_info;
 	int ret;
+
+	if (index >= FIMC_MAX_CAMIF_CLIENTS)
+		return -EINVAL;
+
+	isp_info = fimc->pdata->isp_info[index];
+	if (!isp_info)
+		return -EINVAL;
+
+	if (isp_info->clk_frequency)
+		clk_set_rate(fimc->clock[CLK_CAM], isp_info->clk_frequency);
+
+	ret = clk_enable(fimc->clock[CLK_CAM]);
+	if (ret)
+		return ret;
 
 	ret = fimc_subdev_attach(fimc, index);
 	if (ret)
 		return ret;
 
-	isp_info = fimc->pdata->isp_info[fimc->vid_cap.input_index];
 	ret = fimc_hw_set_camera_polarity(fimc, isp_info);
-	if (!ret) {
-		ret = v4l2_subdev_call(fimc->vid_cap.sd, core,
-				       s_power, 1);
-		if (!ret)
-			return ret;
-	}
+	if (ret)
+		return ret;
 
+	ret = v4l2_subdev_call(fimc->vid_cap.sd, core, s_power, 1);
+	if (!ret)
+		return ret;
+
+	/* enabling power failed so unregister subdev */
 	fimc_subdev_unregister(fimc);
-	err("ISP initialization failed: %d", ret);
+
+	v4l2_err(&fimc->vid_cap.v4l2_dev, "ISP initialization failed: %d\n",
+		 ret);
+
 	return ret;
 }
 
@@ -190,10 +207,7 @@ static int fimc_stop_capture(struct fimc_dev *fimc)
 			   test_bit(ST_CAPT_SHUT, &fimc->state),
 			   FIMC_SHUTDOWN_TIMEOUT);
 
-	ret = v4l2_subdev_call(cap->sd, video, s_stream, 0);
-
-	if (ret && ret != -ENOIOCTLCMD)
-		v4l2_err(&fimc->vid_cap.v4l2_dev, "s_stream(0) failed\n");
+	v4l2_subdev_call(cap->sd, video, s_stream, 0);
 
 	spin_lock_irqsave(&fimc->slock, flags);
 	fimc->state &= ~(1 << ST_CAPT_RUN | 1 << ST_CAPT_PEND |
@@ -408,7 +422,7 @@ static int fimc_capture_open(struct file *file)
 		return -EBUSY;
 
 	if (++fimc->vid_cap.refcnt == 1) {
-		ret = fimc_isp_subdev_init(fimc, -1);
+		ret = fimc_isp_subdev_init(fimc, 0);
 		if (ret) {
 			fimc->vid_cap.refcnt--;
 			return -EIO;
@@ -433,6 +447,7 @@ static int fimc_capture_close(struct file *file)
 		v4l2_err(&fimc->vid_cap.v4l2_dev, "releasing ISP\n");
 
 		v4l2_subdev_call(fimc->vid_cap.sd, core, s_power, 0);
+		clk_disable(fimc->clock[CLK_CAM]);
 		fimc_subdev_unregister(fimc);
 	}
 
@@ -604,6 +619,8 @@ static int fimc_cap_s_input(struct file *file, void *priv,
 		int ret = v4l2_subdev_call(fimc->vid_cap.sd, core, s_power, 0);
 		if (ret)
 			err("s_power failed: %d", ret);
+
+		clk_disable(fimc->clock[CLK_CAM]);
 	}
 
 	/* Release the attached sensor subdevice. */

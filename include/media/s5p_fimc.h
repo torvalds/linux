@@ -31,6 +31,7 @@ struct i2c_board_info;
  *			      interace configuration.
  *
  * @board_info: pointer to I2C subdevice's board info
+ * @clk_frequency: frequency of the clock the host interface provides to sensor
  * @bus_type: determines bus type, MIPI, ITU-R BT.601 etc.
  * @i2c_bus_num: i2c control bus id the sensor is attached to
  * @mux_id: FIMC camera interface multiplexer index (separate for MIPI and ITU)
@@ -38,6 +39,7 @@ struct i2c_board_info;
  */
 struct s5p_fimc_isp_info {
 	struct i2c_board_info *board_info;
+	unsigned long clk_frequency;
 	enum cam_bus_type bus_type;
 	u16 i2c_bus_num;
 	u16 mux_id;
