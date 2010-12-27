@@ -1153,6 +1153,7 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 	}
 	btrfs_free_path(path);
 	if (ret) {
+		kfree(root);
 		if (ret > 0)
 			ret = -ENOENT;
 		return ERR_PTR(ret);
