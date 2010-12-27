@@ -365,11 +365,6 @@ struct rt2x00_intf {
 	u8 mac[ETH_ALEN];
 
 	/*
-	 * BBSID of the AP to associate with.
-	 */
-	u8 bssid[ETH_ALEN];
-
-	/*
 	 * beacon->skb must be protected with the mutex.
 	 */
 	struct mutex beacon_skb_mutex;

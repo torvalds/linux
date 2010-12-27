@@ -614,17 +614,6 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return;
 
-	spin_lock(&intf->lock);
-
-	/*
-	 * conf->bssid can be NULL if coming from the internal
-	 * beacon update routine.
-	 */
-	if (changes & BSS_CHANGED_BSSID)
-		memcpy(&intf->bssid, bss_conf->bssid, ETH_ALEN);
-
-	spin_unlock(&intf->lock);
-
 	/*
 	 * Call rt2x00_config_intf() outside of the spinlock context since
 	 * the call will sleep for USB drivers. By using the ieee80211_if_conf
