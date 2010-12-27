@@ -864,7 +864,11 @@ config SOC_CAMERA_OV772X
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a ov772x camera driver
-
+config SOC_CAMERA_OV7675
+	tristate "ov7675 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov7675 camera driver
 config SOC_CAMERA_OV2655
 	tristate "ov2655 camera support"
 	depends on SOC_CAMERA && I2C

@@ -1,5 +1,6 @@
+
 /*
- * Driver for OV5642 CMOS Image Sensor from OmniVision
+o* Driver for MT9M001 CMOS Image Sensor from Micron
  *
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
  *
@@ -20,7 +21,6 @@
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
 #include <mach/rk29_camera.h>
-#include "ov5642.h"
 
 #define _CONS(a,b) a##b
 #define CONS(a,b) _CONS(a,b)
@@ -30,37 +30,32 @@
 #define STR(x) _STR(x)
 
 /* Sensor Driver Configuration */
-#define SENSOR_NAME ov5642
-#define SENSOR_V4L2_IDENT V4L2_IDENT_OV5642
-#define SENSOR_ID 0x5642
-#define SENSOR_MIN_WIDTH    176
-#define SENSOR_MIN_HEIGHT   144
-#define SENSOR_MAX_WIDTH    2592
-#define SENSOR_MAX_HEIGHT   1944
+#define SENSOR_NAME ov7675
+#define SENSOR_V4L2_IDENT V4L2_IDENT_OV7675
+#define SENSOR_ID 0x76
+#define SENSOR_MIN_WIDTH    640//176
+#define SENSOR_MIN_HEIGHT   480//144
+#define SENSOR_MAX_WIDTH    640
+#define SENSOR_MAX_HEIGHT   480
 #define SENSOR_INIT_WIDTH	640			/* Sensor pixel size for sensor_init_data array */
 #define SENSOR_INIT_HEIGHT  480
 #define SENSOR_INIT_WINSEQADR sensor_vga
-#define SENSOR_INIT_PIXFMT V4L2_PIX_FMT_UYVY
+#define SENSOR_INIT_PIXFMT V4L2_PIX_FMT_YUYV
 
-#define CONFIG_SENSOR_WhiteBalance	1
+#define CONFIG_SENSOR_WhiteBalance	0
 #define CONFIG_SENSOR_Brightness	0
 #define CONFIG_SENSOR_Contrast      0
 #define CONFIG_SENSOR_Saturation    0
 #define CONFIG_SENSOR_Effect        1
-#define CONFIG_SENSOR_Scene         1
+#define CONFIG_SENSOR_Scene         0
 #define CONFIG_SENSOR_DigitalZoom   0
+#define CONFIG_SENSOR_Focus         0
 #define CONFIG_SENSOR_Exposure      0
 #define CONFIG_SENSOR_Flash         0
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
-#ifdef CONFIG_OV5642_AUTOFOCUS
-#define CONFIG_SENSOR_Focus         1
-#include "ov5642_af_firmware.c"
-#else
-#define CONFIG_SENSOR_Focus         0
-#endif
 
-#define CONFIG_SENSOR_I2C_SPEED     300000       /* Hz */
+#define CONFIG_SENSOR_I2C_SPEED     100000       /* Hz */
 
 #define CONFIG_SENSOR_TR      1
 #define CONFIG_SENSOR_DEBUG	  1
@@ -95,1004 +90,515 @@
 #define COLOR_TEMPERATURE_HOME_DN       2500
 #define COLOR_TEMPERATURE_HOME_UP       3500
 
-#define SENSOR_AF_IS_ERR    (0x00<<0)
-#define SENSOR_AF_IS_OK		(0x01<<0)
+struct reginfo
+{
+    u8 reg;
+    u8 val;
+};
 
-#if CONFIG_SENSOR_Focus
-#define SENSOR_AF_MODE_INFINITY    0
-#define SENSOR_AF_MODE_MACRO       1
-#define SENSOR_AF_MODE_FIXED       2
-#define SENSOR_AF_MODE_AUTO        3
-#define SENSOR_AF_MODE_CONTINUOUS  4
-#define SENSOR_AF_MODE_CLOSE       5
-#endif
-
-#if CONFIG_SENSOR_Focus
-/* ov5642 VCM Command and Status Registers */
-#define CMD_MAIN_Reg      0x3024
-#define CMD_TAG_Reg       0x3025
-#define CMD_PARA0_Reg     0x5085
-#define CMD_PARA1_Reg     0x5084
-#define CMD_PARA2_Reg     0x5083
-#define CMD_PARA3_Reg     0x5082
-#define STA_ZONE_Reg      0x3026
-#define STA_FOCUS_Reg     0x3027
-
-/* ov5642 VCM Command  */
-#define OverlayEn_Cmd     0x01
-#define OverlayDis_Cmd    0x02
-#define SingleFocus_Cmd   0x03
-#define ConstFocus_Cmd    0x04
-#define StepMode_Cmd      0x05
-#define PauseFocus_Cmd    0x06
-#define ReturnIdle_Cmd    0x08
-#define SetZone_Cmd       0x10
-#define UpdateZone_Cmd    0x12
-#define SetMotor_Cmd      0x20
-
-/* ov5642 Focus State */
-#define S_FIRWRE          0xFF
-#define S_STARTUP         0xfa
-#define S_ERROR           0xfe
-#define S_DRVICERR        0xee
-#define S_IDLE            0x00
-#define S_FOCUSING        0x01
-#define S_FOCUSED         0x02
-#define S_CAPTURE         0x12
-#define S_STEP            0x20
-
-/* ov5642 Zone State */
-#define Zone_Is_Focused(a, zone_val)    (zone_val&(1<<(a-3)))
-#define Zone_Get_ID(zone_val)           (zone_val&0x03)
-
-#define Zone_CenterMode   0x01
-#define Zone_5xMode       0x02
-#define Zone_5PlusMode    0x03
-#define Zone_4fMode       0x04
-
-#define ZoneSel_Auto      0x0b
-#define ZoneSel_SemiAuto  0x0c
-#define ZoneSel_Manual    0x0d
-#define ZoneSel_Rotate    0x0e
-
-/* ov5642 Step Focus Commands */
-#define StepFocus_Near_Tag       0x01
-#define StepFocus_Far_Tag        0x02
-#define StepFocus_Furthest_Tag   0x03
-#define StepFocus_Nearest_Tag    0x04
-#define StepFocus_Spec_Tag       0x10
-#endif
-
-/* init 640X480 SVGA */
+/* init 640X480 VGA */
 static struct reginfo sensor_init_data[] =
 {
-    {0x3103 , 0x93},
-    {0x3008 , 0x82},
-    {0x3017 , 0x7f},
-    {0x3018 , 0xfc},
-    {0x3810 , 0xc2},
-    {0x3615 , 0xf0},
-    {0x3000 , 0x00},
-    {0x3001 , 0x00},
-    {0x3002 , 0x00},
-    {0x3003 , 0x00},
-    {0x3000 , 0xf8},
-    {0x3001 , 0x48},
-    {0x3002 , 0x5c},
-    {0x3003 , 0x02},
-    {0x3004 , 0x07},
-    {0x3005 , 0xb7},
-    {0x3006 , 0x43},
-    {0x3007 , 0x37},
-    {0x3011 , 0x08},
-    {0x3010 , 0x10},
-    {0x460c , 0x22},
-    {0x3815 , 0x04},
-    {0x370d , 0x06},
-    {0x370c , 0xa0},
-    {0x3602 , 0xfc},
-    {0x3612 , 0xff},
-    {0x3634 , 0xc0},
-    {0x3613 , 0x00},
-    {0x3605 , 0x7c},
-    {0x3621 , 0x09},
-    {0x3622 , 0x00},
-    {0x3604 , 0x40},
-    {0x3603 , 0xa7},
-    {0x3603 , 0x27},
-    {0x4000 , 0x21},
-    {0x401d , 0x02},
-    {0x3600 , 0x54},
-    {0x3605 , 0x04},
-    {0x3606 , 0x3f},
-    {0x3c01 , 0x80},
-    {0x5000 , 0x4f},
-    {0x5020 , 0x04},
-    {0x5181 , 0x79},
-    {0x5182 , 0x00},
-    {0x5185 , 0x22},
-    {0x5197 , 0x01},
-    {0x5001 , 0xff},
-    {0x5500 , 0x0a},
-    {0x5504 , 0x00},
-    {0x5505 , 0x7f},
-    {0x5080 , 0x08},
-    {0x300e , 0x18},
-    {0x4610 , 0x00},
-    {0x471d , 0x05},
-    {0x4708 , 0x06},
-    {0x3710 , 0x10},
-    {0x3632 , 0x41},
-    {0x3702 , 0x40},
-    {0x3620 , 0x37},
-    {0x3631 , 0x01},
-    {0x3808 , 0x02},
-    {0x3809 , 0x80},
-    {0x380a , 0x01},
-    {0x380b , 0xe0},
-    {0x380e , 0x07},
-    {0x380f , 0xd0},
-    {0x501f , 0x00},
-    {0x5000 , 0x4f},
-    {0x4300 , 0x32},   //UYVY
-    {0x3503 , 0x07},
-    {0x3501 , 0x73},
-    {0x3502 , 0x80},
-    {0x350b , 0x00},
-    {0x3503 , 0x07},
-    {0x3824 , 0x11},
-    {0x3501 , 0x1e},
-    {0x3502 , 0x80},
-    {0x350b , 0x7f},
-    {0x380c , 0x0c},
-    {0x380d , 0x80},
-    {0x380e , 0x03},
-    {0x380f , 0xe8},
-    {0x3a0d , 0x04},
-    {0x3a0e , 0x03},
-    {0x3818 , 0xc1},
-    {0x3705 , 0xdb},
-    {0x370a , 0x81},
-    {0x3801 , 0x80},
-    {0x3621 , 0xc7},
-    {0x3801 , 0x50},
-    {0x3803 , 0x08},
-    {0x3827 , 0x08},
-    {0x3810 , 0xc0},
-    {0x3804 , 0x05},
-    {0x3805 , 0x00},
-    {0x5682 , 0x05},
-    {0x5683 , 0x00},
-    {0x3806 , 0x03},
-    {0x3807 , 0xc0},
-    {0x5686 , 0x03},
-    {0x5687 , 0xc0},
-    {0x3a00 , 0x78},
-    {0x3a1a , 0x04},
-    {0x3a13 , 0x30},
-    {0x3a18 , 0x00},
-    {0x3a19 , 0x7c},
-    {0x3a08 , 0x12},
-    {0x3a09 , 0xc0},
-    {0x3a0a , 0x0f},
-    {0x3a0b , 0xa0},
-    {0x3004 , 0xff},
-    {0x350c , 0x07},
-    {0x350d , 0xd0},
-    {0x3500 , 0x00},
-    {0x3501 , 0x00},
-    {0x3502 , 0x00},
-    {0x350a , 0x00},
-    {0x350b , 0x00},
-    {0x3503 , 0x00},
-    {0x528a , 0x02},
-    {0x528b , 0x04},
-    {0x528c , 0x08},
-    {0x528d , 0x08},
-    {0x528e , 0x08},
-    {0x528f , 0x10},
-    {0x5290 , 0x10},
-    {0x5292 , 0x00},
-    {0x5293 , 0x02},
-    {0x5294 , 0x00},
-    {0x5295 , 0x02},
-    {0x5296 , 0x00},
-    {0x5297 , 0x02},
-    {0x5298 , 0x00},
-    {0x5299 , 0x02},
-    {0x529a , 0x00},
-    {0x529b , 0x02},
-    {0x529c , 0x00},
-    {0x529d , 0x02},
-    {0x529e , 0x00},
-    {0x529f , 0x02},
-    {0x3a0f , 0x3c},
-    {0x3a10 , 0x30},
-    {0x3a1b , 0x3c},
-    {0x3a1e , 0x30},
-    {0x3a11 , 0x70},
-    {0x3a1f , 0x10},
-    {0x3030 , 0x0b},
-    {0x3a02 , 0x00},
-    {0x3a03 , 0x7d},
-    {0x3a04 , 0x00},
-    {0x3a14 , 0x00},
-    {0x3a15 , 0x7d},
-    {0x3a16 , 0x00},
-    {0x3a00 , 0x78},
-    {0x3a08 , 0x09},
-    {0x3a09 , 0x60},
-    {0x3a0a , 0x07},
-    {0x3a0b , 0xd0},
-    {0x3a0d , 0x08},
-    {0x3a0e , 0x06},
-    {0x5193 , 0x70},
-    {0x3620 , 0x57},
-    {0x3703 , 0x98},
-    {0x3704 , 0x1c},
-    {0x589b , 0x04},
-    {0x589a , 0xc5},
-    {0x528a , 0x00},
-    {0x528b , 0x02},
-    {0x528c , 0x08},
-    {0x528d , 0x10},
-    {0x528e , 0x20},
-    {0x528f , 0x28},
-    {0x5290 , 0x30},
-    {0x5292 , 0x00},
-    {0x5293 , 0x00},
-    {0x5294 , 0x00},
-    {0x5295 , 0x02},
-    {0x5296 , 0x00},
-    {0x5297 , 0x08},
-    {0x5298 , 0x00},
-    {0x5299 , 0x10},
-    {0x529a , 0x00},
-    {0x529b , 0x20},
-    {0x529c , 0x00},
-    {0x529d , 0x28},
-    {0x529e , 0x00},
-    {0x529f , 0x30},
-    {0x5282 , 0x00},
-    {0x5300 , 0x00},
-    {0x5301 , 0x20},
-    {0x5302 , 0x00},
-    {0x5303 , 0x7c},
-    {0x530c , 0x00},
-    {0x530d , 0x0c},
-    {0x530e , 0x20},
-    {0x530f , 0x80},
-    {0x5310 , 0x20},
-    {0x5311 , 0x80},
-    {0x5308 , 0x20},
-    {0x5309 , 0x40},
-    {0x5304 , 0x00},
-    {0x5305 , 0x30},
-    {0x5306 , 0x00},
-    {0x5307 , 0x80},
-    {0x5314 , 0x08},
-    {0x5315 , 0x20},
-    {0x5319 , 0x30},
-    {0x5316 , 0x10},
-    {0x5317 , 0x08},
-    {0x5318 , 0x02},
-    {0x5380 , 0x01},
-    {0x5381 , 0x00},
-    {0x5382 , 0x00},
-    {0x5383 , 0x4e},
-    {0x5384 , 0x00},
-    {0x5385 , 0x0f},
-    {0x5386 , 0x00},
-    {0x5387 , 0x00},
-    {0x5388 , 0x01},
-    {0x5389 , 0x15},
-    {0x538a , 0x00},
-    {0x538b , 0x31},
-    {0x538c , 0x00},
-    {0x538d , 0x00},
-    {0x538e , 0x00},
-    {0x538f , 0x0f},
-    {0x5390 , 0x00},
-    {0x5391 , 0xab},
-    {0x5392 , 0x00},
-    {0x5393 , 0xa2},
-    {0x5394 , 0x08},
-    {0x5480 , 0x14},
-    {0x5481 , 0x21},
-    {0x5482 , 0x36},
-    {0x5483 , 0x57},
-    {0x5484 , 0x65},
-    {0x5485 , 0x71},
-    {0x5486 , 0x7d},
-    {0x5487 , 0x87},
-    {0x5488 , 0x91},
-    {0x5489 , 0x9a},
-    {0x548a , 0xaa},
-    {0x548b , 0xb8},
-    {0x548c , 0xcd},
-    {0x548d , 0xdd},
-    {0x548e , 0xea},
-    {0x548f , 0x10},
-    {0x5490 , 0x05},
-    {0x5491 , 0x00},
-    {0x5492 , 0x04},
-    {0x5493 , 0x20},
-    {0x5494 , 0x03},
-    {0x5495 , 0x60},
-    {0x5496 , 0x02},
-    {0x5497 , 0xb8},
-    {0x5498 , 0x02},
-    {0x5499 , 0x86},
-    {0x549a , 0x02},
-    {0x549b , 0x5b},
-    {0x549c , 0x02},
-    {0x549d , 0x3b},
-    {0x549e , 0x02},
-    {0x549f , 0x1c},
-    {0x54a0 , 0x02},
-    {0x54a1 , 0x04},
-    {0x54a2 , 0x01},
-    {0x54a3 , 0xed},
-    {0x54a4 , 0x01},
-    {0x54a5 , 0xc5},
-    {0x54a6 , 0x01},
-    {0x54a7 , 0xa5},
-    {0x54a8 , 0x01},
-    {0x54a9 , 0x6c},
-    {0x54aa , 0x01},
-    {0x54ab , 0x41},
-    {0x54ac , 0x01},
-    {0x54ad , 0x20},
-    {0x54ae , 0x00},
-    {0x54af , 0x16},
-    {0x3406 , 0x00},
-    {0x5192 , 0x04},
-    {0x5191 , 0xf8},
-    {0x5193 , 0x70},
-    {0x5194 , 0xf0},
-    {0x5195 , 0xf0},
-    {0x518d , 0x3d},
-    {0x518f , 0x54},
-    {0x518e , 0x3d},
-    {0x5190 , 0x54},
-    {0x518b , 0xc0},
-    {0x518c , 0xbd},
-    {0x5187 , 0x18},
-    {0x5188 , 0x18},
-    {0x5189 , 0x6e},
-    {0x518a , 0x68},
-    {0x5186 , 0x1c},
-    {0x5181 , 0x50},
-    {0x5184 , 0x25},
-    {0x5182 , 0x11},
-    {0x5183 , 0x14},
-    {0x5184 , 0x25},
-    {0x5185 , 0x24},
-    {0x5025 , 0x82},
-    {0x3a0f , 0x7e},
-    {0x3a10 , 0x72},
-    {0x3a1b , 0x80},
-    {0x3a1e , 0x70},
-    {0x3a11 , 0xd0},
-    {0x3a1f , 0x40},
-    {0x5583 , 0x40},
-    {0x5584 , 0x40},
-    {0x5580 , 0x02},
-    {0x3633 , 0x07},
-    {0x3702 , 0x10},
-    {0x3703 , 0xb2},
-    {0x3704 , 0x18},
-    {0x370b , 0x40},
-    {0x370d , 0x02},
-    {0x3620 , 0x52},
-    {0x3c00 , 0x04},
-
-	{0x5001,0xFF},
-	{0x5583,0x50},
-	{0x5584,0x50},
-	{0x5580,0x02},
-	{0x3c01,0x80},
-	{0x3c00,0x04},
-	{0x5800,0x27},
-	{0x5801,0x22},
-	{0x5802,0x1b},
-	{0x5803,0x17},
-	{0x5804,0x16},
-	{0x5805,0x18},
-	{0x5806,0x20},
-	{0x5807,0x20},
-	{0x5808,0x1b},
-	{0x5809,0x15},
-	{0x580a,0x0f},
-	{0x580b,0x0d},
-	{0x580c,0x0d},
-	{0x580d,0x0e},
-	{0x580e,0x11},
-	{0x580f,0x18},
-	{0x5810,0x10},
-	{0x5811,0x0d},
-	{0x5812,0x08},
-	{0x5813,0x05},
-	{0x5814,0x04},
-	{0x5815,0x06},
-	{0x5816,0x09},
-	{0x5817,0x0e},
-	{0x5818,0x0d},
-	{0x5819,0x09},
-	{0x581a,0x03},
-	{0x581b,0x00},
-	{0x581c,0x00},
-	{0x581d,0x01},
-	{0x581e,0x05},
-	{0x581f,0x0b},
-	{0x5820,0x0d},
-	{0x5821,0x09},
-	{0x5822,0x03},
-	{0x5823,0x00},
-	{0x5824,0x00},
-	{0x5825,0x01},
-	{0x5826,0x05},
-	{0x5827,0x0b},
-	{0x5828,0x10},
-	{0x5829,0x0c},
-	{0x582a,0x08},
-	{0x582b,0x04},
-	{0x582c,0x03},
-	{0x582d,0x05},
-	{0x582e,0x09},
-	{0x582f,0x0e},
-	{0x5830,0x1b},
-	{0x5831,0x14},
-	{0x5832,0x0f},
-	{0x5833,0x0c},
-	{0x5834,0x0c},
-	{0x5835,0x0d},
-	{0x5836,0x10},
-	{0x5837,0x19},
-	{0x5838,0x25},
-	{0x5839,0x23},
-	{0x583a,0x1a},
-	{0x583b,0x16},
-	{0x583c,0x15},
-	{0x583d,0x18},
-	{0x583e,0x1f},
-	{0x583f,0x25},
-	{0x5840,0x10},
-	{0x5841,0x0e},
-	{0x5842,0x0e},
-	{0x5843,0x0e},
-	{0x5844,0x0f},
-	{0x5845,0x0a},
-	{0x5846,0x08},
-	{0x5847,0x0f},
-	{0x5848,0x0f},
-	{0x5849,0x0f},
-	{0x584a,0x0c},
-	{0x584b,0x0f},
-	{0x584c,0x09},
-	{0x584d,0x10},
-	{0x584e,0x11},
-	{0x584f,0x10},
-	{0x5850,0x0f},
-	{0x5851,0x0e},
-	{0x5852,0x08},
-	{0x5853,0x10},
-	{0x5854,0x10},
-	{0x5855,0x10},
-	{0x5856,0x0e},
-	{0x5857,0x0e},
-	{0x5858,0x0a},
-	{0x5859,0x0e},
-	{0x585a,0x0e},
-	{0x585b,0x0e},
-	{0x585c,0x0e},
-	{0x585d,0x0d},
-	{0x585e,0x08},
-	{0x585f,0x0b},
-	{0x5860,0x0a},
-	{0x5861,0x0a},
-	{0x5862,0x09},
-	{0x5863,0x0d},
-	{0x5864,0x13},
-	{0x5865,0x0e},
-	{0x5866,0x10},
-	{0x5867,0x10},
-	{0x5868,0x0e},
-	{0x5869,0x11},
-	{0x586a,0x12},
-	{0x586b,0x10},
-	{0x586c,0x10},
-	{0x586d,0x10},
-	{0x586e,0x10},
-	{0x586f,0x11},
-	{0x5870,0x15},
-	{0x5871,0x10},
-	{0x5872,0x10},
-	{0x5873,0x10},
-	{0x5874,0x11},
-	{0x5875,0x11},
-	{0x5876,0x14},
-	{0x5877,0x0f},
-	{0x5878,0x10},
-	{0x5879,0x10},
-	{0x587a,0x10},
-	{0x587b,0x11},
-	{0x587c,0x12},
-	{0x587d,0x0f},
-	{0x587e,0x0f},
-	{0x587f,0x10},
-	{0x5880,0x10},
-	{0x5881,0x0f},
-	{0x5882,0x12},
-	{0x5883,0x0e},
-	{0x5884,0x10},
-	{0x5885,0x10},
-	{0x5886,0x0e},
-	{0x5887,0x0e},
-	{0x5180,0xff},
-	{0x5181,0x52},
-	{0x5182,0x11},
-	{0x5183,0x14},
-	{0x5184,0x25},
-	{0x5185,0x24},
-	{0x5186,0x14},
-	{0x5187,0x14},
-	{0x5188,0x14},
-	{0x5189,0x6c},
-	{0x518a,0x60},
-	{0x518b,0xbd},
-	{0x518c,0x9c},
-	{0x518d,0x3d},
-	{0x518e,0x34},
-	{0x518f,0x57},
-	{0x5190,0x4a},
-	{0x5191,0xf8},
-	{0x5192,0x04},
-	{0x5193,0x70},
-	{0x5194,0xf0},
-	{0x5195,0xf0},
-	{0x5196,0x03},
-	{0x5197,0x01},
-	{0x5198,0x04},
-	{0x5199,0x00},
-	{0x519a,0x04},
-	{0x519b,0x35},
-	{0x519c,0x08},
-	{0x519d,0xb8},
-	{0x519e,0xa0},
-	{0x528a,0x00},
-	{0x528b,0x01},
-	{0x528c,0x04},
-	{0x528d,0x08},
-	{0x528e,0x10},
-	{0x528f,0x20},
-	{0x5290,0x30},
-	{0x5292,0x00},
-	{0x5293,0x00},
-	{0x5294,0x00},
-	{0x5295,0x01},
-	{0x5296,0x00},
-	{0x5297,0x04},
-	{0x5298,0x00},
-	{0x5299,0x08},
-	{0x529a,0x00},
-	{0x529b,0x10},
-	{0x529c,0x00},
-	{0x529d,0x20},
-	{0x529e,0x00},
-	{0x529f,0x30},
-	{0x5282,0x00},
-	{0x5300,0x00},
-	{0x5301,0x20},
-	{0x5302,0x00},
-	{0x5303,0x7c},
-	{0x530c,0x00},
-	{0x530d,0x10},
-	{0x530e,0x20},
-	{0x530f,0x80},
-	{0x5310,0x20},
-	{0x5311,0x80},
-	{0x5308,0x20},
-	{0x5309,0x40},
-	{0x5304,0x00},
-	{0x5305,0x30},
-	{0x5306,0x00},
-	{0x5307,0x80},
-	{0x5314,0x08},
-	{0x5315,0x20},
-	{0x5319,0x30},
-	{0x5316,0x10},
-	{0x5317,0x00},
-	{0x5318,0x02},
-	{0x5380,0x01},
-	{0x5381,0x00},
-	{0x5382,0x00},
-	{0x5383,0x1f},
-	{0x5384,0x00},
-	{0x5385,0x06},
-	{0x5386,0x00},
-	{0x5387,0x00},
-	{0x5388,0x00},
-	{0x5389,0xE1},
-	{0x538A,0x00},
-	{0x538B,0x2B},
-	{0x538C,0x00},
-	{0x538D,0x00},
-	{0x538E,0x00},
-	{0x538F,0x10},
-	{0x5390,0x00},
-	{0x5391,0xB3},
-	{0x5392,0x00},
-	{0x5393,0xA6},
-	{0x5394,0x08},
-	{0x5480,0x14},
-	{0x5481,0x21},
-	{0x5482,0x36},
-	{0x5483,0x57},
-	{0x5484,0x65},
-	{0x5485,0x71},
-	{0x5486,0x7D},
-	{0x5487,0x87},
-	{0x5488,0x91},
-	{0x5489,0x9A},
-	{0x548A,0xAA},
-	{0x548B,0xB8},
-	{0x548C,0xCD},
-	{0x548D,0xDD},
-	{0x548E,0xEA},
-	{0x548F,0x1d},
-	{0x5490,0x05},
-	{0x5491,0x00},
-	{0x5492,0x04},
-	{0x5493,0x20},
-	{0x5494,0x03},
-	{0x5495,0x60},
-	{0x5496,0x02},
-	{0x5497,0xB8},
-	{0x5498,0x02},
-	{0x5499,0x86},
-	{0x549A,0x02},
-	{0x549B,0x5B},
-	{0x549C,0x02},
-	{0x549D,0x3B},
-	{0x549E,0x02},
-	{0x549F,0x1C},
-	{0x54A0,0x02},
-	{0x54A1,0x04},
-	{0x54A2,0x01},
-	{0x54A3,0xED},
-	{0x54A4,0x01},
-	{0x54A5,0xC5},
-	{0x54A6,0x01},
-	{0x54A7,0xA5},
-	{0x54A8,0x01},
-	{0x54A9,0x6C},
-	{0x54AA,0x01},
-	{0x54AB,0x41},
-	{0x54AC,0x01},
-	{0x54AD,0x20},
-	{0x54AE,0x00},
-	{0x54AF,0x16},
-	{0x54B0,0x01},
-	{0x54B1,0x20},
-	{0x54B2,0x00},
-	{0x54B3,0x10},
-	{0x54B4,0x00},
-	{0x54B5,0xf0},
-	{0x54B6,0x00},
-	{0x54B7,0xDF},
-	{0x5402,0x3f},
-	{0x5403,0x00},
-	{0x5500,0x10},
-	{0x5502,0x00},
-	{0x5503,0x06},
-	{0x5504,0x00},
-	{0x5505,0x7f},
-	{0x5025,0x80},
-	{0x3a0f,0x30},
-	{0x3a10,0x28},
-	{0x3a1b,0x30},
-	{0x3a1e,0x28},
-	{0x3a11,0x61},
-	{0x3a1f,0x10},
-	{0x5688,0xfd},
-	{0x5689,0xdf},
-	{0x568a,0xfe},
-	{0x568b,0xef},
-	{0x568c,0xfe},
-	{0x568d,0xef},
-	{0x568e,0xaa},
-	{0x568f,0xaa},
-    {0x0000,0x00}
-
-};
-/* 2592X1944 QSXGA */
-static struct reginfo sensor_qsxga[] =
-{
-    {0x0000 ,0x00}
-};
-/* 2048*1536 QXGA */
-static struct reginfo sensor_qxga[] =
-{
-    {0x0000 ,0x00}
-};
-
-/* 1600X1200 UXGA */
-static struct reginfo sensor_uxga[] =
-{
-    {0x0000 ,0x00}
+	{0x12, 0x80},
+	{0x11, 0x80},
+	{0x2a, 0x00},
+	{0x2b, 0x00},
+	{0x92, 0x66},
+	{0x93, 0x00},
+	{0x3a, 0x0c},
+	{0x3D, 0xC0},
+	{0x12, 0x00},
+	{0x15, 0x00},
+	{0xc1, 0x7f},
+	{0x17, 0x13},
+	{0x18, 0x01},
+	{0x32, 0xbF},
+	{0x19, 0x03},
+	{0x1a, 0x7b},
+	{0x03, 0x0a},
+	{0x0c, 0x00},
+	{0x3e, 0x00},
+	{0x70, 0x3a},
+	{0x71, 0x35},
+	{0x72, 0x11},
+	{0x73, 0xf0},
+	{0xa2, 0x02},
+	{0x13, 0xe0},
+	//{0x00, 0x00},
+	{0x10, 0x00},
+	{0x14, 0x28},
+	{0xa5, 0x06},
+	{0xab, 0x07},
+	{0x24, 0x58},
+	{0x25, 0x48},
+	{0x26, 0x93},
+	{0x9f, 0x78},
+	{0xa0, 0x68},
+	{0xa1, 0x03},
+	{0xa6, 0xD8},
+	{0xa7, 0xD8},
+	{0xa8, 0xf0},
+	{0xa9, 0x90},
+	{0xaa, 0x14},
+	{0x13, 0xe5},
+	{0x0e, 0x61},
+	{0x0f, 0x4b},
+	{0x16, 0x02},
+	{0x1e, 0x07},
+	{0x21, 0x02},
+	{0x22, 0x91},
+	{0x29, 0x07},
+	{0x33, 0x0b},
+	{0x35, 0x0b},
+	{0x37, 0x1d},
+	{0x38, 0x71},
+	{0x39, 0x2a},
+	{0x3c, 0x78},
+	{0x4d, 0x40},
+	{0x4e, 0x20},
+	{0x69, 0x00},
+	{0x6b, 0x0a},
+	{0x74, 0x10},
+	{0x8d, 0x4f},
+	{0x8e, 0x00},
+	{0x8f, 0x00},
+	{0x90, 0x00},
+	{0x91, 0x00},
+	{0x96, 0x00},
+	{0x9a, 0x80},
+	{0xb0, 0x84},
+	{0xb1, 0x0c},
+	{0xb2, 0x0e},
+	{0xb3, 0x82},
+	{0xb8, 0x0a},
+	{0xbb, 0xa1},
+	{0x0d, 0x60},
+	{0x42, 0x80},
+	{0x62, 0x00},
+	{0x63, 0x00},
+	{0x64, 0x10},
+	{0x65, 0x07},
+	{0x66, 0x05},
+	{0x94, 0x10},
+	{0x95, 0x12},
+	{0x7a, 0x24},
+	{0x7b, 0x04},
+	{0x7c, 0x07},
+	{0x7d, 0x12},
+	{0x7e, 0x2f},
+	{0x7f, 0x3f},
+	{0x80, 0x4d},
+	{0x81, 0x5a},
+	{0x82, 0x69},
+	{0x83, 0x74},
+	{0x84, 0x7f},
+	{0x85, 0x91},
+	{0x86, 0x9e},
+	{0x87, 0xbb},
+	{0x88, 0xd2},
+	{0x89, 0xe5},
+	{0x43, 0x0a},
+	{0x44, 0xf0},
+	{0x45, 0x34},
+	{0x46, 0x58},
+	{0x47, 0x28},
+	{0x48, 0x3a},
+	{0x59, 0x88},
+	{0x5a, 0x88},
+	{0x5b, 0xc2},
+	{0x5c, 0x60},
+	{0x5d, 0x58},
+	{0x5e, 0x10},
+	{0x6c, 0x0a},
+	{0x6d, 0x55},
+	{0x6e, 0x11},
+	{0x6f, 0x9e},
+	{0x6a, 0x40},
+	{0x01, 0x56},
+	{0x02, 0x44},
+	{0x13, 0xe7},
+	{0x4f, 0x95},
+	{0x50, 0x99},
+	{0x51, 0x04},
+	{0x52, 0x1a},
+	{0x53, 0x7f},
+	{0x54, 0x99},
+	{0x58, 0x1a},
+	{0x3f, 0x02},
+	{0x75, 0x63},
+	{0x76, 0xe1},
+	{0x4c, 0x00},
+	{0x77, 0x01},
+	{0x4b, 0x09},
+	{0xc9, 0x60},
+	{0x41, 0x38},
+	{0x56, 0x40},
+	{0x34, 0x11},
+	{0x3b, 0xaa},
+	{0xa4, 0x88},
+	{0x96, 0x00},
+	{0x97, 0x30},
+	{0x98, 0x20},
+	{0x99, 0x30},
+	{0x9a, 0x84},
+	{0x9b, 0x29},
+	{0x9c, 0x03},
+	{0x9d, 0x99},
+	{0x9e, 0x99},
+	{0x78, 0x04},
+	{0x79, 0x01},
+	{0xc8, 0xf0},
+	{0x79, 0x0f},
+	{0xc8, 0x00},
+	{0x79, 0x10},
+	{0xc8, 0x7e},
+	{0x79, 0x0a},
+	{0xc8, 0x80},
+	{0x79, 0x0b},
+	{0xc8, 0x01},
+	{0x79, 0x0c},
+	{0xc8, 0x0f},
+	{0x79, 0x0d},
+	{0xc8, 0x20},
+	{0x79, 0x09},
+	{0xc8, 0x80},
+	{0x79, 0x02},
+	{0xc8, 0xc0},
+	{0x79, 0x03},
+	{0xc8, 0x40},
+	{0x79, 0x05},
+	{0xc8, 0x30},
+	{0x79, 0x26},
+	{0x00, 0x00}
 };
 
 /* 1280X1024 SXGA */
 static struct reginfo sensor_sxga[] =
 {
-	{0x0000,0x00}
+	{0x00,0x00}
 };
 
 /* 800X600 SVGA*/
 static struct reginfo sensor_svga[] =
 {
-	{0x3800 ,0x1 },
-	{0x3801 ,0x50},
-	{0x3802 ,0x0 },
-	{0x3803 ,0x8 },
-	{0x3804 ,0x5 },
-	{0x3805 ,0x0 },
-	{0x3806 ,0x3 },
-	{0x3807 ,0xc0},
-	{0x3808 ,0x3 },
-	{0x3809 ,0x20},
-	{0x380a ,0x2 },
-	{0x380b ,0x58},
-	{0x380c ,0xc },
-	{0x380d ,0x80},
-	{0x380e ,0x3 },
-	{0x380f ,0xe8},
-	{0x5001 ,0x7f},
-	{0x5680 ,0x0 },
-	{0x5681 ,0x0 },
-	{0x5682 ,0x5 },
-	{0x5683 ,0x0 },
-	{0x5684 ,0x0 },
-	{0x5685 ,0x0 },
-	{0x5686 ,0x3 },
-	{0x5687 ,0xc0},
-	{0x5687 ,0xc0},
-	{0x3815 ,0x02},
-	{0x0000,0x00}
+    {0x0, 0x0},
 };
 
 /* 640X480 VGA */
 static struct reginfo sensor_vga[] =
 {
-    {0x0000,0x00}
+    {0x17, 0x13},
+    {0x18, 0x01},
+    {0x32, 0xbf},
+    {0x19, 0x03},
+    {0x1a, 0x7b},
+    {0x03, 0x0a},
+	{0x00,0x00}
 };
 
 /* 352X288 CIF */
 static struct reginfo sensor_cif[] =
 {
-	{0x3800 ,0x1 },
-	{0x3801 ,0x50},
-	{0x3802 ,0x0 },
-	{0x3803 ,0x8 },
-	{0x3804 ,0x4 },
-	{0x3805 ,0x96},
-	{0x3806 ,0x3 },
-	{0x3807 ,0xc0},
-	{0x3808 ,0x1 },
-	{0x3809 ,0x60},
-	{0x380a ,0x1 },
-	{0x380b ,0x20},
-	{0x380c ,0xc },
-	{0x380d ,0x80},
-	{0x380e ,0x3 },
-	{0x380f ,0xe8},
-	{0x5001 ,0x7f},
-	{0x5680 ,0x0 },
-	{0x5681 ,0x0 },
-	{0x5682 ,0x4 },
-	{0x5683 ,0x96},
-	{0x5684 ,0x0 },
-	{0x5685 ,0x0 },
-	{0x5686 ,0x3 },
-	{0x5687 ,0xc0},
-    {0x0000,0x00}
+    {0x00,0x00}
 };
 
 /* 320*240 QVGA */
 static  struct reginfo sensor_qvga[] =
 {
-	{0x0000,0x00}
+    {0x00,0x00}
 };
 
 /* 176X144 QCIF*/
 static struct reginfo sensor_qcif[] =
 {
-	{0x3800 ,0x1 },
-	{0x3801 ,0x50},
-	{0x3802 ,0x0 },
-	{0x3803 ,0x8 },
-	{0x3804 ,0x4 },
-	{0x3805 ,0x96},
-	{0x3806 ,0x3 },
-	{0x3807 ,0xc0},
-	{0x3808 ,0x0 },
-	{0x3809 ,0xb0},
-	{0x380a ,0x0 },
-	{0x380b ,0x90},
-	{0x380c ,0xc },
-	{0x380d ,0x80},
-	{0x380e ,0x3 },
-	{0x380f ,0xe8},
-	{0x5001 ,0x7f},
-	{0x5680 ,0x0 },
-	{0x5681 ,0x0 },
-	{0x5682 ,0x4 },
-	{0x5683 ,0x96},
-	{0x5684 ,0x0 },
-	{0x5685 ,0x0 },
-	{0x5686 ,0x3 },
-	{0x5687 ,0xc0},
-	{0x0000,0x00}
+    {0x00,0x00}
 };
-#if 0
-/* 160X120 QQVGA*/
-static struct reginfo ov2655_qqvga[] =
-{
-
-    {0x300E, 0x34},
-    {0x3011, 0x01},
-    {0x3012, 0x10},
-    {0x302a, 0x02},
-    {0x302b, 0xE6},
-    {0x306f, 0x14},
-    {0x3362, 0x90},
-
-    {0x3070, 0x5d},
-    {0x3072, 0x5d},
-    {0x301c, 0x07},
-    {0x301d, 0x07},
-
-    {0x3020, 0x01},
-    {0x3021, 0x18},
-    {0x3022, 0x00},
-    {0x3023, 0x06},
-    {0x3024, 0x06},
-    {0x3025, 0x58},
-    {0x3026, 0x02},
-    {0x3027, 0x61},
-    {0x3088, 0x00},
-    {0x3089, 0xa0},
-    {0x308a, 0x00},
-    {0x308b, 0x78},
-    {0x3316, 0x64},
-    {0x3317, 0x25},
-    {0x3318, 0x80},
-    {0x3319, 0x08},
-    {0x331a, 0x0a},
-    {0x331b, 0x07},
-    {0x331c, 0x80},
-    {0x331d, 0x38},
-    {0x3100, 0x00},
-    {0x3302, 0x11},
-
-    {0x0, 0x0},
-};
-
-
-
-static  struct reginfo ov2655_Sharpness_auto[] =
-{
-    {0x3306, 0x00},
-};
-
-static  struct reginfo ov2655_Sharpness1[] =
-{
-    {0x3306, 0x08},
-    {0x3371, 0x00},
-};
-
-static  struct reginfo ov2655_Sharpness2[][3] =
-{
-    //Sharpness 2
-    {0x3306, 0x08},
-    {0x3371, 0x01},
-};
-
-static  struct reginfo ov2655_Sharpness3[] =
-{
-    //default
-    {0x3306, 0x08},
-    {0x332d, 0x02},
-};
-static  struct reginfo ov2655_Sharpness4[]=
-{
-    //Sharpness 4
-    {0x3306, 0x08},
-    {0x332d, 0x03},
-};
-
-static  struct reginfo ov2655_Sharpness5[] =
-{
-    //Sharpness 5
-    {0x3306, 0x08},
-    {0x332d, 0x04},
-};
-#endif
 
 static  struct reginfo sensor_ClrFmt_YUYV[]=
 {
-    {0x4300, 0x30},
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_ClrFmt_UYVY[]=
 {
-    {0x4300, 0x32},
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 
 #if CONFIG_SENSOR_WhiteBalance
 static  struct reginfo sensor_WhiteB_Auto[]=
 {
-    {0x3406,0x00},
-	{0x5183,0x80},
-	{0x5191,0xff},
-	{0x5192,0x00},
-	{0x0000,0x00}
+	{0x84, 0x6C},		//Contrast 4
+	{0x85, 0x78},
+	{0x86, 0x8C},
+	{0x87, 0x9E},
+	{0x88, 0xBB},
+	{0x89, 0xD2},
+	{0x8A, 0xE6},
+	{0x6C, 0x40},
+	{0x6D, 0x30},
+	{0x6E, 0x48},
+	{0x6F, 0x60},
+	{0x70, 0x70},
+	{0x71, 0x70},
+	{0x72, 0x70},
+	{0x73, 0x70},
+	{0x74, 0x60},
+	{0x75, 0x60},
+	{0x76, 0x50},
+	{0x77, 0x48},
+	{0x78, 0x3A},
+	{0x79, 0x2E},
+	{0x7A, 0x28},
+	{0x7B, 0x22},
+
+	{0x0f, 0x4a},		//Saturation 3
+	{0x27, 0x80},
+	{0x28, 0x80},
+	{0x2c, 0x80},
+	{0x62, 0x60},
+	{0x63, 0xe0},
+	{0x64, 0x04},
+	{0x65, 0x00},
+	{0x66, 0x01},
+	{0x24, 0x70},
+	{0x25, 0x64},
+
+	{0x4f, 0x2e},		//Brightness 3
+	{0x50, 0x31},
+	{0x51, 0x02},
+	{0x52, 0x0e},
+	{0x53, 0x1e},
+	{0x54, 0x2d},
+
+	{0x11, 0x80},
+	{0x14, 0x2a},
+	{0x13, 0xe7},
+	{0x66, 0x05},
+
+    {0x00, 0x00}
 };
 /* Cloudy Colour Temperature : 6500K - 8000K  */
 static  struct reginfo sensor_WhiteB_Cloudy[]=
 {
-    {0x3406, 0x01},
-    {0x3400, 0x07},
-    {0x3401, 0x88},
-    {0x3402, 0x04},
-    {0x3403, 0x00},
-    {0x3404, 0x05},
-    {0x3405, 0x00},
-    {0x0000, 0x00}
+	{0x7C,0x04},		//Contrast 5
+	{0x7D,0x09},
+	{0x7E,0x13},
+	{0x7F,0x29},
+	{0x80,0x35},
+	{0x81,0x41},
+	{0x82,0x4D},
+	{0x83,0x59},
+	{0x84,0x64},
+	{0x85,0x6F},
+	{0x86,0x85},
+	{0x87,0x97},
+	{0x88,0xB7},
+	{0x89,0xCF},
+	{0x8A,0xE3},
+	{0x6C,0x40},
+	{0x6D,0x50},
+	{0x6E,0x50},
+	{0x6F,0x58},
+	{0x70,0x60},
+	{0x71,0x60},
+	{0x72,0x60},
+	{0x73,0x60},
+	{0x74,0x58},
+	{0x75,0x58},
+	{0x76,0x58},
+	{0x77,0x48},
+	{0x78,0x40},
+	{0x79,0x30},
+	{0x7A,0x28},
+	{0x7B,0x26},
+
+
+
+	{0x4f,0x3a},		//Saturation 4
+	{0x50,0x3d},
+	{0x51,0x03},
+	{0x52,0x12},
+	{0x53,0x26},
+	{0x54,0x38},
+	{0x4f, 0x2e},		//Brightness 3
+	{0x50, 0x31},
+	{0x51, 0x02},
+	{0x52, 0x0e},
+	{0x53, 0x1e},
+	{0x54, 0x2d},
+
+	{0x11,0x80},
+	{0x14,0x0a},
+	{0x13,0xc7},
+	{0x66,0x05},
+    {0x00, 0x00}
 };
 /* ClearDay Colour Temperature : 5000K - 6500K  */
 static  struct reginfo sensor_WhiteB_ClearDay[]=
 {
     //Sunny
-    {0x3406, 0x01},
-    {0x3400, 0x07},
-    {0x3401, 0x32},
-    {0x3402, 0x04},
-    {0x3403, 0x00},
-    {0x3404, 0x05},
-    {0x3405, 0x36},
-    {0x0000, 0x00}
+	{0x7C,0x04},		//Contrast 5
+	{0x7D,0x09},
+	{0x7E,0x13},
+	{0x7F,0x29},
+	{0x80,0x35},
+	{0x81,0x41},
+	{0x82,0x4D},
+	{0x83,0x59},
+	{0x84,0x64},
+	{0x85,0x6F},
+	{0x86,0x85},
+	{0x87,0x97},
+	{0x88,0xB7},
+	{0x89,0xCF},
+	{0x8A,0xE3},
+	{0x6C,0x40},
+	{0x6D,0x50},
+	{0x6E,0x50},
+	{0x6F,0x58},
+	{0x70,0x60},
+	{0x71,0x60},
+	{0x72,0x60},
+	{0x73,0x60},
+	{0x74,0x58},
+	{0x75,0x58},
+	{0x76,0x58},
+	{0x77,0x48},
+	{0x78,0x40},
+	{0x79,0x30},
+	{0x7A,0x28},
+	{0x7B,0x26},
+
+
+
+	{0x4f,0x3a},		//Saturation 4
+	{0x50,0x3d},
+	{0x51,0x03},
+	{0x52,0x12},
+	{0x53,0x26},
+	{0x54,0x38},
+	{0x4f, 0x2e},		//Brightness 3
+	{0x50, 0x31},
+	{0x51, 0x02},
+	{0x52, 0x0e},
+	{0x53, 0x1e},
+	{0x54, 0x2d},
+
+	{0x11,0x80},
+	{0x14,0x0a},
+	{0x13,0xc7},
+	{0x66,0x05},
+    {0x00, 0x00}
 };
 /* Office Colour Temperature : 3500K - 5000K  */
 static  struct reginfo sensor_WhiteB_TungstenLamp1[]=
 {
     //Office
-    {0x3406, 0x01},
-    {0x3400, 0x06},
-    {0x3401, 0x13},
-    {0x3402, 0x04},
-    {0x3403, 0x00},
-    {0x3404, 0x07},
-    {0x3405, 0xe2},
-    {0x0000, 0x00}
+	{0x84, 0x6C},		//Contrast 4
+	{0x85, 0x78},
+	{0x86, 0x8C},
+	{0x87, 0x9E},
+	{0x88, 0xBB},
+	{0x89, 0xD2},
+	{0x8A, 0xE6},
+	{0x6C, 0x40},
+	{0x6D, 0x30},
+	{0x6E, 0x48},
+	{0x6F, 0x60},
+	{0x70, 0x70},
+	{0x71, 0x70},
+	{0x72, 0x70},
+	{0x73, 0x70},
+	{0x74, 0x60},
+	{0x75, 0x60},
+	{0x76, 0x50},
+	{0x77, 0x48},
+	{0x78, 0x3A},
+	{0x79, 0x2E},
+	{0x7A, 0x28},
+	{0x7B, 0x22},
+
+	{0x0f, 0x4a},		//Saturation 3
+	{0x27, 0x80},
+	{0x28, 0x80},
+	{0x2c, 0x80},
+	{0x62, 0x60},
+	{0x63, 0xe0},
+	{0x64, 0x04},
+	{0x65, 0x00},
+	{0x66, 0x01},
+	{0x24, 0x70},
+	{0x25, 0x64},
+
+	{0x4f, 0x2e},		//Brightness 3
+	{0x50, 0x31},
+	{0x51, 0x02},
+	{0x52, 0x0e},
+	{0x53, 0x1e},
+	{0x54, 0x2d},
+
+	{0x11,0x80},
+	{0x14,0x2a},
+	{0x13,0xe7},
+	{0x66,0x05},
+
+    {0x00, 0x00}
+
 
 };
 /* Home Colour Temperature : 2500K - 3500K  */
 static  struct reginfo sensor_WhiteB_TungstenLamp2[]=
 {
     //Home
-    {0x3406, 0x01},
-    {0x3400, 0x04},
-    {0x3401, 0x88},
-    {0x3402, 0x04},
-    {0x3403, 0x00},
-    {0x3404, 0x08},
-    {0x3405, 0xb6},
-    {0x0000, 0x00}
+	{0x84, 0x6C},		//Contrast 4
+	{0x85, 0x78},
+	{0x86, 0x8C},
+	{0x87, 0x9E},
+	{0x88, 0xBB},
+	{0x89, 0xD2},
+	{0x8A, 0xE6},
+	{0x6C, 0x40},
+	{0x6D, 0x30},
+	{0x6E, 0x48},
+	{0x6F, 0x60},
+	{0x70, 0x70},
+	{0x71, 0x70},
+	{0x72, 0x70},
+	{0x73, 0x70},
+	{0x74, 0x60},
+	{0x75, 0x60},
+	{0x76, 0x50},
+	{0x77, 0x48},
+	{0x78, 0x3A},
+	{0x79, 0x2E},
+	{0x7A, 0x28},
+	{0x7B, 0x22},
+
+	{0x0f, 0x4a},		//Saturation 3
+	{0x27, 0x80},
+	{0x28, 0x80},
+	{0x2c, 0x80},
+	{0x62, 0x60},
+	{0x63, 0xe0},
+	{0x64, 0x04},
+	{0x65, 0x00},
+	{0x66, 0x01},
+	{0x24, 0x70},
+	{0x25, 0x64},
+
+	{0x4f, 0x2e},		//Brightness 3
+	{0x50, 0x31},
+	{0x51, 0x02},
+	{0x52, 0x0e},
+	{0x53, 0x1e},
+	{0x54, 0x2d},
+
+	{0x11, 0x80},
+	{0x14, 0x2a},
+	{0x13, 0xe7},
+	{0x66, 0x05},
+    {0x00, 0x00}
 };
 static struct reginfo *sensor_WhiteBalanceSeqe[] = {sensor_WhiteB_Auto, sensor_WhiteB_TungstenLamp1,sensor_WhiteB_TungstenLamp2,
     sensor_WhiteB_ClearDay, sensor_WhiteB_Cloudy,NULL,
@@ -1102,31 +608,61 @@ static struct reginfo *sensor_WhiteBalanceSeqe[] = {sensor_WhiteB_Auto, sensor_W
 #if CONFIG_SENSOR_Brightness
 static  struct reginfo sensor_Brightness0[]=
 {
+    // Brightness -2
+    {0x3301, 0xff},//bit[7]:1, enable SDE
+    {0x3391, 0x04},
+    {0x3390, 0x49},
+    {0x339a, 0x20},
     {0x0000, 0x00}
 };
 
 static  struct reginfo sensor_Brightness1[]=
 {
+    // Brightness -1
+    {0x3301, 0xff},//bit[7]:1, enable SDE
+    {0x3391, 0x04},
+    {0x3390, 0x49},
+    {0x339a, 0x10},
     {0x0000, 0x00}
 };
 
 static  struct reginfo sensor_Brightness2[]=
 {
+    //  Brightness 0
+    {0x3301, 0xff},//bit[7]:1, enable SDE
+    {0x3391, 0x00},
+    {0x3390, 0x41},
+    {0x339a, 0x00},
     {0x0000, 0x00}
 };
 
 static  struct reginfo sensor_Brightness3[]=
 {
+    // Brightness +1
+    {0x3301, 0xff},//bit[7]:1, enable SDE
+    {0x3391, 0x04},
+    {0x3390, 0x41},
+    {0x339a, 0x10},
     {0x0000, 0x00}
 };
 
 static  struct reginfo sensor_Brightness4[]=
 {
+    //  Brightness +2
+    {0x3301, 0xff},//bit[7]:1, enable SDE
+    {0x3391, 0x04},
+    {0x3390, 0x41},
+    {0x339a, 0x20},
     {0x0000, 0x00}
 };
 
 static  struct reginfo sensor_Brightness5[]=
 {
+    //  Brightness +3
+    {0x3301, 0xff},//bit[7]:1, enable SDE
+    {0x3391, 0x04}, //bit[2] enable
+    {0x3390, 0x41}, //bit[3] sign of brightness
+    {0x339a, 0x30},
     {0x0000, 0x00}
 };
 static struct reginfo *sensor_BrightnessSeqe[] = {sensor_Brightness0, sensor_Brightness1, sensor_Brightness2, sensor_Brightness3,
@@ -1138,54 +674,52 @@ static struct reginfo *sensor_BrightnessSeqe[] = {sensor_Brightness0, sensor_Bri
 #if CONFIG_SENSOR_Effect
 static  struct reginfo sensor_Effect_Normal[] =
 {
-    {0x5001, 0x7f},
-	{0x5580, 0x00},
-    {0x0000, 0x00}
+	{0x3a,0x0d},
+	{0x67,0x80},
+	{0x68,0x80},
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Effect_WandB[] =
 {
-    {0x5001, 0xff},
-	{0x5580, 0x18},
-	{0x5585, 0x80},
-	{0x5586, 0x80},
-    {0x0000, 0x00}
+	{0x3a,0x1d},
+	{0x67,0x80},
+	{0x68,0x80},
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Effect_Sepia[] =
 {
-    {0x5001, 0xff},
-	{0x5580, 0x18},
-	{0x5585, 0x40},
-	{0x5586, 0xa0},
-    {0x0000, 0x00}
+	{0x3a,0x1d},
+	{0x67,0x40},
+	{0x68,0xa0},
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Effect_Negative[] =
 {
     //Negative
-    {0x5001, 0xff},
-	{0x5580, 0x40},
-	{0x0000, 0x00}
+	{0x3a,0x2d},
+	{0x67,0x80},
+	{0x68,0x80},
+    {0x00, 0x00}
 };
 static  struct reginfo sensor_Effect_Bluish[] =
 {
     // Bluish
-    {0x5001, 0xff},
-	{0x5580, 0x18},
-	{0x5585, 0xa0},
-	{0x5586, 0x40},
-    {0x0000, 0x00}
+	{0x3a,0x1d},
+	{0x67,0xc0},
+	{0x68,0x80},
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Effect_Green[] =
 {
     //  Greenish
-    {0x5001, 0xff},
-	{0x5580, 0x18},
-	{0x5585, 0x60},
-	{0x5586, 0x60},
-    {0x0000, 0x00}
+	{0x3a,0x1d},
+	{0x67,0x40},
+	{0x68,0x40},
+    {0x00, 0x00}
 };
 static struct reginfo *sensor_EffectSeqe[] = {sensor_Effect_Normal, sensor_Effect_WandB, sensor_Effect_Negative,sensor_Effect_Sepia,
     sensor_Effect_Bluish, sensor_Effect_Green,NULL,
@@ -1194,37 +728,37 @@ static struct reginfo *sensor_EffectSeqe[] = {sensor_Effect_Normal, sensor_Effec
 #if CONFIG_SENSOR_Exposure
 static  struct reginfo sensor_Exposure0[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Exposure1[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Exposure2[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Exposure3[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Exposure4[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Exposure5[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Exposure6[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static struct reginfo *sensor_ExposureSeqe[] = {sensor_Exposure0, sensor_Exposure1, sensor_Exposure2, sensor_Exposure3,
@@ -1234,17 +768,17 @@ static struct reginfo *sensor_ExposureSeqe[] = {sensor_Exposure0, sensor_Exposur
 #if CONFIG_SENSOR_Saturation
 static  struct reginfo sensor_Saturation0[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Saturation1[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Saturation2[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 static struct reginfo *sensor_SaturationSeqe[] = {sensor_Saturation0, sensor_Saturation1, sensor_Saturation2, NULL,};
 
@@ -1252,38 +786,38 @@ static struct reginfo *sensor_SaturationSeqe[] = {sensor_Saturation0, sensor_Sat
 #if CONFIG_SENSOR_Contrast
 static  struct reginfo sensor_Contrast0[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Contrast1[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Contrast2[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Contrast3[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Contrast4[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 
 static  struct reginfo sensor_Contrast5[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_Contrast6[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 static struct reginfo *sensor_ContrastSeqe[] = {sensor_Contrast0, sensor_Contrast1, sensor_Contrast2, sensor_Contrast3,
     sensor_Contrast4, sensor_Contrast5, sensor_Contrast6, NULL,
@@ -1293,24 +827,24 @@ static struct reginfo *sensor_ContrastSeqe[] = {sensor_Contrast0, sensor_Contras
 #if CONFIG_SENSOR_Mirror
 static  struct reginfo sensor_MirrorOn[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_MirrorOff[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 static struct reginfo *sensor_MirrorSeqe[] = {sensor_MirrorOff, sensor_MirrorOn,NULL,};
 #endif
 #if CONFIG_SENSOR_Flip
 static  struct reginfo sensor_FlipOn[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 
 static  struct reginfo sensor_FlipOff[]=
 {
-    {0x0000, 0x00}
+    {0x00, 0x00}
 };
 static struct reginfo *sensor_FlipSeqe[] = {sensor_FlipOff, sensor_FlipOn,NULL,};
 
@@ -1318,31 +852,12 @@ static struct reginfo *sensor_FlipSeqe[] = {sensor_FlipOff, sensor_FlipOn,NULL,}
 #if CONFIG_SENSOR_Scene
 static  struct reginfo sensor_SceneAuto[] =
 {
-	{0x3a00, 0x78},
-	{0x3a03, 0x7D},
-	{0x0000, 0x00}
+{0x00, 0x00}
 };
 
 static  struct reginfo sensor_SceneNight[] =
 {
-
-    //15fps ~ 3.75fps night mode for 60/50Hz light environment, 24Mhz clock input,24Mzh pclk
-    {0x3011, 0x08},
-    {0x3012, 0x00},
-    {0x3010, 0x10},
-    {0x460c, 0x22},
-    {0x380c, 0x0c},
-    {0x380d, 0x80},
-    {0x3a00, 0x7c},
-    {0x3a08, 0x09},
-    {0x3a09, 0x60},
-    {0x3a0a, 0x07},
-    {0x3a0b, 0xd0},
-    {0x3a0d, 0x08},
-    {0x3a0e, 0x06},
-    {0x3a03, 0xfa},
-    {0x0000, 0x00}
-
+{0x00, 0x00}
 };
 static struct reginfo *sensor_SceneSeqe[] = {sensor_SceneAuto, sensor_SceneNight,NULL,};
 
@@ -1368,7 +883,7 @@ static struct reginfo sensor_Zoom3[] =
 {
     {0x0, 0x0},
 };
-static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL};
+static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL,};
 #endif
 static const struct v4l2_querymenu sensor_menus[] =
 {
@@ -1524,7 +1039,7 @@ static const struct v4l2_queryctrl sensor_controls[] =
     },
     #endif
 
-	#ifdef CONFIG_SENSOR_Focus
+	#if CONFIG_SENSOR_Focus
 	{
         .id		= V4L2_CID_FOCUS_RELATIVE,
         .type		= V4L2_CTRL_TYPE_INTEGER,
@@ -1541,23 +1056,6 @@ static const struct v4l2_queryctrl sensor_controls[] =
         .maximum	= 255,
         .step		= 1,
         .default_value = 125,
-    },
-	{
-        .id		= V4L2_CID_FOCUS_AUTO,
-        .type		= V4L2_CTRL_TYPE_BOOLEAN,
-        .name		= "Focus Control",
-        .minimum	= 0,
-        .maximum	= 1,
-        .step		= 1,
-        .default_value = 0,
-    },{
-        .id		= V4L2_CID_FOCUS_CONTINUOUS,
-        .type		= V4L2_CTRL_TYPE_BOOLEAN,
-        .name		= "Focus Control",
-        .minimum	= 0,
-        .maximum	= 1,
-        .step		= 1,
-        .default_value = 0,
     },
     #endif
 
@@ -1619,14 +1117,13 @@ typedef struct sensor_info_priv_s
     int scene;
     int digitalzoom;
     int focus;
-	int auto_focus;
     int flash;
     int exposure;
     unsigned char mirror;                                        /* HFLIP */
     unsigned char flip;                                          /* VFLIP */
     unsigned int winseqe_cur_addr;
 	unsigned int pixfmt;
-	unsigned int funmodule_state;
+
 } sensor_info_priv_t;
 
 struct sensor
@@ -1643,24 +1140,23 @@ static struct sensor* to_sensor(const struct i2c_client *client)
 }
 
 /* sensor register write */
-static int sensor_write(struct i2c_client *client, u16 reg, u8 val)
+static int sensor_write(struct i2c_client *client, u8 reg, u8 val)
 {
     int err,cnt;
-    u8 buf[3];
+    u8 buf[2];
     struct i2c_msg msg[1];
 
-    buf[0] = reg >> 8;
-    buf[1] = reg & 0xFF;
-    buf[2] = val;
+    buf[0] = reg & 0xFF;
+    buf[1] = val;
 
     msg->addr = client->addr;
     msg->flags = client->flags;
     msg->buf = buf;
     msg->len = sizeof(buf);
-    msg->scl_rate = CONFIG_SENSOR_I2C_SPEED;         /* ddl@rock-chips.com : 100kHz */
+    msg->scl_rate = CONFIG_SENSOR_I2C_SPEED;                                        /* ddl@rock-chips.com : 100kHz */
     msg->read_type = 0;               /* fpga i2c:0==I2C_NORMAL : direct use number not enum for don't want include spi_fpga.h */
 
-    cnt = 1;
+    cnt = 3;
     err = -EAGAIN;
 
     while ((cnt--) && (err < 0)) {                       /* ddl@rock-chips.com :  Transfer again if transent is failed   */
@@ -1678,13 +1174,15 @@ static int sensor_write(struct i2c_client *client, u16 reg, u8 val)
 }
 
 /* sensor register read */
-static int sensor_read(struct i2c_client *client, u16 reg, u8 *val)
+static int sensor_read(struct i2c_client *client, u8 reg, u8 *val)
 {
     int err,cnt;
-    u8 buf[2];
+    //u8 buf[2];
+    u8 buf[1];
     struct i2c_msg msg[2];
 
-    buf[0] = reg >> 8;
+    //buf[0] = reg >> 8;
+    buf[0] = reg;
     buf[1] = reg & 0xFF;
 
     msg[0].addr = client->addr;
@@ -1719,310 +1217,66 @@ static int sensor_read(struct i2c_client *client, u16 reg, u8 *val)
 }
 
 /* write a array of registers  */
+#if 1
 static int sensor_write_array(struct i2c_client *client, struct reginfo *regarray)
 {
-    int err, cnt;
+    int err;
     int i = 0;
 
-	cnt = 0;
     while (regarray[i].reg != 0)
     {
         err = sensor_write(client, regarray[i].reg, regarray[i].val);
-        if (err < 0)
+        if (err != 0)
         {
-            if (cnt-- > 0) {
-			    SENSOR_TR("%s..write failed current reg:0x%x, Write array again !\n", SENSOR_NAME_STRING(),regarray[i].reg);
-				i = 0;
-				continue;
-            } else {
-                SENSOR_TR("%s..write array failed!!!\n", SENSOR_NAME_STRING());
-                return -EPERM;
-            }
+            SENSOR_TR("%s..write failed current i = %d\n", SENSOR_NAME_STRING(),i);
+            return err;
         }
         i++;
     }
     return 0;
 }
-#if CONFIG_SENSOR_Focus
-struct af_cmdinfo
+#else
+static int sensor_write_array(struct i2c_client *client, struct reginfo *regarray)
 {
-	char cmd_tag;
-	char cmd_para[4];
-	char validate_bit;
-};
-static int sensor_af_cmdset(struct i2c_client *client, int cmd_main, struct af_cmdinfo *cmdinfo)
-{
-	int i;
-	char read_tag=0xff,cnt;
-
-	if (cmdinfo) {
-		if (cmdinfo->validate_bit & 0x80) {
-			if (sensor_write(client, CMD_TAG_Reg, cmdinfo->cmd_tag)) {
-				SENSOR_TR("%s write CMD_TAG_Reg(main:0x%x tag:0x%x) error!\n",SENSOR_NAME_STRING(),cmd_main,cmdinfo->cmd_tag);
-				goto sensor_af_cmdset_err;
-			}
-			SENSOR_DG("%s write CMD_TAG_Reg(main:0x%x tag:0x%x) success!\n",SENSOR_NAME_STRING(),cmd_main,cmdinfo->cmd_tag);
-		}
-		for (i=0; i<4; i++) {
-			if (cmdinfo->validate_bit & (1<<i)) {
-				if (sensor_write(client, CMD_PARA0_Reg-i, cmdinfo->cmd_para[i])) {
-					SENSOR_TR("%s write CMD_PARA_Reg(main:0x%x para%d:0x%x) error!\n",SENSOR_NAME_STRING(),cmd_main,i,cmdinfo->cmd_para[i]);
-					goto sensor_af_cmdset_err;
-				}
-				SENSOR_TR("%s write CMD_PARA_Reg(main:0x%x para%d:0x%x) success!\n",SENSOR_NAME_STRING(),cmd_main,i,cmdinfo->cmd_para[i]);
-			}
-		}
-	} else {
-		if (sensor_write(client, CMD_TAG_Reg, 0xff)) {
-			SENSOR_TR("%s write CMD_TAG_Reg(main:0x%x no tag) error!\n",SENSOR_NAME_STRING(),cmd_main);
-			goto sensor_af_cmdset_err;
-		}
-		SENSOR_DG("%s write CMD_TAG_Reg(main:0x%x no tag) success!\n",SENSOR_NAME_STRING(),cmd_main);
-	}
-
-	if (sensor_write(client, CMD_MAIN_Reg, cmd_main)) {
-		SENSOR_TR("%s write CMD_MAIN_Reg(main:0x%x) error!\n",SENSOR_NAME_STRING(),cmd_main);
-		goto sensor_af_cmdset_err;
-	}
-
-	cnt = 0;
-	do
-	{
-		msleep(5);
-		if (sensor_read(client,CMD_TAG_Reg,&read_tag)){
-		   SENSOR_TR("%s[%d] read TAG failed\n",SENSOR_NAME_STRING(),__LINE__);
-		   break;
-		}
-    } while((read_tag != 0x00)&& (cnt++<100));
-
-	SENSOR_DG("%s write CMD_MAIN_Reg(main:0x%x read tag:0x%x) success!\n",SENSOR_NAME_STRING(),cmd_main,read_tag);
-	return 0;
-sensor_af_cmdset_err:
-	return -1;
-}
-
-static int sensor_af_idlechk(struct i2c_client *client)
-{
-	int ret = 0;
-	char state,cnt;
-
-	cnt = 0;
-	do
-	{
-		ret = sensor_read(client, STA_FOCUS_Reg, &state);
-		if (ret != 0){
-		   SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
-		   ret = -1;
-		   goto sensor_af_idlechk_end;
-		}
-
-		if (state != S_IDLE) {
-			sensor_af_cmdset(client, ReturnIdle_Cmd, NULL);
-			msleep(1);
-			cnt++;
-		}
-    } while((state != S_IDLE)&& (cnt<100));
-
-	ret = (state == S_IDLE) ? 0 : -1;
-
-sensor_af_idlechk_end:
-	return ret;
-}
-
-static int sensor_af_single(struct i2c_client *client)
-{
-	int ret = 0;
-	char state,cnt;
-
-	if (sensor_af_idlechk(client))
-		goto sensor_af_single_end;
-
-	if (sensor_af_cmdset(client, SingleFocus_Cmd, NULL)) {
-		SENSOR_TR("%s single focus mode set error!\n",SENSOR_NAME_STRING());
-		ret = -1;
-		goto sensor_af_single_end;
-	}
-
-	cnt = 0;
-    do
+    int err;
+    int i = 0;
+	u8 val_read;
+    while (regarray[i].reg != 0)
     {
-    	if (cnt != 0) {
-			msleep(1);
-    	}
-    	cnt++;
-		ret = sensor_read(client, STA_FOCUS_Reg, &state);
-		if (ret != 0){
-		   SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
-		   ret = -1;
-		   goto sensor_af_single_end;
-		}
-    }while((state == S_FOCUSING) && (cnt<100));
-
-	if (state != S_FOCUSED) {
-        SENSOR_TR("%s[%d] focus state(0x%x) is error!\n",SENSOR_NAME_STRING(),__LINE__,state);
-		ret = -1;
-		goto sensor_af_single_end;
+        err = sensor_write(client, regarray[i].reg, regarray[i].val);
+        if (err != 0)
+        {
+            SENSOR_TR("%s..write failed current i = %d\n", SENSOR_NAME_STRING(),i);
+            return err;
+        }
+		err = sensor_read(client, regarray[i].reg, &val_read);
+		SENSOR_TR("%s..reg[0x%x]=0x%x,0x%x\n", SENSOR_NAME_STRING(),regarray[i].reg, val_read, regarray[i].val);
+        i++;
     }
-
-	sensor_af_cmdset(client, ReturnIdle_Cmd, NULL);
-sensor_af_single_end:
-	return ret;
-}
-
-static int sensor_af_const(struct i2c_client *client)
-{
-	int ret = 0;
-
-	if (sensor_af_idlechk(client))
-		goto sensor_af_const_end;
-
-	if (sensor_af_cmdset(client, ConstFocus_Cmd, NULL)) {
-		SENSOR_TR("%s const focus mode set error!\n",SENSOR_NAME_STRING());
-		ret = -1;
-		goto sensor_af_const_end;
-	}
-sensor_af_const_end:
-	return ret;
-}
-static int sensor_af_pause2capture(struct i2c_client *client)
-{
-	int ret = 0;
-	char state,cnt;
-
-	if (sensor_af_cmdset(client, PauseFocus_Cmd, NULL)) {
-		SENSOR_TR("%s pause focus mode set error!\n",SENSOR_NAME_STRING());
-		ret = -1;
-		goto sensor_af_pause_end;
-	}
-
-	cnt = 0;
-    do
-    {
-    	if (cnt != 0) {
-			msleep(1);
-    	}
-    	cnt++;
-		ret = sensor_read(client, STA_FOCUS_Reg, &state);
-		if (ret != 0){
-		   SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
-		   ret = -1;
-		   goto sensor_af_pause_end;
-		}
-    }while((state != S_CAPTURE) && (cnt<100));
-
-	if (state != S_CAPTURE) {
-        SENSOR_TR("%s[%d] focus state(0x%x) is error!\n",SENSOR_NAME_STRING(),__LINE__,state);
-		ret = -1;
-		goto sensor_af_pause_end;
-    }
-sensor_af_pause_end:
-	return ret;
-}
-static int sensor_af_zoneupdate(struct i2c_client *client)
-{
-	int ret = 0;
-
-	if (sensor_af_idlechk(client))
-		goto sensor_af_zoneupdate_end;
-
-	if (sensor_af_cmdset(client, UpdateZone_Cmd, NULL)) {
-		SENSOR_TR("%s update zone fail!\n",SENSOR_NAME_STRING());
-		ret = -1;
-		goto sensor_af_zoneupdate_end;
-	}
-
-sensor_af_zoneupdate_end:
-	return ret;
-}
-static int sensor_af_init(struct i2c_client *client)
-{
-	int ret = 0;
-	char state,cnt;
-
-	ret = sensor_write_array(client, sensor_af_firmware);
-    if (ret != 0) {
-       SENSOR_TR("%s Download firmware failed\n",SENSOR_NAME_STRING());
-       ret = -1;
-	   goto sensor_af_init_end;
-    }
-
-	cnt = 0;
-    do
-    {
-    	if (cnt != 0) {
-			msleep(1);
-    	}
-    	cnt++;
-		ret = sensor_read(client, STA_FOCUS_Reg, &state);
-		if (ret != 0){
-		   SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
-		   ret = -1;
-		   goto sensor_af_init_end;
-		}
-    }while((state == S_STARTUP) && (cnt<100));
-
-    if (state != S_IDLE) {
-        SENSOR_TR("%s focus state(0x%x) is error!\n",SENSOR_NAME_STRING(),state);
-		ret = -1;
-		goto sensor_af_init_end;
-    }
-
-	if (sensor_af_single(client)) {
-		ret = -1;
-		goto sensor_af_init_end;
-	}
-
-sensor_af_init_end:
-	SENSOR_DG("%s %s ret:0x%x \n",SENSOR_NAME_STRING(),__FUNCTION__,ret);
-	return ret;
+    return 0;
 }
 #endif
+
 static int sensor_init(struct v4l2_subdev *sd, u32 val)
 {
     struct i2c_client *client = sd->priv;
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
 	const struct v4l2_queryctrl *qctrl;
-    char value;
-    int ret,pid = 0;
+    int ret;
 
     SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
 
     /* soft reset */
-    ret = sensor_write(client, 0x3008, 0x80);
-    if (ret != 0) {
+    ret = sensor_write(client, 0x12, 0x80);
+    if (ret != 0)
+    {
         SENSOR_TR("%s soft reset sensor failed\n",SENSOR_NAME_STRING());
         ret = -ENODEV;
 		goto sensor_INIT_ERR;
     }
 
     mdelay(5);  //delay 5 microseconds
-	/* check if it is an sensor sensor */
-    ret = sensor_read(client, 0x300a, &value);
-    if (ret != 0) {
-        SENSOR_TR("read chip id high byte failed\n");
-        ret = -ENODEV;
-        goto sensor_INIT_ERR;
-    }
-
-    pid |= (value << 8);
-
-    ret = sensor_read(client, 0x300b, &value);
-    if (ret != 0) {
-        SENSOR_TR("read chip id low byte failed\n");
-        ret = -ENODEV;
-        goto sensor_INIT_ERR;
-    }
-
-    pid |= (value & 0xff);
-    SENSOR_DG("\n %s  pid = 0x%x\n", SENSOR_NAME_STRING(), pid);
-    if (pid == SENSOR_ID) {
-        sensor->model = SENSOR_V4L2_IDENT;
-    } else {
-        SENSOR_TR("error: %s mismatched   pid = 0x%x\n", SENSOR_NAME_STRING(), pid);
-        ret = -ENODEV;
-        goto sensor_INIT_ERR;
-    }
 
     ret = sensor_write_array(client, sensor_init_data);
     if (ret != 0)
@@ -2071,18 +1325,14 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 
     /* ddl@rock-chips.com : if sensor support auto focus and flash, programer must run focus and flash code  */
 	#if CONFIG_SENSOR_Focus
-	if (sensor_af_init(client)) {
-		sensor->info_priv.funmodule_state &= (~SENSOR_AF_IS_OK);
-	} else {
-		sensor->info_priv.funmodule_state |= SENSOR_AF_IS_OK;
-		qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FOCUS_ABSOLUTE);
-		if (qctrl)
-	        sensor->info_priv.focus = qctrl->default_value;
-
-	}
+    sensor_set_focus();
+    qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FOCUS_ABSOLUTE);
+	if (qctrl)
+        sensor->info_priv.focus = qctrl->default_value;
 	#endif
 
 	#if CONFIG_SENSOR_Flash
+	sensor_set_flash();
 	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FLASH);
 	if (qctrl)
         sensor->info_priv.flash = qctrl->default_value;
@@ -2094,16 +1344,16 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 sensor_INIT_ERR:
     return ret;
 }
+
 static int sensor_deactivate(struct v4l2_subdev *sd)
 {
-	struct i2c_client *client = sd->priv;
+	//struct i2c_client *client = sd->priv;
+	//u8 reg_val;
 
 	SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
 
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
-    sensor_write(client, 0x3017, 0x00);  // FREX,VSYNC,HREF,PCLK,D9-D6
-	sensor_write(client, 0x3018, 0x03);  // D5-D0
-	sensor_write(client,0x3019,0X00);    // STROBE,SDA
+
 
 	return 0;
 }
@@ -2203,19 +1453,28 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     struct sensor *sensor = to_sensor(client);
     struct v4l2_pix_format *pix = &f->fmt.pix;
     struct reginfo *winseqe_set_addr=NULL;
-    int ret = 0, set_w,set_h;
+	char readval;
+    int ret=0, set_w,set_h;
 
 	if (sensor->info_priv.pixfmt != pix->pixelformat) {
 		switch (pix->pixelformat)
 		{
 			case V4L2_PIX_FMT_YUYV:
 			{
-				winseqe_set_addr = sensor_ClrFmt_YUYV;
+				//winseqe_set_addr = sensor_ClrFmt_YUYV;
+				sensor_read(client, 0x3a, &readval);
+				sensor_write(client,0x3a, readval&0xf7);
+				sensor_read(client,0x3d,&readval);
+				sensor_write(client,0x3d,readval&0xfe);
 				break;
 			}
 			case V4L2_PIX_FMT_UYVY:
 			{
-				winseqe_set_addr = sensor_ClrFmt_UYVY;
+				//winseqe_set_addr = sensor_ClrFmt_UYVY;
+				sensor_read(client, 0x3a, &readval);
+				sensor_write(client,0x3a, readval|0x08);
+				sensor_read(client,0x3d,&readval);
+				sensor_write(client,0x3d,readval&0xfe);
 				break;
 			}
 			default:
@@ -2270,24 +1529,6 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         set_w = 1280;
         set_h = 1024;
     }
-    else if (((set_w <= 1600) && (set_h <= 1200)) && sensor_uxga[0].reg)
-    {
-        winseqe_set_addr = sensor_uxga;
-        set_w = 1600;
-        set_h = 1200;
-    }
-	else if (((set_w <= 2048) && (set_h <= 1536)) && sensor_qxga[0].reg)
-    {
-        winseqe_set_addr = sensor_qxga;
-        set_w = 2048;
-        set_h = 1536;
-    }
-	else if (((set_w <= 2592) && (set_h <= 1944)) && sensor_qsxga[0].reg)
-    {
-        winseqe_set_addr = sensor_qsxga;
-        set_w = 2592;
-        set_h = 1944;
-    }
     else
     {
         winseqe_set_addr = SENSOR_INIT_WINSEQADR;               /* ddl@rock-chips.com : Sensor output smallest size if  isn't support app  */
@@ -2306,9 +1547,6 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         }
 
         sensor->info_priv.winseqe_cur_addr  = (int)winseqe_set_addr;
-        //#if CONFIG_SENSOR_Focus
-		//sensor_af_zoneupdate(client);
-		//#endif
 
 
         SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,set_w,set_h);
@@ -2319,7 +1557,8 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     }
 
 	pix->width = set_w;
-	pix->height = set_h;
+    pix->height = set_h;
+
 sensor_s_fmt_end:
     return ret;
 }
@@ -2362,7 +1601,7 @@ static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     if (id->match.addr != client->addr)
         return -ENODEV;
 
-    id->ident = SENSOR_V4L2_IDENT;      /* ddl@rock-chips.com :  Return OV2655  identifier */
+    id->ident = SENSOR_V4L2_IDENT;      /* ddl@rock-chips.com :  Return OV9650  identifier */
     id->revision = 0;
 
     return 0;
@@ -2618,129 +1857,6 @@ static int sensor_set_digitalzoom(struct soc_camera_device *icd, const struct v4
     return -EINVAL;
 }
 #endif
-#if CONFIG_SENSOR_Focus
-static int sensor_set_focus_absolute(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-    struct sensor *sensor = to_sensor(client);
-	const struct v4l2_queryctrl *qctrl_info;
-	struct af_cmdinfo cmdinfo;
-	int ret = 0;
-
-	qctrl_info = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FOCUS_ABSOLUTE);
-	if (!qctrl_info)
-		return -EINVAL;
-
-	if (sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK) {
-		if ((value >= qctrl_info->minimum) && (value <= qctrl_info->maximum)) {
-
-			if (sensor_af_idlechk(client))
-				goto sensor_set_focus_absolute_end;
-
-			cmdinfo.cmd_tag = StepFocus_Spec_Tag;
-			cmdinfo.cmd_para[0] = value;
-			cmdinfo.validate_bit = 0x81;
-			ret = sensor_af_cmdset(client, StepMode_Cmd, &cmdinfo);
-			//ret |= sensor_af_cmdset(client, ReturnIdle_Cmd, NULL);
-			SENSOR_DG("%s..%s : %d  ret:0x%x\n",SENSOR_NAME_STRING(),__FUNCTION__, value,ret);
-		} else {
-			ret = -EINVAL;
-			SENSOR_TR("\n %s..%s valure = %d is invalidate..    \n",SENSOR_NAME_STRING(),__FUNCTION__,value);
-		}
-	} else {
-		ret = -EACCES;
-		SENSOR_TR("\n %s..%s AF module state is error!\n",SENSOR_NAME_STRING(),__FUNCTION__);
-	}
-
-sensor_set_focus_absolute_end:
-	return ret;
-}
-static int sensor_set_focus_relative(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct sensor *sensor = to_sensor(client);
-	const struct v4l2_queryctrl *qctrl_info;
-	struct af_cmdinfo cmdinfo;
-	int ret = 0;
-
-	qctrl_info = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FOCUS_RELATIVE);
-	if (!qctrl_info)
-		return -EINVAL;
-
-	if (sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK) {
-		if ((value >= qctrl_info->minimum) && (value <= qctrl_info->maximum)) {
-
-			if (sensor_af_idlechk(client))
-				goto sensor_set_focus_relative_end;
-
-			if (value > 0) {
-				cmdinfo.cmd_tag = StepFocus_Near_Tag;
-			} else if (value < 0) {
-				cmdinfo.cmd_tag = StepFocus_Far_Tag;
-			}
-			cmdinfo.validate_bit = 0x80;
-			ret = sensor_af_cmdset(client, StepMode_Cmd, &cmdinfo);
-
-			SENSOR_DG("%s..%s : %d  ret:0x%x\n",SENSOR_NAME_STRING(),__FUNCTION__, value,ret);
-		} else {
-			ret = -EINVAL;
-			SENSOR_TR("\n %s..%s valure = %d is invalidate..    \n",SENSOR_NAME_STRING(),__FUNCTION__,value);
-		}
-	} else {
-		ret = -EACCES;
-		SENSOR_TR("\n %s..%s AF module state is error!\n",SENSOR_NAME_STRING(),__FUNCTION__);
-	}
-sensor_set_focus_relative_end:
-	return ret;
-}
-
-static int sensor_set_focus_mode(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct sensor *sensor = to_sensor(client);
-	int ret = 0;
-
-	if (sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK) {
-		switch (value)
-		{
-			case SENSOR_AF_MODE_AUTO:
-			{
-				ret = sensor_af_single(client);
-				break;
-			}
-
-			case SENSOR_AF_MODE_MACRO:
-			{
-				ret = sensor_set_focus_absolute(icd, qctrl, 0xff);
-				break;
-			}
-
-			case SENSOR_AF_MODE_INFINITY:
-			{
-				ret = sensor_set_focus_absolute(icd, qctrl, 0x00);
-				break;
-			}
-
-			case SENSOR_AF_MODE_CONTINUOUS:
-			{
-				ret = sensor_af_const(client);
-				break;
-			}
-			default:
-				SENSOR_TR("\n %s..%s AF value(0x%x) is error!\n",SENSOR_NAME_STRING(),__FUNCTION__,value);
-				break;
-
-		}
-
-		SENSOR_DG("%s..%s : %d  ret:0x%x\n",SENSOR_NAME_STRING(),__FUNCTION__, value,ret);
-	} else {
-		ret = -EACCES;
-		SENSOR_TR("\n %s..%s AF module state is error!\n",SENSOR_NAME_STRING(),__FUNCTION__);
-	}
-
-	return ret;
-}
-#endif
 static int sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
     struct i2c_client *client = sd->priv;
@@ -2751,7 +1867,7 @@ static int sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
     if (!qctrl)
     {
-        SENSOR_TR("\n %s ioctrl id = 0x%x  is invalidate \n", SENSOR_NAME_STRING(), ctrl->id);
+        SENSOR_TR("\n %s ioctrl id = %d  is invalidate \n", SENSOR_NAME_STRING(), ctrl->id);
         return -EINVAL;
     }
 
@@ -2812,7 +1928,7 @@ static int sensor_s_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
     if (!qctrl)
     {
-        SENSOR_TR("\n %s ioctrl id = 0x%x  is invalidate \n", SENSOR_NAME_STRING(), ctrl->id);
+        SENSOR_TR("\n %s ioctrl id = %d  is invalidate \n", SENSOR_NAME_STRING(), ctrl->id);
         return -EINVAL;
     }
 
@@ -2928,7 +2044,7 @@ static int sensor_g_ext_control(struct soc_camera_device *icd , struct v4l2_ext_
 
     if (!qctrl)
     {
-        SENSOR_TR("\n %s ioctrl id = 0x%x  is invalidate \n", SENSOR_NAME_STRING(), ext_ctrl->id);
+        SENSOR_TR("\n %s ioctrl id = %d  is invalidate \n", SENSOR_NAME_STRING(), ext_ctrl->id);
         return -EINVAL;
     }
 
@@ -2955,7 +2071,8 @@ static int sensor_g_ext_control(struct soc_camera_device *icd , struct v4l2_ext_
             }
         case V4L2_CID_FOCUS_ABSOLUTE:
             {
-                return -EINVAL;
+                ext_ctrl->value = sensor->info_priv.focus;
+                break;
             }
         case V4L2_CID_FOCUS_RELATIVE:
             {
@@ -2982,7 +2099,7 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
 
     if (!qctrl)
     {
-        SENSOR_TR("\n %s ioctrl id = 0x%x  is invalidate \n", SENSOR_NAME_STRING(), ext_ctrl->id);
+        SENSOR_TR("\n %s ioctrl id = %d  is invalidate \n", SENSOR_NAME_STRING(), ext_ctrl->id);
         return -EINVAL;
     }
 
@@ -3051,52 +2168,25 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
                 if ((ext_ctrl->value < qctrl->minimum) || (ext_ctrl->value > qctrl->maximum))
                     return -EINVAL;
 
-				if (sensor_set_focus_absolute(icd, qctrl,ext_ctrl->value) == 0) {
-					if (ext_ctrl->value == qctrl->minimum) {
-						sensor->info_priv.auto_focus = SENSOR_AF_MODE_INFINITY;
-					} else if (ext_ctrl->value == qctrl->maximum) {
-						sensor->info_priv.auto_focus = SENSOR_AF_MODE_MACRO;
-					} else {
-						sensor->info_priv.auto_focus = SENSOR_AF_MODE_FIXED;
-					}
-				}
+                if (ext_ctrl->value != sensor->info_priv.focus)
+                {
+                    val_offset = ext_ctrl->value -sensor->info_priv.focus;
+
+                    sensor->info_priv.focus += val_offset;
+                }
 
                 break;
             }
         case V4L2_CID_FOCUS_RELATIVE:
             {
-                if ((ext_ctrl->value < qctrl->minimum) || (ext_ctrl->value > qctrl->maximum))
-                    return -EINVAL;
+                if (ext_ctrl->value)
+                {
+                    sensor->info_priv.focus += ext_ctrl->value;
 
-                sensor_set_focus_relative(icd, qctrl,ext_ctrl->value);
+                    SENSOR_DG("%s focus is %x\n", SENSOR_NAME_STRING(), sensor->info_priv.focus);
+                }
                 break;
             }
-		case V4L2_CID_FOCUS_AUTO:
-			{
-				if (ext_ctrl->value == 1) {
-					if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_AUTO) != 0)
-						return -EINVAL;
-					sensor->info_priv.auto_focus = SENSOR_AF_MODE_AUTO;
-				} else if (SENSOR_AF_MODE_AUTO == sensor->info_priv.auto_focus){
-					if (ext_ctrl->value == 0)
-						sensor->info_priv.auto_focus = SENSOR_AF_MODE_CLOSE;
-				}
-				break;
-			}
-		case V4L2_CID_FOCUS_CONTINUOUS:
-			{
-				if (SENSOR_AF_MODE_CONTINUOUS != sensor->info_priv.auto_focus) {
-					if (ext_ctrl->value == 1) {
-						if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_CONTINUOUS) != 0)
-							return -EINVAL;
-						sensor->info_priv.auto_focus = SENSOR_AF_MODE_CONTINUOUS;
-					}
-				} else {
-					if (ext_ctrl->value == 0)
-						sensor->info_priv.auto_focus = SENSOR_AF_MODE_CLOSE;
-				}
-				break;
-			}
 #endif
 #if CONFIG_SENSOR_Flash
         case V4L2_CID_FLASH:
@@ -3145,6 +2235,7 @@ static int sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_control
     struct soc_camera_device *icd = client->dev.platform_data;
     int i, error_cnt=0, error_idx=-1;
 
+
     for (i=0; i<ext_ctrl->count; i++) {
         if (sensor_s_ext_control(icd, &ext_ctrl->controls[i]) != 0) {
             error_cnt++;
@@ -3168,8 +2259,8 @@ static int sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_control
 static int sensor_video_probe(struct soc_camera_device *icd,
 			       struct i2c_client *client)
 {
-    char value;
-    int ret,pid = 0;
+    char pid = 0;
+    int ret;
     struct sensor *sensor = to_sensor(client);
 
     /* We must have a parent by now. And it cannot be a wrong one.
@@ -3179,32 +2270,22 @@ static int sensor_video_probe(struct soc_camera_device *icd,
 		return -ENODEV;
 
     /* soft reset */
-    ret = sensor_write(client, 0x3012, 0x80);
+    ret = sensor_write(client, 0x12, 0x80);
     if (ret != 0)
     {
         SENSOR_TR("soft reset %s failed\n",SENSOR_NAME_STRING());
         return -ENODEV;
     }
-    mdelay(5);          //delay 5 microseconds
+    mdelay(50);          //delay 5 microseconds
 
     /* check if it is an sensor sensor */
-    ret = sensor_read(client, 0x300a, &value);
+    ret = sensor_read(client, 0x0a, &pid);
     if (ret != 0) {
-        SENSOR_TR("read chip id high byte failed\n");
+        SENSOR_TR("%s read chip id high byte failed\n",SENSOR_NAME_STRING());
         ret = -ENODEV;
         goto sensor_video_probe_err;
     }
 
-    pid |= (value << 8);
-
-    ret = sensor_read(client, 0x300b, &value);
-    if (ret != 0) {
-        SENSOR_TR("read chip id low byte failed\n");
-        ret = -ENODEV;
-        goto sensor_video_probe_err;
-    }
-
-    pid |= (value & 0xff);
     SENSOR_DG("\n %s  pid = 0x%x\n", SENSOR_NAME_STRING(), pid);
     if (pid == SENSOR_ID) {
         sensor->model = SENSOR_V4L2_IDENT;
@@ -3223,6 +2304,7 @@ sensor_video_probe_err:
 
     return ret;
 }
+
 static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	SENSOR_DG("\n%s..%s..cmd:%x \n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
@@ -3240,7 +2322,6 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	return 0;
 
 }
-
 static struct v4l2_subdev_core_ops sensor_subdev_core_ops = {
 	.init		= sensor_init,
 	.g_ctrl		= sensor_g_control,
@@ -3354,4 +2435,5 @@ module_exit(sensor_mod_exit);
 MODULE_DESCRIPTION(SENSOR_NAME_STRING(Camera sensor driver));
 MODULE_AUTHOR("ddl <kernel@rock-chips>");
 MODULE_LICENSE("GPL");
+
 

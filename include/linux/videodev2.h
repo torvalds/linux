@@ -1161,9 +1161,10 @@ enum  v4l2_exposure_auto_type {
 
 /* ddl@rock-chips.com : Add ioctrl -  V4L2_CID_SCENE for camera scene control */
 #define V4L2_CID_CAMERA_CLASS_BASE_ROCK                      (V4L2_CID_CAMERA_CLASS_BASE + 30)
-#define V4L2_CID_SCENE			(V4L2_CID_CAMERA_CLASS_BASE_ROCK+1)             
-#define V4L2_CID_EFFECT			(V4L2_CID_CAMERA_CLASS_BASE_ROCK+2) 
-#define V4L2_CID_FLASH                      (V4L2_CID_CAMERA_CLASS_BASE_ROCK+3) 
+#define V4L2_CID_SCENE			(V4L2_CID_CAMERA_CLASS_BASE_ROCK+1)
+#define V4L2_CID_EFFECT			(V4L2_CID_CAMERA_CLASS_BASE_ROCK+2)
+#define V4L2_CID_FLASH                      (V4L2_CID_CAMERA_CLASS_BASE_ROCK+3)
+#define V4L2_CID_FOCUS_CONTINUOUS     (V4L2_CID_CAMERA_CLASS_BASE_ROCK+4)
 
 
 /* FM Modulator class control IDs */
