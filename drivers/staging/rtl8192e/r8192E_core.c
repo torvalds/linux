@@ -6179,144 +6179,134 @@ static void __exit rtl8192_pci_module_exit(void)
 	ieee80211_rtl_exit();
 }
 
-//warning message WB
 static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 {
-    struct net_device *dev = (struct net_device *) netdev;
-    struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-    unsigned long flags;
-    u32 inta;
-    /* We should return IRQ_NONE, but for now let me keep this */
-    if(priv->irq_enabled == 0){
-        return IRQ_HANDLED;
-    }
+	struct net_device *dev = (struct net_device *) netdev;
+	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	unsigned long flags;
+	u32 inta;
 
-    spin_lock_irqsave(&priv->irq_th_lock,flags);
+	/* We should return IRQ_NONE, but for now let me keep this */
+	if (priv->irq_enabled == 0)
+		return IRQ_HANDLED;
 
-    //ISR: 4bytes
+	spin_lock_irqsave(&priv->irq_th_lock,flags);
 
-    inta = read_nic_dword(dev, ISR);// & priv->IntrMask;
-    write_nic_dword(dev,ISR,inta); // reset int situation
+	/* ISR: 4bytes */
 
-    priv->stats.shints++;
-    //DMESG("Enter interrupt, ISR value = 0x%08x", inta);
-    if(!inta){
-        spin_unlock_irqrestore(&priv->irq_th_lock,flags);
-        return IRQ_HANDLED;
-        /*
-           most probably we can safely return IRQ_NONE,
-           but for now is better to avoid problems
-           */
-    }
+	inta = read_nic_dword(dev, ISR); /* & priv->IntrMask; */
+	write_nic_dword(dev, ISR, inta); /* reset int situation */
 
-    if(inta == 0xffff){
-        /* HW disappared */
-        spin_unlock_irqrestore(&priv->irq_th_lock,flags);
-        return IRQ_HANDLED;
-    }
+	priv->stats.shints++;
+	if (!inta) {
+		spin_unlock_irqrestore(&priv->irq_th_lock, flags);
+		return IRQ_HANDLED;
+		/*
+		 * most probably we can safely return IRQ_NONE,
+		 * but for now is better to avoid problems
+		 */
+	}
 
-    priv->stats.ints++;
+	if (inta == 0xffff) {
+		/* HW disappared */
+		spin_unlock_irqrestore(&priv->irq_th_lock, flags);
+		return IRQ_HANDLED;
+	}
+
+	priv->stats.ints++;
 #ifdef DEBUG_IRQ
-    DMESG("NIC irq %x",inta);
+	DMESG("NIC irq %x",inta);
 #endif
-    //priv->irqpending = inta;
 
+	if (!netif_running(dev)) {
+		spin_unlock_irqrestore(&priv->irq_th_lock, flags);
+		return IRQ_HANDLED;
+	}
 
-    if(!netif_running(dev)) {
-        spin_unlock_irqrestore(&priv->irq_th_lock,flags);
-        return IRQ_HANDLED;
-    }
+	if (inta & IMR_TBDOK) {
+		RT_TRACE(COMP_INTR, "beacon ok interrupt!\n");
+		rtl8192_tx_isr(dev, BEACON_QUEUE);
+		priv->stats.txbeaconokint++;
+	}
 
-    if(inta & IMR_TIMEOUT0){
-        //		write_nic_dword(dev, TimerInt, 0);
-        //DMESG("=================>waking up");
-        //		rtl8180_hw_wakeup(dev);
-    }
+	if (inta & IMR_TBDER) {
+		RT_TRACE(COMP_INTR, "beacon ok interrupt!\n");
+		rtl8192_tx_isr(dev, BEACON_QUEUE);
+		priv->stats.txbeaconerr++;
+	}
 
-    if(inta & IMR_TBDOK){
-        RT_TRACE(COMP_INTR, "beacon ok interrupt!\n");
-        rtl8192_tx_isr(dev, BEACON_QUEUE);
-        priv->stats.txbeaconokint++;
-    }
+	if (inta & IMR_MGNTDOK ) {
+		RT_TRACE(COMP_INTR, "Manage ok interrupt!\n");
+		priv->stats.txmanageokint++;
+		rtl8192_tx_isr(dev,MGNT_QUEUE);
+	}
 
-    if(inta & IMR_TBDER){
-        RT_TRACE(COMP_INTR, "beacon ok interrupt!\n");
-        rtl8192_tx_isr(dev, BEACON_QUEUE);
-        priv->stats.txbeaconerr++;
-    }
+	if (inta & IMR_COMDOK)
+	{
+		priv->stats.txcmdpktokint++;
+		rtl8192_tx_isr(dev, TXCMD_QUEUE);
+	}
 
-    if(inta  & IMR_MGNTDOK ) {
-        RT_TRACE(COMP_INTR, "Manage ok interrupt!\n");
-        priv->stats.txmanageokint++;
-        rtl8192_tx_isr(dev,MGNT_QUEUE);
-
-    }
-
-    if(inta & IMR_COMDOK)
-    {
-        priv->stats.txcmdpktokint++;
-        rtl8192_tx_isr(dev,TXCMD_QUEUE);
-    }
-
-    if(inta & IMR_ROK){
+	if (inta & IMR_ROK) {
 #ifdef DEBUG_RX
-        DMESG("Frame arrived !");
+		DMESG("Frame arrived !");
 #endif
-        priv->stats.rxint++;
-        tasklet_schedule(&priv->irq_rx_tasklet);
-    }
+		priv->stats.rxint++;
+		tasklet_schedule(&priv->irq_rx_tasklet);
+	}
 
-    if(inta & IMR_BcnInt) {
-        RT_TRACE(COMP_INTR, "prepare beacon for interrupt!\n");
-        tasklet_schedule(&priv->irq_prepare_beacon_tasklet);
-    }
+	if (inta & IMR_BcnInt) {
+		RT_TRACE(COMP_INTR, "prepare beacon for interrupt!\n");
+		tasklet_schedule(&priv->irq_prepare_beacon_tasklet);
+	}
 
-    if(inta & IMR_RDU){
-        RT_TRACE(COMP_INTR, "rx descriptor unavailable!\n");
-        priv->stats.rxrdu++;
-        /* reset int situation */
-        write_nic_dword(dev,INTA_MASK,read_nic_dword(dev, INTA_MASK) & ~IMR_RDU);
-        tasklet_schedule(&priv->irq_rx_tasklet);
-    }
+	if (inta & IMR_RDU) {
+		RT_TRACE(COMP_INTR, "rx descriptor unavailable!\n");
+		priv->stats.rxrdu++;
+		/* reset int situation */
+		write_nic_dword(dev, INTA_MASK, read_nic_dword(dev, INTA_MASK) & ~IMR_RDU);
+		tasklet_schedule(&priv->irq_rx_tasklet);
+	}
 
-    if(inta & IMR_RXFOVW){
-        RT_TRACE(COMP_INTR, "rx overflow !\n");
-        priv->stats.rxoverflow++;
-        tasklet_schedule(&priv->irq_rx_tasklet);
-    }
+	if (inta & IMR_RXFOVW) {
+		RT_TRACE(COMP_INTR, "rx overflow !\n");
+		priv->stats.rxoverflow++;
+		tasklet_schedule(&priv->irq_rx_tasklet);
+	}
 
-    if(inta & IMR_TXFOVW) priv->stats.txoverflow++;
+	if (inta & IMR_TXFOVW)
+		priv->stats.txoverflow++;
 
-    if(inta & IMR_BKDOK){
-        RT_TRACE(COMP_INTR, "BK Tx OK interrupt!\n");
-        priv->stats.txbkokint++;
-        priv->ieee80211->LinkDetectInfo.NumTxOkInPeriod++;
-        rtl8192_tx_isr(dev,BK_QUEUE);
-    }
+	if (inta & IMR_BKDOK) {
+		RT_TRACE(COMP_INTR, "BK Tx OK interrupt!\n");
+		priv->stats.txbkokint++;
+		priv->ieee80211->LinkDetectInfo.NumTxOkInPeriod++;
+		rtl8192_tx_isr(dev, BK_QUEUE);
+	}
 
-    if(inta & IMR_BEDOK){
-        RT_TRACE(COMP_INTR, "BE TX OK interrupt!\n");
-        priv->stats.txbeokint++;
-        priv->ieee80211->LinkDetectInfo.NumTxOkInPeriod++;
-        rtl8192_tx_isr(dev,BE_QUEUE);
-    }
+	if (inta & IMR_BEDOK) {
+		RT_TRACE(COMP_INTR, "BE TX OK interrupt!\n");
+		priv->stats.txbeokint++;
+		priv->ieee80211->LinkDetectInfo.NumTxOkInPeriod++;
+		rtl8192_tx_isr(dev, BE_QUEUE);
+	}
 
-    if(inta & IMR_VIDOK){
-        RT_TRACE(COMP_INTR, "VI TX OK interrupt!\n");
-        priv->stats.txviokint++;
-        priv->ieee80211->LinkDetectInfo.NumTxOkInPeriod++;
-        rtl8192_tx_isr(dev,VI_QUEUE);
-    }
+	if (inta & IMR_VIDOK) {
+		RT_TRACE(COMP_INTR, "VI TX OK interrupt!\n");
+		priv->stats.txviokint++;
+		priv->ieee80211->LinkDetectInfo.NumTxOkInPeriod++;
+		rtl8192_tx_isr(dev, VI_QUEUE);
+	}
 
-    if(inta & IMR_VODOK){
-        priv->stats.txvookint++;
-        priv->ieee80211->LinkDetectInfo.NumTxOkInPeriod++;
-        rtl8192_tx_isr(dev,VO_QUEUE);
-    }
+	if (inta & IMR_VODOK) {
+		priv->stats.txvookint++;
+		priv->ieee80211->LinkDetectInfo.NumTxOkInPeriod++;
+		rtl8192_tx_isr(dev, VO_QUEUE);
+	}
 
-    spin_unlock_irqrestore(&priv->irq_th_lock,flags);
+	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 
-    return IRQ_HANDLED;
+	return IRQ_HANDLED;
 }
 
 void EnableHWSecurityConfig8192(struct net_device *dev)
