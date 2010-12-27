@@ -1919,7 +1919,7 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_RATR_0,
 	HW_VAR_RRSR,
 	HW_VAR_CPU_RST,
-	HW_VAR_CECHK_BSSID,
+	HW_VAR_CHECK_BSSID,
         HW_VAR_LBK_MODE,			// Set lookback mode, 2008.06.11. added by Roger.
 	// Set HW related setting for 11N AES bug.
 	HW_VAR_AES_11N_FIX,

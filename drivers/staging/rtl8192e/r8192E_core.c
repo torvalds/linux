@@ -404,7 +404,7 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 		}
 		break;
 
-		case HW_VAR_CECHK_BSSID:
+		case HW_VAR_CHECK_BSSID:
 		{
 			u32	RegRCR, Type;
 
