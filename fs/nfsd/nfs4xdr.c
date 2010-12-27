@@ -2845,11 +2845,10 @@ nfsd4_encode_rename(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_
 }
 
 static __be32
-nfsd4_encode_secinfo(struct nfsd4_compoundres *resp, __be32 nfserr,
-		     struct nfsd4_secinfo *secinfo)
+nfsd4_do_encode_secinfo(struct nfsd4_compoundres *resp,
+			 __be32 nfserr,struct svc_export *exp)
 {
 	int i = 0;
-	struct svc_export *exp = secinfo->si_exp;
 	u32 nflavs;
 	struct exp_flavor_info *flavs;
 	struct exp_flavor_info def_flavs[2];
@@ -2909,6 +2908,20 @@ out:
 	if (exp)
 		exp_put(exp);
 	return nfserr;
+}
+
+static __be32
+nfsd4_encode_secinfo(struct nfsd4_compoundres *resp, __be32 nfserr,
+		     struct nfsd4_secinfo *secinfo)
+{
+	return nfsd4_do_encode_secinfo(resp, nfserr, secinfo->si_exp);
+}
+
+static __be32
+nfsd4_encode_secinfo_no_name(struct nfsd4_compoundres *resp, __be32 nfserr,
+		     struct nfsd4_secinfo_no_name *secinfo)
+{
+	return nfsd4_do_encode_secinfo(resp, nfserr, secinfo->sin_exp);
 }
 
 /*
@@ -3173,7 +3186,7 @@ static nfsd4_enc nfsd4_enc_ops[] = {
 	[OP_LAYOUTCOMMIT]	= (nfsd4_enc)nfsd4_encode_noop,
 	[OP_LAYOUTGET]		= (nfsd4_enc)nfsd4_encode_noop,
 	[OP_LAYOUTRETURN]	= (nfsd4_enc)nfsd4_encode_noop,
-	[OP_SECINFO_NO_NAME]	= (nfsd4_enc)nfsd4_encode_secinfo,
+	[OP_SECINFO_NO_NAME]	= (nfsd4_enc)nfsd4_encode_secinfo_no_name,
 	[OP_SEQUENCE]		= (nfsd4_enc)nfsd4_encode_sequence,
 	[OP_SET_SSV]		= (nfsd4_enc)nfsd4_encode_noop,
 	[OP_TEST_STATEID]	= (nfsd4_enc)nfsd4_encode_noop,
