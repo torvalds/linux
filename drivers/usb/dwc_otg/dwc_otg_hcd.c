@@ -62,7 +62,6 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
     dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
     hprt0_data_t hprt0;
     pcgcctl_data_t pcgcctl;
-    //dwc_debug(1);
     
     if(core_if->op_state == B_PERIPHERAL)
     {
@@ -129,8 +128,6 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
     dwc_write_reg32(core_if->pcgcctl, pcgcctl.d32);
     udelay(2);
 #endif
-    //dwc_debug(3);
-    //dwc_debug(1);
     gintmsk.d32 = dwc_read_reg32(&core_if->core_global_regs->gintmsk);
     gintmsk.b.portintr = 0;
     dwc_write_reg32(&core_if->core_global_regs->gintmsk, gintmsk.d32);
@@ -386,7 +383,7 @@ static void kill_urbs_in_qh_list(dwc_otg_hcd_t *_hcd, struct list_head *_qh_list
 		}
 	}
 }
-
+#if 0
 /**
  * Responds with an error status of ETIMEDOUT to all URBs in the non-periodic
  * and periodic schedules. The QTD associated with each URB is removed from
@@ -402,7 +399,7 @@ static void kill_all_urbs(dwc_otg_hcd_t *_hcd)
 	kill_urbs_in_qh_list(_hcd, &_hcd->periodic_sched_assigned);
 	kill_urbs_in_qh_list(_hcd, &_hcd->periodic_sched_queued);
 }
-
+#endif 
 /**
  * HCD Callback function for disconnect of the HCD.
  *
@@ -453,7 +450,8 @@ static int32_t dwc_otg_hcd_disconnect_cb( void *_p )
         }
                 
 	/* Respond with an error status to all URBs in the schedule. */
-	kill_all_urbs(dwc_otg_hcd);
+	// yk@20101227 handle kernel panic bug when disconnect
+	//kill_all_urbs(dwc_otg_hcd);
 
 	if (dwc_otg_is_host_mode(dwc_otg_hcd->core_if)) {
 		/* Clean up any host channels that were in use. */
@@ -638,6 +636,12 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 
 	dwc_otg_hcd->core_if = otg_dev->core_if;
 	otg_dev->hcd = dwc_otg_hcd;
+    
+#ifdef CONFIG_USB20_OTG_EN
+    dwc_otg_hcd->host_enabled = 1;
+#else
+    dwc_otg_hcd->host_enabled = 0;
+#endif
 
         /* Register the HCD CIL Callbacks */
         dwc_otg_cil_register_hcd_callbacks(otg_dev->core_if, 
@@ -714,7 +718,7 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 		DWC_ERROR("%s: status_buf allocation failed\n", __func__);
 		goto error3;
 	}
-
+    
 	DWC_PRINT("%s end,everest\n",__func__);
 //	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD Initialized HCD, bus=%s, usbbus=%d\n", 
 //		    dev->bus_id, hcd->self.busnum);
@@ -795,6 +799,12 @@ int __devinit host11_hcd_init(struct device *dev)
 	dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
 	dwc_otg_hcd->core_if = otg_dev->core_if;
 	otg_dev->hcd = dwc_otg_hcd;
+    
+#ifdef CONFIG_USB11_HOST_EN
+        dwc_otg_hcd->host_enabled = 1;
+#else
+        dwc_otg_hcd->host_enabled = 0;
+#endif
 
 	spin_lock_init(&dwc_otg_hcd->global_lock);
 
@@ -955,6 +965,12 @@ int __devinit host20_hcd_init(struct device *dev)
 	dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
 	dwc_otg_hcd->core_if = otg_dev->core_if;
 	otg_dev->hcd = dwc_otg_hcd;
+    
+#ifdef CONFIG_USB20_HOST_EN
+        dwc_otg_hcd->host_enabled = 1;
+#else
+        dwc_otg_hcd->host_enabled = 0;
+#endif
 
 	spin_lock_init(&dwc_otg_hcd->global_lock);
 
@@ -1034,10 +1050,8 @@ int __devinit host20_hcd_init(struct device *dev)
 		DWC_ERROR("%s: status_buf allocation failed\n", __func__);
 		goto error3;
 	}
-
+    
 	DWC_PRINT("%s end,everest\n",__func__);
-//	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD Initialized HCD, bus=%s, usbbus=%d\n", 
-//		    dev->bus_id, hcd->self.busnum);
         
 	return 0;
 
@@ -1164,7 +1178,7 @@ int dwc_otg_hcd_start(struct usb_hcd *_hcd)
 	}
 	/* Initialize the bus state.  If the core is in Device Mode
 	 * HALT the USB bus and return. */
-	if (dwc_otg_is_device_mode (core_if)) {
+	if (!dwc_otg_hcd->host_enabled || dwc_otg_is_device_mode (core_if)) {
 		DWC_PRINT("dwc_otg_hcd_start controller in device mode,everest\n");
 		//_hcd->state = HC_STATE_HALT;
 		goto out;
@@ -1467,6 +1481,7 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
 	if(urb_qtd == NULL)
 	{
 		DWC_PRINT("%s,urb_qtd is null\n",__func__);
+		goto urb_qtd_null;
 		//return -1;
 	}
 	dwc_otg_hcd = hcd_to_dwc_otg_hcd(_hcd);
@@ -1510,6 +1525,8 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
 		dwc_otg_hcd_qh_remove(dwc_otg_hcd, qh);
 	}
 #endif
+	
+urb_qtd_null:
 	spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
 	_urb->hcpriv = NULL;
 	usb_hcd_unlink_urb_from_ep(_hcd, _urb);

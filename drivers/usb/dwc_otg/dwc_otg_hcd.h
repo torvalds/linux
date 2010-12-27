@@ -382,6 +382,9 @@ typedef struct dwc_otg_hcd {
 	uint64_t		hfnum_other_frrem_accum_b;
 #endif	
 
+    /** Flag to indicate whether host controller is enabled. */
+    uint8_t host_enabled;
+
 } dwc_otg_hcd_t;
 
 /** Gets the dwc_otg_hcd from a struct usb_hcd */

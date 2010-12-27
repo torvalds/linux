@@ -331,17 +331,66 @@ static ssize_t dbg_level_store(struct device_driver *_drv, const char *_buf,
 }
 static DRIVER_ATTR(debuglevel, S_IRUGO|S_IWUSR, dbg_level_show, dbg_level_store);
 
-#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+static ssize_t dwc_otg_enable_show( struct device *_dev, 
+								struct device_attribute *attr, char *buf)
+{
+    dwc_otg_device_t *otg_dev = _dev->platform_data;
+    return sprintf (buf, "%d\n", otg_dev->hcd->host_enabled);
+}
+
+static ssize_t dwc_otg_enable_store( struct device *_dev,
+								struct device_attribute *attr, 
+								const char *buf, size_t count )
+{
+    dwc_otg_device_t *otg_dev = _dev->platform_data;
+    dwc_otg_core_if_t *_core_if = otg_dev->core_if;
+    struct platform_device *pdev = to_platform_device(_dev);
+	uint32_t val = simple_strtoul(buf, NULL, 16);
+	if(otg_dev->hcd->host_enabled == val)
+	    return count;
+	    
+	otg_dev->hcd->host_enabled = val;
+	if(val == 0)    // enable -> disable
+	{
+	    DWC_PRINT("disable host controller:%s\n",pdev->name);
+	    #if 1
+        if (_core_if->hcd_cb && _core_if->hcd_cb->disconnect) {
+                _core_if->hcd_cb->disconnect( _core_if->hcd_cb->p );
+        }
+        #endif
+        if (_core_if->hcd_cb && _core_if->hcd_cb->stop) {
+                _core_if->hcd_cb->stop( _core_if->hcd_cb->p );
+        }
+        clk_disable(otg_dev->phyclk);
+        clk_disable(otg_dev->ahbclk);
+	}
+	else if(val == 1)
+	{
+	    DWC_PRINT("enable host controller:%s\n",pdev->name);
+        clk_enable(otg_dev->phyclk);
+        clk_enable(otg_dev->ahbclk);
+        if (_core_if->hcd_cb && _core_if->hcd_cb->start) {
+                _core_if->hcd_cb->start( _core_if->hcd_cb->p );
+        }
+	}
+
+    return count;
+}
+static DEVICE_ATTR(enable, S_IRUGO|S_IWUSR, dwc_otg_enable_show, dwc_otg_enable_store);
+
 static ssize_t dwc_otg_conn_en_show(struct device_driver *_drv, char *_buf)
 {
+#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
     dwc_otg_device_t *otg_dev = g_otgdev;
     dwc_otg_pcd_t *_pcd = otg_dev->pcd;
     return sprintf (_buf, "%d\n", _pcd->conn_en);
+#endif
 }
 
 static ssize_t dwc_otg_conn_en_store(struct device_driver *_drv, const char *_buf,
 				     size_t _count)
 {
+#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
     int enable = simple_strtoul(_buf, NULL, 10);
     dwc_otg_device_t *otg_dev = g_otgdev;
     dwc_otg_pcd_t *_pcd = otg_dev->pcd;
@@ -349,8 +398,10 @@ static ssize_t dwc_otg_conn_en_store(struct device_driver *_drv, const char *_bu
     
     _pcd->conn_en = enable;
     return _count;
+#endif
 }
 static DRIVER_ATTR(dwc_otg_conn_en, S_IRUGO|S_IWUSR, dwc_otg_conn_en_show, dwc_otg_conn_en_store);
+#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
 static ssize_t vbus_status_show(struct device_driver *_drv, char *_buf)
 {
     dwc_otg_device_t *otg_dev = g_otgdev;
@@ -1004,6 +1055,9 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	 * Create Device Attributes in sysfs
 	 */	 
 	dwc_otg_attr_create(dev);
+#ifdef CONFIG_DWC_OTG_HOST_ONLY
+	retval |= device_create_file(dev, &dev_attr_enable);
+#endif
 
 	/*
 	 * Disable the global interrupt until all the interrupt
@@ -1079,6 +1133,12 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	 * handlers are installed.
 	 */
 	dwc_otg_enable_global_interrupts( dwc_otg_device->core_if );
+#ifdef CONFIG_DWC_OTG_HOST_ONLY
+#ifndef CONFIG_USB20_OTG_EN
+            clk_disable(otg_dev->phyclk);
+            clk_disable(otg_dev->ahbclk);
+#endif
+#endif
 	DWC_PRINT("dwc_otg_driver_probe end, everest\n");
 	return 0;
  fail:
@@ -1379,6 +1439,7 @@ static __devinit int host11_driver_probe(struct platform_device *pdev)
 	 * Create Device Attributes in sysfs
 	 */	 
 	dwc_otg_attr_create(dev);
+	retval |= device_create_file(dev, &dev_attr_enable);
 
 	/*
 	 * Disable the global interrupt until all the interrupt
@@ -1425,6 +1486,10 @@ static __devinit int host11_driver_probe(struct platform_device *pdev)
 	 * handlers are installed.
 	 */
 	dwc_otg_enable_global_interrupts( dwc_otg_device->core_if );
+#ifndef CONFIG_USB11_HOST_EN
+    clk_disable(phyclk);
+    clk_disable(ahbclk);
+#endif
 	DWC_PRINT("host11_driver_probe end, everest\n");
 	return 0;
     
@@ -1665,6 +1730,7 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	 * Create Device Attributes in sysfs
 	 */	 
 	dwc_otg_attr_create(dev);
+	retval |= device_create_file(dev, &dev_attr_enable);
 
 	/*
 	 * Disable the global interrupt until all the interrupt
@@ -1712,6 +1778,10 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	 * handlers are installed.
 	 */
 	dwc_otg_enable_global_interrupts( dwc_otg_device->core_if );
+#ifndef CONFIG_USB20_HOST_EN
+    clk_disable(phyclk);
+    clk_disable(ahbclk);
+#endif
 	DWC_PRINT("host20_driver_probe end, everest\n");
 	return 0;
 

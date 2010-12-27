@@ -735,7 +735,7 @@ static ssize_t wr_reg_test_show( struct device *_dev,
 }
 
 DEVICE_ATTR(wr_reg_test, S_IRUGO|S_IWUSR, wr_reg_test_show, 0);
-extern int dwc_debug(int flag);
+extern int dwc_debug(dwc_otg_core_if_t *core_if, int flag);
 static ssize_t debug_show( struct device *_dev, 
 								struct device_attribute *attr, char *buf) 
 {
@@ -753,11 +753,15 @@ static ssize_t debug_store( struct device *_dev,
 								const char *buf, size_t count ) 
 {
 	uint32_t val = simple_strtoul(buf, NULL, 16);
-    dwc_debug(val);
+    dwc_otg_device_t *otg_dev = _dev->platform_data;
+    dwc_otg_dump_global_registers( otg_dev->core_if);
+    dwc_debug(otg_dev->core_if,val);
    	return count;
 }
 
 DEVICE_ATTR(debug, S_IRUGO|S_IWUSR, debug_show, debug_store);
+
+
 /**@}*/
 
 /**

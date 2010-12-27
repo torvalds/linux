@@ -922,5 +922,5 @@ extern void dwc_otg_cil_register_pcd_callbacks( dwc_otg_core_if_t *_core_if,
 extern void dwc_otg_cil_register_hcd_callbacks( dwc_otg_core_if_t *_core_if,
 												dwc_otg_cil_callbacks_t *_cb,
 												void *_p);
-extern int dwc_debug(int flag);												
+extern int dwc_debug(dwc_otg_core_if_t *core_if, int flag);												
 #endif

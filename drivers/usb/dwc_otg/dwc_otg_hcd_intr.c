@@ -1764,7 +1764,6 @@ static void handle_hc_chhltd_intr_dma(dwc_otg_hcd_t *_hcd,
 		handle_hc_ack_intr(_hcd, _hc, _hc_regs, _qtd);
 	} else if(hcint.b.datatglerr){
 	     DWC_PRINT("%s, DATA toggle error, Channel %d\n",__func__, _hc->hc_num);
-            dwc_debug(1);
 				clear_hc_int(_hc_regs,chhltd);
 	} else {
 		if (_hc->ep_type == DWC_OTG_EP_TYPE_INTR ||

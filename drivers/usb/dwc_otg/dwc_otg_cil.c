@@ -65,6 +65,7 @@
 #include "dwc_otg_regs.h"
 #include "dwc_otg_driver.h"
 #include "dwc_otg_cil.h"
+#include "dwc_otg_pcd.h"
 static dwc_otg_core_if_t * dwc_core_if = NULL;
 /** 
  * This function is called to initialize the DWC_otg CSR data
@@ -3335,9 +3336,11 @@ void dwc_otg_dump_flags(dwc_otg_core_if_t *_core_if)
 	DWC_PRINT("core_if->usb_mode = %x\n",_core_if->usb_mode);
 	DWC_PRINT("core_if->usb_wakeup = %x\n",_core_if->usb_wakeup);
 }
-int dwc_debug(int flag)
+int dwc_debug(dwc_otg_core_if_t *core_if, int flag)
 {
-	dwc_otg_core_if_t *core_if = dwc_core_if;
+	//dwc_otg_core_if_t *core_if = dwc_core_if;
+	struct dwc_otg_device *otg_dev;
+	dwc_otg_pcd_t * pcd;
 	switch(flag)
 	{
 		case 1:
@@ -3345,8 +3348,9 @@ int dwc_debug(int flag)
 			dwc_otg_dump_host_registers(core_if);
 			break;
 		case 2:
-			dwc_otg_dump_global_registers(core_if);
-			dwc_otg_dump_dev_registers(core_if);
+		    otg_dev = core_if->otg_dev;
+		    pcd = otg_dev->pcd;
+		    pcd->vbus_status = 0;
 			break;
 		case 3:
 			dump_scu_regs();
