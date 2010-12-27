@@ -318,6 +318,7 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 	}
 	pkt_scan = gspca_dev->sd_desc->pkt_scan;
 	for (i = 0; i < urb->number_of_packets; i++) {
+		len = urb->iso_frame_desc[i].actual_length;
 
 		/* check the packet status and length */
 		st = urb->iso_frame_desc[i].status;
@@ -327,7 +328,6 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
 		}
-		len = urb->iso_frame_desc[i].actual_length;
 		if (len == 0) {
 			if (gspca_dev->empty_packet == 0)
 				gspca_dev->empty_packet = 1;
