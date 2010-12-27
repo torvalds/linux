@@ -654,6 +654,8 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 		}
 
 		btrfs_close_devices(fs_devices);
+		kfree(fs_info);
+		kfree(tree_root);
 	} else {
 		char b[BDEVNAME_SIZE];
 
