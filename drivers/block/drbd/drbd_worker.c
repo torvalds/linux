@@ -253,13 +253,6 @@ int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	return w_send_read_req(mdev, w, 0);
 }
 
-int w_resync_inactive(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-{
-	ERR_IF(cancel) return 1;
-	dev_err(DEV, "resync inactive, but callback triggered??\n");
-	return 1; /* Simply ignore this! */
-}
-
 void drbd_csum_ee(struct drbd_conf *mdev, struct crypto_hash *tfm, struct drbd_epoch_entry *e, void *digest)
 {
 	struct hash_desc desc;
@@ -389,26 +382,25 @@ defer:
 	return -EAGAIN;
 }
 
+int w_resync_timer(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+{
+	switch (mdev->state.conn) {
+	case C_VERIFY_S:
+		w_make_ov_request(mdev, w, cancel);
+		break;
+	case C_SYNC_TARGET:
+		w_make_resync_request(mdev, w, cancel);
+		break;
+	}
+
+	return 1;
+}
+
 void resync_timer_fn(unsigned long data)
 {
 	struct drbd_conf *mdev = (struct drbd_conf *) data;
-	int queue;
 
-	queue = 1;
-	switch (mdev->state.conn) {
-	case C_VERIFY_S:
-		mdev->resync_work.cb = w_make_ov_request;
-		break;
-	case C_SYNC_TARGET:
-		mdev->resync_work.cb = w_make_resync_request;
-		break;
-	default:
-		queue = 0;
-		mdev->resync_work.cb = w_resync_inactive;
-	}
-
-	/* harmless race: list_empty outside data.work.q_lock */
-	if (list_empty(&mdev->resync_work.list) && queue)
+	if (list_empty(&mdev->resync_work.list))
 		drbd_queue_work(&mdev->data.work, &mdev->resync_work);
 }
 
@@ -525,15 +517,6 @@ static int w_make_resync_request(struct drbd_conf *mdev,
 	if (unlikely(cancel))
 		return 1;
 
-	if (unlikely(mdev->state.conn < C_CONNECTED)) {
-		dev_err(DEV, "Confused in w_make_resync_request()! cstate < Connected");
-		return 0;
-	}
-
-	if (mdev->state.conn != C_SYNC_TARGET)
-		dev_err(DEV, "%s in w_make_resync_request\n",
-			drbd_conn_str(mdev->state.conn));
-
 	if (mdev->rs_total == 0) {
 		/* empty resync? */
 		drbd_resync_finished(mdev);
@@ -546,7 +529,6 @@ static int w_make_resync_request(struct drbd_conf *mdev,
 		   to continue resync with a broken disk makes no sense at
 		   all */
 		dev_err(DEV, "Disk broke down during resync!\n");
-		mdev->resync_work.cb = w_resync_inactive;
 		return 1;
 	}
 
@@ -580,7 +562,6 @@ next_sector:
 
 		if (bit == DRBD_END_OF_BITMAP) {
 			mdev->bm_resync_fo = drbd_bm_bits(mdev);
-			mdev->resync_work.cb = w_resync_inactive;
 			put_ldev(mdev);
 			return 1;
 		}
@@ -676,7 +657,6 @@ next_sector:
 		 * resync data block, and the last bit is cleared.
 		 * until then resync "work" is "inactive" ...
 		 */
-		mdev->resync_work.cb = w_resync_inactive;
 		put_ldev(mdev);
 		return 1;
 	}
@@ -697,17 +677,11 @@ static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int ca
 	if (unlikely(cancel))
 		return 1;
 
-	if (unlikely(mdev->state.conn < C_CONNECTED)) {
-		dev_err(DEV, "Confused in w_make_ov_request()! cstate < Connected");
-		return 0;
-	}
-
 	number = drbd_rs_number_requests(mdev);
 
 	sector = mdev->ov_position;
 	for (i = 0; i < number; i++) {
 		if (sector >= capacity) {
-			mdev->resync_work.cb = w_resync_inactive;
 			return 1;
 		}
 

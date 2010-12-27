@@ -1540,7 +1540,7 @@ extern int w_e_end_csum_rs_req(struct drbd_conf *, struct drbd_work *, int);
 extern int w_e_end_ov_reply(struct drbd_conf *, struct drbd_work *, int);
 extern int w_e_end_ov_req(struct drbd_conf *, struct drbd_work *, int);
 extern int w_ov_finished(struct drbd_conf *, struct drbd_work *, int);
-extern int w_resync_inactive(struct drbd_conf *, struct drbd_work *, int);
+extern int w_resync_timer(struct drbd_conf *, struct drbd_work *, int);
 extern int w_resume_next_sg(struct drbd_conf *, struct drbd_work *, int);
 extern int w_send_write_hint(struct drbd_conf *, struct drbd_work *, int);
 extern int w_send_dblock(struct drbd_conf *, struct drbd_work *, int);
