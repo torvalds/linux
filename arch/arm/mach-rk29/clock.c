@@ -2208,8 +2208,12 @@ static void __init rk29_clock_common_init(void)
 	clk_set_parent_nolock(&dclk_lcdc_div, &general_pll_clk);
 	clk_set_parent_nolock(&aclk_lcdc, &general_pll_clk);
 	clk_set_parent_nolock(&aclk_vepu, &general_pll_clk);
+	clk_set_rate_nolock(&aclk_vepu, 288 * MHZ);
+	clk_set_rate_nolock(&clk_aclk_ddr_vepu, 288 * MHZ);
+	clk_set_rate_nolock(&hclk_vepu, 144 * MHZ);
 	clk_set_parent_nolock(&aclk_vdpu, &general_pll_clk);
 	clk_set_parent_nolock(&aclk_gpu, &general_pll_clk);
+	clk_set_rate_nolock(&aclk_gpu, 288 * MHZ);
 	clk_set_parent_nolock(&clk_mac_ref_div, &general_pll_clk);
 	clk_set_parent_nolock(&clk_hsadc_div, &general_pll_clk);
 
