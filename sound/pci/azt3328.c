@@ -294,6 +294,7 @@ MODULE_PARM_DESC(seqtimer_scaling, "Set 1024000Hz sequencer timer scale factor (
 
 struct snd_azf3328_codec_data {
 	unsigned long io_base;
+	unsigned int dma_base; /* helper to avoid an indirection in hotpath */
 	struct snd_pcm_substream *substream;
 	bool running;
 	const char *name;
@@ -1165,14 +1166,17 @@ snd_azf3328_codec_setdmaa(struct snd_azf3328 *chip,
 static int
 snd_azf3328_codec_prepare(struct snd_pcm_substream *substream)
 {
-#if 0
-	struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_azf3328_codec *codec = runtime->private_data;
+#if 0
         unsigned int size = snd_pcm_lib_buffer_bytes(substream);
 	unsigned int count = snd_pcm_lib_period_bytes(substream);
 #endif
 
 	snd_azf3328_dbgcallenter();
+
+	codec->dma_base = runtime->dma_addr;
+
 #if 0
 	snd_azf3328_codec_setfmt(chip, AZF_CODEC_...,
 		runtime->rate,
@@ -1370,18 +1374,17 @@ snd_azf3328_codec_pointer(struct snd_pcm_substream *substream,
 {
 	const struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
 	const struct snd_azf3328_codec_data *codec = &chip->codecs[codec_type];
-	unsigned long bufptr, result;
+	unsigned long result;
 	snd_pcm_uframes_t frmres;
 
-#ifdef QUERY_HARDWARE
-	bufptr = snd_azf3328_codec_inl(codec, IDX_IO_CODEC_DMA_START_1);
-#else
-	bufptr = substream->runtime->dma_addr;
-#endif
 	result = snd_azf3328_codec_inl(codec, IDX_IO_CODEC_DMA_CURRPOS);
 
 	/* calculate offset */
-	result -= bufptr;
+#ifdef QUERY_HARDWARE
+	result -= snd_azf3328_codec_inl(codec, IDX_IO_CODEC_DMA_START_1);
+#else
+	result -= codec->dma_base;
+#endif
 	frmres = bytes_to_frames( substream->runtime, result);
 	snd_azf3328_dbgcodec("%08li %s @ 0x%8lx, frames %8ld\n",
 				jiffies, codec->name, result, frmres);
