@@ -1055,13 +1055,6 @@ int fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_control *ctrl)
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	unsigned long flags;
 
-	if (ctx->rotation != 0 &&
-	    (ctrl->id == V4L2_CID_HFLIP || ctrl->id == V4L2_CID_VFLIP)) {
-		v4l2_err(&fimc->m2m.v4l2_dev,
-			 "Simultaneous flip and rotation is not supported\n");
-		return -EINVAL;
-	}
-
 	spin_lock_irqsave(&ctx->slock, flags);
 
 	switch (ctrl->id) {
@@ -1102,7 +1095,7 @@ int fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_control *ctrl)
 }
 
 static int fimc_m2m_s_ctrl(struct file *file, void *priv,
-			 struct v4l2_control *ctrl)
+			   struct v4l2_control *ctrl)
 {
 	struct fimc_ctx *ctx = priv;
 	int ret = 0;
