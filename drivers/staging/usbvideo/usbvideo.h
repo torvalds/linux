@@ -16,7 +16,7 @@
 #ifndef usbvideo_h
 #define	usbvideo_h
 
-#include <linux/videodev.h>
+#include "videodev.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <linux/usb.h>

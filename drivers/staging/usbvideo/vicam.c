@@ -38,7 +38,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/videodev.h>
+#include "videodev.h"
 #include <linux/usb.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
