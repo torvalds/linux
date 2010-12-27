@@ -645,7 +645,7 @@ static int wl1273_fm_upload_firmware_patch(struct wl1273_device *radio)
 	const char *fw_name = "radio-wl1273-fw.bin";
 	struct device *dev = radio->dev;
 	__u8 *ptr;
-	int i, n, r;
+	int r;
 
 	dev_dbg(dev, "%s:\n", __func__);
 
@@ -672,7 +672,6 @@ static int wl1273_fm_upload_firmware_patch(struct wl1273_device *radio)
 	/* ignore possible error here */
 	wl1273_fm_write_cmd(core, WL1273_RESET, 0);
 
-	dev_dbg(dev, "n: %d, i: %d\n", n, i);
 	dev_dbg(dev, "%s - download OK, r: %d\n", __func__, r);
 out:
 	release_firmware(fw_p);
