@@ -4708,18 +4708,6 @@ static int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 					}
 				}
 			}
-#ifdef JOHN_DEBUG
-		//john's test 0711
-	{
-		int i;
-		printk("@@ wrq->u pointer = ");
-		for(i=0;i<wrq->u.data.length;i++){
-			if(i%10==0) printk("\n");
-			printk( "%8x|", ((u32*)wrq->u.data.pointer)[i] );
-		}
-		printk("\n");
-	}
-#endif /*JOHN_DEBUG*/
 		ret = ieee80211_wpa_supplicant_ioctl(priv->ieee80211, &wrq->u.data);
 		break;
 
