@@ -6185,12 +6185,13 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	unsigned long flags;
 	u32 inta;
+	irqreturn_t ret = IRQ_HANDLED;
+
+	spin_lock_irqsave(&priv->irq_th_lock, flags);
 
 	/* We should return IRQ_NONE, but for now let me keep this */
 	if (priv->irq_enabled == 0)
-		return IRQ_HANDLED;
-
-	spin_lock_irqsave(&priv->irq_th_lock,flags);
+		goto out_unlock;
 
 	/* ISR: 4bytes */
 
@@ -6199,18 +6200,16 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 
 	priv->stats.shints++;
 	if (!inta) {
-		spin_unlock_irqrestore(&priv->irq_th_lock, flags);
-		return IRQ_HANDLED;
 		/*
 		 * most probably we can safely return IRQ_NONE,
 		 * but for now is better to avoid problems
 		 */
+		goto out_unlock;
 	}
 
 	if (inta == 0xffff) {
 		/* HW disappared */
-		spin_unlock_irqrestore(&priv->irq_th_lock, flags);
-		return IRQ_HANDLED;
+		goto out_unlock;
 	}
 
 	priv->stats.ints++;
@@ -6218,10 +6217,8 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 	DMESG("NIC irq %x",inta);
 #endif
 
-	if (!netif_running(dev)) {
-		spin_unlock_irqrestore(&priv->irq_th_lock, flags);
-		return IRQ_HANDLED;
-	}
+	if (!netif_running(dev))
+		goto out_unlock;
 
 	if (inta & IMR_TBDOK) {
 		RT_TRACE(COMP_INTR, "beacon ok interrupt!\n");
@@ -6304,9 +6301,10 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 		rtl8192_tx_isr(dev, VO_QUEUE);
 	}
 
+out_unlock:
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 
-	return IRQ_HANDLED;
+	return ret;
 }
 
 void EnableHWSecurityConfig8192(struct net_device *dev)
