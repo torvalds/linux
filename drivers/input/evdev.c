@@ -534,76 +534,73 @@ static int handle_eviocgbit(struct input_dev *dev,
 }
 #undef OLD_KEY_MAX
 
-static int evdev_handle_get_keycode(struct input_dev *dev,
-				    void __user *p, size_t size)
+static int evdev_handle_get_keycode(struct input_dev *dev, void __user *p)
+{
+	struct input_keymap_entry ke = {
+		.len	= sizeof(unsigned int),
+		.flags	= 0,
+	};
+	int __user *ip = (int __user *)p;
+	int error;
+
+	/* legacy case */
+	if (copy_from_user(ke.scancode, p, sizeof(unsigned int)))
+		return -EFAULT;
+
+	error = input_get_keycode(dev, &ke);
+	if (error)
+		return error;
+
+	if (put_user(ke.keycode, ip + 1))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int evdev_handle_get_keycode_v2(struct input_dev *dev, void __user *p)
 {
 	struct input_keymap_entry ke;
 	int error;
 
-	memset(&ke, 0, sizeof(ke));
+	if (copy_from_user(&ke, p, sizeof(ke)))
+		return -EFAULT;
 
-	if (size == sizeof(unsigned int[2])) {
-		/* legacy case */
-		int __user *ip = (int __user *)p;
+	error = input_get_keycode(dev, &ke);
+	if (error)
+		return error;
 
-		if (copy_from_user(ke.scancode, p, sizeof(unsigned int)))
-			return -EFAULT;
+	if (copy_to_user(p, &ke, sizeof(ke)))
+		return -EFAULT;
 
-		ke.len = sizeof(unsigned int);
-		ke.flags = 0;
-
-		error = input_get_keycode(dev, &ke);
-		if (error)
-			return error;
-
-		if (put_user(ke.keycode, ip + 1))
-			return -EFAULT;
-
-	} else {
-		size = min(size, sizeof(ke));
-
-		if (copy_from_user(&ke, p, size))
-			return -EFAULT;
-
-		error = input_get_keycode(dev, &ke);
-		if (error)
-			return error;
-
-		if (copy_to_user(p, &ke, size))
-			return -EFAULT;
-	}
 	return 0;
 }
 
-static int evdev_handle_set_keycode(struct input_dev *dev,
-				    void __user *p, size_t size)
+static int evdev_handle_set_keycode(struct input_dev *dev, void __user *p)
+{
+	struct input_keymap_entry ke = {
+		.len	= sizeof(unsigned int),
+		.flags	= 0,
+	};
+	int __user *ip = (int __user *)p;
+
+	if (copy_from_user(ke.scancode, p, sizeof(unsigned int)))
+		return -EFAULT;
+
+	if (get_user(ke.keycode, ip + 1))
+		return -EFAULT;
+
+	return input_set_keycode(dev, &ke);
+}
+
+static int evdev_handle_set_keycode_v2(struct input_dev *dev, void __user *p)
 {
 	struct input_keymap_entry ke;
 
-	memset(&ke, 0, sizeof(ke));
+	if (copy_from_user(&ke, p, sizeof(ke)))
+		return -EFAULT;
 
-	if (size == sizeof(unsigned int[2])) {
-		/* legacy case */
-		int __user *ip = (int __user *)p;
-
-		if (copy_from_user(ke.scancode, p, sizeof(unsigned int)))
-			return -EFAULT;
-
-		if (get_user(ke.keycode, ip + 1))
-			return -EFAULT;
-
-		ke.len = sizeof(unsigned int);
-		ke.flags = 0;
-
-	} else {
-		size = min(size, sizeof(ke));
-
-		if (copy_from_user(&ke, p, size))
-			return -EFAULT;
-
-		if (ke.len > sizeof(ke.scancode))
-			return -EINVAL;
-	}
+	if (ke.len > sizeof(ke.scancode))
+		return -EINVAL;
 
 	return input_set_keycode(dev, &ke);
 }
@@ -669,6 +666,18 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			return evdev_grab(evdev, client);
 		else
 			return evdev_ungrab(evdev, client);
+
+	case EVIOCGKEYCODE:
+		return evdev_handle_get_keycode(dev, p);
+
+	case EVIOCSKEYCODE:
+		return evdev_handle_set_keycode(dev, p);
+
+	case EVIOCGKEYCODE_V2:
+		return evdev_handle_get_keycode_v2(dev, p);
+
+	case EVIOCSKEYCODE_V2:
+		return evdev_handle_set_keycode_v2(dev, p);
 	}
 
 	size = _IOC_SIZE(cmd);
@@ -708,12 +717,6 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		return error;
-
-	case EVIOC_MASK_SIZE(EVIOCGKEYCODE):
-		return evdev_handle_get_keycode(dev, p, size);
-
-	case EVIOC_MASK_SIZE(EVIOCSKEYCODE):
-		return evdev_handle_set_keycode(dev, p, size);
 	}
 
 	/* Multi-number variable-length handlers */

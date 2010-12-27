@@ -232,6 +232,8 @@ static int setup_new_group_blocks(struct super_block *sb,
 			       GFP_NOFS);
 	if (err)
 		goto exit_bh;
+	for (i = 0, bit = gdblocks + 1; i < reserved_gdb; i++, bit++)
+		ext4_set_bit(bit, bh->b_data);
 
 	ext4_debug("mark block bitmap %#04llx (+%llu)\n", input->block_bitmap,
 		   input->block_bitmap - start);
@@ -247,6 +249,9 @@ static int setup_new_group_blocks(struct super_block *sb,
 	err = sb_issue_zeroout(sb, block, sbi->s_itb_per_group, GFP_NOFS);
 	if (err)
 		goto exit_bh;
+	for (i = 0, bit = input->inode_table - start;
+	     i < sbi->s_itb_per_group; i++, bit++)
+		ext4_set_bit(bit, bh->b_data);
 
 	if ((err = extend_or_restart_transaction(handle, 2, bh)))
 		goto exit_bh;

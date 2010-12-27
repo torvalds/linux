@@ -68,7 +68,7 @@ static struct intel_lvds *intel_attached_lvds(struct drm_connector *connector)
 /**
  * Sets the power state for the panel.
  */
-static void intel_lvds_set_power(struct intel_lvds *intel_lvds, bool on)
+static void intel_lvds_enable(struct intel_lvds *intel_lvds)
 {
 	struct drm_device *dev = intel_lvds->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -82,26 +82,61 @@ static void intel_lvds_set_power(struct intel_lvds *intel_lvds, bool on)
 		lvds_reg = LVDS;
 	}
 
-	if (on) {
-		I915_WRITE(lvds_reg, I915_READ(lvds_reg) | LVDS_PORT_EN);
-		I915_WRITE(ctl_reg, I915_READ(ctl_reg) | POWER_TARGET_ON);
-		intel_panel_set_backlight(dev, dev_priv->backlight_level);
-	} else {
-		dev_priv->backlight_level = intel_panel_get_backlight(dev);
+	I915_WRITE(lvds_reg, I915_READ(lvds_reg) | LVDS_PORT_EN);
 
-		intel_panel_set_backlight(dev, 0);
-		I915_WRITE(ctl_reg, I915_READ(ctl_reg) & ~POWER_TARGET_ON);
-
-		if (intel_lvds->pfit_control) {
-			if (wait_for((I915_READ(PP_STATUS) & PP_ON) == 0, 1000))
-				DRM_ERROR("timed out waiting for panel to power off\n");
-			I915_WRITE(PFIT_CONTROL, 0);
-			intel_lvds->pfit_control = 0;
+	if (intel_lvds->pfit_dirty) {
+		/*
+		 * Enable automatic panel scaling so that non-native modes
+		 * fill the screen.  The panel fitter should only be
+		 * adjusted whilst the pipe is disabled, according to
+		 * register description and PRM.
+		 */
+		DRM_DEBUG_KMS("applying panel-fitter: %x, %x\n",
+			      intel_lvds->pfit_control,
+			      intel_lvds->pfit_pgm_ratios);
+		if (wait_for((I915_READ(PP_STATUS) & PP_ON) == 0, 1000)) {
+			DRM_ERROR("timed out waiting for panel to power off\n");
+		} else {
+			I915_WRITE(PFIT_PGM_RATIOS, intel_lvds->pfit_pgm_ratios);
+			I915_WRITE(PFIT_CONTROL, intel_lvds->pfit_control);
 			intel_lvds->pfit_dirty = false;
 		}
-
-		I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
 	}
+
+	I915_WRITE(ctl_reg, I915_READ(ctl_reg) | POWER_TARGET_ON);
+	POSTING_READ(lvds_reg);
+
+	intel_panel_set_backlight(dev, dev_priv->backlight_level);
+}
+
+static void intel_lvds_disable(struct intel_lvds *intel_lvds)
+{
+	struct drm_device *dev = intel_lvds->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 ctl_reg, lvds_reg;
+
+	if (HAS_PCH_SPLIT(dev)) {
+		ctl_reg = PCH_PP_CONTROL;
+		lvds_reg = PCH_LVDS;
+	} else {
+		ctl_reg = PP_CONTROL;
+		lvds_reg = LVDS;
+	}
+
+	dev_priv->backlight_level = intel_panel_get_backlight(dev);
+	intel_panel_set_backlight(dev, 0);
+
+	I915_WRITE(ctl_reg, I915_READ(ctl_reg) & ~POWER_TARGET_ON);
+
+	if (intel_lvds->pfit_control) {
+		if (wait_for((I915_READ(PP_STATUS) & PP_ON) == 0, 1000))
+			DRM_ERROR("timed out waiting for panel to power off\n");
+
+		I915_WRITE(PFIT_CONTROL, 0);
+		intel_lvds->pfit_dirty = true;
+	}
+
+	I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
 	POSTING_READ(lvds_reg);
 }
 
@@ -110,9 +145,9 @@ static void intel_lvds_dpms(struct drm_encoder *encoder, int mode)
 	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
 
 	if (mode == DRM_MODE_DPMS_ON)
-		intel_lvds_set_power(intel_lvds, true);
+		intel_lvds_enable(intel_lvds);
 	else
-		intel_lvds_set_power(intel_lvds, false);
+		intel_lvds_disable(intel_lvds);
 
 	/* XXX: We never power down the LVDS pairs. */
 }
@@ -411,43 +446,18 @@ static void intel_lvds_commit(struct drm_encoder *encoder)
 	/* Always do a full power on as we do not know what state
 	 * we were left in.
 	 */
-	intel_lvds_set_power(intel_lvds, true);
+	intel_lvds_enable(intel_lvds);
 }
 
 static void intel_lvds_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
-	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
-
 	/*
 	 * The LVDS pin pair will already have been turned on in the
 	 * intel_crtc_mode_set since it has a large impact on the DPLL
 	 * settings.
 	 */
-
-	if (HAS_PCH_SPLIT(dev))
-		return;
-
-	if (!intel_lvds->pfit_dirty)
-		return;
-
-	/*
-	 * Enable automatic panel scaling so that non-native modes fill the
-	 * screen.  Should be enabled before the pipe is enabled, according to
-	 * register description and PRM.
-	 */
-	DRM_DEBUG_KMS("applying panel-fitter: %x, %x\n",
-		      intel_lvds->pfit_control,
-		      intel_lvds->pfit_pgm_ratios);
-	if (wait_for((I915_READ(PP_STATUS) & PP_ON) == 0, 1000))
-		DRM_ERROR("timed out waiting for panel to power off\n");
-
-	I915_WRITE(PFIT_PGM_RATIOS, intel_lvds->pfit_pgm_ratios);
-	I915_WRITE(PFIT_CONTROL, intel_lvds->pfit_control);
-	intel_lvds->pfit_dirty = false;
 }
 
 /**
@@ -837,7 +847,7 @@ static bool intel_lvds_ddc_probe(struct drm_device *dev, u8 pin)
  * Create the connector, register the LVDS DDC bus, and try to figure out what
  * modes we can display on the LVDS panel (if present).
  */
-void intel_lvds_init(struct drm_device *dev)
+bool intel_lvds_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds *intel_lvds;
@@ -853,37 +863,37 @@ void intel_lvds_init(struct drm_device *dev)
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds))
-		return;
+		return false;
 
 	pin = GMBUS_PORT_PANEL;
 	if (!lvds_is_present_in_vbt(dev, &pin)) {
 		DRM_DEBUG_KMS("LVDS is not present in VBT\n");
-		return;
+		return false;
 	}
 
 	if (HAS_PCH_SPLIT(dev)) {
 		if ((I915_READ(PCH_LVDS) & LVDS_DETECTED) == 0)
-			return;
+			return false;
 		if (dev_priv->edp.support) {
 			DRM_DEBUG_KMS("disable LVDS for eDP support\n");
-			return;
+			return false;
 		}
 	}
 
 	if (!intel_lvds_ddc_probe(dev, pin)) {
 		DRM_DEBUG_KMS("LVDS did not respond to DDC probe\n");
-		return;
+		return false;
 	}
 
 	intel_lvds = kzalloc(sizeof(struct intel_lvds), GFP_KERNEL);
 	if (!intel_lvds) {
-		return;
+		return false;
 	}
 
 	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
 		kfree(intel_lvds);
-		return;
+		return false;
 	}
 
 	if (!HAS_PCH_SPLIT(dev)) {
@@ -1026,7 +1036,7 @@ out:
 	/* keep the LVDS connector */
 	dev_priv->int_lvds_connector = connector;
 	drm_sysfs_connector_add(connector);
-	return;
+	return true;
 
 failed:
 	DRM_DEBUG_KMS("No LVDS modes found, disabling.\n");
@@ -1034,4 +1044,5 @@ failed:
 	drm_encoder_cleanup(encoder);
 	kfree(intel_lvds);
 	kfree(intel_connector);
+	return false;
 }

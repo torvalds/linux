@@ -31,6 +31,7 @@
  */
 
 #include <linux/backlight.h>
+#include <linux/acpi.h>
 
 #include "drmP.h"
 #include "nouveau_drv.h"
@@ -135,6 +136,14 @@ static int nouveau_nv50_backlight_init(struct drm_device *dev)
 int nouveau_backlight_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+#ifdef CONFIG_ACPI
+	if (acpi_video_backlight_support()) {
+		NV_INFO(dev, "ACPI backlight interface available, "
+			     "not registering our own\n");
+		return 0;
+	}
+#endif
 
 	switch (dev_priv->card_type) {
 	case NV_40:

@@ -355,7 +355,7 @@ static int mcs7830_set_autoneg(struct usbnet *dev, int ptrUserPhyMode)
 	if (!ret)
 		ret = mcs7830_write_phy(dev, MII_BMCR,
 				BMCR_ANENABLE | BMCR_ANRESTART	);
-	return ret < 0 ? : 0;
+	return ret;
 }
 
 

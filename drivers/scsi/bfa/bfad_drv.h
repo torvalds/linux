@@ -337,7 +337,7 @@ extern int	num_sgpgs;
 extern int      rport_del_timeout;
 extern int      bfa_lun_queue_depth;
 extern int      bfa_io_max_sge;
-extern int      log_level;
+extern int      bfa_log_level;
 extern int      ioc_auto_recover;
 extern int      bfa_linkup_delay;
 extern int      msix_disable_cb;

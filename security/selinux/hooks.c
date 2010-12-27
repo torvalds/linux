@@ -1973,13 +1973,9 @@ static int selinux_quota_on(struct dentry *dentry)
 	return dentry_has_perm(cred, NULL, dentry, FILE__QUOTAON);
 }
 
-static int selinux_syslog(int type, bool from_file)
+static int selinux_syslog(int type)
 {
 	int rc;
-
-	rc = cap_syslog(type, from_file);
-	if (rc)
-		return rc;
 
 	switch (type) {
 	case SYSLOG_ACTION_READ_ALL:	/* Read last kernel messages */

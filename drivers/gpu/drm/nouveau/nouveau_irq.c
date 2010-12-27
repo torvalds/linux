@@ -42,6 +42,13 @@
 #include "nouveau_connector.h"
 #include "nv50_display.h"
 
+static DEFINE_RATELIMIT_STATE(nouveau_ratelimit_state, 3 * HZ, 20);
+
+static int nouveau_ratelimit(void)
+{
+	return __ratelimit(&nouveau_ratelimit_state);
+}
+
 void
 nouveau_irq_preinstall(struct drm_device *dev)
 {
@@ -53,6 +60,7 @@ nouveau_irq_preinstall(struct drm_device *dev)
 	if (dev_priv->card_type >= NV_50) {
 		INIT_WORK(&dev_priv->irq_work, nv50_display_irq_handler_bh);
 		INIT_WORK(&dev_priv->hpd_work, nv50_display_irq_hotplug_bh);
+		spin_lock_init(&dev_priv->hpd_state.lock);
 		INIT_LIST_HEAD(&dev_priv->vbl_waiting);
 	}
 }
@@ -202,8 +210,8 @@ nouveau_fifo_irq_handler(struct drm_device *dev)
 		}
 
 		if (status & NV_PFIFO_INTR_DMA_PUSHER) {
-			u32 get = nv_rd32(dev, 0x003244);
-			u32 put = nv_rd32(dev, 0x003240);
+			u32 dma_get = nv_rd32(dev, 0x003244);
+			u32 dma_put = nv_rd32(dev, 0x003240);
 			u32 push = nv_rd32(dev, 0x003220);
 			u32 state = nv_rd32(dev, 0x003228);
 
@@ -213,16 +221,18 @@ nouveau_fifo_irq_handler(struct drm_device *dev)
 				u32 ib_get = nv_rd32(dev, 0x003334);
 				u32 ib_put = nv_rd32(dev, 0x003330);
 
-				NV_INFO(dev, "PFIFO_DMA_PUSHER - Ch %d Get 0x%02x%08x "
+				if (nouveau_ratelimit())
+					NV_INFO(dev, "PFIFO_DMA_PUSHER - Ch %d Get 0x%02x%08x "
 					     "Put 0x%02x%08x IbGet 0x%08x IbPut 0x%08x "
 					     "State 0x%08x Push 0x%08x\n",
-					chid, ho_get, get, ho_put, put, ib_get, ib_put,
-					state, push);
+						chid, ho_get, dma_get, ho_put,
+						dma_put, ib_get, ib_put, state,
+						push);
 
 				/* METHOD_COUNT, in DMA_STATE on earlier chipsets */
 				nv_wr32(dev, 0x003364, 0x00000000);
-				if (get != put || ho_get != ho_put) {
-					nv_wr32(dev, 0x003244, put);
+				if (dma_get != dma_put || ho_get != ho_put) {
+					nv_wr32(dev, 0x003244, dma_put);
 					nv_wr32(dev, 0x003328, ho_put);
 				} else
 				if (ib_get != ib_put) {
@@ -231,10 +241,10 @@ nouveau_fifo_irq_handler(struct drm_device *dev)
 			} else {
 				NV_INFO(dev, "PFIFO_DMA_PUSHER - Ch %d Get 0x%08x "
 					     "Put 0x%08x State 0x%08x Push 0x%08x\n",
-					chid, get, put, state, push);
+					chid, dma_get, dma_put, state, push);
 
-				if (get != put)
-					nv_wr32(dev, 0x003244, put);
+				if (dma_get != dma_put)
+					nv_wr32(dev, 0x003244, dma_put);
 			}
 
 			nv_wr32(dev, 0x003228, 0x00000000);
@@ -266,8 +276,9 @@ nouveau_fifo_irq_handler(struct drm_device *dev)
 		}
 
 		if (status) {
-			NV_INFO(dev, "PFIFO_INTR 0x%08x - Ch %d\n",
-				status, chid);
+			if (nouveau_ratelimit())
+				NV_INFO(dev, "PFIFO_INTR 0x%08x - Ch %d\n",
+					status, chid);
 			nv_wr32(dev, NV03_PFIFO_INTR_0, status);
 			status = 0;
 		}
@@ -542,13 +553,6 @@ nouveau_pgraph_intr_notify(struct drm_device *dev, uint32_t nsource)
 
 	if (unhandled)
 		nouveau_graph_dump_trap_info(dev, "PGRAPH_NOTIFY", &trap);
-}
-
-static DEFINE_RATELIMIT_STATE(nouveau_ratelimit_state, 3 * HZ, 20);
-
-static int nouveau_ratelimit(void)
-{
-	return __ratelimit(&nouveau_ratelimit_state);
 }
 
 

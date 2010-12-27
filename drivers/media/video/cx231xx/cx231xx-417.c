@@ -31,7 +31,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
-#include <linux/smp_lock.h>
 #include <linux/vmalloc.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
@@ -1927,10 +1926,9 @@ static int mpeg_open(struct file *file)
 			dev = h;
 	}
 
-	if (dev == NULL) {
-		unlock_kernel();
+	if (dev == NULL)
 		return -ENODEV;
-	}
+
 	mutex_lock(&dev->lock);
 
 	/* allocate + initialize per filehandle data */

@@ -10,11 +10,6 @@
  *
  * CPUs are exported via sysfs in the class/cpu/devices/
  * directory. 
- *
- * Per-cpu interfaces can be implemented using a struct device_interface. 
- * See the following for how to do this: 
- * - drivers/base/intf.c 
- * - Documentation/driver-model/interface.txt
  */
 #ifndef _LINUX_CPU_H_
 #define _LINUX_CPU_H_

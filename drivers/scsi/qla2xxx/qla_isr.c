@@ -2491,14 +2491,15 @@ skip_msix:
 skip_msi:
 
 	ret = request_irq(ha->pdev->irq, ha->isp_ops->intr_handler,
-	    IRQF_SHARED, QLA2XXX_DRIVER_NAME, rsp);
+	    ha->flags.msi_enabled ? 0 : IRQF_SHARED,
+	    QLA2XXX_DRIVER_NAME, rsp);
 	if (ret) {
 		qla_printk(KERN_WARNING, ha,
 		    "Failed to reserve interrupt %d already in use.\n",
 		    ha->pdev->irq);
 		goto fail;
 	}
-	ha->flags.inta_enabled = 1;
+
 clear_risc_ints:
 
 	/*

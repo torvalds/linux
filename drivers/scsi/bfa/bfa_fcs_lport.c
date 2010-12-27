@@ -491,7 +491,7 @@ bfa_fcs_lport_online_actions(struct bfa_fcs_lport_s *port)
 	__port_action[port->fabric->fab_type].online(port);
 
 	wwn2str(lpwwn_buf, bfa_fcs_lport_get_pwwn(port));
-	BFA_LOG(KERN_INFO, bfad, log_level,
+	BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 		"Logical port online: WWN = %s Role = %s\n",
 		lpwwn_buf, "Initiator");
 
@@ -512,11 +512,11 @@ bfa_fcs_lport_offline_actions(struct bfa_fcs_lport_s *port)
 
 	wwn2str(lpwwn_buf, bfa_fcs_lport_get_pwwn(port));
 	if (bfa_fcs_fabric_is_online(port->fabric) == BFA_TRUE)
-		BFA_LOG(KERN_ERR, bfad, log_level,
+		BFA_LOG(KERN_ERR, bfad, bfa_log_level,
 		"Logical port lost fabric connectivity: WWN = %s Role = %s\n",
 		lpwwn_buf, "Initiator");
 	else
-		BFA_LOG(KERN_INFO, bfad, log_level,
+		BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 		"Logical port taken offline: WWN = %s Role = %s\n",
 		lpwwn_buf, "Initiator");
 
@@ -573,7 +573,7 @@ bfa_fcs_lport_deleted(struct bfa_fcs_lport_s *port)
 	char    lpwwn_buf[BFA_STRING_32];
 
 	wwn2str(lpwwn_buf, bfa_fcs_lport_get_pwwn(port));
-	BFA_LOG(KERN_INFO, bfad, log_level,
+	BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 		"Logical port deleted: WWN = %s Role = %s\n",
 		lpwwn_buf, "Initiator");
 
@@ -878,7 +878,7 @@ bfa_fcs_lport_init(struct bfa_fcs_lport_s *lport,
 					vport ? vport->vport_drv : NULL);
 
 	wwn2str(lpwwn_buf, bfa_fcs_lport_get_pwwn(lport));
-	BFA_LOG(KERN_INFO, bfad, log_level,
+	BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 		"New logical port created: WWN = %s Role = %s\n",
 		lpwwn_buf, "Initiator");
 

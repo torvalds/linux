@@ -62,6 +62,7 @@
 static unsigned int pmcraid_debug_log;
 static unsigned int pmcraid_disable_aen;
 static unsigned int pmcraid_log_level = IOASC_LOG_LEVEL_MUST;
+static unsigned int pmcraid_enable_msix;
 
 /*
  * Data structures to support multiple adapters by the LLD.
@@ -3478,7 +3479,7 @@ static int pmcraid_copy_sglist(
  *	  SCSI_MLQUEUE_DEVICE_BUSY if device is busy
  *	  SCSI_MLQUEUE_HOST_BUSY if host is busy
  */
-static int pmcraid_queuecommand(
+static int pmcraid_queuecommand_lck(
 	struct scsi_cmnd *scsi_cmd,
 	void (*done) (struct scsi_cmnd *)
 )
@@ -3583,6 +3584,8 @@ static int pmcraid_queuecommand(
 
 	return rc;
 }
+
+static DEF_SCSI_QCMD(pmcraid_queuecommand)
 
 /**
  * pmcraid_open -char node "open" entry, allowed only users with admin access
@@ -4689,7 +4692,8 @@ pmcraid_register_interrupt_handler(struct pmcraid_instance *pinstance)
 	int rc;
 	struct pci_dev *pdev = pinstance->pdev;
 
-	if (pci_find_capability(pdev, PCI_CAP_ID_MSIX)) {
+	if ((pmcraid_enable_msix) &&
+		(pci_find_capability(pdev, PCI_CAP_ID_MSIX))) {
 		int num_hrrq = PMCRAID_NUM_MSIX_VECTORS;
 		struct msix_entry entries[PMCRAID_NUM_MSIX_VECTORS];
 		int i;

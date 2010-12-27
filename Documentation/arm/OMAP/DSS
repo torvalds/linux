@@ -255,9 +255,10 @@ framebuffer parameters.
 Kernel boot arguments
 ---------------------
 
-vram=<size>
-	- Amount of total VRAM to preallocate. For example, "10M". omapfb
-	  allocates memory for framebuffers from VRAM.
+vram=<size>[,<physaddr>]
+	- Amount of total VRAM to preallocate and optionally a physical start
+	  memory address. For example, "10M". omapfb allocates memory for
+	  framebuffers from VRAM.
 
 omapfb.mode=<display>:<mode>[,...]
 	- Default video mode for specified displays. For example,

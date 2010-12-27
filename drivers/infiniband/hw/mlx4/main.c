@@ -219,7 +219,7 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	struct net_device *ndev;
 	enum ib_mtu tmp;
 
-	props->active_width	= IB_WIDTH_4X;
+	props->active_width	= IB_WIDTH_1X;
 	props->active_speed	= 4;
 	props->port_cap_flags	= IB_PORT_CM_SUP;
 	props->gid_tbl_len	= to_mdev(ibdev)->dev->caps.gid_table_len[port];
@@ -242,7 +242,7 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	tmp = iboe_get_mtu(ndev->mtu);
 	props->active_mtu = tmp ? min(props->max_mtu, tmp) : IB_MTU_256;
 
-	props->state		= netif_running(ndev) &&  netif_oper_up(ndev) ?
+	props->state		= (netif_running(ndev) && netif_carrier_ok(ndev)) ?
 					IB_PORT_ACTIVE : IB_PORT_DOWN;
 	props->phys_state	= state_to_phys_state(props->state);
 

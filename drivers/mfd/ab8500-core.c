@@ -303,7 +303,7 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 			continue;
 
 		do {
-			int bit = __ffs(status);
+			int bit = __ffs(value);
 			int line = i * 8 + bit;
 
 			handle_nested_irq(ab8500->irq_base + line);

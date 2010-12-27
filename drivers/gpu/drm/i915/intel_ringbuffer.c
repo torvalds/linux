@@ -156,23 +156,25 @@ static int init_ring_common(struct drm_device *dev,
 
 	/* G45 ring initialization fails to reset head to zero */
 	if (head != 0) {
-		DRM_ERROR("%s head not reset to zero "
-				"ctl %08x head %08x tail %08x start %08x\n",
-				ring->name,
-				I915_READ_CTL(ring),
-				I915_READ_HEAD(ring),
-				I915_READ_TAIL(ring),
-				I915_READ_START(ring));
+		DRM_DEBUG_KMS("%s head not reset to zero "
+			      "ctl %08x head %08x tail %08x start %08x\n",
+			      ring->name,
+			      I915_READ_CTL(ring),
+			      I915_READ_HEAD(ring),
+			      I915_READ_TAIL(ring),
+			      I915_READ_START(ring));
 
 		I915_WRITE_HEAD(ring, 0);
 
-		DRM_ERROR("%s head forced to zero "
-				"ctl %08x head %08x tail %08x start %08x\n",
-				ring->name,
-				I915_READ_CTL(ring),
-				I915_READ_HEAD(ring),
-				I915_READ_TAIL(ring),
-				I915_READ_START(ring));
+		if (I915_READ_HEAD(ring) & HEAD_ADDR) {
+			DRM_ERROR("failed to set %s head to zero "
+				  "ctl %08x head %08x tail %08x start %08x\n",
+				  ring->name,
+				  I915_READ_CTL(ring),
+				  I915_READ_HEAD(ring),
+				  I915_READ_TAIL(ring),
+				  I915_READ_START(ring));
+		}
 	}
 
 	I915_WRITE_CTL(ring,
@@ -694,20 +696,17 @@ int intel_wait_ring_buffer(struct drm_device *dev,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 head;
 
-	head = intel_read_status_page(ring, 4);
-	if (head) {
-		ring->head = head & HEAD_ADDR;
-		ring->space = ring->head - (ring->tail + 8);
-		if (ring->space < 0)
-			ring->space += ring->size;
-		if (ring->space >= n)
-			return 0;
-	}
-
 	trace_i915_ring_wait_begin (dev);
 	end = jiffies + 3 * HZ;
 	do {
-		ring->head = I915_READ_HEAD(ring) & HEAD_ADDR;
+		/* If the reported head position has wrapped or hasn't advanced,
+		 * fallback to the slow and accurate path.
+		 */
+		head = intel_read_status_page(ring, 4);
+		if (head < ring->actual_head)
+			head = I915_READ_HEAD(ring);
+		ring->actual_head = head;
+		ring->head = head & HEAD_ADDR;
 		ring->space = ring->head - (ring->tail + 8);
 		if (ring->space < 0)
 			ring->space += ring->size;

@@ -1,5 +1,4 @@
 #include <linux/console.h>
-#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 
