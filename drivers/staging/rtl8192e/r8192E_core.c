@@ -152,7 +152,6 @@ static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv);
 static void rtl8192_irq_tx_tasklet(struct r8192_priv *priv);
 static void rtl8192_prepare_beacon(struct r8192_priv *priv);
 static irqreturn_t rtl8192_interrupt(int irq, void *netdev);
-static void rtl8192_try_wake_queue(struct net_device *dev, int pri);
 static void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 static void rtl8192_update_ratr_table(struct net_device* dev);
 static void rtl8192_restart(struct work_struct *work);
@@ -6293,7 +6292,6 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
         priv->stats.txbkokint++;
         priv->ieee80211->LinkDetectInfo.NumTxOkInPeriod++;
         rtl8192_tx_isr(dev,BK_QUEUE);
-        rtl8192_try_wake_queue(dev, BK_QUEUE);
     }
 
     if(inta & IMR_BEDOK){
@@ -6301,7 +6299,6 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
         priv->stats.txbeokint++;
         priv->ieee80211->LinkDetectInfo.NumTxOkInPeriod++;
         rtl8192_tx_isr(dev,BE_QUEUE);
-        rtl8192_try_wake_queue(dev, BE_QUEUE);
     }
 
     if(inta & IMR_VIDOK){
@@ -6309,25 +6306,18 @@ static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
         priv->stats.txviokint++;
         priv->ieee80211->LinkDetectInfo.NumTxOkInPeriod++;
         rtl8192_tx_isr(dev,VI_QUEUE);
-        rtl8192_try_wake_queue(dev, VI_QUEUE);
     }
 
     if(inta & IMR_VODOK){
         priv->stats.txvookint++;
         priv->ieee80211->LinkDetectInfo.NumTxOkInPeriod++;
         rtl8192_tx_isr(dev,VO_QUEUE);
-        rtl8192_try_wake_queue(dev, VO_QUEUE);
     }
 
     spin_unlock_irqrestore(&priv->irq_th_lock,flags);
 
     return IRQ_HANDLED;
 }
-
-static void rtl8192_try_wake_queue(struct net_device *dev, int pri)
-{
-}
-
 
 void EnableHWSecurityConfig8192(struct net_device *dev)
 {
