@@ -73,7 +73,7 @@ MODULE_DEVICE_TABLE(usb, streamzap_table);
 #ifdef CONFIG_IR_RC5_SZ_DECODER_MODULE
 #define load_rc5_sz_decode()    request_module("ir-rc5-sz-decoder")
 #else
-#define load_rc5_sz_decode()    0
+#define load_rc5_sz_decode()    {}
 #endif
 
 enum StreamzapDecoderState {
