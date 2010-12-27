@@ -191,7 +191,8 @@ static int fimc_stop_capture(struct fimc_dev *fimc)
 			   FIMC_SHUTDOWN_TIMEOUT);
 
 	ret = v4l2_subdev_call(cap->sd, video, s_stream, 0);
-	if (ret)
+
+	if (ret && ret != -ENOIOCTLCMD)
 		v4l2_err(&fimc->vid_cap.v4l2_dev, "s_stream(0) failed\n");
 
 	spin_lock_irqsave(&fimc->slock, flags);
