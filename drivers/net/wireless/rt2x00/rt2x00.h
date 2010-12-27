@@ -358,12 +358,6 @@ enum rt2x00_delayed_flags {
  */
 struct rt2x00_intf {
 	/*
-	 * All fields within the rt2x00_intf structure
-	 * must be protected with a spinlock.
-	 */
-	spinlock_t lock;
-
-	/*
 	 * beacon->skb must be protected with the mutex.
 	 */
 	struct mutex beacon_skb_mutex;
