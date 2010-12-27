@@ -444,9 +444,7 @@ static void rt2x00mac_set_tim_iter(void *data, u8 *mac,
 	    vif->type != NL80211_IFTYPE_WDS)
 		return;
 
-	spin_lock(&intf->lock);
-	intf->delayed_flags |= DELAYED_UPDATE_BEACON;
-	spin_unlock(&intf->lock);
+	set_bit(DELAYED_UPDATE_BEACON, &intf->delayed_flags);
 }
 
 int rt2x00mac_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,

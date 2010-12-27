@@ -347,6 +347,10 @@ struct link {
 	struct delayed_work watchdog_work;
 };
 
+enum rt2x00_delayed_flags {
+	DELAYED_UPDATE_BEACON,
+};
+
 /*
  * Interface structure
  * Per interface configuration details, this structure
@@ -374,8 +378,7 @@ struct rt2x00_intf {
 	/*
 	 * Actions that needed rescheduling.
 	 */
-	unsigned int delayed_flags;
-#define DELAYED_UPDATE_BEACON		0x00000001
+	unsigned long delayed_flags;
 
 	/*
 	 * Software sequence counter, this is only required

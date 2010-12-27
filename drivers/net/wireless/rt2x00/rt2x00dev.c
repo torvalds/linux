@@ -110,19 +110,6 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 {
 	struct rt2x00_dev *rt2x00dev = data;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
-	int delayed_flags;
-
-	/*
-	 * Copy all data we need during this action under the protection
-	 * of a spinlock. Otherwise race conditions might occur which results
-	 * into an invalid configuration.
-	 */
-	spin_lock(&intf->lock);
-
-	delayed_flags = intf->delayed_flags;
-	intf->delayed_flags = 0;
-
-	spin_unlock(&intf->lock);
 
 	/*
 	 * It is possible the radio was disabled while the work had been
@@ -133,7 +120,7 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return;
 
-	if (delayed_flags & DELAYED_UPDATE_BEACON)
+	if (test_and_clear_bit(DELAYED_UPDATE_BEACON, &intf->delayed_flags))
 		rt2x00queue_update_beacon(rt2x00dev, vif, true);
 }
 
