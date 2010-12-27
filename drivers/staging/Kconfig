@@ -51,6 +51,8 @@ source "drivers/staging/cx25821/Kconfig"
 
 source "drivers/staging/tm6000/Kconfig"
 
+source "drivers/staging/dabusb/Kconfig"
+
 source "drivers/staging/se401/Kconfig"
 
 source "drivers/staging/usbvideo/Kconfig"
