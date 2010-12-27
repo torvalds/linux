@@ -731,7 +731,7 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 			debugf1("\t\t%#x\t%#x\t%#x\n",
 				(value[j] >> 27) & 0x1,
 				(value[j] >> 24) & 0x7,
-				(value[j] && ((1 << 24) - 1)));
+				(value[j] & ((1 << 24) - 1)));
 	}
 
 	return 0;
