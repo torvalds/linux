@@ -43,6 +43,8 @@
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
 #include <mach/vpu_mem.h>
 
+#include <linux/regulator/rk29-pwm-regulator.h>
+#include <linux/regulator/machine.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -840,6 +842,54 @@ struct rk29_bl_info rk29_bl_info = {
 };
 #endif
 /*****************************************************************************************
+* pwm voltage regulator devices
+******************************************************************************************/
+#if defined (CONFIG_RK29_PWM_REGULATOR)
+
+#define REGULATOR_PWM_ID					2
+#define REGULATOR_PWM_MUX_NAME      		GPIO2A3_SDMMC0WRITEPRT_PWM2_NAME
+#define REGULATOR_PWM_MUX_MODE      					GPIO2L_PWM2
+#define REGULATOR_PWM_MUX_MODE_GPIO 				GPIO2L_GPIO2A3
+#define REGULATOR_PWM_GPIO				RK29_PIN2_PA3
+
+static struct regulator_consumer_supply pwm_consumers[] = {
+	{
+		.supply = "vcore",
+	}
+};
+
+static struct regulator_init_data rk29_pwm_regulator_data = {
+	.constraints = {
+		.name = "PWM2",
+		.min_uV =  950000,
+		.max_uV = 1400000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(pwm_consumers),
+	.consumer_supplies = pwm_consumers,
+};
+
+static struct pwm_platform_data rk29_regulator_pwm_platform_data = {
+	.pwm_id = REGULATOR_PWM_ID,
+	.pwm_gpio = REGULATOR_PWM_GPIO,
+	.pwm_iomux_name = REGULATOR_PWM_MUX_NAME,
+	.pwm_iomux_pwm = REGULATOR_PWM_MUX_MODE,
+	.pwm_iomux_gpio = REGULATOR_PWM_MUX_MODE_GPIO,
+	.init_data  = &rk29_pwm_regulator_data,
+};
+
+static struct platform_device rk29_device_pwm_regulator = {
+	.name = "pwm-voltage-regulator",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &rk29_regulator_pwm_platform_data,
+	},
+};
+
+#endif
+
+/*****************************************************************************************
  * SDMMC devices
 *****************************************************************************************/
 #ifdef CONFIG_SDMMC0_RK29
@@ -1125,11 +1175,17 @@ static void __init rk29_board_iomux_init(void)
 	rk29_mux_api_set(GPIO0A7_MIIMDCLK_NAME, GPIO0L_MII_MDCLK);
 	rk29_mux_api_set(GPIO0A6_MIIMD_NAME, GPIO0L_MII_MD);
 	#endif
+	#ifdef CONFIG_RK29_PWM_REGULATOR
+	rk29_mux_api_set(REGULATOR_PWM_MUX_NAME,REGULATOR_PWM_MUX_MODE);
+	#endif
 }
 
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART1_RK29
 	&rk29_device_uart1,
+#endif
+#ifdef CONFIG_RK29_PWM_REGULATOR
+	&rk29_device_pwm_regulator,
 #endif
 #ifdef CONFIG_SPIM0_RK29
     &rk29xx_device_spi0m,
