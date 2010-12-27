@@ -7,11 +7,6 @@ config VIDEO_V4L2
 	depends on VIDEO_DEV && VIDEO_V4L2_COMMON
 	default VIDEO_DEV && VIDEO_V4L2_COMMON
 
-config VIDEO_V4L1
-	tristate
-	depends on VIDEO_DEV && VIDEO_V4L2_COMMON && VIDEO_ALLOW_V4L1
-	default VIDEO_DEV && VIDEO_V4L2_COMMON && VIDEO_ALLOW_V4L1
-
 config VIDEOBUF_GEN
 	tristate
 

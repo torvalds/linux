@@ -16,8 +16,6 @@
 #include <linux/ioctl.h>
 #include <linux/videodev2.h>
 
-#if defined(CONFIG_VIDEO_V4L1) || defined(CONFIG_VIDEO_V4L1_MODULE) || !defined(__KERNEL__)
-
 #define VID_TYPE_CAPTURE	1	/* Can capture */
 #define VID_TYPE_TUNER		2	/* Can tune */
 #define VID_TYPE_TELETEXT	4	/* Does teletext */
@@ -310,8 +308,6 @@ struct video_code
 	/* p1 = first active; p2 = last active */
 #define VID_PLAY_RESET			13
 #define VID_PLAY_END_MARK		14
-
-#endif /* CONFIG_VIDEO_V4L1 */
 
 #endif /* __LINUX_VIDEODEV_H */
 
