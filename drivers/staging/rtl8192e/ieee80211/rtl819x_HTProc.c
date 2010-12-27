@@ -55,10 +55,7 @@ static u8 LINKSYS_MARVELL_4400N[3] = {0x00, 0x14, 0xa4};
 void HTUpdateDefaultSetting(struct ieee80211_device* ieee)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	//const typeof( ((struct ieee80211_device *)0)->pHTInfo ) *__mptr = &pHTInfo;
 
-	//printk("pHTinfo:%p, &pHTinfo:%p, mptr:%p,  offsetof:%x\n", pHTInfo, &pHTInfo, __mptr, offsetof(struct ieee80211_device, pHTInfo));
-	//printk("===>ieee:%p,\n", ieee);
 	// ShortGI support
 	pHTInfo->bRegShortGI20MHz= 1;
 	pHTInfo->bRegShortGI40MHz= 1;

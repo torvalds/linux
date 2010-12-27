@@ -280,10 +280,8 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 			/* as for the completion function, it does not need
 			 * to check it any more.
 			 * */
-			//printk("%s():insert to waitqueue!\n",__FUNCTION__);
 			skb_queue_tail(&ieee->skb_waitQ[tcb_desc->queue_index], skb);
 		} else {
-			//printk("TX packet!\n");
 			ieee->softmac_hard_start_xmit(skb,ieee->dev);
 			//dev_kfree_skb_any(skb);//edit by thomas
 		}
@@ -304,7 +302,6 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *i
 	tcb_desc->RATRIndex = 7;
 	tcb_desc->bTxDisableRateFallBack = 1;
 	tcb_desc->bTxUseDriverAssingedRate = 1;
-	//printk("=============>%s()\n", __FUNCTION__);
 	if(single){
 
 		header->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
@@ -798,7 +795,6 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 		tmp_generic_ie_len = sizeof(ieee->pHTInfo->szRT2RTAggBuffer);
 		HTConstructRT2RTAggElement(ieee, tmp_generic_ie_buf, &tmp_generic_ie_len);
         }
-//	printk("===============>tmp_ht_cap_len is %d,tmp_ht_info_len is %d, tmp_generic_ie_len is %d\n",tmp_ht_cap_len,tmp_ht_info_len,tmp_generic_ie_len);
 #endif
 	beacon_size = sizeof(struct ieee80211_probe_response)+2+
 		ssid_len
@@ -1344,8 +1340,6 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 			memcpy(tag, realtek_ie_buf,realtek_ie_len -2 );
 		}
 	}
-//	printk("<=====%s(), %p, %p\n", __FUNCTION__, ieee->dev, ieee->dev->dev_addr);
-//	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, skb->data, skb->len);
 	return skb;
 }
 
@@ -1399,7 +1393,6 @@ void ieee80211_associate_step1(struct ieee80211_device *ieee)
 	else{
 		ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATING ;
 		IEEE80211_DEBUG_MGMT("Sending authentication request\n");
-		//printk(KERN_WARNING "Sending authentication request\n");
 		softmac_mgmt_xmit(skb, ieee);
 		//BUGON when you try to add_timer twice, using mod_timer may be better, john0709
 		if(!timer_pending(&ieee->associate_timer)){
@@ -1915,28 +1908,23 @@ short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h, u32 *ti
 
 	if(ieee->LPSDelayCnt)
 	{
-		//printk("===============>Delay enter LPS for DHCP and ARP packets...\n");
 		ieee->LPSDelayCnt --;
 		return 0;
 	}
 
 	dtim = ieee->current_network.dtim_data;
-//	printk("%s():DTIM:%d\n",__FUNCTION__,dtim);
 	if(!(dtim & IEEE80211_DTIM_VALID))
 		return 0;
 	timeout = ieee->current_network.beacon_interval; //should we use ps_timeout value or beacon_interval
-	//printk("VALID\n");
 	ieee->current_network.dtim_data = IEEE80211_DTIM_INVALID;
 	/* there's no need to nofity AP that I find you buffered with broadcast packet */
 	if(dtim & (IEEE80211_DTIM_UCAST & ieee->ps))
 		return 2;
 
 	if(!time_after(jiffies, ieee->dev->trans_start + MSECS(timeout))){
-//		printk("%s():111Oh Oh ,it is not time out return 0\n",__FUNCTION__);
 		return 0;
 	}
 	if(!time_after(jiffies, ieee->last_rx_ps_time + MSECS(timeout))){
-//		printk("%s():222Oh Oh ,it is not time out return 0\n",__FUNCTION__);
 		return 0;
 	}
 	if((ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE ) &&
@@ -1976,7 +1964,6 @@ short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h, u32 *ti
 				else
 					LPSAwakeIntvl_tmp = pPSC->LPSAwakeIntvl;//ieee->current_network.tim.tim_count;//pPSC->LPSAwakeIntvl;
 			}
-			//printk("=========>%s()assoc_id:%d(%#x),bAwakePktSent:%d,DTIM:%d, sleep interval:%d, LPSAwakeIntvl_tmp:%d, count:%d\n",__func__,ieee->assoc_id,cpu_to_le16(ieee->assoc_id),ieee->bAwakePktSent,ieee->current_network.dtim_period,pPSC->LPSAwakeIntvl,LPSAwakeIntvl_tmp,count);
 
 		*time_l = ieee->current_network.last_dtim_sta_time[0]
 			+ MSECS(ieee->current_network.beacon_interval * LPSAwakeIntvl_tmp);
@@ -2023,24 +2010,19 @@ inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 	/* 2 wake, 1 sleep, 0 do nothing */
 	if(sleep == 0)//it is not time out or dtim is not valid
 	{
-		//printk("===========>sleep is 0,do nothing\n");
 		goto out;
 	}
 	if(sleep == 1){
-		//printk("===========>sleep is 1,to sleep\n");
 		if(ieee->sta_sleep == 1){
-			//printk("%s(1): sta_sleep = 1, sleep again ++++++++++ \n", __func__);
 			ieee->enter_sleep_state(ieee->dev,th,tl);
 		}
 
 		else if(ieee->sta_sleep == 0){
-		//	printk("send null 1\n");
 			spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
 
 			if(ieee->ps_is_queue_empty(ieee->dev)){
 				ieee->sta_sleep = 2;
 				ieee->ack_tx_to_ieee = 1;
-				//printk("%s(2): sta_sleep = 0, notify AP we will sleeped ++++++++++ SendNullFunctionData\n", __func__);
 				ieee80211_sta_ps_send_null_frame(ieee,1);
 				ieee->ps_th = th;
 				ieee->ps_tl = tl;
@@ -2052,10 +2034,8 @@ inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 		ieee->bAwakePktSent = false;//after null to power save we set it to false. not listen every beacon.
 
 	}else if(sleep == 2){
-		//printk("==========>sleep is 2,to wakeup\n");
 		spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
 
-		//printk("%s(3): pkt buffered in ap will awake ++++++++++ ieee80211_sta_wakeup\n", __func__);
 		ieee80211_sta_wakeup(ieee,1);
 
 		spin_unlock_irqrestore(&ieee->mgmt_tx_lock, flags2);
@@ -2072,15 +2052,12 @@ void ieee80211_sta_wakeup(struct ieee80211_device *ieee, short nl)
 		if(nl){
 			if(ieee->pHTInfo->IOTAction & HT_IOT_ACT_NULL_DATA_POWER_SAVING)
 			{
-				//printk("%s(1): notify AP we are awaked ++++++++++ SendNullFunctionData\n", __func__);
-				//printk("Warning: driver is probably failing to report TX ps error\n");
 				ieee->ack_tx_to_ieee = 1;
 				ieee80211_sta_ps_send_null_frame(ieee, 0);
 			}
 			else
 			{
 				ieee->ack_tx_to_ieee = 1;
-				//printk("%s(2): notify AP we are awaked ++++++++++ Send PS-Poll\n", __func__);
 				ieee80211_sta_ps_send_pspoll_frame(ieee);
 			}
 		}
@@ -2094,8 +2071,6 @@ void ieee80211_sta_wakeup(struct ieee80211_device *ieee, short nl)
 
 			if(ieee->pHTInfo->IOTAction & HT_IOT_ACT_NULL_DATA_POWER_SAVING)
 			{
-				//printk("%s(3): notify AP we are awaked ++++++++++ SendNullFunctionData\n", __func__);
-				//printk("Warning: driver is probably failing to report TX ps error\n");
 				ieee->ack_tx_to_ieee = 1;
 				ieee80211_sta_ps_send_null_frame(ieee, 0);
 			}
@@ -2103,7 +2078,6 @@ void ieee80211_sta_wakeup(struct ieee80211_device *ieee, short nl)
 			{
 				ieee->ack_tx_to_ieee = 1;
 			ieee->polling = true;
-				//printk("%s(4): notify AP we are awaked ++++++++++ Send PS-Poll\n", __func__);
 				//ieee80211_sta_ps_send_null_frame(ieee, 0);
 				ieee80211_sta_ps_send_pspoll_frame(ieee);
 			}
@@ -2124,7 +2098,6 @@ void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success)
 		/* Null frame with PS bit set */
 		if(success){
 			ieee->sta_sleep = 1;
-			//printk("notify AP we will sleep and send null ok, so sleep now++++++++++ enter_sleep_state\n");
 			ieee->enter_sleep_state(ieee->dev,ieee->ps_th,ieee->ps_tl);
 		}
 	} else {/* 21112005 - tx again null without PS bit if lost */
@@ -2134,12 +2107,10 @@ void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success)
 			//ieee80211_sta_ps_send_null_frame(ieee, 0);
 			if(ieee->pHTInfo->IOTAction & HT_IOT_ACT_NULL_DATA_POWER_SAVING)
 			{
-				//printk("notify AP we will sleep but send bull failed, so resend++++++++++ SendNullFunctionData\n");
 				ieee80211_sta_ps_send_null_frame(ieee, 0);
 			}
 			else
 			{
-				//printk("notify AP we are awaked but send pspoll failed, so resend++++++++++ Send PS-Poll\n");
 				ieee80211_sta_ps_send_pspoll_frame(ieee);
 			}
 			spin_unlock_irqrestore(&ieee->mgmt_tx_lock, flags2);
@@ -2431,7 +2402,6 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 			/* as for the completion function, it does not need
 			 * to check it any more.
 			 * */
-			//printk("error:no descriptor left@queue_index %d\n", queue_index);
 			//ieee80211_rtl_stop_queue(ieee);
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 			skb_queue_tail(&ieee->skb_drv_aggQ[queue_index], txb->fragments[i]);
@@ -2937,8 +2907,6 @@ void ieee80211_start_protocol(struct ieee80211_device *ieee)
 
 	if (ieee->current_network.beacon_interval == 0)
 		ieee->current_network.beacon_interval = 100;
-//	printk("===>%s(), chan:%d\n", __FUNCTION__, ieee->current_network.channel);
-//	ieee->set_chan(ieee->dev,ieee->current_network.channel);
 
        	for(i = 0; i < 17; i++) {
 	  ieee->last_rxseq_num[i] = -1;

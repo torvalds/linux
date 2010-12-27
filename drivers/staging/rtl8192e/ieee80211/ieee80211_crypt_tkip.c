@@ -829,7 +829,6 @@ void ieee80211_crypto_tkip_exit(void)
 
 void ieee80211_tkip_null(void)
 {
-//    printk("============>%s()\n", __FUNCTION__);
         return;
 }
 
