@@ -107,4 +107,6 @@ obj-$(CONFIG_MIPS_CPUFREQ)	+= cpufreq/
 
 obj-$(CONFIG_HW_PERF_EVENTS)	+= perf_event.o
 
+obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
+
 CPPFLAGS_vmlinux.lds		:= $(KBUILD_CFLAGS)
