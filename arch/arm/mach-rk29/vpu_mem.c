@@ -909,17 +909,13 @@ int vpu_mem_setup(struct vpu_mem_platform_data *pdata)
 		printk(KERN_ALERT "Unable to register vpu_mem driver!\n");
 		goto err_cant_register_device;
 	}
-	printk(KERN_ALERT "%s: %d init\n", pdata->name, vpu_mem.dev.minor);
 	vpu_mem_count++;
 
 	vpu_mem.num_entries = vpu_mem.size / VPU_MEM_MIN_ALLOC;
-	vpu_mem.bitmap = kmalloc(vpu_mem.num_entries *
+	vpu_mem.bitmap = kzalloc(vpu_mem.num_entries *
 				  sizeof(struct vpu_mem_bits), GFP_KERNEL);
 	if (!vpu_mem.bitmap)
 		goto err_no_mem_for_metadata;
-
-	memset(vpu_mem.bitmap, 0, sizeof(struct vpu_mem_bits) *
-					  vpu_mem.num_entries);
 
     region_set(0, vpu_mem.num_entries);
 
@@ -941,6 +937,7 @@ int vpu_mem_setup(struct vpu_mem_platform_data *pdata)
 	debugfs_create_file(pdata->name, S_IFREG | S_IRUGO, NULL, (void *)vpu_mem.dev.minor,
 			    &debug_fops);
 #endif
+	printk("%s: %d initialized\n", pdata->name, vpu_mem.dev.minor);
 	return 0;
 error_cant_remap:
 	kfree(vpu_mem.bitmap);
