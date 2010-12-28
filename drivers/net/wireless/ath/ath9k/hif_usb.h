@@ -64,6 +64,7 @@ struct tx_buf {
 };
 
 #define HIF_USB_TX_STOP  BIT(0)
+#define HIF_USB_TX_FLUSH BIT(1)
 
 struct hif_usb_tx {
 	u8 flags;
