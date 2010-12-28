@@ -331,16 +331,15 @@ void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv);
 
 #define OP_INVALID		   BIT(0)
 #define OP_SCANNING		   BIT(1)
-#define OP_FULL_RESET		   BIT(2)
-#define OP_LED_ASSOCIATED	   BIT(3)
-#define OP_LED_ON		   BIT(4)
-#define OP_PREAMBLE_SHORT	   BIT(5)
-#define OP_PROTECT_ENABLE	   BIT(6)
-#define OP_ASSOCIATED		   BIT(7)
-#define OP_ENABLE_BEACON	   BIT(8)
-#define OP_LED_DEINIT		   BIT(9)
-#define OP_BT_PRIORITY_DETECTED    BIT(10)
-#define OP_BT_SCAN                 BIT(11)
+#define OP_LED_ASSOCIATED	   BIT(2)
+#define OP_LED_ON		   BIT(3)
+#define OP_PREAMBLE_SHORT	   BIT(4)
+#define OP_PROTECT_ENABLE	   BIT(5)
+#define OP_ASSOCIATED		   BIT(6)
+#define OP_ENABLE_BEACON	   BIT(7)
+#define OP_LED_DEINIT		   BIT(8)
+#define OP_BT_PRIORITY_DETECTED    BIT(9)
+#define OP_BT_SCAN                 BIT(10)
 
 struct ath9k_htc_priv {
 	struct device *dev;

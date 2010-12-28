@@ -177,7 +177,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &common->hw->conf;
-	bool fastcc = true;
+	bool fastcc;
 	struct ieee80211_channel *channel = hw->conf.channel;
 	struct ath9k_hw_cal_data *caldata;
 	enum htc_phymode mode;
@@ -188,8 +188,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	if (priv->op_flags & OP_INVALID)
 		return -EIO;
 
-	if (priv->op_flags & OP_FULL_RESET)
-		fastcc = false;
+	fastcc = !!(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL);
 
 	ath9k_htc_ps_wakeup(priv);
 	htc_stop(priv->htc);
@@ -231,8 +230,6 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 		goto err;
 
 	htc_start(priv->htc);
-
-	priv->op_flags &= ~OP_FULL_RESET;
 err:
 	ath9k_htc_ps_restore(priv);
 	return ret;
@@ -1847,7 +1844,6 @@ static void ath9k_htc_sw_scan_complete(struct ieee80211_hw *hw)
 	spin_lock_bh(&priv->beacon_lock);
 	priv->op_flags &= ~OP_SCANNING;
 	spin_unlock_bh(&priv->beacon_lock);
-	priv->op_flags |= OP_FULL_RESET;
 	if (priv->op_flags & OP_ASSOCIATED) {
 		ath9k_htc_beacon_config(priv, priv->vif);
 		ath_start_ani(priv);
