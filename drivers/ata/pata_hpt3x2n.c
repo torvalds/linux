@@ -1,5 +1,5 @@
 /*
- * Libata driver for the highpoint 372N and 302N UDMA66 ATA controllers.
+ * Libata driver for the HighPoint 371N, 372N, and 302N UDMA66 ATA controllers.
  *
  * This driver is heavily based upon:
  *
@@ -456,8 +456,6 @@ static int hpt3x2n_pci_clock(struct pci_dev *pdev)
  *	HPT372N			9 (HPT372N)	*	UDMA133
  *
  *	(1) UDMA133 support depends on the bus clock
- *
- *	To pin down		HPT371N
  */
 
 static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
@@ -616,7 +614,7 @@ static void __exit hpt3x2n_exit(void)
 }
 
 MODULE_AUTHOR("Alan Cox");
-MODULE_DESCRIPTION("low-level driver for the Highpoint HPT3x2n/30x");
+MODULE_DESCRIPTION("low-level driver for the Highpoint HPT3xxN");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, hpt3x2n);
 MODULE_VERSION(DRV_VERSION);
