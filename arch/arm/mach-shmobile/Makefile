@@ -18,6 +18,11 @@ pfc-$(CONFIG_ARCH_SH7377)	+= pfc-sh7377.o
 pfc-$(CONFIG_ARCH_SH7372)	+= pfc-sh7372.o
 pfc-$(CONFIG_ARCH_SH73A0)	+= pfc-sh73a0.o
 
+# IRQ objects
+obj-$(CONFIG_ARCH_SH7367)	+= entry-intc.o
+obj-$(CONFIG_ARCH_SH7377)	+= entry-intc.o
+obj-$(CONFIG_ARCH_SH7372)	+= entry-intc.o
+
 # Board objects
 obj-$(CONFIG_MACH_G3EVM)	+= board-g3evm.o
 obj-$(CONFIG_MACH_G4EVM)	+= board-g4evm.o

@@ -367,6 +367,7 @@ static struct sys_timer g3evm_timer = {
 MACHINE_START(G3EVM, "g3evm")
 	.map_io		= g3evm_map_io,
 	.init_irq	= sh7367_init_irq,
+	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= g3evm_init,
 	.timer		= &g3evm_timer,
 MACHINE_END

@@ -1194,6 +1194,7 @@ static struct sys_timer mackerel_timer = {
 MACHINE_START(MACKEREL, "mackerel")
 	.map_io		= mackerel_map_io,
 	.init_irq	= sh7372_init_irq,
+	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= mackerel_init,
 	.timer		= &mackerel_timer,
 MACHINE_END
