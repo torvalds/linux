@@ -1020,12 +1020,26 @@ int vmac_open(struct net_device *dev)
 	struct phy_device *phydev;
 	unsigned int temp;
 	int err = 0;
+	struct rk29_vmac_platform_data *pdata = ap->pdev->dev.platform_data;
 
 	if (ap == NULL)
 		return -ENODEV;
 
 	ap->shutdown = 0;
-	
+		
+	//set rmii ref clock 50MHz
+	clk_set_rate(clk_get(NULL, "mac_ref_div"), 50000000);
+	clk_enable(clk_get(NULL,"mii_rx"));
+	clk_enable(clk_get(NULL,"mii_tx"));
+	clk_enable(clk_get(NULL,"hclk_mac"));
+	clk_enable(clk_get(NULL,"mac_ref"));
+
+	//phy power on
+	if (pdata && pdata->rmii_power_control)
+		pdata->rmii_power_control(1);
+
+	msleep(1000);
+
 	vmac_hw_init(dev);
 
 	/* mac address changed? */
@@ -1096,6 +1110,7 @@ int vmac_close(struct net_device *dev)
 {
 	struct vmac_priv *ap = netdev_priv(dev);
 	unsigned int temp;
+	struct rk29_vmac_platform_data *pdata = ap->pdev->dev.platform_data;
 
 	netif_stop_queue(dev);
 	napi_disable(&ap->napi);
@@ -1124,6 +1139,16 @@ int vmac_close(struct net_device *dev)
 	wmb();
 
 	free_buffers(dev);
+
+	//set rmii ref clock 50MHz
+	clk_disable(clk_get(NULL,"mii_rx"));
+	clk_disable(clk_get(NULL,"mii_tx"));
+	clk_disable(clk_get(NULL,"hclk_mac"));
+	clk_disable(clk_get(NULL,"mac_ref"));
+
+	//phy power off
+	if (pdata && pdata->rmii_power_control)
+		pdata->rmii_power_control(0);
 	
 	return 0;
 }
@@ -1436,15 +1461,8 @@ static int __devinit vmac_probe(struct platform_device *pdev)
 	//config rk29 vmac as rmii, 100MHz 
 	if (pdata && pdata->vmac_register_set)
 		pdata->vmac_register_set();
-	
-	//set rmii ref clock 50MHz
-	sys_clk = clk_get(NULL, "mac_ref_div");////////
-	clk_set_rate(sys_clk,50000000);
 
-	sys_clk = clk_get(NULL, "mac_ref");////////
-	clk_set_rate(sys_clk,50000000);
-
-	//power on
+	//power gpio init, phy power off default for power reduce
 	if (pdata && pdata->rmii_io_init)
 		pdata->rmii_io_init();
 
@@ -1464,6 +1482,11 @@ static int __devexit vmac_remove(struct platform_device *pdev)
 	struct net_device *dev;
 	struct vmac_priv *ap;
 	struct resource *res;
+	struct rk29_vmac_platform_data *pdata = pdev->dev.platform_data;
+
+	//power gpio deinit, phy power off
+	if (pdata && pdata->rmii_io_deinit)
+		pdata->rmii_io_deinit();
 
 	dev = platform_get_drvdata(pdev);
 	if (!dev) {

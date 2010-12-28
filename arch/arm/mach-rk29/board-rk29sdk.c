@@ -1324,54 +1324,48 @@ static int rk29_rmii_io_init(void)
 {
 	int err;
 
-	//set dm9161 rmii
-	rk29_mux_api_set(GPIO2D3_I2S0SDI_MIICOL_NAME, GPIO2H_GPIO2D3);
-	err = gpio_request(RK29_PIN2_PD3, "rmii");
-	if (err) {
-		gpio_free(RK29_PIN2_PD3);
-		printk("-------request RK29_PIN2_PD3 fail--------\n");
-		return -1;
-	}
-	gpio_direction_output(RK29_PIN2_PD3, GPIO_HIGH);
-	gpio_set_value(RK29_PIN2_PD3, GPIO_HIGH);
-
-	//rmii power on
-	err = gpio_request(RK29_PIN6_PB0, "rmii_power_en");
+	//phy power gpio
+	err = gpio_request(RK29_PIN6_PB0, "phy_power_en");
 	if (err) {
 		gpio_free(RK29_PIN6_PB0);
-		gpio_free(RK29_PIN2_PD3);
 		printk("-------request RK29_PIN6_PB0 fail--------\n");
 		return -1;
 	}
-	gpio_direction_output(RK29_PIN6_PB0, GPIO_HIGH);
-	gpio_set_value(RK29_PIN6_PB0, GPIO_HIGH);
+	//phy power down
+	gpio_direction_output(RK29_PIN6_PB0, GPIO_LOW);
+	gpio_set_value(RK29_PIN6_PB0, GPIO_LOW);
 
+	return 0;
+}
+
+static int rk29_rmii_io_deinit(void)
+{
+	//phy power down
+	gpio_direction_output(RK29_PIN6_PB0, GPIO_LOW);
+	gpio_set_value(RK29_PIN6_PB0, GPIO_LOW);
+	//free
+	gpio_free(RK29_PIN6_PB0);
 	return 0;
 }
 
 static int rk29_rmii_power_control(int enable)
 {
 	if (enable) {
-		//set dm9161 as rmii
-		gpio_direction_output(RK29_PIN2_PD3, GPIO_HIGH);
-		gpio_set_value(RK29_PIN2_PD3, GPIO_HIGH);
-
-		//enable rmii power
+		//enable phy power
 		gpio_direction_output(RK29_PIN6_PB0, GPIO_HIGH);
 		gpio_set_value(RK29_PIN6_PB0, GPIO_HIGH);
-
 	}
 	else {
 		gpio_direction_output(RK29_PIN6_PB0, GPIO_LOW);
 		gpio_set_value(RK29_PIN6_PB0, GPIO_LOW);
 	}
-
 	return 0;
 }
 
 struct rk29_vmac_platform_data rk29_vmac_pdata = {
 	.vmac_register_set = rk29_vmac_register_set,
 	.rmii_io_init = rk29_rmii_io_init,
+	.rmii_io_deinit = rk29_rmii_io_deinit,
 	.rmii_power_control = rk29_rmii_power_control,
 };
 

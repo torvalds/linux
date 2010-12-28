@@ -40,6 +40,7 @@ struct rk29xx_spi_platform_data {
 struct rk29_vmac_platform_data {
 	int (*vmac_register_set)(void);
 	int (*rmii_io_init)(void);
+	int (*rmii_io_deinit)(void);
     int (*rmii_power_control)(int enable);
 };
 
