@@ -25,6 +25,8 @@
 #define VPU_MEM_CACHE_FLUSH     _IOW(VPU_MEM_IOCTL_MAGIC, 5, unsigned int)
 #define VPU_MEM_DUPLICATE       _IOW(VPU_MEM_IOCTL_MAGIC, 6, unsigned int)
 #define VPU_MEM_LINK            _IOW(VPU_MEM_IOCTL_MAGIC, 7, unsigned int)
+#define VPU_MEM_CACHE_CLEAN     _IOW(VPU_MEM_IOCTL_MAGIC, 8, unsigned int)
+#define VPU_MEM_CACHE_INVALID   _IOW(VPU_MEM_IOCTL_MAGIC, 9, unsigned int)
 
 
 struct vpu_mem_platform_data

@@ -599,10 +599,10 @@ static int vpu_mem_link(struct file *file, int index)
 	return err;
 }
 
-void vpu_mem_flush(struct file *file, long index)
+void vpu_mem_cache_opt(struct file *file, long index, unsigned int cmd)
 {
 	struct vpu_mem_data *data;
-	void *flush_start, *flush_end;
+	void *start, *end;
 
 	if (!is_vpu_mem_file(file)) {
 		return;
@@ -613,9 +613,24 @@ void vpu_mem_flush(struct file *file, long index)
 		return;
 
 	down_read(&data->sem);
-    flush_start = VPU_MEM_START_VADDR(index);
-    flush_end   = VPU_MEM_END_VADDR(index);
-    dmac_flush_range(flush_start, flush_end);
+    start = VPU_MEM_START_VADDR(index);
+    end   = VPU_MEM_END_VADDR(index);
+    switch (cmd) {
+    case VPU_MEM_CACHE_FLUSH : {
+        dmac_flush_range(start, end);
+        break;
+    }
+    case VPU_MEM_CACHE_CLEAN : {
+        dmac_clean_range(start, end);
+        break;
+    }
+    case VPU_MEM_CACHE_INVALID : {
+        dmac_inv_range(start, end);
+        break;
+    }
+    default :
+        break;
+    }
 	up_read(&data->sem);
 }
 
@@ -793,13 +808,15 @@ static long vpu_mem_ioctl(struct file *file, unsigned int cmd, unsigned long arg
             break;
         }
 	case VPU_MEM_CACHE_FLUSH:
+    case VPU_MEM_CACHE_CLEAN:
+    case VPU_MEM_CACHE_INVALID:
 		{
 			DLOG("flush\n");
 			if (copy_from_user(&index, (void __user *)arg, sizeof(index)))
 				return -EFAULT;
 
             down_write(&vpu_mem.bitmap_sem);
-			vpu_mem_flush(file, index);
+			vpu_mem_cache_opt(file, index, cmd);
             up_write(&vpu_mem.bitmap_sem);
 			break;
 		}
