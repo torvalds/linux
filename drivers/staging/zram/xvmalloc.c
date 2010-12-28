@@ -46,7 +46,7 @@ static void clear_flag(struct block_header *block, enum blockflags flag)
 }
 
 /*
- * Given <page, offset> pair, provide a derefrencable pointer.
+ * Given <page, offset> pair, provide a dereferencable pointer.
  * This is called from xv_malloc/xv_free path, so it
  * needs to be fast.
  */
