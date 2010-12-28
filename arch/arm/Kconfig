@@ -638,6 +638,7 @@ config ARCH_SHMOBILE
 	select GENERIC_CLOCKEVENTS
 	select NO_IOPORT
 	select SPARSE_IRQ
+	select MULTI_IRQ_HANDLER
 	help
 	  Support for Renesas's SH-Mobile and R-Mobile ARM platforms.
 
