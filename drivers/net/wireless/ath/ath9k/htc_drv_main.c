@@ -1218,6 +1218,11 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	int ret = 0;
 	u8 cmd_rsp;
 
+	/* Cancel all the running timers/work .. */
+	cancel_work_sync(&priv->ps_work);
+	cancel_delayed_work_sync(&priv->ath9k_led_blink_work);
+	ath9k_led_stop_brightness(priv);
+
 	mutex_lock(&priv->mutex);
 
 	if (priv->op_flags & OP_INVALID) {
@@ -1225,11 +1230,6 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 		mutex_unlock(&priv->mutex);
 		return;
 	}
-
-	/* Cancel all the running timers/work .. */
-	cancel_work_sync(&priv->ps_work);
-	cancel_delayed_work_sync(&priv->ath9k_led_blink_work);
-	ath9k_led_stop_brightness(priv);
 
 	ath9k_htc_ps_wakeup(priv);
 	htc_stop(priv->htc);
