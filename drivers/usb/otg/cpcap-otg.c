@@ -131,7 +131,7 @@ static int cpcap_otg_notify(struct notifier_block *nb, unsigned long event,
 		return 0;
 	otg->state = to;
 
-	if (to != OTG_STATE_A_SUSPEND)
+	if (to == OTG_STATE_B_PERIPHERAL)
 		wake_lock(&cpcap->wake_lock);
 
 	dev_info(cpcap->otg.dev, "%s --> %s", cpcap_state_name(from),
