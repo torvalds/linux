@@ -2239,6 +2239,8 @@ static void __init clk_enable_init_clocks(void)
 	clk_enable_nolock(&clk_gic);
 	clk_enable_nolock(&clk_dma2);
 	clk_enable_nolock(&clk_dma1);
+	clk_enable_nolock(&clk_emem);
+	clk_enable_nolock(&clk_intmem);
 #ifdef CONFIG_DEBUG_LL
 	clk_enable_nolock(&clk_uart1);
 #endif
