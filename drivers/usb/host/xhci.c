@@ -2431,8 +2431,12 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		xhci_err(xhci, "Error while assigning device slot ID\n");
 		return 0;
 	}
-	/* xhci_alloc_virt_device() does not touch rings; no need to lock */
-	if (!xhci_alloc_virt_device(xhci, xhci->slot_id, udev, GFP_KERNEL)) {
+	/* xhci_alloc_virt_device() does not touch rings; no need to lock.
+	 * Use GFP_NOIO, since this function can be called from
+	 * xhci_discover_or_reset_device(), which may be called as part of
+	 * mass storage driver error handling.
+	 */
+	if (!xhci_alloc_virt_device(xhci, xhci->slot_id, udev, GFP_NOIO)) {
 		/* Disable slot, if we can do it without mem alloc */
 		xhci_warn(xhci, "Could not allocate xHCI USB device data structures\n");
 		spin_lock_irqsave(&xhci->lock, flags);
