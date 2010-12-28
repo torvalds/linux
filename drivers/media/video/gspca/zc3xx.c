@@ -71,6 +71,7 @@ enum sensors {
 	SENSOR_ADCM2700,
 	SENSOR_CS2102,
 	SENSOR_CS2102K,
+	SENSOR_GC0303,
 	SENSOR_GC0305,
 	SENSOR_HDCS2020b,
 	SENSOR_HV7131B,
@@ -86,7 +87,6 @@ enum sensors {
 	SENSOR_PB0330,
 	SENSOR_PO2030,
 	SENSOR_TAS5130C,
-	SENSOR_TAS5130C_VF0250,
 	SENSOR_MAX
 };
 
@@ -5393,7 +5393,7 @@ static const struct usb_action tas5130c_NoFlikerScale[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_InitialScale[] = {
+static const struct usb_action gc0303_InitialScale[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},		/* 00,00,01,cc, */
 	{0xa0, 0x02, ZC3XX_R008_CLOCKSETTING},		/* 00,08,02,cc, */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc, */
@@ -5460,7 +5460,7 @@ static const struct usb_action tas5130c_vf0250_InitialScale[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_Initial[] = {
+static const struct usb_action gc0303_Initial[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},		/* 00,00,01,cc, */
 	{0xa0, 0x02, ZC3XX_R008_CLOCKSETTING},		/* 00,08,02,cc, */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc, */
@@ -5525,7 +5525,7 @@ static const struct usb_action tas5130c_vf0250_Initial[] = {
 	{0xa0, 0x65, ZC3XX_R118_BGAIN},		/* 01,18,65,cc */
 	{}
 };
-static const struct usb_action tas5130c_vf0250_50HZScale[] = {
+static const struct usb_action gc0303_50HZScale[] = {
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0001},		/* 00,83,01,aa */
 	{0xaa, 0x84, 0x00aa},		/* 00,84,aa,aa */
@@ -5549,7 +5549,7 @@ static const struct usb_action tas5130c_vf0250_50HZScale[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_50HZ[] = {
+static const struct usb_action gc0303_50HZ[] = {
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0003},		/* 00,83,03,aa */
 	{0xaa, 0x84, 0x0054},		/* 00,84,54,aa */
@@ -5573,7 +5573,7 @@ static const struct usb_action tas5130c_vf0250_50HZ[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_60HZScale[] = {
+static const struct usb_action gc0303_60HZScale[] = {
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0001},		/* 00,83,01,aa */
 	{0xaa, 0x84, 0x0062},		/* 00,84,62,aa */
@@ -5597,7 +5597,7 @@ static const struct usb_action tas5130c_vf0250_60HZScale[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_60HZ[] = {
+static const struct usb_action gc0303_60HZ[] = {
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0002},		/* 00,83,02,aa */
 	{0xaa, 0x84, 0x00c4},		/* 00,84,c4,aa */
@@ -5621,7 +5621,7 @@ static const struct usb_action tas5130c_vf0250_60HZ[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_NoFlikerScale[] = {
+static const struct usb_action gc0303_NoFlikerScale[] = {
 	{0xa0, 0x0c, ZC3XX_R100_OPERATIONMODE},		/* 01,00,0c,cc, */
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0000},		/* 00,83,00,aa */
@@ -5643,7 +5643,7 @@ static const struct usb_action tas5130c_vf0250_NoFlikerScale[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_NoFliker[] = {
+static const struct usb_action gc0303_NoFliker[] = {
 	{0xa0, 0x0c, ZC3XX_R100_OPERATIONMODE},		/* 01,00,0c,cc, */
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0000},		/* 00,83,00,aa */
@@ -5820,12 +5820,13 @@ static void setmatrix(struct gspca_dev *gspca_dev)
 		{0x60, 0xf0, 0xf0, 0xf0, 0x60, 0xf0, 0xf0, 0xf0, 0x60};
 	static const u8 tas5130c_matrix[9] =
 		{0x68, 0xec, 0xec, 0xec, 0x68, 0xec, 0xec, 0xec, 0x68};
-	static const u8 vf0250_matrix[9] =
+	static const u8 gc0303_matrix[9] =
 		{0x7b, 0xea, 0xea, 0xea, 0x7b, 0xea, 0xea, 0xea, 0x7b};
 	static const u8 *matrix_tb[SENSOR_MAX] = {
 		[SENSOR_ADCM2700] =	adcm2700_matrix,
 		[SENSOR_CS2102] =	ov7620_matrix,
 		[SENSOR_CS2102K] =	NULL,
+		[SENSOR_GC0303] =	gc0303_matrix,
 		[SENSOR_GC0305] =	gc0305_matrix,
 		[SENSOR_HDCS2020b] =	NULL,
 		[SENSOR_HV7131B] =	NULL,
@@ -5841,7 +5842,6 @@ static void setmatrix(struct gspca_dev *gspca_dev)
 		[SENSOR_PB0330] =	gc0305_matrix,
 		[SENSOR_PO2030] =	po2030_matrix,
 		[SENSOR_TAS5130C] =	tas5130c_matrix,
-		[SENSOR_TAS5130C_VF0250] = vf0250_matrix,
 	};
 
 	matrix = matrix_tb[sd->sensor];
@@ -5981,6 +5981,10 @@ static void setlightfreq(struct gspca_dev *gspca_dev)
 		{cs2102_NoFliker, cs2102_NoFlikerScale,
 		 NULL, NULL, /* currently disabled */
 		 NULL, NULL},
+	[SENSOR_GC0303] =
+		{gc0303_NoFliker, gc0303_NoFlikerScale,
+		 gc0303_50HZ, gc0303_50HZScale,
+		 gc0303_60HZ, gc0303_60HZScale},
 	[SENSOR_GC0305] =
 		{gc0305_NoFliker, gc0305_NoFliker,
 		 gc0305_50HZ, gc0305_50HZ,
@@ -6041,10 +6045,6 @@ static void setlightfreq(struct gspca_dev *gspca_dev)
 		{tas5130c_NoFliker, tas5130c_NoFlikerScale,
 		 tas5130c_50HZ, tas5130c_50HZScale,
 		 tas5130c_60HZ, tas5130c_60HZScale},
-	[SENSOR_TAS5130C_VF0250] =
-		{tas5130c_vf0250_NoFliker, tas5130c_vf0250_NoFlikerScale,
-		 tas5130c_vf0250_50HZ, tas5130c_vf0250_50HZScale,
-		 tas5130c_vf0250_60HZ, tas5130c_vf0250_60HZScale},
 	};
 
 	i = sd->ctrls[LIGHTFREQ].val * 2;
@@ -6317,8 +6317,8 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	retword = i2c_read(gspca_dev, 0x00);
 	if (retword != 0) {
 		PDEBUG(D_PROBE, "probe 3wr vga type %02x", retword);
-		if (retword == 0x0011)			/* VF0250 */
-			return 0x0250;
+		if (retword == 0x0011)			/* gc0303 */
+			return 0x0303;
 		if (retword == 0x0029)			/* gc0305 */
 			send_unknown(gspca_dev, SENSOR_GC0305);
 		return retword;
@@ -6379,7 +6379,7 @@ static int zcxx_probeSensor(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_MC501CB:
 		return -1;		/* don't probe */
-	case SENSOR_TAS5130C_VF0250:
+	case SENSOR_GC0303:
 			/* may probe but with no write in reg 0x0010 */
 		return -1;		/* don't probe */
 	case SENSOR_PAS106:
@@ -6424,6 +6424,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		[SENSOR_ADCM2700] =	4,
 		[SENSOR_CS2102] =	4,
 		[SENSOR_CS2102K] =	5,
+		[SENSOR_GC0303] =	3,
 		[SENSOR_GC0305] =	4,
 		[SENSOR_HDCS2020b] =	4,
 		[SENSOR_HV7131B] =	4,
@@ -6439,12 +6440,12 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		[SENSOR_PB0330] =	4,
 		[SENSOR_PO2030] =	4,
 		[SENSOR_TAS5130C] =	3,
-		[SENSOR_TAS5130C_VF0250] = 3,
 	};
 	static const u8 mode_tb[SENSOR_MAX] = {
 		[SENSOR_ADCM2700] =	2,
 		[SENSOR_CS2102] =	1,
 		[SENSOR_CS2102K] =	1,
+		[SENSOR_GC0303] =	1,
 		[SENSOR_GC0305] =	1,
 		[SENSOR_HDCS2020b] =	1,
 		[SENSOR_HV7131B] =	1,
@@ -6460,7 +6461,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		[SENSOR_PB0330] =	1,
 		[SENSOR_PO2030] =	1,
 		[SENSOR_TAS5130C] =	1,
-		[SENSOR_TAS5130C_VF0250] = 1,
 	};
 
 	sensor = zcxx_probeSensor(gspca_dev);
@@ -6476,8 +6476,8 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			case SENSOR_MC501CB:
 				PDEBUG(D_PROBE, "Sensor MC501CB");
 				break;
-			case SENSOR_TAS5130C_VF0250:
-				PDEBUG(D_PROBE, "Sensor Tas5130 (VF0250)");
+			case SENSOR_GC0303:
+				PDEBUG(D_PROBE, "Sensor GC0303");
 				break;
 			default:
 				warn("Unknown sensor - set to TAS5130C");
@@ -6564,9 +6564,9 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			PDEBUG(D_PROBE, "Find Sensor GC0305");
 			sd->sensor = SENSOR_GC0305;
 			break;
-		case 0x0250:
-			PDEBUG(D_PROBE, "Sensor Tas5130 (VF0250)");
-			sd->sensor =  SENSOR_TAS5130C_VF0250;
+		case 0x0303:
+			PDEBUG(D_PROBE, "Sensor GC0303");
+			sd->sensor =  SENSOR_GC0303;
 			break;
 		case 0x2030:
 			PDEBUG(D_PROBE, "Find Sensor PO2030");
@@ -6637,6 +6637,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			{cs2102_Initial, cs2102_InitialScale},
 	[SENSOR_CS2102K] =
 			{cs2102K_Initial, cs2102K_InitialScale},
+	[SENSOR_GC0303] =
+		{gc0303_Initial, gc0303_InitialScale},
 	[SENSOR_GC0305] =
 			{gc0305_Initial, gc0305_InitialScale},
 	[SENSOR_HDCS2020b] =
@@ -6667,8 +6669,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			{po2030_Initial, po2030_InitialScale},
 	[SENSOR_TAS5130C] =
 			{tas5130c_Initial, tas5130c_InitialScale},
-	[SENSOR_TAS5130C_VF0250] =
-		{tas5130c_vf0250_Initial, tas5130c_vf0250_InitialScale},
 	};
 
 	/* create the JPEG header */
@@ -6693,7 +6693,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_OV7620:
 	case SENSOR_PO2030:
 	case SENSOR_TAS5130C:
-	case SENSOR_TAS5130C_VF0250:
+	case SENSOR_GC0303:
 /*		msleep(100);			 * ?? */
 		reg_r(gspca_dev, 0x0002);	/* --> 0x40 */
 		reg_w(gspca_dev, 0x09, 0x01ad);	/* (from win traces) */
@@ -6921,8 +6921,8 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4035), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x041e, 0x4036)},
 	{USB_DEVICE(0x041e, 0x403a)},
-	{USB_DEVICE(0x041e, 0x4051), .driver_info = SENSOR_TAS5130C_VF0250},
-	{USB_DEVICE(0x041e, 0x4053), .driver_info = SENSOR_TAS5130C_VF0250},
+	{USB_DEVICE(0x041e, 0x4051), .driver_info = SENSOR_GC0303},
+	{USB_DEVICE(0x041e, 0x4053), .driver_info = SENSOR_GC0303},
 	{USB_DEVICE(0x0458, 0x7007)},
 	{USB_DEVICE(0x0458, 0x700c)},
 	{USB_DEVICE(0x0458, 0x700f)},
