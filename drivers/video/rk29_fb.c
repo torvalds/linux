@@ -113,7 +113,6 @@ struct win0_par {
     u32 ysize;
     u32 format;
 
-    struct rw_semaphore sem;
     wait_queue_head_t wait;
     struct win_set mirror;
     struct win_set displ;
@@ -1632,6 +1631,7 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
             // enable win0 after the win0 par is seted
             par->addr_seted = 1;
             if(par->par_seted) {
+                unsigned long flags;
                 if (par->mirror.c_offset) {
                     ret = wait_event_interruptible_timeout(par->wait,
                         (0 == par->mirror.c_offset), HZ/20);
@@ -1639,13 +1639,14 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
                         break;
                 }
 
-                down_write(&par->sem);
+                local_irq_save(flags);
     	        LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(1));
-                mcu_refresh(inf);
                 par->mirror.y_offset = yuv_phy[0];
                 par->mirror.c_offset = yuv_phy[1];
+                local_irq_restore(flags);
+
+                mcu_refresh(inf);
                 //printk("0x%.8x 0x%.8x mirror\n", par->mirror.y_offset, par->mirror.c_offset);
-                up_write(&par->sem);
             }
         }
         break;
@@ -1776,7 +1777,6 @@ static irqreturn_t rk29fb_irq(int irq, void *dev_id)
 #endif
 
     if(waitqueue_active(&par->wait)) {
-        down_write(&par->sem);
         if (par->mirror.c_offset == 0)
             printk("error: no new buffer to display\n");
 
@@ -1789,8 +1789,6 @@ static irqreturn_t rk29fb_irq(int irq, void *dev_id)
 
         //printk("0x%.8x 0x%.8x displaying\n", par->displ.y_offset, par->displ.c_offset);
         //printk("0x%.8x 0x%.8x done\n", par->done.y_offset, par->done.c_offset);
-
-        up_write(&par->sem);
         wake_up_interruptible(&par->wait);
     }
 
@@ -2117,7 +2115,6 @@ static int __init rk29fb_probe (struct platform_device *pdev)
 
     memset(par, 0, sizeof(struct win0_par));
 
-	init_rwsem(&par->sem);
 	init_waitqueue_head(&par->wait);
 
  	/* Init all lcdc and lcd before register_framebuffer. */
