@@ -314,6 +314,7 @@ static void fimc_hw_set_scaler(struct fimc_ctx *ctx)
 void fimc_hw_set_mainscaler(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
+	struct samsung_fimc_variant *variant = dev->variant;
 	struct fimc_scaler *sc = &ctx->scaler;
 	u32 cfg;
 
@@ -323,40 +324,26 @@ void fimc_hw_set_mainscaler(struct fimc_ctx *ctx)
 	fimc_hw_set_scaler(ctx);
 
 	cfg = readl(dev->regs + S5P_CISCCTRL);
-	cfg &= ~S5P_CISCCTRL_MHRATIO_MASK;
-	cfg &= ~S5P_CISCCTRL_MVRATIO_MASK;
-	cfg |= S5P_CISCCTRL_MHRATIO(sc->main_hratio);
-	cfg |= S5P_CISCCTRL_MVRATIO(sc->main_vratio);
 
-	writel(cfg, dev->regs + S5P_CISCCTRL);
-}
+	if (variant->has_mainscaler_ext) {
+		cfg &= ~(S5P_CISCCTRL_MHRATIO_MASK | S5P_CISCCTRL_MVRATIO_MASK);
+		cfg |= S5P_CISCCTRL_MHRATIO_EXT(sc->main_hratio);
+		cfg |= S5P_CISCCTRL_MVRATIO_EXT(sc->main_vratio);
+		writel(cfg, dev->regs + S5P_CISCCTRL);
 
-void fimc_hw_set_mainscaler_ext(struct fimc_ctx *ctx)
-{
-	struct fimc_dev *dev = ctx->fimc_dev;
-	struct fimc_scaler *sc = &ctx->scaler;
-	u32 cfg, cfg_ext;
+		cfg = readl(dev->regs + S5P_CIEXTEN);
 
-	dbg("main_hratio= 0x%X  main_vratio= 0x%X",
-		sc->main_hratio, sc->main_vratio);
-
-	fimc_hw_set_scaler(ctx);
-
-	cfg = readl(dev->regs + S5P_CISCCTRL);
-	cfg &= ~S5P_CISCCTRL_MHRATIO_MASK;
-	cfg &= ~S5P_CISCCTRL_MVRATIO_MASK;
-	cfg |= S5P_CISCCTRL_MHRATIO_EXT(sc->main_hratio);
-	cfg |= S5P_CISCCTRL_MVRATIO_EXT(sc->main_vratio);
-
-	writel(cfg, dev->regs + S5P_CISCCTRL);
-
-	cfg_ext = readl(dev->regs + S5P_CIEXTEN);
-	cfg_ext &= ~S5P_CIEXTEN_MHRATIO_EXT_MASK;
-	cfg_ext &= ~S5P_CIEXTEN_MVRATIO_EXT_MASK;
-	cfg_ext |= S5P_CIEXTEN_MHRATIO_EXT(sc->main_hratio);
-	cfg_ext |= S5P_CIEXTEN_MVRATIO_EXT(sc->main_vratio);
-
-	writel(cfg_ext, dev->regs + S5P_CIEXTEN);
+		cfg &= ~(S5P_CIEXTEN_MVRATIO_EXT_MASK |
+			 S5P_CIEXTEN_MHRATIO_EXT_MASK);
+		cfg |= S5P_CIEXTEN_MHRATIO_EXT(sc->main_hratio);
+		cfg |= S5P_CIEXTEN_MVRATIO_EXT(sc->main_vratio);
+		writel(cfg, dev->regs + S5P_CIEXTEN);
+	} else {
+		cfg &= ~(S5P_CISCCTRL_MHRATIO_MASK | S5P_CISCCTRL_MVRATIO_MASK);
+		cfg |= S5P_CISCCTRL_MHRATIO(sc->main_hratio);
+		cfg |= S5P_CISCCTRL_MVRATIO(sc->main_vratio);
+		writel(cfg, dev->regs + S5P_CISCCTRL);
+	}
 }
 
 void fimc_hw_en_capture(struct fimc_ctx *ctx)

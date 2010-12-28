@@ -574,7 +574,6 @@ void fimc_hw_en_lastirq(struct fimc_dev *fimc, int enable);
 void fimc_hw_en_irq(struct fimc_dev *fimc, int enable);
 void fimc_hw_set_prescaler(struct fimc_ctx *ctx);
 void fimc_hw_set_mainscaler(struct fimc_ctx *ctx);
-void fimc_hw_set_mainscaler_ext(struct fimc_ctx *ctx);
 void fimc_hw_en_capture(struct fimc_ctx *ctx);
 void fimc_hw_set_effect(struct fimc_ctx *ctx);
 void fimc_hw_set_in_dma(struct fimc_ctx *ctx);

@@ -578,7 +578,6 @@ static void fimc_dma_run(void *priv)
 {
 	struct fimc_ctx *ctx = priv;
 	struct fimc_dev *fimc;
-	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
 	unsigned long flags;
 	u32 ret;
 
@@ -613,10 +612,7 @@ static void fimc_dma_run(void *priv)
 		}
 
 		fimc_hw_set_prescaler(ctx);
-		if (variant->has_mainscaler_ext)
-			fimc_hw_set_mainscaler_ext(ctx);
-		else
-			fimc_hw_set_mainscaler(ctx);
+		fimc_hw_set_mainscaler(ctx);
 		fimc_hw_set_target_format(ctx);
 		fimc_hw_set_rotation(ctx);
 		fimc_hw_set_effect(ctx);

@@ -237,7 +237,6 @@ static int start_streaming(struct vb2_queue *q)
 	struct fimc_ctx *ctx = q->drv_priv;
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	struct s5p_fimc_isp_info *isp_info;
-	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
 	int ret;
 
 	ret = v4l2_subdev_call(fimc->vid_cap.sd, video, s_stream, 1);
@@ -261,10 +260,7 @@ static int start_streaming(struct vb2_queue *q)
 		}
 		fimc_hw_set_input_path(ctx);
 		fimc_hw_set_prescaler(ctx);
-		if (variant->has_mainscaler_ext)
-			fimc_hw_set_mainscaler_ext(ctx);
-		else
-			fimc_hw_set_mainscaler(ctx);
+		fimc_hw_set_mainscaler(ctx);
 		fimc_hw_set_target_format(ctx);
 		fimc_hw_set_rotation(ctx);
 		fimc_hw_set_effect(ctx);
