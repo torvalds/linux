@@ -62,7 +62,7 @@ struct gspca_ctrl {
 /* device information - set at probe time */
 struct cam {
 	const struct v4l2_pix_format *cam_mode;	/* size nmodes */
-	const struct framerates *mode_framerates; /* must have size nmode,
+	const struct framerates *mode_framerates; /* must have size nmodes,
 						   * just like cam_mode */
 	struct gspca_ctrl *ctrls;	/* control table - size nctrls */
 					/* may be NULL */
