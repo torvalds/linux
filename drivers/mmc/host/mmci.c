@@ -960,11 +960,11 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 
 	amba_set_drvdata(dev, mmc);
 
-	mmc_add_host(mmc);
-
-	dev_info(&dev->dev, "%s: MMCI rev %x cfg %02x at 0x%016llx irq %d,%d\n",
-		mmc_hostname(mmc), amba_rev(dev), amba_config(dev),
+	dev_info(&dev->dev, "%s: PL%03x rev%u at 0x%08llx irq %d,%d\n",
+		mmc_hostname(mmc), amba_part(dev), amba_rev(dev),
 		(unsigned long long)dev->res.start, dev->irq[0], dev->irq[1]);
+
+	mmc_add_host(mmc);
 
 	return 0;
 
