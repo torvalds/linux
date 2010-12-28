@@ -1297,17 +1297,19 @@ static int vidioc_querycap(struct file *file, void  *priv,
 		ret = -ENODEV;
 		goto out;
 	}
-	strncpy(cap->driver, gspca_dev->sd_desc->name, sizeof cap->driver);
+	strncpy((char *) cap->driver, gspca_dev->sd_desc->name,
+			sizeof cap->driver);
 	if (gspca_dev->dev->product != NULL) {
-		strncpy(cap->card, gspca_dev->dev->product,
+		strncpy((char *) cap->card, gspca_dev->dev->product,
 			sizeof cap->card);
 	} else {
-		snprintf(cap->card, sizeof cap->card,
+		snprintf((char *) cap->card, sizeof cap->card,
 			"USB Camera (%04x:%04x)",
 			le16_to_cpu(gspca_dev->dev->descriptor.idVendor),
 			le16_to_cpu(gspca_dev->dev->descriptor.idProduct));
 	}
-	usb_make_path(gspca_dev->dev, cap->bus_info, sizeof(cap->bus_info));
+	usb_make_path(gspca_dev->dev, (char *) cap->bus_info,
+			sizeof(cap->bus_info));
 	cap->version = DRIVER_VERSION_NUMBER;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
 			  | V4L2_CAP_STREAMING
