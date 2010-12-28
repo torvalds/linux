@@ -261,7 +261,7 @@ static const __u8 page4_7311[] = {
 
 static void reg_w_buf(struct gspca_dev *gspca_dev,
 		  __u8 index,
-		  const char *buffer, int len)
+		  const u8 *buffer, int len)
 {
 	int ret;
 
