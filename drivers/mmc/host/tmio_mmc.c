@@ -53,6 +53,8 @@
 #define CTL_SD_ERROR_DETAIL_STATUS 0x2c
 #define CTL_SD_DATA_PORT 0x30
 #define CTL_TRANSACTION_CTL 0x34
+#define CTL_SDIO_STATUS 0x36
+#define CTL_SDIO_IRQ_MASK 0x38
 #define CTL_RESET_SD 0xe0
 #define CTL_SDIO_REGS 0x100
 #define CTL_CLK_AND_WAIT_CTL 0x138
@@ -80,6 +82,12 @@
 #define TMIO_STAT_ILL_FUNC      0x20000000
 #define TMIO_STAT_CMD_BUSY      0x40000000
 #define TMIO_STAT_ILL_ACCESS    0x80000000
+
+/* Definitions for values the CTRL_SDIO_STATUS register can take. */
+#define TMIO_SDIO_STAT_IOIRQ	0x0001
+#define TMIO_SDIO_STAT_EXPUB52	0x4000
+#define TMIO_SDIO_STAT_EXWT	0x8000
+#define TMIO_SDIO_MASK_ALL	0xc007
 
 /* Define some IRQ masks */
 /* This is the mask used at reset by the chip */
@@ -122,6 +130,7 @@ struct tmio_mmc_host {
 	struct mmc_data         *data;
 	struct mmc_host         *mmc;
 	int                     irq;
+	unsigned int		sdio_irq_enabled;
 
 	/* Callbacks for clock / power control */
 	void (*set_pwr)(struct platform_device *host, int state);
@@ -249,6 +258,22 @@ void pr_debug_status(u32 status)
 #define pr_debug_status(s)  do { } while (0)
 #endif
 
+static void tmio_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+
+	if (enable) {
+		host->sdio_irq_enabled = 1;
+		sd_ctrl_write16(host, CTL_TRANSACTION_CTL, 0x0001);
+		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK,
+			(TMIO_SDIO_MASK_ALL & ~TMIO_SDIO_STAT_IOIRQ));
+	} else {
+		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, TMIO_SDIO_MASK_ALL);
+		sd_ctrl_write16(host, CTL_TRANSACTION_CTL, 0x0000);
+		host->sdio_irq_enabled = 0;
+	}
+}
+
 static void tmio_mmc_set_clock(struct tmio_mmc_host *host, int new_clock)
 {
 	u32 clk = 0, clock;
@@ -268,8 +293,23 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host, int new_clock)
 
 static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 {
+	struct mfd_cell *cell = host->pdev->dev.platform_data;
+	struct tmio_mmc_data *pdata = cell->driver_data;
+
+	/*
+	 * Testing on sh-mobile showed that SDIO IRQs are unmasked when
+	 * CTL_CLK_AND_WAIT_CTL gets written, so we have to disable the
+	 * device IRQ here and restore the SDIO IRQ mask before
+	 * re-enabling the device IRQ.
+	 */
+	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
+		disable_irq(host->irq);
 	sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0000);
 	msleep(10);
+	if (pdata->flags & TMIO_MMC_SDIO_IRQ) {
+		tmio_mmc_enable_sdio_irq(host->mmc, host->sdio_irq_enabled);
+		enable_irq(host->irq);
+	}
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~0x0100 &
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
 	msleep(10);
@@ -277,11 +317,21 @@ static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 
 static void tmio_mmc_clk_start(struct tmio_mmc_host *host)
 {
+	struct mfd_cell *cell = host->pdev->dev.platform_data;
+	struct tmio_mmc_data *pdata = cell->driver_data;
+
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, 0x0100 |
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
 	msleep(10);
+	/* see comment in tmio_mmc_clk_stop above */
+	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
+		disable_irq(host->irq);
 	sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0100);
 	msleep(10);
+	if (pdata->flags & TMIO_MMC_SDIO_IRQ) {
+		tmio_mmc_enable_sdio_irq(host->mmc, host->sdio_irq_enabled);
+		enable_irq(host->irq);
+	}
 }
 
 static void reset(struct tmio_mmc_host *host)
@@ -554,13 +604,39 @@ static void tmio_mmc_cmd_irq(struct tmio_mmc_host *host,
 static irqreturn_t tmio_mmc_irq(int irq, void *devid)
 {
 	struct tmio_mmc_host *host = devid;
+	struct mfd_cell	*cell = host->pdev->dev.platform_data;
+	struct tmio_mmc_data *pdata = cell->driver_data;
 	unsigned int ireg, irq_mask, status;
+	unsigned int sdio_ireg, sdio_irq_mask, sdio_status;
 
 	pr_debug("MMC IRQ begin\n");
 
 	status = sd_ctrl_read32(host, CTL_STATUS);
 	irq_mask = sd_ctrl_read32(host, CTL_IRQ_MASK);
 	ireg = status & TMIO_MASK_IRQ & ~irq_mask;
+
+	sdio_ireg = 0;
+	if (!ireg && pdata->flags & TMIO_MMC_SDIO_IRQ) {
+		sdio_status = sd_ctrl_read16(host, CTL_SDIO_STATUS);
+		sdio_irq_mask = sd_ctrl_read16(host, CTL_SDIO_IRQ_MASK);
+		sdio_ireg = sdio_status & TMIO_SDIO_MASK_ALL & ~sdio_irq_mask;
+
+		sd_ctrl_write16(host, CTL_SDIO_STATUS, sdio_status & ~TMIO_SDIO_MASK_ALL);
+
+		if (sdio_ireg && !host->sdio_irq_enabled) {
+			pr_warning("tmio_mmc: Spurious SDIO IRQ, disabling! 0x%04x 0x%04x 0x%04x\n",
+				   sdio_status, sdio_irq_mask, sdio_ireg);
+			tmio_mmc_enable_sdio_irq(host->mmc, 0);
+			goto out;
+		}
+
+		if (host->mmc->caps & MMC_CAP_SDIO_IRQ &&
+			sdio_ireg & TMIO_SDIO_STAT_IOIRQ)
+			mmc_signal_sdio_irq(host->mmc);
+
+		if (sdio_ireg)
+			goto out;
+	}
 
 	pr_debug_status(status);
 	pr_debug_status(ireg);
@@ -1047,6 +1123,7 @@ static const struct mmc_host_ops tmio_mmc_ops = {
 	.set_ios	= tmio_mmc_set_ios,
 	.get_ro         = tmio_mmc_get_ro,
 	.get_cd		= tmio_mmc_get_cd,
+	.enable_sdio_irq = tmio_mmc_enable_sdio_irq,
 };
 
 #ifdef CONFIG_PM
@@ -1162,6 +1239,8 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 		goto cell_disable;
 
 	disable_mmc_irqs(host, TMIO_MASK_ALL);
+	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
+		tmio_mmc_enable_sdio_irq(mmc, 0);
 
 	ret = request_irq(host->irq, tmio_mmc_irq, IRQF_DISABLED |
 		IRQF_TRIGGER_FALLING, dev_name(&dev->dev), host);
