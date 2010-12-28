@@ -1086,13 +1086,8 @@ out:
 	 *
 	 *	Medium present state has changed in either direction.
 	 *	Device has indicated UNIT_ATTENTION.
-	 *
-	 * Report SDEV_EVT_MEDIA_CHANGE too for backward compatibility.
 	 */
-	if (sdp->changed)
-		sdev_evt_send_simple(sdp, SDEV_EVT_MEDIA_CHANGE, GFP_KERNEL);
 	kfree(sshdr);
-
 	retval = sdp->changed ? DISK_EVENT_MEDIA_CHANGE : 0;
 	sdp->changed = 0;
 	return retval;
