@@ -25,7 +25,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt3x2n"
-#define DRV_VERSION	"0.3.11"
+#define DRV_VERSION	"0.3.12"
 
 enum {
 	HPT_PCI_FAST	=	(1 << 31),
@@ -413,8 +413,19 @@ static int hpt3x2n_pci_clock(struct pci_dev *pdev)
 
 	fcnt = inl(iobase + 0x90);	/* Not PCI readable for some chips */
 	if ((fcnt >> 12) != 0xABCDE) {
-		printk(KERN_WARNING "hpt3xn: BIOS clock data not set.\n");
-		return 33;	/* Not BIOS set */
+		int i;
+		u16 sr;
+		u32 total = 0;
+
+		printk(KERN_WARNING "pata_hpt3x2n: BIOS clock data not set.\n");
+
+		/* This is the process the HPT371 BIOS is reported to use */
+		for (i = 0; i < 128; i++) {
+			pci_read_config_word(pdev, 0x78, &sr);
+			total += sr & 0x1FF;
+			udelay(15);
+		}
+		fcnt = total / 128;
 	}
 	fcnt &= 0x1FF;
 
