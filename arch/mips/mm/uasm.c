@@ -156,91 +156,83 @@ static struct insn insn_table[] __uasminitdata = {
 
 static inline __uasminit u32 build_rs(u32 arg)
 {
-	if (arg & ~RS_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~RS_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & RS_MASK) << RS_SH;
 }
 
 static inline __uasminit u32 build_rt(u32 arg)
 {
-	if (arg & ~RT_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~RT_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & RT_MASK) << RT_SH;
 }
 
 static inline __uasminit u32 build_rd(u32 arg)
 {
-	if (arg & ~RD_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~RD_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & RD_MASK) << RD_SH;
 }
 
 static inline __uasminit u32 build_re(u32 arg)
 {
-	if (arg & ~RE_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~RE_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & RE_MASK) << RE_SH;
 }
 
 static inline __uasminit u32 build_simm(s32 arg)
 {
-	if (arg > 0x7fff || arg < -0x8000)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg > 0x7fff || arg < -0x8000,
+	     KERN_WARNING "Micro-assembler field overflow\n");
 
 	return arg & 0xffff;
 }
 
 static inline __uasminit u32 build_uimm(u32 arg)
 {
-	if (arg & ~IMM_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~IMM_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return arg & IMM_MASK;
 }
 
 static inline __uasminit u32 build_bimm(s32 arg)
 {
-	if (arg > 0x1ffff || arg < -0x20000)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg > 0x1ffff || arg < -0x20000,
+	     KERN_WARNING "Micro-assembler field overflow\n");
 
-	if (arg & 0x3)
-		printk(KERN_WARNING "Invalid micro-assembler branch target\n");
+	WARN(arg & 0x3, KERN_WARNING "Invalid micro-assembler branch target\n");
 
 	return ((arg < 0) ? (1 << 15) : 0) | ((arg >> 2) & 0x7fff);
 }
 
 static inline __uasminit u32 build_jimm(u32 arg)
 {
-	if (arg & ~((JIMM_MASK) << 2))
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~(JIMM_MASK << 2),
+	     KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg >> 2) & JIMM_MASK;
 }
 
 static inline __uasminit u32 build_scimm(u32 arg)
 {
-	if (arg & ~SCIMM_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~SCIMM_MASK,
+	     KERN_WARNING "Micro-assembler field overflow\n");
 
 	return (arg & SCIMM_MASK) << SCIMM_SH;
 }
 
 static inline __uasminit u32 build_func(u32 arg)
 {
-	if (arg & ~FUNC_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~FUNC_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return arg & FUNC_MASK;
 }
 
 static inline __uasminit u32 build_set(u32 arg)
 {
-	if (arg & ~SET_MASK)
-		printk(KERN_WARNING "Micro-assembler field overflow\n");
+	WARN(arg & ~SET_MASK, KERN_WARNING "Micro-assembler field overflow\n");
 
 	return arg & SET_MASK;
 }
