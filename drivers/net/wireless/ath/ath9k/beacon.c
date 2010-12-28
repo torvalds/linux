@@ -566,8 +566,6 @@ static void ath_beacon_config_sta(struct ath_softc *sc,
 	 * last beacon we received (which may be none).
 	 */
 	dtimperiod = conf->dtim_period;
-	if (dtimperiod <= 0)		/* NB: 0 if not known */
-		dtimperiod = 1;
 	dtimcount = conf->dtim_count;
 	if (dtimcount >= dtimperiod)	/* NB: sanity check */
 		dtimcount = 0;
@@ -575,8 +573,6 @@ static void ath_beacon_config_sta(struct ath_softc *sc,
 	cfpcount = 0;
 
 	sleepduration = conf->listen_interval * intval;
-	if (sleepduration <= 0)
-		sleepduration = intval;
 
 	/*
 	 * Pull nexttbtt forward to reflect the current
@@ -662,8 +658,7 @@ static void ath_beacon_config_sta(struct ath_softc *sc,
 }
 
 static void ath_beacon_config_adhoc(struct ath_softc *sc,
-				    struct ath_beacon_config *conf,
-				    struct ieee80211_vif *vif)
+				    struct ath_beacon_config *conf)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -718,18 +713,17 @@ void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif)
 	/* Setup the beacon configuration parameters */
 	if (vif) {
 		struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
-
 		iftype = vif->type;
-
 		cur_conf->beacon_interval = bss_conf->beacon_int;
 		cur_conf->dtim_period = bss_conf->dtim_period;
+	} else {
+		iftype = sc->sc_ah->opmode;
+	}
+
 		cur_conf->listen_interval = 1;
 		cur_conf->dtim_count = 1;
 		cur_conf->bmiss_timeout =
 			ATH_DEFAULT_BMISS_LIMIT * cur_conf->beacon_interval;
-	} else {
-		iftype = sc->sc_ah->opmode;
-	}
 
 	/*
 	 * It looks like mac80211 may end up using beacon interval of zero in
@@ -740,13 +734,20 @@ void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif)
 	if (cur_conf->beacon_interval == 0)
 		cur_conf->beacon_interval = 100;
 
+	/*
+	 * Some times we dont parse dtim period from mac80211, in that case
+	 * use a default value
+	 */
+	if (cur_conf->dtim_period == 0)
+		cur_conf->dtim_period = 1;
+
 	switch (iftype) {
 	case NL80211_IFTYPE_AP:
 		ath_beacon_config_ap(sc, cur_conf);
 		break;
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MESH_POINT:
-		ath_beacon_config_adhoc(sc, cur_conf, vif);
+		ath_beacon_config_adhoc(sc, cur_conf);
 		break;
 	case NL80211_IFTYPE_STATION:
 		ath_beacon_config_sta(sc, cur_conf);
