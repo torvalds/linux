@@ -590,11 +590,12 @@ static int __init numa_emulation(unsigned long start_pfn,
 	 * the e820 memory map.
 	 */
 	remove_all_active_ranges();
-	for_each_node_mask(i, node_possible_map) {
+	for_each_node_mask(i, node_possible_map)
 		memblock_x86_register_active_regions(i, nodes[i].start >> PAGE_SHIFT,
 						nodes[i].end >> PAGE_SHIFT);
+	init_memory_mapping_high();
+	for_each_node_mask(i, node_possible_map)
 		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
-	}
 	acpi_fake_nodes(nodes, num_nodes);
 	numa_init_array();
 	return 0;
@@ -645,6 +646,7 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
 	for (i = 0; i < nr_cpu_ids; i++)
 		numa_set_node(i, 0);
 	memblock_x86_register_active_regions(0, start_pfn, last_pfn);
+	init_memory_mapping_high();
 	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, last_pfn << PAGE_SHIFT);
 }
 
