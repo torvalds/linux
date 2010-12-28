@@ -68,7 +68,8 @@ enum opcode {
 	insn_pref, insn_rfe, insn_sc, insn_scd, insn_sd, insn_sll,
 	insn_sra, insn_srl, insn_rotr, insn_subu, insn_sw, insn_tlbp,
 	insn_tlbr, insn_tlbwi, insn_tlbwr, insn_xor, insn_xori,
-	insn_dins, insn_dinsm, insn_syscall, insn_bbit0, insn_bbit1
+	insn_dins, insn_dinsm, insn_syscall, insn_bbit0, insn_bbit1,
+	insn_lwx, insn_ldx
 };
 
 struct insn {
@@ -146,6 +147,8 @@ static struct insn insn_table[] __uasminitdata = {
 	{ insn_syscall, M(spec_op, 0, 0, 0, 0, syscall_op), SCIMM},
 	{ insn_bbit0, M(lwc2_op, 0, 0, 0, 0, 0), RS | RT | BIMM },
 	{ insn_bbit1, M(swc2_op, 0, 0, 0, 0, 0), RS | RT | BIMM },
+	{ insn_lwx, M(spec3_op, 0, 0, 0, lwx_op, lx_op), RS | RT | RD },
+	{ insn_ldx, M(spec3_op, 0, 0, 0, ldx_op, lx_op), RS | RT | RD },
 	{ insn_invalid, 0, 0 }
 };
 
@@ -434,6 +437,8 @@ I_u2u1msb32u3(_dinsm);
 I_u1(_syscall);
 I_u1u2s3(_bbit0);
 I_u1u2s3(_bbit1);
+I_u3u1u2(_lwx)
+I_u3u1u2(_ldx)
 
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 #include <asm/octeon/octeon.h>
