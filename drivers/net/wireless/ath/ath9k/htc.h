@@ -377,7 +377,7 @@ struct ath9k_htc_priv {
 	struct ieee80211_vif *vif;
 	struct htc_beacon_config cur_beacon_conf;
 	unsigned int rxfilter;
-	struct tasklet_struct wmi_tasklet;
+	struct tasklet_struct swba_tasklet;
 	struct tasklet_struct rx_tasklet;
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 	struct ath9k_htc_rx rx;
@@ -385,6 +385,7 @@ struct ath9k_htc_priv {
 	struct sk_buff_head tx_queue;
 	struct delayed_work ath9k_ani_work;
 	struct work_struct ps_work;
+	struct work_struct fatal_work;
 
 	struct mutex htc_pm_lock;
 	unsigned long ps_usecount;
@@ -419,6 +420,8 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 	common->bus_ops->read_cachesize(common, csz);
 }
 
+void ath9k_htc_reset(struct ath9k_htc_priv *priv);
+
 void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv);
 void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif);
@@ -434,6 +437,7 @@ void ath9k_htc_beaconep(void *drv_priv, struct sk_buff *skb,
 void ath9k_htc_station_work(struct work_struct *work);
 void ath9k_htc_aggr_work(struct work_struct *work);
 void ath9k_ani_work(struct work_struct *work);;
+void ath_start_ani(struct ath9k_htc_priv *priv);
 
 int ath9k_tx_init(struct ath9k_htc_priv *priv);
 void ath9k_tx_tasklet(unsigned long data);

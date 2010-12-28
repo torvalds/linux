@@ -116,6 +116,60 @@ void ath9k_ps_work(struct work_struct *work)
 	ath9k_htc_setpower(priv, ATH9K_PM_NETWORK_SLEEP);
 }
 
+void ath9k_htc_reset(struct ath9k_htc_priv *priv)
+{
+	struct ath_hw *ah = priv->ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ieee80211_channel *channel = priv->hw->conf.channel;
+	struct ath9k_hw_cal_data *caldata;
+	enum htc_phymode mode;
+	__be16 htc_mode;
+	u8 cmd_rsp;
+	int ret;
+
+	mutex_lock(&priv->mutex);
+	ath9k_htc_ps_wakeup(priv);
+
+	if (priv->op_flags & OP_ASSOCIATED)
+		cancel_delayed_work_sync(&priv->ath9k_ani_work);
+
+	ieee80211_stop_queues(priv->hw);
+	htc_stop(priv->htc);
+	WMI_CMD(WMI_DISABLE_INTR_CMDID);
+	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
+	WMI_CMD(WMI_STOP_RECV_CMDID);
+
+	caldata = &priv->caldata[channel->hw_value];
+	ret = ath9k_hw_reset(ah, ah->curchan, caldata, false);
+	if (ret) {
+		ath_err(common,
+			"Unable to reset device (%u Mhz) reset status %d\n",
+			channel->center_freq, ret);
+	}
+
+	ath_update_txpow(priv);
+
+	WMI_CMD(WMI_START_RECV_CMDID);
+	ath9k_host_rx_init(priv);
+
+	mode = ath9k_htc_get_curmode(priv, ah->curchan);
+	htc_mode = cpu_to_be16(mode);
+	WMI_CMD_BUF(WMI_SET_MODE_CMDID, &htc_mode);
+
+	WMI_CMD(WMI_ENABLE_INTR_CMDID);
+	htc_start(priv->htc);
+
+	if (priv->op_flags & OP_ASSOCIATED) {
+		ath9k_htc_beacon_config(priv, priv->vif);
+		ath_start_ani(priv);
+	}
+
+	ieee80211_wake_queues(priv->hw);
+
+	ath9k_htc_ps_restore(priv);
+	mutex_unlock(&priv->mutex);
+}
+
 static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 				 struct ieee80211_hw *hw,
 				 struct ath9k_channel *hchan)
@@ -690,7 +744,7 @@ void ath9k_htc_debug_remove_root(void)
 /* ANI */
 /*******/
 
-static void ath_start_ani(struct ath9k_htc_priv *priv)
+void ath_start_ani(struct ath9k_htc_priv *priv)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	unsigned long timestamp = jiffies_to_msecs(jiffies);
@@ -1219,6 +1273,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	u8 cmd_rsp;
 
 	/* Cancel all the running timers/work .. */
+	cancel_work_sync(&priv->fatal_work);
 	cancel_work_sync(&priv->ps_work);
 	cancel_delayed_work_sync(&priv->ath9k_led_blink_work);
 	ath9k_led_stop_brightness(priv);
