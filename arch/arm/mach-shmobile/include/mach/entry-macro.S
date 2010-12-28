@@ -14,8 +14,21 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#if defined(CONFIG_ARM_GIC)
-#include <mach/entry-macro-gic.S>
-#else
-#include <mach/entry-macro-intc.S>
-#endif
+
+	.macro  disable_fiq
+	.endm
+
+	.macro  get_irqnr_preamble, base, tmp
+	.endm
+
+	.macro  get_irqnr_and_base, irqnr, irqstat, base, tmp
+	.endm
+
+	.macro  test_for_ipi, irqnr, irqstat, base, tmp
+	.endm
+
+	.macro  test_for_ltirq, irqnr, irqstat, base, tmp
+	.endm
+
+	.macro  arch_ret_to_user, tmp1, tmp2
+	.endm
