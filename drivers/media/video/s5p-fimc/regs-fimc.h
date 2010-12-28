@@ -139,8 +139,12 @@
 #define S5P_CISCCTRL_OUTRGB_FMT_MASK	(3 << 11)
 #define S5P_CISCCTRL_RGB_EXT		(1 << 10)
 #define S5P_CISCCTRL_ONE2ONE		(1 << 9)
-#define S5P_CISCCTRL_SC_HORRATIO(x)	((x) << 16)
-#define S5P_CISCCTRL_SC_VERRATIO(x)	((x) << 0)
+#define S5P_CISCCTRL_MHRATIO(x)		((x) << 16)
+#define S5P_CISCCTRL_MVRATIO(x)		((x) << 0)
+#define S5P_CISCCTRL_MHRATIO_MASK	(0x1ff << 16)
+#define S5P_CISCCTRL_MVRATIO_MASK	(0x1ff << 0)
+#define S5P_CISCCTRL_MHRATIO_EXT(x)	(((x) >> 6) << 16)
+#define S5P_CISCCTRL_MVRATIO_EXT(x)	(((x) >> 6) << 0)
 
 /* Target area */
 #define S5P_CITAREA			0x5c
@@ -263,6 +267,10 @@
 
 /* Real output DMA image size (extension register) */
 #define S5P_CIEXTEN			0x188
+#define S5P_CIEXTEN_MHRATIO_EXT(x)	(((x) & 0x3f) << 10)
+#define S5P_CIEXTEN_MVRATIO_EXT(x)	((x) & 0x3f)
+#define S5P_CIEXTEN_MHRATIO_EXT_MASK	(0x3f << 10)
+#define S5P_CIEXTEN_MVRATIO_EXT_MASK	0x3f
 
 #define S5P_CIDMAPARAM			0x18c
 #define S5P_CIDMAPARAM_R_LINEAR		(0 << 29)

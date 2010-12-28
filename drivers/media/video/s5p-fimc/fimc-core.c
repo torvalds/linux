@@ -248,6 +248,7 @@ int fimc_set_scaler_info(struct fimc_ctx *ctx)
 	struct fimc_scaler *sc = &ctx->scaler;
 	struct fimc_frame *s_frame = &ctx->s_frame;
 	struct fimc_frame *d_frame = &ctx->d_frame;
+	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
 	int tx, ty, sx, sy;
 	int ret;
 
@@ -286,8 +287,14 @@ int fimc_set_scaler_info(struct fimc_ctx *ctx)
 	sc->pre_dst_width = sx / sc->pre_hratio;
 	sc->pre_dst_height = sy / sc->pre_vratio;
 
-	sc->main_hratio = (sx << 8) / (tx << sc->hfactor);
-	sc->main_vratio = (sy << 8) / (ty << sc->vfactor);
+	if (variant->has_mainscaler_ext) {
+		sc->main_hratio = (sx << 14) / (tx << sc->hfactor);
+		sc->main_vratio = (sy << 14) / (ty << sc->vfactor);
+	} else {
+		sc->main_hratio = (sx << 8) / (tx << sc->hfactor);
+		sc->main_vratio = (sy << 8) / (ty << sc->vfactor);
+
+	}
 
 	sc->scaleup_h = (tx >= sx) ? 1 : 0;
 	sc->scaleup_v = (ty >= sy) ? 1 : 0;
@@ -571,6 +578,7 @@ static void fimc_dma_run(void *priv)
 {
 	struct fimc_ctx *ctx = priv;
 	struct fimc_dev *fimc;
+	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
 	unsigned long flags;
 	u32 ret;
 
@@ -603,7 +611,12 @@ static void fimc_dma_run(void *priv)
 			err("Scaler setup error");
 			goto dma_unlock;
 		}
-		fimc_hw_set_scaler(ctx);
+
+		fimc_hw_set_prescaler(ctx);
+		if (variant->has_mainscaler_ext)
+			fimc_hw_set_mainscaler_ext(ctx);
+		else
+			fimc_hw_set_mainscaler(ctx);
 		fimc_hw_set_target_format(ctx);
 		fimc_hw_set_rotation(ctx);
 		fimc_hw_set_effect(ctx);
@@ -1730,6 +1743,7 @@ static struct samsung_fimc_variant fimc1_variant_s5pv210 = {
 	.pix_hoff	 = 1,
 	.has_inp_rot	 = 1,
 	.has_out_rot	 = 1,
+	.has_mainscaler_ext = 1,
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 1,
@@ -1751,6 +1765,7 @@ static struct samsung_fimc_variant fimc0_variant_s5pv310 = {
 	.has_inp_rot	 = 1,
 	.has_out_rot	 = 1,
 	.has_cistatus2	 = 1,
+	.has_mainscaler_ext = 1,
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 1,
@@ -1761,6 +1776,7 @@ static struct samsung_fimc_variant fimc0_variant_s5pv310 = {
 static struct samsung_fimc_variant fimc2_variant_s5pv310 = {
 	.pix_hoff	 = 1,
 	.has_cistatus2	 = 1,
+	.has_mainscaler_ext = 1,
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 1,

@@ -243,7 +243,7 @@ void fimc_hw_en_lastirq(struct fimc_dev *dev, int enable)
 	writel(cfg, dev->regs + S5P_CIOCTRL);
 }
 
-static void fimc_hw_set_prescaler(struct fimc_ctx *ctx)
+void fimc_hw_set_prescaler(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev =  ctx->fimc_dev;
 	struct fimc_scaler *sc = &ctx->scaler;
@@ -261,15 +261,13 @@ static void fimc_hw_set_prescaler(struct fimc_ctx *ctx)
 	writel(cfg, dev->regs + S5P_CISCPREDST);
 }
 
-void fimc_hw_set_scaler(struct fimc_ctx *ctx)
+static void fimc_hw_set_scaler(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
 	struct fimc_scaler *sc = &ctx->scaler;
 	struct fimc_frame *src_frame = &ctx->s_frame;
 	struct fimc_frame *dst_frame = &ctx->d_frame;
 	u32 cfg = 0;
-
-	fimc_hw_set_prescaler(ctx);
 
 	if (!(ctx->flags & FIMC_COLOR_RANGE_NARROW))
 		cfg |= (S5P_CISCCTRL_CSCR2Y_WIDE | S5P_CISCCTRL_CSCY2R_WIDE);
@@ -310,13 +308,55 @@ void fimc_hw_set_scaler(struct fimc_ctx *ctx)
 			cfg |= S5P_CISCCTRL_INTERLACE;
 	}
 
+	writel(cfg, dev->regs + S5P_CISCCTRL);
+}
+
+void fimc_hw_set_mainscaler(struct fimc_ctx *ctx)
+{
+	struct fimc_dev *dev = ctx->fimc_dev;
+	struct fimc_scaler *sc = &ctx->scaler;
+	u32 cfg;
+
 	dbg("main_hratio= 0x%X  main_vratio= 0x%X",
 		sc->main_hratio, sc->main_vratio);
 
-	cfg |= S5P_CISCCTRL_SC_HORRATIO(sc->main_hratio);
-	cfg |= S5P_CISCCTRL_SC_VERRATIO(sc->main_vratio);
+	fimc_hw_set_scaler(ctx);
+
+	cfg = readl(dev->regs + S5P_CISCCTRL);
+	cfg &= ~S5P_CISCCTRL_MHRATIO_MASK;
+	cfg &= ~S5P_CISCCTRL_MVRATIO_MASK;
+	cfg |= S5P_CISCCTRL_MHRATIO(sc->main_hratio);
+	cfg |= S5P_CISCCTRL_MVRATIO(sc->main_vratio);
 
 	writel(cfg, dev->regs + S5P_CISCCTRL);
+}
+
+void fimc_hw_set_mainscaler_ext(struct fimc_ctx *ctx)
+{
+	struct fimc_dev *dev = ctx->fimc_dev;
+	struct fimc_scaler *sc = &ctx->scaler;
+	u32 cfg, cfg_ext;
+
+	dbg("main_hratio= 0x%X  main_vratio= 0x%X",
+		sc->main_hratio, sc->main_vratio);
+
+	fimc_hw_set_scaler(ctx);
+
+	cfg = readl(dev->regs + S5P_CISCCTRL);
+	cfg &= ~S5P_CISCCTRL_MHRATIO_MASK;
+	cfg &= ~S5P_CISCCTRL_MVRATIO_MASK;
+	cfg |= S5P_CISCCTRL_MHRATIO_EXT(sc->main_hratio);
+	cfg |= S5P_CISCCTRL_MVRATIO_EXT(sc->main_vratio);
+
+	writel(cfg, dev->regs + S5P_CISCCTRL);
+
+	cfg_ext = readl(dev->regs + S5P_CIEXTEN);
+	cfg_ext &= ~S5P_CIEXTEN_MHRATIO_EXT_MASK;
+	cfg_ext &= ~S5P_CIEXTEN_MVRATIO_EXT_MASK;
+	cfg_ext |= S5P_CIEXTEN_MHRATIO_EXT(sc->main_hratio);
+	cfg_ext |= S5P_CIEXTEN_MVRATIO_EXT(sc->main_vratio);
+
+	writel(cfg_ext, dev->regs + S5P_CIEXTEN);
 }
 
 void fimc_hw_en_capture(struct fimc_ctx *ctx)

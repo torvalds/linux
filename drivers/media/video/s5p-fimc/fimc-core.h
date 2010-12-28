@@ -361,6 +361,8 @@ struct fimc_pix_limit {
  * @has_inp_rot: set if has input rotator
  * @has_out_rot: set if has output rotator
  * @has_cistatus2: 1 if CISTATUS2 register is present in this IP revision
+ * @has_mainscaler_ext: 1 if extended mainscaler ratios in CIEXTEN register
+ *			 are present in this IP revision
  * @pix_limit: pixel size constraints for the scaler
  * @min_inp_pixsize: minimum input pixel size
  * @min_out_pixsize: minimum output pixel size
@@ -372,6 +374,7 @@ struct samsung_fimc_variant {
 	unsigned int	has_inp_rot:1;
 	unsigned int	has_out_rot:1;
 	unsigned int	has_cistatus2:1;
+	unsigned int	has_mainscaler_ext:1;
 	struct fimc_pix_limit *pix_limit;
 	u16		min_inp_pixsize;
 	u16		min_out_pixsize;
@@ -569,7 +572,9 @@ void fimc_hw_set_target_format(struct fimc_ctx *ctx);
 void fimc_hw_set_out_dma(struct fimc_ctx *ctx);
 void fimc_hw_en_lastirq(struct fimc_dev *fimc, int enable);
 void fimc_hw_en_irq(struct fimc_dev *fimc, int enable);
-void fimc_hw_set_scaler(struct fimc_ctx *ctx);
+void fimc_hw_set_prescaler(struct fimc_ctx *ctx);
+void fimc_hw_set_mainscaler(struct fimc_ctx *ctx);
+void fimc_hw_set_mainscaler_ext(struct fimc_ctx *ctx);
 void fimc_hw_en_capture(struct fimc_ctx *ctx);
 void fimc_hw_set_effect(struct fimc_ctx *ctx);
 void fimc_hw_set_in_dma(struct fimc_ctx *ctx);
