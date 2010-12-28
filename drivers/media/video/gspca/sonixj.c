@@ -2533,7 +2533,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		init = om6802_sensor_param1;
 		if (!mode) {			/* if 640x480 */
 			reg17 &= ~MCK_SIZE_MASK;
-			reg17 |= 0x01;		/* clock / 4 */
+			reg17 |= 0x04;		/* clock / 4 */
 		}
 		break;
 	case SENSOR_OV7630:
