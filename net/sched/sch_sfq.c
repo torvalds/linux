@@ -67,7 +67,7 @@
 
 	IMPLEMENTATION:
 	This implementation limits maximal queue length to 128;
-	maximal mtu to 2^15-1; max 128 flows, number of hash buckets to 1024.
+	max mtu to 2^18-1; max 128 flows, number of hash buckets to 1024.
 	The only goal of this restrictions was that all data
 	fit into one 4K page on 32bit arches.
 
@@ -77,6 +77,11 @@
 #define SFQ_SLOTS		128 /* max number of flows */
 #define SFQ_EMPTY_SLOT		255
 #define SFQ_HASH_DIVISOR	1024
+/* We use 16 bits to store allot, and want to handle packets up to 64K
+ * Scale allot by 8 (1<<3) so that no overflow occurs.
+ */
+#define SFQ_ALLOT_SHIFT		3
+#define SFQ_ALLOT_SIZE(X)	DIV_ROUND_UP(X, 1 << SFQ_ALLOT_SHIFT)
 
 /* This type should contain at least SFQ_DEPTH + SFQ_SLOTS values */
 typedef unsigned char sfq_index;
@@ -115,7 +120,7 @@ struct sfq_sched_data
 	struct timer_list perturb_timer;
 	u32		perturbation;
 	sfq_index	cur_depth;	/* depth of longest slot */
-
+	unsigned short  scaled_quantum; /* SFQ_ALLOT_SIZE(quantum) */
 	struct sfq_slot *tail;		/* current slot in round */
 	sfq_index	ht[SFQ_HASH_DIVISOR];	/* Hash table */
 	struct sfq_slot	slots[SFQ_SLOTS];
@@ -395,7 +400,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 			q->tail->next = x;
 		}
 		q->tail = slot;
-		slot->allot = q->quantum;
+		slot->allot = q->scaled_quantum;
 	}
 	if (++sch->q.qlen <= q->limit) {
 		sch->bstats.bytes += qdisc_pkt_len(skb);
@@ -431,8 +436,14 @@ sfq_dequeue(struct Qdisc *sch)
 	if (q->tail == NULL)
 		return NULL;
 
+next_slot:
 	a = q->tail->next;
 	slot = &q->slots[a];
+	if (slot->allot <= 0) {
+		q->tail = slot;
+		slot->allot += q->scaled_quantum;
+		goto next_slot;
+	}
 	skb = slot_dequeue_head(slot);
 	sfq_dec(q, a);
 	sch->q.qlen--;
@@ -447,9 +458,8 @@ sfq_dequeue(struct Qdisc *sch)
 			return skb;
 		}
 		q->tail->next = next_a;
-	} else if ((slot->allot -= qdisc_pkt_len(skb)) <= 0) {
-		q->tail = slot;
-		slot->allot += q->quantum;
+	} else {
+		slot->allot -= SFQ_ALLOT_SIZE(qdisc_pkt_len(skb));
 	}
 	return skb;
 }
@@ -485,6 +495,7 @@ static int sfq_change(struct Qdisc *sch, struct nlattr *opt)
 
 	sch_tree_lock(sch);
 	q->quantum = ctl->quantum ? : psched_mtu(qdisc_dev(sch));
+	q->scaled_quantum = SFQ_ALLOT_SIZE(q->quantum);
 	q->perturb_period = ctl->perturb_period * HZ;
 	if (ctl->limit)
 		q->limit = min_t(u32, ctl->limit, SFQ_DEPTH - 1);
@@ -525,6 +536,7 @@ static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->tail = NULL;
 	if (opt == NULL) {
 		q->quantum = psched_mtu(qdisc_dev(sch));
+		q->scaled_quantum = SFQ_ALLOT_SIZE(q->quantum);
 		q->perturb_period = 0;
 		q->perturbation = net_random();
 	} else {
@@ -617,7 +629,7 @@ static int sfq_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 	if (idx != SFQ_EMPTY_SLOT) {
 		const struct sfq_slot *slot = &q->slots[idx];
 
-		xstats.allot = slot->allot;
+		xstats.allot = slot->allot << SFQ_ALLOT_SHIFT;
 		qs.qlen = slot->qlen;
 		slot_queue_walk(slot, skb)
 			qs.backlog += qdisc_pkt_len(skb);
