@@ -293,8 +293,30 @@ static void __init init_gbpages(void)
 	else
 		direct_gbpages = 0;
 }
+
+static void __init cleanup_highmap_brk_end(void)
+{
+	pud_t *pud;
+	pmd_t *pmd;
+
+	mmu_cr4_features = read_cr4();
+
+	/*
+	 * _brk_end cannot change anymore, but it and _end may be
+	 * located on different 2M pages. cleanup_highmap(), however,
+	 * can only consider _end when it runs, so destroy any
+	 * mappings beyond _brk_end here.
+	 */
+	pud = pud_offset(pgd_offset_k(_brk_end), _brk_end);
+	pmd = pmd_offset(pud, _brk_end - 1);
+	while (++pmd <= pmd_offset(pud, (unsigned long)_end - 1))
+		pmd_clear(pmd);
+}
 #else
 static inline void init_gbpages(void)
+{
+}
+static inline void cleanup_highmap_brk_end(void)
 {
 }
 #endif
@@ -307,6 +329,8 @@ static void __init reserve_brk(void)
 	/* Mark brk area as locked down and no longer taking any
 	   new allocations */
 	_brk_start = 0;
+
+	cleanup_highmap_brk_end();
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
