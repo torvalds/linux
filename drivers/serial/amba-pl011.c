@@ -76,6 +76,7 @@ struct uart_amba_port {
 	unsigned int		lcrh_rx;	/* vendor-specific */
 	bool			oversampling;   /* vendor-specific */
 	bool			autorts;
+	char			type[12];
 };
 
 /* There is by now at least one vendor with differing details, so handle it */
@@ -622,7 +623,8 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 
 static const char *pl011_type(struct uart_port *port)
 {
-	return port->type == PORT_AMBA ? "AMBA/PL011" : NULL;
+	struct uart_amba_port *uap = (struct uart_amba_port *)port;
+	return uap->port.type == PORT_AMBA ? uap->type : NULL;
 }
 
 /*
@@ -871,6 +873,8 @@ static int pl011_probe(struct amba_device *dev, struct amba_id *id)
 	uap->port.ops = &amba_pl011_pops;
 	uap->port.flags = UPF_BOOT_AUTOCONF;
 	uap->port.line = i;
+
+	snprintf(uap->type, sizeof(uap->type), "PL011 rev%u", amba_rev(dev));
 
 	amba_ports[i] = uap;
 
