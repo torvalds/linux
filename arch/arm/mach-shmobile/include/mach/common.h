@@ -6,6 +6,7 @@ extern void shmobile_setup_console(void);
 struct clk;
 extern int clk_init(void);
 extern void shmobile_handle_irq_intc(struct pt_regs *);
+extern void shmobile_handle_irq_gic(struct pt_regs *);
 
 extern void sh7367_init_irq(void);
 extern void sh7367_add_early_devices(void);

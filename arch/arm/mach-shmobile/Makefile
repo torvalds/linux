@@ -22,6 +22,7 @@ pfc-$(CONFIG_ARCH_SH73A0)	+= pfc-sh73a0.o
 obj-$(CONFIG_ARCH_SH7367)	+= entry-intc.o
 obj-$(CONFIG_ARCH_SH7377)	+= entry-intc.o
 obj-$(CONFIG_ARCH_SH7372)	+= entry-intc.o
+obj-$(CONFIG_ARCH_SH73A0)	+= entry-gic.o
 
 # Board objects
 obj-$(CONFIG_MACH_G3EVM)	+= board-g3evm.o
