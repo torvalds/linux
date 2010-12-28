@@ -114,7 +114,6 @@ static const char *supply_names[] = {
 struct cs4270_private {
 	enum snd_soc_control_type control_type;
 	void *control_data;
-	u8 reg_cache[CS4270_NUMREGS];
 	unsigned int mclk; /* Input frequency of the MCLK pin */
 	unsigned int mode; /* The mode (I2S or left-justified) */
 	unsigned int slave_mode;

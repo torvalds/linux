@@ -42,7 +42,6 @@
 
 struct wm8940_priv {
 	unsigned int sysclk;
-	u16 reg_cache[WM8940_CACHEREGNUM];
 	enum snd_soc_control_type control_type;
 	void *control_data;
 };

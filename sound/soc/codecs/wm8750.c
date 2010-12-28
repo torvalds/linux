@@ -52,7 +52,6 @@ static const u16 wm8750_reg[] = {
 struct wm8750_priv {
 	unsigned int sysclk;
 	enum snd_soc_control_type control_type;
-	u16 reg_cache[ARRAY_SIZE(wm8750_reg)];
 };
 
 #define wm8750_reset(c)	snd_soc_write(c, WM8750_RESET, 0)

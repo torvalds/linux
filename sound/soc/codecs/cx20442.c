@@ -26,7 +26,6 @@
 struct cx20442_priv {
 	enum snd_soc_control_type control_type;
 	void *control_data;
-	u8 reg_cache[1];
 };
 
 #define CX20442_PM		0x0

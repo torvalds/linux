@@ -53,7 +53,6 @@ struct wm8988_priv {
 	unsigned int sysclk;
 	enum snd_soc_control_type control_type;
 	struct snd_pcm_hw_constraint_list *sysclk_constraints;
-	u16 reg_cache[WM8988_NUM_REG];
 };
 
 

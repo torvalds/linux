@@ -33,7 +33,6 @@
 /* codec private data */
 struct wm8711_priv {
 	enum snd_soc_control_type bus_type;
-	u16 reg_cache[WM8711_CACHEREGNUM];
 	unsigned int sysclk;
 };
 

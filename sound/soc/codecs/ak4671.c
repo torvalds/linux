@@ -27,7 +27,6 @@
 struct ak4671_priv {
 	enum snd_soc_control_type control_type;
 	void *control_data;
-	u8 reg_cache[AK4671_CACHEREGNUM];
 };
 
 /* ak4671 register cache & default register settings */

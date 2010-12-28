@@ -46,7 +46,6 @@ struct cs42l51_private {
 	unsigned int mclk;
 	unsigned int audio_mode;	/* The mode (I2S or left-justified) */
 	enum master_slave_mode func;
-	u8 reg_cache[CS42L51_NUMREGS];
 };
 
 #define CS42L51_FORMATS ( \

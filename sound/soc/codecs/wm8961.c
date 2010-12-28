@@ -289,7 +289,6 @@ static u16 wm8961_reg_defaults[] = {
 struct wm8961_priv {
 	enum snd_soc_control_type control_type;
 	int sysclk;
-	u16 reg_cache[WM8961_MAX_REGISTER];
 };
 
 static int wm8961_volatile_register(unsigned int reg)

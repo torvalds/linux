@@ -214,8 +214,6 @@ static u16 wm8903_reg_defaults[] = {
 
 struct wm8903_priv {
 
-	u16 reg_cache[ARRAY_SIZE(wm8903_reg_defaults)];
-
 	int sysclk;
 	int irq;
 

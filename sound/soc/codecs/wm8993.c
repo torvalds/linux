@@ -225,7 +225,6 @@ static struct {
 
 struct wm8993_priv {
 	struct wm_hubs_data hubs_data;
-	u16 reg_cache[WM8993_REGISTER_COUNT];
 	struct regulator_bulk_data supplies[WM8993_NUM_SUPPLIES];
 	struct wm8993_platform_data pdata;
 	enum snd_soc_control_type control_type;

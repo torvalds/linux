@@ -71,7 +71,6 @@ static const u16 wm8960_reg[WM8960_CACHEREGNUM] = {
 };
 
 struct wm8960_priv {
-	u16 reg_cache[WM8960_CACHEREGNUM];
 	enum snd_soc_control_type control_type;
 	void *control_data;
 	int (*set_bias_level)(struct snd_soc_codec *,

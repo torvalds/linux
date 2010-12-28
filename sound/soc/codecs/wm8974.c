@@ -51,7 +51,6 @@ static const u16 wm8974_reg[WM8974_CACHEREGNUM] = {
 
 struct wm8974_priv {
 	enum snd_soc_control_type control_type;
-	u16 reg_cache[WM8974_CACHEREGNUM];
 };
 
 #define wm8974_reset(c)	snd_soc_write(c, WM8974_RESET, 0)

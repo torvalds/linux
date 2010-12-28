@@ -139,7 +139,6 @@
 
 struct wm8900_priv {
 	enum snd_soc_control_type control_type;
-	u16 reg_cache[WM8900_MAXREG];
 
 	u32 fll_in; /* FLL input frequency */
 	u32 fll_out; /* FLL output frequency */

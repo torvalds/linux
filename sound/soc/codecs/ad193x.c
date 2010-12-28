@@ -23,7 +23,6 @@
 
 /* codec private data */
 struct ad193x_priv {
-	u8 reg_cache[AD193X_NUM_REGS];
 	enum snd_soc_control_type bus_type;
 	void *control_data;
 	int sysclk;

@@ -190,7 +190,6 @@ static const char *wm8580_supply_names[WM8580_NUM_SUPPLIES] = {
 struct wm8580_priv {
 	enum snd_soc_control_type control_type;
 	struct regulator_bulk_data supplies[WM8580_NUM_SUPPLIES];
-	u16 reg_cache[WM8580_MAX_REGISTER + 1];
 	struct pll_state a;
 	struct pll_state b;
 	int sysclk[2];

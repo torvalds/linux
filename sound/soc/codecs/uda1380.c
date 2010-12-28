@@ -35,7 +35,6 @@
 /* codec private data */
 struct uda1380_priv {
 	struct snd_soc_codec *codec;
-	u16 reg_cache[UDA1380_CACHEREGNUM];
 	unsigned int dac_clk;
 	struct work_struct work;
 	void *control_data;

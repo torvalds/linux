@@ -43,7 +43,6 @@ static const char *wm8731_supply_names[WM8731_NUM_SUPPLIES] = {
 struct wm8731_priv {
 	enum snd_soc_control_type control_type;
 	struct regulator_bulk_data supplies[WM8731_NUM_SUPPLIES];
-	u16 reg_cache[WM8731_CACHEREGNUM];
 	unsigned int sysclk;
 	int sysclk_type;
 	int playback_fs;

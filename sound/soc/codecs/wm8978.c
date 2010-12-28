@@ -59,7 +59,6 @@ struct wm8978_priv {
 	unsigned int f_opclk;
 	int mclk_idx;
 	enum wm8978_sysclk_src sysclk;
-	u16 reg_cache[WM8978_CACHEREGNUM];
 };
 
 static const char *wm8978_companding[] = {"Off", "NC", "u-law", "A-law"};
