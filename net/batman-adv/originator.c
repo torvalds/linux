@@ -247,7 +247,7 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 				      orig_node->hna_buff_len);
 			/* update bonding candidates, we could have lost
 			 * some candidates. */
-			update_bonding_candidates(bat_priv, orig_node);
+			update_bonding_candidates(orig_node);
 		}
 	}
 
