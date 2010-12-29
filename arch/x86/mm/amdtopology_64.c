@@ -67,7 +67,6 @@ static __init void early_get_boot_cpu_id(void)
 	if (smp_found_config)
 		early_get_smp_config();
 #endif
-	early_init_lapic_mapping();
 }
 
 int __init amd_numa_init(unsigned long start_pfn, unsigned long end_pfn)
