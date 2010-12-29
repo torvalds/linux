@@ -1941,7 +1941,7 @@ static int __init rk29fb_probe (struct platform_device *pdev)
     __raw_writel(0x7, RK29_DDRC_BASE+0x208);
     __raw_writel(0x7, RK29_DDRC_BASE+0x20c);
     __raw_writel(0x7, RK29_DDRC_BASE+0x210);
-    __raw_writel(0x1e007eff, RK29_DDRC_BASE+0x280);
+    __raw_writel(0x10007eff, RK29_DDRC_BASE+0x280);
     __raw_writel(0x1e007eff, RK29_DDRC_BASE+0x284);
     __raw_writel(0x1e007eff, RK29_DDRC_BASE+0x288);
     __raw_writel(0x1e007eff, RK29_DDRC_BASE+0x28c);
