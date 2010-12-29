@@ -150,8 +150,7 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 {
 	void __iomem *base = mipi->base;
 	struct sh_mobile_lcdc_chan_cfg *ch = pdata->lcd_chan;
-	u32 pctype, datatype, pixfmt;
-	u32 linelength;
+	u32 pctype, datatype, pixfmt, linelength, vmctr2 = 0x00e00000;
 	bool yuv;
 
 	/*
@@ -308,17 +307,24 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	 */
 	iowrite32(0x00000006, mipi->linkbase + DTCTR);
 	/* VSYNC width = 2 (<< 17) */
-	iowrite32(0x00040000 | (pctype << 12) | datatype,
+	iowrite32((ch->lcd_cfg[0].vsync_len << pdata->vsynw_offset) |
+		  (pdata->clksrc << 16) | (pctype << 12) | datatype,
 		  mipi->linkbase + VMCTR1);
+
 	/*
 	 * Non-burst mode with sync pulses: VSE and HSE are output,
 	 * HSA period allowed, no commands in LP
 	 */
-	iowrite32(0x00e00000, mipi->linkbase + VMCTR2);
+	if (pdata->flags & SH_MIPI_DSI_HSABM)
+		vmctr2 |= 0x20;
+	if (pdata->flags & SH_MIPI_DSI_HSPBM)
+		vmctr2 |= 0x10;
+	iowrite32(vmctr2, mipi->linkbase + VMCTR2);
+
 	/*
 	 * 0x660 = 1632 bytes per line (RGB24, 544 pixels: see
 	 * sh_mobile_lcdc_info.ch[0].lcd_cfg[0].xres), HSALEN = 1 - default
-	 * (unused, since VMCTR2[HSABM] = 0)
+	 * (unused if VMCTR2[HSABM] = 0)
 	 */
 	iowrite32(1 | (linelength << 16), mipi->linkbase + VMLEN1);
 
