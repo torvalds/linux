@@ -437,7 +437,9 @@ void fimc_hw_set_in_dma(struct fimc_ctx *ctx)
 		| S5P_MSCTRL_C_INT_IN_MASK
 		| S5P_MSCTRL_2P_IN_ORDER_MASK);
 
-	cfg |= S5P_MSCTRL_IN_BURST_COUNT(4) | S5P_MSCTRL_INPUT_MEMORY;
+	cfg |= (S5P_MSCTRL_IN_BURST_COUNT(4)
+		| S5P_MSCTRL_INPUT_MEMORY
+		| S5P_MSCTRL_FIFO_CTRL_FULL);
 
 	switch (frame->fmt->color) {
 	case S5P_FIMC_RGB565...S5P_FIMC_RGB888:
