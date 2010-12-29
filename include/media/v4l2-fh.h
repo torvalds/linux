@@ -35,6 +35,7 @@ struct v4l2_fh {
 	struct list_head	list;
 	struct video_device	*vdev;
 	struct v4l2_events      *events; /* events, pending and subscribed */
+	enum v4l2_priority	prio;
 };
 
 /*
