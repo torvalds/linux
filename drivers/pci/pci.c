@@ -1308,8 +1308,8 @@ bool pci_check_pme_status(struct pci_dev *dev)
 static int pci_pme_wakeup(struct pci_dev *dev, void *ign)
 {
 	if (pci_check_pme_status(dev)) {
-		pm_request_resume(&dev->dev);
 		pci_wakeup_event(dev);
+		pm_request_resume(&dev->dev);
 	}
 	return 0;
 }
