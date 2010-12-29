@@ -184,7 +184,6 @@ static inline void sh_mmcif_bitclr(struct sh_mmcif_host *host,
 	writel(~val & readl(host->addr + reg), host->addr + reg);
 }
 
-#ifdef CONFIG_SH_MMCIF_DMA
 static void mmcif_dma_complete(void *arg)
 {
 	struct sh_mmcif_host *host = arg;
@@ -367,25 +366,6 @@ static void sh_mmcif_release_dma(struct sh_mmcif_host *host)
 
 	host->dma_sglen = 0;
 }
-#else
-static void sh_mmcif_start_dma_tx(struct sh_mmcif_host *host)
-{
-}
-
-static void sh_mmcif_start_dma_rx(struct sh_mmcif_host *host)
-{
-}
-
-static void sh_mmcif_request_dma(struct sh_mmcif_host *host,
-				 struct sh_mmcif_plat_data *pdata)
-{
-	/* host->chan_tx, host->chan_tx and host->dma_sglen are all zero */
-}
-
-static void sh_mmcif_release_dma(struct sh_mmcif_host *host)
-{
-}
-#endif
 
 static void sh_mmcif_clock_control(struct sh_mmcif_host *host, unsigned int clk)
 {
