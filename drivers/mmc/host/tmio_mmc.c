@@ -727,8 +727,10 @@ static irqreturn_t tmio_mmc_irq(int irq, void *devid)
  */
 
 		/* Command completion */
-		if (ireg & TMIO_MASK_CMD) {
-			ack_mmc_irqs(host, TMIO_MASK_CMD);
+		if (ireg & (TMIO_STAT_CMDRESPEND | TMIO_STAT_CMDTIMEOUT)) {
+			ack_mmc_irqs(host,
+				     TMIO_STAT_CMDRESPEND |
+				     TMIO_STAT_CMDTIMEOUT);
 			tmio_mmc_cmd_irq(host, status);
 		}
 
