@@ -44,6 +44,11 @@
 #ifdef CONFIG_PM
 #include <linux/pm.h>
 #endif
+#ifdef CONFIG_HDMI
+#include <linux/completion.h>
+
+#include <linux/hdmi.h>
+#endif
 
 #include <mach/iomux.h>
 #include <mach/gpio.h>
@@ -1320,7 +1325,9 @@ static int fb1_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
     u16 xlcd = screen->x_res;        //size of panel
     u16 ylcd = screen->y_res;
     u16 yres = 0;
-
+#ifdef CONFIG_HDMI
+	struct hdmi *hdmi = get_hdmi_struct(0);
+#endif
     xpos = (xpos * screen->x_res) / inf->panel1_info.x_res;
     ypos = (ypos * screen->y_res) / inf->panel1_info.y_res;
     xsize = (xsize * screen->x_res) / inf->panel1_info.x_res;
@@ -1411,7 +1418,19 @@ static int fb1_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
     {
         return -EINVAL;        // multiple of scale down or scale up can't exceed 8
     }
-
+#ifdef CONFIG_HDMI
+	if(inf->video_mode == 1) {
+		if(hdmi_resolution_changed(hdmi,var->xres,var->yres, 1) == 1)
+		{
+			LcdMskReg(inf, DSP_CTRL1, m_BLACK_MODE,  v_BLACK_MODE(1));
+    		LcdWrReg(inf, REG_CFG_DONE, 0x01);
+			init_completion(&hdmi->complete);
+			hdmi->wait = 1;
+			wait_for_completion_interruptible_timeout(&hdmi->complete,
+								msecs_to_jiffies(10000));
+		}
+	}
+#endif
     return 0;
 }
 

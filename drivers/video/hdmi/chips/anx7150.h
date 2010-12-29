@@ -32,15 +32,6 @@
 /* HDMI HDCP ENABLE */
 #define ANX7150_HDCP_EN  HDMI_DISABLE
 
-/* HDMI default resolution */
-#define HDMI_DEFAULT_RESOLUTION HDMI_1280x720p_50Hz
-/* I2S Fs */
-#define HDMI_I2S_Fs_44100 0
-#define HDMI_I2S_Fs_48000 2
-
-/* I2S default sample rate */
-#define HDMI_I2S_DEFAULT_Fs HDMI_I2S_Fs_44100
-
 /* ANX7150 state machine */
 enum{
 	HDMI_INITIAL = 1,

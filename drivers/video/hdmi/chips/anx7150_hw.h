@@ -1260,6 +1260,7 @@ int ANX7150_GET_RECIVER_TYPE(void);
 void  HDMI_Set_Video_Format(u8 video_format);
 void  HDMI_Set_Audio_Fs( u8 audio_fs);
 int ANX7150_PLAYBACK_Process(void);
+int ANX7150_Blue_Screen(struct anx7150_pdata *anx);
 
 
 #endif

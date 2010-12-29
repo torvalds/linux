@@ -133,6 +133,7 @@ static void __exit hdmi_class_exit(void)
 EXPORT_SYMBOL(hdmi_changed);
 EXPORT_SYMBOL(hdmi_register);
 EXPORT_SYMBOL(hdmi_unregister);
+EXPORT_SYMBOL(get_hdmi_struct);
 
 subsys_initcall(hdmi_class_init);
 module_exit(hdmi_class_exit);

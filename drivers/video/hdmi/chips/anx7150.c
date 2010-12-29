@@ -35,10 +35,9 @@ int anx7150_i2c_write_p1_reg(struct i2c_client *client, char reg, char *val)
 static int rk29_hdmi_enter(struct anx7150_dev_s *dev)
 {
 	if(dev->rk29_output_status == RK29_OUTPUT_STATUS_LCD) {
-		printk("%s, resolution = %d\n", __func__, dev->resolution_set);
-		if(hdmi_switch_fb(dev->resolution_set, 1) < 0)
-			return -1;
 		dev->hdmi->resolution = dev->resolution_set;
+		if(hdmi_switch_fb(dev->hdmi, 1) < 0)
+			return -1;
 		dev->rk29_output_status = RK29_OUTPUT_STATUS_HDMI;
 	}
 	return 0;
@@ -46,8 +45,8 @@ static int rk29_hdmi_enter(struct anx7150_dev_s *dev)
 static int rk29_hdmi_exit(struct anx7150_dev_s *dev)
 {
 	if(dev->rk29_output_status == RK29_OUTPUT_STATUS_HDMI) {
-		printk("%s\n", __func__);
-		if(hdmi_switch_fb(dev->resolution_set, 0) < 0)
+		dev->hdmi->resolution = dev->resolution_set;
+		if(hdmi_switch_fb(dev->hdmi, 0) < 0)
 			return -1;
 		dev->rk29_output_status = RK29_OUTPUT_STATUS_LCD;
 	}
@@ -142,6 +141,7 @@ void anx7150_task(struct anx7150_pdata *anx)
 			rk29_hdmi_exit(&anx->dev);
 		if(anx->dev.HPD_status){
 			anx7150_plug(anx->client);
+			hdmi_changed(anx->dev.hdmi, 1);
 			state = READ_PARSE_EDID;
 		}
 		if(anx->dev.hdmi_auto_switch)
@@ -344,13 +344,14 @@ static int anx7150_i2c_probe(struct i2c_client *client,const struct i2c_device_i
 	anx->dev.HPD_change_cnt = 0;
 	anx->dev.rk29_output_status = RK29_OUTPUT_STATUS_LCD;
 	anx->dev.hdcp_enable = ANX7150_HDCP_EN;
+	anx->dev.rate = 100;
 
 	anx->init = 1;
 
 	anx->dev.workqueue = create_singlethread_workqueue("ANX7150_WORKQUEUE");
 	INIT_DELAYED_WORK(&anx->dev.delay_work, anx7150_work_func);
 	
-	hdmi->display_on = 0;
+	hdmi->display_on = anx->dev.hdmi_enable;
 	hdmi->auto_switch = anx->dev.hdmi_auto_switch;
 	hdmi->hdcp_on = anx->dev.hdcp_enable;
 	hdmi->audio_fs = anx->dev.i2s_Fs;

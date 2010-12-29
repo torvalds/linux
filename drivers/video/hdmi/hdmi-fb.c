@@ -1,6 +1,7 @@
 #include <linux/console.h>
 #include <linux/fb.h>
 #include <linux/hdmi.h>
+#include <linux/completion.h>
 
 #include "../display/screen/screen.h"
 #include "../rk29_fb.h"
@@ -222,14 +223,14 @@ static void hdmi_set_info(struct rk29fb_screen *screen)
 	screen4->standby = anx7150_standby;
 }
 
-int hdmi_switch_fb(int resolution, int type)
+int hdmi_switch_fb(struct hdmi *hdmi, int type)
 {
 	int rc = 0;
 	struct rk29fb_screen hdmi_info[4];
 
 	hdmi_set_info(&hdmi_info[0]);
 
-	switch(resolution)
+	switch(hdmi->resolution)
 	{
 		case HDMI_1280x720p_50Hz:
 			rc = FB_Switch_Screen(&hdmi_info[1], type);
@@ -247,23 +248,37 @@ int hdmi_switch_fb(int resolution, int type)
 			rc = FB_Switch_Screen(&hdmi_info[1], type);
 			break;		
 	}
+	if(hdmi->wait == 1) {
+		complete(&hdmi->complete);
+		hdmi->wait = 0;
+	}
 	return rc;
 }
-int hdmi_resolution_changed(struct hdmi *hdmi, int xres, int yres)
+int hdmi_resolution_changed(struct hdmi *hdmi, int xres, int yres, int video_on)
 {
-	if(xres > 1280 && hdmi->resolution != HDMI_1920x1080p_50Hz) {
+	int ret = 0;
+	if(hdmi->display_on == 0|| hdmi->plug == 0)
+		return ret;
+	if(xres > 1280 && hdmi->resolution != HDMI_1920x1080p_50Hz) 
+	{
 		hdmi->resolution = HDMI_1920x1080p_50Hz;
 		hdmi->display_on = 1;
 		hdmi->hdmi_set_param(hdmi);
+		ret = 1;
 	}
-	else if(xres >1024 && hdmi->resolution != HDMI_1280x720p_50Hz){
+	
+
+	else if(xres >1024 && xres <= 1280 && hdmi->resolution != HDMI_1280x720p_50Hz){
 		hdmi->resolution = HDMI_1280x720p_50Hz;
 		hdmi->display_on = 1;
 		hdmi->hdmi_set_param(hdmi);
+		ret = 1;
 	}
+	/*
 	else {
 		if(hdmi->display_on == 1)
 			hdmi->hdmi_display_off(hdmi);
-	}
-	return 0;
+	}*/
+	return ret;
 }
+EXPORT_SYMBOL(hdmi_resolution_changed);

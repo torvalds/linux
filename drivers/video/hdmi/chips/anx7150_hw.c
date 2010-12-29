@@ -191,7 +191,7 @@ void ANX7150_Set_System_State(struct i2c_client *client, u8 new_state)
 			hdmi_dbg(&client->dev, "SYSTEM_CONFIG\n");
 			break;
         case CONFIG_VIDEO:
-            hdmi_dbg(&client->dev, "CONFIG_VIDEO\n");
+            dev_info(&client->dev, "CONFIG_VIDEO\n");
             break;
         case CONFIG_AUDIO:
             hdmi_dbg(&client->dev, "CONFIG_AUDIO\n");
@@ -209,7 +209,7 @@ void ANX7150_Set_System_State(struct i2c_client *client, u8 new_state)
             break;
             ////////////////////////////////////////////////
         case PLAY_BACK:
-            hdmi_dbg(&client->dev, "PLAY_BACK\n");
+            dev_info(&client->dev, "PLAY_BACK\n");
             break;
 		default:
 			hdmi_dbg(&client->dev, "unknown state\n");
@@ -498,7 +498,7 @@ int anx7150_unplug(struct i2c_client *client)
 {
 	int rc = 0;
 	char c;
-	hdmi_dbg(&client->dev, "anx7150 unplug\n");
+	dev_info(&client->dev, "anx7150 unplug\n");
 	
     //wen HDCP CTS
     ANX7150_Variable_Initial();   //simon
@@ -528,7 +528,7 @@ int anx7150_plug(struct i2c_client *client)
 	int rc = 0;
 	char c;
 
-	hdmi_dbg(&client->dev, "anx7150 plug\n");
+	dev_info(&client->dev, "anx7150 plug\n");
 
 	rc = anx7150_i2c_read_p0_reg(client, ANX7150_SYS_CTRL3_REG, &c);
 	c |= (0x01);
@@ -1051,7 +1051,7 @@ int ANX7150_Interrupt_Process(struct anx7150_pdata *anx, int cur_state)
 		anx->dev.HPD_change_cnt = 0;
 	}
 
-	if(anx->dev.HPD_change_cnt > 2){
+	if(anx->dev.HPD_change_cnt > 1){
 		hdmi_dbg(&anx->client->dev, "hotplug_change\n");
 
 		if(hot_plug == HDMI_RECIVER_UNPLUG){
@@ -2401,6 +2401,10 @@ static int anx7150_embed_sync_decode(struct i2c_client *client)
 	rc = anx7150_i2c_write_p0_reg(client, ANX7150_HSYNC_ACT_WIDTHH_REG, &c);
 	return rc;
 }
+int ANX7150_Blue_Screen(struct anx7150_pdata *anx)
+{
+	return anx7150_blue_screen_format_config(anx->client);
+}
 //******************************Video Config***************************************
 int ANX7150_Config_Video(struct i2c_client *client)
 {
@@ -2787,8 +2791,8 @@ int ANX7150_Config_Video(struct i2c_client *client)
     rc = anx7150_i2c_read_p0_reg(client, ANX7150_VID_CTRL_REG, &c);
 	c |= (ANX7150_VID_CTRL_IN_EN);
 	rc = anx7150_i2c_write_p0_reg(client, ANX7150_VID_CTRL_REG, &c);
-	msleep(200);
     //D("Video configure OK!\n");
+    msleep(60);
 	rc = anx7150_i2c_read_p0_reg(client, ANX7150_VID_STATUS_REG, &c);
     if (!(c & ANX7150_VID_STATUS_VID_STABLE))
     {
@@ -2836,8 +2840,8 @@ int ANX7150_Config_Video(struct i2c_client *client)
 	rc = anx7150_i2c_read_p0_reg(client, ANX7150_TMDS_CLKCH_CONFIG_REG, &c);
 	c |= (ANX7150_TMDS_CLKCH_MUTE);
 	rc = anx7150_i2c_write_p0_reg(client, ANX7150_TMDS_CLKCH_CONFIG_REG, &c);
-
-    msleep(400);  //400ms only for HDCP CTS
+	if(ANX7150_HDCP_enable)
+    	msleep(400);  //400ms only for HDCP CTS
 
     //ANX7150_i2c_read_p0_reg(ANX7150_VID_MODE_REG, &c);  //zy 061110
     return 0;
