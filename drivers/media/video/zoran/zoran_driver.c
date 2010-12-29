@@ -2449,11 +2449,6 @@ static int zoran_enum_input(struct file *file, void *__fh,
 
 	if (inp->index >= zr->card.inputs)
 		return -EINVAL;
-	else {
-		int id = inp->index;
-		memset(inp, 0, sizeof(*inp));
-		inp->index = id;
-	}
 
 	strncpy(inp->name, zr->card.input[inp->index].name,
 		sizeof(inp->name) - 1);
@@ -2503,7 +2498,6 @@ static int zoran_enum_output(struct file *file, void *__fh,
 	if (outp->index != 0)
 		return -EINVAL;
 
-	memset(outp, 0, sizeof(*outp));
 	outp->index = 0;
 	outp->type = V4L2_OUTPUT_TYPE_ANALOGVGAOVERLAY;
 	strncpy(outp->name, "Autodetect", sizeof(outp->name)-1);

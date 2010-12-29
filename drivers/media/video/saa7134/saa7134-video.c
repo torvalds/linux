@@ -1748,7 +1748,6 @@ static int saa7134_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 	if (NULL == card_in(dev, i->index).name)
 		return -EINVAL;
-	memset(i, 0, sizeof(*i));
 	i->index = n;
 	i->type  = V4L2_INPUT_TYPE_CAMERA;
 	strcpy(i->name, card_in(dev, n).name);

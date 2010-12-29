@@ -369,7 +369,6 @@ static int timblogiw_enuminput(struct file *file, void  *priv,
 	if (inp->index != 0)
 		return -EINVAL;
 
-	memset(inp, 0, sizeof(*inp));
 	inp->index = 0;
 
 	strncpy(inp->name, "Timb input 1", sizeof(inp->name) - 1);

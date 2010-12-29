@@ -1272,8 +1272,6 @@ int cx25821_enum_input(struct cx25821_dev *dev, struct v4l2_input *i)
 	if (0 == INPUT(n)->type)
 		return -EINVAL;
 
-	memset(i, 0, sizeof(*i));
-	i->index = n;
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 	strcpy(i->name, iname[INPUT(n)->type]);
 

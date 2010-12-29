@@ -1313,7 +1313,6 @@ int ivtv_get_input(struct ivtv *itv, u16 index, struct v4l2_input *input)
 		"Composite 3"
 	};
 
-	memset(input, 0, sizeof(*input));
 	if (index >= itv->nof_inputs)
 		return -EINVAL;
 	input->index = index;
@@ -1331,7 +1330,6 @@ int ivtv_get_output(struct ivtv *itv, u16 index, struct v4l2_output *output)
 {
 	const struct ivtv_card_output *card_output = itv->card->video_outputs + index;
 
-	memset(output, 0, sizeof(*output));
 	if (index >= itv->card->nof_outputs)
 		return -EINVAL;
 	output->index = index;

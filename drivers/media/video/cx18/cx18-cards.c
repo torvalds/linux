@@ -546,7 +546,6 @@ int cx18_get_input(struct cx18 *cx, u16 index, struct v4l2_input *input)
 		"Component 1"
 	};
 
-	memset(input, 0, sizeof(*input));
 	if (index >= cx->nof_inputs)
 		return -EINVAL;
 	input->index = index;
