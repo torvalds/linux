@@ -611,7 +611,7 @@ struct fimc_fmt *find_format(struct v4l2_format *f, unsigned int mask);
 struct fimc_fmt *find_mbus_format(struct v4l2_mbus_framefmt *f,
 				  unsigned int mask);
 
-int fimc_check_scaler_ratio(struct v4l2_rect *r, struct fimc_frame *f);
+int fimc_check_scaler_ratio(int sw, int sh, int dw, int dh, int rot);
 int fimc_set_scaler_info(struct fimc_ctx *ctx);
 int fimc_prepare_config(struct fimc_ctx *ctx, u32 flags);
 int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,

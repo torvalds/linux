@@ -200,23 +200,20 @@ static struct v4l2_queryctrl *get_ctrl(int id)
 	return NULL;
 }
 
-int fimc_check_scaler_ratio(struct v4l2_rect *r, struct fimc_frame *f)
+int fimc_check_scaler_ratio(int sw, int sh, int dw, int dh, int rot)
 {
-	if (r->width > f->width) {
-		if (f->width > (r->width * SCALER_MAX_HRATIO))
-			return -EINVAL;
+	int tx, ty;
+
+	if (rot == 90 || rot == 270) {
+		ty = dw;
+		tx = dh;
 	} else {
-		if ((f->width * SCALER_MAX_HRATIO) < r->width)
-			return -EINVAL;
+		tx = dw;
+		ty = dh;
 	}
 
-	if (r->height > f->height) {
-		if (f->height > (r->height * SCALER_MAX_VRATIO))
-			return -EINVAL;
-	} else {
-		if ((f->height * SCALER_MAX_VRATIO) < r->height)
-			return -EINVAL;
-	}
+	if ((sw >= SCALER_MAX_HRATIO * tx) || (sh >= SCALER_MAX_VRATIO * ty))
+		return -EINVAL;
 
 	return 0;
 }
@@ -1065,6 +1062,7 @@ int fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_control *ctrl)
 	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	unsigned long flags;
+	int ret = 0;
 
 	spin_lock_irqsave(&ctx->slock, flags);
 
@@ -1084,6 +1082,20 @@ int fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_control *ctrl)
 		break;
 
 	case V4L2_CID_ROTATE:
+		if (!(~ctx->state & (FIMC_DST_FMT | FIMC_SRC_FMT))) {
+			ret = fimc_check_scaler_ratio(ctx->s_frame.width,
+						      ctx->s_frame.height,
+						      ctx->d_frame.width,
+						      ctx->d_frame.height,
+						      ctrl->value);
+			if (ret) {
+				v4l2_err(&fimc->m2m.v4l2_dev,
+					 "Out of scaler range");
+				spin_unlock_irqrestore(&ctx->slock, flags);
+				return -EINVAL;
+			}
+		}
+
 		/* Check for the output rotator availability */
 		if ((ctrl->value == 90 || ctrl->value == 270) &&
 		    (ctx->in_path == FIMC_DMA && !variant->has_out_rot)) {
@@ -1232,18 +1244,27 @@ static int fimc_m2m_s_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 		&ctx->s_frame : &ctx->d_frame;
 
 	spin_lock_irqsave(&ctx->slock, flags);
-	if (~ctx->state & (FIMC_SRC_FMT | FIMC_DST_FMT)) {
-		/* Check to see if scaling ratio is within supported range */
-		if (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
-			ret = fimc_check_scaler_ratio(&cr->c, &ctx->d_frame);
-		else
-			ret = fimc_check_scaler_ratio(&cr->c, &ctx->s_frame);
+	/* Check to see if scaling ratio is within supported range */
+	if (!(~ctx->state & (FIMC_DST_FMT | FIMC_SRC_FMT))) {
+		if (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+			ret = fimc_check_scaler_ratio(cr->c.width, cr->c.height,
+						      ctx->d_frame.width,
+						      ctx->d_frame.height,
+						      ctx->rotation);
+		} else {
+			ret = fimc_check_scaler_ratio(ctx->s_frame.width,
+						      ctx->s_frame.height,
+						      cr->c.width, cr->c.height,
+						      ctx->rotation);
+		}
+
 		if (ret) {
 			v4l2_err(&fimc->m2m.v4l2_dev, "Out of scaler range");
 			spin_unlock_irqrestore(&ctx->slock, flags);
 			return -EINVAL;
 		}
 	}
+
 	ctx->state |= FIMC_PARAMS;
 
 	f->offs_h = cr->c.left;

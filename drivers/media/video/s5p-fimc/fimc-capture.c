@@ -787,7 +787,9 @@ static int fimc_cap_s_crop(struct file *file, void *fh,
 
 	f = &ctx->s_frame;
 	/* Check for the pixel scaling ratio when cropping input image. */
-	ret = fimc_check_scaler_ratio(&cr->c, &ctx->d_frame);
+	ret = fimc_check_scaler_ratio(cr->c.width, cr->c.height,
+				      ctx->d_frame.width, ctx->d_frame.height,
+				      ctx->rotation);
 	if (ret) {
 		v4l2_err(&fimc->vid_cap.v4l2_dev, "Out of the scaler range");
 		return ret;
