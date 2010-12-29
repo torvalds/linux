@@ -962,10 +962,17 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 
 	/* Sanity checks */
 	if (id == 0 || name == NULL || id >= V4L2_CID_PRIVATE_BASE ||
-	    def < min || def > max || max < min ||
+	    max < min ||
 	    (type == V4L2_CTRL_TYPE_INTEGER && step == 0) ||
 	    (type == V4L2_CTRL_TYPE_MENU && qmenu == NULL) ||
 	    (type == V4L2_CTRL_TYPE_STRING && max == 0)) {
+		handler_set_err(hdl, -ERANGE);
+		return NULL;
+	}
+	if ((type == V4L2_CTRL_TYPE_INTEGER ||
+	     type == V4L2_CTRL_TYPE_MENU ||
+	     type == V4L2_CTRL_TYPE_BOOLEAN) &&
+	    (def < min || def > max)) {
 		handler_set_err(hdl, -ERANGE);
 		return NULL;
 	}
