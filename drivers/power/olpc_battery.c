@@ -331,7 +331,7 @@ static int olpc_bat_get_property(struct power_supply *psy,
 	return ret;
 }
 
-static enum power_supply_property olpc_bat_props[] = {
+static enum power_supply_property olpc_xo1_bat_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_PRESENT,
@@ -343,6 +343,23 @@ static enum power_supply_property olpc_bat_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_TEMP_AMBIENT,
+	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_SERIAL_NUMBER,
+	POWER_SUPPLY_PROP_CHARGE_COUNTER,
+};
+
+/* XO-1.5 does not have ambient temperature property */
+static enum power_supply_property olpc_xo15_bat_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_CHARGE_TYPE,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_VOLTAGE_AVG,
+	POWER_SUPPLY_PROP_CURRENT_AVG,
+	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
+	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
@@ -419,8 +436,6 @@ static struct device_attribute olpc_bat_error = {
 static struct platform_device *bat_pdev;
 
 static struct power_supply olpc_bat = {
-	.properties = olpc_bat_props,
-	.num_properties = ARRAY_SIZE(olpc_bat_props),
 	.get_property = olpc_bat_get_property,
 	.use_for_apm = 1,
 };
@@ -466,6 +481,13 @@ static int __init olpc_bat_init(void)
 		goto ac_failed;
 
 	olpc_bat.name = bat_pdev->name;
+	if (olpc_board_at_least(olpc_board_pre(0xd0))) { /* XO-1.5 */
+		olpc_bat.properties = olpc_xo15_bat_props;
+		olpc_bat.num_properties = ARRAY_SIZE(olpc_xo15_bat_props);
+	} else { /* XO-1 */
+		olpc_bat.properties = olpc_xo1_bat_props;
+		olpc_bat.num_properties = ARRAY_SIZE(olpc_xo1_bat_props);
+	}
 
 	ret = power_supply_register(&bat_pdev->dev, &olpc_bat);
 	if (ret)
