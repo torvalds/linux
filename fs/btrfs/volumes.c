@@ -22,6 +22,7 @@
 #include <linux/blkdev.h>
 #include <linux/random.h>
 #include <linux/iocontext.h>
+#include <linux/capability.h>
 #include <asm/div64.h>
 #include "compat.h"
 #include "ctree.h"
@@ -2023,6 +2024,9 @@ int btrfs_balance(struct btrfs_root *dev_root)
 
 	if (dev_root->fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	mutex_lock(&dev_root->fs_info->volume_mutex);
 	dev_root = dev_root->fs_info->dev_root;
