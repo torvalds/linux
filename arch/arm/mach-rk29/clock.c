@@ -85,6 +85,7 @@
 #define cru_writel_force(v, offset)	do { u32 _v = v; u32 _count = 5; do { cru_writel(_v, offset); } while (cru_readl(offset) != _v && _count--); } while (0)	/* huangtao: when write CRU_xPLL_CON, first time may failed, so try again. unknown why. */
 
 #define regfile_readl(offset)	readl(RK29_GRF_BASE + offset)
+#define pmu_readl(offset)	readl(RK29_PMU_BASE + offset)
 
 #define MHZ			(1000*1000)
 #define KHZ			1000
@@ -2298,7 +2299,6 @@ void __init rk29_clock_init(void)
 	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz\n",
 	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, general_pll_clk.rate / MHZ, clk_core.rate / MHZ,
 	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
-
 }
 
 #ifdef CONFIG_PROC_FS
@@ -2393,6 +2393,16 @@ static int proc_clk_show(struct seq_file *s, void *v)
 	seq_printf(s, "CLKGATE1 : 0x%08x\n", cru_readl(CRU_CLKGATE1_CON));
 	seq_printf(s, "CLKGATE2 : 0x%08x\n", cru_readl(CRU_CLKGATE2_CON));
 	seq_printf(s, "CLKGATE3 : 0x%08x\n", cru_readl(CRU_CLKGATE3_CON));
+
+	seq_printf(s, "\nPMU Registers:\n");
+	seq_printf(s, "WAKEUP_EN0 : 0x%08x\n", pmu_readl(PMU_WAKEUP_EN0));
+	seq_printf(s, "WAKEUP_EN1 : 0x%08x\n", pmu_readl(PMU_WAKEUP_EN1));
+	seq_printf(s, "WAKEUP_EN2 : 0x%08x\n", pmu_readl(PMU_WAKEUP_EN2));
+	seq_printf(s, "PD_CON     : 0x%08x\n", pmu_readl(PMU_PD_CON));
+	seq_printf(s, "MISC_CON   : 0x%08x\n", pmu_readl(PMU_MISC_CON));
+	seq_printf(s, "PLL_CNT    : 0x%08x\n", pmu_readl(PMU_PLL_CNT));
+	seq_printf(s, "PD_ST      : 0x%08x\n", pmu_readl(PMU_PD_ST));
+	seq_printf(s, "INT_ST     : 0x%08x\n", pmu_readl(PMU_INT_ST));
 
 	return 0;
 }
