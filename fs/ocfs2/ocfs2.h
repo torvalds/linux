@@ -147,6 +147,17 @@ struct ocfs2_lock_res_ops;
 
 typedef void (*ocfs2_lock_callback)(int status, unsigned long data);
 
+#ifdef CONFIG_OCFS2_FS_STATS
+struct ocfs2_lock_stats {
+	u64		ls_total;	/* Total wait in NSEC */
+	u32		ls_gets;	/* Num acquires */
+	u32		ls_fail;	/* Num failed acquires */
+
+	/* Storing max wait in usecs saves 24 bytes per inode */
+	u32		ls_max;		/* Max wait in USEC */
+};
+#endif
+
 struct ocfs2_lock_res {
 	void                    *l_priv;
 	struct ocfs2_lock_res_ops *l_ops;
@@ -182,15 +193,9 @@ struct ocfs2_lock_res {
 	struct list_head         l_debug_list;
 
 #ifdef CONFIG_OCFS2_FS_STATS
-	unsigned long long	 l_lock_num_prmode; 	   /* PR acquires */
-	unsigned long long 	 l_lock_num_exmode; 	   /* EX acquires */
-	unsigned int		 l_lock_num_prmode_failed; /* Failed PR gets */
-	unsigned int		 l_lock_num_exmode_failed; /* Failed EX gets */
-	unsigned long long	 l_lock_total_prmode; 	   /* Tot wait for PR */
-	unsigned long long	 l_lock_total_exmode; 	   /* Tot wait for EX */
-	unsigned int		 l_lock_max_prmode; 	   /* Max wait for PR */
-	unsigned int		 l_lock_max_exmode; 	   /* Max wait for EX */
-	unsigned int		 l_lock_refresh;	   /* Disk refreshes */
+	struct ocfs2_lock_stats  l_lock_prmode;		/* PR mode stats */
+	u32                      l_lock_refresh;	/* Disk refreshes */
+	struct ocfs2_lock_stats  l_lock_exmode;		/* EX mode stats */
 #endif
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	 l_lockdep_map;

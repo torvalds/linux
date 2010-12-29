@@ -64,7 +64,7 @@ struct ocfs2_mask_waiter {
 	unsigned long		mw_mask;
 	unsigned long		mw_goal;
 #ifdef CONFIG_OCFS2_FS_STATS
-	unsigned long long 	mw_lock_start;
+	ktime_t			mw_lock_start;
 #endif
 };
 
@@ -435,44 +435,41 @@ static void ocfs2_remove_lockres_tracking(struct ocfs2_lock_res *res)
 #ifdef CONFIG_OCFS2_FS_STATS
 static void ocfs2_init_lock_stats(struct ocfs2_lock_res *res)
 {
-	res->l_lock_num_prmode = 0;
-	res->l_lock_num_prmode_failed = 0;
-	res->l_lock_total_prmode = 0;
-	res->l_lock_max_prmode = 0;
-	res->l_lock_num_exmode = 0;
-	res->l_lock_num_exmode_failed = 0;
-	res->l_lock_total_exmode = 0;
-	res->l_lock_max_exmode = 0;
 	res->l_lock_refresh = 0;
+	memset(&res->l_lock_prmode, 0, sizeof(struct ocfs2_lock_stats));
+	memset(&res->l_lock_exmode, 0, sizeof(struct ocfs2_lock_stats));
 }
 
 static void ocfs2_update_lock_stats(struct ocfs2_lock_res *res, int level,
 				    struct ocfs2_mask_waiter *mw, int ret)
 {
-	unsigned long long *num, *sum;
-	unsigned int *max, *failed;
-	struct timespec ts = current_kernel_time();
-	unsigned long long time = timespec_to_ns(&ts) - mw->mw_lock_start;
+	u32 usec;
+	ktime_t kt;
+	struct ocfs2_lock_stats *stats;
 
-	if (level == LKM_PRMODE) {
-		num = &res->l_lock_num_prmode;
-		sum = &res->l_lock_total_prmode;
-		max = &res->l_lock_max_prmode;
-		failed = &res->l_lock_num_prmode_failed;
-	} else if (level == LKM_EXMODE) {
-		num = &res->l_lock_num_exmode;
-		sum = &res->l_lock_total_exmode;
-		max = &res->l_lock_max_exmode;
-		failed = &res->l_lock_num_exmode_failed;
-	} else
+	if (level == LKM_PRMODE)
+		stats = &res->l_lock_prmode;
+	else if (level == LKM_EXMODE)
+		stats = &res->l_lock_exmode;
+	else
 		return;
 
-	(*num)++;
-	(*sum) += time;
-	if (time > *max)
-		*max = time;
+	kt = ktime_sub(ktime_get(), mw->mw_lock_start);
+	usec = ktime_to_us(kt);
+
+	stats->ls_gets++;
+	stats->ls_total += ktime_to_ns(kt);
+	/* overflow */
+	if (unlikely(stats->ls_gets) == 0) {
+		stats->ls_gets++;
+		stats->ls_total = ktime_to_ns(kt);
+	}
+
+	if (stats->ls_max < usec)
+		stats->ls_max = usec;
+
 	if (ret)
-		(*failed)++;
+		stats->ls_fail++;
 }
 
 static inline void ocfs2_track_lock_refresh(struct ocfs2_lock_res *lockres)
@@ -482,8 +479,7 @@ static inline void ocfs2_track_lock_refresh(struct ocfs2_lock_res *lockres)
 
 static inline void ocfs2_init_start_time(struct ocfs2_mask_waiter *mw)
 {
-	struct timespec ts = current_kernel_time();
-	mw->mw_lock_start = timespec_to_ns(&ts);
+	mw->mw_lock_start = ktime_get();
 }
 #else
 static inline void ocfs2_init_lock_stats(struct ocfs2_lock_res *res)
@@ -2869,8 +2865,15 @@ static void *ocfs2_dlm_seq_next(struct seq_file *m, void *v, loff_t *pos)
 	return iter;
 }
 
-/* So that debugfs.ocfs2 can determine which format is being used */
-#define OCFS2_DLM_DEBUG_STR_VERSION 2
+/*
+ * Version is used by debugfs.ocfs2 to determine the format being used
+ *
+ * New in version 2
+ *	- Lock stats printed
+ * New in version 3
+ *	- Max time in lock stats is in usecs (instead of nsecs)
+ */
+#define OCFS2_DLM_DEBUG_STR_VERSION 3
 static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 {
 	int i;
@@ -2912,18 +2915,18 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 		seq_printf(m, "0x%x\t", lvb[i]);
 
 #ifdef CONFIG_OCFS2_FS_STATS
-# define lock_num_prmode(_l)		(_l)->l_lock_num_prmode
-# define lock_num_exmode(_l)		(_l)->l_lock_num_exmode
-# define lock_num_prmode_failed(_l)	(_l)->l_lock_num_prmode_failed
-# define lock_num_exmode_failed(_l)	(_l)->l_lock_num_exmode_failed
-# define lock_total_prmode(_l)		(_l)->l_lock_total_prmode
-# define lock_total_exmode(_l)		(_l)->l_lock_total_exmode
-# define lock_max_prmode(_l)		(_l)->l_lock_max_prmode
-# define lock_max_exmode(_l)		(_l)->l_lock_max_exmode
-# define lock_refresh(_l)		(_l)->l_lock_refresh
+# define lock_num_prmode(_l)		((_l)->l_lock_prmode.ls_gets)
+# define lock_num_exmode(_l)		((_l)->l_lock_exmode.ls_gets)
+# define lock_num_prmode_failed(_l)	((_l)->l_lock_prmode.ls_fail)
+# define lock_num_exmode_failed(_l)	((_l)->l_lock_exmode.ls_fail)
+# define lock_total_prmode(_l)		((_l)->l_lock_prmode.ls_total)
+# define lock_total_exmode(_l)		((_l)->l_lock_exmode.ls_total)
+# define lock_max_prmode(_l)		((_l)->l_lock_prmode.ls_max)
+# define lock_max_exmode(_l)		((_l)->l_lock_exmode.ls_max)
+# define lock_refresh(_l)		((_l)->l_lock_refresh)
 #else
-# define lock_num_prmode(_l)		(0ULL)
-# define lock_num_exmode(_l)		(0ULL)
+# define lock_num_prmode(_l)		(0)
+# define lock_num_exmode(_l)		(0)
 # define lock_num_prmode_failed(_l)	(0)
 # define lock_num_exmode_failed(_l)	(0)
 # define lock_total_prmode(_l)		(0ULL)
@@ -2933,8 +2936,8 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 # define lock_refresh(_l)		(0)
 #endif
 	/* The following seq_print was added in version 2 of this output */
-	seq_printf(m, "%llu\t"
-		   "%llu\t"
+	seq_printf(m, "%u\t"
+		   "%u\t"
 		   "%u\t"
 		   "%u\t"
 		   "%llu\t"
