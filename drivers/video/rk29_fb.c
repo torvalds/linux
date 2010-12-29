@@ -918,7 +918,8 @@ static int win0_set_par(struct fb_info *info)
     LcdWrReg(inf, WIN0_YRGB_MST, y_addr);
     LcdWrReg(inf, WIN0_CBR_MST, uv_addr);
 
-    LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE | m_W0_FORMAT, v_W0_ENABLE(par->addr_seted) | v_W0_FORMAT(par->format));
+    LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE | m_W0_FORMAT | m_W0_AXI_OUTSTANDING2,
+                    v_W0_ENABLE(par->addr_seted) | v_W0_FORMAT(par->format) | v_W0_AXI_OUTSTANDING2(inf->video_mode==0));
 
     LcdMskReg(inf, WIN0_VIR, m_WORDLO | m_WORDHI, v_VIRWIDTH(xvir) | v_VIRHEIGHT((yvir)) );
     LcdMskReg(inf, WIN0_ACT_INFO, m_WORDLO | m_WORDHI, v_WORDLO(xact) | v_WORDHI(yact));
