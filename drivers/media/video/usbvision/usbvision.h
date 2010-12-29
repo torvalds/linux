@@ -139,7 +139,7 @@
 #define MAX_USB_HEIGHT			240  /* 288 */
 #define MAX_FRAME_HEIGHT		240  /* 288 */			/* Streching sometimes causes crashes*/
 
-#define MAX_FRAME_SIZE     		(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * MAX_BYTES_PER_PIXEL)
+#define MAX_FRAME_SIZE			(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * MAX_BYTES_PER_PIXEL)
 #define USBVISION_CLIPMASK_SIZE		(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT / 8) /* bytesize of clipmask */
 
 #define USBVISION_URB_FRAMES		32
@@ -148,7 +148,7 @@
 #define USBVISION_NUMFRAMES		3  /* Maximum number of frames an application can get */
 #define USBVISION_NUMSBUF		2 /* Dimensioning the USB S buffering */
 
-#define USBVISION_POWEROFF_TIME		3 * (HZ)		/* 3 seconds */
+#define USBVISION_POWEROFF_TIME		(3 * HZ)		/* 3 seconds */
 
 
 #define FRAMERATE_MIN	0
@@ -161,7 +161,8 @@ enum {
 };
 
 /* This macro restricts an int variable to an inclusive range */
-#define RESTRICT_TO_RANGE(v,mi,ma) { if ((v) < (mi)) (v) = (mi); else if ((v) > (ma)) (v) = (ma); }
+#define RESTRICT_TO_RANGE(v, mi, ma) \
+	{ if ((v) < (mi)) (v) = (mi); else if ((v) > (ma)) (v) = (ma); }
 
 /*
  * We use macros to do YUV -> RGB conversion because this is
@@ -183,18 +184,18 @@ enum {
  * Make sure the output values are within [0..255] range.
  */
 #define LIMIT_RGB(x) (((x) < 0) ? 0 : (((x) > 255) ? 255 : (x)))
-#define YUV_TO_RGB_BY_THE_BOOK(my,mu,mv,mr,mg,mb) { \
-    int mm_y, mm_yc, mm_u, mm_v, mm_r, mm_g, mm_b; \
-    mm_y = (my) - 16;  \
-    mm_u = (mu) - 128; \
-    mm_v = (mv) - 128; \
-    mm_yc= mm_y * 76284; \
-    mm_b = (mm_yc		+ 132252*mm_v	) >> 16; \
-    mm_g = (mm_yc -  53281*mm_u -  25625*mm_v	) >> 16; \
-    mm_r = (mm_yc + 104595*mm_u			) >> 16; \
-    mb = LIMIT_RGB(mm_b); \
-    mg = LIMIT_RGB(mm_g); \
-    mr = LIMIT_RGB(mm_r); \
+#define YUV_TO_RGB_BY_THE_BOOK(my, mu, mv, mr, mg, mb) { \
+	int mm_y, mm_yc, mm_u, mm_v, mm_r, mm_g, mm_b; \
+	mm_y = (my) - 16; \
+	mm_u = (mu) - 128; \
+	mm_v = (mv) - 128; \
+	mm_yc = mm_y * 76284; \
+	mm_b = (mm_yc + 132252 * mm_v) >> 16; \
+	mm_g = (mm_yc - 53281 * mm_u - 25625 * mm_v) >> 16; \
+	mm_r = (mm_yc + 104595 * mm_u) >> 16; \
+	mb = LIMIT_RGB(mm_b); \
+	mg = LIMIT_RGB(mm_g); \
+	mr = LIMIT_RGB(mm_r); \
 }
 
 /* Debugging aid */
@@ -202,7 +203,7 @@ enum {
 	wait_queue_head_t wq; \
 	init_waitqueue_head(&wq); \
 	printk(KERN_INFO "Say: %s\n", what); \
-	interruptible_sleep_on_timeout (&wq, HZ*3); \
+	interruptible_sleep_on_timeout(&wq, HZ * 3); \
 }
 
 /*
@@ -265,8 +266,8 @@ struct usbvision_sbuf {
 	struct urb *urb;
 };
 
-#define USBVISION_MAGIC_1      			0x55
-#define USBVISION_MAGIC_2      			0xAA
+#define USBVISION_MAGIC_1			0x55
+#define USBVISION_MAGIC_2			0xAA
 #define USBVISION_HEADER_LENGTH			0x0c
 #define USBVISION_SAA7111_ADDR			0x48
 #define USBVISION_SAA7113_ADDR			0x4a
@@ -358,8 +359,8 @@ extern struct usb_device_id usbvision_table[];
 
 struct usb_usbvision {
 	struct v4l2_device v4l2_dev;
-	struct video_device *vdev;         				/* Video Device */
-	struct video_device *rdev;               			/* Radio Device */
+	struct video_device *vdev;					/* Video Device */
+	struct video_device *rdev;					/* Radio Device */
 
 	/* i2c Declaration Section*/
 	struct i2c_adapter i2c_adap;
@@ -401,7 +402,7 @@ struct usb_usbvision {
 	enum stream_state streaming;					/* Are we streaming Isochronous? */
 	int last_error;							/* What calamity struck us? */
 	int curwidth;							/* width of the frame the device is currently set to*/
-	int curheight;      						/* height of the frame the device is currently set to*/
+	int curheight;							/* height of the frame the device is currently set to*/
 	int stretch_width;						/* stretch-factor for frame width (from usb to screen)*/
 	int stretch_height;						/* stretch-factor for frame height (from usb to screen)*/
 	char *fbuf;							/* Videodev buffer area for mmap*/
@@ -434,7 +435,7 @@ struct usb_usbvision {
 
 	/* Decompression stuff: */
 	unsigned char *intra_frame_buffer;				/* Buffer for reference frame */
-	int block_pos; 							/* for test only */
+	int block_pos;							/* for test only */
 	int request_intra;						/* 0 = normal; 1 = intra frame is requested; */
 	int last_isoc_frame_num;					/* check for lost isoc frames */
 	int isoc_packet_size;						/* need to calculate used_bandwidth */
@@ -494,7 +495,7 @@ void usbvision_scratch_free(struct usb_usbvision *usbvision);
 int usbvision_decompress_alloc(struct usb_usbvision *usbvision);
 void usbvision_decompress_free(struct usb_usbvision *usbvision);
 
-int usbvision_setup(struct usb_usbvision *usbvision,int format);
+int usbvision_setup(struct usb_usbvision *usbvision, int format);
 int usbvision_init_isoc(struct usb_usbvision *usbvision);
 int usbvision_restart_isoc(struct usb_usbvision *usbvision);
 void usbvision_stop_isoc(struct usb_usbvision *usbvision);
