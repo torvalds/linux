@@ -449,6 +449,7 @@ static const struct i2c_device_id ir_kbd_id[] = {
 	{ "ir_video", 0 },
 	/* IR device specific entries should be added here */
 	{ "ir_rx_z8f0811_haup", 0 },
+	{ "ir_rx_z8f0811_hdpvr", 0 },
 	{ }
 };
 
