@@ -1191,8 +1191,15 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 			else
 				ret = chip->ecc.read_page(mtd, chip, bufpoi,
 							  page);
+#ifdef CONFIG_MTD_NAND_RK29
+            extern int rk29_nand_refresh(struct mtd_info *mtd, int srcAddr);
+		    if(ret == -1)
+		        ret=rk29_nand_refresh(mtd, page<<chip->page_shift);
+#endif              
 			if (ret < 0)
+			{
 				break;
+			}
 
 			/* Transfer not aligned data */
 			if (!aligned) {

@@ -1004,6 +1004,10 @@ int nand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	if (md)
 		mark_bbt_region(mtd, md);
 
+#ifdef CONFIG_MTD_NAND_RK29
+    extern void mark_reserve_region(struct mtd_info *mtd,struct nand_bbt_descr *td,struct nand_bbt_descr *md);
+    mark_reserve_region(mtd, td, md);
+#endif    
 	vfree(buf);
 	return res;
 }

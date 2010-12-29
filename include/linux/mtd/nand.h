@@ -36,6 +36,9 @@ extern void nand_release (struct mtd_info *mtd);
 /* Internal helper for board drivers which need to override command function */
 extern void nand_wait_ready(struct mtd_info *mtd);
 
+#ifdef CONFIG_MTD_NAND_RK29
+#define RK29_RESERVE_BLOCK_NUM    5
+#endif
 /* The maximum number of NAND chips in an array */
 #define NAND_MAX_CHIPS		8
 

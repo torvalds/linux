@@ -41,7 +41,13 @@
 
 /* Define delays in microsec for NAND device operations */
 #define TROP_US_DELAY   2000
+#define NAND_FLAG_WRITE 1
 
+#if 1
+#define FLASH_DEBUG(x...) do{printk(x);}while(0)
+#else
+#define FLASH_DEBUG(s,x...)
+#endif
 
 #ifdef CONFIG_DM9000_USE_NAND_CONTROL
 static DEFINE_MUTEX(rknand_mutex);
@@ -69,6 +75,8 @@ struct rk29_nand_mtd {
 #endif
 
 };
+static int read_in_refresh = 0;
+static int gbRefresh = 0;
 
 /* OOB placement block for use with software ecc generation */
 static struct nand_ecclayout nand_sw_eccoob_8 = {
@@ -169,7 +177,397 @@ static int rk29_nand_dev_ready(struct mtd_info *mtd)
 	else
 	   return 0;
 }
+void mark_reserve_region(struct mtd_info *mtd,struct nand_bbt_descr *td,struct nand_bbt_descr *md)
+{
+    int i, block, nrblocks, tdblock, update = 0;
+    struct nand_chip *this = mtd->priv;
+    uint8_t oldval, newval;
 
+    tdblock = (td->maxblocks >= md->maxblocks)?td->maxblocks:md->maxblocks;
+    nrblocks = (int)(mtd->size >> this->bbt_erase_shift);
+    block = nrblocks - tdblock - RK29_RESERVE_BLOCK_NUM;
+    block <<= 1;
+
+    for(i=0; i<RK29_RESERVE_BLOCK_NUM; i++) {
+            oldval = this->bbt[(block>>3)];
+            newval = oldval|(0x2 << (block & 0x06));
+            this->bbt[(block>>3)] = newval;
+            if (oldval != newval)
+                update = 1;
+            block += 2;
+        }
+  
+    if(update&&td->reserved_block_code)
+    {
+        printk("mark_reserve_region need update!\n");
+        nand_update_bbt(mtd, (loff_t)(block - 2) <<
+                (this->bbt_erase_shift - 1));
+    }
+}
+
+EXPORT_SYMBOL_GPL(mark_reserve_region);
+
+static int rk29_nand_erase(struct mtd_info *mtd, int srcAddr)
+{
+    struct nand_chip *this = mtd->priv;
+    int status;
+
+    //printk(">>>>>>> erase page [%d]\n", srcAddr>>this->page_shift);
+    this->select_chip(mtd, 0);
+    this->cmdfunc(mtd, NAND_CMD_ERASE1, -1, srcAddr>>this->page_shift);
+	this->cmdfunc(mtd, NAND_CMD_ERASE2, -1, -1);
+    status = this->waitfunc(mtd, this);
+    if(status&NAND_STATUS_FAIL){
+        FLASH_DEBUG("%s: %s erase failed!\n", __FILE__,__FUNCTION__);
+        return -1;
+        }
+    return 0;
+}
+
+static int rk29_get_swap_block_erased(struct mtd_info *mtd, int bdown)
+{
+    struct nand_chip *this = mtd->priv;
+    struct nand_bbt_descr *td = this->bbt_td;
+    struct nand_bbt_descr *md = this->bbt_md;
+    int nrblocks, block, tdblock, startblock, i, fward;
+
+    tdblock = (td->maxblocks > md->maxblocks)?td->maxblocks:md->maxblocks;
+    nrblocks = (int)(mtd->size >> this->bbt_erase_shift);
+    if(bdown){
+        startblock = nrblocks-tdblock-1;
+        fward = -1;
+        }
+    else{
+        startblock = nrblocks-tdblock-RK29_RESERVE_BLOCK_NUM;
+        fward = 1;
+        }
+    
+    for(i=0; i<RK29_RESERVE_BLOCK_NUM; i++){
+        block = startblock + fward*i;
+        if(((this->bbt[block>>2]>>(2*(block & 0x03)))&0x03)==0x02){
+            if(rk29_nand_erase(mtd, block<<this->phys_erase_shift)){
+                mtd->block_markbad(mtd, block<<this->phys_erase_shift);
+                FLASH_DEBUG("%s: %s erase failed!\n", __FILE__,__FUNCTION__);
+                }
+            else{
+                return block<<this->phys_erase_shift;
+                }
+        }
+    }
+    return 0;
+}
+
+static int rk29_block_copy(struct mtd_info *mtd, int srcAddr, int dstAddr, int bSetFlag)
+{
+    struct nand_chip *this = mtd->priv;
+    uint8_t *buf=(uint8_t*)kmalloc(mtd->writesize+32, GFP_KERNEL);
+    int    i,status,pagePblock,src_page,dst_page,src_block;
+    u_char oob[4], oob_bak[4];
+
+    if(!buf){
+        printk("%s:kmalloc failed!\n", __FUNCTION__);
+        return -1;
+        }
+    
+    pagePblock = mtd->erasesize/mtd->writesize;
+    src_page = srcAddr>>this->page_shift;
+    src_block = srcAddr>>this->phys_erase_shift;
+    dst_page = dstAddr>>this->page_shift;
+    
+    memcpy(oob_bak, (u_char *)(this->oob_poi + this->ops.ooboffs),4);
+    if(bSetFlag){
+        uint8_t block_1_8, block_2_8;
+        
+        if(src_block >= 65535){
+            printk("block num err\n");
+            kfree(buf);
+            return -1;
+            }
+
+        block_1_8 = src_block&0xFF;
+        block_2_8 = (src_block>>8)&0xFF;
+        
+        oob[0]='S';
+        oob[1]='W';
+        oob[2]=block_1_8;
+        oob[3]=block_2_8;
+        }
+    else{
+        oob[0]=0xFF;
+        oob[1]=0xFF;
+        oob[2]=0xFF;
+        oob[3]=0xFF;
+        }
+    memcpy((u_char *)(this->oob_poi + this->ops.ooboffs),(u_char *)oob,4);  
+
+    this->select_chip(mtd, 0);
+    for(i=0;i<pagePblock;i++){    
+        this->cmdfunc(mtd, NAND_CMD_READ0, 0x00, src_page);
+        status = this->ecc.read_page(mtd, this, buf, src_page);
+        if(status==-2){
+            FLASH_DEBUG("%s: %s read_page failed status=[%d]!\n", __FILE__,__FUNCTION__, status);
+            kfree(buf);
+            return -1;
+        }
+
+        this->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, dst_page);
+        this->ecc.write_page_raw(mtd, this, buf);
+        this->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
+        status = this->waitfunc(mtd, this);
+        if(status&NAND_STATUS_FAIL){
+            FLASH_DEBUG("%s: %s write_page failed status=[%d]!\n", __FILE__,__FUNCTION__, status);
+            kfree(buf);
+            return -1;
+            }
+            
+        src_page++;
+        dst_page++;
+    }
+
+    kfree(buf);
+    memcpy((u_char *)(this->oob_poi + this->ops.ooboffs), oob_bak, 4);
+    
+    return 0;
+}
+
+#if NAND_FLAG_WRITE
+static int rk29_flag_check(struct mtd_info *mtd, uint8_t *buf)
+{
+    int i;
+    
+    if(buf[0] == 'R' && buf[1] == 'K' 
+        && buf[2] == '2' && buf[3] == '9' 
+        && buf[4] == '1' && buf[5] == '8')
+        {
+        return 0;
+        }
+     else{
+        for(i=0;i<mtd->writesize;i++){
+            if(buf[i]!=0xFF)
+                return 1;
+            }
+        return 2;
+        }
+}
+
+static int rk29_get_flag_page(struct mtd_info *mtd, int bdown)
+{
+    struct nand_chip *this = mtd->priv;
+    struct nand_bbt_descr *td = this->bbt_td;
+    struct nand_bbt_descr *md = this->bbt_md;
+    int nrblocks, block, tdblock, startblock, i, status, fward, j, src_page, pageState;
+    uint8_t *buf=(uint8_t*)kmalloc(mtd->writesize+32, GFP_KERNEL);
+
+    if(!buf){
+        printk("%s:kmalloc failed!\n", __FUNCTION__);
+        return 0;
+        }
+        
+    tdblock = (td->maxblocks > md->maxblocks)?td->maxblocks:md->maxblocks;
+    nrblocks = (int)(mtd->size >> this->bbt_erase_shift);
+    if(bdown){
+        startblock = nrblocks-tdblock-1;
+        fward = -1;
+        }
+    else{
+        startblock = nrblocks-tdblock-RK29_RESERVE_BLOCK_NUM;
+        fward = 1;
+        }
+    this->select_chip(mtd, 0);
+    for(i=0; i<RK29_RESERVE_BLOCK_NUM - 3; i++){
+        block = startblock + fward*i;
+        if(((this->bbt[block>>2]>>(2*(block & 0x03)))&0x03)==0x02){
+            for(j=0; j<(1<<(this->phys_erase_shift-this->page_shift)); j++){
+                src_page = (block<<(this->phys_erase_shift-this->page_shift))+j;
+                this->cmdfunc(mtd, NAND_CMD_READ0, 0x00, src_page);
+                status = this->ecc.read_page_raw(mtd, this, buf, src_page);
+                if(status==-2){
+                    FLASH_DEBUG("%s: %s read_page failed status=[%d]!\n", __FILE__,__FUNCTION__, status);
+                    kfree(buf);
+                    return 0;
+                }
+                if(j==0){
+                    u_char oob[4];
+                    memcpy(oob, (u_char *)(this->oob_poi + this->ops.ooboffs),4);
+                    if((oob[0]!='R')||(oob[1]!='K')||(oob[2]!='F')||(oob[3]!='G')){
+                        if(rk29_nand_erase(mtd, block<<this->phys_erase_shift)){
+                            mtd->block_markbad(mtd, block<<this->phys_erase_shift);
+                            break;
+                            }
+                        //printk("get a free block [%d]!\n", block);
+                        }
+                    this->cmdfunc(mtd, NAND_CMD_READ0, 0x00, src_page);
+                    status = this->ecc.read_page_raw(mtd, this, buf, src_page);
+                    if(status==-2){
+                        FLASH_DEBUG("%s: %s read_page failed status=[%d]!\n", __FILE__,__FUNCTION__, status);
+                        kfree(buf);
+                        return 0;
+                        }
+                    }
+                pageState = rk29_flag_check(mtd, buf);
+                //printk("src_page = [%d] pageState = [%d]\n", src_page, pageState);
+                if(pageState == 0){
+                    continue;
+                    }
+                else if(pageState == 1){
+                    if(rk29_nand_erase(mtd, block<<this->phys_erase_shift)){
+                        mtd->block_markbad(mtd, block<<this->phys_erase_shift);
+                        break;
+                        }
+                    kfree(buf);
+                    //printk("rk29_get_flag_page: block<<(this->phys_erase_shift-this->page_shift = [%d]\n", block<<(this->phys_erase_shift-this->page_shift));
+                    return block<<(this->phys_erase_shift-this->page_shift);
+                    }
+                else{
+                    kfree(buf);
+                    //printk("rk29_get_flag_page: src_page = [%d]\n", src_page);
+                    return src_page;
+                    }
+            }
+        }
+    }
+    kfree(buf);
+    return 0;
+}
+
+static int rk29_nand_refresh_flag(struct mtd_info *mtd, int srcAddr, int swapAddr)
+{
+    int flagAddr, status;
+    struct nand_chip *this = mtd->priv;
+    uint8_t *buf=(uint8_t*)kmalloc(mtd->writesize+32, GFP_KERNEL);
+    u_char oob[4];
+    
+    if(!buf){
+        printk("%s:kmalloc failed!\n", __FUNCTION__);
+        return 0;
+        }
+    
+    
+    flagAddr = rk29_get_flag_page(mtd, 1);
+    if(flagAddr){
+        buf[0] = 'R';
+        buf[1] = 'K';
+        buf[2] = '2';
+        buf[3] = '9';
+        buf[4] = '1';
+        buf[5] = '8';
+        buf[6] = (uint8_t)(srcAddr&0xFF);
+        buf[7] = (uint8_t)((srcAddr>>8)&0xFF);
+        buf[8] = (uint8_t)((srcAddr>>16)&0xFF);
+        buf[9] = (uint8_t)((srcAddr>>24)&0xFF);
+        memset(&buf[10], 0x88, mtd->writesize-10);
+
+        oob[0]='R';
+        oob[1]='K';
+        oob[2]='F';
+        oob[3]='G';
+        memcpy((u_char *)(this->oob_poi + this->ops.ooboffs),oob,4);
+        
+        this->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, flagAddr);
+        this->ecc.write_page_raw(mtd, this, buf);
+        this->cmdfunc(mtd, NAND_CMD_PAGEPROG, -1, -1);
+        status = this->waitfunc(mtd, this);
+        if(status&NAND_STATUS_FAIL){
+            FLASH_DEBUG("%s: %s write_page failed status=[%d]!\n", __FILE__,__FUNCTION__, status);
+            kfree(buf);
+            return -1;
+            }
+        //printk("rk29_nand_refresh_flag: page = [%d]\n", flagAddr);
+        }
+    kfree(buf);
+    return 0;
+}
+#endif
+
+int rk29_nand_refresh(struct mtd_info *mtd, int srcAddr)
+{
+    struct nand_chip *this = mtd->priv;
+    int swapAddr;
+    int ret = 0;
+
+    if(!gbRefresh){
+        printk("bbt is not ready!\n");
+        return 0;
+        }
+
+    srcAddr = (srcAddr>>this->phys_erase_shift)<<this->phys_erase_shift;
+    
+    swapAddr = rk29_get_swap_block_erased(mtd, 0);
+    printk("%s swapAddr[%d] srcAddr[%d]\n", __FUNCTION__, swapAddr, srcAddr);
+
+#if NAND_FLAG_WRITE    
+    rk29_nand_refresh_flag(mtd, srcAddr, swapAddr);
+#endif
+    
+    read_in_refresh = 1;
+    if(!swapAddr){
+        printk("no swap block fined!!!\n");
+        ret = -1;
+        goto nand_refresh_error;
+        }
+
+    if(rk29_nand_erase(mtd, swapAddr)){
+        printk("rk29_nand_erase[0x%x] failed!\n", srcAddr);
+        ret = -1;
+        goto nand_refresh_error;
+        }
+        
+    if(rk29_block_copy(mtd, srcAddr, swapAddr, 1)){
+        printk("rk29_block_copy[0x%x ---> 0x%x] failed!\n", srcAddr, swapAddr);
+        ret = -1;
+        goto nand_refresh_error;
+        }
+
+    if(rk29_nand_erase(mtd, srcAddr)){
+        printk("rk29_nand_erase[0x%x] failed!\n", srcAddr);
+        ret = -1;
+        goto nand_refresh_error;
+        }
+        
+    if(rk29_block_copy(mtd, swapAddr, srcAddr, 0)){
+        printk("rk29_block_copy[0x%x ---> 0x%x] failed!\n", swapAddr, srcAddr);
+        ret = -1;
+        goto nand_refresh_error;
+        }
+    if(rk29_nand_erase(mtd, swapAddr)){
+        printk("rk29_nand_erase[0x%x] failed!\n", srcAddr);
+        ret = -1;
+        goto nand_refresh_error;
+        }
+nand_refresh_error:
+    read_in_refresh = 0;
+    return ret;
+}
+
+EXPORT_SYMBOL_GPL(rk29_nand_refresh);
+
+
+static int rk29_nand_check_hwecc(struct mtd_info *mtd, int page)
+{
+	struct nand_chip *nand_chip = mtd->priv;
+	struct rk29_nand_mtd *master = nand_chip->priv;
+	pNANDC pRK29NC=  (pNANDC)(master->regs);
+
+       if((pRK29NC->BCHST[0]&0x1) && (pRK29NC->BCHST[0]&0x4))
+        {
+        FLASH_DEBUG("%s: %s BCH FAIL!!!page=[%d]\n", __FILE__,__FUNCTION__, page);
+        dump_stack();
+        return 2;
+        }
+    
+    if((((pRK29NC->BCHST[0])>>3)&0x1F) >= 12 /*|| refreshTestCnt++%10000 == 0*/)
+    {
+        return 1;
+    }
+
+    if(pRK29NC->BCHST[0]&0x2){
+	    return 0;
+	    }
+	else{
+	    FLASH_DEBUG("%s: %s Flash BCH no done!!!\n", __FILE__,__FUNCTION__);
+	    return 2;
+	    }
+}
 /*
 *  设置片选
 */
@@ -316,9 +714,6 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
        struct nand_chip *nand_chip = mtd->priv;
 	struct rk29_nand_mtd *master = nand_chip->priv;
 	pNANDC pRK29NC=  (pNANDC)(master->regs);
-
-	char status,ret;
-
 	
 	switch (command) {
 
@@ -393,15 +788,6 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 		pRK29NC ->chip[master->cs].cmd = command;
 		udelay(1);
 		rk29_nand_wait_busy(mtd,PROGRAM_BUSY_COUNT);
-		
-		pRK29NC ->chip[master->cs].cmd  = NAND_CMD_STATUS;
-		status = pRK29NC ->chip[master->cs].data;
-		
-		if(status&0x1)
-			ret = -1;
-		else
-			ret =0;
-		
 		break;
 		
 	case NAND_CMD_ERASE1:
@@ -420,14 +806,6 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 		pRK29NC ->FMCTL |= FMC_WP;  //解除写保护
 		pRK29NC ->chip[master->cs].cmd  = command;	       
 		rk29_nand_wait_busy(mtd,ERASE_BUSY_COUNT);
-		pRK29NC ->chip[master->cs].cmd  = NAND_CMD_STATUS;
-		status = pRK29NC ->chip[master->cs].data;
-		
-		if(status&0x1)
-			ret = -1;
-		else
-			ret =0;
-		
 		break;
 		
 	case NAND_CMD_SEQIN:
@@ -476,6 +854,7 @@ int rk29_nand_calculate_ecc(struct mtd_info *mtd,const uint8_t *dat,uint8_t *ecc
  
      int eccdata[7],i;
 	 
+    FLASH_DEBUG("%s:%s, %d\n", __FILE__,__FUNCTION__, __LINE__);
 	for(i=0;i<7;i++) 
 	 {
 	    eccdata[i] = pRK29NC->spare[i+1];
@@ -497,6 +876,7 @@ int rk29_nand_calculate_ecc(struct mtd_info *mtd,const uint8_t *dat,uint8_t *ecc
      	struct rk29_nand_mtd *master = nand_chip->priv;
      	pNANDC pRK29NC=  (pNANDC)(master->regs);
 
+    FLASH_DEBUG("%s:%s, %d\n", __FILE__,__FUNCTION__, __LINE__);
 	pRK29NC->BCHCTL = 1;  // reset bch and enable hw ecc
 		
        return;
@@ -511,8 +891,7 @@ int rk29_nand_calculate_ecc(struct mtd_info *mtd,const uint8_t *dat,uint8_t *ecc
 	// hw correct data
        if( pRK29NC->BCHST[0] & (1<<2) )
 	 {
-		DEBUG(MTD_DEBUG_LEVEL0,
-		      "rk2818 nand :hw ecc uncorrectable error\n");
+        FLASH_DEBUG("%s: %s BCH FAILED!!!\n", __FILE__,__FUNCTION__);
 		return -1;
 	}
 	
@@ -525,7 +904,7 @@ int rk29_nand_calculate_ecc(struct mtd_info *mtd,const uint8_t *dat,uint8_t *ecc
      	struct rk29_nand_mtd *master = nand_chip->priv;
      	pNANDC pRK29NC=  (pNANDC)(master->regs);
 	  
-	int i,chipnr;
+	int i,chipnr, ecc = 0;
 
 	   
 	RKNAND_LOCK();
@@ -533,9 +912,7 @@ int rk29_nand_calculate_ecc(struct mtd_info *mtd,const uint8_t *dat,uint8_t *ecc
 	chipnr = master->cs ;
 	
 	rk29_nand_select_chip(mtd,chipnr);
- 
- 
-	rk29_nand_wait_busy(mtd,READ_BUSY_COUNT);
+
 	   
        pRK29NC->FLCTL |= FL_BYPASS;  // dma mode
 	
@@ -550,15 +927,27 @@ int rk29_nand_calculate_ecc(struct mtd_info *mtd,const uint8_t *dat,uint8_t *ecc
 	       pRK29NC ->FLCTL = (0<<4)|FL_COR_EN|(0x1<<5)|FL_BYPASS|FL_START ; 	
 		wait_op_done(mtd,TROP_US_DELAY,0);   
 		rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;
-          
+        ecc |= rk29_nand_check_hwecc(mtd, page);
               memcpy(buf+i*0x400,(u_char *)(pRK29NC->buf),0x400);  //  only use nandc sram0
 	}
 	
+    if(ecc & 0x2){
+        mtd->ecc_stats.failed++;
+		return -EBADMSG;
+        }
+    else if(ecc & 0x1){
+        if(!read_in_refresh){
+            //FLASH_DEBUG("Flash need fresh srcAddr = [%d]\n", ((page*mtd->writesize)/mtd->erasesize)*mtd->erasesize);
+            return -1;
+            }
+        }
 		
 	rk29_nand_select_chip(mtd,-1);
 
 	RKNAND_UNLOCK();
-	
+	//t2 = ktime_get();
+	//delta = ktime_sub(t2, t1);
+	//FLASH_DEBUG("%s:%s [%lli nsec]\r\n",__FILE__,__FUNCTION__, (long long)ktime_to_ns(delta));
     return 0;
 	
  }
@@ -613,19 +1002,17 @@ int rk29_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip, int page, i
        struct nand_chip *nand_chip = mtd->priv;
      	struct rk29_nand_mtd *master = nand_chip->priv;
      	pNANDC pRK29NC=  (pNANDC)(master->regs);
-       int i,chipnr;
+    int i,chipnr,ecc=0;
+    	RKNAND_LOCK();
+	chipnr = master->cs ;
+	
+	rk29_nand_select_chip(mtd,chipnr);
 
 	  
 	if (sndcmd) {
 		chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
 		sndcmd = 0;
 	}
-
-    	RKNAND_LOCK();
-
-	chipnr = master->cs ;
-
-	rk29_nand_select_chip(mtd,chipnr);
 
 	rk29_nand_wait_busy(mtd,READ_BUSY_COUNT);
 
@@ -644,10 +1031,21 @@ int rk29_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip, int page, i
 	       pRK29NC ->FLCTL = (0<<4)|FL_COR_EN|(0x1<<5)|FL_BYPASS|FL_START ; 	
 		wait_op_done(mtd,TROP_US_DELAY,0);   
 		rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;
+        ecc |= rk29_nand_check_hwecc(mtd, page);
               if(i==0)
                  memcpy((u_char *)(chip->oob_poi+ chip->ops.ooboffs),(u_char *)(pRK29NC->spare),4); 
 	}
 
+    if(ecc & 0x2){
+        mtd->ecc_stats.failed++;
+		return -EBADMSG;
+        }
+    else if(ecc & 0x1){
+        if(!read_in_refresh){
+            //FLASH_DEBUG("Flash need fresh srcAddr = [%d]\n", ((page*mtd->writesize)/mtd->erasesize)*mtd->erasesize);
+            return -1;
+            }
+        }
 	   
  	 rk29_nand_select_chip(mtd,-1);
 
@@ -663,7 +1061,7 @@ int	rk29_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip, uint8_
      	struct rk29_nand_mtd *master = nand_chip->priv;
      	pNANDC pRK29NC=  (pNANDC)(master->regs);
 
-	int i,chipnr;
+    int i,chipnr,ecc=0;
 
 	
     RKNAND_LOCK();
@@ -687,11 +1085,22 @@ int	rk29_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip, uint8_
 	       pRK29NC ->FLCTL = (0<<4)|FL_COR_EN|(0x1<<5)|FL_BYPASS|FL_START ; 	
 		wait_op_done(mtd,TROP_US_DELAY,0);   
 		 rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;
+        ecc |= rk29_nand_check_hwecc(mtd, page);
               memcpy(buf+i*0x400,(u_char *)(pRK29NC->buf),0x400);  //  only use nandc sram0
               if(i==0)
                  memcpy((u_char *)(chip->oob_poi+ chip->ops.ooboffs),(u_char *)(pRK29NC->spare),4); 
 	}
 
+    if(ecc & 0x2){
+        mtd->ecc_stats.failed++;
+		return -EBADMSG;
+        }
+    else if(ecc & 0x1){
+        if(!read_in_refresh){
+            //FLASH_DEBUG("Flash need fresh srcAddr = [%d]\n", ((page*mtd->writesize)/mtd->erasesize)*mtd->erasesize);
+            return -1;
+            }
+        }
 	 
 	 rk29_nand_select_chip(mtd,-1);
 	 RKNAND_UNLOCK();
@@ -699,6 +1108,45 @@ int	rk29_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip, uint8_
 	 
     return 0;
 }
+int	rk29_nand_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,const uint8_t *buf)
+{
+    struct nand_chip *nand_chip = mtd->priv;
+    struct rk29_nand_mtd *master = nand_chip->priv;
+    pNANDC pRK29NC=  (pNANDC)(master->regs);
+    int i,chipnr;
+
+    //FLASH_DEBUG("%s: %s, %d\n", __FILE__ ,__FUNCTION__, __LINE__);
+    
+    RKNAND_LOCK();
+
+	chipnr = master->cs ;
+	
+	rk29_nand_select_chip(mtd,chipnr);
+
+    rk29_nand_wait_busy(mtd, PROGRAM_BUSY_COUNT);
+	   
+       pRK29NC->FLCTL |= FL_BYPASS;  // dma mode
+
+ 	if(chip->options&NAND_BUSWIDTH_16)
+	{
+		pRK29NC ->FMCTL |= FMC_WIDTH_16;  // 设置为16位
+	}	 
+
+    for(i=0;i<mtd->writesize/0x400;i++)
+    {
+        pRK29NC->BCHCTL = BCH_WR|BCH_RST;		
+        memcpy((u_char *)(pRK29NC->buf),(buf+i*0x400),0x400);
+        if(i==0)
+            memcpy((u_char *)(pRK29NC->spare),(u_char *)(chip->oob_poi + chip->ops.ooboffs),4);  
+        pRK29NC->FLCTL = (0<<4)|FL_COR_EN|(0x1<<5)|FL_RDN|FL_BYPASS|FL_START;	
+        wait_op_done(mtd,TROP_US_DELAY,0);	
+    }
+	 rk29_nand_select_chip(mtd,-1);
+
+    RKNAND_UNLOCK();        
+    return 0;
+}
+
 
 static int rk29_nand_setrate(struct rk29_nand_mtd *info)
 {
@@ -795,7 +1243,6 @@ static int rk29_nand_probe(struct platform_device *pdev)
 	int err = 0;
 	pNANDC pRK29NC;
 	u_char  maf_id,dev_id,ext_id3,ext_id4;
-    struct nand_chip *chip;
     
 #ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition *partitions = NULL;
@@ -896,39 +1343,16 @@ static int rk29_nand_probe(struct platform_device *pdev)
    
 	/* Scan to find existence of the device */
 #if 0
-	   if (nand_scan(mtd, 8)) {     // rk2818 nandc support max 8 cs
+	   if (nand_scan(mtd, 8)) {     // rk29 nandc support max 8 cs
 #else
 	   if (nand_scan(mtd, 1)) {      // test for fpga board nand
 #endif
 		DEBUG(MTD_DEBUG_LEVEL0,
-		      "RK2818 NAND: Unable to find any NAND device.\n");
+		      "RK29 NAND: Unable to find any NAND device.\n");
 		err = -ENXIO;
 		goto outscan;
 	}
 
-	//根据片选情况恢复IO MUX原始值
-#if 0
-    chip = mtd->priv;
-    switch(chip->numchips)
-    {
-        case 1:
-            rk2818_mux_api_mode_resume(GPIOA5_FLASHCS1_SEL_NAME);
-        case 2:
-            rk2818_mux_api_mode_resume(GPIOA6_FLASHCS2_SEL_NAME);
-        case 3:
-            rk2818_mux_api_mode_resume(GPIOA7_FLASHCS3_SEL_NAME);
-        case 4:
-            rk2818_mux_api_mode_resume(GPIOE_SPI1_FLASH_SEL1_NAME);
-        case 5:
-        case 6:
-            rk2818_mux_api_mode_resume(GPIOE_SPI1_FLASH_SEL_NAME);
-        case 7:
-        case 8:
-            break;
-        default:
-            DEBUG(MTD_DEBUG_LEVEL0, "RK2818 NAND: numchips error!!!\n");
-    }
-#endif    
 
 #ifdef CONFIG_MTD_PARTITIONS
         num_partitions = parse_mtd_partitions(mtd, part_probes, &partitions, 0);
@@ -959,6 +1383,7 @@ static int rk29_nand_probe(struct platform_device *pdev)
 	
 outres:
 outscan:
+    printk("rk29_nand_probe error!!!\n");
 	iounmap(master->regs);
 	kfree(master);
 
@@ -998,6 +1423,7 @@ static int rk29_nand_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int rk29_nand_suspend(struct platform_device *pdev, pm_message_t state)
 {
+#if 0
 	struct mtd_info *info = platform_get_drvdata(pdev);
 	int ret = 0;
 
@@ -1005,10 +1431,14 @@ static int rk29_nand_suspend(struct platform_device *pdev, pm_message_t state)
 	if (info)
 		ret = info->suspend(info);
 	return ret;
+#else
+    return 0;
+#endif
 }
 
 static int rk29_nand_resume(struct platform_device *pdev)
 {
+#if 0
 	struct mtd_info *info = platform_get_drvdata(pdev);
 	int ret = 0;
 
@@ -1019,6 +1449,9 @@ static int rk29_nand_resume(struct platform_device *pdev)
 		info->resume(info);
 
 	return ret;
+#else
+    return 0;
+#endif
 }
 #else
 #define rk29_nand_suspend   NULL
