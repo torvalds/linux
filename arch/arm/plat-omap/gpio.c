@@ -718,7 +718,7 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 	case METHOD_GPIO_24XX:
 	case METHOD_GPIO_44XX:
 		set_24xx_gpio_triggering(bank, gpio, trigger);
-		break;
+		return 0;
 #endif
 	default:
 		goto bad;
