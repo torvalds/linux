@@ -148,7 +148,7 @@ static void timblogiw_dma_cb(void *data)
 
 static bool timblogiw_dma_filter_fn(struct dma_chan *chan, void *filter_param)
 {
-	return chan->chan_id == (int)filter_param;
+	return chan->chan_id == (uintptr_t)filter_param;
 }
 
 /* IOCTL functions */
@@ -668,7 +668,7 @@ static int timblogiw_open(struct file *file)
 
 	/* find the DMA channel */
 	fh->chan = dma_request_channel(mask, timblogiw_dma_filter_fn,
-			(void *)lw->pdata.dma_channel);
+			(void *)(uintptr_t)lw->pdata.dma_channel);
 	if (!fh->chan) {
 		dev_err(&vdev->dev, "Failed to get DMA channel\n");
 		kfree(fh);
