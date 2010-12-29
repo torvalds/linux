@@ -307,6 +307,23 @@ int fimc_set_scaler_info(struct fimc_ctx *ctx)
 	return 0;
 }
 
+static int stop_streaming(struct vb2_queue *q)
+{
+	struct fimc_ctx *ctx = q->drv_priv;
+	struct fimc_dev *fimc = ctx->fimc_dev;
+
+	if (!fimc_m2m_pending(fimc))
+		return 0;
+
+	set_bit(ST_M2M_SHUT, &fimc->state);
+
+	wait_event_timeout(fimc->irq_queue,
+			   !test_bit(ST_M2M_SHUT, &fimc->state),
+			   FIMC_SHUTDOWN_TIMEOUT);
+
+	return 0;
+}
+
 static void fimc_capture_handler(struct fimc_dev *fimc)
 {
 	struct fimc_vid_cap *cap = &fimc->vid_cap;
@@ -358,7 +375,10 @@ static irqreturn_t fimc_isr(int irq, void *priv)
 
 	spin_lock(&fimc->slock);
 
-	if (test_and_clear_bit(ST_M2M_PEND, &fimc->state)) {
+	if (test_and_clear_bit(ST_M2M_SHUT, &fimc->state)) {
+		wake_up(&fimc->irq_queue);
+		goto isr_unlock;
+	} else if (test_and_clear_bit(ST_M2M_PEND, &fimc->state)) {
 		struct vb2_buffer *src_vb, *dst_vb;
 		struct fimc_ctx *ctx = v4l2_m2m_get_curr_priv(fimc->m2m.m2m_dev);
 
@@ -634,7 +654,17 @@ dma_unlock:
 
 static void fimc_job_abort(void *priv)
 {
-	/* Nothing done in job_abort. */
+	struct fimc_ctx *ctx = priv;
+	struct fimc_dev *fimc = ctx->fimc_dev;
+
+	if (!fimc_m2m_pending(fimc))
+		return;
+
+	set_bit(ST_M2M_SHUT, &fimc->state);
+
+	wait_event_timeout(fimc->irq_queue,
+			   !test_bit(ST_M2M_SHUT, &fimc->state),
+			   FIMC_SHUTDOWN_TIMEOUT);
 }
 
 static int fimc_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
@@ -711,6 +741,7 @@ struct vb2_ops fimc_qops = {
 	.buf_queue	 = fimc_buf_queue,
 	.wait_prepare	 = fimc_unlock,
 	.wait_finish	 = fimc_lock,
+	.stop_streaming	 = stop_streaming,
 };
 
 static int fimc_m2m_querycap(struct file *file, void *priv,

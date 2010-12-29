@@ -57,6 +57,7 @@ enum fimc_dev_flags {
 	ST_IDLE,
 	ST_OUTDMA_RUN,
 	ST_M2M_PEND,
+	ST_M2M_SHUT,
 	/* for capture node */
 	ST_CAPT_PEND,
 	ST_CAPT_RUN,
