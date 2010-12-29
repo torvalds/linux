@@ -664,7 +664,7 @@ static void omap_sham_finish_req(struct ahash_request *req, int err)
 static int omap_sham_handle_queue(struct omap_sham_dev *dd,
 				  struct ahash_request *req)
 {
-	struct crypto_async_request *async_req, *backlog = 0;
+	struct crypto_async_request *async_req, *backlog;
 	struct omap_sham_reqctx *ctx;
 	struct ahash_request *prev_req;
 	unsigned long flags;
@@ -677,11 +677,10 @@ static int omap_sham_handle_queue(struct omap_sham_dev *dd,
 		spin_unlock_irqrestore(&dd->lock, flags);
 		return ret;
 	}
+	backlog = crypto_get_backlog(&dd->queue);
 	async_req = crypto_dequeue_request(&dd->queue);
-	if (async_req) {
+	if (async_req)
 		dd->flags |= FLAGS_BUSY;
-		backlog = crypto_get_backlog(&dd->queue);
-	}
 	spin_unlock_irqrestore(&dd->lock, flags);
 
 	if (!async_req)
