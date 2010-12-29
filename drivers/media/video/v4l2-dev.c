@@ -182,6 +182,70 @@ struct video_device *video_devdata(struct file *file)
 }
 EXPORT_SYMBOL(video_devdata);
 
+
+/* Priority handling */
+
+static inline bool prio_is_valid(enum v4l2_priority prio)
+{
+	return prio == V4L2_PRIORITY_BACKGROUND ||
+	       prio == V4L2_PRIORITY_INTERACTIVE ||
+	       prio == V4L2_PRIORITY_RECORD;
+}
+
+void v4l2_prio_init(struct v4l2_prio_state *global)
+{
+	memset(global, 0, sizeof(*global));
+}
+EXPORT_SYMBOL(v4l2_prio_init);
+
+int v4l2_prio_change(struct v4l2_prio_state *global, enum v4l2_priority *local,
+		     enum v4l2_priority new)
+{
+	if (!prio_is_valid(new))
+		return -EINVAL;
+	if (*local == new)
+		return 0;
+
+	atomic_inc(&global->prios[new]);
+	if (prio_is_valid(*local))
+		atomic_dec(&global->prios[*local]);
+	*local = new;
+	return 0;
+}
+EXPORT_SYMBOL(v4l2_prio_change);
+
+void v4l2_prio_open(struct v4l2_prio_state *global, enum v4l2_priority *local)
+{
+	v4l2_prio_change(global, local, V4L2_PRIORITY_DEFAULT);
+}
+EXPORT_SYMBOL(v4l2_prio_open);
+
+void v4l2_prio_close(struct v4l2_prio_state *global, enum v4l2_priority local)
+{
+	if (prio_is_valid(local))
+		atomic_dec(&global->prios[local]);
+}
+EXPORT_SYMBOL(v4l2_prio_close);
+
+enum v4l2_priority v4l2_prio_max(struct v4l2_prio_state *global)
+{
+	if (atomic_read(&global->prios[V4L2_PRIORITY_RECORD]) > 0)
+		return V4L2_PRIORITY_RECORD;
+	if (atomic_read(&global->prios[V4L2_PRIORITY_INTERACTIVE]) > 0)
+		return V4L2_PRIORITY_INTERACTIVE;
+	if (atomic_read(&global->prios[V4L2_PRIORITY_BACKGROUND]) > 0)
+		return V4L2_PRIORITY_BACKGROUND;
+	return V4L2_PRIORITY_UNSET;
+}
+EXPORT_SYMBOL(v4l2_prio_max);
+
+int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority local)
+{
+	return (local < v4l2_prio_max(global)) ? -EBUSY : 0;
+}
+EXPORT_SYMBOL(v4l2_prio_check);
+
+
 static ssize_t v4l2_read(struct file *filp, char __user *buf,
 		size_t sz, loff_t *off)
 {

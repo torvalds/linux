@@ -37,6 +37,21 @@ struct v4l2_ctrl_handler;
 #define V4L2_FL_REGISTERED	(0)
 #define V4L2_FL_USES_V4L2_FH	(1)
 
+/* Priority helper functions */
+
+struct v4l2_prio_state {
+	atomic_t prios[4];
+};
+
+void v4l2_prio_init(struct v4l2_prio_state *global);
+int v4l2_prio_change(struct v4l2_prio_state *global, enum v4l2_priority *local,
+		     enum v4l2_priority new);
+void v4l2_prio_open(struct v4l2_prio_state *global, enum v4l2_priority *local);
+void v4l2_prio_close(struct v4l2_prio_state *global, enum v4l2_priority local);
+enum v4l2_priority v4l2_prio_max(struct v4l2_prio_state *global);
+int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority local);
+
+
 struct v4l2_file_operations {
 	struct module *owner;
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
