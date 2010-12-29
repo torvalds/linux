@@ -676,6 +676,7 @@ int mgmt_index_added(u16 index);
 int mgmt_index_removed(u16 index);
 int mgmt_powered(u16 index, u8 powered);
 int mgmt_discoverable(u16 index, u8 discoverable);
+int mgmt_connectable(u16 index, u8 connectable);
 
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)

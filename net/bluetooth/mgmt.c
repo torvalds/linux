@@ -204,6 +204,7 @@ static int read_controller_info(struct sock *sk, unsigned char *data, u16 len)
 	rp->type = hdev->dev_type;
 
 	rp->powered = test_bit(HCI_UP, &hdev->flags);
+	rp->connectable = test_bit(HCI_PSCAN, &hdev->flags);
 	rp->discoverable = test_bit(HCI_ISCAN, &hdev->flags);
 	rp->pairable = test_bit(HCI_PSCAN, &hdev->flags);
 
@@ -390,8 +391,7 @@ static int set_discoverable(struct sock *sk, unsigned char *data, u16 len)
 	}
 
 	if (mgmt_pending_find(MGMT_OP_SET_DISCOVERABLE, dev_id) ||
-			mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, dev_id) ||
-			hci_sent_cmd_data(hdev, HCI_OP_WRITE_SCAN_ENABLE)) {
+			mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, dev_id)) {
 		err = cmd_status(sk, MGMT_OP_SET_DISCOVERABLE, EBUSY);
 		goto failed;
 	}
@@ -414,6 +414,61 @@ static int set_discoverable(struct sock *sk, unsigned char *data, u16 len)
 	err = hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 	if (err < 0)
 		mgmt_pending_remove(MGMT_OP_SET_DISCOVERABLE, dev_id);
+
+failed:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
+static int set_connectable(struct sock *sk, unsigned char *data, u16 len)
+{
+	struct mgmt_cp_set_connectable *cp;
+	struct hci_dev *hdev;
+	u16 dev_id;
+	u8 scan;
+	int err;
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+
+	BT_DBG("request for hci%u", dev_id);
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, MGMT_OP_SET_CONNECTABLE, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	if (!test_bit(HCI_UP, &hdev->flags)) {
+		err = cmd_status(sk, MGMT_OP_SET_CONNECTABLE, ENETDOWN);
+		goto failed;
+	}
+
+	if (mgmt_pending_find(MGMT_OP_SET_DISCOVERABLE, dev_id) ||
+			mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, dev_id)) {
+		err = cmd_status(sk, MGMT_OP_SET_CONNECTABLE, EBUSY);
+		goto failed;
+	}
+
+	if (cp->connectable == test_bit(HCI_PSCAN, &hdev->flags)) {
+		err = cmd_status(sk, MGMT_OP_SET_CONNECTABLE, EALREADY);
+		goto failed;
+	}
+
+	err = mgmt_pending_add(sk, MGMT_OP_SET_CONNECTABLE, dev_id, data, len);
+	if (err < 0)
+		goto failed;
+
+	if (cp->connectable)
+		scan = SCAN_PAGE;
+	else
+		scan = 0;
+
+	err = hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+	if (err < 0)
+		mgmt_pending_remove(MGMT_OP_SET_CONNECTABLE, dev_id);
 
 failed:
 	hci_dev_unlock_bh(hdev);
@@ -467,6 +522,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_SET_DISCOVERABLE:
 		err = set_discoverable(sk, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_SET_CONNECTABLE:
+		err = set_connectable(sk, buf + sizeof(*hdr), len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
@@ -642,6 +700,66 @@ int mgmt_discoverable(u16 index, u8 discoverable)
 						discoverable_rsp, &match);
 
 	ret = mgmt_event(MGMT_EV_DISCOVERABLE, &ev, sizeof(ev), match.sk);
+
+	if (match.sk)
+		sock_put(match.sk);
+
+	return ret;
+}
+
+static void connectable_rsp(struct pending_cmd *cmd, void *data)
+{
+	struct mgmt_cp_set_connectable *cp = cmd->cmd;
+	struct cmd_lookup *match = data;
+	struct sk_buff *skb;
+	struct mgmt_hdr *hdr;
+	struct mgmt_ev_cmd_complete *ev;
+	struct mgmt_rp_set_connectable *rp;
+
+	if (cp->connectable != match->value)
+		return;
+
+	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + sizeof(*rp), GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
+	hdr->len = cpu_to_le16(sizeof(*ev) + sizeof(*rp));
+
+	ev = (void *) skb_put(skb, sizeof(*ev));
+	put_unaligned_le16(MGMT_OP_SET_CONNECTABLE, &ev->opcode);
+
+	rp = (void *) skb_put(skb, sizeof(*rp));
+	put_unaligned_le16(cmd->index, &rp->index);
+	rp->connectable = cp->connectable;
+
+	if (sock_queue_rcv_skb(cmd->sk, skb) < 0)
+		kfree_skb(skb);
+
+	list_del(&cmd->list);
+
+	if (match->sk == NULL) {
+		match->sk = cmd->sk;
+		sock_hold(match->sk);
+	}
+
+	mgmt_pending_free(cmd);
+}
+
+int mgmt_connectable(u16 index, u8 connectable)
+{
+	struct mgmt_ev_connectable ev;
+	struct cmd_lookup match = { connectable, NULL };
+	int ret;
+
+	put_unaligned_le16(index, &ev.index);
+	ev.connectable = connectable;
+
+	mgmt_pending_foreach(MGMT_OP_SET_CONNECTABLE, index,
+						connectable_rsp, &match);
+
+	ret = mgmt_event(MGMT_EV_CONNECTABLE, &ev, sizeof(ev), match.sk);
 
 	if (match.sk)
 		sock_put(match.sk);

@@ -274,18 +274,24 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 
 	if (!status) {
 		__u8 param = *((__u8 *) sent);
+		int old_pscan, old_iscan;
 
-		clear_bit(HCI_PSCAN, &hdev->flags);
-		clear_bit(HCI_ISCAN, &hdev->flags);
+		old_pscan = test_and_clear_bit(HCI_PSCAN, &hdev->flags);
+		old_iscan = test_and_clear_bit(HCI_ISCAN, &hdev->flags);
 
 		if (param & SCAN_INQUIRY) {
 			set_bit(HCI_ISCAN, &hdev->flags);
-			mgmt_discoverable(hdev->id, 1);
-		} else
+			if (!old_iscan)
+				mgmt_discoverable(hdev->id, 1);
+		} else if (old_iscan)
 			mgmt_discoverable(hdev->id, 0);
 
-		if (param & SCAN_PAGE)
+		if (param & SCAN_PAGE) {
 			set_bit(HCI_PSCAN, &hdev->flags);
+			if (!old_pscan)
+				mgmt_connectable(hdev->id, 1);
+		} else if (old_pscan)
+			mgmt_connectable(hdev->id, 0);
 	}
 
 	hci_req_complete(hdev, HCI_OP_WRITE_SCAN_ENABLE, status);
