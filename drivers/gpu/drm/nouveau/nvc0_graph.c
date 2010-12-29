@@ -244,7 +244,6 @@ nvc0_graph_load_context(struct nouveau_channel *chan)
 	if (!nv_wait(dev, 0x409800, 0x00000010, 0x00000010))
 		NV_ERROR(dev, "PGRAPH: load_ctx timeout\n");
 
-	printk(KERN_ERR "load_ctx 0x%08x\n", nv_rd32(dev, 0x409b00));
 	return 0;
 }
 
