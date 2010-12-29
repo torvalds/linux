@@ -722,5 +722,5 @@ void tm6000_close_extension(struct tm6000_core *dev)
 				ops->fini(dev);
 		}
 	}
-	mutex_lock(&tm6000_devlist_mutex);
+	mutex_unlock(&tm6000_devlist_mutex);
 }
