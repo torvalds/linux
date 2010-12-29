@@ -146,7 +146,7 @@ static inline void pcd_stop( dwc_otg_core_if_t *_core_if )
 static inline void pcd_suspend( dwc_otg_core_if_t *_core_if ) 
 {
         if (_core_if->pcd_cb && _core_if->pcd_cb->suspend ) {
-                _core_if->pcd_cb->suspend( _core_if->pcd_cb->p );
+                _core_if->pcd_cb->suspend( _core_if->pcd_cb->p, 0);
         }
 }
 /** Resume the PCD.  Helper function for using the PCD callbacks. 

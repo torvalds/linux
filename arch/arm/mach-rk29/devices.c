@@ -604,12 +604,12 @@ static char *usb_functions_all[] = {
 
 static struct android_usb_product usb_products[] = {
 	{
-		.product_id	= 0x2810,//0x0c02,//0x4e11,
+		.product_id	= 0x2910,//0x0c02,//0x4e11,
 		.num_functions	= ARRAY_SIZE(usb_functions_rockchip),
 		.functions	= usb_functions_rockchip,
 	},
 	{
-		.product_id	= 0x2810,//0x0c02,//0x4e12,
+		.product_id	= 0x0c02,//0x0c02,//0x4e12,
 		.num_functions	= ARRAY_SIZE(usb_functions_rockchip_adb),
 		.functions	= usb_functions_rockchip_adb,
 	},
@@ -637,9 +637,9 @@ static struct android_usb_product usb_products[] = {
  */
 static struct android_usb_platform_data android_usb_pdata = {
 	.vendor_id	= 0x0bb4,//0x2207,//0x0bb4,//0x18d1,
-	.product_id	= 0x4e11,//0x2810,//0x4e11,
+	.product_id	= 0x4e11,//0x2910,//0x4e11,
 	.version	= 0x0100,
-	.product_name		= "rk2818 sdk",
+	.product_name		= "rk2918 sdk",
 	.manufacturer_name	= "RockChip",
 	.num_products = ARRAY_SIZE(usb_products),
 	.products = usb_products,

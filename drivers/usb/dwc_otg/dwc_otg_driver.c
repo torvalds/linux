@@ -352,7 +352,7 @@ static ssize_t dwc_otg_enable_store( struct device *_dev,
 	otg_dev->hcd->host_enabled = val;
 	if(val == 0)    // enable -> disable
 	{
-	    DWC_PRINT("disable host controller:%s\n",pdev->name);
+	    DWC_PRINT("disable host controller:%s,id:%d\n",pdev->name,pdev->id);
 	    #if 1
         if (_core_if->hcd_cb && _core_if->hcd_cb->disconnect) {
                 _core_if->hcd_cb->disconnect( _core_if->hcd_cb->p );
@@ -363,12 +363,19 @@ static ssize_t dwc_otg_enable_store( struct device *_dev,
         }
         clk_disable(otg_dev->phyclk);
         clk_disable(otg_dev->ahbclk);
+        if (_core_if->hcd_cb && _core_if->hcd_cb->suspend) {
+                _core_if->hcd_cb->suspend( _core_if->hcd_cb->p, val);
+        }
 	}
 	else if(val == 1)
 	{
 	    DWC_PRINT("enable host controller:%s\n",pdev->name);
+        if (_core_if->hcd_cb && _core_if->hcd_cb->suspend) {
+                _core_if->hcd_cb->suspend( _core_if->hcd_cb->p, val);
+        }
         clk_enable(otg_dev->phyclk);
         clk_enable(otg_dev->ahbclk);
+        mdelay(5);
         if (_core_if->hcd_cb && _core_if->hcd_cb->start) {
                 _core_if->hcd_cb->start( _core_if->hcd_cb->p );
         }
@@ -384,6 +391,8 @@ static ssize_t dwc_otg_conn_en_show(struct device_driver *_drv, char *_buf)
     dwc_otg_device_t *otg_dev = g_otgdev;
     dwc_otg_pcd_t *_pcd = otg_dev->pcd;
     return sprintf (_buf, "%d\n", _pcd->conn_en);
+#else
+    return sprintf(_buf, "0\n");
 #endif
 }
 
@@ -397,8 +406,8 @@ static ssize_t dwc_otg_conn_en_store(struct device_driver *_drv, const char *_bu
     DWC_PRINT("%s %d->%d\n",__func__, _pcd->conn_en, enable);
     
     _pcd->conn_en = enable;
-    return _count;
 #endif
+    return _count;
 }
 static DRIVER_ATTR(dwc_otg_conn_en, S_IRUGO|S_IWUSR, dwc_otg_conn_en_show, dwc_otg_conn_en_store);
 #ifdef CONFIG_DWC_OTG_DEVICE_ONLY
@@ -1135,8 +1144,10 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	dwc_otg_enable_global_interrupts( dwc_otg_device->core_if );
 #ifdef CONFIG_DWC_OTG_HOST_ONLY
 #ifndef CONFIG_USB20_OTG_EN
-            clk_disable(otg_dev->phyclk);
-            clk_disable(otg_dev->ahbclk);
+    clk_disable(dwc_otg_device->phyclk);
+    clk_disable(dwc_otg_device->ahbclk);
+    *otg_phy_con1 |= (0x01<<2);
+    *otg_phy_con1 &= ~(0x01<<3);    // enter suspend.
 #endif
 #endif
 	DWC_PRINT("dwc_otg_driver_probe end, everest\n");
@@ -1393,7 +1404,7 @@ static __devinit int host11_driver_probe(struct platform_device *pdev)
 		retval = -ENOMEM;
 		goto fail;
 	}
-	DWC_DEBUGPL( DBG_CIL, "base addr for rk28 host11:0x%x\n", (unsigned)dwc_otg_device->base);
+	DWC_DEBUGPL( DBG_CIL, "base addr for rk29 host11:0x%x\n", (unsigned)dwc_otg_device->base);
 	/*
 	 * Attempt to ensure this device is really a DWC_otg Controller.
 	 * Read and verify the SNPSID register contents. The value should be
@@ -1487,6 +1498,7 @@ static __devinit int host11_driver_probe(struct platform_device *pdev)
 	 */
 	dwc_otg_enable_global_interrupts( dwc_otg_device->core_if );
 #ifndef CONFIG_USB11_HOST_EN
+    *otg_phy_con1 |= (0x01<<28);    // enter suspend.
     clk_disable(phyclk);
     clk_disable(ahbclk);
 #endif
@@ -1684,7 +1696,7 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 		retval = -ENOMEM;
 		goto fail;
 	}
-	DWC_DEBUGPL( DBG_CIL, "base addr for rk28 host11:0x%x\n", (unsigned)dwc_otg_device->base);
+	DWC_DEBUGPL( DBG_CIL, "base addr for rk29 host20:0x%x\n", (unsigned)dwc_otg_device->base);
 	/*
 	 * Attempt to ensure this device is really a DWC_otg Controller.
 	 * Read and verify the SNPSID register contents. The value should be
@@ -1781,6 +1793,9 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 #ifndef CONFIG_USB20_HOST_EN
     clk_disable(phyclk);
     clk_disable(ahbclk);
+    otgreg &= ~(0x01<<14);    // suspend.
+    otgreg |= (0x01<<13);     // software control
+    *otg_phy_con1 = otgreg;
 #endif
 	DWC_PRINT("host20_driver_probe end, everest\n");
 	return 0;

@@ -3339,8 +3339,10 @@ void dwc_otg_dump_flags(dwc_otg_core_if_t *_core_if)
 int dwc_debug(dwc_otg_core_if_t *core_if, int flag)
 {
 	//dwc_otg_core_if_t *core_if = dwc_core_if;
+	#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+        dwc_otg_pcd_t * pcd;
+    #endif
 	struct dwc_otg_device *otg_dev;
-	dwc_otg_pcd_t * pcd;
 	switch(flag)
 	{
 		case 1:
@@ -3348,9 +3350,11 @@ int dwc_debug(dwc_otg_core_if_t *core_if, int flag)
 			dwc_otg_dump_host_registers(core_if);
 			break;
 		case 2:
+		#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
 		    otg_dev = core_if->otg_dev;
 		    pcd = otg_dev->pcd;
 		    pcd->vbus_status = 0;
+		#endif
 			break;
 		case 3:
 			dump_scu_regs();

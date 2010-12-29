@@ -1091,7 +1091,7 @@ static int32_t dwc_otg_pcd_stop_cb( void *_p )
  *
  * @param _p void pointer to the <code>dwc_otg_pcd_t</code>
  */
-static int32_t dwc_otg_pcd_suspend_cb( void *_p )
+static int32_t dwc_otg_pcd_suspend_cb( void *_p ,int suspend)
 {
 	dwc_otg_pcd_t *pcd = (dwc_otg_pcd_t *)_p;
 #ifdef CONFIG_ANDROID_POWER

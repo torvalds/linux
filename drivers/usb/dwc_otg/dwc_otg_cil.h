@@ -909,7 +909,7 @@ typedef struct dwc_otg_cil_callbacks
 	/** Resume/Remote wakeup Function */
 	int (*resume_wakeup) (void *_p);
 	/** Suspend function */
-	int (*suspend) (void *_p);
+	int (*suspend) (void *_p, int suspend);
 	/** Session Start (SRP) */
 	int (*session_start) (void *_p);
 	/** Pointer passed to start() and stop() */
