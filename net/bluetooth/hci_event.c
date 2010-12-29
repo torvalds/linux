@@ -278,8 +278,11 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 		clear_bit(HCI_PSCAN, &hdev->flags);
 		clear_bit(HCI_ISCAN, &hdev->flags);
 
-		if (param & SCAN_INQUIRY)
+		if (param & SCAN_INQUIRY) {
 			set_bit(HCI_ISCAN, &hdev->flags);
+			mgmt_discoverable(hdev->id, 1);
+		} else
+			mgmt_discoverable(hdev->id, 0);
 
 		if (param & SCAN_PAGE)
 			set_bit(HCI_PSCAN, &hdev->flags);

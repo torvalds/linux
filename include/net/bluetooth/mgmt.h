@@ -68,6 +68,16 @@ struct mgmt_rp_set_powered {
 	__u8 powered;
 } __packed;
 
+#define MGMT_OP_SET_DISCOVERABLE	0x0006
+struct mgmt_cp_set_discoverable {
+	__le16 index;
+	__u8 discoverable;
+} __packed;
+struct mgmt_rp_set_discoverable {
+	__le16 index;
+	__u8 discoverable;
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16 opcode;
@@ -100,4 +110,10 @@ struct mgmt_ev_index_removed {
 struct mgmt_ev_powered {
 	__le16 index;
 	__u8 powered;
+} __packed;
+
+#define MGMT_EV_DISCOVERABLE		0x0007
+struct mgmt_ev_discoverable {
+	__le16 index;
+	__u8 discoverable;
 } __packed;
