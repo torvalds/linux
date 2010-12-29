@@ -2756,7 +2756,9 @@ static irqreturn_t wm8994_mic_irq(int irq, void *data)
 	int reg;
 	int report;
 
+#ifndef CONFIG_SND_SOC_WM8994_MODULE
 	trace_snd_soc_jack_irq(dev_name(codec->dev));
+#endif
 
 	reg = snd_soc_read(codec, WM8994_INTERRUPT_RAW_STATUS_2);
 	if (reg < 0) {
@@ -2904,7 +2906,9 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 		goto out;
 	}
 
+#ifndef CONFIG_SND_SOC_WM8994_MODULE
 	trace_snd_soc_jack_irq(dev_name(codec->dev));
+#endif
 
 	if (wm8994->jack_cb)
 		wm8994->jack_cb(reg, wm8994->jack_cb_data);

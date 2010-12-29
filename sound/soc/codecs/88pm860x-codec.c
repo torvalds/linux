@@ -1262,7 +1262,7 @@ static irqreturn_t pm860x_codec_handler(int irq, void *data)
 	mask = pm860x->det.hs_shrt | pm860x->det.hook_det | pm860x->det.lo_shrt
 		| pm860x->det.hp_det;
 
-#ifndef CONFIG_SND_SOC_88PM860X
+#ifndef CONFIG_SND_SOC_88PM860X_MODULE
 	if (status & (HEADSET_STATUS | MIC_STATUS | SHORT_HS1 | SHORT_HS2 |
 		      SHORT_LO1 | SHORT_LO2))
 		trace_snd_soc_jack_irq(dev_name(pm860x->codec->dev));
