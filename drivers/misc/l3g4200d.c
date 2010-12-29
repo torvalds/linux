@@ -76,7 +76,7 @@
 #define ODR100				0x08	/* 100Hz output data rate */
 #define ODR400				0x10	/* 400Hz output data rate */
 #define ODR1000				0x18	/* 1000Hz output data rate */
-
+#define L3G4200D_PU_DELAY               300
 struct l3g4200d_data {
 	struct i2c_client *client;
 	struct l3g4200d_platform_data *pdata;
@@ -323,7 +323,7 @@ static int l3g4200d_enable(struct l3g4200d_data *gyro)
 			return err;
 		}
 		schedule_delayed_work(&gyro->input_work,
-			msecs_to_jiffies(gyro->pdata->poll_interval));
+			msecs_to_jiffies(L3G4200D_PU_DELAY));
 	}
 
 	return 0;
