@@ -1265,6 +1265,9 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 			memcpy(dhd->mac.octet, (void *)&ea_addr, ETHER_ADDR_LEN);
 	}
 #endif  /* GET_CUSTOM_MAC_ENABLE */
+      
+        memset(dhd->country_code, 0, sizeof(dhd->country_code));
+        strncpy(dhd->country_code,"JP", 2);  //set max numbers of radio channels
 
 	/* Set Country code */
 	if (dhd->country_code[0] != 0) {
