@@ -833,15 +833,48 @@ void __cpuinit numa_remove_cpu(int cpu)
 #endif /* !CONFIG_NUMA_EMU */
 
 #else /* CONFIG_DEBUG_PER_CPU_MAPS */
-
-/*
- * --------- debug versions of the numa functions ---------
- */
-static void __cpuinit numa_set_cpumask(int cpu, int enable)
+static struct cpumask __cpuinit *debug_cpumask_set_cpu(int cpu, int enable)
 {
 	int node = early_cpu_to_node(cpu);
 	struct cpumask *mask;
 	char buf[64];
+
+	mask = node_to_cpumask_map[node];
+	if (!mask) {
+		pr_err("node_to_cpumask_map[%i] NULL\n", node);
+		dump_stack();
+		return NULL;
+	}
+
+	cpulist_scnprintf(buf, sizeof(buf), mask);
+	printk(KERN_DEBUG "%s cpu %d node %d: mask now %s\n",
+		enable ? "numa_add_cpu" : "numa_remove_cpu",
+		cpu, node, buf);
+	return mask;
+}
+
+/*
+ * --------- debug versions of the numa functions ---------
+ */
+#ifndef CONFIG_NUMA_EMU
+static void __cpuinit numa_set_cpumask(int cpu, int enable)
+{
+	struct cpumask *mask;
+
+	mask = debug_cpumask_set_cpu(cpu, enable);
+	if (!mask)
+		return;
+
+	if (enable)
+		cpumask_set_cpu(cpu, mask);
+	else
+		cpumask_clear_cpu(cpu, mask);
+}
+#else
+static void __cpuinit numa_set_cpumask(int cpu, int enable)
+{
+	int node = early_cpu_to_node(cpu);
+	struct cpumask *mask;
 	int i;
 
 	for_each_online_node(i) {
@@ -851,24 +884,17 @@ static void __cpuinit numa_set_cpumask(int cpu, int enable)
 		if (addr < physnodes[node].start ||
 					addr >= physnodes[node].end)
 			continue;
-		mask = node_to_cpumask_map[node];
-		if (mask == NULL) {
-			pr_err("node_to_cpumask_map[%i] NULL\n", i);
-			dump_stack();
+		mask = debug_cpumask_set_cpu(cpu, enable);
+		if (!mask)
 			return;
-		}
 
 		if (enable)
 			cpumask_set_cpu(cpu, mask);
 		else
 			cpumask_clear_cpu(cpu, mask);
-
-		cpulist_scnprintf(buf, sizeof(buf), mask);
-		printk(KERN_DEBUG "%s cpu %d node %d: mask now %s\n",
-			enable ? "numa_add_cpu" : "numa_remove_cpu",
-			cpu, node, buf);
 	}
 }
+#endif /* CONFIG_NUMA_EMU */
 
 void __cpuinit numa_add_cpu(int cpu)
 {
