@@ -50,3 +50,4 @@ obj-$(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)		+= xpt2046_cbn_ts.o calibrati
 obj-$(CONFIG_TOUCHSCREEN_IT7250) += ctp_it7250.o
 obj-$(CONFIG_RK28_I2C_TS_NTP070)	+= ntp070.o
 obj-$(CONFIG_HANNSTAR_P1003)		+= hannstar_p1003.o
+obj-$(CONFIG_TOUCHSCREEN_IT7260)		+= it7260_ts.o

@@ -141,6 +141,15 @@ struct mma8452_platform_data {
     int     (*mma8452_platform_wakeup)(void);
     void    (*exit_platform_hw)(void);
 };
+/*it7260 touch */
+struct it7260_platform_data {
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*it7260_platform_sleep)(void);
+    int     (*it7260_platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+
 
 void __init rk29_map_common_io(void);
 void __init rk29_clock_init(void);

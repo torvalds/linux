@@ -67,8 +67,11 @@ static s32 rk29_bl_update_status(struct backlight_device *bl)
     
     div_total = read_pwm_reg(id, PWM_REG_LRC);
     if (ref) {
-
+	#if defined(CONFIG_MACH_RK29_AIGO)
+        divh = div_total*(BL_STEP - bl->props.brightness)/BL_STEP;
+	#else
         divh = div_total*(bl->props.brightness)/BL_STEP;
+	#endif
 	 DBG(">>>%s-->%d   bl->props.brightness == %d, div_total == %d , divh == %d\n",__FUNCTION__,__LINE__,bl->props.brightness, div_total, divh);
     } else {
      	 DBG(">>>%s-->%d   bl->props.brightness == %d\n",__FUNCTION__,__LINE__,bl->props.brightness);

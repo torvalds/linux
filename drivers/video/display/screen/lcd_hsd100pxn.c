@@ -13,7 +13,7 @@
 #if defined(CONFIG_MACH_RK29SDK)
 #define OUT_FACE		OUT_D888_P666
 #elif defined(CONFIG_MACH_RK29_AIGO)
-#define OUT_FACE		OUT_P888  
+#define OUT_FACE		OUT_D888_P666  //OUT_P888  
 #endif
 #define OUT_CLK			 65000000
 #define LCDC_ACLK        312000000           //29 lcdc axi DMA ÆµÂÊ
@@ -36,7 +36,7 @@
 #if defined(CONFIG_MACH_RK29SDK)
 #define SWAP_RB			0
 #elif defined(CONFIG_MACH_RK29_AIGO)
-#define SWAP_RB			1
+#define SWAP_RB			0    // 1
 #endif
 
 void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )

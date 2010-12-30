@@ -54,28 +54,33 @@
 
 
 /* Set memory size of pmem */
-#ifdef CONFIG_MACH_RK29SDK_MEM_SIZE_M
-#define SDRAM_SIZE          (CONFIG_MACH_RK29SDK_MEM_SIZE_M * SZ_1M)
+#ifdef CONFIG_RK29_MEM_SIZE_M
+#define SDRAM_SIZE          (CONFIG_RK29_MEM_SIZE_M * SZ_1M)
 #else
 #define SDRAM_SIZE          SZ_512M
 #endif
 #define PMEM_GPU_SIZE       SZ_64M
 #define PMEM_UI_SIZE        SZ_32M
-#define PMEM_VPU_SIZE       SZ_32M
-#define PMEM_CAM_SIZE       SZ_16M
+#define PMEM_VPU_SIZE       SZ_64M
+#define PMEM_CAM_SIZE       0x00c00000
+#ifdef CONFIG_VIDEO_RK29_WORK_IPP
+#define MEM_CAMIPP_SIZE     SZ_4M
+#else
+#define MEM_CAMIPP_SIZE     0
+#endif
 #define MEM_FB_SIZE         (3*SZ_2M)
 
 #define PMEM_GPU_BASE       ((u32)RK29_SDRAM_PHYS + SDRAM_SIZE - PMEM_GPU_SIZE)
 #define PMEM_UI_BASE        (PMEM_GPU_BASE - PMEM_UI_SIZE)
 #define PMEM_VPU_BASE       (PMEM_UI_BASE - PMEM_VPU_SIZE)
 #define PMEM_CAM_BASE       (PMEM_VPU_BASE - PMEM_CAM_SIZE)
-#define MEM_FB_BASE         (PMEM_CAM_BASE - MEM_FB_SIZE)
+#define MEM_CAMIPP_BASE     (PMEM_CAM_BASE - MEM_CAMIPP_SIZE)
+#define MEM_FB_BASE         (MEM_CAMIPP_BASE - MEM_FB_SIZE)
 #define LINUX_SIZE          (MEM_FB_BASE - RK29_SDRAM_PHYS)
 
 extern struct sys_timer rk29_timer;
 
 #define NAND_CS_MAX_NUM     1  /*form 0 to 8, it is 0 when no nand flash */
-
 int rk29_nand_io_init(void)
 {
 #if (NAND_CS_MAX_NUM == 2)
@@ -313,8 +318,8 @@ static struct android_pmem_platform_data android_pmem_cam_pdata = {
 	.name		= "pmem_cam",
 	.start		= PMEM_CAM_BASE,
 	.size		= PMEM_CAM_SIZE,
-	.no_allocator	= 0,
-	.cached		= 1,
+	.no_allocator	= 1,
+	.cached		= 0,
 };
 
 static struct platform_device android_pmem_cam_device = {
@@ -362,9 +367,9 @@ int p1003_init_platform_hw(void)
     }
     gpio_pull_updown(TOUCH_INT_PIN, 1);
     gpio_direction_output(TOUCH_RESET_PIN, 0);
-    mdelay(500);
+    msleep(500);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
-    mdelay(500);
+    msleep(500);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
 
     return 0;
@@ -378,6 +383,82 @@ struct p1003_platform_data p1003_info = {
 };
 #endif
 
+/*MMA8452 gsensor*/
+#if defined (CONFIG_GS_MMA8452)
+#define MMA8452_INT_PIN   RK29_PIN0_PA3
+
+int mma8452_init_platform_hw(void)
+{
+
+    if(gpio_request(MMA8452_INT_PIN,NULL) != 0){
+      gpio_free(MMA8452_INT_PIN);
+      printk("mma8452_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+    gpio_pull_updown(MMA8452_INT_PIN, 1);
+    return 0;
+}
+
+
+struct mma8452_platform_data mma8452_info = {
+  .model= 8452,
+  .swap_xy = 0,
+  .init_platform_hw= mma8452_init_platform_hw,
+
+};
+#endif
+
+
+/*it7260 touch*/
+#if defined (CONFIG_TOUCHSCREEN_IT7260)
+#define TOUCH_PWR_PIN    RK29_PIN6_PD1
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+
+int it7260_init_platform_hw(void)
+{
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("it7260_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("it7260_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    gpio_direction_output(TOUCH_PWR_PIN, 0);    
+    gpio_set_value(TOUCH_PWR_PIN,GPIO_LOW);
+
+    msleep(100);	
+
+    gpio_direction_output(TOUCH_INT_PIN, 0);	
+    gpio_set_value(TOUCH_INT_PIN,GPIO_LOW);	
+ 
+    msleep(100); //msleep(3000);    
+    gpio_set_value(TOUCH_PWR_PIN,GPIO_HIGH);	
+    msleep(100);	
+
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    mdelay(100);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    mdelay(100);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	
+    gpio_direction_output(TOUCH_INT_PIN, 1);    
+    gpio_pull_updown(TOUCH_INT_PIN, 0);  
+	
+  
+    return 0;
+}
+
+
+struct it7260_platform_data it7260_info = {
+  .init_platform_hw=NULL, //it7260_init_platform_hw,
+};
+#endif
 
 /*****************************************************************************************
  * i2c devices
@@ -491,6 +572,31 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		///.irq            = RK2818_PIN_PA4,
 	},
 #endif
+#if defined (CONFIG_GS_MMA8452)
+    {
+      .type           = "gs_mma8452",
+      .addr           = 0x1c,
+      .flags          = 0,
+      .irq            = MMA8452_INT_PIN,
+      .platform_data  = &mma8452_info,
+    },
+#endif
+#if defined (CONFIG_SENSORS_AK8973)
+	{
+		.type    		= "ak8973",
+		.addr           = 0x1d,
+		.flags			= 0,
+		.irq			= RK29_PIN0_PA4,
+	},
+#endif
+#if defined (CONFIG_SENSORS_AK8975)
+	{
+		.type    		= "ak8975",
+		.addr           = 0x1d,
+		.flags			= 0,
+		.irq			= RK29_PIN0_PA4,
+	},
+#endif
 };
 #endif
 
@@ -503,22 +609,15 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.flags			= 0,
 	},
 #endif
-#if defined (CONFIG_SENSORS_AK8973)
-	{
-		.type    		= "ak8973",
-		.addr           = 0x1c,
-		.flags			= 0,
-		.irq			= RK29_PIN4_PA1,
-	},
+#if defined (CONFIG_ANX7150)
+    {
+		.type           = "anx7150",
+        .addr           = 0x39,             //0x39, 0x3d
+        .flags          = 0,
+        .irq            = RK29_PIN1_PD7,
+    },
 #endif
-#if defined (CONFIG_SENSORS_AK8975)
-	{
-		.type    		= "ak8975",
-		.addr           = 0x1c,
-		.flags			= 0,
-		.irq			= RK29_PIN4_PA1,
-	},
-#endif
+
 };
 #endif
 
@@ -531,6 +630,15 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
       .flags          = 0,
       .irq            = RK29_PIN0_PA2,
       .platform_data  = &p1003_info,
+    },
+#endif
+#if defined (CONFIG_TOUCHSCREEN_IT7260)
+    {
+      .type           = "it7260_touch",
+      .addr           = 0x46,
+      .flags          = 0,
+      .irq            = RK29_PIN0_PA2,
+      .platform_data  = &it7260_info,
     },
 #endif
 };
@@ -581,7 +689,14 @@ struct rk29camera_platform_data rk29_camera_platform_data = {
             .gpio_flag = (SENSOR_POWERACTIVE_LEVEL_1|SENSOR_RESETACTIVE_LEVEL_1),
             .dev_name = SENSOR_NAME_1,
         }
-    }
+    },
+	#ifdef CONFIG_VIDEO_RK29_WORK_IPP
+	.meminfo = {
+	    .name  = "camera_ipp_mem",
+		.start = MEM_CAMIPP_BASE,
+		.size   = MEM_CAMIPP_SIZE,
+	}
+	#endif
 };
 
 static int rk29_sensor_io_init(void)
@@ -691,7 +806,7 @@ static int rk29_sensor_power(struct device *dev, int on)
     }
     return 0;
 }
-
+#if (SENSOR_IIC_ADDR_0 != 0x00)
 static struct i2c_board_info rk29_i2c_cam_info_0[] = {
 	{
 		I2C_BOARD_INFO(SENSOR_NAME_0, SENSOR_IIC_ADDR_0>>1)
@@ -715,7 +830,7 @@ struct platform_device rk29_soc_camera_pdrv_0 = {
 		.platform_data = &rk29_iclink_0,
 	},
 };
-
+#endif
 static struct i2c_board_info rk29_i2c_cam_info_1[] = {
 	{
 		I2C_BOARD_INFO(SENSOR_NAME_1, SENSOR_IIC_ADDR_1>>1)
@@ -741,7 +856,32 @@ struct platform_device rk29_soc_camera_pdrv_1 = {
 };
 
 
-extern struct platform_device rk29_device_camera;
+static u64 rockchip_device_camera_dmamask = 0xffffffffUL;
+struct resource rk29_camera_resource[] = {
+	[0] = {
+		.start = RK29_VIP_PHYS,
+		.end   = RK29_VIP_PHYS + RK29_VIP_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_VIP,
+		.end   = IRQ_VIP,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+/*platform_device : */
+struct platform_device rk29_device_camera = {
+	.name		  = RK29_CAM_DRV_NAME,
+	.id		  = RK29_CAM_PLATFORM_DEV_ID,               /* This is used to put cameras on this interface */
+	.num_resources	  = ARRAY_SIZE(rk29_camera_resource),
+	.resource	  = rk29_camera_resource,
+	.dev            = {
+		.dma_mask = &rockchip_device_camera_dmamask,
+		.coherent_dma_mask = 0xffffffffUL,
+		.platform_data  = &rk29_camera_platform_data,
+	}
+};
 #endif
 /*****************************************************************************************
  * backlight  devices
@@ -827,7 +967,7 @@ static struct regulator_consumer_supply pwm_consumers[] = {
 static struct regulator_init_data rk29_pwm_regulator_data = {
 	.constraints = {
 		.name = "PWM2",
-		.min_uV = 1200000,
+		.min_uV =  950000,
 		.max_uV = 1400000,
 		.apply_uV = 1,		
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,		
@@ -1048,6 +1188,14 @@ static struct platform_device rk29sdk_wifi_device = {
 };
 #endif
 
+
+/* bluetooth rfkill device */
+static struct platform_device rk29sdk_rfkill = {
+        .name = "rk29sdk_rfkill",
+        .id = -1,
+};
+
+
 #ifdef CONFIG_VIVANTE
 static struct resource resources_gpu[] = {
     [0] = {
@@ -1086,13 +1234,6 @@ static struct platform_device rk29_device_keys = {
 	},
 };
 #endif
-/********************usb*********************/
-struct usb_mass_storage_platform_data mass_storage_pdata = {
-	.nluns		= 1,
-	.vendor		= "RockChip",
-	.product	= "rk9 sdk",
-	.release	= 0x0100,
-};
 
 static void __init rk29_board_iomux_init(void)
 {
@@ -1158,6 +1299,13 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART1_RK29
 	&rk29_device_uart1,
 #endif
+#ifdef CONFIG_UART0_RK29
+	&rk29_device_uart0,
+#endif
+#ifdef CONFIG_UART2_RK29
+	&rk29_device_uart2,
+#endif
+
 #ifdef CONFIG_RK29_PWM_REGULATOR
 	&rk29_device_pwm_regulator,
 #endif
@@ -1207,6 +1355,11 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_WIFI_CONTROL_FUNC
         &rk29sdk_wifi_device,
 #endif
+
+#ifdef CONFIG_BT
+        &rk29sdk_rfkill,
+#endif
+
 #ifdef CONFIG_MTD_NAND_RK29
 	&rk29_device_nand,
 #endif
@@ -1225,18 +1378,29 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_VIDEO_RK29
  	&rk29_device_camera,      /* ddl@rock-chips.com : camera support  */
+ 	#if (SENSOR_IIC_ADDR_0 != 0x00)
  	&rk29_soc_camera_pdrv_0,
+ 	#endif
  	&rk29_soc_camera_pdrv_1,
  	&android_pmem_cam_device,
 #endif
 	&android_pmem_device,
 	&rk29_vpu_mem_device,
-#ifdef CONFIG_DWC_OTG
-	&rk29_device_dwc_otg,
+#ifdef CONFIG_USB20_OTG
+	&rk29_device_usb20_otg,
+#endif
+#ifdef CONFIG_USB20_HOST
+	&rk29_device_usb20_host,
+#endif
+#ifdef CONFIG_USB11_HOST
+	&rk29_device_usb11_host,
 #endif
 #ifdef CONFIG_USB_ANDROID
 	&android_usb_device,
 	&usb_mass_storage_device,
+#endif
+#ifdef CONFIG_RK29_IPP
+	&rk29_device_ipp,
 #endif
 };
 
@@ -1258,53 +1422,47 @@ static int rk29_rmii_io_init(void)
 	int err;
 
 	//set dm9161 rmii
-	rk29_mux_api_set(GPIO2D3_I2S0SDI_MIICOL_NAME, GPIO2H_GPIO2D3);
-	err = gpio_request(RK29_PIN2_PD3, "rmii");
-	if (err) {
-		gpio_free(RK29_PIN2_PD3);
-		printk("-------request RK29_PIN2_PD3 fail--------\n");
-		return -1;
-	}
-	gpio_direction_output(RK29_PIN2_PD3, GPIO_HIGH);
-	gpio_set_value(RK29_PIN2_PD3, GPIO_HIGH);
-
-	//rmii power on
-	err = gpio_request(RK29_PIN6_PB0, "rmii_power_en");
+	err = gpio_request(RK29_PIN6_PB0, "phy_power_en");
 	if (err) {
 		gpio_free(RK29_PIN6_PB0);
-		gpio_free(RK29_PIN2_PD3);
 		printk("-------request RK29_PIN6_PB0 fail--------\n");
 		return -1;
-	}	
-	gpio_direction_output(RK29_PIN6_PB0, GPIO_HIGH);
-	gpio_set_value(RK29_PIN6_PB0, GPIO_HIGH);
-	
+	}
+	//phy power down
+	gpio_direction_output(RK29_PIN6_PB0, GPIO_LOW);
+	gpio_set_value(RK29_PIN6_PB0, GPIO_LOW);
+
+	return 0;
+}
+
+static int rk29_rmii_io_deinit(void)
+{
+	//phy power down
+	gpio_direction_output(RK29_PIN6_PB0, GPIO_LOW);
+	gpio_set_value(RK29_PIN6_PB0, GPIO_LOW);
+	//free
+	gpio_free(RK29_PIN6_PB0);
 	return 0;
 }
 
 static int rk29_rmii_power_control(int enable)
 {
 	if (enable) {
-		//set dm9161 as rmii
-		gpio_direction_output(RK29_PIN2_PD3, GPIO_HIGH);
-		gpio_set_value(RK29_PIN2_PD3, GPIO_HIGH);
-
-		//enable rmii power
+		//enable phy power
 		gpio_direction_output(RK29_PIN6_PB0, GPIO_HIGH);
 		gpio_set_value(RK29_PIN6_PB0, GPIO_HIGH);
-		
 	}
 	else {
 		gpio_direction_output(RK29_PIN6_PB0, GPIO_LOW);
 		gpio_set_value(RK29_PIN6_PB0, GPIO_LOW);
 	}
-
 	return 0;
 }
 
 struct rk29_vmac_platform_data rk29_vmac_pdata = {
 	.vmac_register_set = rk29_vmac_register_set,
 	.rmii_io_init = rk29_rmii_io_init,
+	.rmii_io_deinit = rk29_rmii_io_deinit,
 	.rmii_power_control = rk29_rmii_power_control,
 };
 
@@ -1518,8 +1676,8 @@ static void __init machine_rk29_board_init(void)
 {
         rk29_board_iomux_init();
 	gpio_request(POWER_ON_PIN,"poweronpin");	
-		gpio_set_value(POWER_ON_PIN, 1);
-		gpio_direction_output(POWER_ON_PIN, 1);
+	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
+	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
                 rk29sdk_wifi_bt_gpio_control_init();
@@ -1544,6 +1702,11 @@ static void __init machine_rk29_board_init(void)
 #endif
 
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
+
+#ifdef CONFIG_TOUCHSCREEN_IT7260
+	// must before lcd, so place here
+	it7260_init_platform_hw();
+#endif
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,
