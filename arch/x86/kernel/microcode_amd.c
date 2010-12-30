@@ -278,27 +278,29 @@ generic_load_microcode(int cpu, const u8 *data, size_t size)
 	return state;
 }
 
-static enum ucode_state request_microcode_fw(int cpu, struct device *device)
+static enum ucode_state request_microcode_amd(int cpu, struct device *device)
 {
 	const char *fw_name = "amd-ucode/microcode_amd.bin";
-	const struct firmware *firmware;
-	enum ucode_state ret;
+	const struct firmware *fw;
+	enum ucode_state ret = UCODE_NFOUND;
 
-	if (request_firmware(&firmware, fw_name, device)) {
+	if (request_firmware(&fw, fw_name, device)) {
 		printk(KERN_ERR "microcode: failed to load file %s\n", fw_name);
-		return UCODE_NFOUND;
+		goto out;
 	}
 
-	if (*(u32 *)firmware->data != UCODE_MAGIC) {
-		pr_err("invalid UCODE_MAGIC (0x%08x)\n",
-		       *(u32 *)firmware->data);
-		return UCODE_ERROR;
+	ret = UCODE_ERROR;
+	if (*(u32 *)fw->data != UCODE_MAGIC) {
+		pr_err("Invalid UCODE_MAGIC (0x%08x)\n", *(u32 *)fw->data);
+		goto fw_release;
 	}
 
-	ret = generic_load_microcode(cpu, firmware->data, firmware->size);
+	ret = generic_load_microcode(cpu, fw->data, fw->size);
 
-	release_firmware(firmware);
+fw_release:
+	release_firmware(fw);
 
+out:
 	return ret;
 }
 
@@ -319,7 +321,7 @@ static void microcode_fini_cpu_amd(int cpu)
 
 static struct microcode_ops microcode_amd_ops = {
 	.request_microcode_user           = request_microcode_user,
-	.request_microcode_fw             = request_microcode_fw,
+	.request_microcode_fw             = request_microcode_amd,
 	.collect_cpu_info                 = collect_cpu_info_amd,
 	.apply_microcode                  = apply_microcode_amd,
 	.microcode_fini_cpu               = microcode_fini_cpu_amd,
