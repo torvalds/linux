@@ -405,7 +405,8 @@ static const struct ivtv_card ivtv_card_avc2410 = {
 	.hw_audio_ctrl = IVTV_HW_MSP34XX,
 	.hw_muxer = IVTV_HW_CS53L32A,
 	.hw_all = IVTV_HW_MSP34XX | IVTV_HW_CS53L32A |
-		  IVTV_HW_SAA7115 | IVTV_HW_TUNER,
+		  IVTV_HW_SAA7115 | IVTV_HW_TUNER |
+		  IVTV_HW_I2C_IR_RX_ADAPTEC,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_VID_TUNER,  0, IVTV_SAA71XX_COMPOSITE4 },
 		{ IVTV_CARD_INPUT_SVIDEO1,    1, IVTV_SAA71XX_SVIDEO0    },
