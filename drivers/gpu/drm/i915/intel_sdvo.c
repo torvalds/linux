@@ -2040,13 +2040,14 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 					   SDVO_COLORIMETRY_RGB256);
 		connector->connector_type = DRM_MODE_CONNECTOR_HDMIA;
 
-		intel_sdvo_add_hdmi_properties(intel_sdvo_connector);
 		intel_sdvo->is_hdmi = true;
 	}
 	intel_sdvo->base.clone_mask = ((1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
 				       (1 << INTEL_ANALOG_CLONE_BIT));
 
 	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
+	if (intel_sdvo->is_hdmi)
+		intel_sdvo_add_hdmi_properties(intel_sdvo_connector);
 
 	return true;
 }
