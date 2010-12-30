@@ -232,6 +232,9 @@ struct mwl8k_priv {
 	struct completion firmware_loading_complete;
 };
 
+#define MAX_WEP_KEY_LEN         13
+#define NUM_WEP_KEYS            4
+
 /* Per interface specific private data */
 struct mwl8k_vif {
 	struct list_head list;
@@ -242,6 +245,12 @@ struct mwl8k_vif {
 
 	/* Non AMPDU sequence number assigned by driver.  */
 	u16 seqno;
+
+	/* Saved WEP keys */
+	struct {
+		u8 enabled;
+		u8 key[sizeof(struct ieee80211_key_conf) + MAX_WEP_KEY_LEN];
+	} wep_key_conf[NUM_WEP_KEYS];
 };
 #define MWL8K_VIF(_vif) ((struct mwl8k_vif *)&((_vif)->drv_priv))
 
@@ -754,6 +763,49 @@ mwl8k_add_dma_header(struct sk_buff *skb, int tail_pad)
 	tr->fwlen = cpu_to_le16(skb->len - sizeof(*tr) + tail_pad);
 }
 
+static void mwl8k_encapsulate_tx_frame(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *wh;
+	struct ieee80211_tx_info *tx_info;
+	struct ieee80211_key_conf *key_conf;
+	int data_pad;
+
+	wh = (struct ieee80211_hdr *)skb->data;
+
+	tx_info = IEEE80211_SKB_CB(skb);
+
+	key_conf = NULL;
+	if (ieee80211_is_data(wh->frame_control))
+		key_conf = tx_info->control.hw_key;
+
+	/*
+	 * Make sure the packet header is in the DMA header format (4-address
+	 * without QoS), the necessary crypto padding between the header and the
+	 * payload has already been provided by mac80211, but it doesn't add tail
+	 * padding when HW crypto is enabled.
+	 *
+	 * We have the following trailer padding requirements:
+	 * - WEP: 4 trailer bytes (ICV)
+	 * - TKIP: 12 trailer bytes (8 MIC + 4 ICV)
+	 * - CCMP: 8 trailer bytes (MIC)
+	 */
+	data_pad = 0;
+	if (key_conf != NULL) {
+		switch (key_conf->cipher) {
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+			data_pad = 4;
+			break;
+		case WLAN_CIPHER_SUITE_TKIP:
+			data_pad = 12;
+			break;
+		case WLAN_CIPHER_SUITE_CCMP:
+			data_pad = 8;
+			break;
+		}
+	}
+	mwl8k_add_dma_header(skb, data_pad);
+}
 
 /*
  * Packet reception for 88w8366 AP firmware.
@@ -1447,7 +1499,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	else
 		qos = 0;
 
-	mwl8k_add_dma_header(skb, 0);
+	mwl8k_encapsulate_tx_frame(skb);
 	wh = &((struct mwl8k_dma_data *)skb->data)->wh;
 
 	tx_info = IEEE80211_SKB_CB(skb);
