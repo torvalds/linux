@@ -559,11 +559,11 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
         	dai->playback.channels_max = 2;
 	}
 	dai->playback.rates = ROCKCHIP_I2S_RATES;
-	dai->playback.formats = SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE;
+	dai->playback.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE;
 	dai->capture.channels_min = 2;
 	dai->capture.channels_max = 2;
-	dai->capture.rates = ROCKCHIP_I2S_RATES;
-	dai->capture.formats = SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE;
+	dai->capture.rates = SNDRV_PCM_RATE_44100;//ROCKCHIP_I2S_RATES;
+	dai->capture.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE;
 	dai->probe = rockchip_i2s_dai_probe; 
 	dai->ops = &rockchip_i2s_dai_ops;
 

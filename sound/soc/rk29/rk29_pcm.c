@@ -47,10 +47,9 @@ static const struct snd_pcm_hardware rockchip_pcm_hardware = {
 				    SNDRV_PCM_INFO_MMAP_VALID |
 				    SNDRV_PCM_INFO_PAUSE |
 				    SNDRV_PCM_INFO_RESUME,
-	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
-				    SNDRV_PCM_FMTBIT_U16_LE |
-				    SNDRV_PCM_FMTBIT_U8 |
-				    SNDRV_PCM_FMTBIT_S8,
+	.formats		=   SNDRV_PCM_FMTBIT_S24_LE |
+				    SNDRV_PCM_FMTBIT_S20_3LE |
+				    SNDRV_PCM_FMTBIT_S16_LE,
 	.channels_min		= 2,
 	.channels_max		= 8,
 	.buffer_bytes_max	= 128*1024,
