@@ -1912,6 +1912,11 @@ static int vidioc_dqbuf(struct file *file, void *priv,
 		mutex_unlock(&gspca_dev->usb_lock);
 	}
 
+	frame->v4l2_buf.flags &= ~V4L2_BUF_FLAG_DONE;
+	memcpy(v4l2_buf, &frame->v4l2_buf, sizeof *v4l2_buf);
+	PDEBUG(D_FRAM, "dqbuf %d", j);
+	ret = 0;
+
 	if (gspca_dev->memory == V4L2_MEMORY_USERPTR) {
 		if (copy_to_user((__u8 __user *) frame->v4l2_buf.m.userptr,
 				 frame->data,
@@ -1919,13 +1924,8 @@ static int vidioc_dqbuf(struct file *file, void *priv,
 			PDEBUG(D_ERR|D_STREAM,
 				"dqbuf cp to user failed");
 			ret = -EFAULT;
-			goto out;
 		}
 	}
-	frame->v4l2_buf.flags &= ~V4L2_BUF_FLAG_DONE;
-	memcpy(v4l2_buf, &frame->v4l2_buf, sizeof *v4l2_buf);
-	PDEBUG(D_FRAM, "dqbuf %d", j);
-	ret = 0;
 out:
 	mutex_unlock(&gspca_dev->queue_lock);
 	return ret;
