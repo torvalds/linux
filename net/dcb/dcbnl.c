@@ -1642,7 +1642,7 @@ out:
 }
 EXPORT_SYMBOL(dcb_setapp);
 
-void dcb_flushapp(void)
+static void dcb_flushapp(void)
 {
 	struct dcb_app_type *app;
 
