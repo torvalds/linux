@@ -165,7 +165,7 @@ nouveau_fence_emit(struct nouveau_fence *fence)
 		if (dev_priv->card_type < NV_C0)
 			BEGIN_RING(chan, NvSubSw, 0x0050, 1);
 		else
-			BEGIN_NVC0(chan, 2, NvSubSw, 0x0050, 1);
+			BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0050, 1);
 	} else {
 		BEGIN_RING(chan, NvSubSw, 0x0150, 1);
 	}
