@@ -102,10 +102,10 @@ static void vpu_put_clk(void)
 
 static void vpu_power_on(void)
 {
-	printk("power on\n");
+	pr_debug("power on\n");
 	if (client.enabled)
 		return;
-	printk("power domain on\n");
+	pr_debug("power domain on\n");
 	pmu_set_power_domain(PD_VCODEC, true);
     udelay(10);
 	clk_enable(aclk_vepu);
@@ -125,14 +125,14 @@ static void vpu_power_on(void)
 
 static void vpu_power_off(void)
 {
-	printk("power off\n");
+	pr_debug("power off\n");
 	if (!client.enabled)
 		return;
 	clk_disable(hclk_cpu_vcodec);
 	clk_disable(aclk_ddr_vepu);
 	clk_disable(hclk_vepu);
 	clk_disable(aclk_vepu);
-	printk("power domain off\n");
+	pr_debug("power domain off\n");
 	pmu_set_power_domain(PD_VCODEC, false);
 	client.enabled = false;
 }
