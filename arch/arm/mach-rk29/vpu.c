@@ -39,6 +39,8 @@
 #include <mach/vpu.h>
 #include <mach/rk29_iomap.h>
 #include <mach/pmu.h>
+#include <mach/cru.h>
+
 
 #define DEC_INTERRUPT_REGISTER     1
 #define PP_INTERRUPT_REGISTER      60
@@ -100,28 +102,37 @@ static void vpu_put_clk(void)
 
 static void vpu_power_on(void)
 {
-	pr_debug("power on\n");
+	printk("power on\n");
 	if (client.enabled)
 		return;
-	pr_debug("power domain on\n");
+	printk("power domain on\n");
 	pmu_set_power_domain(PD_VCODEC, true);
+    udelay(10);
 	clk_enable(aclk_vepu);
 	clk_enable(hclk_vepu);
 	clk_enable(aclk_ddr_vepu);
 	clk_enable(hclk_cpu_vcodec);
+    udelay(10);
+    writel( (1<<27), RK29_CRU_BASE +    CRU_SOFTRST0_CON );
+    writel( (1<<19), RK29_CRU_BASE +    CRU_SOFTRST2_CON );
+    writel( (1<<18), RK29_CRU_BASE +    CRU_SOFTRST2_CON );
+    writel( (1<<15), RK29_CRU_BASE +    CRU_SOFTRST2_CON );
+    udelay(10);
+    writel( 0, RK29_CRU_BASE +    CRU_SOFTRST0_CON );
+    writel( 0, RK29_CRU_BASE +    CRU_SOFTRST2_CON );
 	client.enabled = true;
 }
 
 static void vpu_power_off(void)
 {
-	pr_debug("power off\n");
+	printk("power off\n");
 	if (!client.enabled)
 		return;
 	clk_disable(hclk_cpu_vcodec);
 	clk_disable(aclk_ddr_vepu);
 	clk_disable(hclk_vepu);
 	clk_disable(aclk_vepu);
-	pr_debug("power domain off\n");
+	printk("power domain off\n");
 	pmu_set_power_domain(PD_VCODEC, false);
 	client.enabled = false;
 }
