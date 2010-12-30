@@ -167,8 +167,8 @@ static int get_key_adaptec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	keybuf[2] &= 0x7f;
 	keybuf[3] |= 0x80;
 
-	*ir_key = (u32) keybuf;
-	*ir_raw = (u32) keybuf;
+	*ir_key = keybuf[3] | keybuf[2] << 8 | keybuf[1] << 16 |keybuf[0] << 24;
+	*ir_raw = *ir_key;
 
 	return 1;
 }
