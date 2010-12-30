@@ -1831,43 +1831,29 @@ out:
 	return ret;
 }
 
-/*
- * wait for a video frame
- *
- * If a frame is ready, its index is returned.
- */
-static int frame_wait(struct gspca_dev *gspca_dev,
-			int nonblock_ing)
+static int frame_ready_nolock(struct gspca_dev *gspca_dev, struct file *file,
+				enum v4l2_memory memory)
 {
-	int i, ret;
+	if (!gspca_dev->present)
+		return -ENODEV;
+	if (gspca_dev->capt_file != file || gspca_dev->memory != memory ||
+			!gspca_dev->streaming)
+		return -EINVAL;
 
 	/* check if a frame is ready */
-	i = gspca_dev->fr_o;
-	if (i == atomic_read(&gspca_dev->fr_i)) {
-		if (nonblock_ing)
-			return -EAGAIN;
+	return gspca_dev->fr_o != atomic_read(&gspca_dev->fr_i);
+}
 
-		/* wait till a frame is ready */
-		ret = wait_event_interruptible_timeout(gspca_dev->wq,
-			i != atomic_read(&gspca_dev->fr_i) ||
-			!gspca_dev->streaming || !gspca_dev->present,
-			msecs_to_jiffies(3000));
-		if (ret < 0)
-			return ret;
-		if (ret == 0 || !gspca_dev->streaming || !gspca_dev->present)
-			return -EIO;
-	}
+static int frame_ready(struct gspca_dev *gspca_dev, struct file *file,
+			enum v4l2_memory memory)
+{
+	int ret;
 
-	gspca_dev->fr_o = (i + 1) % GSPCA_MAX_FRAMES;
-
-	if (gspca_dev->sd_desc->dq_callback) {
-		mutex_lock(&gspca_dev->usb_lock);
-		gspca_dev->usb_err = 0;
-		if (gspca_dev->present)
-			gspca_dev->sd_desc->dq_callback(gspca_dev);
-		mutex_unlock(&gspca_dev->usb_lock);
-	}
-	return gspca_dev->fr_queue[i];
+	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
+		return -ERESTARTSYS;
+	ret = frame_ready_nolock(gspca_dev, file, memory);
+	mutex_unlock(&gspca_dev->queue_lock);
+	return ret;
 }
 
 /*
@@ -1880,33 +1866,52 @@ static int vidioc_dqbuf(struct file *file, void *priv,
 {
 	struct gspca_dev *gspca_dev = priv;
 	struct gspca_frame *frame;
-	int i, ret;
+	int i, j, ret;
 
 	PDEBUG(D_FRAM, "dqbuf");
-	if (v4l2_buf->memory != gspca_dev->memory)
-		return -EINVAL;
 
-	if (!gspca_dev->present)
-		return -ENODEV;
-
-	/* if not streaming, be sure the application will not loop forever */
-	if (!(file->f_flags & O_NONBLOCK)
-	    && !gspca_dev->streaming && gspca_dev->users == 1)
-		return -EINVAL;
-
-	/* only the capturing file may dequeue */
-	if (gspca_dev->capt_file != file)
-		return -EINVAL;
-
-	/* only one dequeue / read at a time */
-	if (mutex_lock_interruptible(&gspca_dev->read_lock))
+	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
 
-	ret = frame_wait(gspca_dev, file->f_flags & O_NONBLOCK);
-	if (ret < 0)
-		goto out;
-	i = ret;				/* frame index */
-	frame = &gspca_dev->frame[i];
+	for (;;) {
+		ret = frame_ready_nolock(gspca_dev, file, v4l2_buf->memory);
+		if (ret < 0)
+			goto out;
+		if (ret > 0)
+			break;
+
+		mutex_unlock(&gspca_dev->queue_lock);
+
+		if (file->f_flags & O_NONBLOCK)
+			return -EAGAIN;
+
+		/* wait till a frame is ready */
+		ret = wait_event_interruptible_timeout(gspca_dev->wq,
+			frame_ready(gspca_dev, file, v4l2_buf->memory),
+			msecs_to_jiffies(3000));
+		if (ret < 0)
+			return ret;
+		if (ret == 0)
+			return -EIO;
+
+		if (mutex_lock_interruptible(&gspca_dev->queue_lock))
+			return -ERESTARTSYS;
+	}
+
+	i = gspca_dev->fr_o;
+	j = gspca_dev->fr_queue[i];
+	frame = &gspca_dev->frame[j];
+
+	gspca_dev->fr_o = (i + 1) % GSPCA_MAX_FRAMES;
+
+	if (gspca_dev->sd_desc->dq_callback) {
+		mutex_lock(&gspca_dev->usb_lock);
+		gspca_dev->usb_err = 0;
+		if (gspca_dev->present)
+			gspca_dev->sd_desc->dq_callback(gspca_dev);
+		mutex_unlock(&gspca_dev->usb_lock);
+	}
+
 	if (gspca_dev->memory == V4L2_MEMORY_USERPTR) {
 		if (copy_to_user((__u8 __user *) frame->v4l2_buf.m.userptr,
 				 frame->data,
@@ -1919,10 +1924,10 @@ static int vidioc_dqbuf(struct file *file, void *priv,
 	}
 	frame->v4l2_buf.flags &= ~V4L2_BUF_FLAG_DONE;
 	memcpy(v4l2_buf, &frame->v4l2_buf, sizeof *v4l2_buf);
-	PDEBUG(D_FRAM, "dqbuf %d", i);
+	PDEBUG(D_FRAM, "dqbuf %d", j);
 	ret = 0;
 out:
-	mutex_unlock(&gspca_dev->read_lock);
+	mutex_unlock(&gspca_dev->queue_lock);
 	return ret;
 }
 
@@ -2270,7 +2275,6 @@ int gspca_dev_probe2(struct usb_interface *intf,
 		goto out;
 
 	mutex_init(&gspca_dev->usb_lock);
-	mutex_init(&gspca_dev->read_lock);
 	mutex_init(&gspca_dev->queue_lock);
 	init_waitqueue_head(&gspca_dev->wq);
 

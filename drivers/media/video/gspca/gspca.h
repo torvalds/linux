@@ -205,7 +205,6 @@ struct gspca_dev {
 
 	wait_queue_head_t wq;		/* wait queue */
 	struct mutex usb_lock;		/* usb exchange protection */
-	struct mutex read_lock;		/* read protection */
 	struct mutex queue_lock;	/* ISOC queue protection */
 	int usb_err;			/* USB error - protected by usb_lock */
 	u16 pkt_size;			/* ISOC packet size */
