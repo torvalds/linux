@@ -253,7 +253,6 @@ struct i2c_client *ivtv_i2c_new_ir_legacy(struct ivtv *itv)
 	const unsigned short addr_list[] = {
 		0x1a,	/* Hauppauge IR external - collides with WM8739 */
 		0x18,	/* Hauppauge IR internal */
-		0x71,	/* Hauppauge IR (PVR150) */
 		I2C_CLIENT_END
 	};
 
