@@ -58,22 +58,22 @@
 #define CRU_CPU_MODE_MASK	(0x03u << 0)
 #define CRU_CPU_MODE_SLOW	(0x00u << 0)
 #define CRU_CPU_MODE_NORMAL	(0x01u << 0)
-#define CRU_CPU_MODE_DSLOW	(0x02u << 0)
+#define CRU_CPU_MODE_SLOW27	(0x02u << 0)
 
 #define CRU_GENERAL_MODE_MASK	(0x03u << 2)
 #define CRU_GENERAL_MODE_SLOW	(0x00u << 2)
 #define CRU_GENERAL_MODE_NORMAL	(0x01u << 2)
-#define CRU_GENERAL_MODE_DSLOW	(0x02u << 2)
+#define CRU_GENERAL_MODE_SLOW27	(0x02u << 2)
 
 #define CRU_CODEC_MODE_MASK	(0x03u << 4)
 #define CRU_CODEC_MODE_SLOW	(0x00u << 4)
 #define CRU_CODEC_MODE_NORMAL	(0x01u << 4)
-#define CRU_CODEC_MODE_DSLOW	(0x02u << 4)
+#define CRU_CODEC_MODE_SLOW27	(0x02u << 4)
 
 #define CRU_DDR_MODE_MASK	(0x03u << 6)
 #define CRU_DDR_MODE_SLOW	(0x00u << 6)
 #define CRU_DDR_MODE_NORMAL	(0x01u << 6)
-#define CRU_DDR_MODE_DSLOW	(0x02u << 6)
+#define CRU_DDR_MODE_SLOW27	(0x02u << 6)
 
 /* Clock flags */
 /* bit 0 is free */
@@ -82,7 +82,6 @@
 
 #define cru_readl(offset)	readl(RK29_CRU_BASE + offset)
 #define cru_writel(v, offset)	writel(v, RK29_CRU_BASE + offset)
-#define cru_writel_force(v, offset)	do { u32 _v = v; u32 _count = 5; do { cru_writel(_v, offset); } while (cru_readl(offset) != _v && _count--); } while (0)	/* huangtao: when write CRU_xPLL_CON, first time may failed, so try again. unknown why. */
 
 #define regfile_readl(offset)	readl(RK29_GRF_BASE + offset)
 #define pmu_readl(offset)	readl(RK29_PMU_BASE + offset)
@@ -298,9 +297,10 @@ static void delay_300us(void)
 #define DDR_PLL_IDX        3
 
 #define GRF_SOC_CON0       0xbc
-static void pll_wait_lock(int pll_idx, int delay)
+static void pll_wait_lock(int pll_idx)
 {
 	u32 bit = 0x2000000u << pll_idx;
+	int delay = 2400000;
 	while (delay > 0) {
 		if (regfile_readl(GRF_SOC_CON0) & bit)
 			break;
@@ -423,7 +423,7 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	cru_writel(ps->apll_con, CRU_APLL_CON);
 
 	delay_300us();
-	pll_wait_lock(ARM_PLL_IDX, 2400000);
+	pll_wait_lock(ARM_PLL_IDX);
 
 	/* reparent to arm pll & set aclk/hclk/pclk */
 	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK | ACLK_HCLK_MASK | ACLK_PCLK_MASK)) | CORE_PARENT_ARM_PLL | ps->clksel0_con, CRU_CLKSEL0_CON);
@@ -478,21 +478,31 @@ static struct clk ddr_pll_clk = {
 };
 
 
+static int codec_pll_clk_mode(struct clk *clk, int on)
+{
+	if (on) {
+		cru_writel(cru_readl(CRU_CPLL_CON) & ~PLL_PD, CRU_CPLL_CON);
+		delay_300us();
+		pll_wait_lock(CODEC_PLL_IDX);
+		cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CODEC_MODE_MASK) | CRU_CODEC_MODE_NORMAL, CRU_MODE_CON);
+	} else {
+		cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CODEC_MODE_MASK) | CRU_CODEC_MODE_SLOW, CRU_MODE_CON);
+		cru_writel(cru_readl(CRU_CPLL_CON) | PLL_PD, CRU_CPLL_CON);
+		delay_500ns();
+	}
+	return 0;
+}
+
 static unsigned long codec_pll_clk_recalc(struct clk *clk)
 {
 	unsigned long rate;
-
-	if ((cru_readl(CRU_MODE_CON) & CRU_CODEC_MODE_MASK) == CRU_CODEC_MODE_NORMAL) {
-		u32 v = cru_readl(CRU_CPLL_CON);
-		u64 rate64 = (u64) clk->parent->rate * PLL_NF(v);
-		do_div(rate64, PLL_NR(v));
-		rate = rate64 >> PLL_NO_SHIFT(v);
-		pr_debug("%s new clock rate is %ld (NF %d NR %d NO %d)\n", clk->name, rate, PLL_NF(v), PLL_NR(v), 1 << PLL_NO_SHIFT(v));
-	} else {
-		rate = clk->parent->rate;
-		pr_debug("%s new clock rate is %ld (slow mode)\n", clk->name, rate);
-	}
-
+	u32 v = cru_readl(CRU_CPLL_CON);
+	u64 rate64 = (u64) clk->parent->rate * PLL_NF(v);
+	do_div(rate64, PLL_NR(v));
+	rate = rate64 >> PLL_NO_SHIFT(v);
+	pr_debug("%s new clock rate is %ld (NF %d NR %d NO %d)\n", clk->name, rate, PLL_NF(v), PLL_NR(v), 1 << PLL_NO_SHIFT(v));
+	if ((cru_readl(CRU_MODE_CON) & CRU_CODEC_MODE_MASK) != CRU_CODEC_MODE_NORMAL)
+		pr_debug("%s rate is %ld (slow mode) actually\n", clk->name, clk->parent->rate);
 	return rate;
 }
 
@@ -502,64 +512,73 @@ static unsigned long codec_pll_clk_recalc(struct clk *clk)
 #define CODEC_PLL_PARENT_DDR_PLL	(2 << 11)
 #define CODEC_PLL_PARENT_GENERAL_PLL	(3 << 11)
 
+struct codec_pll_set {
+	unsigned long rate;
+	u32 pll_con;
+	u32 parent_con;
+};
+
+#define CODEC_PLL(_mhz, _parent, band, nr, nf, no) \
+{ \
+	.rate		= _mhz * MHZ, \
+	.pll_con	= PLL_##band##_BAND | PLL_CLKR(nr) | PLL_CLKF(nf) | PLL_NO_##no, \
+	.parent_con	= CODEC_PLL_PARENT_XIN##_parent##M, \
+}
+
+static const struct codec_pll_set codec_pll[] = {
+	//      rate parent band NR NF NO
+	CODEC_PLL(108, 24,  LOW, 1, 18, 4),	// for TV
+	CODEC_PLL(648, 24, HIGH, 1, 27, 1),
+	CODEC_PLL(297, 27,  LOW, 1, 22, 2),	// for HDMI
+	CODEC_PLL(594, 27,  LOW, 1, 22, 1),
+	CODEC_PLL(360, 24,  LOW, 1, 15, 1),	// for GPU
+	CODEC_PLL(408, 24,  LOW, 1, 17, 1),
+	CODEC_PLL(456, 24,  LOW, 1, 19, 1),
+	CODEC_PLL(504, 24,  LOW, 1, 21, 1),
+	CODEC_PLL(552, 24,  LOW, 1, 23, 1),
+	CODEC_PLL(600, 24, HIGH, 1, 25, 1),
+};
+
 static int codec_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	u32 pll_con;
-	u32 mode_con;
-	struct clk *parent;
+	int i;
+	u32 work_mode;
 
-	switch (rate) {
-	case 108 * MHZ:
-		/* 24 * 18 / 4 */
-		pll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(18) | PLL_NO_4;
-		mode_con = CODEC_PLL_PARENT_XIN24M;
-		parent = &xin24m;
-		break;
-	case 648 * MHZ:
-		/* 24 * 27 / 1 */
-		pll_con = PLL_HIGH_BAND | PLL_CLKR(1) | PLL_CLKF(27) | PLL_NO_1;
-		mode_con = CODEC_PLL_PARENT_XIN24M;
-		parent = &xin24m;
-		break;
-	case 297 * MHZ:
-		/* 27 * 22 / 2 */
-		pll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(22) | PLL_NO_2;
-		mode_con = CODEC_PLL_PARENT_XIN27M;
-		parent = &xin27m;
-		break;
-	case 594 * MHZ:
-		/* 27 * 22 / 1 */
-		pll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(22) | PLL_NO_1;
-		mode_con = CODEC_PLL_PARENT_XIN27M;
-		parent = &xin27m;
-		break;
-	default:
-		return -ENOENT;
-		break;
+	const struct codec_pll_set *ps = NULL;
+
+	for (i = 0; i < ARRAY_SIZE(codec_pll); i++) {
+		if (codec_pll[i].rate == rate) {
+			ps = &codec_pll[i];
+			break;
+		}
 	}
+	if (!ps)
+		return  -ENOENT;
+
+	work_mode = cru_readl(CRU_MODE_CON) & CRU_CODEC_MODE_MASK;
 
 	/* enter slow mode */
-	cru_writel((cru_readl(CRU_MODE_CON) & ~(CRU_CODEC_MODE_MASK | CODEC_PLL_PARENT_MASK)) | CRU_CODEC_MODE_SLOW | mode_con, CRU_MODE_CON);
+	cru_writel((cru_readl(CRU_MODE_CON) & ~(CRU_CODEC_MODE_MASK | CODEC_PLL_PARENT_MASK)) | CRU_CODEC_MODE_SLOW | ps->parent_con, CRU_MODE_CON);
 
 	/* power down */
 	cru_writel(cru_readl(CRU_CPLL_CON) | PLL_PD, CRU_CPLL_CON);
 
 	delay_500ns();
 
-	cru_writel(pll_con | PLL_PD, CRU_CPLL_CON);
+	cru_writel(ps->pll_con | PLL_PD, CRU_CPLL_CON);
 
 	delay_500ns();
 
 	/* power up */
-	cru_writel(pll_con, CRU_CPLL_CON);
+	cru_writel(ps->pll_con, CRU_CPLL_CON);
 
 	delay_300us();
-	pll_wait_lock(CODEC_PLL_IDX, 2400000);
+	pll_wait_lock(CODEC_PLL_IDX);
 
 	/* enter normal mode */
-	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CODEC_MODE_MASK) | CRU_CODEC_MODE_NORMAL, CRU_MODE_CON);
+	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CODEC_MODE_MASK) | work_mode, CRU_MODE_CON);
 
-	clk_set_parent_nolock(clk, parent);
+	clk_set_parent_nolock(clk, ps->parent_con == CODEC_PLL_PARENT_XIN24M ? &xin24m : &xin27m);
 
 	return 0;
 }
@@ -569,6 +588,7 @@ static struct clk *codec_pll_parents[4] = { &xin24m, &xin27m, &ddr_pll_clk, &gen
 static struct clk codec_pll_clk = {
 	.name		= "codec_pll",
 	.parent		= &xin24m,
+	.mode		= codec_pll_clk_mode,
 	.recalc		= codec_pll_clk_recalc,
 	.set_rate	= codec_pll_clk_set_rate,
 	.clksel_con	= CRU_MODE_CON,
@@ -630,7 +650,7 @@ static int general_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	cru_writel(pll_con, CRU_GPLL_CON);
 
 	delay_300us();
-	pll_wait_lock(GENERAL_PLL_IDX, 2400000);
+	pll_wait_lock(GENERAL_PLL_IDX);
 
 	/* enter normal mode */
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_GENERAL_MODE_MASK) | CRU_GENERAL_MODE_NORMAL, CRU_MODE_CON);
@@ -2219,7 +2239,7 @@ static void __init rk29_clock_common_init(void)
 	clk_set_parent_nolock(&clk_hsadc_div, &general_pll_clk);
 
 	/* codec pll */
-	clk_set_rate_nolock(&codec_pll_clk, 648 * MHZ);
+	clk_set_rate_nolock(&codec_pll_clk, 552 * MHZ);
 	clk_set_parent_nolock(&clk_gpu, &codec_pll_clk);
 	clk_set_parent_nolock(&clk_mac_ref_div, &codec_pll_clk);
 
@@ -2316,7 +2336,7 @@ static void dump_clock(struct seq_file *s, struct clk *clk, int deep)
 
 	seq_printf(s, "%-9s ", clk->name);
 
-	if (clk->mode && (clk->gate_idx < CLK_GATE_MAX)) {
+	if ((clk->mode == gate_mode) && (clk->gate_idx < CLK_GATE_MAX)) {
 		u32 reg;
 		int idx = clk->gate_idx;
 		u32 v;
@@ -2328,6 +2348,36 @@ static void dump_clock(struct seq_file *s, struct clk *clk, int deep)
 		v = cru_readl(reg) & (1 << idx);
 		
 		seq_printf(s, "%s ", v ? "off" : "on ");
+	}
+
+	if (clk == &arm_pll_clk) {
+		switch (cru_readl(CRU_MODE_CON) & CRU_CPU_MODE_MASK) {
+		case CRU_CPU_MODE_SLOW:   seq_printf(s, "slow   "); break;
+		case CRU_CPU_MODE_NORMAL: seq_printf(s, "normal "); break;
+		case CRU_CPU_MODE_SLOW27: seq_printf(s, "slow27 "); break;
+		}
+		if (cru_readl(CRU_APLL_CON) & PLL_BYPASS) seq_printf(s, "bypass ");
+	} else if (clk == &ddr_pll_clk) {
+		switch (cru_readl(CRU_MODE_CON) & CRU_DDR_MODE_MASK) {
+		case CRU_DDR_MODE_SLOW:   seq_printf(s, "slow   "); break;
+		case CRU_DDR_MODE_NORMAL: seq_printf(s, "normal "); break;
+		case CRU_DDR_MODE_SLOW27: seq_printf(s, "slow27 "); break;
+		}
+		if (cru_readl(CRU_DPLL_CON) & PLL_BYPASS) seq_printf(s, "bypass ");
+	} else if (clk == &codec_pll_clk) {
+		switch (cru_readl(CRU_MODE_CON) & CRU_CODEC_MODE_MASK) {
+		case CRU_CODEC_MODE_SLOW:   seq_printf(s, "slow   "); break;
+		case CRU_CODEC_MODE_NORMAL: seq_printf(s, "normal "); break;
+		case CRU_CODEC_MODE_SLOW27: seq_printf(s, "slow27 "); break;
+		}
+		if (cru_readl(CRU_CPLL_CON) & PLL_BYPASS) seq_printf(s, "bypass ");
+	} else if (clk == &general_pll_clk) {
+		switch (cru_readl(CRU_MODE_CON) & CRU_GENERAL_MODE_MASK) {
+		case CRU_GENERAL_MODE_SLOW:   seq_printf(s, "slow   "); break;
+		case CRU_GENERAL_MODE_NORMAL: seq_printf(s, "normal "); break;
+		case CRU_GENERAL_MODE_SLOW27: seq_printf(s, "slow27 "); break;
+		}
+		if (cru_readl(CRU_GPLL_CON) & PLL_BYPASS) seq_printf(s, "bypass ");
 	}
 
 	if (rate >= MHZ) {
@@ -2365,7 +2415,7 @@ static int proc_clk_show(struct seq_file *s, void *v)
 	}
 	mutex_unlock(&clocks_mutex);
 
-	seq_printf(s, "\nRegisters:\n");
+	seq_printf(s, "\nCRU Registers:\n");
 	seq_printf(s, "APLL     : 0x%08x\n", cru_readl(CRU_APLL_CON));
 	seq_printf(s, "DPLL     : 0x%08x\n", cru_readl(CRU_DPLL_CON));
 	seq_printf(s, "CPLL     : 0x%08x\n", cru_readl(CRU_CPLL_CON));
