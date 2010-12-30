@@ -740,6 +740,14 @@ nvc0_graph_isr(struct drm_device *dev)
 		stat &= ~0x00000010;
 	}
 
+	if (stat & 0x00000020) {
+		NV_INFO(dev, "PGRAPH: ILLEGAL_CLASS ch %d [0x%010llx] subc %d "
+			     "class 0x%04x mthd 0x%04x data 0x%08x\n",
+			chid, inst, subc, class, mthd, data);
+		nv_wr32(dev, 0x400100, 0x00000020);
+		stat &= ~0x00000020;
+	}
+
 	if (stat & 0x00100000) {
 		NV_INFO(dev, "PGRAPH: DATA_ERROR [");
 		nouveau_enum_print(nvc0_graph_data_error, code);
@@ -748,6 +756,14 @@ nvc0_graph_isr(struct drm_device *dev)
 		       chid, inst, subc, class, mthd, data);
 		nv_wr32(dev, 0x400100, 0x00100000);
 		stat &= ~0x00100000;
+	}
+
+	if (stat & 0x00200000) {
+		u32 trap = nv_rd32(dev, 0x400108);
+		NV_INFO(dev, "PGRAPH: TRAP ch %d status 0x%08x\n", chid, trap);
+		nv_wr32(dev, 0x400108, trap);
+		nv_wr32(dev, 0x400100, 0x00200000);
+		stat &= ~0x00200000;
 	}
 
 	if (stat & 0x00080000) {
