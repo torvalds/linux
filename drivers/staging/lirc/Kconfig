@@ -18,13 +18,6 @@ config LIRC_BT829
 	help
 	  Driver for the IR interface on BT829-based hardware
 
-config LIRC_I2C
-	tristate "I2C Based IR Receivers"
-	depends on LIRC && I2C
-	help
-	  Driver for I2C-based IR receivers, such as those commonly
-	  found onboard Hauppauge PVR-150/250/350 video capture cards
-
 config LIRC_IGORPLUGUSB
 	tristate "Igor Cesko's USB IR Receiver"
 	depends on LIRC && USB
