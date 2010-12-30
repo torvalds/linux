@@ -594,7 +594,7 @@ static void pump_transfers(unsigned long data)
 		spi_set_clk(dws, clk_div ? clk_div : chip->clk_div);
 		spi_chip_sel(dws, spi->chip_select);
 
-		/* Set the interrupt mask, for poll mode just diable all int */
+		/* Set the interrupt mask, for poll mode just disable all int */
 		spi_mask_intr(dws, 0xff);
 		if (imask)
 			spi_umask_intr(dws, imask);
