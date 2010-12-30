@@ -24,6 +24,7 @@ static DEFINE_SPINLOCK(irq_controller_lock);
 
 struct combiner_chip_data {
 	unsigned int irq_offset;
+	unsigned int irq_mask;
 	void __iomem *base;
 };
 
@@ -62,6 +63,7 @@ static void combiner_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	spin_lock(&irq_controller_lock);
 	status = __raw_readl(chip_data->base + COMBINER_INT_STATUS);
 	spin_unlock(&irq_controller_lock);
+	status &= chip_data->irq_mask;
 
 	if (status == 0)
 		goto out;
@@ -104,10 +106,12 @@ void __init combiner_init(unsigned int combiner_nr, void __iomem *base,
 
 	combiner_data[combiner_nr].base = base;
 	combiner_data[combiner_nr].irq_offset = irq_start;
+	combiner_data[combiner_nr].irq_mask = 0xff << ((combiner_nr % 4) << 3);
 
 	/* Disable all interrupts */
 
-	__raw_writel(0xffffffff, base + COMBINER_ENABLE_CLEAR);
+	__raw_writel(combiner_data[combiner_nr].irq_mask,
+		     base + COMBINER_ENABLE_CLEAR);
 
 	/* Setup the Linux IRQ subsystem */
 
