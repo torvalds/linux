@@ -26,7 +26,7 @@ void __iomem *twd_base;
 
 static unsigned long twd_timer_rate;
 static unsigned long twd_periphclk_prescaler;
-static unsigned long twd_target_rate;
+static unsigned long twd_cpu_rate;
 
 static void twd_set_mode(enum clock_event_mode mode,
 			struct clock_event_device *clk)
@@ -82,6 +82,12 @@ int twd_timer_ack(void)
 	return 0;
 }
 
+/*
+ * Recalculate the twd prescaler value when the cpu frequency changes. To
+ * prevent early timer interrupts, must be called before changing the cpu
+ * frequency if the frequency is increasing, or after if the frequency is
+ * decreasing.
+ */
 void twd_recalc_prescaler(unsigned long new_rate)
 {
 	u32 ctrl;
@@ -89,6 +95,8 @@ void twd_recalc_prescaler(unsigned long new_rate)
 	unsigned long periphclk_rate;
 
 	BUG_ON(twd_periphclk_prescaler == 0 || twd_timer_rate == 0);
+
+	twd_cpu_rate = new_rate;
 
 	periphclk_rate = new_rate / twd_periphclk_prescaler;
 
@@ -106,54 +114,59 @@ static void __cpuinit twd_calibrate_rate(unsigned long target_rate,
 {
 	unsigned long load, count;
 	u64 waitjiffies;
-	unsigned long cpu_rate;
 
 	/*
 	 * If this is the first time round, we need to work out how fast
 	 * the timer ticks
 	 */
-	printk(KERN_INFO "Calibrating local timer... ");
+	if (twd_timer_rate == 0) {
+		printk(KERN_INFO "Calibrating local timer... ");
 
-	/* Wait for a tick to start */
-	waitjiffies = get_jiffies_64() + 1;
+		/* Wait for a tick to start */
+		waitjiffies = get_jiffies_64() + 1;
 
-	while (get_jiffies_64() < waitjiffies)
-		udelay(10);
+		while (get_jiffies_64() < waitjiffies)
+			udelay(10);
 
-	/* OK, now the tick has started, let's get the timer going */
-	waitjiffies += 5;
+		/* OK, now the tick has started, let's get the timer going */
+		waitjiffies += 5;
 
-			 /* enable, no interrupt or reload */
-	__raw_writel(0x1, twd_base + TWD_TIMER_CONTROL);
+				 /* enable, no interrupt or reload */
+		__raw_writel(0x1, twd_base + TWD_TIMER_CONTROL);
 
-			 /* maximum value */
-	__raw_writel(0xFFFFFFFFU, twd_base + TWD_TIMER_COUNTER);
+				 /* maximum value */
+		__raw_writel(0xFFFFFFFFU, twd_base + TWD_TIMER_COUNTER);
 
-	while (get_jiffies_64() < waitjiffies)
-		udelay(10);
+		while (get_jiffies_64() < waitjiffies)
+			udelay(10);
 
-	count = __raw_readl(twd_base + TWD_TIMER_COUNTER);
+		count = __raw_readl(twd_base + TWD_TIMER_COUNTER);
 
-	twd_timer_rate = (0xFFFFFFFFU - count) * (HZ / 5);
+		twd_timer_rate = (0xFFFFFFFFU - count) * (HZ / 5);
 
-	/*
-	 * If a target rate has been requested, adjust the TWD prescaler
-	 * to get the closest lower frequency.
-	 */
-	if (target_rate) {
-		twd_periphclk_prescaler = periphclk_prescaler;
-		twd_target_rate = target_rate;
+		/*
+		 * If a target rate has been requested, adjust the TWD prescaler
+		 * to get the closest lower frequency.
+		 */
+		if (target_rate) {
+			twd_periphclk_prescaler = periphclk_prescaler;
 
-		printk("%lu.%02luMHz, setting to ",
-			twd_timer_rate / 1000000,
+			printk("%lu.%02luMHz, setting to ",
+				twd_timer_rate / 1000000,
+				(twd_timer_rate / 10000) % 100);
+			twd_cpu_rate = twd_timer_rate * periphclk_prescaler;
+			twd_timer_rate = target_rate;
+			twd_recalc_prescaler(twd_cpu_rate);
+		}
+
+		printk("%lu.%02luMHz.\n", twd_timer_rate / 1000000,
 			(twd_timer_rate / 10000) % 100);
-		cpu_rate = twd_timer_rate * periphclk_prescaler;
-		twd_timer_rate = twd_target_rate;
-		twd_recalc_prescaler(cpu_rate);
+	} else {
+		if (target_rate) {
+			BUG_ON(target_rate != twd_timer_rate);
+			twd_recalc_prescaler(twd_cpu_rate);
+		}
 	}
-
-	printk("%lu.%02luMHz.\n", twd_timer_rate / 1000000,
-		(twd_timer_rate / 10000) % 100);
 
 	load = twd_timer_rate / HZ;
 
