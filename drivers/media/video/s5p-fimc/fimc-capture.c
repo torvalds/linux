@@ -204,7 +204,7 @@ static int fimc_stop_capture(struct fimc_dev *fimc)
 	spin_unlock_irqrestore(&fimc->slock, flags);
 
 	wait_event_timeout(fimc->irq_queue,
-			   test_bit(ST_CAPT_SHUT, &fimc->state),
+			   !test_bit(ST_CAPT_SHUT, &fimc->state),
 			   FIMC_SHUTDOWN_TIMEOUT);
 
 	v4l2_subdev_call(cap->sd, video, s_stream, 0);
