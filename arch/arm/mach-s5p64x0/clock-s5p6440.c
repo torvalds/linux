@@ -419,7 +419,7 @@ static struct clksrc_sources clkset_audio = {
 static struct clksrc_clk clksrcs[] = {
 	{
 		.clk	= {
-			.name		= "mmc_bus",
+			.name		= "sclk_mmc",
 			.id		= 0,
 			.ctrlbit	= (1 << 24),
 			.enable		= s5p64x0_sclk_ctrl,
@@ -429,7 +429,7 @@ static struct clksrc_clk clksrcs[] = {
 		.reg_div = { .reg = S5P64X0_CLK_DIV1, .shift = 0, .size = 4 },
 	}, {
 		.clk	= {
-			.name		= "mmc_bus",
+			.name		= "sclk_mmc",
 			.id		= 1,
 			.ctrlbit	= (1 << 25),
 			.enable		= s5p64x0_sclk_ctrl,
@@ -439,7 +439,7 @@ static struct clksrc_clk clksrcs[] = {
 		.reg_div = { .reg = S5P64X0_CLK_DIV1, .shift = 4, .size = 4 },
 	}, {
 		.clk	= {
-			.name		= "mmc_bus",
+			.name		= "sclk_mmc",
 			.id		= 2,
 			.ctrlbit	= (1 << 26),
 			.enable		= s5p64x0_sclk_ctrl,
