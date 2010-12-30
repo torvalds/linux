@@ -15,15 +15,20 @@
 #include <linux/serial_core.h>
 #include <linux/sysdev.h>
 #include <linux/dm9000.h>
+#include <linux/fb.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 
+#include <video/platform_lcd.h>
+
 #include <mach/map.h>
 #include <mach/regs-clock.h>
+#include <mach/regs-fb.h>
 
 #include <plat/regs-serial.h>
 #include <plat/regs-srom.h>
@@ -37,6 +42,7 @@
 #include <plat/iic.h>
 #include <plat/keypad.h>
 #include <plat/pm.h>
+#include <plat/fb.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define SMDKV210_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -139,12 +145,73 @@ struct platform_device smdkv210_dm9000 = {
 	},
 };
 
+static void smdkv210_lte480wv_set_power(struct plat_lcd_data *pd,
+					unsigned int power)
+{
+	if (power) {
+#if !defined(CONFIG_BACKLIGHT_PWM)
+		gpio_request(S5PV210_GPD0(3), "GPD0");
+		gpio_direction_output(S5PV210_GPD0(3), 1);
+		gpio_free(S5PV210_GPD0(3));
+#endif
+
+		/* fire nRESET on power up */
+		gpio_request(S5PV210_GPH0(6), "GPH0");
+
+		gpio_direction_output(S5PV210_GPH0(6), 1);
+
+		gpio_set_value(S5PV210_GPH0(6), 0);
+		mdelay(10);
+
+		gpio_set_value(S5PV210_GPH0(6), 1);
+		mdelay(10);
+
+		gpio_free(S5PV210_GPH0(6));
+	} else {
+#if !defined(CONFIG_BACKLIGHT_PWM)
+		gpio_request(S5PV210_GPD0(3), "GPD0");
+		gpio_direction_output(S5PV210_GPD0(3), 0);
+		gpio_free(S5PV210_GPD0(3));
+#endif
+	}
+}
+
+static struct plat_lcd_data smdkv210_lcd_lte480wv_data = {
+	.set_power	= smdkv210_lte480wv_set_power,
+};
+
+static struct platform_device smdkv210_lcd_lte480wv = {
+	.name			= "platform-lcd",
+	.dev.parent		= &s3c_device_fb.dev,
+	.dev.platform_data	= &smdkv210_lcd_lte480wv_data,
+};
+
+static struct s3c_fb_pd_win smdkv210_fb_win0 = {
+	.win_mode = {
+		.left_margin	= 13,
+		.right_margin	= 8,
+		.upper_margin	= 7,
+		.lower_margin	= 5,
+		.hsync_len	= 3,
+		.vsync_len	= 1,
+		.xres		= 800,
+		.yres		= 480,
+	},
+	.max_bpp	= 32,
+	.default_bpp	= 24,
+};
+
+static struct s3c_fb_platdata smdkv210_lcd0_pdata __initdata = {
+	.win[0]		= &smdkv210_fb_win0,
+	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
+	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	.setup_gpio	= s5pv210_fb_gpio_setup_24bpp,
+};
+
 static struct platform_device *smdkv210_devices[] __initdata = {
-	&s5pv210_device_iis0,
-	&s5pv210_device_ac97,
-	&s5pv210_device_spdif,
 	&s3c_device_adc,
 	&s3c_device_cfcon,
+	&s3c_device_fb,
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
@@ -152,11 +219,15 @@ static struct platform_device *smdkv210_devices[] __initdata = {
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
 	&s3c_device_i2c2,
-	&samsung_device_keypad,
 	&s3c_device_rtc,
 	&s3c_device_ts,
 	&s3c_device_wdt,
+	&s5pv210_device_ac97,
+	&s5pv210_device_iis0,
+	&s5pv210_device_spdif,
+	&samsung_device_keypad,
 	&smdkv210_dm9000,
+	&smdkv210_lcd_lte480wv,
 };
 
 static void __init smdkv210_dm9000_init(void)
@@ -222,6 +293,8 @@ static void __init smdkv210_machine_init(void)
 			ARRAY_SIZE(smdkv210_i2c_devs2));
 
 	s3c_ide_set_platdata(&smdkv210_ide_pdata);
+
+	s3c_fb_set_platdata(&smdkv210_lcd0_pdata);
 
 	platform_add_devices(smdkv210_devices, ARRAY_SIZE(smdkv210_devices));
 }
