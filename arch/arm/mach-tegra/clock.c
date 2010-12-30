@@ -555,6 +555,17 @@ int __init tegra_late_init_clock(void)
 }
 late_initcall(tegra_late_init_clock);
 
+/* The SDMMC controllers have extra bits in the clock source register that
+ * adjust the delay between the clock and data to compenstate for delays
+ * on the PCB. */
+void tegra_sdmmc_tap_delay(struct clk *c, int delay) {
+	unsigned long flags;
+
+	clk_lock_save(c, flags);
+	tegra2_sdmmc_tap_delay(c, delay);
+	clk_unlock_restore(c, flags);
+}
+
 #ifdef CONFIG_DEBUG_FS
 
 /*
