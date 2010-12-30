@@ -42,7 +42,7 @@
 
 #define _GC_OBJ_ZONE    gcvZONE_OS
 
-#define PAGE_ALLOC_LIMIT        0   // 限制Page申请数
+#define PAGE_ALLOC_LIMIT                    1   // 限制Page申请数
 
 #if PAGE_ALLOC_LIMIT
 int g_pages_alloced = 0;

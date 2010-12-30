@@ -255,5 +255,13 @@
 #   define gcdGPU_TIMEOUT                   0
 #endif
 
+
+/*
+    gcdENABLE_AUTO_FREQ
+
+    根据GPU负荷自动调节GPU的CORE频率
+*/
+#define gcdENABLE_AUTO_FREQ                 0
+
 #endif /* __gc_hal_options_h_ */
 

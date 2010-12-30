@@ -19,12 +19,55 @@
 *****************************************************************************/
 
 
-
-
 #include "gc_hal.h"
 #include "gc_hal_kernel.h"
 
 #define _GC_OBJ_ZONE    gcvZONE_HARDWARE
+
+#if gcdENABLE_AUTO_FREQ
+#include <linux/time.h>
+u32 usec_run = 0;
+u32 usec_idle = 0;
+gceCHIPPOWERSTATE lastState = gcvPOWER_IDLE;
+struct timeval tv_on, tv_idle;
+
+void get_run_idle(u32 *run, u32 *idle)
+{
+    if(gcvPOWER_IDLE==lastState)
+    {
+        do_gettimeofday(&tv_on);
+        usec_idle += (1000000*(tv_on.tv_sec-tv_idle.tv_sec)+(tv_on.tv_usec-tv_idle.tv_usec));
+        tv_idle = tv_on;
+        *idle = usec_idle;
+        *run = usec_run;
+    } else {
+        do_gettimeofday(&tv_idle);
+        usec_run += (1000000*(tv_idle.tv_sec-tv_on.tv_sec)+(tv_idle.tv_usec-tv_on.tv_usec));
+        tv_on = tv_idle;
+        *idle = usec_idle;
+        *run = usec_run; 
+    }
+    usec_idle = 0;
+    usec_run = 0;
+}
+
+inline void cal_run_idle(gceCHIPPOWERSTATE State)
+{
+    if(gcvPOWER_IDLE==lastState && gcvPOWER_ON==State)  //gcvPOWER_IDLE->gcvPOWER_ON
+    {
+        do_gettimeofday(&tv_on);
+        usec_idle += (1000000*(tv_on.tv_sec-tv_idle.tv_sec)+(tv_on.tv_usec-tv_idle.tv_usec));
+    }
+    if(gcvPOWER_ON==lastState && gcvPOWER_IDLE==State)  //gcvPOWER_ON->gcvPOWER_IDLE
+    {
+        do_gettimeofday(&tv_idle);
+        usec_run += (1000000*(tv_idle.tv_sec-tv_on.tv_sec)+(tv_idle.tv_usec-tv_on.tv_usec));
+    }
+    
+    lastState = State;
+}
+
+#endif
 
 /******************************************************************************\
 ********************************* Support Code *********************************
@@ -2935,6 +2978,10 @@ gckHARDWARE_SetPowerManagementState(
         break;
     }
 
+#if gcdENABLE_AUTO_FREQ
+    cal_run_idle(State);
+#endif
+    
     /* Get current process and thread IDs. */
     gcmkONERROR(gckOS_GetProcessID(&process));
     gcmkONERROR(gckOS_GetThreadID(&thread));
