@@ -63,7 +63,7 @@ module_param(contiguousBase, ulong, 0644);
 long bankSize = 32 << 20;
 module_param(bankSize, long, 0644);
 
-int fastClear = 0;   //-1;
+int fastClear = 0;  //-1;
 module_param(fastClear, int, 0644);
 
 int compression = -1;
@@ -79,7 +79,7 @@ int showArgs = 0;
 module_param(showArgs, int, 0644);
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER
-unsigned long coreClock = 156000000;
+unsigned long coreClock = 552*1000000;
 module_param(coreClock, ulong, 0644);
 #endif
 
@@ -96,6 +96,57 @@ struct file_operations driver_fops =
     .ioctl  	= drv_ioctl,
     .mmap   	= drv_mmap,
 };
+
+#if gcdENABLE_AUTO_FREQ
+#include <linux/timer.h>
+struct timer_list gpu_timer;
+extern void get_run_idle(u32 *run, u32 *idle);
+int power_cnt = 0;
+int last_precent = 0;
+int last_freq = 0;
+void gputimer_callback(unsigned long arg)
+{
+    u32 run, idle;
+    int precent, freq, diff;
+    struct clk * clk_gpu = clk_get(NULL, "gpu");
+    
+	mod_timer(&gpu_timer, jiffies + HZ/10);
+
+    get_run_idle(&run, &idle);
+    precent = (int)((run*100)/(run+idle));
+
+    if(precent<90) { 
+        power_cnt--; 
+    } else if (precent==100){
+        power_cnt += 2;
+    } else {
+        diff = precent - last_precent;
+        if(diff>0) {
+            if(diff>5)      power_cnt += 2;
+            else            power_cnt += 1;
+        } else {
+            power_cnt--; 
+        }
+    }
+    if(power_cnt<0)     power_cnt = 0;
+    if(power_cnt>10)    power_cnt = 10;
+    last_precent = precent;
+
+    if(power_cnt<=0)        freq = 360;
+    else if(power_cnt>=6)   freq = 552;
+    else                    freq = 456;
+
+    if(freq!=last_freq) {
+        clk_set_parent(clk_gpu, clk_get(NULL, "general_pll"));
+        clk_set_rate(clk_get(NULL, "codec_pll"), freq*1000000);
+        clk_set_rate(clk_gpu, freq*1000000);
+        clk_set_parent(clk_gpu, clk_get(NULL, "codec_pll"));
+    }
+
+    last_freq = freq;
+    printk("%8d /%8d = %3d %%, freq = %dM (%d)\n", (int)run, (int)(run+idle), precent, freq, power_cnt);
+}
+#endif
 
 int drv_open(struct inode *inode, struct file* filp)
 {
@@ -500,8 +551,10 @@ static int drv_init(void)
         printk("clk_gpu get error: %d\n", retval);
         return -ENODEV;
     }
+
+    clk_set_rate(clk_get(NULL, "codec_pll"), coreClock);
     /* APMU_GC_156M, APMU_GC_624M, APMU_GC_PLL2, APMU_GC_PLL2_DIV2 currently */
-    if (clk_set_rate(clk_gpu, 552000000))  //designed on 500M
+    if (clk_set_rate(clk_gpu, coreClock))  //designed on 500M
     {
        	gcmkTRACE_ZONE(gcvLEVEL_ERROR, gcvZONE_DRIVER,
     	    	      "[galcore] Can't set core clock.");
@@ -696,6 +749,13 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 	}
 	contiguousBase  = res->start;
 	contiguousSize  = res->end-res->start;
+
+#if gcdENABLE_AUTO_FREQ
+    init_timer(&gpu_timer);
+    gpu_timer.function = gputimer_callback;
+    gpu_timer.expires = jiffies + 15*HZ;
+    add_timer(&gpu_timer);
+#endif
 
 	ret = drv_init();
 	if(!ret) {
