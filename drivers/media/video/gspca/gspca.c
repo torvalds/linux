@@ -1210,29 +1210,15 @@ static void gspca_release(struct video_device *vfd)
 static int dev_open(struct file *file)
 {
 	struct gspca_dev *gspca_dev;
-	int ret;
 
 	PDEBUG(D_STREAM, "[%s] open", current->comm);
 	gspca_dev = (struct gspca_dev *) video_devdata(file);
-	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
-		return -ERESTARTSYS;
-	if (!gspca_dev->present) {
-		ret = -ENODEV;
-		goto out;
-	}
-
-	if (gspca_dev->users > 4) {	/* (arbitrary value) */
-		ret = -EBUSY;
-		goto out;
-	}
+	if (!gspca_dev->present)
+		return -ENODEV;
 
 	/* protect the subdriver against rmmod */
-	if (!try_module_get(gspca_dev->module)) {
-		ret = -ENODEV;
-		goto out;
-	}
-
-	gspca_dev->users++;
+	if (!try_module_get(gspca_dev->module))
+		return -ENODEV;
 
 	file->private_data = gspca_dev;
 #ifdef GSPCA_DEBUG
@@ -1244,14 +1230,7 @@ static int dev_open(struct file *file)
 		gspca_dev->vdev.debug &= ~(V4L2_DEBUG_IOCTL
 					| V4L2_DEBUG_IOCTL_ARG);
 #endif
-	ret = 0;
-out:
-	mutex_unlock(&gspca_dev->queue_lock);
-	if (ret != 0)
-		PDEBUG(D_ERR|D_STREAM, "open failed err %d", ret);
-	else
-		PDEBUG(D_STREAM, "open done");
-	return ret;
+	return 0;
 }
 
 static int dev_close(struct file *file)
@@ -1261,7 +1240,6 @@ static int dev_close(struct file *file)
 	PDEBUG(D_STREAM, "[%s] close", current->comm);
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
-	gspca_dev->users--;
 
 	/* if the file did the capture, free the streaming resources */
 	if (gspca_dev->capt_file == file) {

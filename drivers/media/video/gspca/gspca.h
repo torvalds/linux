@@ -211,7 +211,6 @@ struct gspca_dev {
 #ifdef CONFIG_PM
 	char frozen;			/* suspend - resume */
 #endif
-	char users;			/* number of opens */
 	char present;			/* device connected */
 	char nbufread;			/* number of buffers for read() */
 	char memory;			/* memory type (V4L2_MEMORY_xxx) */
