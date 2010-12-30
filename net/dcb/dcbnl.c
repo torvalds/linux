@@ -66,6 +66,7 @@ static const struct nla_policy dcbnl_rtnl_policy[DCB_ATTR_MAX + 1] = {
 	[DCB_ATTR_PFC_STATE]   = {.type = NLA_U8},
 	[DCB_ATTR_BCN]         = {.type = NLA_NESTED},
 	[DCB_ATTR_APP]         = {.type = NLA_NESTED},
+	[DCB_ATTR_IEEE]	       = {.type = NLA_NESTED},
 };
 
 /* DCB priority flow control to User Priority nested attributes */
@@ -165,6 +166,17 @@ static const struct nla_policy dcbnl_app_nest[DCB_APP_ATTR_MAX + 1] = {
 	[DCB_APP_ATTR_IDTYPE]       = {.type = NLA_U8},
 	[DCB_APP_ATTR_ID]           = {.type = NLA_U16},
 	[DCB_APP_ATTR_PRIORITY]     = {.type = NLA_U8},
+};
+
+/* IEEE 802.1Qaz nested attributes. */
+static const struct nla_policy dcbnl_ieee_policy[DCB_ATTR_IEEE_MAX + 1] = {
+	[DCB_ATTR_IEEE_ETS]	    = {.len = sizeof(struct ieee_ets)},
+	[DCB_ATTR_IEEE_PFC]	    = {.len = sizeof(struct ieee_pfc)},
+	[DCB_ATTR_IEEE_APP_TABLE]   = {.type = NLA_NESTED},
+};
+
+static const struct nla_policy dcbnl_ieee_app[DCB_ATTR_IEEE_APP_MAX + 1] = {
+	[DCB_ATTR_IEEE_APP]	    = {.len = sizeof(struct dcb_app)},
 };
 
 /* standard netlink reply call */
@@ -1118,6 +1130,117 @@ err:
 	return ret;
 }
 
+/* Handle IEEE 802.1Qaz SET commands. If any requested operation can not
+ * be completed the entire msg is aborted and error value is returned.
+ * No attempt is made to reconcile the case where only part of the
+ * cmd can be completed.
+ */
+static int dcbnl_ieee_set(struct net_device *netdev, struct nlattr **tb,
+			  u32 pid, u32 seq, u16 flags)
+{
+	const struct dcbnl_rtnl_ops *ops = netdev->dcbnl_ops;
+	struct nlattr *ieee[DCB_ATTR_IEEE_MAX + 1];
+	int err = -EOPNOTSUPP;
+
+	if (!ops)
+		goto err;
+
+	err = nla_parse_nested(ieee, DCB_ATTR_IEEE_MAX,
+			       tb[DCB_ATTR_IEEE], dcbnl_ieee_policy);
+	if (err)
+		goto err;
+
+	if (ieee[DCB_ATTR_IEEE_ETS] && ops->ieee_setets) {
+		struct ieee_ets *ets = nla_data(ieee[DCB_ATTR_IEEE_ETS]);
+		err = ops->ieee_setets(netdev, ets);
+		if (err)
+			goto err;
+	}
+
+	if (ieee[DCB_ATTR_IEEE_PFC] && ops->ieee_setets) {
+		struct ieee_pfc *pfc = nla_data(ieee[DCB_ATTR_IEEE_PFC]);
+		err = ops->ieee_setpfc(netdev, pfc);
+		if (err)
+			goto err;
+	}
+
+	if (ieee[DCB_ATTR_IEEE_APP_TABLE] && ops->ieee_setapp) {
+		struct nlattr *attr;
+		int rem;
+
+		nla_for_each_nested(attr, ieee[DCB_ATTR_IEEE_APP_TABLE], rem) {
+			struct dcb_app *app_data;
+			if (nla_type(attr) != DCB_ATTR_IEEE_APP)
+				continue;
+			app_data = nla_data(attr);
+			err = ops->ieee_setapp(netdev, app_data);
+			if (err)
+				goto err;
+		}
+	}
+
+err:
+	dcbnl_reply(err, RTM_SETDCB, DCB_CMD_IEEE_SET, DCB_ATTR_IEEE,
+		    pid, seq, flags);
+	return err;
+}
+
+
+/* Handle IEEE 802.1Qaz GET commands. */
+static int dcbnl_ieee_get(struct net_device *netdev, struct nlattr **tb,
+			  u32 pid, u32 seq, u16 flags)
+{
+	struct sk_buff *skb;
+	struct nlmsghdr *nlh;
+	struct dcbmsg *dcb;
+	struct nlattr *ieee;
+	const struct dcbnl_rtnl_ops *ops = netdev->dcbnl_ops;
+	int err;
+
+	if (!ops)
+		return -EOPNOTSUPP;
+
+	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	nlh = NLMSG_NEW(skb, pid, seq, RTM_GETDCB, sizeof(*dcb), flags);
+
+	dcb = NLMSG_DATA(nlh);
+	dcb->dcb_family = AF_UNSPEC;
+	dcb->cmd = DCB_CMD_IEEE_GET;
+
+	NLA_PUT_STRING(skb, DCB_ATTR_IFNAME, netdev->name);
+
+	ieee = nla_nest_start(skb, DCB_ATTR_IEEE);
+	if (!ieee)
+		goto nla_put_failure;
+
+	if (ops->ieee_getets) {
+		struct ieee_ets ets;
+		err = ops->ieee_getets(netdev, &ets);
+		if (!err)
+			NLA_PUT(skb, DCB_ATTR_IEEE_ETS, sizeof(ets), &ets);
+	}
+
+	if (ops->ieee_getpfc) {
+		struct ieee_pfc pfc;
+		err = ops->ieee_getpfc(netdev, &pfc);
+		if (!err)
+			NLA_PUT(skb, DCB_ATTR_IEEE_PFC, sizeof(pfc), &pfc);
+	}
+
+	nla_nest_end(skb, ieee);
+	nlmsg_end(skb, nlh);
+
+	return rtnl_unicast(skb, &init_net, pid);
+nla_put_failure:
+	nlmsg_cancel(skb, nlh);
+nlmsg_failure:
+	kfree_skb(skb);
+	return -1;
+}
+
 static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
@@ -1222,6 +1345,14 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	case DCB_CMD_SAPP:
 		ret = dcbnl_setapp(netdev, tb, pid, nlh->nlmsg_seq,
 		                   nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_IEEE_SET:
+		ret = dcbnl_ieee_set(netdev, tb, pid, nlh->nlmsg_seq,
+				 nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_IEEE_GET:
+		ret = dcbnl_ieee_get(netdev, tb, pid, nlh->nlmsg_seq,
+				 nlh->nlmsg_flags);
 		goto out;
 	default:
 		goto errout;

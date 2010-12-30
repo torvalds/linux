@@ -20,11 +20,22 @@
 #ifndef __NET_DCBNL_H__
 #define __NET_DCBNL_H__
 
+#include <linux/dcbnl.h>
+
 /*
  * Ops struct for the netlink callbacks.  Used by DCB-enabled drivers through
  * the netdevice struct.
  */
 struct dcbnl_rtnl_ops {
+	/* IEEE 802.1Qaz std */
+	int (*ieee_getets) (struct net_device *, struct ieee_ets *);
+	int (*ieee_setets) (struct net_device *, struct ieee_ets *);
+	int (*ieee_getpfc) (struct net_device *, struct ieee_pfc *);
+	int (*ieee_setpfc) (struct net_device *, struct ieee_pfc *);
+	int (*ieee_getapp) (struct net_device *, struct dcb_app *);
+	int (*ieee_setapp) (struct net_device *, struct dcb_app *);
+
+	/* CEE std */
 	u8   (*getstate)(struct net_device *);
 	u8   (*setstate)(struct net_device *, u8);
 	void (*getpermhwaddr)(struct net_device *, u8 *);
