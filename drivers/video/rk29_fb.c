@@ -1591,6 +1591,7 @@ int fb1_release(struct fb_info *info, int user)
     if(par->refcount) {
         par->refcount--;
         inf->video_mode = 0;
+        par->par_seted = 0;
 
         win1_blank(FB_BLANK_POWERDOWN, info);
         // wait for lcdc stop access memory
@@ -1660,7 +1661,7 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
                 }
 
                 local_irq_save(flags);
-    	        LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(1));
+    	        LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(par->par_seted));
                 par->mirror.y_offset = yuv_phy[0];
                 par->mirror.c_offset = yuv_phy[1];
                 local_irq_restore(flags);
