@@ -51,7 +51,6 @@ struct bnx2x_dcbx_pfc_params {
 };
 
 struct bnx2x_dcbx_port_params {
-	u32 dcbx_enabled;
 	struct bnx2x_dcbx_pfc_params pfc;
 	struct bnx2x_dcbx_pg_params  ets;
 	struct bnx2x_dcbx_app_params app;
@@ -88,8 +87,6 @@ struct bnx2x_admin_priority_app_table {
  * DCBX protocol configuration parameters.
  ******************************************************************************/
 struct bnx2x_config_dcbx_params {
-	u32 dcb_enable;
-	u32 admin_dcbx_enable;
 	u32 overwrite_settings;
 	u32 admin_dcbx_version;
 	u32 admin_ets_enable;
@@ -182,6 +179,7 @@ struct bnx2x;
 void bnx2x_dcb_init_intmem_pfc(struct bnx2x *bp);
 void bnx2x_dcbx_update(struct work_struct *work);
 void bnx2x_dcbx_init_params(struct bnx2x *bp);
+void bnx2x_dcbx_set_state(struct bnx2x *bp, bool dcb_on, u32 dcbx_enabled);
 
 enum {
 	BNX2X_DCBX_STATE_NEG_RECEIVED = 0x1,
@@ -189,5 +187,10 @@ enum {
 	BNX2X_DCBX_STATE_TX_RELEASED = 0x4
 };
 void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state);
+
+/* DCB netlink */
+#ifdef BCM_DCB
+extern const struct dcbnl_rtnl_ops bnx2x_dcbnl_ops;
+#endif /* BCM_DCB */
 
 #endif /* BNX2X_DCB_H */

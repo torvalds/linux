@@ -3107,7 +3107,8 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 				bnx2x_pmf_update(bp);
 
 			if (bp->port.pmf &&
-			    (val & DRV_STATUS_DCBX_NEGOTIATION_RESULTS))
+			    (val & DRV_STATUS_DCBX_NEGOTIATION_RESULTS) &&
+				bp->dcbx_enabled > 0)
 				/* start dcbx state machine */
 				bnx2x_dcbx_set_params(bp,
 					BNX2X_DCBX_STATE_NEG_RECEIVED);
@@ -8795,6 +8796,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	bp->timer.data = (unsigned long) bp;
 	bp->timer.function = bnx2x_timer;
 
+	bnx2x_dcbx_set_state(bp, true, BNX2X_DCBX_ENABLED_ON_NEG_ON);
 	bnx2x_dcbx_init_params(bp);
 
 	return rc;
@@ -9145,6 +9147,10 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 		dev->vlan_features |= NETIF_F_HIGHDMA;
 	dev->vlan_features |= (NETIF_F_TSO | NETIF_F_TSO_ECN);
 	dev->vlan_features |= NETIF_F_TSO6;
+
+#ifdef BCM_DCB
+	dev->dcbnl_ops = &bnx2x_dcbnl_ops;
+#endif
 
 	/* get_port_hwinfo() will set prtad and mmds properly */
 	bp->mdio.prtad = MDIO_PRTAD_NONE;

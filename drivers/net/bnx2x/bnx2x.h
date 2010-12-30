@@ -22,15 +22,17 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.62.00-2"
-#define DRV_MODULE_RELDATE      "2010/12/13"
+#define DRV_MODULE_VERSION      "1.62.00-3"
+#define DRV_MODULE_RELDATE      "2010/12/21"
 #define BNX2X_BC_VER            0x040200
 
 #define BNX2X_MULTI_QUEUE
 
 #define BNX2X_NEW_NAPI
 
-
+#if defined(CONFIG_DCB)
+#define BCM_DCB
+#endif
 #if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
 #define BCM_CNIC 1
 #include "../cnic_if.h"
@@ -1186,7 +1188,20 @@ struct bnx2x {
 	/* LLDP params */
 	struct bnx2x_config_lldp_params		lldp_config_params;
 
-	/* DCBX params */
+	/* DCB support on/off */
+	u16 dcb_state;
+#define BNX2X_DCB_STATE_OFF			0
+#define BNX2X_DCB_STATE_ON			1
+
+	/* DCBX engine mode */
+	int dcbx_enabled;
+#define BNX2X_DCBX_ENABLED_OFF			0
+#define BNX2X_DCBX_ENABLED_ON_NEG_OFF		1
+#define BNX2X_DCBX_ENABLED_ON_NEG_ON		2
+#define BNX2X_DCBX_ENABLED_INVALID		(-1)
+
+	bool dcbx_mode_uset;
+
 	struct bnx2x_config_dcbx_params		dcbx_config_params;
 
 	struct bnx2x_dcbx_port_params		dcbx_port_params;
