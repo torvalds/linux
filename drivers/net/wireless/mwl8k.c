@@ -715,10 +715,12 @@ static inline void mwl8k_remove_dma_header(struct sk_buff *skb, __le16 qos)
 		skb_pull(skb, sizeof(*tr) - hdrlen);
 }
 
-static inline void mwl8k_add_dma_header(struct sk_buff *skb)
+static void
+mwl8k_add_dma_header(struct sk_buff *skb, int tail_pad)
 {
 	struct ieee80211_hdr *wh;
 	int hdrlen;
+	int reqd_hdrlen;
 	struct mwl8k_dma_data *tr;
 
 	/*
@@ -730,11 +732,13 @@ static inline void mwl8k_add_dma_header(struct sk_buff *skb)
 	wh = (struct ieee80211_hdr *)skb->data;
 
 	hdrlen = ieee80211_hdrlen(wh->frame_control);
-	if (hdrlen != sizeof(*tr))
-		skb_push(skb, sizeof(*tr) - hdrlen);
+	reqd_hdrlen = sizeof(*tr);
+
+	if (hdrlen != reqd_hdrlen)
+		skb_push(skb, reqd_hdrlen - hdrlen);
 
 	if (ieee80211_is_data_qos(wh->frame_control))
-		hdrlen -= 2;
+		hdrlen -= IEEE80211_QOS_CTL_LEN;
 
 	tr = (struct mwl8k_dma_data *)skb->data;
 	if (wh != &tr->wh)
@@ -747,7 +751,7 @@ static inline void mwl8k_add_dma_header(struct sk_buff *skb)
 	 * payload".  That is, everything except for the 802.11 header.
 	 * This includes all crypto material including the MIC.
 	 */
-	tr->fwlen = cpu_to_le16(skb->len - sizeof(*tr));
+	tr->fwlen = cpu_to_le16(skb->len - sizeof(*tr) + tail_pad);
 }
 
 
@@ -1443,7 +1447,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	else
 		qos = 0;
 
-	mwl8k_add_dma_header(skb);
+	mwl8k_add_dma_header(skb, 0);
 	wh = &((struct mwl8k_dma_data *)skb->data)->wh;
 
 	tx_info = IEEE80211_SKB_CB(skb);
