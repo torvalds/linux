@@ -22,6 +22,15 @@
 
 #include <linux/dcbnl.h>
 
+struct dcb_app_type {
+	char		  name[IFNAMSIZ];
+	struct dcb_app	  app;
+	struct list_head  list;
+};
+
+u8 dcb_setapp(struct net_device *, struct dcb_app *);
+u8 dcb_getapp(struct net_device *, struct dcb_app *);
+
 /*
  * Ops struct for the netlink callbacks.  Used by DCB-enabled drivers through
  * the netdevice struct.

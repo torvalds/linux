@@ -82,7 +82,9 @@ struct ieee_pfc {
 	__u64	indications[IEEE_8021QAZ_MAX_TCS];
 };
 
-/* This structure contains the IEEE 802.1Qaz APP managed object
+/* This structure contains the IEEE 802.1Qaz APP managed object. This
+ * object is also used for the CEE std as well. There is no difference
+ * between the objects.
  *
  * @selector: protocol identifier type
  * @protocol: protocol of type indicated
