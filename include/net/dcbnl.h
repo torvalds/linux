@@ -70,10 +70,13 @@ struct dcbnl_rtnl_ops {
 	void (*setbcnrp)(struct net_device *, int, u8);
 	u8   (*setapp)(struct net_device *, u8, u16, u8);
 	u8   (*getapp)(struct net_device *, u8, u16);
+	u8   (*getfeatcfg)(struct net_device *, int, u8 *);
+	u8   (*setfeatcfg)(struct net_device *, int, u8);
 
 	/* DCBX configuration */
 	u8   (*getdcbx)(struct net_device *);
 	u8   (*setdcbx)(struct net_device *, u8);
+
 
 };
 

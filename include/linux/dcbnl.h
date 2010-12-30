@@ -137,6 +137,8 @@ struct dcbmsg {
  * @DCB_CMD_IEEE_GET: get IEEE 802.1Qaz configuration
  * @DCB_CMD_GDCBX: get DCBX engine configuration
  * @DCB_CMD_SDCBX: set DCBX engine configuration
+ * @DCB_CMD_GFEATCFG: get DCBX features flags
+ * @DCB_CMD_SFEATCFG: set DCBX features negotiation flags
  */
 enum dcbnl_commands {
 	DCB_CMD_UNDEFINED,
@@ -176,6 +178,9 @@ enum dcbnl_commands {
 	DCB_CMD_GDCBX,
 	DCB_CMD_SDCBX,
 
+	DCB_CMD_GFEATCFG,
+	DCB_CMD_SFEATCFG,
+
 	__DCB_CMD_ENUM_MAX,
 	DCB_CMD_MAX = __DCB_CMD_ENUM_MAX - 1,
 };
@@ -197,6 +202,7 @@ enum dcbnl_commands {
  * @DCB_ATTR_BCN: backward congestion notification configuration (NLA_NESTED)
  * @DCB_ATTR_IEEE: IEEE 802.1Qaz supported attributes (NLA_NESTED)
  * @DCB_ATTR_DCBX: DCBX engine configuration in the device (NLA_U8)
+ * @DCB_ATTR_FEATCFG: DCBX features flags (NLA_NESTED)
  */
 enum dcbnl_attrs {
 	DCB_ATTR_UNDEFINED,
@@ -218,6 +224,7 @@ enum dcbnl_attrs {
 	DCB_ATTR_IEEE,
 
 	DCB_ATTR_DCBX,
+	DCB_ATTR_FEATCFG,
 
 	__DCB_ATTR_ENUM_MAX,
 	DCB_ATTR_MAX = __DCB_ATTR_ENUM_MAX - 1,
@@ -504,6 +511,32 @@ enum dcbnl_app_attrs {
 
 	__DCB_APP_ATTR_ENUM_MAX,
 	DCB_APP_ATTR_MAX = __DCB_APP_ATTR_ENUM_MAX - 1,
+};
+
+/**
+ * enum dcbnl_featcfg_attrs - features conifiguration flags
+ *
+ * @DCB_FEATCFG_ATTR_UNDEFINED: unspecified attribute to catch errors
+ * @DCB_FEATCFG_ATTR_ALL: (NLA_FLAG) all features configuration attributes
+ * @DCB_FEATCFG_ATTR_PG: (NLA_U8) configuration flags for priority groups
+ * @DCB_FEATCFG_ATTR_PFC: (NLA_U8) configuration flags for priority
+ *                                 flow control
+ * @DCB_FEATCFG_ATTR_APP: (NLA_U8) configuration flags for application TLV
+ *
+ */
+#define DCB_FEATCFG_ERROR	0x01	/* error in feature resolution */
+#define DCB_FEATCFG_ENABLE	0x02	/* enable feature */
+#define DCB_FEATCFG_WILLING	0x04	/* feature is willing */
+#define DCB_FEATCFG_ADVERTISE	0x08	/* advertise feature */
+enum dcbnl_featcfg_attrs {
+	DCB_FEATCFG_ATTR_UNDEFINED,
+	DCB_FEATCFG_ATTR_ALL,
+	DCB_FEATCFG_ATTR_PG,
+	DCB_FEATCFG_ATTR_PFC,
+	DCB_FEATCFG_ATTR_APP,
+
+	__DCB_FEATCFG_ATTR_ENUM_MAX,
+	DCB_FEATCFG_ATTR_MAX = __DCB_FEATCFG_ATTR_ENUM_MAX - 1,
 };
 
 #endif /* __LINUX_DCBNL_H__ */

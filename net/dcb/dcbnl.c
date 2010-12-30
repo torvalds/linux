@@ -69,6 +69,7 @@ static const struct nla_policy dcbnl_rtnl_policy[DCB_ATTR_MAX + 1] = {
 	[DCB_ATTR_APP]         = {.type = NLA_NESTED},
 	[DCB_ATTR_IEEE]	       = {.type = NLA_NESTED},
 	[DCB_ATTR_DCBX]        = {.type = NLA_U8},
+	[DCB_ATTR_FEATCFG]     = {.type = NLA_NESTED},
 };
 
 /* DCB priority flow control to User Priority nested attributes */
@@ -180,6 +181,14 @@ static const struct nla_policy dcbnl_ieee_policy[DCB_ATTR_IEEE_MAX + 1] = {
 
 static const struct nla_policy dcbnl_ieee_app[DCB_ATTR_IEEE_APP_MAX + 1] = {
 	[DCB_ATTR_IEEE_APP]	    = {.len = sizeof(struct dcb_app)},
+};
+
+/* DCB number of traffic classes nested attributes. */
+static const struct nla_policy dcbnl_featcfg_nest[DCB_FEATCFG_ATTR_MAX + 1] = {
+	[DCB_FEATCFG_ATTR_ALL]      = {.type = NLA_FLAG},
+	[DCB_FEATCFG_ATTR_PG]       = {.type = NLA_U8},
+	[DCB_FEATCFG_ATTR_PFC]      = {.type = NLA_U8},
+	[DCB_FEATCFG_ATTR_APP]      = {.type = NLA_U8},
 };
 
 static LIST_HEAD(dcb_app_list);
@@ -1306,6 +1315,122 @@ static int dcbnl_setdcbx(struct net_device *netdev, struct nlattr **tb,
 	return ret;
 }
 
+static int dcbnl_getfeatcfg(struct net_device *netdev, struct nlattr **tb,
+			    u32 pid, u32 seq, u16 flags)
+{
+	struct sk_buff *dcbnl_skb;
+	struct nlmsghdr *nlh;
+	struct dcbmsg *dcb;
+	struct nlattr *data[DCB_FEATCFG_ATTR_MAX + 1], *nest;
+	u8 value;
+	int ret = -EINVAL;
+	int i;
+	int getall = 0;
+
+	if (!tb[DCB_ATTR_FEATCFG] || !netdev->dcbnl_ops->getfeatcfg)
+		return ret;
+
+	ret = nla_parse_nested(data, DCB_FEATCFG_ATTR_MAX, tb[DCB_ATTR_FEATCFG],
+			       dcbnl_featcfg_nest);
+	if (ret) {
+		ret = -EINVAL;
+		goto err_out;
+	}
+
+	dcbnl_skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!dcbnl_skb) {
+		ret = -EINVAL;
+		goto err_out;
+	}
+
+	nlh = NLMSG_NEW(dcbnl_skb, pid, seq, RTM_GETDCB, sizeof(*dcb), flags);
+
+	dcb = NLMSG_DATA(nlh);
+	dcb->dcb_family = AF_UNSPEC;
+	dcb->cmd = DCB_CMD_GFEATCFG;
+
+	nest = nla_nest_start(dcbnl_skb, DCB_ATTR_FEATCFG);
+	if (!nest) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	if (data[DCB_FEATCFG_ATTR_ALL])
+		getall = 1;
+
+	for (i = DCB_FEATCFG_ATTR_ALL+1; i <= DCB_FEATCFG_ATTR_MAX; i++) {
+		if (!getall && !data[i])
+			continue;
+
+		ret = netdev->dcbnl_ops->getfeatcfg(netdev, i, &value);
+		if (!ret) {
+			ret = nla_put_u8(dcbnl_skb, i, value);
+
+			if (ret) {
+				nla_nest_cancel(dcbnl_skb, nest);
+				ret = -EINVAL;
+				goto err;
+			}
+		} else
+			goto err;
+	}
+	nla_nest_end(dcbnl_skb, nest);
+
+	nlmsg_end(dcbnl_skb, nlh);
+
+	ret = rtnl_unicast(dcbnl_skb, &init_net, pid);
+	if (ret) {
+		ret = -EINVAL;
+		goto err_out;
+	}
+
+	return 0;
+nlmsg_failure:
+err:
+	kfree_skb(dcbnl_skb);
+err_out:
+	return ret;
+}
+
+static int dcbnl_setfeatcfg(struct net_device *netdev, struct nlattr **tb,
+			    u32 pid, u32 seq, u16 flags)
+{
+	struct nlattr *data[DCB_FEATCFG_ATTR_MAX + 1];
+	int ret = -EINVAL;
+	u8 value;
+	int i;
+
+	if (!tb[DCB_ATTR_FEATCFG] || !netdev->dcbnl_ops->setfeatcfg)
+		return ret;
+
+	ret = nla_parse_nested(data, DCB_FEATCFG_ATTR_MAX, tb[DCB_ATTR_FEATCFG],
+			       dcbnl_featcfg_nest);
+
+	if (ret) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	for (i = DCB_FEATCFG_ATTR_ALL+1; i <= DCB_FEATCFG_ATTR_MAX; i++) {
+		if (data[i] == NULL)
+			continue;
+
+		value = nla_get_u8(data[i]);
+
+		ret = netdev->dcbnl_ops->setfeatcfg(netdev, i, value);
+
+		if (ret)
+			goto operr;
+	}
+
+operr:
+	ret = dcbnl_reply(!!ret, RTM_SETDCB, DCB_CMD_SFEATCFG,
+			  DCB_ATTR_FEATCFG, pid, seq, flags);
+
+err:
+	return ret;
+}
+
 static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
@@ -1426,6 +1551,14 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	case DCB_CMD_SDCBX:
 		ret = dcbnl_setdcbx(netdev, tb, pid, nlh->nlmsg_seq,
 				    nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_GFEATCFG:
+		ret = dcbnl_getfeatcfg(netdev, tb, pid, nlh->nlmsg_seq,
+				       nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_SFEATCFG:
+		ret = dcbnl_setfeatcfg(netdev, tb, pid, nlh->nlmsg_seq,
+				       nlh->nlmsg_flags);
 		goto out;
 	default:
 		goto errout;
