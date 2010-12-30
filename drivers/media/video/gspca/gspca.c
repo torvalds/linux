@@ -1630,10 +1630,14 @@ static int vidioc_streamoff(struct file *file, void *priv,
 
 	if (buf_type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	if (!gspca_dev->streaming)
-		return 0;
+
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
+
+	if (!gspca_dev->streaming) {
+		ret = 0;
+		goto out;
+	}
 
 	/* check the capture file */
 	if (gspca_dev->capt_file != file) {
@@ -2341,12 +2345,11 @@ void gspca_disconnect(struct usb_interface *intf)
 	PDEBUG(D_PROBE, "%s disconnect",
 		video_device_node_name(&gspca_dev->vdev));
 	mutex_lock(&gspca_dev->usb_lock);
-	gspca_dev->present = 0;
 
-	if (gspca_dev->streaming) {
-		destroy_urbs(gspca_dev);
-		wake_up_interruptible(&gspca_dev->wq);
-	}
+	gspca_dev->present = 0;
+	wake_up_interruptible(&gspca_dev->wq);
+
+	destroy_urbs(gspca_dev);
 
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	gspca_input_destroy_urb(gspca_dev);
