@@ -188,27 +188,22 @@ get_next_ucode(const u8 *buf, unsigned int size, unsigned int *mc_size)
 
 static int install_equiv_cpu_table(const u8 *buf)
 {
-	u8 *container_hdr[UCODE_CONTAINER_HEADER_SIZE];
-	unsigned int *buf_pos = (unsigned int *)container_hdr;
-	unsigned long size;
+	unsigned int *ibuf = (unsigned int *)buf;
+	unsigned int type = ibuf[1];
+	unsigned int size = ibuf[2];
 
-	get_ucode_data(&container_hdr, buf, UCODE_CONTAINER_HEADER_SIZE);
-
-	size = buf_pos[2];
-
-	if (buf_pos[1] != UCODE_EQUIV_CPU_TABLE_TYPE || !size) {
+	if (type != UCODE_EQUIV_CPU_TABLE_TYPE || !size) {
 		pr_err("error: invalid type field in container file section header\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	equiv_cpu_table = vmalloc(size);
 	if (!equiv_cpu_table) {
 		pr_err("failed to allocate equivalent CPU table\n");
-		return 0;
+		return -ENOMEM;
 	}
 
-	buf += UCODE_CONTAINER_HEADER_SIZE;
-	get_ucode_data(equiv_cpu_table, buf, size);
+	get_ucode_data(equiv_cpu_table, buf + UCODE_CONTAINER_HEADER_SIZE, size);
 
 	return size + UCODE_CONTAINER_HEADER_SIZE; /* add header length */
 }
@@ -232,7 +227,7 @@ generic_load_microcode(int cpu, const u8 *data, size_t size)
 	enum ucode_state state = UCODE_OK;
 
 	offset = install_equiv_cpu_table(ucode_ptr);
-	if (!offset) {
+	if (offset < 0) {
 		pr_err("failed to create equivalent cpu table\n");
 		return UCODE_ERROR;
 	}
