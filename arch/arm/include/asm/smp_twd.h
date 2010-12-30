@@ -37,12 +37,4 @@ void twd_timer_setup(struct clock_event_device *);
 void twd_timer_setup_scalable(struct clock_event_device *,
 	unsigned long target_rate, unsigned int periphclk_prescaler);
 
-/*
- * Recalculate the twd prescaler value when the cpu frequency changes. To
- * prevent early timer interrupts, must be called before changing the cpu
- * frequency if the frequency is increasing, or after if the frequency is
- * decreasing.
- */
-void twd_recalc_prescaler(unsigned long new_rate);
-
 #endif

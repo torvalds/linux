@@ -17,6 +17,7 @@
 #include <linux/clockchips.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/cpufreq.h>
 
 #include <asm/smp_twd.h>
 #include <asm/hardware/gic.h>
@@ -88,7 +89,7 @@ int twd_timer_ack(void)
  * frequency if the frequency is increasing, or after if the frequency is
  * decreasing.
  */
-void twd_recalc_prescaler(unsigned long new_rate)
+static void twd_update_prescaler(void *data)
 {
 	u32 ctrl;
 	int prescaler;
@@ -96,9 +97,7 @@ void twd_recalc_prescaler(unsigned long new_rate)
 
 	BUG_ON(twd_periphclk_prescaler == 0 || twd_timer_rate == 0);
 
-	twd_cpu_rate = new_rate;
-
-	periphclk_rate = new_rate / twd_periphclk_prescaler;
+	periphclk_rate = twd_cpu_rate / twd_periphclk_prescaler;
 
 	prescaler = DIV_ROUND_UP(periphclk_rate, twd_timer_rate);
 	prescaler = clamp(prescaler - 1, 0, 0xFF);
@@ -108,6 +107,36 @@ void twd_recalc_prescaler(unsigned long new_rate)
 	ctrl |= prescaler << 8;
 	__raw_writel(ctrl, twd_base + TWD_TIMER_CONTROL);
 }
+
+static int twd_cpufreq_transition(struct notifier_block *nb,
+	unsigned long state, void *data)
+{
+	struct cpufreq_freqs *freqs = data;
+	if (((freqs->new > freqs->old) && state == CPUFREQ_PRECHANGE) ||
+	    ((freqs->old > freqs->new) && state == CPUFREQ_POSTCHANGE)) {
+		/* freqs->new is in kHz, twd_cpu_rate is in Hz */
+		twd_cpu_rate = freqs->new * 1000;
+
+		smp_call_function_single(freqs->cpu, twd_update_prescaler,
+			NULL, 1);
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block twd_cpufreq_nb = {
+	.notifier_call = twd_cpufreq_transition,
+};
+
+static int twd_cpufreq_init(void)
+{
+	if (twd_cpu_rate)
+		return cpufreq_register_notifier(&twd_cpufreq_nb,
+			CPUFREQ_TRANSITION_NOTIFIER);
+
+	return 0;
+}
+core_initcall(twd_cpufreq_init);
 
 static void __cpuinit twd_calibrate_rate(unsigned long target_rate,
 	unsigned int periphclk_prescaler)
@@ -156,7 +185,7 @@ static void __cpuinit twd_calibrate_rate(unsigned long target_rate,
 				(twd_timer_rate / 10000) % 100);
 			twd_cpu_rate = twd_timer_rate * periphclk_prescaler;
 			twd_timer_rate = target_rate;
-			twd_recalc_prescaler(twd_cpu_rate);
+			twd_update_prescaler(NULL);
 		}
 
 		printk("%lu.%02luMHz.\n", twd_timer_rate / 1000000,
@@ -164,7 +193,7 @@ static void __cpuinit twd_calibrate_rate(unsigned long target_rate,
 	} else {
 		if (target_rate) {
 			BUG_ON(target_rate != twd_timer_rate);
-			twd_recalc_prescaler(twd_cpu_rate);
+			twd_update_prescaler(NULL);
 		}
 	}
 
