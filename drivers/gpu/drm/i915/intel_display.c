@@ -5036,8 +5036,8 @@ static void intel_increase_pllclock(struct drm_crtc *crtc)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
-	int dpll = I915_READ(dpll_reg);
+	int dpll_reg = DPLL(pipe);
+	int dpll;
 
 	if (HAS_PCH_SPLIT(dev))
 		return;
@@ -5045,17 +5045,19 @@ static void intel_increase_pllclock(struct drm_crtc *crtc)
 	if (!dev_priv->lvds_downclock_avail)
 		return;
 
+	dpll = I915_READ(dpll_reg);
 	if (!HAS_PIPE_CXSR(dev) && (dpll & DISPLAY_RATE_SELECT_FPA1)) {
 		DRM_DEBUG_DRIVER("upclocking LVDS\n");
 
 		/* Unlock panel regs */
-		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) |
-			   PANEL_UNLOCK_REGS);
+		I915_WRITE(PP_CONTROL,
+			   I915_READ(PP_CONTROL) | PANEL_UNLOCK_REGS);
 
 		dpll &= ~DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
-		dpll = I915_READ(dpll_reg);
+		POSTING_READ(dpll_reg);
 		intel_wait_for_vblank(dev, pipe);
+
 		dpll = I915_READ(dpll_reg);
 		if (dpll & DISPLAY_RATE_SELECT_FPA1)
 			DRM_DEBUG_DRIVER("failed to upclock LVDS!\n");
