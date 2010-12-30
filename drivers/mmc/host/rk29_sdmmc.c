@@ -46,7 +46,7 @@
 #define RK29_SDMMC_ERROR_FLAGS		(RK29_SDMMC_DATA_ERROR_FLAGS | RK29_SDMMC_CMD_ERROR_FLAGS | SDMMC_INT_HLE)
 #define RK29_SDMMC_SEND_STATUS		1
 #define RK29_SDMMC_RECV_STATUS		2
-#define RK29_SDMMC_DMA_THRESHOLD	16
+#define RK29_SDMMC_DMA_THRESHOLD	512
 
 enum {
 	EVENT_CMD_COMPLETE = 0,
@@ -455,10 +455,9 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	 * non-word-aligned buffers or lengths. Also, we don't bother
 	 * with all the DMA setup overhead for short transfers.
 	 */
-#if 0
 	if (data->blocks * data->blksz < RK29_SDMMC_DMA_THRESHOLD)
 		return -EINVAL;
-#endif
+
 	if (data->blksz & 3)
 		return -EINVAL;
 	for_each_sg(data->sg, sg, data->sg_len, i) {
