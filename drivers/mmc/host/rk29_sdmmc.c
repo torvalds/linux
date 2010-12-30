@@ -195,31 +195,31 @@ static int rk29_sdmmc_regs_show(struct seq_file *s, void *v)
 {
 	struct rk29_sdmmc	*host = s->private;
 
-	seq_printf(s, "SDMMC_CTRL:   \t0x%08x\n", SDMMC_CTRL);
-	seq_printf(s, "SDMMC_PWREN:  \t0x%08x\n", SDMMC_PWREN);
-	seq_printf(s, "SDMMC_CLKDIV: \t0x%08x\n", SDMMC_CLKDIV);
-	seq_printf(s, "SDMMC_CLKSRC: \t0x%08x\n", SDMMC_CLKSRC);
-	seq_printf(s, "SDMMC_CLKENA: \t0x%08x\n", SDMMC_CLKENA);
-	seq_printf(s, "SDMMC_TMOUT:  \t0x%08x\n", SDMMC_TMOUT);
-	seq_printf(s, "SDMMC_CTYPE:  \t0x%08x\n", SDMMC_CTYPE);
-	seq_printf(s, "SDMMC_BLKSIZ: \t0x%08x\n", SDMMC_BLKSIZ);
-	seq_printf(s, "SDMMC_BYTCNT: \t0x%08x\n", SDMMC_BYTCNT);
-	seq_printf(s, "SDMMC_INTMASK:\t0x%08x\n", SDMMC_INTMASK);
-	seq_printf(s, "SDMMC_CMDARG: \t0x%08x\n", SDMMC_CMDARG);
-	seq_printf(s, "SDMMC_CMD:    \t0x%08x\n", SDMMC_CMD);
-	seq_printf(s, "SDMMC_RESP0:  \t0x%08x\n", SDMMC_RESP0);
-	seq_printf(s, "SDMMC_RESP1:  \t0x%08x\n", SDMMC_RESP1);
-	seq_printf(s, "SDMMC_RESP2:  \t0x%08x\n", SDMMC_RESP2);
-	seq_printf(s, "SDMMC_RESP3:  \t0x%08x\n", SDMMC_RESP3);
-	seq_printf(s, "SDMMC_MINTSTS:\t0x%08x\n", SDMMC_MINTSTS);
-	seq_printf(s, "SDMMC_RINTSTS:\t0x%08x\n", SDMMC_RINTSTS);
-	seq_printf(s, "SDMMC_STATUS: \t0x%08x\n", SDMMC_STATUS);
-	seq_printf(s, "SDMMC_FIFOTH: \t0x%08x\n", SDMMC_FIFOTH);
-	seq_printf(s, "SDMMC_CDETECT:\t0x%08x\n", SDMMC_CDETECT);
-	seq_printf(s, "SDMMC_WRTPRT: \t0x%08x\n", SDMMC_WRTPRT);
-	seq_printf(s, "SDMMC_TCBCNT: \t0x%08x\n", SDMMC_TCBCNT);
-	seq_printf(s, "SDMMC_TBBCNT: \t0x%08x\n", SDMMC_TBBCNT);
-	seq_printf(s, "SDMMC_DEBNCE: \t0x%08x\n", SDMMC_DEBNCE);
+	seq_printf(s, "SDMMC_CTRL:   \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_CTRL));
+	seq_printf(s, "SDMMC_PWREN:  \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_PWREN));
+	seq_printf(s, "SDMMC_CLKDIV: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_CLKDIV));
+	seq_printf(s, "SDMMC_CLKSRC: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_CLKSRC));
+	seq_printf(s, "SDMMC_CLKENA: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_CLKENA));
+	seq_printf(s, "SDMMC_TMOUT:  \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_TMOUT));
+	seq_printf(s, "SDMMC_CTYPE:  \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_CTYPE));
+	seq_printf(s, "SDMMC_BLKSIZ: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_BLKSIZ));
+	seq_printf(s, "SDMMC_BYTCNT: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_BYTCNT));
+	seq_printf(s, "SDMMC_INTMASK:\t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_INTMASK));
+	seq_printf(s, "SDMMC_CMDARG: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_CMDARG));
+	seq_printf(s, "SDMMC_CMD:    \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_CMD));
+	seq_printf(s, "SDMMC_RESP0:  \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_RESP0));
+	seq_printf(s, "SDMMC_RESP1:  \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_RESP1));
+	seq_printf(s, "SDMMC_RESP2:  \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_RESP2));
+	seq_printf(s, "SDMMC_RESP3:  \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_RESP3));
+	seq_printf(s, "SDMMC_MINTSTS:\t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_MINTSTS));
+	seq_printf(s, "SDMMC_RINTSTS:\t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_RINTSTS));
+	seq_printf(s, "SDMMC_STATUS: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_STATUS));
+	seq_printf(s, "SDMMC_FIFOTH: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_FIFOTH));
+	seq_printf(s, "SDMMC_CDETECT:\t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_CDETECT));
+	seq_printf(s, "SDMMC_WRTPRT: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_WRTPRT));
+	seq_printf(s, "SDMMC_TCBCNT: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_TCBCNT));
+	seq_printf(s, "SDMMC_TBBCNT: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_TBBCNT));
+	seq_printf(s, "SDMMC_DEBNCE: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_DEBNCE));
 
 	return 0;
 }
@@ -456,8 +456,14 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	 * with all the DMA setup overhead for short transfers.
 	 */
 	if (data->blocks * data->blksz < RK29_SDMMC_DMA_THRESHOLD)
+	{
+		rk29_sdmmc_write(host->regs, SDMMC_INTMASK,rk29_sdmmc_read(host->regs,SDMMC_INTMASK) | SDMMC_INT_TXDR | SDMMC_INT_RXDR );	
 		return -EINVAL;
-
+	}
+	else
+	{
+		rk29_sdmmc_write(host->regs, SDMMC_INTMASK,rk29_sdmmc_read(host->regs,SDMMC_INTMASK) & (~( SDMMC_INT_TXDR | SDMMC_INT_RXDR)));
+	}
 	if (data->blksz & 3)
 		return -EINVAL;
 	for_each_sg(data->sg, sg, data->sg_len, i) {
@@ -976,7 +982,7 @@ static void rk29_sdmmc_read_data_pio(struct rk29_sdmmc *host)
 	struct mmc_data		*data = host->data;
 	u32			status;
 	unsigned int		nbytes = 0,len,old_len,count =0;
-	
+
 	do {
 		len = SDMMC_GET_FCNT(rk29_sdmmc_read(host->regs, SDMMC_STATUS)) << 2;
 		if(count == 0) 
