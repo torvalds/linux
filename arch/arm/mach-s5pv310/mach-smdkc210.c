@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/smsc911x.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -23,6 +24,7 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/sdhci.h>
+#include <plat/iic.h>
 
 #include <mach/map.h>
 #include <mach/regs-srom.h>
@@ -139,7 +141,12 @@ static struct platform_device smdkc210_smsc911x = {
 	},
 };
 
+static struct i2c_board_info i2c_devs1[] __initdata = {
+	{I2C_BOARD_INFO("wm8994", 0x1a),},
+};
+
 static struct platform_device *smdkc210_devices[] __initdata = {
+	&s3c_device_i2c1,
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
@@ -147,6 +154,8 @@ static struct platform_device *smdkc210_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_wdt,
 	&smdkc210_smsc911x,
+	&s5pv310_device_ac97,
+	&s5pv310_device_i2s0,
 };
 
 static void __init smdkc210_smsc911x_init(void)
@@ -182,6 +191,9 @@ static void __init smdkc210_map_io(void)
 
 static void __init smdkc210_machine_init(void)
 {
+	s3c_i2c1_set_platdata(NULL);
+	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
+
 	smdkc210_smsc911x_init();
 
 	s3c_sdhci0_set_platdata(&smdkc210_hsmmc0_pdata);

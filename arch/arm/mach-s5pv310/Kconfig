@@ -11,6 +11,7 @@ if ARCH_S5PV310
 
 config CPU_S5PV310
 	bool
+	select S3C_PL330_DMA
 	help
 	  Enable S5PV310 CPU support
 
@@ -69,10 +70,12 @@ config MACH_SMDKC210
 	select CPU_S5PV310
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
+	select S3C_DEV_I2C1
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
+	select S5PV310_SETUP_I2C1
 	select S5PV310_SETUP_SDHCI
 	help
 	  Machine support for Samsung SMDKC210
@@ -97,10 +100,12 @@ config MACH_SMDKV310
 	select CPU_S5PV310
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
+	select S3C_DEV_I2C1
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
+	select S5PV310_SETUP_I2C1
 	select S5PV310_SETUP_SDHCI
 	help
 	  Machine support for Samsung SMDKV310
