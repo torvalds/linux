@@ -215,23 +215,6 @@ unsigned int tegra_getspeed(unsigned int cpu)
 	return rate;
 }
 
-#ifdef CONFIG_HAVE_ARM_TWD
-static void tegra_cpufreq_rescale_twd_other_cpu(void *data) {
-	unsigned long new_rate = *(unsigned long *)data;
-	twd_recalc_prescaler(new_rate);
-}
-
-static void tegra_cpufreq_rescale_twds(unsigned long new_rate)
-{
-	twd_recalc_prescaler(new_rate);
-	smp_call_function(tegra_cpufreq_rescale_twd_other_cpu, &new_rate, 1);
-}
-#else
-static inline void tegra_cpufreq_rescale_twds(unsigned long new_rate)
-{
-}
-#endif
-
 static int tegra_update_cpu_speed(unsigned long rate)
 {
 	int ret = 0;
@@ -257,9 +240,6 @@ static int tegra_update_cpu_speed(unsigned long rate)
 	for_each_online_cpu(freqs.cpu)
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
-	if (freqs.new > freqs.old)
-		tegra_cpufreq_rescale_twds(freqs.new * 1000);
-
 #ifdef CONFIG_CPU_FREQ_DEBUG
 	printk(KERN_DEBUG "cpufreq-tegra: transition: %u --> %u\n",
 	       freqs.old, freqs.new);
@@ -271,9 +251,6 @@ static int tegra_update_cpu_speed(unsigned long rate)
 			freqs.new);
 		return ret;
 	}
-
-	if (freqs.new < freqs.old)
-		tegra_cpufreq_rescale_twds(freqs.new * 1000);
 
 	for_each_online_cpu(freqs.cpu)
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
