@@ -693,11 +693,6 @@ nvc0_graph_init(struct drm_device *dev)
 	return 0;
 }
 
-static struct nouveau_enum nvc0_graph_data_error[] = {
-	{ 5, "INVALID_ENUM" },
-	{}
-};
-
 static int
 nvc0_graph_isr_chid(struct drm_device *dev, u64 inst)
 {
@@ -750,7 +745,7 @@ nvc0_graph_isr(struct drm_device *dev)
 
 	if (stat & 0x00100000) {
 		NV_INFO(dev, "PGRAPH: DATA_ERROR [");
-		nouveau_enum_print(nvc0_graph_data_error, code);
+		nouveau_enum_print(nv50_data_error_names, code);
 		printk("] ch %d [0x%010llx] subc %d class 0x%04x "
 		       "mthd 0x%04x data 0x%08x\n",
 		       chid, inst, subc, class, mthd, data);
