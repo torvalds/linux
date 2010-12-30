@@ -68,6 +68,7 @@ static const struct nla_policy dcbnl_rtnl_policy[DCB_ATTR_MAX + 1] = {
 	[DCB_ATTR_BCN]         = {.type = NLA_NESTED},
 	[DCB_ATTR_APP]         = {.type = NLA_NESTED},
 	[DCB_ATTR_IEEE]	       = {.type = NLA_NESTED},
+	[DCB_ATTR_DCBX]        = {.type = NLA_U8},
 };
 
 /* DCB priority flow control to User Priority nested attributes */
@@ -124,6 +125,7 @@ static const struct nla_policy dcbnl_cap_nest[DCB_CAP_ATTR_MAX + 1] = {
 	[DCB_CAP_ATTR_PFC_TCS] = {.type = NLA_U8},
 	[DCB_CAP_ATTR_GSP]     = {.type = NLA_U8},
 	[DCB_CAP_ATTR_BCN]     = {.type = NLA_U8},
+	[DCB_CAP_ATTR_DCBX]    = {.type = NLA_U8},
 };
 
 /* DCB capabilities nested attributes. */
@@ -1271,6 +1273,39 @@ nlmsg_failure:
 	return -1;
 }
 
+/* DCBX configuration */
+static int dcbnl_getdcbx(struct net_device *netdev, struct nlattr **tb,
+			 u32 pid, u32 seq, u16 flags)
+{
+	int ret = -EINVAL;
+
+	if (!netdev->dcbnl_ops->getdcbx)
+		return ret;
+
+	ret = dcbnl_reply(netdev->dcbnl_ops->getdcbx(netdev), RTM_GETDCB,
+			  DCB_CMD_GDCBX, DCB_ATTR_DCBX, pid, seq, flags);
+
+	return ret;
+}
+
+static int dcbnl_setdcbx(struct net_device *netdev, struct nlattr **tb,
+			 u32 pid, u32 seq, u16 flags)
+{
+	int ret = -EINVAL;
+	u8 value;
+
+	if (!tb[DCB_ATTR_DCBX] || !netdev->dcbnl_ops->setdcbx)
+		return ret;
+
+	value = nla_get_u8(tb[DCB_ATTR_DCBX]);
+
+	ret = dcbnl_reply(netdev->dcbnl_ops->setdcbx(netdev, value),
+			  RTM_SETDCB, DCB_CMD_SDCBX, DCB_ATTR_DCBX,
+			  pid, seq, flags);
+
+	return ret;
+}
+
 static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
@@ -1383,6 +1418,14 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	case DCB_CMD_IEEE_GET:
 		ret = dcbnl_ieee_get(netdev, tb, pid, nlh->nlmsg_seq,
 				 nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_GDCBX:
+		ret = dcbnl_getdcbx(netdev, tb, pid, nlh->nlmsg_seq,
+				    nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_SDCBX:
+		ret = dcbnl_setdcbx(netdev, tb, pid, nlh->nlmsg_seq,
+				    nlh->nlmsg_flags);
 		goto out;
 	default:
 		goto errout;

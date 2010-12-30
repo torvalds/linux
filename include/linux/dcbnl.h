@@ -135,6 +135,8 @@ struct dcbmsg {
  * @DCB_CMD_SAPP: set application protocol configuration
  * @DCB_CMD_IEEE_SET: set IEEE 802.1Qaz configuration
  * @DCB_CMD_IEEE_GET: get IEEE 802.1Qaz configuration
+ * @DCB_CMD_GDCBX: get DCBX engine configuration
+ * @DCB_CMD_SDCBX: set DCBX engine configuration
  */
 enum dcbnl_commands {
 	DCB_CMD_UNDEFINED,
@@ -171,6 +173,9 @@ enum dcbnl_commands {
 	DCB_CMD_IEEE_SET,
 	DCB_CMD_IEEE_GET,
 
+	DCB_CMD_GDCBX,
+	DCB_CMD_SDCBX,
+
 	__DCB_CMD_ENUM_MAX,
 	DCB_CMD_MAX = __DCB_CMD_ENUM_MAX - 1,
 };
@@ -191,6 +196,7 @@ enum dcbnl_commands {
  * @DCB_ATTR_NUMTCS: number of traffic classes supported (NLA_NESTED)
  * @DCB_ATTR_BCN: backward congestion notification configuration (NLA_NESTED)
  * @DCB_ATTR_IEEE: IEEE 802.1Qaz supported attributes (NLA_NESTED)
+ * @DCB_ATTR_DCBX: DCBX engine configuration in the device (NLA_U8)
  */
 enum dcbnl_attrs {
 	DCB_ATTR_UNDEFINED,
@@ -210,6 +216,8 @@ enum dcbnl_attrs {
 
 	/* IEEE std attributes */
 	DCB_ATTR_IEEE,
+
+	DCB_ATTR_DCBX,
 
 	__DCB_ATTR_ENUM_MAX,
 	DCB_ATTR_MAX = __DCB_ATTR_ENUM_MAX - 1,
@@ -370,6 +378,8 @@ enum dcbnl_tc_attrs {
  * @DCB_CAP_ATTR_GSP: (NLA_U8) device supports group strict priority
  * @DCB_CAP_ATTR_BCN: (NLA_U8) device supports Backwards Congestion
  *                             Notification
+ * @DCB_CAP_ATTR_DCBX: (NLA_U8) device supports DCBX engine
+ *
  */
 enum dcbnl_cap_attrs {
 	DCB_CAP_ATTR_UNDEFINED,
@@ -381,10 +391,43 @@ enum dcbnl_cap_attrs {
 	DCB_CAP_ATTR_PFC_TCS,
 	DCB_CAP_ATTR_GSP,
 	DCB_CAP_ATTR_BCN,
+	DCB_CAP_ATTR_DCBX,
 
 	__DCB_CAP_ATTR_ENUM_MAX,
 	DCB_CAP_ATTR_MAX = __DCB_CAP_ATTR_ENUM_MAX - 1,
 };
+
+/**
+ * DCBX capability flags
+ *
+ * @DCB_CAP_DCBX_HOST: DCBX negotiation is performed by the host LLDP agent.
+ *                     'set' routines are used to configure the device with
+ *                     the negotiated parameters
+ *
+ * @DCB_CAP_DCBX_LLD_MANAGED: DCBX negotiation is not performed in the host but
+ *                            by another entity
+ *                            'get' routines are used to retrieve the
+ *                            negotiated parameters
+ *                            'set' routines can be used to set the initial
+ *                            negotiation configuration
+ *
+ * @DCB_CAP_DCBX_VER_CEE: for a non-host DCBX engine, indicates the engine
+ *                        supports the CEE protocol flavor
+ *
+ * @DCB_CAP_DCBX_VER_IEEE: for a non-host DCBX engine, indicates the engine
+ *                         supports the IEEE protocol flavor
+ *
+ * @DCB_CAP_DCBX_STATIC: for a non-host DCBX engine, indicates the engine
+ *                       supports static configuration (i.e no actual
+ *                       negotiation is performed negotiated parameters equal
+ *                       the initial configuration)
+ *
+ */
+#define DCB_CAP_DCBX_HOST		0x01
+#define DCB_CAP_DCBX_LLD_MANAGED	0x02
+#define DCB_CAP_DCBX_VER_CEE		0x04
+#define DCB_CAP_DCBX_VER_IEEE		0x08
+#define DCB_CAP_DCBX_STATIC		0x10
 
 /**
  * enum dcbnl_numtcs_attrs - number of traffic classes
