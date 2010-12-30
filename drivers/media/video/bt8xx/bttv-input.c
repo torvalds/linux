@@ -354,6 +354,18 @@ static int get_key_pv951(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 		return 0;
 	dprintk(KERN_INFO DEVNAME ": key %02x\n", b);
 
+	/*
+	 * NOTE:
+	 * lirc_i2c maps the pv951 code as:
+	 *	addr = 0x61D6
+	 * 	cmd = bit_reverse (b)
+	 * So, it seems that this device uses NEC extended
+	 * I decided to not fix the table, due to two reasons:
+	 * 	1) Without the actual device, this is only a guess;
+	 * 	2) As the addr is not reported via I2C, nor can be changed,
+	 * 	   the device is bound to the vendor-provided RC.
+	 */
+
 	*ir_key = b;
 	*ir_raw = b;
 	return 1;
