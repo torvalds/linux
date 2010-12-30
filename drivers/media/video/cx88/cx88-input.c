@@ -68,6 +68,9 @@ MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 #define ir_dprintk(fmt, arg...)	if (ir_debug) \
 	printk(KERN_DEBUG "%s IR: " fmt , ir->core->name , ##arg)
 
+#define dprintk(fmt, arg...)	if (ir_debug) \
+	printk(KERN_DEBUG "cx88 IR: " fmt , ##arg)
+
 /* ---------------------------------------------------------------------- */
 
 static void cx88_ir_handle_key(struct cx88_IR *ir)
@@ -527,13 +530,47 @@ void cx88_ir_irq(struct cx88_core *core)
 	ir_raw_event_handle(ir->dev);
 }
 
+static int get_key_pvr2000(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+{
+	int flags, code;
+
+	/* poll IR chip */
+	flags = i2c_smbus_read_byte_data(ir->c, 0x10);
+	if (flags < 0) {
+		dprintk("read error\n");
+		return 0;
+	}
+	/* key pressed ? */
+	if (0 == (flags & 0x80))
+		return 0;
+
+	/* read actual key code */
+	code = i2c_smbus_read_byte_data(ir->c, 0x00);
+	if (code < 0) {
+		dprintk("read error\n");
+		return 0;
+	}
+
+	dprintk("IR Key/Flags: (0x%02x/0x%02x)\n",
+		   code & 0xff, flags & 0xff);
+
+	*ir_key = code & 0xff;
+	*ir_raw = code;
+	return 1;
+}
+
 void cx88_i2c_init_ir(struct cx88_core *core)
 {
 	struct i2c_board_info info;
-	const unsigned short addr_list[] = {
+	const unsigned short default_addr_list[] = {
 		0x18, 0x6b, 0x71,
 		I2C_CLIENT_END
 	};
+	const unsigned short pvr2000_addr_list[] = {
+		0x18, 0x1a,
+		I2C_CLIENT_END
+	};
+	const unsigned short *addr_list = default_addr_list;
 	const unsigned short *addrp;
 	/* Instantiate the IR receiver device, if present */
 	if (0 != core->i2c_rc)
@@ -541,6 +578,16 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+
+	switch (core->boardnr) {
+	case CX88_BOARD_LEADTEK_PVR2000:
+		addr_list = pvr2000_addr_list;
+		core->init_data.name = "cx88 Leadtek PVR 2000 remote";
+		core->init_data.type = RC_TYPE_UNKNOWN;
+		core->init_data.get_key = get_key_pvr2000;
+		core->init_data.ir_codes = RC_MAP_EMPTY;
+		break;
+	}
 
 	/*
 	 * We can't call i2c_new_probed_device() because it uses
