@@ -7,7 +7,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/unistd.h>
 #include <linux/user.h>
 #include <linux/uaccess.h>
@@ -65,11 +64,11 @@ static void default_idle(void)
 #ifdef CONFIG_IPIPE
 	ipipe_suspend_domain();
 #endif
-	local_irq_disable_hw();
+	hard_local_irq_disable();
 	if (!need_resched())
 		idle_with_irq_disabled();
 
-	local_irq_enable_hw();
+	hard_local_irq_enable();
 }
 
 /*
@@ -209,7 +208,9 @@ copy_thread(unsigned long clone_flags,
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage int sys_execve(char __user *name, char __user * __user *argv, char __user * __user *envp)
+asmlinkage int sys_execve(const char __user *name,
+			  const char __user *const __user *argv,
+			  const char __user *const __user *envp)
 {
 	int error;
 	char *filename;
@@ -488,6 +489,11 @@ int _access_ok(unsigned long addr, unsigned long size)
 	if (in_mem_const(addr, size, COREB_L1_DATA_A_START, COREB_L1_DATA_A_LENGTH))
 		return 1;
 	if (in_mem_const(addr, size, COREB_L1_DATA_B_START, COREB_L1_DATA_B_LENGTH))
+		return 1;
+#endif
+
+#ifndef CONFIG_EXCEPTION_L1_SCRATCH
+	if (in_mem_const(addr, size, (unsigned long)l1_stack_base, l1_stack_len))
 		return 1;
 #endif
 

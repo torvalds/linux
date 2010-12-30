@@ -205,7 +205,6 @@ LTC4215_ALARM(curr1_max_alarm,	(1 << 2),	LTC4215_STATUS);
 
 /* Power (virtual) */
 LTC4215_POWER(power1_input);
-LTC4215_ALARM(power1_alarm,	(1 << 3),	LTC4215_STATUS);
 
 /* Input Voltage */
 LTC4215_VOLTAGE(in1_input,			LTC4215_ADIN);
@@ -214,6 +213,7 @@ LTC4215_ALARM(in1_min_alarm,	(1 << 1),	LTC4215_STATUS);
 
 /* Output Voltage */
 LTC4215_VOLTAGE(in2_input,			LTC4215_SOURCE);
+LTC4215_ALARM(in2_min_alarm,	(1 << 3),	LTC4215_STATUS);
 
 /* Finally, construct an array of pointers to members of the above objects,
  * as required for sysfs_create_group()
@@ -223,13 +223,13 @@ static struct attribute *ltc4215_attributes[] = {
 	&sensor_dev_attr_curr1_max_alarm.dev_attr.attr,
 
 	&sensor_dev_attr_power1_input.dev_attr.attr,
-	&sensor_dev_attr_power1_alarm.dev_attr.attr,
 
 	&sensor_dev_attr_in1_input.dev_attr.attr,
 	&sensor_dev_attr_in1_max_alarm.dev_attr.attr,
 	&sensor_dev_attr_in1_min_alarm.dev_attr.attr,
 
 	&sensor_dev_attr_in2_input.dev_attr.attr,
+	&sensor_dev_attr_in2_min_alarm.dev_attr.attr,
 
 	NULL,
 };

@@ -35,7 +35,6 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
-#include <linux/smp_lock.h>
 #include <linux/completion.h>
 #include <linux/bitops.h>
 #include <linux/mutex.h>
@@ -219,6 +218,7 @@ typedef struct ide_tape_obj {
 	char write_prot;
 } idetape_tape_t;
 
+static DEFINE_MUTEX(ide_tape_mutex);
 static DEFINE_MUTEX(idetape_ref_mutex);
 
 static DEFINE_MUTEX(idetape_chrdev_mutex);
@@ -577,7 +577,8 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 		      rq->cmd[0], (unsigned long long)blk_rq_pos(rq),
 		      blk_rq_sectors(rq));
 
-	BUG_ON(!(blk_special_request(rq) || blk_sense_request(rq)));
+	BUG_ON(!(rq->cmd_type == REQ_TYPE_SPECIAL ||
+		 rq->cmd_type == REQ_TYPE_SENSE));
 
 	/* Retry a failed packet command */
 	if (drive->failed_pc && drive->pc->c[0] == REQUEST_SENSE) {
@@ -1424,9 +1425,9 @@ static long idetape_chrdev_ioctl(struct file *file,
 				unsigned int cmd, unsigned long arg)
 {
 	long ret;
-	lock_kernel();
+	mutex_lock(&ide_tape_mutex);
 	ret = do_idetape_chrdev_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&ide_tape_mutex);
 	return ret;
 }
 
@@ -1901,11 +1902,16 @@ static const struct file_operations idetape_fops = {
 	.unlocked_ioctl	= idetape_chrdev_ioctl,
 	.open		= idetape_chrdev_open,
 	.release	= idetape_chrdev_release,
+	.llseek		= noop_llseek,
 };
 
 static int idetape_open(struct block_device *bdev, fmode_t mode)
 {
-	struct ide_tape_obj *tape = ide_tape_get(bdev->bd_disk, false, 0);
+	struct ide_tape_obj *tape;
+
+	mutex_lock(&ide_tape_mutex);
+	tape = ide_tape_get(bdev->bd_disk, false, 0);
+	mutex_unlock(&ide_tape_mutex);
 
 	if (!tape)
 		return -ENXIO;
@@ -1917,7 +1923,10 @@ static int idetape_release(struct gendisk *disk, fmode_t mode)
 {
 	struct ide_tape_obj *tape = ide_drv_g(disk, ide_tape_obj);
 
+	mutex_lock(&ide_tape_mutex);
 	ide_tape_put(tape);
+	mutex_unlock(&ide_tape_mutex);
+
 	return 0;
 }
 
@@ -1926,9 +1935,14 @@ static int idetape_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	struct ide_tape_obj *tape = ide_drv_g(bdev->bd_disk, ide_tape_obj);
 	ide_drive_t *drive = tape->drive;
-	int err = generic_ide_ioctl(drive, bdev, cmd, arg);
+	int err;
+
+	mutex_lock(&ide_tape_mutex);
+	err = generic_ide_ioctl(drive, bdev, cmd, arg);
 	if (err == -EINVAL)
 		err = idetape_blkdev_ioctl(drive, cmd, arg);
+	mutex_unlock(&ide_tape_mutex);
+
 	return err;
 }
 
@@ -1936,7 +1950,7 @@ static const struct block_device_operations idetape_block_ops = {
 	.owner		= THIS_MODULE,
 	.open		= idetape_open,
 	.release	= idetape_release,
-	.locked_ioctl	= idetape_ioctl,
+	.ioctl		= idetape_ioctl,
 };
 
 static int ide_tape_probe(ide_drive_t *drive)

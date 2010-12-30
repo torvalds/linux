@@ -141,7 +141,7 @@ struct sk_buff *br_handle_frame(struct sk_buff *skb)
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
 	int (*rhook)(struct sk_buff *skb);
 
-	if (skb->pkt_type == PACKET_LOOPBACK)
+	if (unlikely(skb->pkt_type == PACKET_LOOPBACK))
 		return skb;
 
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
@@ -159,7 +159,7 @@ struct sk_buff *br_handle_frame(struct sk_buff *skb)
 			goto drop;
 
 		/* If STP is turned off, then forward */
-		if (p->br->stp_enabled == BR_NO_STP && dest[5] == 0)
+		if (p->br->stp_enabled == BR_NO_STP)
 			goto forward;
 
 		if (NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, skb, skb->dev,

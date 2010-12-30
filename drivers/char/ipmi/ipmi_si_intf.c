@@ -305,6 +305,9 @@ static int num_force_kipmid;
 #ifdef CONFIG_PCI
 static int pci_registered;
 #endif
+#ifdef CONFIG_ACPI
+static int pnp_registered;
+#endif
 #ifdef CONFIG_PPC_OF
 static int of_registered;
 #endif
@@ -1662,6 +1665,17 @@ static int check_hotmod_int_op(const char *curr, const char *option,
 	return 0;
 }
 
+static struct smi_info *smi_info_alloc(void)
+{
+	struct smi_info *info = kzalloc(sizeof(*info), GFP_KERNEL);
+
+	if (info) {
+		spin_lock_init(&info->si_lock);
+		spin_lock_init(&info->msg_lock);
+	}
+	return info;
+}
+
 static int hotmod_handler(const char *val, struct kernel_param *kp)
 {
 	char *str = kstrdup(val, GFP_KERNEL);
@@ -1776,7 +1790,7 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 		}
 
 		if (op == HM_ADD) {
-			info = kzalloc(sizeof(*info), GFP_KERNEL);
+			info = smi_info_alloc();
 			if (!info) {
 				rv = -ENOMEM;
 				goto out;
@@ -1804,9 +1818,12 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 				info->irq_setup = std_irq_setup;
 			info->slave_addr = ipmb;
 
-			if (!add_smi(info))
+			if (!add_smi(info)) {
 				if (try_smi_init(info))
 					cleanup_one_si(info);
+			} else {
+				kfree(info);
+			}
 		} else {
 			/* remove */
 			struct smi_info *e, *tmp_e;
@@ -1829,7 +1846,7 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 	return rv;
 }
 
-static __devinit void hardcode_find_bmc(void)
+static void __devinit hardcode_find_bmc(void)
 {
 	int             i;
 	struct smi_info *info;
@@ -1838,7 +1855,7 @@ static __devinit void hardcode_find_bmc(void)
 		if (!ports[i] && !addrs[i])
 			continue;
 
-		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		info = smi_info_alloc();
 		if (!info)
 			return;
 
@@ -1890,9 +1907,12 @@ static __devinit void hardcode_find_bmc(void)
 			info->irq_setup = std_irq_setup;
 		info->slave_addr = slave_addrs[i];
 
-		if (!add_smi(info))
+		if (!add_smi(info)) {
 			if (try_smi_init(info))
 				cleanup_one_si(info);
+		} else {
+			kfree(info);
+		}
 	}
 }
 
@@ -1965,8 +1985,7 @@ static int acpi_gpe_irq_setup(struct smi_info *info)
 
 /*
  * Defined at
- * http://h21007.www2.hp.com/dspp/files/unprotected/devresource/
- * Docs/TechPapers/IA64/hpspmi.pdf
+ * http://h21007.www2.hp.com/portal/download/files/unprot/hpspmi.pdf
  */
 struct SPMITable {
 	s8	Signature[4];
@@ -2010,22 +2029,16 @@ struct SPMITable {
 	s8      spmi_id[1]; /* A '\0' terminated array starts here. */
 };
 
-static __devinit int try_init_spmi(struct SPMITable *spmi)
+static int __devinit try_init_spmi(struct SPMITable *spmi)
 {
 	struct smi_info  *info;
-	u8 		 addr_space;
 
 	if (spmi->IPMIlegacy != 1) {
 		printk(KERN_INFO PFX "Bad SPMI legacy %d\n", spmi->IPMIlegacy);
 		return -ENODEV;
 	}
 
-	if (spmi->addr.space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
-		addr_space = IPMI_MEM_ADDR_SPACE;
-	else
-		addr_space = IPMI_IO_ADDR_SPACE;
-
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = smi_info_alloc();
 	if (!info) {
 		printk(KERN_ERR PFX "Could not allocate SI data (3)\n");
 		return -ENOMEM;
@@ -2088,12 +2101,18 @@ static __devinit int try_init_spmi(struct SPMITable *spmi)
 	}
 	info->io.addr_data = spmi->addr.address;
 
-	add_smi(info);
+	pr_info("ipmi_si: SPMI: %s %#lx regsize %d spacing %d irq %d\n",
+		 (info->io.addr_type == IPMI_IO_ADDR_SPACE) ? "io" : "mem",
+		 info->io.addr_data, info->io.regsize, info->io.regspacing,
+		 info->irq);
+
+	if (add_smi(info))
+		kfree(info);
 
 	return 0;
 }
 
-static __devinit void spmi_find_bmc(void)
+static void __devinit spmi_find_bmc(void)
 {
 	acpi_status      status;
 	struct SPMITable *spmi;
@@ -2120,7 +2139,7 @@ static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
 {
 	struct acpi_device *acpi_dev;
 	struct smi_info *info;
-	struct resource *res;
+	struct resource *res, *res_second;
 	acpi_handle handle;
 	acpi_status status;
 	unsigned long long tmp;
@@ -2129,7 +2148,7 @@ static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
 	if (!acpi_dev)
 		return -ENODEV;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = smi_info_alloc();
 	if (!info)
 		return -ENOMEM;
 
@@ -2176,13 +2195,13 @@ static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
 	info->io.addr_data = res->start;
 
 	info->io.regspacing = DEFAULT_REGSPACING;
-	res = pnp_get_resource(dev,
+	res_second = pnp_get_resource(dev,
 			       (info->io.addr_type == IPMI_IO_ADDR_SPACE) ?
 					IORESOURCE_IO : IORESOURCE_MEM,
 			       1);
-	if (res) {
-		if (res->start > info->io.addr_data)
-			info->io.regspacing = res->start - info->io.addr_data;
+	if (res_second) {
+		if (res_second->start > info->io.addr_data)
+			info->io.regspacing = res_second->start - info->io.addr_data;
 	}
 	info->io.regsize = DEFAULT_REGSPACING;
 	info->io.regshift = 0;
@@ -2204,7 +2223,10 @@ static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
 		 res, info->io.regsize, info->io.regspacing,
 		 info->irq);
 
-	return add_smi(info);
+	if (add_smi(info))
+		goto err_free;
+
+	return 0;
 
 err_free:
 	kfree(info);
@@ -2303,11 +2325,11 @@ static int __devinit decode_dmi(const struct dmi_header *dm,
 	return 0;
 }
 
-static __devinit void try_init_dmi(struct dmi_ipmi_data *ipmi_data)
+static void __devinit try_init_dmi(struct dmi_ipmi_data *ipmi_data)
 {
 	struct smi_info *info;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = smi_info_alloc();
 	if (!info) {
 		printk(KERN_ERR PFX "Could not allocate SI data\n");
 		return;
@@ -2362,7 +2384,13 @@ static __devinit void try_init_dmi(struct dmi_ipmi_data *ipmi_data)
 	if (info->irq)
 		info->irq_setup = std_irq_setup;
 
-	add_smi(info);
+	pr_info("ipmi_si: SMBIOS: %s %#lx regsize %d spacing %d irq %d\n",
+		 (info->io.addr_type == IPMI_IO_ADDR_SPACE) ? "io" : "mem",
+		 info->io.addr_data, info->io.regsize, info->io.regspacing,
+		 info->irq);
+
+	if (add_smi(info))
+		kfree(info);
 }
 
 static void __devinit dmi_find_bmc(void)
@@ -2408,7 +2436,7 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 	int class_type = pdev->class & PCI_ERMC_CLASSCODE_TYPE_MASK;
 	struct smi_info *info;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = smi_info_alloc();
 	if (!info)
 		return -ENOMEM;
 
@@ -2468,7 +2496,10 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 		&pdev->resource[0], info->io.regsize, info->io.regspacing,
 		info->irq);
 
-	return add_smi(info);
+	if (add_smi(info))
+		kfree(info);
+
+	return 0;
 }
 
 static void __devexit ipmi_pci_remove(struct pci_dev *pdev)
@@ -2510,7 +2541,7 @@ static struct pci_driver ipmi_pci_driver = {
 
 
 #ifdef CONFIG_PPC_OF
-static int __devinit ipmi_of_probe(struct of_device *dev,
+static int __devinit ipmi_of_probe(struct platform_device *dev,
 			 const struct of_device_id *match)
 {
 	struct smi_info *info;
@@ -2546,7 +2577,7 @@ static int __devinit ipmi_of_probe(struct of_device *dev,
 		return -EINVAL;
 	}
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = smi_info_alloc();
 
 	if (!info) {
 		dev_err(&dev->dev,
@@ -2581,10 +2612,15 @@ static int __devinit ipmi_of_probe(struct of_device *dev,
 
 	dev_set_drvdata(&dev->dev, info);
 
-	return add_smi(info);
+	if (add_smi(info)) {
+		kfree(info);
+		return -EBUSY;
+	}
+
+	return 0;
 }
 
-static int __devexit ipmi_of_remove(struct of_device *dev)
+static int __devexit ipmi_of_remove(struct platform_device *dev)
 {
 	cleanup_one_si(dev_get_drvdata(&dev->dev));
 	return 0;
@@ -2976,7 +3012,7 @@ static __devinitdata struct ipmi_default_vals
 	{ .port = 0 }
 };
 
-static __devinit void default_find_bmc(void)
+static void __devinit default_find_bmc(void)
 {
 	struct smi_info *info;
 	int             i;
@@ -2988,7 +3024,7 @@ static __devinit void default_find_bmc(void)
 		if (check_legacy_ioport(ipmi_defaults[i].port))
 			continue;
 #endif
-		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		info = smi_info_alloc();
 		if (!info)
 			return;
 
@@ -3014,6 +3050,8 @@ static __devinit void default_find_bmc(void)
 				info->io.addr_data);
 			} else
 				cleanup_one_si(info);
+		} else {
+			kfree(info);
 		}
 	}
 }
@@ -3041,7 +3079,7 @@ static int add_smi(struct smi_info *new_smi)
 			si_to_str[new_smi->si_type]);
 	mutex_lock(&smi_infos_lock);
 	if (!is_new_interface(new_smi)) {
-		printk(KERN_CONT PFX "duplicate interface\n");
+		printk(KERN_CONT " duplicate interface\n");
 		rv = -EBUSY;
 		goto out_err;
 	}
@@ -3110,9 +3148,6 @@ static int try_smi_init(struct smi_info *new_smi)
 		printk(KERN_ERR PFX "Could not set up I/O space\n");
 		goto out_err;
 	}
-
-	spin_lock_init(&(new_smi->si_lock));
-	spin_lock_init(&(new_smi->msg_lock));
 
 	/* Do low-level detection first. */
 	if (new_smi->handlers->detect(new_smi->si_sm)) {
@@ -3277,7 +3312,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	return rv;
 }
 
-static __devinit int init_ipmi_si(void)
+static int __devinit init_ipmi_si(void)
 {
 	int  i;
 	char *str;
@@ -3334,6 +3369,7 @@ static __devinit int init_ipmi_si(void)
 
 #ifdef CONFIG_ACPI
 	pnp_register_driver(&ipmi_pnp_driver);
+	pnp_registered = 1;
 #endif
 
 #ifdef CONFIG_DMI
@@ -3489,7 +3525,7 @@ static void cleanup_one_si(struct smi_info *to_clean)
 	kfree(to_clean);
 }
 
-static __exit void cleanup_ipmi_si(void)
+static void __exit cleanup_ipmi_si(void)
 {
 	struct smi_info *e, *tmp_e;
 
@@ -3501,7 +3537,8 @@ static __exit void cleanup_ipmi_si(void)
 		pci_unregister_driver(&ipmi_pci_driver);
 #endif
 #ifdef CONFIG_ACPI
-	pnp_unregister_driver(&ipmi_pnp_driver);
+	if (pnp_registered)
+		pnp_unregister_driver(&ipmi_pnp_driver);
 #endif
 
 #ifdef CONFIG_PPC_OF

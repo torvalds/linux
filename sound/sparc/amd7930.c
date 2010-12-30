@@ -336,7 +336,7 @@ struct snd_amd7930 {
 	int			pgain;
 	int			mgain;
 
-	struct of_device	*op;
+	struct platform_device	*op;
 	unsigned int		irq;
 	struct snd_amd7930	*next;
 };
@@ -906,7 +906,7 @@ static int __devinit snd_amd7930_mixer(struct snd_amd7930 *amd)
 
 static int snd_amd7930_free(struct snd_amd7930 *amd)
 {
-	struct of_device *op = amd->op;
+	struct platform_device *op = amd->op;
 
 	amd7930_idle(amd);
 
@@ -934,7 +934,7 @@ static struct snd_device_ops snd_amd7930_dev_ops = {
 };
 
 static int __devinit snd_amd7930_create(struct snd_card *card,
-					struct of_device *op,
+					struct platform_device *op,
 					int irq, int dev,
 					struct snd_amd7930 **ramd)
 {
@@ -1002,7 +1002,7 @@ static int __devinit snd_amd7930_create(struct snd_card *card,
 	return 0;
 }
 
-static int __devinit amd7930_sbus_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit amd7930_sbus_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct resource *rp = &op->resource[0];
 	static int dev_num;

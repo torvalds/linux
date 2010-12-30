@@ -948,7 +948,7 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 
 abort:
 	kfree_skb(skb);
-	return 0;
+	return 1;
 }
 
 /************************************************************************
@@ -1124,7 +1124,7 @@ static const struct proto_ops pppoe_ops = {
 	.ioctl		= pppox_ioctl,
 };
 
-static struct pppox_proto pppoe_proto = {
+static const struct pppox_proto pppoe_proto = {
 	.create	= pppoe_create,
 	.ioctl	= pppoe_ioctl,
 	.owner	= THIS_MODULE,

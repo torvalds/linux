@@ -53,6 +53,7 @@
 #include "ivtv-cards.h"
 #include "ivtv-vbi.h"
 #include "ivtv-routing.h"
+#include "ivtv-controls.h"
 #include "ivtv-gpio.h"
 
 #include <media/tveeprom.h>
@@ -734,9 +735,8 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	itv->open_id = 1;
 
 	/* Initial settings */
-	cx2341x_fill_defaults(&itv->params);
-	itv->params.port = CX2341X_PORT_MEMORY;
-	itv->params.capabilities = CX2341X_CAP_HAS_SLICED_VBI;
+	itv->cxhdl.port = CX2341X_PORT_MEMORY;
+	itv->cxhdl.capabilities = CX2341X_CAP_HAS_SLICED_VBI;
 	init_waitqueue_head(&itv->eos_waitq);
 	init_waitqueue_head(&itv->event_waitq);
 	init_waitqueue_head(&itv->vsync_waitq);
@@ -1006,6 +1006,13 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 		retval = -ENOMEM;
 		goto err;
 	}
+	retval = cx2341x_handler_init(&itv->cxhdl, 50);
+	if (retval)
+		goto err;
+	itv->v4l2_dev.ctrl_handler = &itv->cxhdl.hdl;
+	itv->cxhdl.ops = &ivtv_cxhdl_ops;
+	itv->cxhdl.priv = itv;
+	itv->cxhdl.func = ivtv_api_func;
 
 	IVTV_DEBUG_INFO("base addr: 0x%08x\n", itv->base_addr);
 
@@ -1127,7 +1134,7 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 	itv->yuv_info.v4l2_src_w = itv->yuv_info.osd_full_w;
 	itv->yuv_info.v4l2_src_h = itv->yuv_info.osd_full_h;
 
-	itv->params.video_gop_size = itv->is_60hz ? 15 : 12;
+	cx2341x_handler_set_50hz(&itv->cxhdl, itv->is_50hz);
 
 	itv->stream_buf_size[IVTV_ENC_STREAM_TYPE_MPG] = 0x08000;
 	itv->stream_buf_size[IVTV_ENC_STREAM_TYPE_PCM] = 0x01200;
@@ -1269,15 +1276,8 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	IVTV_DEBUG_INFO("Getting firmware version..\n");
 	ivtv_firmware_versions(itv);
 
-	if (itv->card->hw_all & IVTV_HW_CX25840) {
-		struct v4l2_control ctrl;
-
+	if (itv->card->hw_all & IVTV_HW_CX25840)
 		v4l2_subdev_call(itv->sd_video, core, load_fw);
-		/* CX25840_CID_ENABLE_PVR150_WORKAROUND */
-		ctrl.id = V4L2_CID_PRIVATE_BASE;
-		ctrl.value = itv->pvr150_workaround;
-		v4l2_subdev_call(itv->sd_video, core, s_ctrl, &ctrl);
-	}
 
 	vf.tuner = 0;
 	vf.type = V4L2_TUNER_ANALOG_TV;
@@ -1329,6 +1329,8 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	/* For cards with video out, this call needs interrupts enabled */
 	ivtv_s_std(NULL, &fh, &itv->tuner_std);
 
+	/* Setup initial controls */
+	cx2341x_handler_setup(&itv->cxhdl);
 	return 0;
 }
 

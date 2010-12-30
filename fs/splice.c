@@ -399,17 +399,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		 * If the page isn't uptodate, we may need to start io on it
 		 */
 		if (!PageUptodate(page)) {
-			/*
-			 * If in nonblock mode then dont block on waiting
-			 * for an in-flight io page
-			 */
-			if (flags & SPLICE_F_NONBLOCK) {
-				if (!trylock_page(page)) {
-					error = -EAGAIN;
-					break;
-				}
-			} else
-				lock_page(page);
+			lock_page(page);
 
 			/*
 			 * Page was truncated, or invalidated by the
@@ -597,7 +587,6 @@ ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 	struct page *pages[PIPE_DEF_BUFFERS];
 	struct partial_page partial[PIPE_DEF_BUFFERS];
 	struct iovec *vec, __vec[PIPE_DEF_BUFFERS];
-	pgoff_t index;
 	ssize_t res;
 	size_t this_len;
 	int error;
@@ -621,7 +610,6 @@ ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 			goto shrink_ret;
 	}
 
-	index = *ppos >> PAGE_CACHE_SHIFT;
 	offset = *ppos & ~PAGE_CACHE_MASK;
 	nr_pages = (len + offset + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
@@ -1323,18 +1311,6 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,
 			       struct pipe_inode_info *opipe,
 			       size_t len, unsigned int flags);
-/*
- * After the inode slimming patch, i_pipe/i_bdev/i_cdev share the same
- * location, so checking ->i_pipe is not enough to verify that this is a
- * pipe.
- */
-static inline struct pipe_inode_info *pipe_info(struct inode *inode)
-{
-	if (S_ISFIFO(inode->i_mode))
-		return inode->i_pipe;
-
-	return NULL;
-}
 
 /*
  * Determine where to splice to/from.
@@ -1348,8 +1324,8 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 	loff_t offset, *off;
 	long ret;
 
-	ipipe = pipe_info(in->f_path.dentry->d_inode);
-	opipe = pipe_info(out->f_path.dentry->d_inode);
+	ipipe = get_pipe_info(in);
+	opipe = get_pipe_info(out);
 
 	if (ipipe && opipe) {
 		if (off_in || off_out)
@@ -1567,7 +1543,7 @@ static long vmsplice_to_user(struct file *file, const struct iovec __user *iov,
 	int error;
 	long ret;
 
-	pipe = pipe_info(file->f_path.dentry->d_inode);
+	pipe = get_pipe_info(file);
 	if (!pipe)
 		return -EBADF;
 
@@ -1654,7 +1630,7 @@ static long vmsplice_to_pipe(struct file *file, const struct iovec __user *iov,
 	};
 	long ret;
 
-	pipe = pipe_info(file->f_path.dentry->d_inode);
+	pipe = get_pipe_info(file);
 	if (!pipe)
 		return -EBADF;
 
@@ -2034,8 +2010,8 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 static long do_tee(struct file *in, struct file *out, size_t len,
 		   unsigned int flags)
 {
-	struct pipe_inode_info *ipipe = pipe_info(in->f_path.dentry->d_inode);
-	struct pipe_inode_info *opipe = pipe_info(out->f_path.dentry->d_inode);
+	struct pipe_inode_info *ipipe = get_pipe_info(in);
+	struct pipe_inode_info *opipe = get_pipe_info(out);
 	int ret = -EINVAL;
 
 	/*

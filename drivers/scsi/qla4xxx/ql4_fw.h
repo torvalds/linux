@@ -416,6 +416,8 @@ struct qla_flt_region {
 #define MBOX_ASTS_IPV6_ND_PREFIX_IGNORED	0x802C
 #define MBOX_ASTS_IPV6_LCL_PREFIX_IGNORED	0x802D
 #define MBOX_ASTS_ICMPV6_ERROR_MSG_RCVD		0x802E
+#define MBOX_ASTS_TXSCVR_INSERTED		0x8130
+#define MBOX_ASTS_TXSCVR_REMOVED		0x8131
 
 #define ISNS_EVENT_DATA_RECEIVED		0x0000
 #define ISNS_EVENT_CONNECTION_OPENED		0x0001
@@ -446,6 +448,7 @@ struct addr_ctrl_blk {
 #define	 FWOPT_SESSION_MODE		  0x0040
 #define	 FWOPT_INITIATOR_MODE		  0x0020
 #define	 FWOPT_TARGET_MODE		  0x0010
+#define	 FWOPT_ENABLE_CRBDB		  0x8000
 
 	uint16_t exec_throttle;	/* 04-05 */
 	uint8_t zio_count;	/* 06 */
@@ -673,17 +676,17 @@ struct flash_sys_info {
 };	/* 200 */
 
 struct mbx_sys_info {
-	uint8_t board_id_str[16];	/* Keep board ID string first */
-					/* in this structure for GUI. */
-	uint16_t board_id;	/* board ID code */
-	uint16_t phys_port_cnt;	/* number of physical network ports */
-	uint16_t port_num;	/* network port for this PCI function */
+	uint8_t board_id_str[16];   /*  0-f  Keep board ID string first */
+				/* in this structure for GUI. */
+	uint16_t board_id;	/* 10-11 board ID code */
+	uint16_t phys_port_cnt;	/* 12-13 number of physical network ports */
+	uint16_t port_num;	/* 14-15 network port for this PCI function */
 				/* (port 0 is first port) */
-	uint8_t mac_addr[6];	/* MAC address for this PCI function */
-	uint32_t iscsi_pci_func_cnt;	/* number of iSCSI PCI functions */
-	uint32_t pci_func;		/* this PCI function */
-	unsigned char serial_number[16];	/* serial number string */
-	uint8_t reserved[16];
+	uint8_t mac_addr[6];	/* 16-1b MAC address for this PCI function */
+	uint32_t iscsi_pci_func_cnt;  /* 1c-1f number of iSCSI PCI functions */
+	uint32_t pci_func;	      /* 20-23 this PCI function */
+	unsigned char serial_number[16];  /* 24-33 serial number string */
+	uint8_t reserved[12];		  /* 34-3f */
 };
 
 struct crash_record {

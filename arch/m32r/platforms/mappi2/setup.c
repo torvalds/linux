@@ -72,7 +72,7 @@ static void shutdown_mappi2_irq(unsigned int irq)
 
 static struct irq_chip mappi2_irq_type =
 {
-	.typename = "MAPPI2-IRQ",
+	.name = "MAPPI2-IRQ",
 	.startup = startup_mappi2_irq,
 	.shutdown = shutdown_mappi2_irq,
 	.enable = enable_mappi2_irq,

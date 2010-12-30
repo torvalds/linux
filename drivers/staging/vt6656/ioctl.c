@@ -670,7 +670,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
       pMgmt->Cisco_cckm =1;
     else
     pMgmt->Cisco_cckm =0;
-//DavidWang
+
 
 if(wpa_Result.authenticated==TRUE) {
    {

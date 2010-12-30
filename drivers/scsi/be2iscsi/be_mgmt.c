@@ -20,6 +20,77 @@
 
 #include "be_mgmt.h"
 #include "be_iscsi.h"
+#include <scsi/scsi_transport_iscsi.h>
+
+unsigned int beiscsi_get_boot_target(struct beiscsi_hba *phba)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_mac_addr *req;
+	unsigned int tag = 0;
+
+	SE_DEBUG(DBG_LVL_8, "In bescsi_get_boot_target\n");
+	spin_lock(&ctrl->mbox_lock);
+	tag = alloc_mcc_tag(phba);
+	if (!tag) {
+		spin_unlock(&ctrl->mbox_lock);
+		return tag;
+	}
+
+	wrb = wrb_from_mccq(phba);
+	req = embedded_payload(wrb);
+	wrb->tag0 |= tag;
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
+			   OPCODE_ISCSI_INI_BOOT_GET_BOOT_TARGET,
+			   sizeof(*req));
+
+	be_mcc_notify(phba);
+	spin_unlock(&ctrl->mbox_lock);
+	return tag;
+}
+
+unsigned int beiscsi_get_session_info(struct beiscsi_hba *phba,
+				  u32 boot_session_handle,
+				  struct be_dma_mem *nonemb_cmd)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct be_mcc_wrb *wrb;
+	unsigned int tag = 0;
+	struct  be_cmd_req_get_session *req;
+	struct be_cmd_resp_get_session *resp;
+	struct be_sge *sge;
+
+	SE_DEBUG(DBG_LVL_8, "In beiscsi_get_session_info\n");
+	spin_lock(&ctrl->mbox_lock);
+	tag = alloc_mcc_tag(phba);
+	if (!tag) {
+		spin_unlock(&ctrl->mbox_lock);
+		return tag;
+	}
+
+	nonemb_cmd->size = sizeof(*resp);
+	req = nonemb_cmd->va;
+	memset(req, 0, sizeof(*req));
+	wrb = wrb_from_mccq(phba);
+	sge = nonembedded_sgl(wrb);
+	wrb->tag0 |= tag;
+
+
+	wrb->tag0 |= tag;
+	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
+			   OPCODE_ISCSI_INI_SESSION_GET_A_SESSION,
+			   sizeof(*resp));
+	req->session_handle = boot_session_handle;
+	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
+	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
+	sge->len = cpu_to_le32(nonemb_cmd->size);
+
+	be_mcc_notify(phba);
+	spin_unlock(&ctrl->mbox_lock);
+	return tag;
+}
 
 int mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 				struct beiscsi_hba *phba)
@@ -297,7 +368,7 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	memset(req, 0, sizeof(*req));
 	wrb->tag0 |= tag;
 
-	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 1);
+	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
 			   OPCODE_COMMON_ISCSI_TCP_CONNECT_AND_OFFLOAD,
 			   sizeof(*req));

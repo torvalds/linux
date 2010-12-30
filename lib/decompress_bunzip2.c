@@ -107,6 +107,8 @@ struct bunzip_data {
 	unsigned char selectors[32768];		/* nSelectors = 15 bits */
 	struct group_data groups[MAX_GROUPS];	/* Huffman coding tables */
 	int io_error;			/* non-zero if we have IO error */
+	int byteCount[256];
+	unsigned char symToByte[256], mtfSymbol[256];
 };
 
 
@@ -158,14 +160,16 @@ static int INIT get_next_block(struct bunzip_data *bd)
 	int *base = NULL;
 	int *limit = NULL;
 	int dbufCount, nextSym, dbufSize, groupCount, selector,
-		i, j, k, t, runPos, symCount, symTotal, nSelectors,
-		byteCount[256];
-	unsigned char uc, symToByte[256], mtfSymbol[256], *selectors;
+		i, j, k, t, runPos, symCount, symTotal, nSelectors, *byteCount;
+	unsigned char uc, *symToByte, *mtfSymbol, *selectors;
 	unsigned int *dbuf, origPtr;
 
 	dbuf = bd->dbuf;
 	dbufSize = bd->dbufSize;
 	selectors = bd->selectors;
+	byteCount = bd->byteCount;
+	symToByte = bd->symToByte;
+	mtfSymbol = bd->mtfSymbol;
 
 	/* Read in header signature and CRC, then validate signature.
 	   (last block signature means CRC is for whole file, return now) */

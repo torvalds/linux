@@ -735,7 +735,7 @@ static int myri_header(struct sk_buff *skb, struct net_device *dev,
 		int i;
 		for (i = 0; i < dev->addr_len; i++)
 			eth->h_dest[i] = 0;
-		return(dev->hard_header_len);
+		return dev->hard_header_len;
 	}
 
 	if (daddr) {
@@ -926,7 +926,7 @@ static const struct net_device_ops myri_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit myri_sbus_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit myri_sbus_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct device_node *dp = op->dev.of_node;
 	static unsigned version_printed;
@@ -1124,7 +1124,7 @@ err:
 	return -ENODEV;
 }
 
-static int __devexit myri_sbus_remove(struct of_device *op)
+static int __devexit myri_sbus_remove(struct platform_device *op)
 {
 	struct myri_eth *mp = dev_get_drvdata(&op->dev);
 	struct net_device *net_dev = mp->dev;

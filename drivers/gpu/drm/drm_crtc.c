@@ -156,12 +156,12 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] =
 	{ DRM_MODE_CONNECTOR_SVIDEO, "SVIDEO", 0 },
 	{ DRM_MODE_CONNECTOR_LVDS, "LVDS", 0 },
 	{ DRM_MODE_CONNECTOR_Component, "Component", 0 },
-	{ DRM_MODE_CONNECTOR_9PinDIN, "9-pin DIN", 0 },
-	{ DRM_MODE_CONNECTOR_DisplayPort, "DisplayPort", 0 },
-	{ DRM_MODE_CONNECTOR_HDMIA, "HDMI Type A", 0 },
-	{ DRM_MODE_CONNECTOR_HDMIB, "HDMI Type B", 0 },
+	{ DRM_MODE_CONNECTOR_9PinDIN, "DIN", 0 },
+	{ DRM_MODE_CONNECTOR_DisplayPort, "DP", 0 },
+	{ DRM_MODE_CONNECTOR_HDMIA, "HDMI-A", 0 },
+	{ DRM_MODE_CONNECTOR_HDMIB, "HDMI-B", 0 },
 	{ DRM_MODE_CONNECTOR_TV, "TV", 0 },
-	{ DRM_MODE_CONNECTOR_eDP, "Embedded DisplayPort", 0 },
+	{ DRM_MODE_CONNECTOR_eDP, "eDP", 0 },
 };
 
 static struct drm_prop_enum_list drm_encoder_enum_list[] =
@@ -1682,9 +1682,9 @@ int drm_mode_addfb(struct drm_device *dev,
 	/* TODO setup destructor callback */
 
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
-	if (!fb) {
+	if (IS_ERR(fb)) {
 		DRM_ERROR("could not create framebuffer\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(fb);
 		goto out;
 	}
 
@@ -1854,7 +1854,8 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	}
 
 	if (fb->funcs->dirty) {
-		ret = fb->funcs->dirty(fb, flags, r->color, clips, num_clips);
+		ret = fb->funcs->dirty(fb, file_priv, flags, r->color,
+				       clips, num_clips);
 	} else {
 		ret = -ENOSYS;
 		goto out_err2;
@@ -2541,7 +2542,7 @@ int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 		goto out;
 	}
 
-	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, crtc->gamma_size);
+	crtc->funcs->gamma_set(crtc, r_base, g_base, b_base, 0, crtc->gamma_size);
 
 out:
 	mutex_unlock(&dev->mode_config.mutex);

@@ -40,7 +40,7 @@ config PANEL_TPO_TD043MTEA1
 
 config PANEL_ACX565AKM
 	tristate "ACX565AKM Panel"
-	depends on OMAP2_DSS_SDI
+	depends on OMAP2_DSS_SDI && SPI
 	select BACKLIGHT_CLASS_DEVICE
 	help
 	  This is the LCD panel used on Nokia N900

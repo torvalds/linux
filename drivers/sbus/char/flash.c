@@ -160,7 +160,7 @@ static const struct file_operations flash_fops = {
 
 static struct miscdevice flash_dev = { FLASH_MINOR, "flash", &flash_fops };
 
-static int __devinit flash_probe(struct of_device *op,
+static int __devinit flash_probe(struct platform_device *op,
 				 const struct of_device_id *match)
 {
 	struct device_node *dp = op->dev.of_node;
@@ -192,7 +192,7 @@ static int __devinit flash_probe(struct of_device *op,
 	return misc_register(&flash_dev);
 }
 
-static int __devexit flash_remove(struct of_device *op)
+static int __devexit flash_remove(struct platform_device *op)
 {
 	misc_deregister(&flash_dev);
 

@@ -14,7 +14,6 @@
 
 struct netpoll {
 	struct net_device *dev;
-	struct net_device *real_dev;
 	char dev_name[IFNAMSIZ];
 	const char *name;
 	void (*rx_hook)(struct netpoll *, int, char *, int);
@@ -53,7 +52,13 @@ void netpoll_set_trap(int trap);
 void __netpoll_cleanup(struct netpoll *np);
 void netpoll_cleanup(struct netpoll *np);
 int __netpoll_rx(struct sk_buff *skb);
-void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb);
+void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
+			     struct net_device *dev);
+static inline void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
+{
+	netpoll_send_skb_on_dev(np, skb, np->dev);
+}
+
 
 
 #ifdef CONFIG_NETPOLL
@@ -63,20 +68,20 @@ static inline bool netpoll_rx(struct sk_buff *skb)
 	unsigned long flags;
 	bool ret = false;
 
-	rcu_read_lock_bh();
+	local_irq_save(flags);
 	npinfo = rcu_dereference_bh(skb->dev->npinfo);
 
 	if (!npinfo || (list_empty(&npinfo->rx_np) && !npinfo->rx_flags))
 		goto out;
 
-	spin_lock_irqsave(&npinfo->rx_lock, flags);
+	spin_lock(&npinfo->rx_lock);
 	/* check rx_flags again with the lock held */
 	if (npinfo->rx_flags && __netpoll_rx(skb))
 		ret = true;
-	spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+	spin_unlock(&npinfo->rx_lock);
 
 out:
-	rcu_read_unlock_bh();
+	local_irq_restore(flags);
 	return ret;
 }
 
@@ -122,7 +127,7 @@ static inline int netpoll_tx_running(struct net_device *dev)
 }
 
 #else
-static inline int netpoll_rx(struct sk_buff *skb)
+static inline bool netpoll_rx(struct sk_buff *skb)
 {
 	return 0;
 }

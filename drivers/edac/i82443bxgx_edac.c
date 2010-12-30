@@ -12,7 +12,7 @@
  * 440GX fix by Jason Uhlenkott <juhlenko@akamai.com>.
  *
  * Written with reference to 82443BX Host Bridge Datasheet:
- * http://www.intel.com/design/chipsets/440/documentation.htm
+ * http://download.intel.com/design/chipsets/datashts/29063301.pdf 
  * references to this document given in [].
  *
  * This module doesn't support the 440LX, but it may be possible to

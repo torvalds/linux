@@ -29,12 +29,15 @@
 #include <linux/timex.h>
 #include <linux/cache.h>
 #include <linux/smp.h>
+#include <linux/module.h>
 
 #include <asm/page.h>
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
 #include <asm/pgalloc.h>
 #include <asm/homecache.h>
+
+#include <arch/sim.h>
 
 #include "migrate.h"
 
@@ -216,13 +219,6 @@ static unsigned long cache_flush_length(unsigned long length)
 	return (length >= CHIP_L2_CACHE_SIZE()) ? HV_FLUSH_EVICT_L2 : length;
 }
 
-/* On the simulator, confirm lines have been evicted everywhere. */
-static void validate_lines_evicted(unsigned long pfn, size_t length)
-{
-	sim_syscall(SIM_SYSCALL_VALIDATE_LINES_EVICTED,
-		    (HV_PhysAddr)pfn << PAGE_SHIFT, length);
-}
-
 /* Flush a page out of whatever cache(s) it is in. */
 void homecache_flush_cache(struct page *page, int order)
 {
@@ -233,7 +229,7 @@ void homecache_flush_cache(struct page *page, int order)
 
 	homecache_mask(page, pages, &home_mask);
 	flush_remote(pfn, length, &home_mask, 0, 0, 0, NULL, NULL, 0);
-	validate_lines_evicted(pfn, pages * PAGE_SIZE);
+	sim_validate_lines_evicted(PFN_PHYS(pfn), pages * PAGE_SIZE);
 }
 
 
@@ -348,6 +344,7 @@ pte_t pte_set_home(pte_t pte, int home)
 
 	return pte;
 }
+EXPORT_SYMBOL(pte_set_home);
 
 /*
  * The routines in this section are the "static" versions of the normal
@@ -403,6 +400,7 @@ struct page *homecache_alloc_pages(gfp_t gfp_mask,
 		homecache_change_page_home(page, order, home);
 	return page;
 }
+EXPORT_SYMBOL(homecache_alloc_pages);
 
 struct page *homecache_alloc_pages_node(int nid, gfp_t gfp_mask,
 					unsigned int order, int home)

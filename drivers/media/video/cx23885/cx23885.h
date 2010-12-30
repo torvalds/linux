@@ -325,6 +325,7 @@ struct cx23885_dev {
 	u32                        __iomem *lmmio;
 	u8                         __iomem *bmmio;
 	int                        pci_irqmask;
+	spinlock_t		   pci_irqmask_lock; /* protects mask reg too */
 	int                        hwrevision;
 
 	/* This valud is board specific and is used to configure the
@@ -365,6 +366,7 @@ struct cx23885_dev {
 	unsigned char              radio_addr;
 	unsigned int               has_radio;
 	struct v4l2_subdev 	   *sd_cx25840;
+	struct work_struct	   cx25840_work;
 
 	/* Infrared */
 	struct v4l2_subdev         *sd_ir;
@@ -403,7 +405,8 @@ static inline struct cx23885_dev *to_cx23885(struct v4l2_device *v4l2_dev)
 #define call_all(dev, o, f, args...) \
 	v4l2_device_call_all(&dev->v4l2_dev, 0, o, f, ##args)
 
-#define CX23885_HW_888_IR (1 << 0)
+#define CX23885_HW_888_IR  (1 << 0)
+#define CX23885_HW_AV_CORE (1 << 1)
 
 #define call_hw(dev, grpid, o, f, args...) \
 	v4l2_device_call_all(&dev->v4l2_dev, grpid, o, f, ##args)
@@ -484,6 +487,10 @@ extern u32 cx23885_gpio_get(struct cx23885_dev *dev, u32 mask);
 extern void cx23885_gpio_enable(struct cx23885_dev *dev, u32 mask,
 	int asoutput);
 
+extern void cx23885_irq_add_enable(struct cx23885_dev *dev, u32 mask);
+extern void cx23885_irq_enable(struct cx23885_dev *dev, u32 mask);
+extern void cx23885_irq_disable(struct cx23885_dev *dev, u32 mask);
+extern void cx23885_irq_remove(struct cx23885_dev *dev, u32 mask);
 
 /* ----------------------------------------------------------- */
 /* cx23885-cards.c                                             */

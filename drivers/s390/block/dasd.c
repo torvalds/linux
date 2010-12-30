@@ -1099,16 +1099,30 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	cqr = (struct dasd_ccw_req *) intparm;
 	if (!cqr || ((scsw_cc(&irb->scsw) == 1) &&
 		     (scsw_fctl(&irb->scsw) & SCSW_FCTL_START_FUNC) &&
-		     (scsw_stctl(&irb->scsw) & SCSW_STCTL_STATUS_PEND))) {
+		     ((scsw_stctl(&irb->scsw) == SCSW_STCTL_STATUS_PEND) ||
+		      (scsw_stctl(&irb->scsw) == (SCSW_STCTL_STATUS_PEND |
+						  SCSW_STCTL_ALERT_STATUS))))) {
 		if (cqr && cqr->status == DASD_CQR_IN_IO)
 			cqr->status = DASD_CQR_QUEUED;
+		if (cqr)
+			memcpy(&cqr->irb, irb, sizeof(*irb));
 		device = dasd_device_from_cdev_locked(cdev);
-		if (!IS_ERR(device)) {
-			dasd_device_clear_timer(device);
-			device->discipline->handle_unsolicited_interrupt(device,
-									 irb);
+		if (IS_ERR(device))
+			return;
+		/* ignore unsolicited interrupts for DIAG discipline */
+		if (device->discipline == dasd_diag_discipline_pointer) {
 			dasd_put_device(device);
+			return;
 		}
+		device->discipline->dump_sense_dbf(device, irb,
+						   "unsolicited");
+		if ((device->features & DASD_FEATURE_ERPLOG))
+			device->discipline->dump_sense(device, cqr,
+						       irb);
+		dasd_device_clear_timer(device);
+		device->discipline->handle_unsolicited_interrupt(device,
+								 irb);
+		dasd_put_device(device);
 		return;
 	}
 
@@ -1324,14 +1338,14 @@ static void __dasd_device_check_expire(struct dasd_device *device)
 		if (device->discipline->term_IO(cqr) != 0) {
 			/* Hmpf, try again in 5 sec */
 			dev_err(&device->cdev->dev,
-				"cqr %p timed out (%is) but cannot be "
+				"cqr %p timed out (%lus) but cannot be "
 				"ended, retrying in 5 s\n",
 				cqr, (cqr->expires/HZ));
 			cqr->expires += 5*HZ;
 			dasd_device_set_timer(device, 5*HZ);
 		} else {
 			dev_err(&device->cdev->dev,
-				"cqr %p timed out (%is), %i retries "
+				"cqr %p timed out (%lus), %i retries "
 				"remaining\n", cqr, (cqr->expires/HZ),
 				cqr->retries);
 		}
@@ -2196,7 +2210,6 @@ static void dasd_setup_queue(struct dasd_block *block)
 	 */
 	blk_queue_max_segment_size(block->request_queue, PAGE_SIZE);
 	blk_queue_segment_boundary(block->request_queue, PAGE_SIZE - 1);
-	blk_queue_ordered(block->request_queue, QUEUE_ORDERED_DRAIN, NULL);
 }
 
 /*

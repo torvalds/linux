@@ -66,7 +66,7 @@
 /* to determine the correct external crystal reference */
 #define CKIH_27MHZ_BIT_SET      (1 << 3)
 
-static unsigned int mx27ads_pins[] = {
+static const int mx27ads_pins[] __initconst = {
 	/* UART0 */
 	PE12_PF_UART1_TXD,
 	PE13_PF_UART1_RXD,
@@ -284,7 +284,6 @@ static struct imxmmc_platform_data sdhc2_pdata = {
 
 static struct platform_device *platform_devices[] __initdata = {
 	&mx27ads_nor_mtd_device,
-	&mxc_fec_device,
 	&mxc_w1_master_device,
 };
 
@@ -308,11 +307,12 @@ static void __init mx27ads_board_init(void)
 	/* only the i2c master 1 is used on this CPU card */
 	i2c_register_board_info(1, mx27ads_i2c_devices,
 				ARRAY_SIZE(mx27ads_i2c_devices));
-	imx27_add_i2c_imx1(&mx27ads_i2c1_data);
+	imx27_add_imx_i2c(1, &mx27ads_i2c1_data);
 	mxc_register_device(&mxc_fb_device, &mx27ads_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
 	mxc_register_device(&mxc_sdhc_device1, &sdhc2_pdata);
 
+	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }
 
@@ -347,8 +347,6 @@ static void __init mx27ads_map_io(void)
 
 MACHINE_START(MX27ADS, "Freescale i.MX27ADS")
 	/* maintainer: Freescale Semiconductor, Inc. */
-	.phys_io        = MX27_AIPI_BASE_ADDR,
-	.io_pg_offst    = ((MX27_AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = MX27_PHYS_OFFSET + 0x100,
 	.map_io         = mx27ads_map_io,
 	.init_irq       = mx27_init_irq,

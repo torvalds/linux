@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("i2c device driver for cs5345 Audio ADC");
 MODULE_AUTHOR("Hans Verkuil");
@@ -209,9 +208,25 @@ static const struct i2c_device_id cs5345_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, cs5345_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "cs5345",
-	.probe = cs5345_probe,
-	.remove = cs5345_remove,
-	.id_table = cs5345_id,
+static struct i2c_driver cs5345_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "cs5345",
+	},
+	.probe		= cs5345_probe,
+	.remove		= cs5345_remove,
+	.id_table	= cs5345_id,
 };
+
+static __init int init_cs5345(void)
+{
+	return i2c_add_driver(&cs5345_driver);
+}
+
+static __exit void exit_cs5345(void)
+{
+	i2c_del_driver(&cs5345_driver);
+}
+
+module_init(init_cs5345);
+module_exit(exit_cs5345);

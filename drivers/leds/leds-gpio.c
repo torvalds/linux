@@ -224,7 +224,7 @@ struct gpio_led_of_platform_data {
 	struct gpio_led_data led_data[];
 };
 
-static int __devinit of_gpio_leds_probe(struct of_device *ofdev,
+static int __devinit of_gpio_leds_probe(struct platform_device *ofdev,
 					const struct of_device_id *match)
 {
 	struct device_node *np = ofdev->dev.of_node, *child;
@@ -283,7 +283,7 @@ err:
 	return ret;
 }
 
-static int __devexit of_gpio_leds_remove(struct of_device *ofdev)
+static int __devexit of_gpio_leds_remove(struct platform_device *ofdev)
 {
 	struct gpio_led_of_platform_data *pdata = dev_get_drvdata(&ofdev->dev);
 	int i;
@@ -316,7 +316,7 @@ static struct of_platform_driver of_gpio_leds_driver = {
 
 static int __init gpio_led_init(void)
 {
-	int ret;
+	int ret = 0;
 
 #ifdef CONFIG_LEDS_GPIO_PLATFORM	
 	ret = platform_driver_register(&gpio_led_driver);

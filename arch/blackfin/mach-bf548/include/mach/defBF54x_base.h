@@ -35,6 +35,7 @@
 
 /* SIC Registers */
 
+#define                        SIC_RVECT  0xffc00108
 #define                       SIC_IMASK0  0xffc0010c   /* System Interrupt Mask Register 0 */
 #define                       SIC_IMASK1  0xffc00110   /* System Interrupt Mask Register 1 */
 #define                       SIC_IMASK2  0xffc00114   /* System Interrupt Mask Register 2 */
@@ -2061,56 +2062,6 @@
 #define                  LOW_EVEN  0xff0000   /* Lower Limit for Even Bytes (Luma) */
 #define                 HIGH_EVEN  0xff000000 /* Upper Limit for Even Bytes (Luma) */
 
-/* Bit masks for SPIx_BAUD */
-
-#define                  SPI_BAUD  0xffff     /* Baud Rate */
-
-/* Bit masks for SPIx_CTL */
-
-#define                       SPE  0x4000     /* SPI Enable */
-#define                       WOM  0x2000     /* Write Open Drain Master */
-#define                      MSTR  0x1000     /* Master Mode */
-#define                      CPOL  0x800      /* Clock Polarity */
-#define                      CPHA  0x400      /* Clock Phase */
-#define                      LSBF  0x200      /* LSB First */
-#define                      SIZE  0x100      /* Size of Words */
-#define                     EMISO  0x20       /* Enable MISO Output */
-#define                      PSSE  0x10       /* Slave-Select Enable */
-#define                        GM  0x8        /* Get More Data */
-#define                        SZ  0x4        /* Send Zero */
-#define                     TIMOD  0x3        /* Transfer Initiation Mode */
-
-/* Bit masks for SPIx_FLG */
-
-#define                      FLS1  0x2        /* Slave Select Enable 1 */
-#define                      FLS2  0x4        /* Slave Select Enable 2 */
-#define                      FLS3  0x8        /* Slave Select Enable 3 */
-#define                      FLG1  0x200      /* Slave Select Value 1 */
-#define                      FLG2  0x400      /* Slave Select Value 2 */
-#define                      FLG3  0x800      /* Slave Select Value 3 */
-
-/* Bit masks for SPIx_STAT */
-
-#define                     TXCOL  0x40       /* Transmit Collision Error */
-#define                       RXS  0x20       /* RDBR Data Buffer Status */
-#define                      RBSY  0x10       /* Receive Error */
-#define                       TXS  0x8        /* TDBR Data Buffer Status */
-#define                       TXE  0x4        /* Transmission Error */
-#define                      MODF  0x2        /* Mode Fault Error */
-#define                      SPIF  0x1        /* SPI Finished */
-
-/* Bit masks for SPIx_TDBR */
-
-#define                      TDBR  0xffff     /* Transmit Data Buffer */
-
-/* Bit masks for SPIx_RDBR */
-
-#define                      RDBR  0xffff     /* Receive Data Buffer */
-
-/* Bit masks for SPIx_SHADOW */
-
-#define                    SHADOW  0xffff     /* RDBR Shadow */
-
 /* ************************************************ */
 /* The TWI bit masks fields are from the ADSP-BF538 */
 /* and they have not been verified as the final     */
@@ -2220,73 +2171,6 @@
 /* Bit maskes for TWIx_RCV_DATA16 */
 
 #define                 RCVDATA16  0xffff     /* Receive FIFO 16-Bit Data */
-
-/* Bit masks for SPORTx_TCR1 */
-
-#define                     TCKFE  0x4000     /* Clock Falling Edge Select */
-#define                     LATFS  0x2000     /* Late Transmit Frame Sync */
-#define                      LTFS  0x1000     /* Low Transmit Frame Sync Select */
-#define                     DITFS  0x800      /* Data-Independent Transmit Frame Sync Select */
-#define                      TFSR  0x400      /* Transmit Frame Sync Required Select */
-#define                      ITFS  0x200      /* Internal Transmit Frame Sync Select */
-#define                    TLSBIT  0x10       /* Transmit Bit Order */
-#define                    TDTYPE  0xc        /* Data Formatting Type Select */
-#define                     ITCLK  0x2        /* Internal Transmit Clock Select */
-#define                     TSPEN  0x1        /* Transmit Enable */
-
-/* Bit masks for SPORTx_TCR2 */
-
-#define                     TRFST  0x400      /* Left/Right Order */
-#define                     TSFSE  0x200      /* Transmit Stereo Frame Sync Enable */
-#define                      TXSE  0x100      /* TxSEC Enable */
-#define                    SLEN_T  0x1f       /* SPORT Word Length */
-
-/* Bit masks for SPORTx_RCR1 */
-
-#define                     RCKFE  0x4000     /* Clock Falling Edge Select */
-#define                     LARFS  0x2000     /* Late Receive Frame Sync */
-#define                      LRFS  0x1000     /* Low Receive Frame Sync Select */
-#define                      RFSR  0x400      /* Receive Frame Sync Required Select */
-#define                      IRFS  0x200      /* Internal Receive Frame Sync Select */
-#define                    RLSBIT  0x10       /* Receive Bit Order */
-#define                    RDTYPE  0xc        /* Data Formatting Type Select */
-#define                     IRCLK  0x2        /* Internal Receive Clock Select */
-#define                     RSPEN  0x1        /* Receive Enable */
-
-/* Bit masks for SPORTx_RCR2 */
-
-#define                     RRFST  0x400      /* Left/Right Order */
-#define                     RSFSE  0x200      /* Receive Stereo Frame Sync Enable */
-#define                      RXSE  0x100      /* RxSEC Enable */
-#define                    SLEN_R  0x1f       /* SPORT Word Length */
-
-/* Bit masks for SPORTx_STAT */
-
-#define                     TXHRE  0x40       /* Transmit Hold Register Empty */
-#define                      TOVF  0x20       /* Sticky Transmit Overflow Status */
-#define                      TUVF  0x10       /* Sticky Transmit Underflow Status */
-#define                       TXF  0x8        /* Transmit FIFO Full Status */
-#define                      ROVF  0x4        /* Sticky Receive Overflow Status */
-#define                      RUVF  0x2        /* Sticky Receive Underflow Status */
-#define                      RXNE  0x1        /* Receive FIFO Not Empty Status */
-
-/* Bit masks for SPORTx_MCMC1 */
-
-#define                  SP_WSIZE  0xf000     /* Window Size */
-#define                   SP_WOFF  0x3ff      /* Windows Offset */
-
-/* Bit masks for SPORTx_MCMC2 */
-
-#define                       MFD  0xf000     /* Multi channel Frame Delay */
-#define                      FSDR  0x80       /* Frame Sync to Data Relationship */
-#define                  MCMEN  0x10       /* Multi channel Frame Mode Enable */
-#define                   MCDRXPE  0x8        /* Multi channel DMA Receive Packing */
-#define                   MCDTXPE  0x4        /* Multi channel DMA Transmit Packing */
-#define                     MCCRM  0x3        /* 2X Clock Recovery Mode */
-
-/* Bit masks for SPORTx_CHNL */
-
-#define                  CUR_CHNL  0x3ff      /* Current Channel Indicator */
 
 /* Bit masks for UARTx_LCR */
 

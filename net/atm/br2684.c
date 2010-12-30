@@ -399,12 +399,6 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 			unregister_netdev(net_dev);
 			free_netdev(net_dev);
 		}
-		read_lock_irq(&devs_lock);
-		if (list_empty(&br2684_devs)) {
-			/* last br2684 device */
-			unregister_atmdevice_notifier(&atm_dev_notifier);
-		}
-		read_unlock_irq(&devs_lock);
 		return;
 	}
 
@@ -675,7 +669,6 @@ static int br2684_create(void __user *arg)
 
 	if (list_empty(&br2684_devs)) {
 		/* 1st br2684 device */
-		register_atmdevice_notifier(&atm_dev_notifier);
 		brdev->number = 1;
 	} else
 		brdev->number = BRPRIV(list_entry_brdev(br2684_devs.prev))->number + 1;
@@ -815,6 +808,7 @@ static int __init br2684_init(void)
 		return -ENOMEM;
 #endif
 	register_atm_ioctl(&br2684_ioctl_ops);
+	register_atmdevice_notifier(&atm_dev_notifier);
 	return 0;
 }
 
@@ -830,9 +824,7 @@ static void __exit br2684_exit(void)
 #endif
 
 
-	/* if not already empty */
-	if (!list_empty(&br2684_devs))
-		unregister_atmdevice_notifier(&atm_dev_notifier);
+	unregister_atmdevice_notifier(&atm_dev_notifier);
 
 	while (!list_empty(&br2684_devs)) {
 		net_dev = list_entry_brdev(br2684_devs.next);

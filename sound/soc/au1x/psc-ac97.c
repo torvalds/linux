@@ -10,9 +10,6 @@
  *
  * Au1xxx-PSC AC97 glue.
  *
- * NOTE: all of these drivers can only work with a SINGLE instance
- *	 of a PSC. Multiple independent audio devices are impossible
- *	 with ASoC v1.
  */
 
 #include <linux/init.h>
@@ -56,12 +53,29 @@
 /* instance data. There can be only one, MacLeod!!!! */
 static struct au1xpsc_audio_data *au1xpsc_ac97_workdata;
 
+#if 0
+
+/* this could theoretically work, but ac97->bus->card->private_data can be NULL
+ * when snd_ac97_mixer() is called; I don't know if the rest further down the
+ * chain are always valid either.
+ */
+static inline struct au1xpsc_audio_data *ac97_to_pscdata(struct snd_ac97 *x)
+{
+	struct snd_soc_card *c = x->bus->card->private_data;
+	return snd_soc_dai_get_drvdata(c->rtd->cpu_dai);
+}
+
+#else
+
+#define ac97_to_pscdata(x)	au1xpsc_ac97_workdata
+
+#endif
+
 /* AC97 controller reads codec register */
 static unsigned short au1xpsc_ac97_read(struct snd_ac97 *ac97,
 					unsigned short reg)
 {
-	/* FIXME */
-	struct au1xpsc_audio_data *pscdata = au1xpsc_ac97_workdata;
+	struct au1xpsc_audio_data *pscdata = ac97_to_pscdata(ac97);
 	unsigned short retry, tmo;
 	unsigned long data;
 
@@ -102,8 +116,7 @@ static unsigned short au1xpsc_ac97_read(struct snd_ac97 *ac97,
 static void au1xpsc_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 				unsigned short val)
 {
-	/* FIXME */
-	struct au1xpsc_audio_data *pscdata = au1xpsc_ac97_workdata;
+	struct au1xpsc_audio_data *pscdata = ac97_to_pscdata(ac97);
 	unsigned int tmo, retry;
 
 	au_writel(PSC_AC97EVNT_CD, AC97_EVNT(pscdata));
@@ -134,8 +147,7 @@ static void au1xpsc_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 /* AC97 controller asserts a warm reset */
 static void au1xpsc_ac97_warm_reset(struct snd_ac97 *ac97)
 {
-	/* FIXME */
-	struct au1xpsc_audio_data *pscdata = au1xpsc_ac97_workdata;
+	struct au1xpsc_audio_data *pscdata = ac97_to_pscdata(ac97);
 
 	au_writel(PSC_AC97RST_SNC, AC97_RST(pscdata));
 	au_sync();
@@ -146,8 +158,7 @@ static void au1xpsc_ac97_warm_reset(struct snd_ac97 *ac97)
 
 static void au1xpsc_ac97_cold_reset(struct snd_ac97 *ac97)
 {
-	/* FIXME */
-	struct au1xpsc_audio_data *pscdata = au1xpsc_ac97_workdata;
+	struct au1xpsc_audio_data *pscdata = ac97_to_pscdata(ac97);
 	int i;
 
 	/* disable PSC during cold reset */
@@ -202,8 +213,7 @@ static int au1xpsc_ac97_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
 				  struct snd_soc_dai *dai)
 {
-	/* FIXME */
-	struct au1xpsc_audio_data *pscdata = au1xpsc_ac97_workdata;
+	struct au1xpsc_audio_data *pscdata = snd_soc_dai_get_drvdata(dai);
 	unsigned long r, ro, stat;
 	int chans, t, stype = SUBSTREAM_TYPE(substream);
 
@@ -283,8 +293,7 @@ out:
 static int au1xpsc_ac97_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
 {
-	/* FIXME */
-	struct au1xpsc_audio_data *pscdata = au1xpsc_ac97_workdata;
+	struct au1xpsc_audio_data *pscdata = snd_soc_dai_get_drvdata(dai);
 	int ret, stype = SUBSTREAM_TYPE(substream);
 
 	ret = 0;
@@ -315,15 +324,9 @@ static int au1xpsc_ac97_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static int au1xpsc_ac97_probe(struct platform_device *pdev,
-			      struct snd_soc_dai *dai)
+static int au1xpsc_ac97_probe(struct snd_soc_dai *dai)
 {
 	return au1xpsc_ac97_workdata ? 0 : -ENODEV;
-}
-
-static void au1xpsc_ac97_remove(struct platform_device *pdev,
-				struct snd_soc_dai *dai)
-{
 }
 
 static struct snd_soc_dai_ops au1xpsc_ac97_dai_ops = {
@@ -331,11 +334,9 @@ static struct snd_soc_dai_ops au1xpsc_ac97_dai_ops = {
 	.hw_params	= au1xpsc_ac97_hw_params,
 };
 
-struct snd_soc_dai au1xpsc_ac97_dai = {
-	.name			= "au1xpsc_ac97",
+static const struct snd_soc_dai_driver au1xpsc_ac97_dai_template = {
 	.ac97_control		= 1,
 	.probe			= au1xpsc_ac97_probe,
-	.remove			= au1xpsc_ac97_remove,
 	.playback = {
 		.rates		= AC97_RATES,
 		.formats	= AC97_FMTS,
@@ -350,7 +351,6 @@ struct snd_soc_dai au1xpsc_ac97_dai = {
 	},
 	.ops = &au1xpsc_ac97_dai_ops,
 };
-EXPORT_SYMBOL_GPL(au1xpsc_ac97_dai);
 
 static int __devinit au1xpsc_ac97_drvprobe(struct platform_device *pdev)
 {
@@ -358,9 +358,6 @@ static int __devinit au1xpsc_ac97_drvprobe(struct platform_device *pdev)
 	struct resource *r;
 	unsigned long sel;
 	struct au1xpsc_audio_data *wd;
-
-	if (au1xpsc_ac97_workdata)
-		return -EBUSY;
 
 	wd = kzalloc(sizeof(struct au1xpsc_audio_data), GFP_KERNEL);
 	if (!wd)
@@ -395,18 +392,24 @@ static int __devinit au1xpsc_ac97_drvprobe(struct platform_device *pdev)
 	au_writel(PSC_SEL_PS_AC97MODE | sel, PSC_SEL(wd));
 	au_sync();
 
-	ret = snd_soc_register_dai(&au1xpsc_ac97_dai);
+	/* name the DAI like this device instance ("au1xpsc-ac97.PSCINDEX") */
+	memcpy(&wd->dai_drv, &au1xpsc_ac97_dai_template,
+	       sizeof(struct snd_soc_dai_driver));
+	wd->dai_drv.name = dev_name(&pdev->dev);
+
+	platform_set_drvdata(pdev, wd);
+
+	ret = snd_soc_register_dai(&pdev->dev, &wd->dai_drv);
 	if (ret)
 		goto out1;
 
 	wd->dmapd = au1xpsc_pcm_add(pdev);
 	if (wd->dmapd) {
-		platform_set_drvdata(pdev, wd);
-		au1xpsc_ac97_workdata = wd;	/* MDEV */
+		au1xpsc_ac97_workdata = wd;
 		return 0;
 	}
 
-	snd_soc_unregister_dai(&au1xpsc_ac97_dai);
+	snd_soc_unregister_dai(&pdev->dev);
 out1:
 	release_mem_region(r->start, resource_size(r));
 out0:
@@ -422,7 +425,7 @@ static int __devexit au1xpsc_ac97_drvremove(struct platform_device *pdev)
 	if (wd->dmapd)
 		au1xpsc_pcm_destroy(wd->dmapd);
 
-	snd_soc_unregister_dai(&au1xpsc_ac97_dai);
+	snd_soc_unregister_dai(&pdev->dev);
 
 	/* disable PSC completely */
 	au_writel(0, AC97_CFG(wd));

@@ -228,6 +228,7 @@ enum ssp_chip_select {
 };
 
 
+struct dma_chan;
 /**
  * struct pl022_ssp_master - device.platform_data for SPI controller devices.
  * @num_chipselect: chipselects are used to distinguish individual
@@ -235,11 +236,16 @@ enum ssp_chip_select {
  *     each slave has a chipselect signal, but it's common that not
  *     every chipselect is connected to a slave.
  * @enable_dma: if true enables DMA driven transfers.
+ * @dma_rx_param: parameter to locate an RX DMA channel.
+ * @dma_tx_param: parameter to locate a TX DMA channel.
  */
 struct pl022_ssp_controller {
 	u16 bus_id;
 	u8 num_chipselect;
 	u8 enable_dma:1;
+	bool (*dma_filter)(struct dma_chan *chan, void *filter_param);
+	void *dma_rx_param;
+	void *dma_tx_param;
 };
 
 /**
@@ -270,20 +276,13 @@ struct pl022_ssp_controller {
  * @dma_config: DMA configuration for SSP controller and peripheral
  */
 struct pl022_config_chip {
-	struct device *dev;
-	enum ssp_loopback lbm;
 	enum ssp_interface iface;
 	enum ssp_hierarchy hierarchy;
 	bool slave_tx_disable;
 	struct ssp_clock_params clk_freq;
-	enum ssp_rx_endian endian_rx;
-	enum ssp_tx_endian endian_tx;
-	enum ssp_data_size data_size;
 	enum ssp_mode com_mode;
 	enum ssp_rx_level_trig rx_lev_trig;
 	enum ssp_tx_level_trig tx_lev_trig;
-	enum ssp_spi_clk_phase clk_phase;
-	enum ssp_spi_clk_pol clk_pol;
 	enum ssp_microwire_ctrl_len ctrl_len;
 	enum ssp_microwire_wait_state wait_state;
 	enum ssp_duplex duplex;

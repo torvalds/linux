@@ -1,10 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "IA-64 Linux Kernel Configuration"
-
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -53,6 +46,9 @@ config MMU
 	bool
 	default y
 
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool y
+
 config NEED_DMA_MAP_STATE
 	def_bool y
 
@@ -61,6 +57,9 @@ config NEED_SG_DMA_LENGTH
 
 config SWIOTLB
        bool
+
+config STACKTRACE_SUPPORT
+	def_bool y
 
 config GENERIC_LOCKBREAK
 	def_bool n
@@ -683,8 +682,10 @@ source "lib/Kconfig"
 # Use the generic interrupt handling code in kernel/irq/:
 #
 config GENERIC_HARDIRQS
-	bool
-	default y
+	def_bool y
+
+config GENERIC_HARDIRQS_NO__DO_IRQ
+	def_bool y
 
 config GENERIC_IRQ_PROBE
 	bool

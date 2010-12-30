@@ -938,10 +938,11 @@ static int set_brightness(int value)
 	/* SPLV laptop */
 	if (hotk->methods->brightness_set) {
 		if (!write_acpi_int(hotk->handle, hotk->methods->brightness_set,
-				    value, NULL))
+				    value, NULL)) {
 			printk(KERN_WARNING
 			       "Asus ACPI: Error changing brightness\n");
 			ret = -EIO;
+		}
 		goto out;
 	}
 
@@ -953,10 +954,11 @@ static int set_brightness(int value)
 					      hotk->methods->brightness_down,
 					      NULL, NULL);
 		(value > 0) ? value-- : value++;
-		if (ACPI_FAILURE(status))
+		if (ACPI_FAILURE(status)) {
 			printk(KERN_WARNING
 			       "Asus ACPI: Error changing brightness\n");
 			ret = -EIO;
+		}
 	}
 out:
 	return ret;

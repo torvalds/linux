@@ -196,7 +196,8 @@ static int hist_entry__sym_snprintf(struct hist_entry *self, char *bf,
 
 	if (verbose) {
 		char o = self->ms.map ? dso__symtab_origin(self->ms.map->dso) : '!';
-		ret += repsep_snprintf(bf, size, "%#018llx %c ", self->ip, o);
+		ret += repsep_snprintf(bf, size, "%*Lx %c ",
+				       BITS_PER_LONG / 4, self->ip, o);
 	}
 
 	ret += repsep_snprintf(bf + ret, size - ret, "[%c] ", self->level);
@@ -204,7 +205,8 @@ static int hist_entry__sym_snprintf(struct hist_entry *self, char *bf,
 		ret += repsep_snprintf(bf + ret, size - ret, "%s",
 				       self->ms.sym->name);
 	else
-		ret += repsep_snprintf(bf + ret, size - ret, "%#016llx", self->ip);
+		ret += repsep_snprintf(bf + ret, size - ret, "%*Lx",
+				       BITS_PER_LONG / 4, self->ip);
 
 	return ret;
 }

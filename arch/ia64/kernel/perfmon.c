@@ -618,16 +618,15 @@ pfm_get_unmapped_area(struct file *file, unsigned long addr, unsigned long len, 
 }
 
 
-static int
-pfmfs_get_sb(struct file_system_type *fs_type, int flags, const char *dev_name, void *data,
-	     struct vfsmount *mnt)
+static struct dentry *
+pfmfs_mount(struct file_system_type *fs_type, int flags, const char *dev_name, void *data)
 {
-	return get_sb_pseudo(fs_type, "pfm:", NULL, PFMFS_MAGIC, mnt);
+	return mount_pseudo(fs_type, "pfm:", NULL, PFMFS_MAGIC);
 }
 
 static struct file_system_type pfm_fs_type = {
 	.name     = "pfmfs",
-	.get_sb   = pfmfs_get_sb,
+	.mount    = pfmfs_mount,
 	.kill_sb  = kill_anon_super,
 };
 
@@ -1573,7 +1572,7 @@ pfm_read(struct file *filp, char __user *buf, size_t size, loff_t *ppos)
 		return -EINVAL;
 	}
 
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_read: NULL ctx [%d]\n", task_pid_nr(current));
 		return -EINVAL;
@@ -1673,7 +1672,7 @@ pfm_poll(struct file *filp, poll_table * wait)
 		return 0;
 	}
 
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_poll: NULL ctx [%d]\n", task_pid_nr(current));
 		return 0;
@@ -1733,7 +1732,7 @@ pfm_fasync(int fd, struct file *filp, int on)
 		return -EBADF;
 	}
 
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_fasync NULL ctx [%d]\n", task_pid_nr(current));
 		return -EBADF;
@@ -1841,7 +1840,7 @@ pfm_flush(struct file *filp, fl_owner_t id)
 		return -EBADF;
 	}
 
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_flush: NULL ctx [%d]\n", task_pid_nr(current));
 		return -EBADF;
@@ -1984,7 +1983,7 @@ pfm_close(struct inode *inode, struct file *filp)
 		return -EBADF;
 	}
 	
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_close: NULL ctx [%d]\n", task_pid_nr(current));
 		return -EBADF;
@@ -2191,8 +2190,15 @@ pfmfs_delete_dentry(struct dentry *dentry)
 	return 1;
 }
 
+static char *pfmfs_dname(struct dentry *dentry, char *buffer, int buflen)
+{
+	return dynamic_dname(dentry, buffer, buflen, "pfm:[%lu]",
+			     dentry->d_inode->i_ino);
+}
+
 static const struct dentry_operations pfmfs_dentry_operations = {
 	.d_delete = pfmfs_delete_dentry,
+	.d_dname = pfmfs_dname,
 };
 
 
@@ -2202,8 +2208,7 @@ pfm_alloc_file(pfm_context_t *ctx)
 	struct file *file;
 	struct inode *inode;
 	struct path path;
-	char name[32];
-	struct qstr this;
+	struct qstr this = { .name = "" };
 
 	/*
 	 * allocate a new inode
@@ -2217,11 +2222,6 @@ pfm_alloc_file(pfm_context_t *ctx)
 	inode->i_mode = S_IFCHR|S_IRUGO;
 	inode->i_uid  = current_fsuid();
 	inode->i_gid  = current_fsgid();
-
-	sprintf(name, "[%lu]", inode->i_ino);
-	this.name = name;
-	this.len  = strlen(name);
-	this.hash = inode->i_ino;
 
 	/*
 	 * allocate a new dcache entry
@@ -4906,7 +4906,7 @@ restart_args:
 		goto error_args;
 	}
 
-	ctx = (pfm_context_t *)file->private_data;
+	ctx = file->private_data;
 	if (unlikely(ctx == NULL)) {
 		DPRINT(("no context for fd %d\n", fd));
 		goto error_args;

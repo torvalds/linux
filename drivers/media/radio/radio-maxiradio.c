@@ -13,7 +13,7 @@
  * anybody does please mail me.
  *
  * For the pdf file see:
- * http://www.semiconductors.philips.com/pip/TEA5757H/V1
+ * http://www.nxp.com/acrobat_download2/expired_datasheets/TEA5757_5759_3.pdf 
  *
  *
  * CHANGES:
@@ -346,7 +346,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 
 static const struct v4l2_file_operations maxiradio_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl          = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops maxiradio_ioctl_ops = {

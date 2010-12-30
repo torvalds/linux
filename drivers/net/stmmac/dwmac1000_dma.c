@@ -29,14 +29,22 @@
 #include "dwmac1000.h"
 #include "dwmac_dma.h"
 
-static int dwmac1000_dma_init(unsigned long ioaddr, int pbl, u32 dma_tx,
+static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, u32 dma_tx,
 			      u32 dma_rx)
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
+	int limit;
+
 	/* DMA SW reset */
 	value |= DMA_BUS_MODE_SFT_RESET;
 	writel(value, ioaddr + DMA_BUS_MODE);
-	do {} while ((readl(ioaddr + DMA_BUS_MODE) & DMA_BUS_MODE_SFT_RESET));
+	limit = 15000;
+	while (limit--) {
+		if (!(readl(ioaddr + DMA_BUS_MODE) & DMA_BUS_MODE_SFT_RESET))
+			break;
+	}
+	if (limit < 0)
+		return -EBUSY;
 
 	value = /* DMA_BUS_MODE_FB | */ DMA_BUS_MODE_4PBL |
 	    ((pbl << DMA_BUS_MODE_PBL_SHIFT) |
@@ -58,7 +66,7 @@ static int dwmac1000_dma_init(unsigned long ioaddr, int pbl, u32 dma_tx,
 	return 0;
 }
 
-static void dwmac1000_dma_operation_mode(unsigned long ioaddr, int txmode,
+static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
 				    int rxmode)
 {
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
@@ -111,12 +119,12 @@ static void dwmac1000_dma_operation_mode(unsigned long ioaddr, int txmode,
 
 /* Not yet implemented --- no RMON module */
 static void dwmac1000_dma_diagnostic_fr(void *data,
-		  struct stmmac_extra_stats *x, unsigned long ioaddr)
+		  struct stmmac_extra_stats *x, void __iomem *ioaddr)
 {
 	return;
 }
 
-static void dwmac1000_dump_dma_regs(unsigned long ioaddr)
+static void dwmac1000_dump_dma_regs(void __iomem *ioaddr)
 {
 	int i;
 	pr_info(" DMA registers\n");
@@ -130,7 +138,7 @@ static void dwmac1000_dump_dma_regs(unsigned long ioaddr)
 	}
 }
 
-struct stmmac_dma_ops dwmac1000_dma_ops = {
+const struct stmmac_dma_ops dwmac1000_dma_ops = {
 	.init = dwmac1000_dma_init,
 	.dump_regs = dwmac1000_dump_dma_regs,
 	.dma_mode = dwmac1000_dma_operation_mode,

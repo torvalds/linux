@@ -190,7 +190,6 @@ static int __devexit bh1780_remove(struct i2c_client *client)
 
 	ddata = i2c_get_clientdata(client);
 	sysfs_remove_group(&client->dev.kobj, &bh1780_attr_group);
-	i2c_set_clientdata(client, NULL);
 	kfree(ddata);
 
 	return 0;

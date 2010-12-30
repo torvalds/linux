@@ -17,6 +17,7 @@
 
 #include <asm/hardware/cache-tauros2.h>
 
+#include <asm/mach/time.h>
 #include <mach/addr-map.h>
 #include <mach/regs-apbc.h>
 #include <mach/regs-apmu.h>
@@ -26,6 +27,7 @@
 #include <mach/mfp.h>
 #include <mach/gpio.h>
 #include <mach/devices.h>
+#include <mach/mmp2.h>
 
 #include "common.h"
 #include "clock.h"
@@ -124,7 +126,6 @@ static APBC_CLK(twsi3, MMP2_TWSI3, 0, 26000000);
 static APBC_CLK(twsi4, MMP2_TWSI4, 0, 26000000);
 static APBC_CLK(twsi5, MMP2_TWSI5, 0, 26000000);
 static APBC_CLK(twsi6, MMP2_TWSI6, 0, 26000000);
-static APBC_CLK(rtc, MMP2_RTC, 0, 32768);
 
 static APMU_CLK(nand, NAND, 0xbf, 100000000);
 
@@ -157,6 +158,26 @@ static int __init mmp2_init(void)
 	return 0;
 }
 postcore_initcall(mmp2_init);
+
+static void __init mmp2_timer_init(void)
+{
+	unsigned long clk_rst;
+
+	__raw_writel(APBC_APBCLK | APBC_RST, APBC_MMP2_TIMERS);
+
+	/*
+	 * enable bus/functional clock, enable 6.5MHz (divider 4),
+	 * release reset
+	 */
+	clk_rst = APBC_APBCLK | APBC_FNCLK | APBC_FNCLKSEL(1);
+	__raw_writel(clk_rst, APBC_MMP2_TIMERS);
+
+	timer_init(IRQ_MMP2_TIMER1);
+}
+
+struct sys_timer mmp2_timer = {
+	.init	= mmp2_timer_init,
+};
 
 /* on-chip devices */
 MMP2_DEVICE(uart1, "pxa2xx-uart", 0, UART1, 0xd4030000, 0x30, 4, 5);

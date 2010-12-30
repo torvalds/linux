@@ -54,8 +54,8 @@ int vic_provinfo_add_tlv(struct vic_provinfo *vp, u16 type, u16 length,
 	if (!vp || !value)
 		return -EINVAL;
 
-	if (ntohl(vp->length) + sizeof(*tlv) + length >
-		VIC_PROVINFO_MAX_TLV_DATA)
+	if (ntohl(vp->length) + offsetof(struct vic_provinfo_tlv, value) +
+		length > VIC_PROVINFO_MAX_TLV_DATA)
 		return -ENOMEM;
 
 	tlv = (struct vic_provinfo_tlv *)((u8 *)vp->tlv +
@@ -66,7 +66,8 @@ int vic_provinfo_add_tlv(struct vic_provinfo *vp, u16 type, u16 length,
 	memcpy(tlv->value, value, length);
 
 	vp->num_tlvs = htonl(ntohl(vp->num_tlvs) + 1);
-	vp->length = htonl(ntohl(vp->length) + sizeof(*tlv) + length);
+	vp->length = htonl(ntohl(vp->length) +
+		offsetof(struct vic_provinfo_tlv, value) + length);
 
 	return 0;
 }

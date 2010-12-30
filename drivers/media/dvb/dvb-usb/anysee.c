@@ -354,7 +354,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct anysee_state *state = adap->dev->priv;
-	deb_info("%s: \n", __func__);
+	deb_info("%s:\n", __func__);
 
 	switch (state->tuner) {
 	case DVB_PLL_THOMSON_DTT7579:
@@ -374,77 +374,31 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int anysee_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+static int anysee_rc_query(struct dvb_usb_device *d)
 {
 	u8 buf[] = {CMD_GET_IR_CODE};
-	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
 	u8 ircode[2];
-	int i, ret;
+	int ret;
 
-	ret = anysee_ctrl_msg(d, buf, sizeof(buf), &ircode[0], 2);
+	/* Remote controller is basic NEC using address byte 0x08.
+	   Anysee device RC query returns only two bytes, status and code,
+	   address byte is dropped. Also it does not return any value for
+	   NEC RCs having address byte other than 0x08. Due to that, we
+	   cannot use that device as standard NEC receiver.
+	   It could be possible make hack which reads whole code directly
+	   from device memory... */
+
+	ret = anysee_ctrl_msg(d, buf, sizeof(buf), ircode, sizeof(ircode));
 	if (ret)
 		return ret;
 
-	*event = 0;
-	*state = REMOTE_NO_KEY_PRESSED;
-
-	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
-		if (rc5_custom(&keymap[i]) == ircode[0] &&
-		    rc5_data(&keymap[i]) == ircode[1]) {
-			*event = keymap[i].keycode;
-			*state = REMOTE_KEY_PRESSED;
-			return 0;
-		}
+	if (ircode[0]) {
+		deb_rc("%s: key pressed %02x\n", __func__, ircode[1]);
+		ir_keydown(d->rc_input_dev, 0x08 << 8 | ircode[1], 0);
 	}
+
 	return 0;
 }
-
-static struct ir_scancode ir_codes_anysee_table[] = {
-	{ 0x0100, KEY_0 },
-	{ 0x0101, KEY_1 },
-	{ 0x0102, KEY_2 },
-	{ 0x0103, KEY_3 },
-	{ 0x0104, KEY_4 },
-	{ 0x0105, KEY_5 },
-	{ 0x0106, KEY_6 },
-	{ 0x0107, KEY_7 },
-	{ 0x0108, KEY_8 },
-	{ 0x0109, KEY_9 },
-	{ 0x010a, KEY_POWER },
-	{ 0x010b, KEY_DOCUMENTS },    /* * */
-	{ 0x0119, KEY_FAVORITES },
-	{ 0x0120, KEY_SLEEP },
-	{ 0x0121, KEY_MODE },         /* 4:3 / 16:9 select */
-	{ 0x0122, KEY_ZOOM },
-	{ 0x0147, KEY_TEXT },
-	{ 0x0116, KEY_TV },           /* TV / radio select */
-	{ 0x011e, KEY_LANGUAGE },     /* Second Audio Program */
-	{ 0x011a, KEY_SUBTITLE },
-	{ 0x011b, KEY_CAMERA },       /* screenshot */
-	{ 0x0142, KEY_MUTE },
-	{ 0x010e, KEY_MENU },
-	{ 0x010f, KEY_EPG },
-	{ 0x0117, KEY_INFO },
-	{ 0x0110, KEY_EXIT },
-	{ 0x0113, KEY_VOLUMEUP },
-	{ 0x0112, KEY_VOLUMEDOWN },
-	{ 0x0111, KEY_CHANNELUP },
-	{ 0x0114, KEY_CHANNELDOWN },
-	{ 0x0115, KEY_OK },
-	{ 0x011d, KEY_RED },
-	{ 0x011f, KEY_GREEN },
-	{ 0x011c, KEY_YELLOW },
-	{ 0x0144, KEY_BLUE },
-	{ 0x010c, KEY_SHUFFLE },      /* snapshot */
-	{ 0x0148, KEY_STOP },
-	{ 0x0150, KEY_PLAY },
-	{ 0x0151, KEY_PAUSE },
-	{ 0x0149, KEY_RECORD },
-	{ 0x0118, KEY_PREVIOUS },     /* |<< */
-	{ 0x010d, KEY_NEXT },         /* >>| */
-	{ 0x0124, KEY_PROG1 },        /* F1 */
-	{ 0x0125, KEY_PROG2 },        /* F2 */
-};
 
 /* DVB USB Driver stuff */
 static struct dvb_usb_device_properties anysee_properties;
@@ -520,11 +474,12 @@ static struct dvb_usb_device_properties anysee_properties = {
 		}
 	},
 
-	.rc.legacy = {
-		.rc_key_map       = ir_codes_anysee_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_anysee_table),
+	.rc.core = {
+		.rc_codes         = RC_MAP_ANYSEE,
+		.protocol         = IR_TYPE_OTHER,
+		.module_name      = "anysee",
 		.rc_query         = anysee_rc_query,
-		.rc_interval      = 200,  /* windows driver uses 500ms */
+		.rc_interval      = 250,  /* windows driver uses 500ms */
 	},
 
 	.i2c_algo         = &anysee_i2c_algo,

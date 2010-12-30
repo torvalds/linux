@@ -204,7 +204,9 @@ asmlinkage int sys_vfork(long r10, long r11, long r12, long r13, long mof, long 
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage int sys_execve(const char *fname, char **argv, char **envp,
+asmlinkage int sys_execve(const char *fname,
+			  const char *const *argv,
+			  const char *const *envp,
 			  long r13, long mof, long srp, 
 			  struct pt_regs *regs)
 {

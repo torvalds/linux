@@ -31,7 +31,6 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/parser.h>
 #include <linux/vfs.h>
@@ -660,19 +659,19 @@ free_bdi:
 /*
  * Set up the superblock (calls exofs_fill_super eventually)
  */
-static int exofs_get_sb(struct file_system_type *type,
+static struct dentry *exofs_mount(struct file_system_type *type,
 			  int flags, const char *dev_name,
-			  void *data, struct vfsmount *mnt)
+			  void *data)
 {
 	struct exofs_mountopt opts;
 	int ret;
 
 	ret = parse_options(data, &opts);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	opts.dev_name = dev_name;
-	return get_sb_nodev(type, flags, &opts, exofs_fill_super, mnt);
+	return mount_nodev(type, flags, &opts, exofs_fill_super);
 }
 
 /*
@@ -743,7 +742,7 @@ static const struct super_operations exofs_sops = {
 	.alloc_inode    = exofs_alloc_inode,
 	.destroy_inode  = exofs_destroy_inode,
 	.write_inode    = exofs_write_inode,
-	.delete_inode   = exofs_delete_inode,
+	.evict_inode    = exofs_evict_inode,
 	.put_super      = exofs_put_super,
 	.write_super    = exofs_write_super,
 	.sync_fs	= exofs_sync_fs,
@@ -810,7 +809,7 @@ static const struct export_operations exofs_export_ops = {
 static struct file_system_type exofs_type = {
 	.owner          = THIS_MODULE,
 	.name           = "exofs",
-	.get_sb         = exofs_get_sb,
+	.mount          = exofs_mount,
 	.kill_sb        = generic_shutdown_super,
 };
 

@@ -266,19 +266,6 @@ bool strglobmatch(const char *str, const char *pat);
 bool strlazymatch(const char *str, const char *pat);
 unsigned long convert_unit(unsigned long value, char *unit);
 
-#ifndef ESC
-#define ESC 27
-#endif
-
-static inline bool is_exit_key(int key)
-{
-	char up;
-	if (key == CTRL('c') || key == ESC)
-		return true;
-	up = toupper(key);
-	return up == 'Q';
-}
-
 #define _STR(x) #x
 #define STR(x) _STR(x)
 

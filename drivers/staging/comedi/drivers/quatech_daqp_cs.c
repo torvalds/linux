@@ -50,7 +50,6 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 #include "../comedidev.h"
 #include <linux/semaphore.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -969,42 +968,13 @@ static int daqp_detach(struct comedi_device *dev)
 
 ======================================================================*/
 
-/*
-   The event() function is this driver's Card Services event handler.
-   It will be called by Card Services when an appropriate card status
-   event is received.  The config() and release() entry points are
-   used to configure or release a socket, in response to card
-   insertion and ejection events.
-
-   Kernel version 2.6.16 upwards uses suspend() and resume() functions
-   instead of an event() function.
-*/
-
 static void daqp_cs_config(struct pcmcia_device *link);
 static void daqp_cs_release(struct pcmcia_device *link);
 static int daqp_cs_suspend(struct pcmcia_device *p_dev);
 static int daqp_cs_resume(struct pcmcia_device *p_dev);
 
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
-
 static int daqp_cs_attach(struct pcmcia_device *);
 static void daqp_cs_detach(struct pcmcia_device *);
-
-/*======================================================================
-
-    daqp_cs_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-
-======================================================================*/
 
 static int daqp_cs_attach(struct pcmcia_device *link)
 {
@@ -1031,29 +1001,10 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
-	/*
-	   General socket configuration defaults can go here.  In this
-	   client, we assume very little, and rely on the CIS for almost
-	   everything.  In most clients, many details (i.e., number, sizes,
-	   and attributes of IO windows) are fixed by the nature of the
-	   device, and can be hard-wired here.
-	 */
-	link->conf.Attributes = 0;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-
 	daqp_cs_config(link);
 
 	return 0;
 }				/* daqp_cs_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void daqp_cs_detach(struct pcmcia_device *link)
 {
@@ -1070,45 +1021,11 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 
 }				/* daqp_cs_detach */
 
-/*======================================================================
-
-    daqp_cs_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
-
-======================================================================*/
-
-
-static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cfg,
-				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
-				void *priv_data)
+static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if (cfg->index == 0)
-		return -ENODEV;
+	if (p_dev->config_index == 0)
+		return -EINVAL;
 
-	/* Do we need to allocate an interrupt? */
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
-
-	/* IO window settings */
-	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
-		p_dev->resource[0]->flags |=
-			pcmcia_io_cfg_data_width(io->flags);
-		p_dev->resource[0]->start = io->win[0].base;
-		p_dev->resource[0]->end = io->win[0].len;
-		if (io->nwin > 1) {
-			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
-			p_dev->resource[1]->start = io->win[1].base;
-			p_dev->resource[1]->end = io->win[1].len;
-		}
-	}
-
-	/* This reserves IO space but doesn't actually enable it */
 	return pcmcia_request_io(p_dev);
 }
 
@@ -1117,6 +1034,8 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	int ret;
 
 	dev_dbg(&link->dev, "daqp_cs_config\n");
+
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	ret = pcmcia_loop_config(link, daqp_pcmcia_config_loop, NULL);
 	if (ret) {
@@ -1128,24 +1047,9 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	/*
-	   This actually configures the PCMCIA socket -- setting up
-	   the I/O windows and the interrupt mapping, and putting the
-	   card and host interface into "Memory and IO" mode.
-	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
-
-	/* Finally, report what we've done */
-	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %u", link->irq);
-	if (link->resource[0])
-		printk(" & %pR", link->resource[0]);
-	if (link->resource[1])
-		printk(" & %pR", link->resource[1]);
-	printk("\n");
 
 	return;
 
@@ -1160,18 +1064,6 @@ static void daqp_cs_release(struct pcmcia_device *link)
 
 	pcmcia_disable_device(link);
 }				/* daqp_cs_release */
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.
-
-    When a CARD_REMOVAL event is received, we immediately set a
-    private flag to block future accesses to this device.  All the
-    functions that actually access the device should check this flag
-    to make sure the card is still present.
-
-======================================================================*/
 
 static int daqp_cs_suspend(struct pcmcia_device *link)
 {
@@ -1212,9 +1104,7 @@ static struct pcmcia_driver daqp_cs_driver = {
 	.resume = daqp_cs_resume,
 	.id_table = daqp_cs_id_table,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = "quatech_daqp_cs",
-		},
+	.name = "quatech_daqp_cs",
 };
 
 int __init init_module(void)

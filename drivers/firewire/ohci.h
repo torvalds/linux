@@ -155,12 +155,4 @@
 
 #define OHCI1394_phy_tcode		0xe
 
-/* TI extensions */
-
-#define PCI_CFG_TI_LinkEnh		0xf4
-#define  TI_LinkEnh_enab_accel		0x00000002
-#define  TI_LinkEnh_enab_unfair		0x00000080
-#define  TI_LinkEnh_atx_thresh_mask	0x00003000
-#define  TI_LinkEnh_atx_thresh_1_7K	0x00001000
-
 #endif /* _FIREWIRE_OHCI_H */

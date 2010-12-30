@@ -94,8 +94,7 @@ static void s3c_dma_enqueue(struct snd_pcm_substream *substream)
 
 		if ((pos + len) > prtd->dma_end) {
 			len  = prtd->dma_end - pos;
-			pr_debug(KERN_DEBUG "%s: corrected dma len %ld\n",
-			       __func__, len);
+			pr_debug("%s: corrected dma len %ld\n", __func__, len);
 		}
 
 		ret = s3c2410_dma_enqueue(prtd->params->channel,
@@ -147,7 +146,7 @@ static int s3c_dma_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	unsigned long totbytes = params_buffer_bytes(params);
 	struct s3c_dma_params *dma =
-		snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
+		snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 	int ret = 0;
 
 
@@ -441,14 +440,14 @@ static int s3c_dma_new(struct snd_card *card,
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = 0xffffffff;
 
-	if (dai->playback.channels_min) {
+	if (dai->driver->playback.channels_min) {
 		ret = s3c_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
 			goto out;
 	}
 
-	if (dai->capture.channels_min) {
+	if (dai->driver->capture.channels_min) {
 		ret = s3c_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
@@ -458,26 +457,46 @@ static int s3c_dma_new(struct snd_card *card,
 	return ret;
 }
 
-struct snd_soc_platform s3c24xx_soc_platform = {
-	.name		= "s3c24xx-audio",
-	.pcm_ops 	= &s3c_dma_ops,
+static struct snd_soc_platform_driver s3c24xx_soc_platform = {
+	.ops		= &s3c_dma_ops,
 	.pcm_new	= s3c_dma_new,
 	.pcm_free	= s3c_dma_free_dma_buffers,
 };
-EXPORT_SYMBOL_GPL(s3c24xx_soc_platform);
 
-static int __init s3c24xx_soc_platform_init(void)
+static int __devinit s3c24xx_soc_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_platform(&s3c24xx_soc_platform);
+	return snd_soc_register_platform(&pdev->dev, &s3c24xx_soc_platform);
 }
-module_init(s3c24xx_soc_platform_init);
 
-static void __exit s3c24xx_soc_platform_exit(void)
+static int __devexit s3c24xx_soc_platform_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_platform(&s3c24xx_soc_platform);
+	snd_soc_unregister_platform(&pdev->dev);
+	return 0;
 }
-module_exit(s3c24xx_soc_platform_exit);
+
+static struct platform_driver s3c24xx_pcm_driver = {
+	.driver = {
+		.name = "s3c24xx-pcm-audio",
+		.owner = THIS_MODULE,
+	},
+
+	.probe = s3c24xx_soc_platform_probe,
+	.remove = __devexit_p(s3c24xx_soc_platform_remove),
+};
+
+static int __init snd_s3c24xx_pcm_init(void)
+{
+	return platform_driver_register(&s3c24xx_pcm_driver);
+}
+module_init(snd_s3c24xx_pcm_init);
+
+static void __exit snd_s3c24xx_pcm_exit(void)
+{
+	platform_driver_unregister(&s3c24xx_pcm_driver);
+}
+module_exit(snd_s3c24xx_pcm_exit);
 
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("Samsung S3C Audio DMA module");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:s3c24xx-pcm-audio");

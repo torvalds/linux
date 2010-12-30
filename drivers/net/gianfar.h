@@ -1054,7 +1054,7 @@ struct gfar_private {
 
 	struct device_node *node;
 	struct net_device *ndev;
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 	enum gfar_errata errata;
 
 	struct gfar_priv_grp gfargrp[MAXGROUPS];

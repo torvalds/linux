@@ -33,9 +33,9 @@
 #define L2CAP_DEFAULT_FLUSH_TO		0xffff
 #define L2CAP_DEFAULT_TX_WINDOW		63
 #define L2CAP_DEFAULT_MAX_TX		3
-#define L2CAP_DEFAULT_RETRANS_TO	1000    /* 1 second */
+#define L2CAP_DEFAULT_RETRANS_TO	2000    /* 2 seconds */
 #define L2CAP_DEFAULT_MONITOR_TO	12000   /* 12 seconds */
-#define L2CAP_DEFAULT_MAX_PDU_SIZE	672
+#define L2CAP_DEFAULT_MAX_PDU_SIZE	1009    /* Sized for 3-DH5 packet */
 #define L2CAP_DEFAULT_ACK_TO		200
 #define L2CAP_LOCAL_BUSY_TRIES		12
 
@@ -414,7 +414,7 @@ static inline int l2cap_tx_window_full(struct sock *sk)
 	if (sub < 0)
 		sub += 64;
 
-	return (sub == pi->remote_tx_win);
+	return sub == pi->remote_tx_win;
 }
 
 #define __get_txseq(ctrl) ((ctrl) & L2CAP_CTRL_TXSEQ) >> 1

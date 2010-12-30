@@ -32,6 +32,7 @@ enum jvc_state {
 	STATE_BIT_SPACE,
 	STATE_TRAILER_PULSE,
 	STATE_TRAILER_SPACE,
+	STATE_CHECK_REPEAT,
 };
 
 /**
@@ -49,8 +50,9 @@ static int ir_jvc_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 	if (!(ir_dev->raw->enabled_protocols & IR_TYPE_JVC))
 		return 0;
 
-	if (IS_RESET(ev)) {
-		data->state = STATE_INACTIVE;
+	if (!is_timing_event(ev)) {
+		if (ev.reset)
+			data->state = STATE_INACTIVE;
 		return 0;
 	}
 
@@ -60,6 +62,7 @@ static int ir_jvc_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 	IR_dprintk(2, "JVC decode started at state %d (%uus %s)\n",
 		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 
+again:
 	switch (data->state) {
 
 	case STATE_INACTIVE:
@@ -149,8 +152,18 @@ static int ir_jvc_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 		}
 
 		data->count = 0;
-		data->state = STATE_BIT_PULSE;
+		data->state = STATE_CHECK_REPEAT;
 		return 0;
+
+	case STATE_CHECK_REPEAT:
+		if (!ev.pulse)
+			break;
+
+		if (eq_margin(ev.duration, JVC_HEADER_PULSE, JVC_UNIT / 2))
+			data->state = STATE_INACTIVE;
+  else
+			data->state = STATE_BIT_PULSE;
+		goto again;
 	}
 
 out:

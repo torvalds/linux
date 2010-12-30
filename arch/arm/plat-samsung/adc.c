@@ -435,7 +435,6 @@ static int s3c_adc_suspend(struct platform_device *pdev, pm_message_t state)
 static int s3c_adc_resume(struct platform_device *pdev)
 {
 	struct adc_device *adc = platform_get_drvdata(pdev);
-	unsigned long flags;
 
 	clk_enable(adc->clk);
 	enable_irq(adc->irq);

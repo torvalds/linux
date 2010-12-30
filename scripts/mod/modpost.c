@@ -14,6 +14,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
 #include "modpost.h"
 #include "../../include/generated/autoconf.h"
 #include "../../include/linux/license.h"
@@ -789,6 +790,7 @@ static const char *section_white_list[] =
 {
 	".comment*",
 	".debug*",
+	".GCC-command-line",	/* mn10300 */
 	".mdebug*",        /* alpha, score, mips etc. */
 	".pdr",            /* alpha, score, mips etc. */
 	".stab*",
@@ -1033,6 +1035,13 @@ static const struct sectioncheck *section_mismatch(
  *   fromsec = .data*
  *   atsym   =__param*
  *
+ * Pattern 1a:
+ *   module_param_call() ops can refer to __init set function if permissions=0
+ *   The pattern is identified by:
+ *   tosec   = .init.text
+ *   fromsec = .data*
+ *   atsym   = __param_ops_*
+ *
  * Pattern 2:
  *   Many drivers utilise a *driver container with references to
  *   add, remove, probe functions etc.
@@ -1065,6 +1074,12 @@ static int secref_whitelist(const struct sectioncheck *mismatch,
 	if (match(tosec, init_data_sections) &&
 	    match(fromsec, data_sections) &&
 	    (strncmp(fromsym, "__param", strlen("__param")) == 0))
+		return 0;
+
+	/* Check for pattern 1a */
+	if (strcmp(tosec, ".init.text") == 0 &&
+	    match(fromsec, data_sections) &&
+	    (strncmp(fromsym, "__param_ops_", strlen("__param_ops_")) == 0))
 		return 0;
 
 	/* Check for pattern 2 */
@@ -1193,6 +1208,9 @@ static Elf_Sym *find_elf_symbol2(struct elf_info *elf, Elf_Addr addr,
  * .cpuinit.data => __cpudata
  * .memexitconst => __memconst
  * etc.
+ *
+ * The memory of returned value has been allocated on a heap. The user of this
+ * method should free it after usage.
 */
 static char *sec2annotation(const char *s)
 {
@@ -1215,9 +1233,9 @@ static char *sec2annotation(const char *s)
 			strcat(p, "data ");
 		else
 			strcat(p, " ");
-		return r; /* we leak her but we do not care */
+		return r;
 	} else {
-		return "";
+		return strdup("");
 	}
 }
 
@@ -1352,7 +1370,7 @@ static void report_sec_mismatch(const char *modname,
 		"%s%s so it may be used outside an exit section.\n",
 		from, prl_from, fromsym, from_p,
 		to, prl_to, tosym, to_p,
-		sec2annotation(tosec), tosym, to_p);
+		prl_to, tosym, to_p);
 		free(prl_from);
 		free(prl_to);
 		break;

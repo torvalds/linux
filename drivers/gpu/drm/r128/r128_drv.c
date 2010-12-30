@@ -56,8 +56,6 @@ static struct drm_driver driver = {
 	.irq_uninstall = r128_driver_irq_uninstall,
 	.irq_handler = r128_driver_irq_handler,
 	.reclaim_buffers = drm_core_reclaim_buffers,
-	.get_map_ofs = drm_core_get_map_ofs,
-	.get_reg_ofs = drm_core_get_reg_ofs,
 	.ioctls = r128_ioctls,
 	.dma_ioctl = r128_cce_buffers,
 	.fops = {
@@ -71,6 +69,7 @@ static struct drm_driver driver = {
 #ifdef CONFIG_COMPAT
 		.compat_ioctl = r128_compat_ioctl,
 #endif
+		.llseek = noop_llseek,
 	},
 	.pci_driver = {
 		.name = DRIVER_NAME,

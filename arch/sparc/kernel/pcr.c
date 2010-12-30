@@ -7,7 +7,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 
-#include <linux/perf_event.h>
+#include <linux/irq_work.h>
 #include <linux/ftrace.h>
 
 #include <asm/pil.h>
@@ -43,14 +43,14 @@ void __irq_entry deferred_pcr_work_irq(int irq, struct pt_regs *regs)
 
 	old_regs = set_irq_regs(regs);
 	irq_enter();
-#ifdef CONFIG_PERF_EVENTS
-	perf_event_do_pending();
+#ifdef CONFIG_IRQ_WORK
+	irq_work_run();
 #endif
 	irq_exit();
 	set_irq_regs(old_regs);
 }
 
-void set_perf_event_pending(void)
+void arch_irq_work_raise(void)
 {
 	set_softint(1 << PIL_DEFERRED_PCR_WORK);
 }

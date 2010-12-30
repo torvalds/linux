@@ -30,6 +30,7 @@
 #include <linux/irq.h>
 #include <linux/time.h>
 #include <linux/gpio.h>
+#include <linux/console.h>
 
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
@@ -38,7 +39,6 @@
 #include <mach/irqs.h>
 #include <plat/clock.h>
 #include <plat/sram.h>
-#include <plat/control.h>
 #include <plat/dma.h>
 #include <plat/board.h>
 
@@ -48,9 +48,23 @@
 #include "cm-regbits-24xx.h"
 #include "sdrc.h"
 #include "pm.h"
+#include "control.h"
 
 #include <plat/powerdomain.h>
 #include <plat/clockdomain.h>
+
+#ifdef CONFIG_SUSPEND
+static suspend_state_t suspend_state = PM_SUSPEND_ON;
+static inline bool is_suspending(void)
+{
+	return (suspend_state != PM_SUSPEND_ON);
+}
+#else
+static inline bool is_suspending(void)
+{
+	return false;
+}
+#endif
 
 static void (*omap2_sram_idle)(void);
 static void (*omap2_sram_suspend)(u32 dllctrl, void __iomem *sdrc_dlla_ctrl,
@@ -118,6 +132,11 @@ static void omap2_enter_full_retention(void)
 	if (omap_irq_pending())
 		goto no_sleep;
 
+	/* Block console output in case it is on one of the OMAP UARTs */
+	if (!is_suspending())
+		if (try_acquire_console_sem())
+			goto no_sleep;
+
 	omap_uart_prepare_idle(0);
 	omap_uart_prepare_idle(1);
 	omap_uart_prepare_idle(2);
@@ -130,6 +149,9 @@ static void omap2_enter_full_retention(void)
 	omap_uart_resume_idle(2);
 	omap_uart_resume_idle(1);
 	omap_uart_resume_idle(0);
+
+	if (!is_suspending())
+		release_console_sem();
 
 no_sleep:
 	if (omap2_pm_debug) {
@@ -245,6 +267,8 @@ static int omap2_can_sleep(void)
 {
 	if (omap2_fclks_active())
 		return 0;
+	if (!omap_uart_can_sleep())
+		return 0;
 	if (osc_ck->usecount > 1)
 		return 0;
 	if (omap_dma_running())
@@ -273,6 +297,12 @@ static void omap2_pm_idle(void)
 out:
 	local_fiq_enable();
 	local_irq_enable();
+}
+
+static int omap2_pm_begin(suspend_state_t state)
+{
+	suspend_state = state;
+	return 0;
 }
 
 static int omap2_pm_prepare(void)
@@ -324,10 +354,17 @@ static void omap2_pm_finish(void)
 	enable_hlt();
 }
 
+static void omap2_pm_end(void)
+{
+	suspend_state = PM_SUSPEND_ON;
+}
+
 static struct platform_suspend_ops omap_pm_ops = {
+	.begin		= omap2_pm_begin,
 	.prepare	= omap2_pm_prepare,
 	.enter		= omap2_pm_enter,
 	.finish		= omap2_pm_finish,
+	.end		= omap2_pm_end,
 	.valid		= suspend_valid_only_mem,
 };
 

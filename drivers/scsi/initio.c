@@ -2639,7 +2639,7 @@ static void initio_build_scb(struct initio_host * host, struct scsi_ctrl_blk * c
  *	will cause the mid layer to call us again later with the command)
  */
 
-static int i91u_queuecommand(struct scsi_cmnd *cmd,
+static int i91u_queuecommand_lck(struct scsi_cmnd *cmd,
 		void (*done)(struct scsi_cmnd *))
 {
 	struct initio_host *host = (struct initio_host *) cmd->device->host->hostdata;
@@ -2655,6 +2655,8 @@ static int i91u_queuecommand(struct scsi_cmnd *cmd,
 	initio_exec_scb(host, cmnd);
 	return 0;
 }
+
+static DEF_SCSI_QCMD(i91u_queuecommand)
 
 /**
  *	i91u_bus_reset		-	reset the SCSI bus
@@ -2817,7 +2819,6 @@ static void i91uSCBPost(u8 * host_mem, u8 * cblk_mem)
 	}
 
 	cmnd->result = cblk->tastat | (cblk->hastat << 16);
-	WARN_ON(cmnd == NULL);
 	i91u_unmap_scb(host->pci_dev, cmnd);
 	cmnd->scsi_done(cmnd);	/* Notify system DONE           */
 	initio_release_scb(host, cblk);	/* Release SCB for current channel */

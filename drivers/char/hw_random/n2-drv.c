@@ -387,7 +387,7 @@ static int n2rng_init_control(struct n2rng *np)
 
 static int n2rng_data_read(struct hwrng *rng, u32 *data)
 {
-	struct n2rng *np = rng->priv;
+	struct n2rng *np = (struct n2rng *) rng->priv;
 	unsigned long ra = __pa(&np->test_data);
 	int len;
 
@@ -619,7 +619,7 @@ static void __devinit n2rng_driver_version(void)
 		pr_info("%s", version);
 }
 
-static int __devinit n2rng_probe(struct of_device *op,
+static int __devinit n2rng_probe(struct platform_device *op,
 				 const struct of_device_id *match)
 {
 	int victoria_falls = (match->data != NULL);
@@ -714,7 +714,7 @@ out:
 	return err;
 }
 
-static int __devexit n2rng_remove(struct of_device *op)
+static int __devexit n2rng_remove(struct platform_device *op)
 {
 	struct n2rng *np = dev_get_drvdata(&op->dev);
 

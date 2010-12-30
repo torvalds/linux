@@ -11,6 +11,7 @@
  */
 
 #include <linux/compiler.h>
+#include <linux/irqflags.h>
 #include <asm/assembler.h>
 
 #ifdef __KERNEL__
@@ -53,71 +54,6 @@
 		: "memory", "lr" \
 	); \
 } while(0)
-
-/* Interrupt Control */
-#if !defined(CONFIG_CHIP_M32102) && !defined(CONFIG_CHIP_M32104)
-#define local_irq_enable() \
-	__asm__ __volatile__ ("setpsw #0x40 -> nop": : :"memory")
-#define local_irq_disable() \
-	__asm__ __volatile__ ("clrpsw #0x40 -> nop": : :"memory")
-#else	/* CONFIG_CHIP_M32102 || CONFIG_CHIP_M32104 */
-static inline void local_irq_enable(void)
-{
-	unsigned long tmpreg;
-	__asm__ __volatile__(
-		"mvfc	%0, psw;		\n\t"
-		"or3	%0, %0, #0x0040;	\n\t"
-		"mvtc	%0, psw;		\n\t"
-	: "=&r" (tmpreg) : : "cbit", "memory");
-}
-
-static inline void local_irq_disable(void)
-{
-	unsigned long tmpreg0, tmpreg1;
-	__asm__ __volatile__(
-		"ld24	%0, #0	; Use 32-bit insn. \n\t"
-		"mvfc	%1, psw	; No interrupt can be accepted here. \n\t"
-		"mvtc	%0, psw	\n\t"
-		"and3	%0, %1, #0xffbf	\n\t"
-		"mvtc	%0, psw	\n\t"
-	: "=&r" (tmpreg0), "=&r" (tmpreg1) : : "cbit", "memory");
-}
-#endif	/* CONFIG_CHIP_M32102 || CONFIG_CHIP_M32104 */
-
-#define local_save_flags(x) \
-	__asm__ __volatile__("mvfc %0,psw" : "=r"(x) : /* no input */)
-
-#define local_irq_restore(x) \
-	__asm__ __volatile__("mvtc %0,psw" : /* no outputs */ \
-		: "r" (x) : "cbit", "memory")
-
-#if !(defined(CONFIG_CHIP_M32102) || defined(CONFIG_CHIP_M32104))
-#define local_irq_save(x)				\
-	__asm__ __volatile__(				\
-  		"mvfc	%0, psw;		\n\t"	\
-	  	"clrpsw	#0x40 -> nop;		\n\t"	\
-  		: "=r" (x) : /* no input */ : "memory")
-#else	/* CONFIG_CHIP_M32102 || CONFIG_CHIP_M32104 */
-#define local_irq_save(x) 				\
-	({						\
-		unsigned long tmpreg;			\
-		__asm__ __volatile__( 			\
-			"ld24	%1, #0 \n\t" 		\
-			"mvfc	%0, psw \n\t"		\
-			"mvtc	%1, psw \n\t"		\
-			"and3	%1, %0, #0xffbf \n\t"	\
-			"mvtc	%1, psw \n\t" 		\
-			: "=r" (x), "=&r" (tmpreg)	\
-			: : "cbit", "memory");		\
-	})
-#endif	/* CONFIG_CHIP_M32102 || CONFIG_CHIP_M32104 */
-
-#define irqs_disabled()					\
-	({						\
-		unsigned long flags;			\
-		local_save_flags(flags);		\
-		!(flags & 0x40);			\
-	})
 
 #define nop()	__asm__ __volatile__ ("nop" : : )
 

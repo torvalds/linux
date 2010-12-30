@@ -238,6 +238,18 @@ enum vnic_devcmd_cmd {
 	 * out: (u32)a0=status of proxied cmd
 	 *      a1-a15=out args of proxied cmd */
 	CMD_PROXY_BY_BDF =	_CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 42),
+
+	/*
+	 * As for BY_BDF except a0 is index of hvnlink subordinate vnic
+	 * or SR-IOV virtual vnic */
+	CMD_PROXY_BY_INDEX =    _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 43),
+
+	/*
+	 * in:  (u64)a0=paddr of buffer to put latest VIC VIF-CONFIG-INFO TLV in
+	 *      (u32)a1=length of buffer in a0
+	 * out: (u64)a0=paddr of buffer with latest VIC VIF-CONFIG-INFO TLV
+	 *      (u32)a1=actual length of latest VIC VIF-CONFIG-INFO TLV */
+	CMD_CONFIG_INFO_GET     = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 44),
 };
 
 /* flags for CMD_OPEN */

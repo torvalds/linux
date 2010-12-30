@@ -133,7 +133,6 @@ void init_main_window(const gchar * glade_file)
 	GladeXML *xml;
 	GtkWidget *widget;
 	GtkTextBuffer *txtbuf;
-	char title[256];
 	GtkStyle *style;
 
 	xml = glade_xml_new(glade_file, "window1", NULL);
@@ -210,9 +209,7 @@ void init_main_window(const gchar * glade_file)
 					  /*"style", PANGO_STYLE_OBLIQUE, */
 					  NULL);
 
-	sprintf(title, _("Linux Kernel v%s Configuration"),
-		getenv("KERNELVERSION"));
-	gtk_window_set_title(GTK_WINDOW(main_wnd), title);
+	gtk_window_set_title(GTK_WINDOW(main_wnd), rootmenu.prompt->text);
 
 	gtk_widget_show(main_wnd);
 }
@@ -671,8 +668,7 @@ void on_introduction1_activate(GtkMenuItem * menuitem, gpointer user_data)
 {
 	GtkWidget *dialog;
 	const gchar *intro_text = _(
-	    "Welcome to gkc, the GTK+ graphical kernel configuration tool\n"
-	    "for Linux.\n"
+	    "Welcome to gkc, the GTK+ graphical configuration tool\n"
 	    "For each option, a blank box indicates the feature is disabled, a\n"
 	    "check indicates it is enabled, and a dot indicates that it is to\n"
 	    "be compiled as a module.  Clicking on the box will cycle through the three states.\n"
@@ -1531,12 +1527,6 @@ int main(int ac, char *av[])
 	else
 		glade_file = g_strconcat(g_get_current_dir(), "/", av[0], ".glade", NULL);
 
-	/* Load the interface and connect signals */
-	init_main_window(glade_file);
-	init_tree_model();
-	init_left_tree();
-	init_right_tree();
-
 	/* Conf stuffs */
 	if (ac > 1 && av[1][0] == '-') {
 		switch (av[1][1]) {
@@ -1555,6 +1545,12 @@ int main(int ac, char *av[])
 	conf_parse(name);
 	fixup_rootmenu(&rootmenu);
 	conf_read(NULL);
+
+	/* Load the interface and connect signals */
+	init_main_window(glade_file);
+	init_tree_model();
+	init_left_tree();
+	init_right_tree();
 
 	switch (view_mode) {
 	case SINGLE_VIEW:

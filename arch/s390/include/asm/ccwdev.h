@@ -92,6 +92,16 @@ struct ccw_device {
 };
 
 /*
+ * Possible events used by the path_event notifier.
+ */
+#define PE_NONE				0x0
+#define PE_PATH_GONE			0x1 /* A path is no longer available. */
+#define PE_PATH_AVAILABLE		0x2 /* A path has become available and
+					       was successfully verified. */
+#define PE_PATHGROUP_ESTABLISHED	0x4 /* A pathgroup was reset and had
+					       to be established again. */
+
+/*
  * Possible CIO actions triggered by the unit check handler.
  */
 enum uc_todo {
@@ -109,6 +119,7 @@ enum uc_todo {
  * @set_online: called when setting device online
  * @set_offline: called when setting device offline
  * @notify: notify driver of device state changes
+ * @path_event: notify driver of channel path events
  * @shutdown: called at device shutdown
  * @prepare: prepare for pm state transition
  * @complete: undo work done in @prepare
@@ -127,6 +138,7 @@ struct ccw_driver {
 	int (*set_online) (struct ccw_device *);
 	int (*set_offline) (struct ccw_device *);
 	int (*notify) (struct ccw_device *, int);
+	void (*path_event) (struct ccw_device *, int *);
 	void (*shutdown) (struct ccw_device *);
 	int (*prepare) (struct ccw_device *);
 	void (*complete) (struct ccw_device *);
@@ -207,6 +219,8 @@ extern void ccw_device_get_id(struct ccw_device *, struct ccw_dev_id *);
 
 extern struct ccw_device *ccw_device_probe_console(void);
 extern int ccw_device_force_console(void);
+
+int ccw_device_siosl(struct ccw_device *);
 
 // FIXME: these have to go
 extern int _ccw_device_get_subchannel_number(struct ccw_device *);

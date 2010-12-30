@@ -383,8 +383,10 @@ asmlinkage int sys_vfork(struct pt_regs *regs)
 		       0, NULL, NULL);
 }
 
-asmlinkage int sys_execve(char __user *ufilename, char __user *__user *uargv,
-			  char __user *__user *uenvp, struct pt_regs *regs)
+asmlinkage int sys_execve(const char __user *ufilename,
+			  const char __user *const __user *uargv,
+			  const char __user *const __user *uenvp,
+			  struct pt_regs *regs)
 {
 	int error;
 	char *filename;

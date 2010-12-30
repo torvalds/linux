@@ -22,7 +22,8 @@
 #include <asm/mach-ar7/ar7.h>
 
 #define AR7_GPIO_MAX 32
-#define NR_BUILTIN_GPIO AR7_GPIO_MAX
+#define TITAN_GPIO_MAX	51
+#define NR_BUILTIN_GPIO TITAN_GPIO_MAX
 
 #define gpio_to_irq(gpio)	-1
 

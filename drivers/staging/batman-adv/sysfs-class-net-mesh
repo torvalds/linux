@@ -14,6 +14,14 @@ Description:
                 mesh will be sent using multiple interfaces at the
                 same time (if available).
 
+What:           /sys/class/net/<mesh_iface>/mesh/fragmentation
+Date:           October 2010
+Contact:        Andreas Langer <an.langer@gmx.de>
+Description:
+                Indicates whether the data traffic going through the
+                mesh will be fragmented or silently discarded if the
+                packet size exceeds the outgoing interface MTU.
+
 What:           /sys/class/net/<mesh_iface>/mesh/orig_interval
 Date:           May 2010
 Contact:        Marek Lindner <lindner_marek@yahoo.de>

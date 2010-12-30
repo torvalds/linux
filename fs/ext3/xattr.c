@@ -1139,7 +1139,7 @@ ext3_xattr_cache_insert(struct buffer_head *bh)
 		ea_bdebug(bh, "out of memory");
 		return;
 	}
-	error = mb_cache_entry_insert(ce, bh->b_bdev, bh->b_blocknr, &hash);
+	error = mb_cache_entry_insert(ce, bh->b_bdev, bh->b_blocknr, hash);
 	if (error) {
 		mb_cache_entry_free(ce);
 		if (error == -EBUSY) {
@@ -1211,8 +1211,8 @@ ext3_xattr_cache_find(struct inode *inode, struct ext3_xattr_header *header,
 		return NULL;  /* never share */
 	ea_idebug(inode, "looking for cached blocks [%x]", (int)hash);
 again:
-	ce = mb_cache_entry_find_first(ext3_xattr_cache, 0,
-				       inode->i_sb->s_bdev, hash);
+	ce = mb_cache_entry_find_first(ext3_xattr_cache, inode->i_sb->s_bdev,
+				       hash);
 	while (ce) {
 		struct buffer_head *bh;
 
@@ -1237,7 +1237,7 @@ again:
 			return bh;
 		}
 		brelse(bh);
-		ce = mb_cache_entry_find_next(ce, 0, inode->i_sb->s_bdev, hash);
+		ce = mb_cache_entry_find_next(ce, inode->i_sb->s_bdev, hash);
 	}
 	return NULL;
 }
@@ -1313,9 +1313,7 @@ static void ext3_xattr_rehash(struct ext3_xattr_header *header,
 int __init
 init_ext3_xattr(void)
 {
-	ext3_xattr_cache = mb_cache_create("ext3_xattr", NULL,
-		sizeof(struct mb_cache_entry) +
-		sizeof(((struct mb_cache_entry *) 0)->e_indexes[0]), 1, 6);
+	ext3_xattr_cache = mb_cache_create("ext3_xattr", 6);
 	if (!ext3_xattr_cache)
 		return -ENOMEM;
 	return 0;

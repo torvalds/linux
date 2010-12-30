@@ -1230,7 +1230,7 @@ static int __init sunzilog_console_setup(struct console *con, char *options)
 	       (sunzilog_reg.minor - 64) + con->index, con->index);
 
 	/* Get firmware console settings.  */
-	sunserial_console_termios(con, to_of_device(up->port.dev)->dev.of_node);
+	sunserial_console_termios(con, up->port.dev->of_node);
 
 	/* Firmware console speed is limited to 150-->38400 baud so
 	 * this hackish cflag thing is OK.
@@ -1399,7 +1399,7 @@ static void __devinit sunzilog_init_hw(struct uart_sunzilog_port *up)
 
 static int zilog_irq = -1;
 
-static int __devinit zs_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit zs_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	static int kbm_inst, uart_inst;
 	int inst;
@@ -1516,7 +1516,7 @@ static void __devexit zs_remove_one(struct uart_sunzilog_port *up)
 		uart_remove_one_port(&sunzilog_reg, &up->port);
 }
 
-static int __devexit zs_remove(struct of_device *op)
+static int __devexit zs_remove(struct platform_device *op)
 {
 	struct uart_sunzilog_port *up = dev_get_drvdata(&op->dev);
 	struct zilog_layout __iomem *regs;

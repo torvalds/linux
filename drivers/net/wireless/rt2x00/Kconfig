@@ -221,9 +221,6 @@ config RT2X00_LIB_LEDS
 	boolean
 	default y if (RT2X00_LIB=y && LEDS_CLASS=y) || (RT2X00_LIB=m && LEDS_CLASS!=n)
 
-comment "rt2x00 leds support disabled due to modularized LEDS_CLASS and built-in rt2x00"
-	depends on RT2X00_LIB=y && LEDS_CLASS=m
-
 config RT2X00_LIB_DEBUGFS
 	bool "Ralink debugfs support"
 	depends on RT2X00_LIB && MAC80211_DEBUGFS

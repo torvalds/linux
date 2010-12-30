@@ -58,7 +58,7 @@ static void p54_update_leds(struct work_struct *work)
 	err = p54_set_leds(priv);
 	if (err && net_ratelimit())
 		wiphy_err(priv->hw->wiphy,
-			  "failed to update leds (%d).\n", err);
+			  "failed to update LEDs (%d).\n", err);
 
 	if (rerun)
 		ieee80211_queue_delayed_work(priv->hw, &priv->led_work,
@@ -103,7 +103,7 @@ static int p54_register_led(struct p54_common *priv,
 	err = led_classdev_register(wiphy_dev(priv->hw->wiphy), &led->led_dev);
 	if (err)
 		wiphy_err(priv->hw->wiphy,
-			  "failed to register %s led.\n", name);
+			  "Failed to register %s LED.\n", name);
 	else
 		led->registered = 1;
 

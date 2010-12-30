@@ -74,6 +74,7 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 	struct vnic_dev_bar *bar, unsigned int num_bars)
 {
 	struct vnic_resource_header __iomem *rh;
+	struct mgmt_barmap_hdr __iomem *mrh;
 	struct vnic_resource __iomem *r;
 	u8 type;
 
@@ -85,22 +86,32 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 		return -EINVAL;
 	}
 
-	rh = bar->vaddr;
+	rh  = bar->vaddr;
+	mrh = bar->vaddr;
 	if (!rh) {
 		pr_err("vNIC BAR0 res hdr not mem-mapped\n");
 		return -EINVAL;
 	}
 
-	if (ioread32(&rh->magic) != VNIC_RES_MAGIC ||
-	    ioread32(&rh->version) != VNIC_RES_VERSION) {
-		pr_err("vNIC BAR0 res magic/version error "
-			"exp (%lx/%lx) curr (%x/%x)\n",
+	/* Check for mgmt vnic in addition to normal vnic */
+	if ((ioread32(&rh->magic) != VNIC_RES_MAGIC) ||
+		(ioread32(&rh->version) != VNIC_RES_VERSION)) {
+		if ((ioread32(&mrh->magic) != MGMTVNIC_MAGIC) ||
+			(ioread32(&mrh->version) != MGMTVNIC_VERSION)) {
+			pr_err("vNIC BAR0 res magic/version error "
+			"exp (%lx/%lx) or (%lx/%lx), curr (%x/%x)\n",
 			VNIC_RES_MAGIC, VNIC_RES_VERSION,
+			MGMTVNIC_MAGIC, MGMTVNIC_VERSION,
 			ioread32(&rh->magic), ioread32(&rh->version));
-		return -EINVAL;
+			return -EINVAL;
+		}
 	}
 
-	r = (struct vnic_resource __iomem *)(rh + 1);
+	if (ioread32(&mrh->magic) == MGMTVNIC_MAGIC)
+		r = (struct vnic_resource __iomem *)(mrh + 1);
+	else
+		r = (struct vnic_resource __iomem *)(rh + 1);
+
 
 	while ((type = ioread8(&r->type)) != RES_TYPE_EOL) {
 
@@ -175,22 +186,7 @@ void __iomem *vnic_dev_get_res(struct vnic_dev *vdev, enum vnic_res_type type,
 	}
 }
 
-dma_addr_t vnic_dev_get_res_bus_addr(struct vnic_dev *vdev,
-	enum vnic_res_type type, unsigned int index)
-{
-	switch (type) {
-	case RES_TYPE_WQ:
-	case RES_TYPE_RQ:
-	case RES_TYPE_CQ:
-	case RES_TYPE_INTR_CTRL:
-		return vdev->res[type].bus_addr +
-			index * VNIC_RES_STRIDE;
-	default:
-		return vdev->res[type].bus_addr;
-	}
-}
-
-unsigned int vnic_dev_desc_ring_size(struct vnic_dev_ring *ring,
+static unsigned int vnic_dev_desc_ring_size(struct vnic_dev_ring *ring,
 	unsigned int desc_count, unsigned int desc_size)
 {
 	/* The base address of the desc rings must be 512 byte aligned.
@@ -373,18 +369,6 @@ static int vnic_dev_cmd_no_proxy(struct vnic_dev *vdev,
 	return err;
 }
 
-void vnic_dev_cmd_proxy_by_bdf_start(struct vnic_dev *vdev, u16 bdf)
-{
-	vdev->proxy = PROXY_BY_BDF;
-	vdev->proxy_index = bdf;
-}
-
-void vnic_dev_cmd_proxy_end(struct vnic_dev *vdev)
-{
-	vdev->proxy = PROXY_NONE;
-	vdev->proxy_index = 0;
-}
-
 int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	u64 *a0, u64 *a1, int wait)
 {
@@ -477,13 +461,6 @@ int vnic_dev_spec(struct vnic_dev *vdev, unsigned int offset, unsigned int size,
 	return err;
 }
 
-int vnic_dev_stats_clear(struct vnic_dev *vdev)
-{
-	u64 a0 = 0, a1 = 0;
-	int wait = 1000;
-	return vnic_dev_cmd(vdev, CMD_STATS_CLEAR, &a0, &a1, wait);
-}
-
 int vnic_dev_stats_dump(struct vnic_dev *vdev, struct vnic_stats **stats)
 {
 	u64 a0, a1;
@@ -508,13 +485,6 @@ int vnic_dev_close(struct vnic_dev *vdev)
 	u64 a0 = 0, a1 = 0;
 	int wait = 1000;
 	return vnic_dev_cmd(vdev, CMD_CLOSE, &a0, &a1, wait);
-}
-
-int vnic_dev_enable(struct vnic_dev *vdev)
-{
-	u64 a0 = 0, a1 = 0;
-	int wait = 1000;
-	return vnic_dev_cmd(vdev, CMD_ENABLE, &a0, &a1, wait);
 }
 
 int vnic_dev_enable_wait(struct vnic_dev *vdev)
@@ -561,14 +531,14 @@ int vnic_dev_open_done(struct vnic_dev *vdev, int *done)
 	return 0;
 }
 
-int vnic_dev_soft_reset(struct vnic_dev *vdev, int arg)
+static int vnic_dev_soft_reset(struct vnic_dev *vdev, int arg)
 {
 	u64 a0 = (u32)arg, a1 = 0;
 	int wait = 1000;
 	return vnic_dev_cmd(vdev, CMD_SOFT_RESET, &a0, &a1, wait);
 }
 
-int vnic_dev_soft_reset_done(struct vnic_dev *vdev, int *done)
+static int vnic_dev_soft_reset_done(struct vnic_dev *vdev, int *done)
 {
 	u64 a0 = 0, a1 = 0;
 	int wait = 1000;
@@ -669,26 +639,6 @@ int vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
 	return err;
 }
 
-int vnic_dev_packet_filter_all(struct vnic_dev *vdev, int directed,
-	int multicast, int broadcast, int promisc, int allmulti)
-{
-	u64 a0, a1 = 0;
-	int wait = 1000;
-	int err;
-
-	a0 = (directed ? CMD_PFILTER_DIRECTED : 0) |
-	     (multicast ? CMD_PFILTER_MULTICAST : 0) |
-	     (broadcast ? CMD_PFILTER_BROADCAST : 0) |
-	     (promisc ? CMD_PFILTER_PROMISCUOUS : 0) |
-	     (allmulti ? CMD_PFILTER_ALL_MULTICAST : 0);
-
-	err = vnic_dev_cmd(vdev, CMD_PACKET_FILTER_ALL, &a0, &a1, wait);
-	if (err)
-		pr_err("Can't set packet filter\n");
-
-	return err;
-}
-
 int vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr)
 {
 	u64 a0 = 0, a1 = 0;
@@ -737,20 +687,7 @@ int vnic_dev_set_ig_vlan_rewrite_mode(struct vnic_dev *vdev,
 	return err;
 }
 
-int vnic_dev_raise_intr(struct vnic_dev *vdev, u16 intr)
-{
-	u64 a0 = intr, a1 = 0;
-	int wait = 1000;
-	int err;
-
-	err = vnic_dev_cmd(vdev, CMD_IAR, &a0, &a1, wait);
-	if (err)
-		pr_err("Failed to raise INTR[%d], err %d\n", intr, err);
-
-	return err;
-}
-
-int vnic_dev_notify_setcmd(struct vnic_dev *vdev,
+static int vnic_dev_notify_setcmd(struct vnic_dev *vdev,
 	void *notify_addr, dma_addr_t notify_pa, u16 intr)
 {
 	u64 a0, a1;
@@ -789,7 +726,7 @@ int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr)
 	return vnic_dev_notify_setcmd(vdev, notify_addr, notify_pa, intr);
 }
 
-int vnic_dev_notify_unsetcmd(struct vnic_dev *vdev)
+static int vnic_dev_notify_unsetcmd(struct vnic_dev *vdev)
 {
 	u64 a0, a1;
 	int wait = 1000;
@@ -941,30 +878,6 @@ u32 vnic_dev_mtu(struct vnic_dev *vdev)
 		return 0;
 
 	return vdev->notify_copy.mtu;
-}
-
-u32 vnic_dev_link_down_cnt(struct vnic_dev *vdev)
-{
-	if (!vnic_dev_notify_ready(vdev))
-		return 0;
-
-	return vdev->notify_copy.link_down_cnt;
-}
-
-u32 vnic_dev_notify_status(struct vnic_dev *vdev)
-{
-	if (!vnic_dev_notify_ready(vdev))
-		return 0;
-
-	return vdev->notify_copy.status;
-}
-
-u32 vnic_dev_uif(struct vnic_dev *vdev)
-{
-	if (!vnic_dev_notify_ready(vdev))
-		return 0;
-
-	return vdev->notify_copy.uif;
 }
 
 void vnic_dev_set_intr_mode(struct vnic_dev *vdev,

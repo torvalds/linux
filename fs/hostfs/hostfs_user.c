@@ -19,11 +19,27 @@
 #include "user.h"
 #include <utime.h>
 
-int stat_file(const char *path, unsigned long long *inode_out, int *mode_out,
-	      int *nlink_out, int *uid_out, int *gid_out,
-	      unsigned long long *size_out, struct timespec *atime_out,
-	      struct timespec *mtime_out, struct timespec *ctime_out,
-	      int *blksize_out, unsigned long long *blocks_out, int fd)
+static void stat64_to_hostfs(const struct stat64 *buf, struct hostfs_stat *p)
+{
+	p->ino = buf->st_ino;
+	p->mode = buf->st_mode;
+	p->nlink = buf->st_nlink;
+	p->uid = buf->st_uid;
+	p->gid = buf->st_gid;
+	p->size = buf->st_size;
+	p->atime.tv_sec = buf->st_atime;
+	p->atime.tv_nsec = 0;
+	p->ctime.tv_sec = buf->st_ctime;
+	p->ctime.tv_nsec = 0;
+	p->mtime.tv_sec = buf->st_mtime;
+	p->mtime.tv_nsec = 0;
+	p->blksize = buf->st_blksize;
+	p->blocks = buf->st_blocks;
+	p->maj = os_major(buf->st_rdev);
+	p->min = os_minor(buf->st_rdev);
+}
+
+int stat_file(const char *path, struct hostfs_stat *p, int fd)
 {
 	struct stat64 buf;
 
@@ -33,66 +49,8 @@ int stat_file(const char *path, unsigned long long *inode_out, int *mode_out,
 	} else if (lstat64(path, &buf) < 0) {
 		return -errno;
 	}
-
-	if (inode_out != NULL)
-		*inode_out = buf.st_ino;
-	if (mode_out != NULL)
-		*mode_out = buf.st_mode;
-	if (nlink_out != NULL)
-		*nlink_out = buf.st_nlink;
-	if (uid_out != NULL)
-		*uid_out = buf.st_uid;
-	if (gid_out != NULL)
-		*gid_out = buf.st_gid;
-	if (size_out != NULL)
-		*size_out = buf.st_size;
-	if (atime_out != NULL) {
-		atime_out->tv_sec = buf.st_atime;
-		atime_out->tv_nsec = 0;
-	}
-	if (mtime_out != NULL) {
-		mtime_out->tv_sec = buf.st_mtime;
-		mtime_out->tv_nsec = 0;
-	}
-	if (ctime_out != NULL) {
-		ctime_out->tv_sec = buf.st_ctime;
-		ctime_out->tv_nsec = 0;
-	}
-	if (blksize_out != NULL)
-		*blksize_out = buf.st_blksize;
-	if (blocks_out != NULL)
-		*blocks_out = buf.st_blocks;
+	stat64_to_hostfs(&buf, p);
 	return 0;
-}
-
-int file_type(const char *path, int *maj, int *min)
-{
- 	struct stat64 buf;
-
-	if (lstat64(path, &buf) < 0)
-		return -errno;
-	/*
-	 * We cannot pass rdev as is because glibc and the kernel disagree
-	 * about its definition.
-	 */
-	if (maj != NULL)
-		*maj = major(buf.st_rdev);
-	if (min != NULL)
-		*min = minor(buf.st_rdev);
-
-	if (S_ISDIR(buf.st_mode))
-		return OS_TYPE_DIR;
-	else if (S_ISLNK(buf.st_mode))
-		return OS_TYPE_SYMLINK;
-	else if (S_ISCHR(buf.st_mode))
-		return OS_TYPE_CHARDEV;
-	else if (S_ISBLK(buf.st_mode))
-		return OS_TYPE_BLOCKDEV;
-	else if (S_ISFIFO(buf.st_mode))
-		return OS_TYPE_FIFO;
-	else if (S_ISSOCK(buf.st_mode))
-		return OS_TYPE_SOCK;
-	else return OS_TYPE_FILE;
 }
 
 int access_file(char *path, int r, int w, int x)
@@ -136,8 +94,7 @@ void *open_dir(char *path, int *err_out)
 
 	dir = opendir(path);
 	*err_out = errno;
-	if (dir == NULL)
-		return NULL;
+
 	return dir;
 }
 
@@ -202,6 +159,11 @@ int fsync_file(int fd, int datasync)
 	return 0;
 }
 
+int replace_file(int oldfd, int fd)
+{
+	return dup2(oldfd, fd);
+}
+
 void close_file(void *stream)
 {
 	close(*((int *) stream));
@@ -235,14 +197,14 @@ int file_create(char *name, int ur, int uw, int ux, int gr,
 
 int set_attr(const char *file, struct hostfs_iattr *attrs, int fd)
 {
+	struct hostfs_stat st;
 	struct timeval times[2];
-	struct timespec atime_ts, mtime_ts;
 	int err, ma;
 
 	if (attrs->ia_valid & HOSTFS_ATTR_MODE) {
 		if (fd >= 0) {
 			if (fchmod(fd, attrs->ia_mode) != 0)
-				return (-errno);
+				return -errno;
 		} else if (chmod(file, attrs->ia_mode) != 0) {
 			return -errno;
 		}
@@ -279,15 +241,14 @@ int set_attr(const char *file, struct hostfs_iattr *attrs, int fd)
 	 */
 	ma = (HOSTFS_ATTR_ATIME_SET | HOSTFS_ATTR_MTIME_SET);
 	if (attrs->ia_valid & ma) {
-		err = stat_file(file, NULL, NULL, NULL, NULL, NULL, NULL,
-				&atime_ts, &mtime_ts, NULL, NULL, NULL, fd);
+		err = stat_file(file, &st, fd);
 		if (err != 0)
 			return err;
 
-		times[0].tv_sec = atime_ts.tv_sec;
-		times[0].tv_usec = atime_ts.tv_nsec / 1000;
-		times[1].tv_sec = mtime_ts.tv_sec;
-		times[1].tv_usec = mtime_ts.tv_nsec / 1000;
+		times[0].tv_sec = st.atime.tv_sec;
+		times[0].tv_usec = st.atime.tv_nsec / 1000;
+		times[1].tv_sec = st.mtime.tv_sec;
+		times[1].tv_usec = st.mtime.tv_nsec / 1000;
 
 		if (attrs->ia_valid & HOSTFS_ATTR_ATIME_SET) {
 			times[0].tv_sec = attrs->ia_atime.tv_sec;
@@ -308,9 +269,9 @@ int set_attr(const char *file, struct hostfs_iattr *attrs, int fd)
 
 	/* Note: ctime is not handled */
 	if (attrs->ia_valid & (HOSTFS_ATTR_ATIME | HOSTFS_ATTR_MTIME)) {
-		err = stat_file(file, NULL, NULL, NULL, NULL, NULL, NULL,
-				&attrs->ia_atime, &attrs->ia_mtime, NULL,
-				NULL, NULL, fd);
+		err = stat_file(file, &st, fd);
+		attrs->ia_atime = st.atime;
+		attrs->ia_mtime = st.mtime;
 		if (err != 0)
 			return err;
 	}
@@ -361,7 +322,7 @@ int do_mknod(const char *file, int mode, unsigned int major, unsigned int minor)
 {
 	int err;
 
-	err = mknod(file, mode, makedev(major, minor));
+	err = mknod(file, mode, os_makedev(major, minor));
 	if (err)
 		return -errno;
 	return 0;
@@ -402,8 +363,7 @@ int rename_file(char *from, char *to)
 int do_statfs(char *root, long *bsize_out, long long *blocks_out,
 	      long long *bfree_out, long long *bavail_out,
 	      long long *files_out, long long *ffree_out,
-	      void *fsid_out, int fsid_size, long *namelen_out,
-	      long *spare_out)
+	      void *fsid_out, int fsid_size, long *namelen_out)
 {
 	struct statfs64 buf;
 	int err;
@@ -422,10 +382,6 @@ int do_statfs(char *root, long *bsize_out, long long *blocks_out,
 	       sizeof(buf.f_fsid) > fsid_size ? fsid_size :
 	       sizeof(buf.f_fsid));
 	*namelen_out = buf.f_namelen;
-	spare_out[0] = buf.f_spare[0];
-	spare_out[1] = buf.f_spare[1];
-	spare_out[2] = buf.f_spare[2];
-	spare_out[3] = buf.f_spare[3];
-	spare_out[4] = buf.f_spare[4];
+
 	return 0;
 }

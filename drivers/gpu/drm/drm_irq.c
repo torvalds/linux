@@ -585,10 +585,13 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 	struct timeval now;
 	unsigned long flags;
 	unsigned int seq;
+	int ret;
 
 	e = kzalloc(sizeof *e, GFP_KERNEL);
-	if (e == NULL)
-		return -ENOMEM;
+	if (e == NULL) {
+		ret = -ENOMEM;
+		goto err_put;
+	}
 
 	e->pipe = pipe;
 	e->base.pid = current->pid;
@@ -603,9 +606,8 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 	spin_lock_irqsave(&dev->event_lock, flags);
 
 	if (file_priv->event_space < sizeof e->event) {
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-		kfree(e);
-		return -ENOMEM;
+		ret = -EBUSY;
+		goto err_unlock;
 	}
 
 	file_priv->event_space -= sizeof e->event;
@@ -626,7 +628,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 	if ((seq - vblwait->request.sequence) <= (1 << 23)) {
 		e->event.tv_sec = now.tv_sec;
 		e->event.tv_usec = now.tv_usec;
-		drm_vblank_put(dev, e->pipe);
+		drm_vblank_put(dev, pipe);
 		list_add_tail(&e->base.link, &e->base.file_priv->event_list);
 		wake_up_interruptible(&e->base.file_priv->event_wait);
 		trace_drm_vblank_event_delivered(current->pid, pipe,
@@ -638,6 +640,13 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	return 0;
+
+err_unlock:
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+	kfree(e);
+err_put:
+	drm_vblank_put(dev, pipe);
+	return ret;
 }
 
 /**

@@ -69,13 +69,6 @@
 #define SYSPLD_VIRT_BASE	0xfe000000
 #define SYSPLD_BASE		SYSPLD_VIRT_BASE
 
-#ifndef __ASSEMBLER__
-
-#define PCIO_BASE		IO_BASE
-
-#endif
-
-
 #if  defined (CONFIG_ARCH_AUTCPU12)
 
 #define  CS89712_VIRT_BASE	CLPS7111_VIRT_BASE

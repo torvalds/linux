@@ -73,7 +73,7 @@ static int reset_cyc2x(void __iomem *addr);
 static int detect_cyc2x(void __iomem *addr);
 
 /* Miscellaneous functions */
-static int get_option_index(long *optlist, long optval);
+static int get_option_index(const long *optlist, long optval);
 static u16 checksum(u8 *buf, u32 len);
 
 #define wait_cyc(addr) cycx_exec(addr + CMD_OFFSET)
@@ -81,23 +81,23 @@ static u16 checksum(u8 *buf, u32 len);
 /* Global Data */
 
 /* private data */
-static char modname[] = "cycx_drv";
-static char fullname[] = "Cyclom 2X Support Module";
-static char copyright[] = "(c) 1998-2003 Arnaldo Carvalho de Melo "
+static const char modname[] = "cycx_drv";
+static const char fullname[] = "Cyclom 2X Support Module";
+static const char copyright[] = "(c) 1998-2003 Arnaldo Carvalho de Melo "
 			  "<acme@conectiva.com.br>";
 
 /* Hardware configuration options.
  * These are arrays of configuration options used by verification routines.
  * The first element of each array is its size (i.e. number of options).
  */
-static long cyc2x_dpmbase_options[] = {
+static const long cyc2x_dpmbase_options[] = {
 	20,
 	0xA0000, 0xA4000, 0xA8000, 0xAC000, 0xB0000, 0xB4000, 0xB8000,
 	0xBC000, 0xC0000, 0xC4000, 0xC8000, 0xCC000, 0xD0000, 0xD4000,
 	0xD8000, 0xDC000, 0xE0000, 0xE4000, 0xE8000, 0xEC000
 };
 
-static long cycx_2x_irq_options[]  = { 7, 3, 5, 9, 10, 11, 12, 15 };
+static const long cycx_2x_irq_options[]  = { 7, 3, 5, 9, 10, 11, 12, 15 };
 
 /* Kernel Loadable Module Entry Points */
 /* Module 'insert' entry point.
@@ -529,7 +529,7 @@ static int detect_cyc2x(void __iomem *addr)
 /* Miscellaneous */
 /* Get option's index into the options list.
  *	Return option's index (1 .. N) or zero if option is invalid. */
-static int get_option_index(long *optlist, long optval)
+static int get_option_index(const long *optlist, long optval)
 {
 	int i = 1;
 

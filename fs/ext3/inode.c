@@ -190,18 +190,28 @@ static int truncate_restart_transaction(handle_t *handle, struct inode *inode)
 }
 
 /*
- * Called at the last iput() if i_nlink is zero.
+ * Called at inode eviction from icache
  */
-void ext3_delete_inode (struct inode * inode)
+void ext3_evict_inode (struct inode *inode)
 {
+	struct ext3_block_alloc_info *rsv;
 	handle_t *handle;
+	int want_delete = 0;
 
-	if (!is_bad_inode(inode))
+	if (!inode->i_nlink && !is_bad_inode(inode)) {
 		dquot_initialize(inode);
+		want_delete = 1;
+	}
 
 	truncate_inode_pages(&inode->i_data, 0);
 
-	if (is_bad_inode(inode))
+	ext3_discard_reservation(inode);
+	rsv = EXT3_I(inode)->i_block_alloc_info;
+	EXT3_I(inode)->i_block_alloc_info = NULL;
+	if (unlikely(rsv))
+		kfree(rsv);
+
+	if (!want_delete)
 		goto no_delete;
 
 	handle = start_transaction(inode);
@@ -238,15 +248,22 @@ void ext3_delete_inode (struct inode * inode)
 	 * having errors), but we can't free the inode if the mark_dirty
 	 * fails.
 	 */
-	if (ext3_mark_inode_dirty(handle, inode))
-		/* If that failed, just do the required in-core inode clear. */
-		clear_inode(inode);
-	else
+	if (ext3_mark_inode_dirty(handle, inode)) {
+		/* If that failed, just dquot_drop() and be done with that */
+		dquot_drop(inode);
+		end_writeback(inode);
+	} else {
+		ext3_xattr_delete_inode(handle, inode);
+		dquot_free_inode(inode);
+		dquot_drop(inode);
+		end_writeback(inode);
 		ext3_free_inode(handle, inode);
+	}
 	ext3_journal_stop(handle);
 	return;
 no_delete:
-	clear_inode(inode);	/* We must guarantee clearing of inode... */
+	end_writeback(inode);
+	dquot_drop(inode);
 }
 
 typedef struct {
@@ -481,7 +498,7 @@ static ext3_fsblk_t ext3_find_goal(struct inode *inode, long block,
 }
 
 /**
- *	ext3_blks_to_allocate: Look up the block map and count the number
+ *	ext3_blks_to_allocate - Look up the block map and count the number
  *	of direct blocks need to be allocated for the given branch.
  *
  *	@branch: chain of indirect blocks
@@ -519,14 +536,18 @@ static int ext3_blks_to_allocate(Indirect *branch, int k, unsigned long blks,
 }
 
 /**
- *	ext3_alloc_blocks: multiple allocate blocks needed for a branch
+ *	ext3_alloc_blocks - multiple allocate blocks needed for a branch
+ *	@handle: handle for this transaction
+ *	@inode: owner
+ *	@goal: preferred place for allocation
  *	@indirect_blks: the number of blocks need to allocate for indirect
  *			blocks
- *
+ *	@blks:	number of blocks need to allocated for direct blocks
  *	@new_blocks: on return it will store the new block numbers for
  *	the indirect blocks(if needed) and the first direct block,
- *	@blks:	on return it will store the total number of allocated
- *		direct blocks
+ *	@err: here we store the error value
+ *
+ *	return the number of direct blocks allocated
  */
 static int ext3_alloc_blocks(handle_t *handle, struct inode *inode,
 			ext3_fsblk_t goal, int indirect_blks, int blks,
@@ -581,9 +602,11 @@ failed_out:
 
 /**
  *	ext3_alloc_branch - allocate and set up a chain of blocks.
+ *	@handle: handle for this transaction
  *	@inode: owner
  *	@indirect_blks: number of allocated indirect blocks
  *	@blks: number of allocated direct blocks
+ *	@goal: preferred place for allocation
  *	@offsets: offsets (in the blocks) to store the pointers to next.
  *	@branch: place to store the chain in.
  *
@@ -683,10 +706,9 @@ failed:
 
 /**
  * ext3_splice_branch - splice the allocated branch onto inode.
+ * @handle: handle for this transaction
  * @inode: owner
  * @block: (logical) number of block we are adding
- * @chain: chain of indirect blocks (with a missing link - see
- *	ext3_alloc_branch)
  * @where: location of missing link
  * @num:   number of indirect blocks we are adding
  * @blks:  number of direct blocks we are adding
@@ -1212,8 +1234,7 @@ retry:
 		ret = PTR_ERR(handle);
 		goto out;
 	}
-	ret = block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-							ext3_get_block);
+	ret = __block_write_begin(page, pos, len, ext3_get_block);
 	if (ret)
 		goto write_begin_failed;
 
@@ -1680,8 +1701,8 @@ static int ext3_journalled_writepage(struct page *page,
 		 * doesn't seem much point in redirtying the page here.
 		 */
 		ClearPageChecked(page);
-		ret = block_prepare_write(page, 0, PAGE_CACHE_SIZE,
-					ext3_get_block);
+		ret = __block_write_begin(page, 0, PAGE_CACHE_SIZE,
+					  ext3_get_block);
 		if (ret != 0) {
 			ext3_journal_stop(handle);
 			goto out_unlock;
@@ -1798,6 +1819,17 @@ retry:
 	ret = blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
 				 offset, nr_segs,
 				 ext3_get_block, NULL);
+	/*
+	 * In case of error extending write may have instantiated a few
+	 * blocks outside i_size. Trim these off again.
+	 */
+	if (unlikely((rw & WRITE) && ret < 0)) {
+		loff_t isize = i_size_read(inode);
+		loff_t end = offset + iov_length(iov, nr_segs);
+
+		if (end > isize)
+			vmtruncate(inode, isize);
+	}
 	if (ret == -ENOSPC && ext3_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
 
@@ -2503,7 +2535,6 @@ void ext3_truncate(struct inode *inode)
 			 */
 		} else {
 			/* Shared branch grows from an indirect block */
-			BUFFER_TRACE(partial->bh, "get_write_access");
 			ext3_free_branches(handle, inode, partial->bh,
 					partial->p,
 					partial->p+1, (chain+n-1) - partial);
@@ -2560,7 +2591,7 @@ out_stop:
 	 * If this was a simple ftruncate(), and the file will remain alive
 	 * then we need to clear up the orphan record which we created above.
 	 * However, if this was a real unlink then we were called by
-	 * ext3_delete_inode(), and we allow that function to clean up the
+	 * ext3_evict_inode(), and we allow that function to clean up the
 	 * orphan info for us.
 	 */
 	if (inode->i_nlink)
@@ -3204,9 +3235,17 @@ int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 		ext3_journal_stop(handle);
 	}
 
-	rc = inode_setattr(inode, attr);
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		rc = vmtruncate(inode, attr->ia_size);
+		if (rc)
+			goto err_out;
+	}
 
-	if (!rc && (ia_valid & ATTR_MODE))
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+
+	if (ia_valid & ATTR_MODE)
 		rc = ext3_acl_chmod(inode);
 
 err_out:

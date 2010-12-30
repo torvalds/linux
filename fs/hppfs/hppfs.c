@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/statfs.h>
 #include <linux/types.h>
+#include <linux/pid_namespace.h>
 #include <asm/uaccess.h>
 #include "os.h"
 
@@ -597,6 +598,7 @@ static const struct file_operations hppfs_dir_fops = {
 	.readdir	= hppfs_readdir,
 	.open		= hppfs_dir_open,
 	.fsync		= hppfs_fsync,
+	.llseek		= default_llseek,
 };
 
 static int hppfs_statfs(struct dentry *dentry, struct kstatfs *sf)
@@ -623,12 +625,11 @@ static struct inode *hppfs_alloc_inode(struct super_block *sb)
 	return &hi->vfs_inode;
 }
 
-void hppfs_delete_inode(struct inode *ino)
+void hppfs_evict_inode(struct inode *ino)
 {
+	end_writeback(ino);
 	dput(HPPFS_I(ino)->proc_dentry);
 	mntput(ino->i_sb->s_fs_info);
-
-	clear_inode(ino);
 }
 
 static void hppfs_destroy_inode(struct inode *inode)
@@ -639,7 +640,7 @@ static void hppfs_destroy_inode(struct inode *inode)
 static const struct super_operations hppfs_sbops = {
 	.alloc_inode	= hppfs_alloc_inode,
 	.destroy_inode	= hppfs_destroy_inode,
-	.delete_inode	= hppfs_delete_inode,
+	.evict_inode	= hppfs_evict_inode,
 	.statfs		= hppfs_statfs,
 };
 
@@ -747,17 +748,17 @@ static int hppfs_fill_super(struct super_block *sb, void *d, int silent)
 	return(err);
 }
 
-static int hppfs_read_super(struct file_system_type *type,
+static struct dentry *hppfs_read_super(struct file_system_type *type,
 			    int flags, const char *dev_name,
-			    void *data, struct vfsmount *mnt)
+			    void *data)
 {
-	return get_sb_nodev(type, flags, data, hppfs_fill_super, mnt);
+	return mount_nodev(type, flags, data, hppfs_fill_super);
 }
 
 static struct file_system_type hppfs_type = {
 	.owner 		= THIS_MODULE,
 	.name 		= "hppfs",
-	.get_sb 	= hppfs_read_super,
+	.mount 		= hppfs_read_super,
 	.kill_sb	= kill_anon_super,
 	.fs_flags 	= 0,
 };

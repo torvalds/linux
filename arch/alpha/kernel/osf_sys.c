@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/stddef.h>
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
@@ -69,7 +68,6 @@ SYSCALL_DEFINE4(osf_set_program_attributes, unsigned long, text_start,
 {
 	struct mm_struct *mm;
 
-	lock_kernel();
 	mm = current->mm;
 	mm->end_code = bss_start + bss_len;
 	mm->start_brk = bss_start + bss_len;
@@ -78,7 +76,6 @@ SYSCALL_DEFINE4(osf_set_program_attributes, unsigned long, text_start,
 	printk("set_program_attributes(%lx %lx %lx %lx)\n",
 		text_start, text_len, bss_start, bss_len);
 #endif
-	unlock_kernel();
 	return 0;
 }
 
@@ -234,17 +231,17 @@ linux_to_osf_statfs(struct kstatfs *linux_stat, struct osf_statfs __user *osf_st
 }
 
 static int
-do_osf_statfs(struct dentry * dentry, struct osf_statfs __user *buffer,
+do_osf_statfs(struct path *path, struct osf_statfs __user *buffer,
 	      unsigned long bufsiz)
 {
 	struct kstatfs linux_stat;
-	int error = vfs_statfs(dentry, &linux_stat);
+	int error = vfs_statfs(path, &linux_stat);
 	if (!error)
 		error = linux_to_osf_statfs(&linux_stat, buffer, bufsiz);
 	return error;	
 }
 
-SYSCALL_DEFINE3(osf_statfs, char __user *, pathname,
+SYSCALL_DEFINE3(osf_statfs, const char __user *, pathname,
 		struct osf_statfs __user *, buffer, unsigned long, bufsiz)
 {
 	struct path path;
@@ -252,7 +249,7 @@ SYSCALL_DEFINE3(osf_statfs, char __user *, pathname,
 
 	retval = user_path(pathname, &path);
 	if (!retval) {
-		retval = do_osf_statfs(path.dentry, buffer, bufsiz);
+		retval = do_osf_statfs(&path, buffer, bufsiz);
 		path_put(&path);
 	}
 	return retval;
@@ -267,7 +264,7 @@ SYSCALL_DEFINE3(osf_fstatfs, unsigned long, fd,
 	retval = -EBADF;
 	file = fget(fd);
 	if (file) {
-		retval = do_osf_statfs(file->f_path.dentry, buffer, bufsiz);
+		retval = do_osf_statfs(&file->f_path, buffer, bufsiz);
 		fput(file);
 	}
 	return retval;
@@ -358,7 +355,7 @@ osf_procfs_mount(char *dirname, struct procfs_args __user *args, int flags)
 	return do_mount("", dirname, "proc", flags, NULL);
 }
 
-SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, char __user *, path,
+SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, const char __user *, path,
 		int, flag, void __user *, data)
 {
 	int retval;
@@ -517,7 +514,6 @@ SYSCALL_DEFINE2(osf_proplist_syscall, enum pl_code, code,
 	long error;
 	int __user *min_buf_size_ptr;
 
-	lock_kernel();
 	switch (code) {
 	case PL_SET:
 		if (get_user(error, &args->set.nbytes))
@@ -547,7 +543,6 @@ SYSCALL_DEFINE2(osf_proplist_syscall, enum pl_code, code,
 		error = -EOPNOTSUPP;
 		break;
 	};
-	unlock_kernel();
 	return error;
 }
 
@@ -594,7 +589,7 @@ SYSCALL_DEFINE2(osf_sigstack, struct sigstack __user *, uss,
 
 SYSCALL_DEFINE3(osf_sysinfo, int, command, char __user *, buf, long, count)
 {
-	char *sysinfo_table[] = {
+	const char *sysinfo_table[] = {
 		utsname()->sysname,
 		utsname()->nodename,
 		utsname()->release,
@@ -606,7 +601,7 @@ SYSCALL_DEFINE3(osf_sysinfo, int, command, char __user *, buf, long, count)
 		"dummy",	/* secure RPC domain */
 	};
 	unsigned long offset;
-	char *res;
+	const char *res;
 	long len, err = -EINVAL;
 
 	offset = command-1;
@@ -932,7 +927,7 @@ SYSCALL_DEFINE3(osf_setitimer, int, which, struct itimerval32 __user *, in,
 
 }
 
-SYSCALL_DEFINE2(osf_utimes, char __user *, filename,
+SYSCALL_DEFINE2(osf_utimes, const char __user *, filename,
 		struct timeval32 __user *, tvs)
 {
 	struct timespec tv[2];

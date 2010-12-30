@@ -61,7 +61,7 @@ static struct pci_device_id rtl8180_pci_id_tbl[] __devinitdata = {
 };
 
 
-static char *ifname = "wlan%d";
+static char ifname[IFNAMSIZ] = "wlan%d";
 static int hwseqnum = 0;
 static int hwwep = 0;
 static int channels = 0x3fff;
@@ -72,7 +72,7 @@ MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");
 MODULE_DESCRIPTION("Linux driver for Realtek RTL8180 / RTL8185 WiFi cards");
 
 
-module_param(ifname, charp, S_IRUGO|S_IWUSR);
+module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO|S_IWUSR);
 module_param(hwseqnum, int, S_IRUGO|S_IWUSR);
 module_param(hwwep, int, S_IRUGO|S_IWUSR);
 module_param(channels, int, S_IRUGO|S_IWUSR);
@@ -3547,6 +3547,7 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 	struct net_device *dev = NULL;
 	struct r8180_priv *priv = NULL;
 	u8 unit = 0;
+	int ret = -ENODEV;
 
 	unsigned long pmem_start, pmem_len, pmem_flags;
 
@@ -3561,8 +3562,10 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 	pci_set_dma_mask(pdev, 0xffffff00ULL);
 	pci_set_consistent_dma_mask(pdev, 0xffffff00ULL);
 	dev = alloc_ieee80211(sizeof(struct r8180_priv));
-	if (!dev)
-		return -ENOMEM;
+	if (!dev) {
+		ret = -ENOMEM;
+		goto fail_free;
+	}
 	priv = ieee80211_priv(dev);
 	priv->ieee80211 = netdev_priv(dev);
 
@@ -3609,7 +3612,7 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 
 	if (dev_alloc_name(dev, ifname) < 0) {
 		DMESG("Oops: devname already taken! Trying wlan%%d...\n");
-		ifname = "wlan%d";
+		strcpy(ifname, "wlan%d");
 		dev_alloc_name(dev, ifname);
 	}
 
@@ -3641,11 +3644,12 @@ fail:
 		free_ieee80211(dev);
 	}
 
+fail_free:
 	pci_disable_device(pdev);
 
 	DMESG("wlan driver load failed\n");
 	pci_set_drvdata(pdev, NULL);
-	return -ENODEV;
+	return ret;
 }
 
 static void __devexit rtl8180_pci_remove(struct pci_dev *pdev)

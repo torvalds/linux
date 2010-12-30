@@ -1393,7 +1393,7 @@ static void free_irq_local(int irq)
  * Power management hooks. Note that we won't be called from IRQ context,
  * unlike the blank functions above, so we may sleep.
  */
-static int fsl_diu_suspend(struct of_device *ofdev, pm_message_t state)
+static int fsl_diu_suspend(struct platform_device *ofdev, pm_message_t state)
 {
 	struct fsl_diu_data *machine_data;
 
@@ -1403,7 +1403,7 @@ static int fsl_diu_suspend(struct of_device *ofdev, pm_message_t state)
 	return 0;
 }
 
-static int fsl_diu_resume(struct of_device *ofdev)
+static int fsl_diu_resume(struct platform_device *ofdev)
 {
 	struct fsl_diu_data *machine_data;
 
@@ -1487,7 +1487,7 @@ static ssize_t show_monitor(struct device *device,
 	return diu_ops.show_monitor_port(machine_data->monitor_port, buf);
 }
 
-static int __devinit fsl_diu_probe(struct of_device *ofdev,
+static int __devinit fsl_diu_probe(struct platform_device *ofdev,
 	const struct of_device_id *match)
 {
 	struct device_node *np = ofdev->dev.of_node;
@@ -1667,7 +1667,7 @@ error2:
 }
 
 
-static int fsl_diu_remove(struct of_device *ofdev)
+static int fsl_diu_remove(struct platform_device *ofdev)
 {
 	struct fsl_diu_data *machine_data;
 	int i;

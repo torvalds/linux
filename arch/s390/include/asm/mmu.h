@@ -2,6 +2,8 @@
 #define __MMU_H
 
 typedef struct {
+	atomic_t attach_count;
+	unsigned int flush_mm;
 	spinlock_t list_lock;
 	struct list_head crst_list;
 	struct list_head pgtable_list;

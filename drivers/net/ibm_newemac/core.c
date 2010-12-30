@@ -2095,11 +2095,11 @@ static void *emac_dump_regs(struct emac_instance *dev, void *buf)
 	if (emac_has_feature(dev, EMAC_FTR_EMAC4)) {
 		hdr->version = EMAC4_ETHTOOL_REGS_VER;
 		memcpy_fromio(hdr + 1, dev->emacp, EMAC4_ETHTOOL_REGS_SIZE(dev));
-		return ((void *)(hdr + 1) + EMAC4_ETHTOOL_REGS_SIZE(dev));
+		return (void *)(hdr + 1) + EMAC4_ETHTOOL_REGS_SIZE(dev);
 	} else {
 		hdr->version = EMAC_ETHTOOL_REGS_VER;
 		memcpy_fromio(hdr + 1, dev->emacp, EMAC_ETHTOOL_REGS_SIZE(dev));
-		return ((void *)(hdr + 1) + EMAC_ETHTOOL_REGS_SIZE(dev));
+		return (void *)(hdr + 1) + EMAC_ETHTOOL_REGS_SIZE(dev);
 	}
 }
 
@@ -2245,7 +2245,7 @@ static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 struct emac_depentry {
 	u32			phandle;
 	struct device_node	*node;
-	struct of_device	*ofdev;
+	struct platform_device	*ofdev;
 	void			*drvdata;
 };
 
@@ -2293,7 +2293,7 @@ static int __devinit emac_check_deps(struct emac_instance *dev,
 		if (deps[i].drvdata != NULL)
 			there++;
 	}
-	return (there == EMAC_DEP_COUNT);
+	return there == EMAC_DEP_COUNT;
 }
 
 static void emac_put_deps(struct emac_instance *dev)
@@ -2719,7 +2719,7 @@ static const struct net_device_ops emac_gige_netdev_ops = {
 	.ndo_change_mtu		= emac_change_mtu,
 };
 
-static int __devinit emac_probe(struct of_device *ofdev,
+static int __devinit emac_probe(struct platform_device *ofdev,
 				const struct of_device_id *match)
 {
 	struct net_device *ndev;
@@ -2871,7 +2871,6 @@ static int __devinit emac_probe(struct of_device *ofdev,
 	SET_ETHTOOL_OPS(ndev, &emac_ethtool_ops);
 
 	netif_carrier_off(ndev);
-	netif_stop_queue(ndev);
 
 	err = register_netdev(ndev);
 	if (err) {
@@ -2928,7 +2927,7 @@ static int __devinit emac_probe(struct of_device *ofdev,
 	if (dev->emac_irq != NO_IRQ)
 		irq_dispose_mapping(dev->emac_irq);
  err_free:
-	kfree(ndev);
+	free_netdev(ndev);
  err_gone:
 	/* if we were on the bootlist, remove us as we won't show up and
 	 * wake up all waiters to notify them in case they were waiting
@@ -2941,7 +2940,7 @@ static int __devinit emac_probe(struct of_device *ofdev,
 	return err;
 }
 
-static int __devexit emac_remove(struct of_device *ofdev)
+static int __devexit emac_remove(struct platform_device *ofdev)
 {
 	struct emac_instance *dev = dev_get_drvdata(&ofdev->dev);
 
@@ -2971,7 +2970,7 @@ static int __devexit emac_remove(struct of_device *ofdev)
 	if (dev->emac_irq != NO_IRQ)
 		irq_dispose_mapping(dev->emac_irq);
 
-	kfree(dev->ndev);
+	free_netdev(dev->ndev);
 
 	return 0;
 }

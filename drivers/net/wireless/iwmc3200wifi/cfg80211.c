@@ -161,7 +161,7 @@ static int iwm_key_init(struct iwm_key *key, u8 key_index,
 }
 
 static int iwm_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
-				u8 key_index, const u8 *mac_addr,
+				u8 key_index, bool pairwise, const u8 *mac_addr,
 				struct key_params *params)
 {
 	struct iwm_priv *iwm = ndev_to_iwm(ndev);
@@ -181,7 +181,8 @@ static int iwm_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 static int iwm_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
-				u8 key_index, const u8 *mac_addr, void *cookie,
+				u8 key_index, bool pairwise, const u8 *mac_addr,
+				void *cookie,
 				void (*callback)(void *cookie,
 						 struct key_params*))
 {
@@ -206,7 +207,7 @@ static int iwm_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 
 
 static int iwm_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
-				u8 key_index, const u8 *mac_addr)
+				u8 key_index, bool pairwise, const u8 *mac_addr)
 {
 	struct iwm_priv *iwm = ndev_to_iwm(ndev);
 	struct iwm_key *key = &iwm->keys[key_index];

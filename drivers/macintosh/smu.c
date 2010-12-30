@@ -19,7 +19,6 @@
  *    the userland interface
  */
 
-#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -75,7 +74,7 @@ struct smu_cmd_buf {
 struct smu_device {
 	spinlock_t		lock;
 	struct device_node	*of_node;
-	struct of_device	*of_dev;
+	struct platform_device	*of_dev;
 	int			doorbell;	/* doorbell gpio */
 	u32 __iomem		*db_buf;	/* doorbell buffer */
 	struct device_node	*db_node;
@@ -97,6 +96,7 @@ struct smu_device {
  * I don't think there will ever be more than one SMU, so
  * for now, just hard code that
  */
+static DEFINE_MUTEX(smu_mutex);
 static struct smu_device	*smu;
 static DEFINE_MUTEX(smu_part_access);
 static int smu_irq_inited;
@@ -645,7 +645,7 @@ static void smu_expose_childs(struct work_struct *unused)
 
 static DECLARE_WORK(smu_expose_childs_work, smu_expose_childs);
 
-static int smu_platform_probe(struct of_device* dev,
+static int smu_platform_probe(struct platform_device* dev,
 			      const struct of_device_id *match)
 {
 	if (!smu)
@@ -695,7 +695,7 @@ static int __init smu_init_sysfs(void)
 
 device_initcall(smu_init_sysfs);
 
-struct of_device *smu_get_ofdev(void)
+struct platform_device *smu_get_ofdev(void)
 {
 	if (!smu)
 		return NULL;
@@ -1095,12 +1095,12 @@ static int smu_open(struct inode *inode, struct file *file)
 	pp->mode = smu_file_commands;
 	init_waitqueue_head(&pp->wait);
 
-	lock_kernel();
+	mutex_lock(&smu_mutex);
 	spin_lock_irqsave(&smu_clist_lock, flags);
 	list_add(&pp->list, &smu_clist);
 	spin_unlock_irqrestore(&smu_clist_lock, flags);
 	file->private_data = pp;
-	unlock_kernel();
+	mutex_unlock(&smu_mutex);
 
 	return 0;
 }

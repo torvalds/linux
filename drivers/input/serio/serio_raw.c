@@ -11,7 +11,6 @@
 
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/poll.h>
 #include <linux/module.h>
 #include <linux/serio.h>
@@ -243,6 +242,7 @@ static const struct file_operations serio_raw_fops = {
 	.write =	serio_raw_write,
 	.poll =		serio_raw_poll,
 	.fasync =	serio_raw_fasync,
+	.llseek = noop_llseek,
 };
 
 

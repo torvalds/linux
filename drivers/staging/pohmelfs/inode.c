@@ -882,12 +882,8 @@ static struct inode *pohmelfs_alloc_inode(struct super_block *sb)
 static int pohmelfs_fsync(struct file *file, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = 0,	/* sys_fsync did this */
-	};
 
-	return sync_inode(inode, &wbc);
+	return sync_inode_metadata(inode, 1);
 }
 
 ssize_t pohmelfs_write(struct file *file, const char __user *buf,
@@ -968,11 +964,17 @@ int pohmelfs_setattr_raw(struct inode *inode, struct iattr *attr)
 		goto err_out_exit;
 	}
 
-	err = inode_setattr(inode, attr);
-	if (err) {
-		dprintk("%s: ino: %llu, failed to set the attributes.\n", __func__, POHMELFS_I(inode)->ino);
-		goto err_out_exit;
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		err = vmtruncate(inode, attr->ia_size);
+		if (err) {
+			dprintk("%s: ino: %llu, failed to set the attributes.\n", __func__, POHMELFS_I(inode)->ino);
+			goto err_out_exit;
+		}
 	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
 
 	dprintk("%s: ino: %llu, mode: %o -> %o, uid: %u -> %u, gid: %u -> %u, size: %llu -> %llu.\n",
 			__func__, POHMELFS_I(inode)->ino, inode->i_mode, attr->ia_mode,
@@ -1217,7 +1219,7 @@ void pohmelfs_fill_inode(struct inode *inode, struct netfs_inode_info *info)
 	}
 }
 
-static void pohmelfs_drop_inode(struct inode *inode)
+static int pohmelfs_drop_inode(struct inode *inode)
 {
 	struct pohmelfs_sb *psb = POHMELFS_SB(inode->i_sb);
 	struct pohmelfs_inode *pi = POHMELFS_I(inode);
@@ -1226,7 +1228,7 @@ static void pohmelfs_drop_inode(struct inode *inode)
 	list_del_init(&pi->inode_entry);
 	spin_unlock(&psb->ino_lock);
 
-	generic_drop_inode(inode);
+	return generic_drop_inode(inode);
 }
 
 static struct pohmelfs_inode *pohmelfs_get_inode_from_list(struct pohmelfs_sb *psb,
@@ -1935,11 +1937,10 @@ err_out_exit:
 /*
  * Some VFS magic here...
  */
-static int pohmelfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *pohmelfs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, pohmelfs_fill_super,
-				mnt);
+	return mount_nodev(fs_type, flags, data, pohmelfs_fill_super);
 }
 
 /*
@@ -1956,7 +1957,7 @@ static void pohmelfs_kill_super(struct super_block *sb)
 static struct file_system_type pohmel_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "pohmel",
-	.get_sb		= pohmelfs_get_sb,
+	.mount		= pohmelfs_mount,
 	.kill_sb 	= pohmelfs_kill_super,
 };
 

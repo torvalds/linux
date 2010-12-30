@@ -15,7 +15,7 @@
 #include <linux/stat.h>
 #include <linux/cred.h>
 #include <linux/errno.h>
-#include <linux/smp_lock.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
@@ -109,19 +109,24 @@ coda_file_mmap(struct file *coda_file, struct vm_area_struct *vma)
 
 	coda_inode = coda_file->f_path.dentry->d_inode;
 	host_inode = host_file->f_path.dentry->d_inode;
+
+	cii = ITOC(coda_inode);
+	spin_lock(&cii->c_lock);
 	coda_file->f_mapping = host_file->f_mapping;
 	if (coda_inode->i_mapping == &coda_inode->i_data)
 		coda_inode->i_mapping = host_inode->i_mapping;
 
 	/* only allow additional mmaps as long as userspace isn't changing
 	 * the container file on us! */
-	else if (coda_inode->i_mapping != host_inode->i_mapping)
+	else if (coda_inode->i_mapping != host_inode->i_mapping) {
+		spin_unlock(&cii->c_lock);
 		return -EBUSY;
+	}
 
 	/* keep track of how often the coda_inode/host_file has been mmapped */
-	cii = ITOC(coda_inode);
 	cii->c_mapcount++;
 	cfi->cfi_mapcount++;
+	spin_unlock(&cii->c_lock);
 
 	return host_file->f_op->mmap(host_file, vma);
 }
@@ -138,8 +143,6 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 	if (!cfi)
 		return -ENOMEM;
 
-	lock_kernel();
-
 	error = venus_open(coda_inode->i_sb, coda_i2f(coda_inode), coda_flags,
 			   &host_file);
 	if (!host_file)
@@ -147,7 +150,6 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 
 	if (error) {
 		kfree(cfi);
-		unlock_kernel();
 		return error;
 	}
 
@@ -159,8 +161,6 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 
 	BUG_ON(coda_file->private_data != NULL);
 	coda_file->private_data = cfi;
-
-	unlock_kernel();
 	return 0;
 }
 
@@ -171,9 +171,7 @@ int coda_release(struct inode *coda_inode, struct file *coda_file)
 	struct coda_file_info *cfi;
 	struct coda_inode_info *cii;
 	struct inode *host_inode;
-	int err = 0;
-
-	lock_kernel();
+	int err;
 
 	cfi = CODA_FTOC(coda_file);
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
@@ -185,17 +183,17 @@ int coda_release(struct inode *coda_inode, struct file *coda_file)
 	cii = ITOC(coda_inode);
 
 	/* did we mmap this file? */
+	spin_lock(&cii->c_lock);
 	if (coda_inode->i_mapping == &host_inode->i_data) {
 		cii->c_mapcount -= cfi->cfi_mapcount;
 		if (!cii->c_mapcount)
 			coda_inode->i_mapping = &coda_inode->i_data;
 	}
+	spin_unlock(&cii->c_lock);
 
 	fput(cfi->cfi_container);
 	kfree(coda_file->private_data);
 	coda_file->private_data = NULL;
-
-	unlock_kernel();
 
 	/* VFS fput ignores the return value from file_operations->release, so
 	 * there is no use returning an error here */
@@ -207,7 +205,7 @@ int coda_fsync(struct file *coda_file, int datasync)
 	struct file *host_file;
 	struct inode *coda_inode = coda_file->f_path.dentry->d_inode;
 	struct coda_file_info *cfi;
-	int err = 0;
+	int err;
 
 	if (!(S_ISREG(coda_inode->i_mode) || S_ISDIR(coda_inode->i_mode) ||
 	      S_ISLNK(coda_inode->i_mode)))
@@ -218,11 +216,8 @@ int coda_fsync(struct file *coda_file, int datasync)
 	host_file = cfi->cfi_container;
 
 	err = vfs_fsync(host_file, datasync);
-	if ( !err && !datasync ) {
-		lock_kernel();
+	if (!err && !datasync)
 		err = venus_fsync(coda_inode->i_sb, coda_i2f(coda_inode));
-		unlock_kernel();
-	}
 
 	return err;
 }

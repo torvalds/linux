@@ -357,6 +357,32 @@ int __weak page_is_ram(unsigned long pfn)
 	return walk_system_ram_range(pfn, 1, NULL, __is_ram) == 1;
 }
 
+void __weak arch_remove_reservations(struct resource *avail)
+{
+}
+
+static resource_size_t simple_align_resource(void *data,
+					     const struct resource *avail,
+					     resource_size_t size,
+					     resource_size_t align)
+{
+	return avail->start;
+}
+
+static void resource_clip(struct resource *res, resource_size_t min,
+			  resource_size_t max)
+{
+	if (res->start < min)
+		res->start = min;
+	if (res->end > max)
+		res->end = max;
+}
+
+static bool resource_contains(struct resource *res1, struct resource *res2)
+{
+	return res1->start <= res2->start && res1->end >= res2->end;
+}
+
 /*
  * Find empty slot in the resource tree given range and alignment.
  */
@@ -370,8 +396,9 @@ static int find_resource(struct resource *root, struct resource *new,
 			 void *alignf_data)
 {
 	struct resource *this = root->child;
-	struct resource tmp = *new;
+	struct resource tmp = *new, avail, alloc;
 
+	tmp.flags = new->flags;
 	tmp.start = root->start;
 	/*
 	 * Skip past an allocated resource that starts at 0, since the assignment
@@ -386,17 +413,22 @@ static int find_resource(struct resource *root, struct resource *new,
 			tmp.end = this->start - 1;
 		else
 			tmp.end = root->end;
-		if (tmp.start < min)
-			tmp.start = min;
-		if (tmp.end > max)
-			tmp.end = max;
-		tmp.start = ALIGN(tmp.start, align);
-		if (alignf)
-			tmp.start = alignf(alignf_data, &tmp, size, align);
-		if (tmp.start < tmp.end && tmp.end - tmp.start >= size - 1) {
-			new->start = tmp.start;
-			new->end = tmp.start + size - 1;
-			return 0;
+
+		resource_clip(&tmp, min, max);
+		arch_remove_reservations(&tmp);
+
+		/* Check for overflow after ALIGN() */
+		avail = *new;
+		avail.start = ALIGN(tmp.start, align);
+		avail.end = tmp.end;
+		if (avail.start >= tmp.start) {
+			alloc.start = alignf(alignf_data, &avail, size, align);
+			alloc.end = alloc.start + size - 1;
+			if (resource_contains(&avail, &alloc)) {
+				new->start = alloc.start;
+				new->end = alloc.end;
+				return 0;
+			}
 		}
 		if (!this)
 			break;
@@ -428,6 +460,9 @@ int allocate_resource(struct resource *root, struct resource *new,
 {
 	int err;
 
+	if (!alignf)
+		alignf = simple_align_resource;
+
 	write_lock(&resource_lock);
 	err = find_resource(root, new, size, min, max, align, alignf, alignf_data);
 	if (err >= 0 && __request_resource(root, new))
@@ -452,6 +487,8 @@ static struct resource * __insert_resource(struct resource *parent, struct resou
 			return first;
 
 		if (first == parent)
+			return first;
+		if (WARN_ON(first == new))	/* duplicated insertion */
 			return first;
 
 		if ((first->start > new->start) || (first->end < new->end))

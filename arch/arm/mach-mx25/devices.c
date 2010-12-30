@@ -208,26 +208,6 @@ int __init imx25_register_gpios(void)
 	return mxc_gpio_init(imx_gpio_ports, ARRAY_SIZE(imx_gpio_ports));
 }
 
-static struct resource mx25_fec_resources[] = {
-	{
-		.start	= MX25_FEC_BASE_ADDR,
-		.end	= MX25_FEC_BASE_ADDR + 0xfff,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= MX25_INT_FEC,
-		.end	= MX25_INT_FEC,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mx25_fec_device = {
-	.name	= "fec",
-	.id	= 0,
-	.num_resources	= ARRAY_SIZE(mx25_fec_resources),
-	.resource	= mx25_fec_resources,
-};
-
 static struct resource mx25_rtc_resources[] = {
 	{
 		.start	= MX25_DRYICE_BASE_ADDR,
@@ -303,44 +283,6 @@ struct platform_device mx25_kpp_device = {
 	.id	= -1,
 	.num_resources	= ARRAY_SIZE(mx25_kpp_resources),
 	.resource	= mx25_kpp_resources,
-};
-
-static struct resource imx_ssi_resources0[] = {
-	{
-		.start	= MX25_SSI1_BASE_ADDR,
-		.end	= MX25_SSI1_BASE_ADDR + 0x3fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= MX25_INT_SSI1,
-		.end	= MX25_INT_SSI1,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct resource imx_ssi_resources1[] = {
-	{
-		.start	= MX25_SSI2_BASE_ADDR,
-		.end	= MX25_SSI2_BASE_ADDR + 0x3fff,
-		.flags	= IORESOURCE_MEM
-	}, {
-		.start	= MX25_INT_SSI2,
-		.end	= MX25_INT_SSI2,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device imx_ssi_device0 = {
-	.name = "imx-ssi",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(imx_ssi_resources0),
-	.resource = imx_ssi_resources0,
-};
-
-struct platform_device imx_ssi_device1 = {
-	.name = "imx-ssi",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(imx_ssi_resources1),
-	.resource = imx_ssi_resources1,
 };
 
 static struct resource mx25_csi_resources[] = {

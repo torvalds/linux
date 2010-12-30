@@ -104,6 +104,8 @@ static struct fb_ops nouveau_fbcon_ops = {
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
+	.fb_debug_enter = drm_fb_helper_debug_enter,
+	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
 static struct fb_ops nv04_fbcon_ops = {
@@ -117,6 +119,8 @@ static struct fb_ops nv04_fbcon_ops = {
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
+	.fb_debug_enter = drm_fb_helper_debug_enter,
+	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
 static struct fb_ops nv50_fbcon_ops = {
@@ -130,6 +134,8 @@ static struct fb_ops nv50_fbcon_ops = {
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
+	.fb_debug_enter = drm_fb_helper_debug_enter,
+	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
 static void nouveau_fbcon_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
@@ -250,6 +256,7 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA |
 			      FBINFO_HWACCEL_FILLRECT |
 			      FBINFO_HWACCEL_IMAGEBLIT;
+	info->flags |= FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &nouveau_fbcon_ops;
 	info->fix.smem_start = dev->mode_config.fb_base + nvbo->bo.offset -
 			       dev_priv->vm_vram_base;
@@ -280,6 +287,8 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 
 	if (dev_priv->channel && !nouveau_nofbaccel) {
 		switch (dev_priv->card_type) {
+		case NV_C0:
+			break;
 		case NV_50:
 			nv50_fbcon_accel_init(info);
 			info->fbops = &nv50_fbcon_ops;

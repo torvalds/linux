@@ -453,8 +453,66 @@ static int save_fpu_state32(struct pt_regs *regs, __siginfo_fpu_t __user *fpu)
 	return err;
 }
 
-static void setup_frame32(struct k_sigaction *ka, struct pt_regs *regs,
-			  int signo, sigset_t *oldset)
+/* The I-cache flush instruction only works in the primary ASI, which
+ * right now is the nucleus, aka. kernel space.
+ *
+ * Therefore we have to kick the instructions out using the kernel
+ * side linear mapping of the physical address backing the user
+ * instructions.
+ */
+static void flush_signal_insns(unsigned long address)
+{
+	unsigned long pstate, paddr;
+	pte_t *ptep, pte;
+	pgd_t *pgdp;
+	pud_t *pudp;
+	pmd_t *pmdp;
+
+	/* Commit all stores of the instructions we are about to flush.  */
+	wmb();
+
+	/* Disable cross-call reception.  In this way even a very wide
+	 * munmap() on another cpu can't tear down the page table
+	 * hierarchy from underneath us, since that can't complete
+	 * until the IPI tlb flush returns.
+	 */
+
+	__asm__ __volatile__("rdpr %%pstate, %0" : "=r" (pstate));
+	__asm__ __volatile__("wrpr %0, %1, %%pstate"
+				: : "r" (pstate), "i" (PSTATE_IE));
+
+	pgdp = pgd_offset(current->mm, address);
+	if (pgd_none(*pgdp))
+		goto out_irqs_on;
+	pudp = pud_offset(pgdp, address);
+	if (pud_none(*pudp))
+		goto out_irqs_on;
+	pmdp = pmd_offset(pudp, address);
+	if (pmd_none(*pmdp))
+		goto out_irqs_on;
+
+	ptep = pte_offset_map(pmdp, address);
+	pte = *ptep;
+	if (!pte_present(pte))
+		goto out_unmap;
+
+	paddr = (unsigned long) page_address(pte_page(pte));
+
+	__asm__ __volatile__("flush	%0 + %1"
+			     : /* no outputs */
+			     : "r" (paddr),
+			       "r" (address & (PAGE_SIZE - 1))
+			     : "memory");
+
+out_unmap:
+	pte_unmap(ptep);
+out_irqs_on:
+	__asm__ __volatile__("wrpr %0, 0x0, %%pstate" : : "r" (pstate));
+
+}
+
+static int setup_frame32(struct k_sigaction *ka, struct pt_regs *regs,
+			 int signo, sigset_t *oldset)
 {
 	struct signal_frame32 __user *sf;
 	int sigframe_size;
@@ -547,13 +605,7 @@ static void setup_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 	if (ka->ka_restorer) {
 		regs->u_regs[UREG_I7] = (unsigned long)ka->ka_restorer;
 	} else {
-		/* Flush instruction space. */
 		unsigned long address = ((unsigned long)&(sf->insns[0]));
-		pgd_t *pgdp = pgd_offset(current->mm, address);
-		pud_t *pudp = pud_offset(pgdp, address);
-		pmd_t *pmdp = pmd_offset(pudp, address);
-		pte_t *ptep;
-		pte_t pte;
 
 		regs->u_regs[UREG_I7] = (unsigned long) (&(sf->insns[0]) - 2);
 	
@@ -562,34 +614,22 @@ static void setup_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 		if (err)
 			goto sigsegv;
 
-		preempt_disable();
-		ptep = pte_offset_map(pmdp, address);
-		pte = *ptep;
-		if (pte_present(pte)) {
-			unsigned long page = (unsigned long)
-				page_address(pte_page(pte));
-
-			wmb();
-			__asm__ __volatile__("flush	%0 + %1"
-					     : /* no outputs */
-					     : "r" (page),
-					       "r" (address & (PAGE_SIZE - 1))
-					     : "memory");
-		}
-		pte_unmap(ptep);
-		preempt_enable();
+		flush_signal_insns(address);
 	}
-	return;
+	return 0;
 
 sigill:
 	do_exit(SIGILL);
+	return -EINVAL;
+
 sigsegv:
 	force_sigsegv(signo, current);
+	return -EFAULT;
 }
 
-static void setup_rt_frame32(struct k_sigaction *ka, struct pt_regs *regs,
-			     unsigned long signr, sigset_t *oldset,
-			     siginfo_t *info)
+static int setup_rt_frame32(struct k_sigaction *ka, struct pt_regs *regs,
+			    unsigned long signr, sigset_t *oldset,
+			    siginfo_t *info)
 {
 	struct rt_signal_frame32 __user *sf;
 	int sigframe_size;
@@ -687,12 +727,7 @@ static void setup_rt_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 	if (ka->ka_restorer)
 		regs->u_regs[UREG_I7] = (unsigned long)ka->ka_restorer;
 	else {
-		/* Flush instruction space. */
 		unsigned long address = ((unsigned long)&(sf->insns[0]));
-		pgd_t *pgdp = pgd_offset(current->mm, address);
-		pud_t *pudp = pud_offset(pgdp, address);
-		pmd_t *pmdp = pmd_offset(pudp, address);
-		pte_t *ptep;
 
 		regs->u_regs[UREG_I7] = (unsigned long) (&(sf->insns[0]) - 2);
 	
@@ -704,38 +739,32 @@ static void setup_rt_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 		if (err)
 			goto sigsegv;
 
-		preempt_disable();
-		ptep = pte_offset_map(pmdp, address);
-		if (pte_present(*ptep)) {
-			unsigned long page = (unsigned long)
-				page_address(pte_page(*ptep));
-
-			wmb();
-			__asm__ __volatile__("flush	%0 + %1"
-					     : /* no outputs */
-					     : "r" (page),
-					       "r" (address & (PAGE_SIZE - 1))
-					     : "memory");
-		}
-		pte_unmap(ptep);
-		preempt_enable();
+		flush_signal_insns(address);
 	}
-	return;
+	return 0;
 
 sigill:
 	do_exit(SIGILL);
+	return -EINVAL;
+
 sigsegv:
 	force_sigsegv(signr, current);
+	return -EFAULT;
 }
 
-static inline void handle_signal32(unsigned long signr, struct k_sigaction *ka,
-				   siginfo_t *info,
-				   sigset_t *oldset, struct pt_regs *regs)
+static inline int handle_signal32(unsigned long signr, struct k_sigaction *ka,
+				  siginfo_t *info,
+				  sigset_t *oldset, struct pt_regs *regs)
 {
+	int err;
+
 	if (ka->sa.sa_flags & SA_SIGINFO)
-		setup_rt_frame32(ka, regs, signr, oldset, info);
+		err = setup_rt_frame32(ka, regs, signr, oldset, info);
 	else
-		setup_frame32(ka, regs, signr, oldset);
+		err = setup_frame32(ka, regs, signr, oldset);
+
+	if (err)
+		return err;
 
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
@@ -743,6 +772,10 @@ static inline void handle_signal32(unsigned long signr, struct k_sigaction *ka,
 		sigaddset(&current->blocked,signr);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
+
+	tracehook_signal_handler(signr, info, ka, regs, 0);
+
+	return 0;
 }
 
 static inline void syscall_restart32(unsigned long orig_i0, struct pt_regs *regs,
@@ -789,16 +822,14 @@ void do_signal32(sigset_t *oldset, struct pt_regs * regs,
 	if (signr > 0) {
 		if (restart_syscall)
 			syscall_restart32(orig_i0, regs, &ka.sa);
-		handle_signal32(signr, &ka, &info, oldset, regs);
-
-		/* A signal was successfully delivered; the saved
-		 * sigmask will have been stored in the signal frame,
-		 * and will be restored by sigreturn, so we can simply
-		 * clear the TS_RESTORE_SIGMASK flag.
-		 */
-		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-
-		tracehook_signal_handler(signr, &info, &ka, regs, 0);
+		if (handle_signal32(signr, &ka, &info, oldset, regs) == 0) {
+			/* A signal was successfully delivered; the saved
+			 * sigmask will have been stored in the signal frame,
+			 * and will be restored by sigreturn, so we can simply
+			 * clear the TS_RESTORE_SIGMASK flag.
+			 */
+			current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
+		}
 		return;
 	}
 	if (restart_syscall &&
@@ -809,12 +840,14 @@ void do_signal32(sigset_t *oldset, struct pt_regs * regs,
 		regs->u_regs[UREG_I0] = orig_i0;
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
+		pt_regs_clear_syscall(regs);
 	}
 	if (restart_syscall &&
 	    regs->u_regs[UREG_I0] == ERESTART_RESTARTBLOCK) {
 		regs->u_regs[UREG_G1] = __NR_restart_syscall;
 		regs->tpc -= 4;
 		regs->tnpc -= 4;
+		pt_regs_clear_syscall(regs);
 	}
 
 	/* If there's no signal to deliver, we just put the saved sigmask

@@ -51,8 +51,6 @@ static struct drm_driver driver = {
 	.reclaim_buffers_locked = NULL,
 	.reclaim_buffers_idlelocked = via_reclaim_buffers_locked,
 	.lastclose = via_lastclose,
-	.get_map_ofs = drm_core_get_map_ofs,
-	.get_reg_ofs = drm_core_get_reg_ofs,
 	.ioctls = via_ioctls,
 	.fops = {
 		.owner = THIS_MODULE,
@@ -62,6 +60,7 @@ static struct drm_driver driver = {
 		.mmap = drm_mmap,
 		.poll = drm_poll,
 		.fasync = drm_fasync,
+		.llseek = noop_llseek,
 		},
 	.pci_driver = {
 		.name = DRIVER_NAME,

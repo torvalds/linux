@@ -631,6 +631,7 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 			     struct fs_disk_quota *fdq)
 {
 	struct inode *inode = &ip->i_inode;
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct address_space *mapping = inode->i_mapping;
 	unsigned long index = loc >> PAGE_CACHE_SHIFT;
 	unsigned offset = loc & (PAGE_CACHE_SIZE - 1);
@@ -658,11 +659,11 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	qd->qd_qb.qb_value = qp->qu_value;
 	if (fdq) {
 		if (fdq->d_fieldmask & FS_DQ_BSOFT) {
-			qp->qu_warn = cpu_to_be64(fdq->d_blk_softlimit);
+			qp->qu_warn = cpu_to_be64(fdq->d_blk_softlimit >> sdp->sd_fsb2bb_shift);
 			qd->qd_qb.qb_warn = qp->qu_warn;
 		}
 		if (fdq->d_fieldmask & FS_DQ_BHARD) {
-			qp->qu_limit = cpu_to_be64(fdq->d_blk_hardlimit);
+			qp->qu_limit = cpu_to_be64(fdq->d_blk_hardlimit >> sdp->sd_fsb2bb_shift);
 			qd->qd_qb.qb_limit = qp->qu_limit;
 		}
 	}
@@ -735,10 +736,8 @@ get_a_page:
 		goto out;
 
 	size = loc + sizeof(struct gfs2_quota);
-	if (size > inode->i_size) {
-		ip->i_disksize = size;
+	if (size > inode->i_size)
 		i_size_write(inode, size);
-	}
 	inode->i_mtime = inode->i_atime = CURRENT_TIME;
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
@@ -817,7 +816,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 		goto out_alloc;
 
 	if (nalloc)
-		blocks += al->al_rgd->rd_length + nalloc * ind_blocks + RES_STATFS;
+		blocks += gfs2_rg_blocks(al) + nalloc * ind_blocks + RES_STATFS;
 
 	error = gfs2_trans_begin(sdp, blocks, 0);
 	if (error)
@@ -1190,18 +1189,17 @@ static void gfs2_quota_change_in(struct gfs2_quota_change_host *qc, const void *
 int gfs2_quota_init(struct gfs2_sbd *sdp)
 {
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_qc_inode);
-	unsigned int blocks = ip->i_disksize >> sdp->sd_sb.sb_bsize_shift;
+	u64 size = i_size_read(sdp->sd_qc_inode);
+	unsigned int blocks = size >> sdp->sd_sb.sb_bsize_shift;
 	unsigned int x, slot = 0;
 	unsigned int found = 0;
 	u64 dblock;
 	u32 extlen = 0;
 	int error;
 
-	if (!ip->i_disksize || ip->i_disksize > (64 << 20) ||
-	    ip->i_disksize & (sdp->sd_sb.sb_bsize - 1)) {
-		gfs2_consist_inode(ip);
+	if (gfs2_check_internal_file_size(sdp->sd_qc_inode, 1, 64 << 20))
 		return -EIO;
-	}
+
 	sdp->sd_quota_slots = blocks * sdp->sd_qc_per_block;
 	sdp->sd_quota_chunks = DIV_ROUND_UP(sdp->sd_quota_slots, 8 * PAGE_SIZE);
 
@@ -1500,9 +1498,9 @@ static int gfs2_get_dqblk(struct super_block *sb, int type, qid_t id,
 	fdq->d_version = FS_DQUOT_VERSION;
 	fdq->d_flags = (type == QUOTA_USER) ? FS_USER_QUOTA : FS_GROUP_QUOTA;
 	fdq->d_id = id;
-	fdq->d_blk_hardlimit = be64_to_cpu(qlvb->qb_limit);
-	fdq->d_blk_softlimit = be64_to_cpu(qlvb->qb_warn);
-	fdq->d_bcount = be64_to_cpu(qlvb->qb_value);
+	fdq->d_blk_hardlimit = be64_to_cpu(qlvb->qb_limit) << sdp->sd_fsb2bb_shift;
+	fdq->d_blk_softlimit = be64_to_cpu(qlvb->qb_warn) << sdp->sd_fsb2bb_shift;
+	fdq->d_bcount = be64_to_cpu(qlvb->qb_value) << sdp->sd_fsb2bb_shift;
 
 	gfs2_glock_dq_uninit(&q_gh);
 out:
@@ -1569,10 +1567,10 @@ static int gfs2_set_dqblk(struct super_block *sb, int type, qid_t id,
 
 	/* If nothing has changed, this is a no-op */
 	if ((fdq->d_fieldmask & FS_DQ_BSOFT) &&
-	    (fdq->d_blk_softlimit == be64_to_cpu(qd->qd_qb.qb_warn)))
+	    ((fdq->d_blk_softlimit >> sdp->sd_fsb2bb_shift) == be64_to_cpu(qd->qd_qb.qb_warn)))
 		fdq->d_fieldmask ^= FS_DQ_BSOFT;
 	if ((fdq->d_fieldmask & FS_DQ_BHARD) &&
-	    (fdq->d_blk_hardlimit == be64_to_cpu(qd->qd_qb.qb_limit)))
+	    ((fdq->d_blk_hardlimit >> sdp->sd_fsb2bb_shift) == be64_to_cpu(qd->qd_qb.qb_limit)))
 		fdq->d_fieldmask ^= FS_DQ_BHARD;
 	if (fdq->d_fieldmask == 0)
 		goto out_i;
@@ -1589,6 +1587,7 @@ static int gfs2_set_dqblk(struct super_block *sb, int type, qid_t id,
 		error = gfs2_inplace_reserve(ip);
 		if (error)
 			goto out_alloc;
+		blocks += gfs2_rg_blocks(al);
 	}
 
 	error = gfs2_trans_begin(sdp, blocks + RES_DINODE + 1, 0);

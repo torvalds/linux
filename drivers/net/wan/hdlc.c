@@ -109,7 +109,7 @@ static int hdlc_device_event(struct notifier_block *this, unsigned long event,
 		return NOTIFY_DONE; /* not an HDLC device */
 
 	if (event != NETDEV_CHANGE)
-		return NOTIFY_DONE; /* Only interrested in carrier changes */
+		return NOTIFY_DONE; /* Only interested in carrier changes */
 
 	on = netif_carrier_ok(dev);
 

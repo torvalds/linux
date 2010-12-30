@@ -85,6 +85,7 @@ static const match_table_t tokens = {
 	{Opt_locktable, "locktable=%s"},
 	{Opt_hostdata, "hostdata=%s"},
 	{Opt_spectator, "spectator"},
+	{Opt_spectator, "norecovery"},
 	{Opt_ignore_local_fs, "ignore_local_fs"},
 	{Opt_localflocks, "localflocks"},
 	{Opt_localcaching, "localcaching"},
@@ -159,13 +160,13 @@ int gfs2_mount_args(struct gfs2_args *args, char *options)
 			args->ar_spectator = 1;
 			break;
 		case Opt_ignore_local_fs:
-			args->ar_ignore_local_fs = 1;
+			/* Retained for backwards compat only */
 			break;
 		case Opt_localflocks:
 			args->ar_localflocks = 1;
 			break;
 		case Opt_localcaching:
-			args->ar_localcaching = 1;
+			/* Retained for backwards compat only */
 			break;
 		case Opt_debug:
 			if (args->ar_errors == GFS2_ERRORS_PANIC) {
@@ -179,7 +180,7 @@ int gfs2_mount_args(struct gfs2_args *args, char *options)
 			args->ar_debug = 0;
 			break;
 		case Opt_upgrade:
-			args->ar_upgrade = 1;
+			/* Retained for backwards compat only */
 			break;
 		case Opt_acl:
 			args->ar_posix_acl = 1;
@@ -342,15 +343,14 @@ int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 {
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
+	u64 size = i_size_read(jd->jd_inode);
 
-	if (ip->i_disksize < (8 << 20) || ip->i_disksize > (1 << 30) ||
-	    (ip->i_disksize & (sdp->sd_sb.sb_bsize - 1))) {
-		gfs2_consist_inode(ip);
+	if (gfs2_check_internal_file_size(jd->jd_inode, 8 << 20, 1 << 30))
 		return -EIO;
-	}
-	jd->jd_blocks = ip->i_disksize >> sdp->sd_sb.sb_bsize_shift;
 
-	if (gfs2_write_alloc_required(ip, 0, ip->i_disksize)) {
+	jd->jd_blocks = size >> sdp->sd_sb.sb_bsize_shift;
+
+	if (gfs2_write_alloc_required(ip, 0, size)) {
 		gfs2_consist_inode(ip);
 		return -EIO;
 	}
@@ -857,7 +857,6 @@ restart:
 	gfs2_clear_rgrpd(sdp);
 	gfs2_jindex_free(sdp);
 	/*  Take apart glock structures and buffer lists  */
-	invalidate_inodes(sdp->sd_vfs);
 	gfs2_gl_hash_clear(sdp);
 	/*  Unmount the locking protocol  */
 	gfs2_lm_unmount(sdp);
@@ -1129,9 +1128,7 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 
 	/* Some flags must not be changed */
 	if (args_neq(&args, &sdp->sd_args, spectator) ||
-	    args_neq(&args, &sdp->sd_args, ignore_local_fs) ||
 	    args_neq(&args, &sdp->sd_args, localflocks) ||
-	    args_neq(&args, &sdp->sd_args, localcaching) ||
 	    args_neq(&args, &sdp->sd_args, meta))
 		return -EINVAL;
 
@@ -1188,7 +1185,7 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
  * node for later deallocation.
  */
 
-static void gfs2_drop_inode(struct inode *inode)
+static int gfs2_drop_inode(struct inode *inode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 
@@ -1197,26 +1194,7 @@ static void gfs2_drop_inode(struct inode *inode)
 		if (gl && test_bit(GLF_DEMOTE, &gl->gl_flags))
 			clear_nlink(inode);
 	}
-	generic_drop_inode(inode);
-}
-
-/**
- * gfs2_clear_inode - Deallocate an inode when VFS is done with it
- * @inode: The VFS inode
- *
- */
-
-static void gfs2_clear_inode(struct inode *inode)
-{
-	struct gfs2_inode *ip = GFS2_I(inode);
-
-	ip->i_gl->gl_object = NULL;
-	gfs2_glock_put(ip->i_gl);
-	ip->i_gl = NULL;
-	if (ip->i_iopen_gh.gh_gl) {
-		ip->i_iopen_gh.gh_gl->gl_object = NULL;
-		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
-	}
+	return generic_drop_inode(inode);
 }
 
 static int is_ancestor(const struct dentry *d1, const struct dentry *d2)
@@ -1253,16 +1231,10 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 		seq_printf(s, ",hostdata=%s", args->ar_hostdata);
 	if (args->ar_spectator)
 		seq_printf(s, ",spectator");
-	if (args->ar_ignore_local_fs)
-		seq_printf(s, ",ignore_local_fs");
 	if (args->ar_localflocks)
 		seq_printf(s, ",localflocks");
-	if (args->ar_localcaching)
-		seq_printf(s, ",localcaching");
 	if (args->ar_debug)
 		seq_printf(s, ",debug");
-	if (args->ar_upgrade)
-		seq_printf(s, ",upgrade");
 	if (args->ar_posix_acl)
 		seq_printf(s, ",acl");
 	if (args->ar_quota != GFS2_QUOTA_DEFAULT) {
@@ -1344,12 +1316,15 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
  * is safe, just less efficient.
  */
 
-static void gfs2_delete_inode(struct inode *inode)
+static void gfs2_evict_inode(struct inode *inode)
 {
 	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int error;
+
+	if (inode->i_nlink)
+		goto out;
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	if (unlikely(error)) {
@@ -1404,10 +1379,18 @@ out_unlock:
 	gfs2_holder_uninit(&ip->i_iopen_gh);
 	gfs2_glock_dq_uninit(&gh);
 	if (error && error != GLR_TRYFAILED && error != -EROFS)
-		fs_warn(sdp, "gfs2_delete_inode: %d\n", error);
+		fs_warn(sdp, "gfs2_evict_inode: %d\n", error);
 out:
 	truncate_inode_pages(&inode->i_data, 0);
-	clear_inode(inode);
+	end_writeback(inode);
+
+	ip->i_gl->gl_object = NULL;
+	gfs2_glock_put(ip->i_gl);
+	ip->i_gl = NULL;
+	if (ip->i_iopen_gh.gh_gl) {
+		ip->i_iopen_gh.gh_gl->gl_object = NULL;
+		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
+	}
 }
 
 static struct inode *gfs2_alloc_inode(struct super_block *sb)
@@ -1431,14 +1414,13 @@ const struct super_operations gfs2_super_ops = {
 	.alloc_inode		= gfs2_alloc_inode,
 	.destroy_inode		= gfs2_destroy_inode,
 	.write_inode		= gfs2_write_inode,
-	.delete_inode		= gfs2_delete_inode,
+	.evict_inode		= gfs2_evict_inode,
 	.put_super		= gfs2_put_super,
 	.sync_fs		= gfs2_sync_fs,
 	.freeze_fs 		= gfs2_freeze,
 	.unfreeze_fs		= gfs2_unfreeze,
 	.statfs			= gfs2_statfs,
 	.remount_fs		= gfs2_remount_fs,
-	.clear_inode		= gfs2_clear_inode,
 	.drop_inode		= gfs2_drop_inode,
 	.show_options		= gfs2_show_options,
 };

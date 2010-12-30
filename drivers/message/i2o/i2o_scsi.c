@@ -506,7 +506,7 @@ static struct i2o_driver i2o_scsi_driver = {
  *	Locks: takes the controller lock on error path only
  */
 
-static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
+static int i2o_scsi_queuecommand_lck(struct scsi_cmnd *SCpnt,
 				 void (*done) (struct scsi_cmnd *))
 {
 	struct i2o_controller *c;
@@ -528,7 +528,6 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	 *      Do the incoming paperwork
 	 */
 	i2o_dev = SCpnt->device->hostdata;
-	c = i2o_dev->iop;
 
 	SCpnt->scsi_done = done;
 
@@ -538,7 +537,7 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 		done(SCpnt);
 		goto exit;
 	}
-
+	c = i2o_dev->iop;
 	tid = i2o_dev->lct_data.tid;
 
 	osm_debug("qcmd: Tid = %03x\n", tid);
@@ -689,7 +688,9 @@ static int i2o_scsi_queuecommand(struct scsi_cmnd *SCpnt,
 
       exit:
 	return rc;
-};
+}
+
+static DEF_SCSI_QCMD(i2o_scsi_queuecommand)
 
 /**
  *	i2o_scsi_abort - abort a running command

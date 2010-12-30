@@ -20,6 +20,7 @@
 #include <linux/usb.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/usb/hcd.h>
+#include <linux/usb/quirks.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
@@ -757,6 +758,9 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 				clear_port_feature(hdev, port1,
 						   USB_PORT_FEAT_ENABLE);
 				portstatus &= ~USB_PORT_STAT_ENABLE;
+			} else {
+				/* Pretend that power was lost for USB3 devs */
+				portstatus &= ~USB_PORT_STAT_ENABLE;
 			}
 		}
 
@@ -1294,6 +1298,7 @@ descriptor_error:
 	return -ENODEV;
 }
 
+/* No BKL needed */
 static int
 hub_ioctl(struct usb_interface *intf, unsigned int code, void *user_data)
 {
@@ -1801,7 +1806,6 @@ int usb_new_device(struct usb_device *udev)
 	pm_runtime_set_active(&udev->dev);
 	pm_runtime_enable(&udev->dev);
 
-	usb_detect_quirks(udev);
 	err = usb_enumerate_device(udev);	/* Read descriptors */
 	if (err < 0)
 		goto fail;
@@ -2593,16 +2597,14 @@ static int hub_set_address(struct usb_device *udev, int devnum)
 		return 0;
 	if (udev->state != USB_STATE_DEFAULT)
 		return -EINVAL;
-	if (hcd->driver->address_device) {
+	if (hcd->driver->address_device)
 		retval = hcd->driver->address_device(hcd, udev);
-	} else {
+	else
 		retval = usb_control_msg(udev, usb_sndaddr0pipe(),
 				USB_REQ_SET_ADDRESS, 0, devnum, 0,
 				NULL, 0, USB_CTRL_SET_TIMEOUT);
-		if (retval == 0)
-			update_address(udev, devnum);
-	}
 	if (retval == 0) {
+		update_address(udev, devnum);
 		/* Device now using proper address. */
 		usb_set_device_state(udev, USB_STATE_ADDRESS);
 		usb_ep0_reinit(udev);
@@ -2859,13 +2861,16 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	else
 		i = udev->descriptor.bMaxPacketSize0;
 	if (le16_to_cpu(udev->ep0.desc.wMaxPacketSize) != i) {
-		if (udev->speed != USB_SPEED_FULL ||
+		if (udev->speed == USB_SPEED_LOW ||
 				!(i == 8 || i == 16 || i == 32 || i == 64)) {
-			dev_err(&udev->dev, "ep0 maxpacket = %d\n", i);
+			dev_err(&udev->dev, "Invalid ep0 maxpacket: %d\n", i);
 			retval = -EMSGSIZE;
 			goto fail;
 		}
-		dev_dbg(&udev->dev, "ep0 maxpacket = %d\n", i);
+		if (udev->speed == USB_SPEED_FULL)
+			dev_dbg(&udev->dev, "ep0 maxpacket = %d\n", i);
+		else
+			dev_warn(&udev->dev, "Using ep0 maxpacket: %d\n", i);
 		udev->ep0.desc.wMaxPacketSize = cpu_to_le16(i);
 		usb_ep0_reinit(udev);
 	}
@@ -2880,7 +2885,9 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	}
 
 	retval = 0;
-
+	/* notify HCD that we have a device connected and addressed */
+	if (hcd->driver->update_device)
+		hcd->driver->update_device(hcd, udev);
 fail:
 	if (retval) {
 		hub_port_disable(hub, port1, 0);
@@ -3094,22 +3101,27 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 			udev->speed = USB_SPEED_UNKNOWN;
 
 		/*
-		 * xHCI needs to issue an address device command later
-		 * in the hub_port_init sequence for SS/HS/FS/LS devices.
+		 * Set the address.
+		 * Note xHCI needs to issue an address device command later
+		 * in the hub_port_init sequence for SS/HS/FS/LS devices,
+		 * and xHC will assign an address to the device. But use
+		 * kernel assigned address here, to avoid any address conflict
+		 * issue.
 		 */
-		if (!(hcd->driver->flags & HCD_USB3)) {
-			/* set the address */
-			choose_address(udev);
-			if (udev->devnum <= 0) {
-				status = -ENOTCONN;	/* Don't retry */
-				goto loop;
-			}
+		choose_address(udev);
+		if (udev->devnum <= 0) {
+			status = -ENOTCONN;	/* Don't retry */
+			goto loop;
 		}
 
 		/* reset (non-USB 3.0 devices) and get descriptor */
 		status = hub_port_init(hub, udev, port1, i);
 		if (status < 0)
 			goto loop;
+
+		usb_detect_quirks(udev);
+		if (udev->quirks & USB_QUIRK_DELAY_INIT)
+			msleep(1000);
 
 		/* consecutive bus-powered hubs aren't reliable; they can
 		 * violate the voltage drop budget.  if the new child has
@@ -3463,7 +3475,7 @@ static struct usb_driver hub_driver = {
 	.reset_resume =	hub_reset_resume,
 	.pre_reset =	hub_pre_reset,
 	.post_reset =	hub_post_reset,
-	.ioctl =	hub_ioctl,
+	.unlocked_ioctl = hub_ioctl,
 	.id_table =	hub_id_table,
 	.supports_autosuspend =	1,
 };
@@ -3622,7 +3634,7 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 	}
 
 	if (!parent_hdev) {
-		/* this requires hcd-specific logic; see OHCI hc_restart() */
+		/* this requires hcd-specific logic; see ohci_restart() */
 		dev_dbg(&udev->dev, "%s for root hub!\n", __func__);
 		return -EISDIR;
 	}

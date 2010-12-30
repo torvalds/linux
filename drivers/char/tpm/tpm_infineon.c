@@ -7,7 +7,7 @@
  * Copyright (C) 2005, Marcel Selhorst <m.selhorst@sirrix.com>
  * Sirrix AG - security technologies, http://www.sirrix.com and
  * Applied Data Security Group, Ruhr-University Bochum, Germany
- * Project-Homepage: http://www.prosec.rub.de/tpm
+ * Project-Homepage: http://www.trust.rub.de/projects/linux-device-driver-infineon-tpm/ 
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as

@@ -38,8 +38,8 @@ static const struct rpc_authops *auth_flavors[RPC_AUTH_MAXFLAVOR] = {
 static LIST_HEAD(cred_unused);
 static unsigned long number_cred_unused;
 
-#define MAX_HASHTABLE_BITS (10) 
-static int param_set_hashtbl_sz(const char *val, struct kernel_param *kp)
+#define MAX_HASHTABLE_BITS (14)
+static int param_set_hashtbl_sz(const char *val, const struct kernel_param *kp)
 {
 	unsigned long num;
 	unsigned int nbits;
@@ -61,7 +61,7 @@ out_inval:
 	return -EINVAL;
 }
 
-static int param_get_hashtbl_sz(char *buffer, struct kernel_param *kp)
+static int param_get_hashtbl_sz(char *buffer, const struct kernel_param *kp)
 {
 	unsigned int nbits;
 
@@ -70,6 +70,11 @@ static int param_get_hashtbl_sz(char *buffer, struct kernel_param *kp)
 }
 
 #define param_check_hashtbl_sz(name, p) __param_check(name, p, unsigned int);
+
+static struct kernel_param_ops param_ops_hashtbl_sz = {
+	.set = param_set_hashtbl_sz,
+	.get = param_get_hashtbl_sz,
+};
 
 module_param_named(auth_hashtable_size, auth_hashbits, hashtbl_sz, 0644);
 MODULE_PARM_DESC(auth_hashtable_size, "RPC credential cache hashtable size");
@@ -590,7 +595,7 @@ rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp,
 int
 rpcauth_refreshcred(struct rpc_task *task)
 {
-	struct rpc_cred	*cred = task->tk_rqstp->rq_cred;
+	struct rpc_cred	*cred;
 	int err;
 
 	cred = task->tk_rqstp->rq_cred;
@@ -653,7 +658,7 @@ out1:
 	return err;
 }
 
-void __exit rpcauth_remove_module(void)
+void rpcauth_remove_module(void)
 {
 	rpc_destroy_authunix();
 	rpc_destroy_generic_auth();

@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/irq.h>
 #include <asm/addrspace.h>
 #include <asm/io.h>
 #include <asm/mach-db1x00/bcsr.h>

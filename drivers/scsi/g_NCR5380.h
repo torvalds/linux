@@ -46,7 +46,7 @@
 static int generic_NCR5380_abort(Scsi_Cmnd *);
 static int generic_NCR5380_detect(struct scsi_host_template *);
 static int generic_NCR5380_release_resources(struct Scsi_Host *);
-static int generic_NCR5380_queue_command(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
+static int generic_NCR5380_queue_command(struct Scsi_Host *, struct scsi_cmnd *);
 static int generic_NCR5380_bus_reset(Scsi_Cmnd *);
 static const char* generic_NCR5380_info(struct Scsi_Host *);
 
@@ -63,7 +63,7 @@ static const char* generic_NCR5380_info(struct Scsi_Host *);
 #define __STRVAL(x) #x
 #define STRVAL(x) __STRVAL(x)
 
-#ifndef CONFIG_SCSI_G_NCR5380_MEM
+#ifndef SCSI_G_NCR5380_MEM
 
 #define NCR5380_map_config port
 #define NCR5380_map_type int
@@ -91,7 +91,7 @@ static const char* generic_NCR5380_info(struct Scsi_Host *);
     NCR5380_map_name = (NCR5380_map_type)((instance)->NCR5380_instance_name)
 
 #else 
-/* therefore CONFIG_SCSI_G_NCR5380_MEM */
+/* therefore SCSI_G_NCR5380_MEM */
 
 #define NCR5380_map_config memory
 #define NCR5380_map_type unsigned long
@@ -114,7 +114,7 @@ static const char* generic_NCR5380_info(struct Scsi_Host *);
     register void __iomem *iomem
 
 #define NCR5380_setup(instance) \
-    iomem = (((struct NCR5380_hostdata *)(instance)->hostdata).iomem)
+    iomem = (((struct NCR5380_hostdata *)(instance)->hostdata)->iomem)
 
 #endif
 

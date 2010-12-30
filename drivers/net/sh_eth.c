@@ -798,7 +798,7 @@ static int sh_eth_rx(struct net_device *ndev)
 			skb->dev = ndev;
 			sh_eth_set_receive_align(skb);
 
-			skb->ip_summed = CHECKSUM_NONE;
+			skb_checksum_none_assert(skb);
 			rxdesc->addr = virt_to_phys(PTR_ALIGN(skb->data, 4));
 		}
 		if (entry >= RX_RING_SIZE - 1)
@@ -1031,7 +1031,7 @@ static int sh_eth_phy_init(struct net_device *ndev)
 	mdp->duplex = -1;
 
 	/* Try connect to PHY */
-	phydev = phy_connect(ndev, phy_id, &sh_eth_adjust_link,
+	phydev = phy_connect(ndev, phy_id, sh_eth_adjust_link,
 				0, PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(phydev)) {
 		dev_err(&ndev->dev, "phy_connect failed\n");
@@ -1437,7 +1437,7 @@ static const struct net_device_ops sh_eth_netdev_ops = {
 
 static int sh_eth_drv_probe(struct platform_device *pdev)
 {
-	int ret, i, devno = 0;
+	int ret, devno = 0;
 	struct resource *res;
 	struct net_device *ndev = NULL;
 	struct sh_eth_private *mdp;

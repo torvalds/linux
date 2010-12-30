@@ -37,6 +37,23 @@ void blk_queue_prep_rq(struct request_queue *q, prep_rq_fn *pfn)
 EXPORT_SYMBOL(blk_queue_prep_rq);
 
 /**
+ * blk_queue_unprep_rq - set an unprepare_request function for queue
+ * @q:		queue
+ * @ufn:	unprepare_request function
+ *
+ * It's possible for a queue to register an unprepare_request callback
+ * which is invoked before the request is finally completed. The goal
+ * of the function is to deallocate any data that was allocated in the
+ * prepare_request callback.
+ *
+ */
+void blk_queue_unprep_rq(struct request_queue *q, unprep_rq_fn *ufn)
+{
+	q->unprep_rq_fn = ufn;
+}
+EXPORT_SYMBOL(blk_queue_unprep_rq);
+
+/**
  * blk_queue_merge_bvec - set a merge_bvec function for queue
  * @q:		queue
  * @mbfn:	merge_bvec_fn
@@ -94,6 +111,7 @@ EXPORT_SYMBOL_GPL(blk_queue_lld_busy);
 void blk_set_default_limits(struct queue_limits *lim)
 {
 	lim->max_segments = BLK_MAX_SEGMENTS;
+	lim->max_integrity_segments = 0;
 	lim->seg_boundary_mask = BLK_SEG_BOUNDARY_MASK;
 	lim->max_segment_size = BLK_MAX_SEGMENT_SIZE;
 	lim->max_sectors = BLK_DEF_MAX_SECTORS;
@@ -108,7 +126,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->alignment_offset = 0;
 	lim->io_opt = 0;
 	lim->misaligned = 0;
-	lim->no_cluster = 0;
+	lim->cluster = 1;
 }
 EXPORT_SYMBOL(blk_set_default_limits);
 
@@ -196,7 +214,7 @@ void blk_queue_bounce_limit(struct request_queue *q, u64 dma_mask)
 	 */
 	if (b_pfn < (min_t(u64, 0xffffffffUL, BLK_BOUNCE_HIGH) >> PAGE_SHIFT))
 		dma = 1;
-	q->limits.bounce_pfn = max_low_pfn;
+	q->limits.bounce_pfn = max(max_low_pfn, b_pfn);
 #else
 	if (b_pfn < blk_max_low_pfn)
 		dma = 1;
@@ -211,8 +229,8 @@ void blk_queue_bounce_limit(struct request_queue *q, u64 dma_mask)
 EXPORT_SYMBOL(blk_queue_bounce_limit);
 
 /**
- * blk_queue_max_hw_sectors - set max sectors for a request for this queue
- * @q:  the request queue for the device
+ * blk_limits_max_hw_sectors - set hard and soft limit of max sectors for request
+ * @limits: the queue limits
  * @max_hw_sectors:  max hardware sectors in the usual 512b unit
  *
  * Description:
@@ -226,7 +244,7 @@ EXPORT_SYMBOL(blk_queue_bounce_limit);
  *    per-device basis in /sys/block/<device>/queue/max_sectors_kb.
  *    The soft limit can not exceed max_hw_sectors.
  **/
-void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_sectors)
+void blk_limits_max_hw_sectors(struct queue_limits *limits, unsigned int max_hw_sectors)
 {
 	if ((max_hw_sectors << 9) < PAGE_CACHE_SIZE) {
 		max_hw_sectors = 1 << (PAGE_CACHE_SHIFT - 9);
@@ -234,9 +252,23 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_secto
 		       __func__, max_hw_sectors);
 	}
 
-	q->limits.max_hw_sectors = max_hw_sectors;
-	q->limits.max_sectors = min_t(unsigned int, max_hw_sectors,
-				      BLK_DEF_MAX_SECTORS);
+	limits->max_hw_sectors = max_hw_sectors;
+	limits->max_sectors = min_t(unsigned int, max_hw_sectors,
+				    BLK_DEF_MAX_SECTORS);
+}
+EXPORT_SYMBOL(blk_limits_max_hw_sectors);
+
+/**
+ * blk_queue_max_hw_sectors - set max sectors for a request for this queue
+ * @q:  the request queue for the device
+ * @max_hw_sectors:  max hardware sectors in the usual 512b unit
+ *
+ * Description:
+ *    See description for blk_limits_max_hw_sectors().
+ **/
+void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_sectors)
+{
+	blk_limits_max_hw_sectors(&q->limits, max_hw_sectors);
 }
 EXPORT_SYMBOL(blk_queue_max_hw_sectors);
 
@@ -326,7 +358,7 @@ EXPORT_SYMBOL(blk_queue_logical_block_size);
  *   hardware can operate on without reverting to read-modify-write
  *   operations.
  */
-void blk_queue_physical_block_size(struct request_queue *q, unsigned short size)
+void blk_queue_physical_block_size(struct request_queue *q, unsigned int size)
 {
 	q->limits.physical_block_size = size;
 
@@ -438,11 +470,6 @@ void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
 }
 EXPORT_SYMBOL(blk_queue_io_opt);
 
-/*
- * Returns the minimum that is _not_ zero, unless both are zero.
- */
-#define min_not_zero(l, r) (l == 0) ? r : ((r == 0) ? l : min(l, r))
-
 /**
  * blk_queue_stack_limits - inherit underlying queue limits for stacked drivers
  * @t:	the stacking driver (top)
@@ -451,15 +478,6 @@ EXPORT_SYMBOL(blk_queue_io_opt);
 void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 {
 	blk_stack_limits(&t->limits, &b->limits, 0);
-
-	if (!t->queue_lock)
-		WARN_ON_ONCE(1);
-	else if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags)) {
-		unsigned long flags;
-		spin_lock_irqsave(t->queue_lock, flags);
-		queue_flag_clear(QUEUE_FLAG_CLUSTER, t);
-		spin_unlock_irqrestore(t->queue_lock, flags);
-	}
 }
 EXPORT_SYMBOL(blk_queue_stack_limits);
 
@@ -497,6 +515,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 					    b->seg_boundary_mask);
 
 	t->max_segments = min_not_zero(t->max_segments, b->max_segments);
+	t->max_integrity_segments = min_not_zero(t->max_integrity_segments,
+						 b->max_integrity_segments);
 
 	t->max_segment_size = min_not_zero(t->max_segment_size,
 					   b->max_segment_size);
@@ -530,7 +550,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	t->io_min = max(t->io_min, b->io_min);
 	t->io_opt = lcm(t->io_opt, b->io_opt);
 
-	t->no_cluster |= b->no_cluster;
+	t->cluster &= b->cluster;
 	t->discard_zeroes_data &= b->discard_zeroes_data;
 
 	/* Physical block size a multiple of the logical block size? */
@@ -626,7 +646,6 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 		       sector_t offset)
 {
 	struct request_queue *t = disk->queue;
-	struct request_queue *b = bdev_get_queue(bdev);
 
 	if (bdev_stack_limits(&t->limits, bdev, offset >> 9) < 0) {
 		char top[BDEVNAME_SIZE], bottom[BDEVNAME_SIZE];
@@ -636,17 +655,6 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 
 		printk(KERN_NOTICE "%s: Warning: Device %s is misaligned\n",
 		       top, bottom);
-	}
-
-	if (!t->queue_lock)
-		WARN_ON_ONCE(1);
-	else if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(t->queue_lock, flags);
-		if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags))
-			queue_flag_clear(QUEUE_FLAG_CLUSTER, t);
-		spin_unlock_irqrestore(t->queue_lock, flags);
 	}
 }
 EXPORT_SYMBOL(disk_stack_limits);
@@ -776,6 +784,26 @@ void blk_queue_update_dma_alignment(struct request_queue *q, int mask)
 		q->dma_alignment = mask;
 }
 EXPORT_SYMBOL(blk_queue_update_dma_alignment);
+
+/**
+ * blk_queue_flush - configure queue's cache flush capability
+ * @q:		the request queue for the device
+ * @flush:	0, REQ_FLUSH or REQ_FLUSH | REQ_FUA
+ *
+ * Tell block layer cache flush capability of @q.  If it supports
+ * flushing, REQ_FLUSH should be set.  If it supports bypassing
+ * write cache for individual writes, REQ_FUA should be set.
+ */
+void blk_queue_flush(struct request_queue *q, unsigned int flush)
+{
+	WARN_ON_ONCE(flush & ~(REQ_FLUSH | REQ_FUA));
+
+	if (WARN_ON_ONCE(!(flush & REQ_FLUSH) && (flush & REQ_FUA)))
+		flush &= ~REQ_FUA;
+
+	q->flush_flags = flush & (REQ_FLUSH | REQ_FUA);
+}
+EXPORT_SYMBOL_GPL(blk_queue_flush);
 
 static int __init blk_settings_init(void)
 {

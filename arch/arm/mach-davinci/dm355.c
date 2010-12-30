@@ -359,8 +359,8 @@ static struct clk_lookup dm355_clks[] = {
 	CLK(NULL, "uart1", &uart1_clk),
 	CLK(NULL, "uart2", &uart2_clk),
 	CLK("i2c_davinci.1", NULL, &i2c_clk),
-	CLK("davinci-asp.0", NULL, &asp0_clk),
-	CLK("davinci-asp.1", NULL, &asp1_clk),
+	CLK("davinci-mcbsp.0", NULL, &asp0_clk),
+	CLK("davinci-mcbsp.1", NULL, &asp1_clk),
 	CLK("davinci_mmc.0", NULL, &mmcsd0_clk),
 	CLK("davinci_mmc.1", NULL, &mmcsd1_clk),
 	CLK("spi_davinci.0", NULL, &spi0_clk),
@@ -664,7 +664,7 @@ static struct resource dm355_asp1_resources[] = {
 };
 
 static struct platform_device dm355_asp1_device = {
-	.name		= "davinci-asp",
+	.name		= "davinci-mcbsp",
 	.id		= 1,
 	.num_resources	= ARRAY_SIZE(dm355_asp1_resources),
 	.resource	= dm355_asp1_resources,
@@ -769,8 +769,7 @@ static struct map_desc dm355_io_desc[] = {
 		.virtual	= SRAM_VIRT,
 		.pfn		= __phys_to_pfn(0x00010000),
 		.length		= SZ_32K,
-		/* MT_MEMORY_NONCACHED requires supersection alignment */
-		.type		= MT_DEVICE,
+		.type		= MT_MEMORY_NONCACHED,
 	},
 };
 

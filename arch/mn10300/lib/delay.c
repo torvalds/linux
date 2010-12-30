@@ -38,14 +38,14 @@ EXPORT_SYMBOL(__delay);
  */
 void __udelay(unsigned long usecs)
 {
-	signed long ioclk, stop;
+	unsigned long start, stop, cnt;
 
 	/* usecs * CLK / 1E6 */
 	stop = __muldiv64u(usecs, MN10300_TSCCLK, 1000000);
-	stop = TMTSCBC - stop;
+	start = TMTSCBC;
 
 	do {
-		ioclk = TMTSCBC;
-	} while (stop < ioclk);
+		cnt = start - TMTSCBC;
+	} while (cnt < stop);
 }
 EXPORT_SYMBOL(__udelay);

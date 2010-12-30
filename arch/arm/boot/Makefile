@@ -14,16 +14,18 @@
 MKIMAGE         := $(srctree)/scripts/mkuboot.sh
 
 ifneq ($(MACHINE),)
--include $(srctree)/$(MACHINE)/Makefile.boot
+include $(srctree)/$(MACHINE)/Makefile.boot
 endif
 
 # Note: the following conditions must always be true:
+#   ZRELADDR == virt_to_phys(PAGE_OFFSET + TEXT_OFFSET)
 #   PARAMS_PHYS must be within 4MB of ZRELADDR
 #   INITRD_PHYS must be in RAM
+ZRELADDR    := $(zreladdr-y)
 PARAMS_PHYS := $(params_phys-y)
 INITRD_PHYS := $(initrd_phys-y)
 
-export INITRD_PHYS PARAMS_PHYS
+export ZRELADDR INITRD_PHYS PARAMS_PHYS
 
 targets := Image zImage xipImage bootpImage uImage
 
@@ -65,15 +67,10 @@ quiet_cmd_uimage = UIMAGE  $@
 ifeq ($(CONFIG_ZBOOT_ROM),y)
 $(obj)/uImage: LOADADDR=$(CONFIG_ZBOOT_ROM_TEXT)
 else
-$(obj)/uImage: LOADADDR=$(CONFIG_ZRELADDR)
+$(obj)/uImage: LOADADDR=$(ZRELADDR)
 endif
 
-ifeq ($(CONFIG_THUMB2_KERNEL),y)
-# Set bit 0 to 1 so that "mov pc, rx" switches to Thumb-2 mode
-$(obj)/uImage: STARTADDR=$(shell echo $(LOADADDR) | sed -e "s/.$$/1/")
-else
 $(obj)/uImage: STARTADDR=$(LOADADDR)
-endif
 
 $(obj)/uImage:	$(obj)/zImage FORCE
 	$(call if_changed,uimage)

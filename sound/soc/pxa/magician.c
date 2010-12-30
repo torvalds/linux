@@ -32,7 +32,6 @@
 #include <mach/magician.h>
 #include <asm/mach-types.h>
 #include "../codecs/uda1380.h"
-#include "pxa2xx-pcm.h"
 #include "pxa2xx-i2s.h"
 #include "pxa-ssp.h"
 
@@ -71,10 +70,14 @@ static void magician_ext_control(struct snd_soc_codec *codec)
 static int magician_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
+
+	mutex_lock(&codec->mutex);
 
 	/* check the jack status at stream startup */
 	magician_ext_control(codec);
+
+	mutex_unlock(&codec->mutex);
 
 	return 0;
 }
@@ -86,8 +89,8 @@ static int magician_playback_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int acps, acds, width, rate;
 	unsigned int div4 = PXA_SSP_CLK_SCDB_4;
 	int ret = 0;
@@ -227,8 +230,8 @@ static int magician_capture_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret = 0;
 
 	/* set codec DAI configuration */
@@ -393,8 +396,9 @@ static const struct snd_kcontrol_new uda1380_magician_controls[] = {
 /*
  * Logic for a uda1380 as connected on a HTC Magician
  */
-static int magician_uda1380_init(struct snd_soc_codec *codec)
+static int magician_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
 	int err;
 
 	/* NC codec pins */
@@ -427,16 +431,20 @@ static struct snd_soc_dai_link magician_dai[] = {
 {
 	.name = "uda1380",
 	.stream_name = "UDA1380 Playback",
-	.cpu_dai = &pxa_ssp_dai[PXA_DAI_SSP1],
-	.codec_dai = &uda1380_dai[UDA1380_DAI_PLAYBACK],
+	.cpu_dai_name = "pxa-ssp-dai.0",
+	.codec_dai_name = "uda1380-hifi-playback",
+	.platform_name = "pxa-pcm-audio",
+	.codec_name = "uda1380-codec.0-0018",
 	.init = magician_uda1380_init,
 	.ops = &magician_playback_ops,
 },
 {
 	.name = "uda1380",
 	.stream_name = "UDA1380 Capture",
-	.cpu_dai = &pxa_i2s_dai,
-	.codec_dai = &uda1380_dai[UDA1380_DAI_CAPTURE],
+	.cpu_dai_name = "pxa2xx-i2s",
+	.codec_dai_name = "uda1380-hifi-capture",
+	.platform_name = "pxa-pcm-audio",
+	.codec_name = "uda1380-codec.0-0018",
 	.ops = &magician_capture_ops,
 }
 };
@@ -446,13 +454,7 @@ static struct snd_soc_card snd_soc_card_magician = {
 	.name = "Magician",
 	.dai_link = magician_dai,
 	.num_links = ARRAY_SIZE(magician_dai),
-	.platform = &pxa2xx_soc_platform,
-};
 
-/* magician audio subsystem */
-static struct snd_soc_device magician_snd_devdata = {
-	.card = &snd_soc_card_magician,
-	.codec_dev = &soc_codec_dev_uda1380,
 };
 
 static struct platform_device *magician_snd_device;
@@ -514,8 +516,7 @@ static int __init magician_init(void)
 		goto err_pdev;
 	}
 
-	platform_set_drvdata(magician_snd_device, &magician_snd_devdata);
-	magician_snd_devdata.dev = &magician_snd_device->dev;
+	platform_set_drvdata(magician_snd_device, &snd_soc_card_magician);
 	ret = platform_device_add(magician_snd_device);
 	if (ret) {
 		platform_device_put(magician_snd_device);

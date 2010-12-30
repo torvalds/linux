@@ -109,7 +109,7 @@ static int jz4740_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct jz4740_pcm_config *config;
 
-	config = snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
+	config = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	if (!config)
 		return 0;
@@ -310,14 +310,14 @@ int jz4740_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
-	if (dai->playback.channels_min) {
+	if (dai->driver->playback.channels_min) {
 		ret = jz4740_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
 			goto err;
 	}
 
-	if (dai->capture.channels_min) {
+	if (dai->driver->capture.channels_min) {
 		ret = jz4740_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
@@ -328,22 +328,20 @@ err:
 	return ret;
 }
 
-struct snd_soc_platform jz4740_soc_platform = {
-		.name		= "jz4740-pcm",
-		.pcm_ops	= &jz4740_pcm_ops,
+static struct snd_soc_platform_driver jz4740_soc_platform = {
+		.ops		= &jz4740_pcm_ops,
 		.pcm_new	= jz4740_pcm_new,
 		.pcm_free	= jz4740_pcm_free,
 };
-EXPORT_SYMBOL_GPL(jz4740_soc_platform);
 
 static int __devinit jz4740_pcm_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_platform(&jz4740_soc_platform);
+	return snd_soc_register_platform(&pdev->dev, &jz4740_soc_platform);
 }
 
 static int __devexit jz4740_pcm_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_platform(&jz4740_soc_platform);
+	snd_soc_unregister_platform(&pdev->dev);
 	return 0;
 }
 
@@ -351,7 +349,7 @@ static struct platform_driver jz4740_pcm_driver = {
 	.probe = jz4740_pcm_probe,
 	.remove = __devexit_p(jz4740_pcm_remove),
 	.driver = {
-		.name = "jz4740-pcm",
+		.name = "jz4740-pcm-audio",
 		.owner = THIS_MODULE,
 	},
 };

@@ -33,11 +33,13 @@
 #define MWAVE_MINOR		219	/* ACP/Mwave Modem */
 #define MPT_MINOR		220
 #define MPT2SAS_MINOR		221
+#define UINPUT_MINOR		223
 #define HPET_MINOR		228
 #define FUSE_MINOR		229
 #define KVM_MINOR		232
 #define BTRFS_MINOR		234
 #define AUTOFS_MINOR		235
+#define MAPPER_CTRL_MINOR	236
 #define MISC_DYNAMIC_MINOR	255
 
 struct device;

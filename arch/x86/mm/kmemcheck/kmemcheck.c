@@ -631,6 +631,8 @@ bool kmemcheck_fault(struct pt_regs *regs, unsigned long address,
 	if (!pte)
 		return false;
 
+	WARN_ON_ONCE(in_nmi());
+
 	if (error_code & 2)
 		kmemcheck_access(regs, address, KMEMCHECK_WRITE);
 	else

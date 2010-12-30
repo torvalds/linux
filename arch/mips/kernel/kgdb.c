@@ -283,7 +283,7 @@ static int kgdb_mips_notify(struct notifier_block *self, unsigned long cmd,
 	struct pt_regs *regs = args->regs;
 	int trap = (regs->cp0_cause & 0x7c) >> 2;
 
-	/* Userpace events, ignore. */
+	/* Userspace events, ignore. */
 	if (user_mode(regs))
 		return NOTIFY_DONE;
 

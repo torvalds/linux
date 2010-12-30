@@ -99,6 +99,7 @@ static __inline__ void __arch_decomp_setup(unsigned long arch_id)
 		uart_base = MX3X_UART2_BASE_ADDR;
 		break;
 	case MACH_TYPE_MX51_BABBAGE:
+	case MACH_TYPE_EUKREA_CPUIMX51SD:
 		uart_base = MX51_UART1_BASE_ADDR;
 		break;
 	default:

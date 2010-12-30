@@ -139,7 +139,7 @@ exit:
 }
 
 int prism2_add_key(struct wiphy *wiphy, struct net_device *dev,
-		   u8 key_index, const u8 *mac_addr,
+		   u8 key_index, bool pairwise, const u8 *mac_addr,
 		   struct key_params *params)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
@@ -198,7 +198,7 @@ exit:
 }
 
 int prism2_get_key(struct wiphy *wiphy, struct net_device *dev,
-		   u8 key_index, const u8 *mac_addr, void *cookie,
+		   u8 key_index, bool pairwise, const u8 *mac_addr, void *cookie,
 		   void (*callback)(void *cookie, struct key_params*))
 {
 	wlandevice_t *wlandev = dev->ml_priv;
@@ -219,6 +219,7 @@ int prism2_get_key(struct wiphy *wiphy, struct net_device *dev,
 		return -ENOENT;
 	params.key_len = len;
 	params.key = wlandev->wep_keys[key_index];
+	params.seq_len = 0;
 
 	callback(cookie, &params);
 
@@ -226,7 +227,7 @@ int prism2_get_key(struct wiphy *wiphy, struct net_device *dev,
 }
 
 int prism2_del_key(struct wiphy *wiphy, struct net_device *dev,
-		   u8 key_index, const u8 *mac_addr)
+		   u8 key_index, bool pairwise, const u8 *mac_addr)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
 	u32 did;
@@ -735,6 +736,8 @@ struct wiphy *wlan_create_wiphy(struct device *dev, wlandevice_t *wlandev)
 	priv->band.n_channels = ARRAY_SIZE(prism2_channels);
 	priv->band.bitrates = priv->rates;
 	priv->band.n_bitrates = ARRAY_SIZE(prism2_rates);
+	priv->band.band = IEEE80211_BAND_2GHZ;
+	priv->band.ht_cap.ht_supported = false;
 	wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
 
 	set_wiphy_dev(wiphy, dev);

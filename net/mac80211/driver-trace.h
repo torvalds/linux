@@ -25,12 +25,14 @@ static inline void trace_ ## name(proto) {}
 #define STA_PR_FMT	" sta:%pM"
 #define STA_PR_ARG	__entry->sta_addr
 
-#define VIF_ENTRY	__field(enum nl80211_iftype, vif_type) __field(void *, sdata) \
+#define VIF_ENTRY	__field(enum nl80211_iftype, vif_type) __field(void *, sdata)	\
+			__field(bool, p2p)						\
 			__string(vif_name, sdata->dev ? sdata->dev->name : "<nodev>")
-#define VIF_ASSIGN	__entry->vif_type = sdata->vif.type; __entry->sdata = sdata; \
+#define VIF_ASSIGN	__entry->vif_type = sdata->vif.type; __entry->sdata = sdata;	\
+			__entry->p2p = sdata->vif.p2p;					\
 			__assign_str(vif_name, sdata->dev ? sdata->dev->name : "<nodev>")
-#define VIF_PR_FMT	" vif:%s(%d)"
-#define VIF_PR_ARG	__get_str(vif_name), __entry->vif_type
+#define VIF_PR_FMT	" vif:%s(%d%s)"
+#define VIF_PR_ARG	__get_str(vif_name), __entry->vif_type, __entry->p2p ? "/p2p" : ""
 
 /*
  * Tracing for driver callbacks.
@@ -133,6 +135,34 @@ TRACE_EVENT(drv_add_interface,
 	TP_printk(
 		LOCAL_PR_FMT  VIF_PR_FMT " addr:%pM",
 		LOCAL_PR_ARG, VIF_PR_ARG, __entry->addr
+	)
+);
+
+TRACE_EVENT(drv_change_interface,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 enum nl80211_iftype type, bool p2p),
+
+	TP_ARGS(local, sdata, type, p2p),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u32, new_type)
+		__field(bool, new_p2p)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->new_type = type;
+		__entry->new_p2p = p2p;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT " new type:%d%s",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->new_type,
+		__entry->new_p2p ? "/p2p" : ""
 	)
 );
 
@@ -336,7 +366,7 @@ TRACE_EVENT(drv_set_key,
 		LOCAL_ENTRY
 		VIF_ENTRY
 		STA_ENTRY
-		__field(enum ieee80211_key_alg, alg)
+		__field(u32, cipher)
 		__field(u8, hw_key_idx)
 		__field(u8, flags)
 		__field(s8, keyidx)
@@ -346,7 +376,7 @@ TRACE_EVENT(drv_set_key,
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
 		STA_ASSIGN;
-		__entry->alg = key->alg;
+		__entry->cipher = key->cipher;
 		__entry->flags = key->flags;
 		__entry->keyidx = key->keyidx;
 		__entry->hw_key_idx = key->hw_key_idx;

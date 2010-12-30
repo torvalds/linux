@@ -1,3 +1,50 @@
+1 Release Date    : Thur.  May 03, 2010 09:12:45 PST 2009 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Bo Yang
+
+2 Current Version : 00.00.04.31-rc1
+3 Older Version   : 00.00.04.17.1-rc1
+
+1.	Add the Online Controller Reset (OCR) to the Driver.
+	OCR is the new feature for megaraid_sas driver which
+	will allow the fw to do the chip reset which will not
+	affact the OS behavious.
+
+	To add the OCR support, driver need to do:
+		a). reset the controller chips -- Xscale and Gen2 which
+		will change the function calls and add the reset function
+		related to this two chips.
+
+		b). during the reset, driver will store the pending cmds
+		which not returned by FW to driver's pending queue.  Driver
+		will re-issue those pending cmds again to FW after the OCR
+		finished.
+
+		c). In driver's timeout routine, driver will report to
+		OS as reset. Also driver's queue routine will block the
+		cmds until the OCR finished.
+
+		d). in Driver's ISR routine, if driver get the FW state as
+		state change, FW in Failure status and FW support online controller
+		reset (OCR), driver will start to do the controller reset.
+
+		e). In driver's IOCTL routine, the application cmds will wait for the
+		OCR to finish, then issue the cmds to FW.
+
+		f). Before driver kill adapter, driver will do last chance of
+		OCR to see if driver can bring back the FW.
+
+2.	Add the support update flag to the driver to tell LSI megaraid_sas
+	application which driver will support the device update.  So application
+	will not need to do the device update after application add/del the device
+	from the system.
+3.	In driver's timeout routine, driver will do three time reset if fw is in
+	failed state.  Driver will kill adapter if can't bring back FW after the
+	this three times reset.
+4.	Add the input parameter max_sectors to 1MB support to our GEN2 controller.
+	customer can use the input paramenter max_sectors to add 1MB support to GEN2
+	controller.
+
 1 Release Date    : Thur.  Oct 29, 2009 09:12:45 PST 2009 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Bo Yang

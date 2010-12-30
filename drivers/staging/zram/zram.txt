@@ -5,33 +5,35 @@ Project home: http://compcache.googlecode.com/
 
 * Introduction
 
-The zram module creates RAM based block devices: /dev/ramX (X = 0, 1, ...).
-Pages written to these disks are compressed and stored in memory itself.
-These disks allow very fast I/O and compression provides good amounts of
-memory savings.
+The zram module creates RAM based block devices named /dev/zram<id>
+(<id> = 0, 1, ...). Pages written to these disks are compressed and stored
+in memory itself. These disks allow very fast I/O and compression provides
+good amounts of memory savings. Some of the usecases include /tmp storage,
+use as swap disks, various caches under /var and maybe many more :)
 
-See project home for use cases, performance numbers and a lot more.
-
-Individual zram devices are configured and initialized using zramconfig
-userspace utility as shown in examples below. See zramconfig man page for
-more details.
+Statistics for individual zram devices are exported through sysfs nodes at
+/sys/block/zram<id>/
 
 * Usage
 
 Following shows a typical sequence of steps for using zram.
 
-1) Load Modules:
+1) Load Module:
 	modprobe zram num_devices=4
-	This creates 4 (uninitialized) devices: /dev/zram{0,1,2,3}
+	This creates 4 devices: /dev/zram{0,1,2,3}
 	(num_devices parameter is optional. Default: 1)
 
-2) Initialize:
-	Use zramconfig utility to configure and initialize individual
-	zram devices. For example:
-	zramconfig /dev/zram0 --init # uses default value of disksize_kb
-	zramconfig /dev/zram1 --disksize_kb=102400 # 100MB /dev/zram1
+2) Set Disksize (Optional):
+	Set disk size by writing the value to sysfs node 'disksize'
+	(in bytes). If disksize is not given, default value of 25%
+	of RAM is used.
 
-	*See zramconfig man page for more details and examples*
+	# Initialize /dev/zram0 with 50MB disksize
+	echo $((50*1024*1024)) > /sys/block/zram0/disksize
+
+	NOTE: disksize cannot be changed if the disk contains any
+	data. So, for such a disk, you need to issue 'reset' (see below)
+	before you can change its disksize.
 
 3) Activate:
 	mkswap /dev/zram0
@@ -41,17 +43,29 @@ Following shows a typical sequence of steps for using zram.
 	mount /dev/zram1 /tmp
 
 4) Stats:
-	zramconfig /dev/zram0 --stats
-	zramconfig /dev/zram1 --stats
+	Per-device statistics are exported as various nodes under
+	/sys/block/zram<id>/
+		disksize
+		num_reads
+		num_writes
+		invalid_io
+		notify_free
+		discard
+		zero_pages
+		orig_data_size
+		compr_data_size
+		mem_used_total
 
 5) Deactivate:
 	swapoff /dev/zram0
 	umount /dev/zram1
 
 6) Reset:
-	zramconfig /dev/zram0 --reset
-	zramconfig /dev/zram1 --reset
-	(This frees memory allocated for the given device).
+	Write any positive value to 'reset' sysfs node
+	echo 1 > /sys/block/zram0/reset
+	echo 1 > /sys/block/zram1/reset
+
+	(This frees all the memory allocated for the given device).
 
 
 Please report any problems at:

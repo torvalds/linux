@@ -18,23 +18,22 @@
 
 unsigned int se7343_fpga_irq[SE7343_FPGA_IRQ_NR] = { 0, };
 
-static void disable_se7343_irq(unsigned int irq)
+static void disable_se7343_irq(struct irq_data *data)
 {
-	unsigned int bit = (unsigned int)get_irq_chip_data(irq);
+	unsigned int bit = (unsigned int)irq_data_get_irq_chip_data(data);
 	__raw_writew(__raw_readw(PA_CPLD_IMSK) | 1 << bit, PA_CPLD_IMSK);
 }
 
-static void enable_se7343_irq(unsigned int irq)
+static void enable_se7343_irq(struct irq_data *data)
 {
-	unsigned int bit = (unsigned int)get_irq_chip_data(irq);
+	unsigned int bit = (unsigned int)irq_data_get_irq_chip_data(data);
 	__raw_writew(__raw_readw(PA_CPLD_IMSK) & ~(1 << bit), PA_CPLD_IMSK);
 }
 
 static struct irq_chip se7343_irq_chip __read_mostly = {
-	.name           = "SE7343-FPGA",
-	.mask           = disable_se7343_irq,
-	.unmask         = enable_se7343_irq,
-	.mask_ack       = disable_se7343_irq,
+	.name		= "SE7343-FPGA",
+	.irq_mask	= disable_se7343_irq,
+	.irq_unmask	= enable_se7343_irq,
 };
 
 static void se7343_irq_demux(unsigned int irq, struct irq_desc *desc)

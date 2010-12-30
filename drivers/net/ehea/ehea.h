@@ -40,7 +40,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ehea"
-#define DRV_VERSION	"EHEA_0105"
+#define DRV_VERSION	"EHEA_0106"
 
 /* eHEA capability flags */
 #define DLPAR_PORT_ADD_REM 1
@@ -396,10 +396,13 @@ struct ehea_port_res {
 	int swqe_ll_count;
 	u32 swqe_id_counter;
 	u64 tx_packets;
+	u64 tx_bytes;
 	u64 rx_packets;
+	u64 rx_bytes;
 	u32 poll_counter;
 	struct net_lro_mgr lro_mgr;
 	struct net_lro_desc lro_desc[MAX_LRO_DESCRIPTORS];
+	int sq_restart_flag;
 };
 
 
@@ -413,7 +416,7 @@ struct ehea_port_res {
 
 struct ehea_adapter {
 	u64 handle;
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 	struct ehea_port *port[EHEA_MAX_PORTS];
 	struct ehea_eq *neq;       /* notification event queue */
 	struct tasklet_struct neq_tasklet;
@@ -465,7 +468,7 @@ struct ehea_port {
 	struct net_device *netdev;
 	struct net_device_stats stats;
 	struct ehea_port_res port_res[EHEA_MAX_PORT_RES];
-	struct of_device  ofdev; /* Open Firmware Device */
+	struct platform_device  ofdev; /* Open Firmware Device */
 	struct ehea_mc_list *mc_list;	 /* Multicast MAC addresses */
 	struct vlan_group *vgrp;
 	struct ehea_eq *qp_eq;
@@ -490,6 +493,8 @@ struct ehea_port {
 	u8 full_duplex;
 	u8 autoneg;
 	u8 num_def_qps;
+	wait_queue_head_t swqe_avail_wq;
+	wait_queue_head_t restart_wq;
 };
 
 struct port_res_cfg {

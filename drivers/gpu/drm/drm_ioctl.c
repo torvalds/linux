@@ -392,6 +392,7 @@ int drm_setversion(struct drm_device *dev, void *data, struct drm_file *file_pri
 		if (sv->drm_di_minor >= 1) {
 			/*
 			 * Version 1.1 includes tying of DRM to specific device
+			 * Version 1.4 has proper PCI domain support
 			 */
 			retcode = drm_set_busid(dev, file_priv);
 			if (retcode)

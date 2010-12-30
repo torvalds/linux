@@ -300,47 +300,64 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 			   enum iscsi_host_param param, char *buf)
 {
 	struct beiscsi_hba *phba = (struct beiscsi_hba *)iscsi_host_priv(shost);
-	struct be_cmd_resp_get_mac_addr *resp;
-	struct be_mcc_wrb *wrb;
-	unsigned int tag, wrb_num;
-	int len = 0;
-	unsigned short status, extd_status;
-	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+	int status = 0;
 
 	SE_DEBUG(DBG_LVL_8, "In beiscsi_get_host_param, param= %d\n", param);
 	switch (param) {
 	case ISCSI_HOST_PARAM_HWADDRESS:
-		tag = be_cmd_get_mac_addr(phba);
-		if (!tag) {
-			SE_DEBUG(DBG_LVL_1, "be_cmd_get_mac_addr Failed\n");
-			return -EAGAIN;
-		} else
-			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-						 phba->ctrl.mcc_numtag[tag]);
-
-		wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-		extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-		status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-		if (status || extd_status) {
-			SE_DEBUG(DBG_LVL_1, "be_cmd_get_mac_addr Failed"
-					    " status = %d extd_status = %d\n",
-					    status, extd_status);
-			free_mcc_tag(&phba->ctrl, tag);
-			return -EAGAIN;
-		} else {
-			wrb = queue_get_wrb(mccq, wrb_num);
-			free_mcc_tag(&phba->ctrl, tag);
-			resp = embedded_payload(wrb);
-			memcpy(phba->mac_address, resp->mac_address, ETH_ALEN);
-			len = sysfs_format_mac(buf, phba->mac_address,
-					       ETH_ALEN);
+		status = beiscsi_get_macaddr(buf, phba);
+		if (status < 0) {
+			SE_DEBUG(DBG_LVL_1, "beiscsi_get_macaddr Failed\n");
+			return status;
 		}
 		break;
 	default:
 		return iscsi_host_get_param(shost, param, buf);
 	}
-	return len;
+	return status;
 }
+
+int beiscsi_get_macaddr(char *buf, struct beiscsi_hba *phba)
+{
+	struct be_cmd_resp_get_mac_addr *resp;
+	struct be_mcc_wrb *wrb;
+	unsigned int tag, wrb_num;
+	unsigned short status, extd_status;
+	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+	int rc;
+
+	if (phba->read_mac_address)
+		return sysfs_format_mac(buf, phba->mac_address,
+					ETH_ALEN);
+
+	tag = be_cmd_get_mac_addr(phba);
+	if (!tag) {
+		SE_DEBUG(DBG_LVL_1, "be_cmd_get_mac_addr Failed\n");
+		return -EBUSY;
+	} else
+		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
+					 phba->ctrl.mcc_numtag[tag]);
+
+	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
+	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
+	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
+	if (status || extd_status) {
+		SE_DEBUG(DBG_LVL_1, "Failed to get be_cmd_get_mac_addr"
+				    " status = %d extd_status = %d\n",
+				    status, extd_status);
+		free_mcc_tag(&phba->ctrl, tag);
+		return -EAGAIN;
+	}
+	wrb = queue_get_wrb(mccq, wrb_num);
+	free_mcc_tag(&phba->ctrl, tag);
+	resp = embedded_payload(wrb);
+	memcpy(phba->mac_address, resp->mac_address, ETH_ALEN);
+	rc = sysfs_format_mac(buf, phba->mac_address,
+			       ETH_ALEN);
+	phba->read_mac_address = 1;
+	return rc;
+}
+
 
 /**
  * beiscsi_conn_get_stats - get the iscsi stats
@@ -505,7 +522,6 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 	if (beiscsi_ep->ep_cid > (phba->fw_config.iscsi_cid_start +
 				  phba->params.cxns_per_ctrl * 2)) {
 		SE_DEBUG(DBG_LVL_1, "Failed in allocate iscsi cid\n");
-		beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
 		goto free_ep;
 	}
 
@@ -542,7 +558,6 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		SE_DEBUG(DBG_LVL_1, "mgmt_open_connection Failed"
 				    " status = %d extd_status = %d\n",
 				    status, extd_status);
-		beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
 		free_mcc_tag(&phba->ctrl, tag);
 		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 			    nonemb_cmd.va, nonemb_cmd.dma);
@@ -557,7 +572,6 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		beiscsi_ep->cid_vld = 1;
 		SE_DEBUG(DBG_LVL_8, "mgmt_open_connection Success\n");
 	}
-	beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
 	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 			    nonemb_cmd.va, nonemb_cmd.dma);
 	return 0;

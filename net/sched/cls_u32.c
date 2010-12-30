@@ -137,7 +137,7 @@ next_knode:
 			int toff = off + key->off + (off2 & key->offmask);
 			__be32 *data, _data;
 
-			if (skb_headroom(skb) + toff < 0)
+			if (skb_headroom(skb) + toff > INT_MAX)
 				goto out;
 
 			data = skb_header_pointer(skb, toff, 4, &_data);

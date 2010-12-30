@@ -152,8 +152,10 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_LUN, D_DLY};
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
+static DEFINE_MUTEX(pf_mutex);
 static DEFINE_SPINLOCK(pf_spin_lock);
 
 module_param(verbose, bool, 0644);
@@ -266,7 +268,7 @@ static const struct block_device_operations pf_fops = {
 	.owner		= THIS_MODULE,
 	.open		= pf_open,
 	.release	= pf_release,
-	.locked_ioctl	= pf_ioctl,
+	.ioctl		= pf_ioctl,
 	.getgeo		= pf_getgeo,
 	.media_changed	= pf_check_media,
 };
@@ -299,20 +301,26 @@ static void __init pf_init_units(void)
 static int pf_open(struct block_device *bdev, fmode_t mode)
 {
 	struct pf_unit *pf = bdev->bd_disk->private_data;
+	int ret;
 
+	mutex_lock(&pf_mutex);
 	pf_identify(pf);
 
+	ret = -ENODEV;
 	if (pf->media_status == PF_NM)
-		return -ENODEV;
+		goto out;
 
+	ret = -EROFS;
 	if ((pf->media_status == PF_RO) && (mode & FMODE_WRITE))
-		return -EROFS;
+		goto out;
 
+	ret = 0;
 	pf->access++;
 	if (pf->removable)
 		pf_lock(pf, 1);
-
-	return 0;
+out:
+	mutex_unlock(&pf_mutex);
+	return ret;
 }
 
 static int pf_getgeo(struct block_device *bdev, struct hd_geometry *geo)
@@ -342,7 +350,10 @@ static int pf_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, u
 
 	if (pf->access != 1)
 		return -EBUSY;
+	mutex_lock(&pf_mutex);
 	pf_eject(pf);
+	mutex_unlock(&pf_mutex);
+
 	return 0;
 }
 
@@ -350,14 +361,18 @@ static int pf_release(struct gendisk *disk, fmode_t mode)
 {
 	struct pf_unit *pf = disk->private_data;
 
-	if (pf->access <= 0)
+	mutex_lock(&pf_mutex);
+	if (pf->access <= 0) {
+		mutex_unlock(&pf_mutex);
 		return -EINVAL;
+	}
 
 	pf->access--;
 
 	if (!pf->access && pf->removable)
 		pf_lock(pf, 0);
 
+	mutex_unlock(&pf_mutex);
 	return 0;
 
 }

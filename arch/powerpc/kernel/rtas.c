@@ -805,7 +805,7 @@ static void rtas_percpu_suspend_me(void *info)
 	__rtas_suspend_cpu((struct rtas_suspend_me_data *)info, 1);
 }
 
-static int rtas_ibm_suspend_me(struct rtas_args *args)
+int rtas_ibm_suspend_me(struct rtas_args *args)
 {
 	long state;
 	long rc;
@@ -855,7 +855,7 @@ static int rtas_ibm_suspend_me(struct rtas_args *args)
 	return atomic_read(&data.error);
 }
 #else /* CONFIG_PPC_PSERIES */
-static int rtas_ibm_suspend_me(struct rtas_args *args)
+int rtas_ibm_suspend_me(struct rtas_args *args)
 {
 	return -ENOSYS;
 }
@@ -969,7 +969,7 @@ void __init rtas_initialize(void)
 	 */
 #ifdef CONFIG_PPC64
 	if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR)) {
-		rtas_region = min(memblock.rmo_size, RTAS_INSTANTIATE_MAX);
+		rtas_region = min(ppc64_rma_size, RTAS_INSTANTIATE_MAX);
 		ibm_suspend_me_token = rtas_token("ibm,suspend-me");
 	}
 #endif

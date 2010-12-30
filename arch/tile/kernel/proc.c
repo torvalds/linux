@@ -23,7 +23,6 @@
 #include <linux/sysctl.h>
 #include <linux/hardirq.h>
 #include <linux/mman.h>
-#include <linux/smp.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/sections.h>

@@ -171,8 +171,9 @@ static irqreturn_t blackfin_interrupt(int irq, void *__hci)
 	}
 
 	/* Start sampling ID pin, when plug is removed from MUSB */
-	if (is_otg_enabled(musb) && (musb->xceiv->state == OTG_STATE_B_IDLE
-		|| musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) {
+	if ((is_otg_enabled(musb) && (musb->xceiv->state == OTG_STATE_B_IDLE
+		|| musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) ||
+		(musb->int_usb & MUSB_INTR_DISCONNECT && is_host_active(musb))) {
 		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
 		musb->a_wait_bcon = TIMER_DELAY;
 	}
@@ -323,28 +324,8 @@ int musb_platform_set_mode(struct musb *musb, u8 musb_mode)
 	return -EIO;
 }
 
-int __init musb_platform_init(struct musb *musb, void *board_data)
+static void musb_platform_reg_init(struct musb *musb)
 {
-
-	/*
-	 * Rev 1.0 BF549 EZ-KITs require PE7 to be high for both DEVICE
-	 * and OTG HOST modes, while rev 1.1 and greater require PE7 to
-	 * be low for DEVICE mode and high for HOST mode. We set it high
-	 * here because we are in host mode
-	 */
-
-	if (gpio_request(musb->config->gpio_vrsel, "USB_VRSEL")) {
-		printk(KERN_ERR "Failed ro request USB_VRSEL GPIO_%d \n",
-			musb->config->gpio_vrsel);
-		return -ENODEV;
-	}
-	gpio_direction_output(musb->config->gpio_vrsel, 0);
-
-	usb_nop_xceiv_register();
-	musb->xceiv = otg_get_transceiver();
-	if (!musb->xceiv)
-		return -ENODEV;
-
 	if (ANOMALY_05000346) {
 		bfin_write_USB_APHY_CALIB(ANOMALY_05000346_value);
 		SSYNC();
@@ -356,7 +337,8 @@ int __init musb_platform_init(struct musb *musb, void *board_data)
 	}
 
 	/* Configure PLL oscillator register */
-	bfin_write_USB_PLLOSC_CTRL(0x30a8);
+	bfin_write_USB_PLLOSC_CTRL(0x3080 |
+			((480/musb->config->clkin) << 1));
 	SSYNC();
 
 	bfin_write_USB_SRP_CLKDIV((get_sclk()/1000) / 32 - 1);
@@ -378,6 +360,33 @@ int __init musb_platform_init(struct musb *musb, void *board_data)
 				EP2_RX_ENA | EP3_RX_ENA | EP4_RX_ENA |
 				EP5_RX_ENA | EP6_RX_ENA | EP7_RX_ENA);
 	SSYNC();
+}
+
+int __init musb_platform_init(struct musb *musb, void *board_data)
+{
+
+	/*
+	 * Rev 1.0 BF549 EZ-KITs require PE7 to be high for both DEVICE
+	 * and OTG HOST modes, while rev 1.1 and greater require PE7 to
+	 * be low for DEVICE mode and high for HOST mode. We set it high
+	 * here because we are in host mode
+	 */
+
+	if (gpio_request(musb->config->gpio_vrsel, "USB_VRSEL")) {
+		printk(KERN_ERR "Failed ro request USB_VRSEL GPIO_%d\n",
+			musb->config->gpio_vrsel);
+		return -ENODEV;
+	}
+	gpio_direction_output(musb->config->gpio_vrsel, 0);
+
+	usb_nop_xceiv_register();
+	musb->xceiv = otg_get_transceiver();
+	if (!musb->xceiv) {
+		gpio_free(musb->config->gpio_vrsel);
+		return -ENODEV;
+	}
+
+	musb_platform_reg_init(musb);
 
 	if (is_host_enabled(musb)) {
 		musb->board_set_vbus = bfin_set_vbus;
@@ -392,10 +401,32 @@ int __init musb_platform_init(struct musb *musb, void *board_data)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+void musb_platform_save_context(struct musb *musb,
+			struct musb_context_registers *musb_context)
+{
+	if (is_host_active(musb))
+		/*
+		 * During hibernate gpio_vrsel will change from high to low
+		 * low which will generate wakeup event resume the system
+		 * immediately.  Set it to 0 before hibernate to avoid this
+		 * wakeup event.
+		 */
+		gpio_set_value(musb->config->gpio_vrsel, 0);
+}
+
+void musb_platform_restore_context(struct musb *musb,
+			struct musb_context_registers *musb_context)
+{
+	musb_platform_reg_init(musb);
+}
+#endif
+
 int musb_platform_exit(struct musb *musb)
 {
-
 	gpio_free(musb->config->gpio_vrsel);
 
+	otg_put_transceiver(musb->xceiv);
+	usb_nop_xceiv_unregister();
 	return 0;
 }

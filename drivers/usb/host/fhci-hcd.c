@@ -561,7 +561,7 @@ static const struct hc_driver fhci_driver = {
 	.hub_control = fhci_hub_control,
 };
 
-static int __devinit of_fhci_probe(struct of_device *ofdev,
+static int __devinit of_fhci_probe(struct platform_device *ofdev,
 				   const struct of_device_id *ofid)
 {
 	struct device *dev = &ofdev->dev;
@@ -801,7 +801,7 @@ static int __devexit fhci_remove(struct device *dev)
 	return 0;
 }
 
-static int __devexit of_fhci_remove(struct of_device *ofdev)
+static int __devexit of_fhci_remove(struct platform_device *ofdev)
 {
 	return fhci_remove(&ofdev->dev);
 }

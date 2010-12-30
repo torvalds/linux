@@ -74,7 +74,8 @@ config EFI_PCDP
 
 	  You must also enable the appropriate drivers (serial, VGA, etc.)
 
-	  See <http://www.dig64.org/specifications/DIG64_HCDPv20_042804.pdf>
+	  See DIG64_HCDPv20_042804.pdf available from
+	  <http://www.dig64.org/specifications/> 
 
 config DELL_RBU
 	tristate "BIOS update support for DELL systems via sysfs"
@@ -122,18 +123,10 @@ config ISCSI_IBFT_FIND
 	  is necessary for iSCSI Boot Firmware Table Attributes module to work
 	  properly.
 
-config ISCSI_BOOT_SYSFS
-	tristate "iSCSI Boot Sysfs Interface"
-	default	n
-	help
-	  This option enables support for exposing iSCSI boot information
-	  via sysfs to userspace. If you wish to export this information,
-	  say Y. Otherwise, say N.
-
 config ISCSI_IBFT
 	tristate "iSCSI Boot Firmware Table Attributes module"
 	select ISCSI_BOOT_SYSFS
-	depends on ISCSI_IBFT_FIND
+	depends on ISCSI_IBFT_FIND && SCSI && SCSI_LOWLEVEL
 	default	n
 	help
 	  This option enables support for detection and exposing of iSCSI

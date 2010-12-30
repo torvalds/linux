@@ -146,6 +146,8 @@ static struct unwind_idx *unwind_find_idx(unsigned long addr)
 			    addr < table->end_addr) {
 				idx = search_index(addr, table->start,
 						   table->stop - 1);
+				/* Move-to-front to exploit common traces */
+				list_move(&table->list, &unwind_tables);
 				break;
 			}
 		}
@@ -277,7 +279,7 @@ int unwind_frame(struct stackframe *frame)
 
 	/* only go to a higher address on the stack */
 	low = frame->sp;
-	high = ALIGN(low, THREAD_SIZE) + THREAD_SIZE;
+	high = ALIGN(low, THREAD_SIZE);
 
 	pr_debug("%s(pc = %08lx lr = %08lx sp = %08lx)\n", __func__,
 		 frame->pc, frame->lr, frame->sp);

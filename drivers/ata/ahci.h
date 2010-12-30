@@ -72,6 +72,7 @@ enum {
 	AHCI_CMD_RESET		= (1 << 8),
 	AHCI_CMD_CLR_BUSY	= (1 << 10),
 
+	RX_FIS_PIO_SETUP	= 0x20,	/* offset of PIO Setup FIS data */
 	RX_FIS_D2H_REG		= 0x40,	/* offset of D2H Register FIS data */
 	RX_FIS_SDB		= 0x58, /* offset of SDB FIS data */
 	RX_FIS_UNK		= 0x60, /* offset of Unknown FIS data */
@@ -201,7 +202,6 @@ enum {
 	AHCI_HFLAG_MV_PATA		= (1 << 4), /* PATA port */
 	AHCI_HFLAG_NO_MSI		= (1 << 5), /* no PCI MSI */
 	AHCI_HFLAG_NO_PMP		= (1 << 6), /* no PMP */
-	AHCI_HFLAG_NO_HOTPLUG		= (1 << 7), /* ignore PxSERR.DIAG.N */
 	AHCI_HFLAG_SECT255		= (1 << 8), /* max 255 sectors */
 	AHCI_HFLAG_YES_NCQ		= (1 << 9), /* force NCQ cap on */
 	AHCI_HFLAG_NO_SUSPEND		= (1 << 10), /* don't suspend */
@@ -209,13 +209,14 @@ enum {
 							link offline */
 	AHCI_HFLAG_NO_SNTF		= (1 << 12), /* no sntf */
 	AHCI_HFLAG_NO_FPDMA_AA		= (1 << 13), /* no FPDMA AA */
+	AHCI_HFLAG_YES_FBS		= (1 << 14), /* force FBS cap on */
 
 	/* ap->flags bits */
 
 	AHCI_FLAG_COMMON		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 					  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
 					  ATA_FLAG_ACPI_SATA | ATA_FLAG_AN |
-					  ATA_FLAG_IPM,
+					  ATA_FLAG_LPM,
 
 	ICH_MAP				= 0x90, /* ICH MAP register */
 
@@ -297,7 +298,17 @@ struct ahci_host_priv {
 
 extern int ahci_ignore_sss;
 
-extern struct scsi_host_template ahci_sht;
+extern struct device_attribute *ahci_shost_attrs[];
+extern struct device_attribute *ahci_sdev_attrs[];
+
+#define AHCI_SHT(drv_name)						\
+	ATA_NCQ_SHT(drv_name),						\
+	.can_queue		= AHCI_MAX_CMDS - 1,			\
+	.sg_tablesize		= AHCI_MAX_SG,				\
+	.dma_boundary		= AHCI_DMA_BOUNDARY,			\
+	.shost_attrs		= ahci_shost_attrs,			\
+	.sdev_attrs		= ahci_sdev_attrs
+
 extern struct ata_port_operations ahci_ops;
 
 void ahci_save_initial_config(struct device *dev,

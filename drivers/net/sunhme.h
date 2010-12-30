@@ -407,7 +407,7 @@ struct happy_meal {
 	void (*write_rxd)(struct happy_meal_rxd *, u32, u32);
 #endif
 
-	/* This is either an of_device or a pci_dev. */
+	/* This is either an platform_device or a pci_dev. */
 	void			  *happy_dev;
 	struct device		  *dma_dev;
 

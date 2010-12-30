@@ -129,6 +129,11 @@ static inline u64 pmd_val(pmd_t pmd)
 
 #endif
 
+static inline __attribute_const__ int get_order(unsigned long size)
+{
+	return BITS_PER_LONG - __builtin_clzl((size - 1) >> PAGE_SHIFT);
+}
+
 #endif /* !__ASSEMBLY__ */
 
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
@@ -194,17 +199,17 @@ static inline u64 pmd_val(pmd_t pmd)
  * If you want more physical memory than this then see the CONFIG_HIGHMEM
  * option in the kernel configuration.
  *
- * The top two 16MB chunks in the table below (VIRT and HV) are
- * unavailable to Linux.  Since the kernel interrupt vectors must live
- * at 0xfd000000, we map all of the bottom of RAM at this address with
- * a huge page table entry to minimize its ITLB footprint (as well as
- * at PAGE_OFFSET).  The last architected requirement is that user
- * interrupt vectors live at 0xfc000000, so we make that range of
- * memory available to user processes.  The remaining regions are sized
- * as shown; after the first four addresses, we show "typical" values,
- * since the actual addresses depend on kernel #defines.
+ * The top 16MB chunk in the table below is unavailable to Linux.  Since
+ * the kernel interrupt vectors must live at ether 0xfe000000 or 0xfd000000
+ * (depending on whether the kernel is at PL2 or Pl1), we map all of the
+ * bottom of RAM at this address with a huge page table entry to minimize
+ * its ITLB footprint (as well as at PAGE_OFFSET).  The last architected
+ * requirement is that user interrupt vectors live at 0xfc000000, so we
+ * make that range of memory available to user processes.  The remaining
+ * regions are sized as shown; the first four addresses use the PL 1
+ * values, and after that, we show "typical" values, since the actual
+ * addresses depend on kernel #defines.
  *
- * MEM_VIRT_INTRPT                 0xff000000
  * MEM_HV_INTRPT                   0xfe000000
  * MEM_SV_INTRPT (kernel code)     0xfd000000
  * MEM_USER_INTRPT (user vector)   0xfc000000
@@ -216,9 +221,14 @@ static inline u64 pmd_val(pmd_t pmd)
  */
 
 #define MEM_USER_INTRPT		_AC(0xfc000000, UL)
+#if CONFIG_KERNEL_PL == 1
 #define MEM_SV_INTRPT		_AC(0xfd000000, UL)
 #define MEM_HV_INTRPT		_AC(0xfe000000, UL)
-#define MEM_VIRT_INTRPT		_AC(0xff000000, UL)
+#else
+#define MEM_GUEST_INTRPT	_AC(0xfd000000, UL)
+#define MEM_SV_INTRPT		_AC(0xfe000000, UL)
+#define MEM_HV_INTRPT		_AC(0xff000000, UL)
+#endif
 
 #define INTRPT_SIZE		0x4000
 
@@ -332,7 +342,6 @@ extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
 	(VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/memory_model.h>
-#include <asm-generic/getorder.h>
 
 #endif /* __KERNEL__ */
 

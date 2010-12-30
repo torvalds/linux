@@ -115,8 +115,6 @@ void pci_acpi_crs_quirks(void);
 #define ACPI_PROCESSOR_LIMIT_INCREMENT	0x01
 #define ACPI_PROCESSOR_LIMIT_DECREMENT	0x02
 
-int acpi_processor_set_thermal_limit(acpi_handle handle, int type);
-
 /*--------------------------------------------------------------------------
                                   Dock Station
   -------------------------------------------------------------------------- */

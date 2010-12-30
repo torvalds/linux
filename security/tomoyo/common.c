@@ -768,8 +768,10 @@ static bool tomoyo_select_one(struct tomoyo_io_buffer *head, const char *data)
 		return true; /* Do nothing if open(O_WRONLY). */
 	memset(&head->r, 0, sizeof(head->r));
 	head->r.print_this_domain_only = true;
-	head->r.eof = !domain;
-	head->r.domain = &domain->list;
+	if (domain)
+		head->r.domain = &domain->list;
+	else
+		head->r.eof = 1;
 	tomoyo_io_printf(head, "# select %s\n", data);
 	if (domain && domain->is_deleted)
 		tomoyo_io_printf(head, "# This is a deleted domain.\n");
@@ -1416,15 +1418,19 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 	const pid_t gpid = task_pid_nr(current);
 	static const int tomoyo_buffer_len = 4096;
 	char *buffer = kmalloc(tomoyo_buffer_len, GFP_NOFS);
+	pid_t ppid;
 	if (!buffer)
 		return NULL;
 	do_gettimeofday(&tv);
+	rcu_read_lock();
+	ppid = task_tgid_vnr(current->real_parent);
+	rcu_read_unlock();
 	snprintf(buffer, tomoyo_buffer_len - 1,
 		 "#timestamp=%lu profile=%u mode=%s (global-pid=%u)"
 		 " task={ pid=%u ppid=%u uid=%u gid=%u euid=%u"
 		 " egid=%u suid=%u sgid=%u fsuid=%u fsgid=%u }",
 		 tv.tv_sec, r->profile, tomoyo_mode[r->mode], gpid,
-		 (pid_t) sys_getpid(), (pid_t) sys_getppid(),
+		 task_tgid_vnr(current), ppid,
 		 current_uid(), current_gid(), current_euid(),
 		 current_egid(), current_suid(), current_sgid(),
 		 current_fsuid(), current_fsgid());
@@ -2047,13 +2053,22 @@ void tomoyo_check_profile(void)
 		const u8 profile = domain->profile;
 		if (tomoyo_profile_ptr[profile])
 			continue;
+		printk(KERN_ERR "You need to define profile %u before using it.\n",
+		       profile);
+		printk(KERN_ERR "Please see http://tomoyo.sourceforge.jp/2.3/ "
+		       "for more information.\n");
 		panic("Profile %u (used by '%s') not defined.\n",
 		      profile, domain->domainname->name);
 	}
 	tomoyo_read_unlock(idx);
-	if (tomoyo_profile_version != 20090903)
+	if (tomoyo_profile_version != 20090903) {
+		printk(KERN_ERR "You need to install userland programs for "
+		       "TOMOYO 2.3 and initialize policy configuration.\n");
+		printk(KERN_ERR "Please see http://tomoyo.sourceforge.jp/2.3/ "
+		       "for more information.\n");
 		panic("Profile version %u is not supported.\n",
 		      tomoyo_profile_version);
+	}
 	printk(KERN_INFO "TOMOYO: 2.3.0\n");
 	printk(KERN_INFO "Mandatory Access Control activated.\n");
 }

@@ -225,7 +225,7 @@ struct msmsdcc_host {
 
 	u32			pwr;
 	u32			saved_irq0mask;	/* MMCIMASK0 reg value */
-	struct mmc_platform_data *plat;
+	struct msm_mmc_platform_data *plat;
 
 	struct timer_list	timer;
 	unsigned int		oldstat;
@@ -234,10 +234,6 @@ struct msmsdcc_host {
 	struct msmsdcc_pio_data	pio;
 	int			cmdpoll;
 	struct msmsdcc_stats	stats;
-
-#ifdef CONFIG_MMC_MSM7X00A_RESUME_IN_WQ
-	struct work_struct	resume_task;
-#endif
 
 	/* Command parameters */
 	unsigned int		cmd_timeout;

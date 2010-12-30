@@ -12,7 +12,6 @@
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -437,7 +436,6 @@ static int hostap_cs_probe(struct pcmcia_device *p_dev)
 	int ret;
 
 	PDEBUG(DEBUG_HW, "%s: setting Vcc=33 (constant)\n", dev_info);
-	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
 	ret = prism2_config(p_dev);
 	if (ret) {
@@ -468,74 +466,11 @@ static void prism2_detach(struct pcmcia_device *link)
 }
 
 
-/* run after a CARD_INSERTION event is received to configure the PCMCIA
- * socket and make the device available to the system */
-
-static int prism2_config_check(struct pcmcia_device *p_dev,
-			       cistpl_cftable_entry_t *cfg,
-			       cistpl_cftable_entry_t *dflt,
-			       unsigned int vcc,
-			       void *priv_data)
+static int prism2_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if (cfg->index == 0)
-		return -ENODEV;
+	if (p_dev->config_index == 0)
+		return -EINVAL;
 
-	PDEBUG(DEBUG_EXTRA, "Checking CFTABLE_ENTRY 0x%02X "
-	       "(default 0x%02X)\n", cfg->index, dflt->index);
-
-	/* Does this card need audio output? */
-	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
-		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
-		p_dev->conf.Status = CCSR_AUDIO_ENA;
-	}
-
-	/* Use power settings for Vcc and Vpp if present */
-	/*  Note that the CIS values need to be rescaled */
-	if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] /
-		    10000 && !ignore_cis_vcc) {
-			PDEBUG(DEBUG_EXTRA, "  Vcc mismatch - skipping"
-			       " this entry\n");
-			return -ENODEV;
-		}
-	} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] /
-		    10000 && !ignore_cis_vcc) {
-			PDEBUG(DEBUG_EXTRA, "  Vcc (default) mismatch "
-			       "- skipping this entry\n");
-			return -ENODEV;
-		}
-	}
-
-	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp = cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-	else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-
-	/* Do we need to allocate an interrupt? */
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
-
-	/* IO window settings */
-	PDEBUG(DEBUG_EXTRA, "IO window settings: cfg->io.nwin=%d "
-	       "dflt->io.nwin=%d\n",
-	       cfg->io.nwin, dflt->io.nwin);
-	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
-		p_dev->resource[0]->flags |=
-					pcmcia_io_cfg_data_width(io->flags);
-		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-		p_dev->resource[0]->start = io->win[0].base;
-		p_dev->resource[0]->end = io->win[0].len;
-		if (io->nwin > 1) {
-			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
-			p_dev->resource[1]->start = io->win[1].base;
-			p_dev->resource[1]->end = io->win[1].len;
-		}
-	}
-
-	/* This reserves IO space but doesn't actually enable it */
 	return pcmcia_request_io(p_dev);
 }
 
@@ -557,6 +492,10 @@ static int prism2_config(struct pcmcia_device *link)
 	}
 
 	/* Look for an appropriate configuration table entry in the CIS */
+	link->config_flags |= CONF_AUTO_SET_VPP | CONF_AUTO_AUDIO |
+		CONF_AUTO_CHECK_VCC | CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
+	if (ignore_cis_vcc)
+		link->config_flags &= ~CONF_AUTO_CHECK_VCC;
 	ret = pcmcia_loop_config(link, prism2_config_check, NULL);
 	if (ret) {
 		if (!ignore_cis_vcc)
@@ -588,12 +527,7 @@ static int prism2_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed_unlock;
 
-	/*
-	 * This actually configures the PCMCIA socket -- setting up
-	 * the I/O windows and the interrupt mapping, and putting the
-	 * card and host interface into "Memory and IO" mode.
-	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed_unlock;
 
@@ -601,20 +535,6 @@ static int prism2_config(struct pcmcia_device *link)
 	dev->base_addr = link->resource[0]->start;
 
 	spin_unlock_irqrestore(&local->irq_init_lock, flags);
-
-	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x: ",
-	       dev_info, link->conf.ConfigIndex);
-	if (link->conf.Vpp)
-		printk(", Vpp %d.%d", link->conf.Vpp / 10,
-		       link->conf.Vpp % 10);
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %d", link->irq);
-	if (link->resource[0])
-		printk(" & %pR", link->resource[0]);
-	if (link->resource[1])
-		printk(" & %pR", link->resource[1]);
-	printk("\n");
 
 	local->shutdown = 0;
 
@@ -627,7 +547,7 @@ static int prism2_config(struct pcmcia_device *link)
 	return ret;
 
  failed_unlock:
-	 spin_unlock_irqrestore(&local->irq_init_lock, flags);
+	spin_unlock_irqrestore(&local->irq_init_lock, flags);
  failed:
 	kfree(hw_priv);
 	prism2_release((u_long)link);
@@ -779,9 +699,7 @@ MODULE_DEVICE_TABLE(pcmcia, hostap_cs_ids);
 
 
 static struct pcmcia_driver hostap_driver = {
-	.drv		= {
-		.name	= "hostap_cs",
-	},
+	.name		= "hostap_cs",
 	.probe		= hostap_cs_probe,
 	.remove		= prism2_detach,
 	.owner		= THIS_MODULE,

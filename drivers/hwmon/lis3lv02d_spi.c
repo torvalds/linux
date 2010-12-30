@@ -50,11 +50,12 @@ static int lis3_spi_init(struct lis3lv02d *lis3)
 	if (ret < 0)
 		return ret;
 
-	reg |= CTRL1_PD0;
+	reg |= CTRL1_PD0 | CTRL1_Xen | CTRL1_Yen | CTRL1_Zen;
 	return lis3->write(lis3, CTRL_REG1, reg);
 }
 
-static struct axis_conversion lis3lv02d_axis_normal = { 1, 2, 3 };
+static union axis_conversion lis3lv02d_axis_normal =
+	{ .as_array = { 1, 2, 3 } };
 
 static int __devinit lis302dl_spi_probe(struct spi_device *spi)
 {
@@ -92,7 +93,7 @@ static int lis3lv02d_spi_suspend(struct spi_device *spi, pm_message_t mesg)
 {
 	struct lis3lv02d *lis3 = spi_get_drvdata(spi);
 
-	if (!lis3->pdata->wakeup_flags)
+	if (!lis3->pdata || !lis3->pdata->wakeup_flags)
 		lis3lv02d_poweroff(&lis3_dev);
 
 	return 0;
@@ -102,7 +103,7 @@ static int lis3lv02d_spi_resume(struct spi_device *spi)
 {
 	struct lis3lv02d *lis3 = spi_get_drvdata(spi);
 
-	if (!lis3->pdata->wakeup_flags)
+	if (!lis3->pdata || !lis3->pdata->wakeup_flags)
 		lis3lv02d_poweron(lis3);
 
 	return 0;

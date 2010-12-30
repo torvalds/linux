@@ -145,8 +145,8 @@ static int __init pc110pad_init(void)
 	pc110pad_dev->absbit[0] = BIT_MASK(ABS_X) | BIT_MASK(ABS_Y);
 	pc110pad_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 
-	pc110pad_dev->absmax[ABS_X] = 0x1ff;
-	pc110pad_dev->absmax[ABS_Y] = 0x0ff;
+	input_abs_set_max(pc110pad_dev, ABS_X, 0x1ff);
+	input_abs_set_max(pc110pad_dev, ABS_Y, 0x0ff);
 
 	pc110pad_dev->open = pc110pad_open;
 	pc110pad_dev->close = pc110pad_close;

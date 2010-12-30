@@ -30,6 +30,8 @@
 #include "devices.h"
 #include "board-trout.h"
 
+extern int trout_init_mmc(unsigned int);
+
 static struct platform_device *devices[] __initdata = {
 	&msm_device_uart3,
 	&msm_device_smd,
@@ -55,7 +57,16 @@ static void __init trout_fixup(struct machine_desc *desc, struct tag *tags,
 
 static void __init trout_init(void)
 {
+	int rc;
+
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+
+#ifdef CONFIG_MMC
+        rc = trout_init_mmc(system_rev);
+        if (rc)
+                printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
+#endif
+
 }
 
 static struct map_desc trout_io_desc[] __initdata = {
@@ -82,8 +93,6 @@ static void __init trout_map_io(void)
 
 MACHINE_START(TROUT, "HTC Dream")
 #ifdef CONFIG_MSM_DEBUG_UART
-	.phys_io	= MSM_DEBUG_UART_PHYS,
-	.io_pg_offst	= ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
 #endif
 	.boot_params	= 0x10000100,
 	.fixup		= trout_fixup,

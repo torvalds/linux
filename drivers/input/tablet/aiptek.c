@@ -987,20 +987,17 @@ static int aiptek_program_tablet(struct aiptek *aiptek)
 	/* Query getXextension */
 	if ((ret = aiptek_query(aiptek, 0x01, 0x00)) < 0)
 		return ret;
-	aiptek->inputdev->absmin[ABS_X] = 0;
-	aiptek->inputdev->absmax[ABS_X] = ret - 1;
+	input_set_abs_params(aiptek->inputdev, ABS_X, 0, ret - 1, 0, 0);
 
 	/* Query getYextension */
 	if ((ret = aiptek_query(aiptek, 0x01, 0x01)) < 0)
 		return ret;
-	aiptek->inputdev->absmin[ABS_Y] = 0;
-	aiptek->inputdev->absmax[ABS_Y] = ret - 1;
+	input_set_abs_params(aiptek->inputdev, ABS_Y, 0, ret - 1, 0, 0);
 
 	/* Query getPressureLevels */
 	if ((ret = aiptek_query(aiptek, 0x08, 0x00)) < 0)
 		return ret;
-	aiptek->inputdev->absmin[ABS_PRESSURE] = 0;
-	aiptek->inputdev->absmax[ABS_PRESSURE] = ret - 1;
+	input_set_abs_params(aiptek->inputdev, ABS_PRESSURE, 0, ret - 1, 0, 0);
 
 	/* Depending on whether we are in absolute or relative mode, we will
 	 * do a switchToTablet(absolute) or switchToMouse(relative) command.
@@ -1054,8 +1051,8 @@ static ssize_t show_tabletSize(struct device *dev, struct device_attribute *attr
 	struct aiptek *aiptek = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%dx%d\n",
-			aiptek->inputdev->absmax[ABS_X] + 1,
-			aiptek->inputdev->absmax[ABS_Y] + 1);
+			input_abs_get_max(aiptek->inputdev, ABS_X) + 1,
+			input_abs_get_max(aiptek->inputdev, ABS_Y) + 1);
 }
 
 /* These structs define the sysfs files, param #1 is the name of the
@@ -1100,7 +1097,7 @@ store_tabletPointerMode(struct device *dev, struct device_attribute *attr, const
 }
 
 static DEVICE_ATTR(pointer_mode,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletPointerMode, store_tabletPointerMode);
 
 /***********************************************************************
@@ -1137,7 +1134,7 @@ store_tabletCoordinateMode(struct device *dev, struct device_attribute *attr, co
 }
 
 static DEVICE_ATTR(coordinate_mode,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletCoordinateMode, store_tabletCoordinateMode);
 
 /***********************************************************************
@@ -1179,7 +1176,7 @@ store_tabletToolMode(struct device *dev, struct device_attribute *attr, const ch
 }
 
 static DEVICE_ATTR(tool_mode,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletToolMode, store_tabletToolMode);
 
 /***********************************************************************
@@ -1222,7 +1219,7 @@ store_tabletXtilt(struct device *dev, struct device_attribute *attr, const char 
 }
 
 static DEVICE_ATTR(xtilt,
-		   S_IRUGO | S_IWUGO, show_tabletXtilt, store_tabletXtilt);
+		   S_IRUGO | S_IWUSR, show_tabletXtilt, store_tabletXtilt);
 
 /***********************************************************************
  * support routines for the 'ytilt' file. Note that this file
@@ -1264,7 +1261,7 @@ store_tabletYtilt(struct device *dev, struct device_attribute *attr, const char 
 }
 
 static DEVICE_ATTR(ytilt,
-		   S_IRUGO | S_IWUGO, show_tabletYtilt, store_tabletYtilt);
+		   S_IRUGO | S_IWUSR, show_tabletYtilt, store_tabletYtilt);
 
 /***********************************************************************
  * support routines for the 'jitter' file. Note that this file
@@ -1291,7 +1288,7 @@ store_tabletJitterDelay(struct device *dev, struct device_attribute *attr, const
 }
 
 static DEVICE_ATTR(jitter,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletJitterDelay, store_tabletJitterDelay);
 
 /***********************************************************************
@@ -1320,7 +1317,7 @@ store_tabletProgrammableDelay(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(delay,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletProgrammableDelay, store_tabletProgrammableDelay);
 
 /***********************************************************************
@@ -1409,7 +1406,7 @@ store_tabletStylusUpper(struct device *dev, struct device_attribute *attr, const
 }
 
 static DEVICE_ATTR(stylus_upper,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletStylusUpper, store_tabletStylusUpper);
 
 /***********************************************************************
@@ -1440,7 +1437,7 @@ store_tabletStylusLower(struct device *dev, struct device_attribute *attr, const
 }
 
 static DEVICE_ATTR(stylus_lower,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletStylusLower, store_tabletStylusLower);
 
 /***********************************************************************
@@ -1478,7 +1475,7 @@ store_tabletMouseLeft(struct device *dev, struct device_attribute *attr, const c
 }
 
 static DEVICE_ATTR(mouse_left,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletMouseLeft, store_tabletMouseLeft);
 
 /***********************************************************************
@@ -1508,7 +1505,7 @@ store_tabletMouseMiddle(struct device *dev, struct device_attribute *attr, const
 }
 
 static DEVICE_ATTR(mouse_middle,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletMouseMiddle, store_tabletMouseMiddle);
 
 /***********************************************************************
@@ -1538,7 +1535,7 @@ store_tabletMouseRight(struct device *dev, struct device_attribute *attr, const 
 }
 
 static DEVICE_ATTR(mouse_right,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletMouseRight, store_tabletMouseRight);
 
 /***********************************************************************
@@ -1570,7 +1567,7 @@ store_tabletWheel(struct device *dev, struct device_attribute *attr, const char 
 }
 
 static DEVICE_ATTR(wheel,
-		   S_IRUGO | S_IWUGO, show_tabletWheel, store_tabletWheel);
+		   S_IRUGO | S_IWUSR, show_tabletWheel, store_tabletWheel);
 
 /***********************************************************************
  * support routines for the 'execute' file. Note that this file
@@ -1603,7 +1600,7 @@ store_tabletExecute(struct device *dev, struct device_attribute *attr, const cha
 }
 
 static DEVICE_ATTR(execute,
-		   S_IRUGO | S_IWUGO, show_tabletExecute, store_tabletExecute);
+		   S_IRUGO | S_IWUSR, show_tabletExecute, store_tabletExecute);
 
 /***********************************************************************
  * support routines for the 'odm_code' file. Note that this file
@@ -1843,7 +1840,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	for (i = 0; i < ARRAY_SIZE(speeds); ++i) {
 		aiptek->curSetting.programmableDelay = speeds[i];
 		(void)aiptek_program_tablet(aiptek);
-		if (aiptek->inputdev->absmax[ABS_X] > 0) {
+		if (input_abs_get_max(aiptek->inputdev, ABS_X) > 0) {
 			dev_info(&intf->dev,
 				 "Aiptek using %d ms programming speed\n",
 				 aiptek->curSetting.programmableDelay);

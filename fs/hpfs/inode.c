@@ -277,9 +277,15 @@ int hpfs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		goto out_unlock;
 
-	error = inode_setattr(inode, attr);
-	if (error)
-		goto out_unlock;
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		error = vmtruncate(inode, attr->ia_size);
+		if (error)
+			return error;
+	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
 
 	hpfs_write_inode(inode);
 
@@ -296,11 +302,13 @@ void hpfs_write_if_changed(struct inode *inode)
 		hpfs_write_inode(inode);
 }
 
-void hpfs_delete_inode(struct inode *inode)
+void hpfs_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
-	lock_kernel();
-	hpfs_remove_fnode(inode->i_sb, inode->i_ino);
-	unlock_kernel();
-	clear_inode(inode);
+	end_writeback(inode);
+	if (!inode->i_nlink) {
+		lock_kernel();
+		hpfs_remove_fnode(inode->i_sb, inode->i_ino);
+		unlock_kernel();
+	}
 }

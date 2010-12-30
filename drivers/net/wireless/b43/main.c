@@ -2280,6 +2280,7 @@ out:
 
 static int b43_upload_microcode(struct b43_wldev *dev)
 {
+	struct wiphy *wiphy = dev->wl->hw->wiphy;
 	const size_t hdr_len = sizeof(struct b43_fw_header);
 	const __be32 *data;
 	unsigned int i, len;
@@ -2404,6 +2405,10 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 			b43_print_fw_helptext(dev->wl, 0);
 		}
 	}
+
+	snprintf(wiphy->fw_version, sizeof(wiphy->fw_version), "%u.%u",
+			dev->fw.rev, dev->fw.patch);
+	wiphy->hw_version = dev->dev->id.coreid;
 
 	if (b43_is_old_txhdr_format(dev)) {
 		/* We're over the deadline, but we keep support for old fw
@@ -3754,17 +3759,17 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	}
 
 	err = -EINVAL;
-	switch (key->alg) {
-	case ALG_WEP:
-		if (key->keylen == WLAN_KEY_LEN_WEP40)
-			algorithm = B43_SEC_ALGO_WEP40;
-		else
-			algorithm = B43_SEC_ALGO_WEP104;
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+		algorithm = B43_SEC_ALGO_WEP40;
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_WEP104:
+		algorithm = B43_SEC_ALGO_WEP104;
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
 		algorithm = B43_SEC_ALGO_TKIP;
 		break;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		algorithm = B43_SEC_ALGO_AES;
 		break;
 	default:
@@ -4250,6 +4255,10 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 	B43_WARN_ON(dev && b43_status(dev) > B43_STAT_INITIALIZED);
 	if (!dev || b43_status(dev) != B43_STAT_INITIALIZED)
 		return;
+
+	/* Unregister HW RNG driver */
+	b43_rng_exit(dev->wl);
+
 	b43_set_status(dev, B43_STAT_UNINIT);
 
 	/* Stop the microcode PSM. */
@@ -4378,6 +4387,9 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	ieee80211_wake_queues(dev->wl->hw);
 
 	b43_set_status(dev, B43_STAT_INITIALIZED);
+
+	/* Register HW RNG driver */
+	b43_rng_init(dev->wl);
 
 out:
 	return err;
@@ -4984,7 +4996,6 @@ static int b43_probe(struct ssb_device *dev, const struct ssb_device_id *id)
 		if (err)
 			goto err_one_core_detach;
 		b43_leds_register(wl->current_dev);
-		b43_rng_init(wl);
 	}
 
       out:
@@ -5020,7 +5031,6 @@ static void b43_remove(struct ssb_device *dev)
 	b43_one_core_detach(dev);
 
 	if (list_empty(&wl->devlist)) {
-		b43_rng_exit(wl);
 		b43_leds_unregister(wl);
 		/* Last core on the chip unregistered.
 		 * We can destroy common struct b43_wl.

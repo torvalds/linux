@@ -3,11 +3,13 @@
 #
 
 lib-y = cacheflush.o checksum.o cpumask.o delay.o \
-	mb_incoherent.o uaccess.o \
-	memcpy_$(BITS).o memchr_$(BITS).o memmove_$(BITS).o memset_$(BITS).o \
+	mb_incoherent.o uaccess.o memmove.o \
+	memcpy_$(BITS).o memchr_$(BITS).o memset_$(BITS).o \
 	strchr_$(BITS).o strlen_$(BITS).o
 
-ifneq ($(CONFIG_TILEGX),y)
+ifeq ($(CONFIG_TILEGX),y)
+lib-y += memcpy_user_64.o
+else
 lib-y += atomic_32.o atomic_asm_32.o memcpy_tile64.o
 endif
 

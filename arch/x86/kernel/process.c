@@ -301,8 +301,9 @@ EXPORT_SYMBOL(kernel_thread);
 /*
  * sys_execve() executes a new program.
  */
-long sys_execve(char __user *name, char __user * __user *argv,
-		char __user * __user *envp, struct pt_regs *regs)
+long sys_execve(const char __user *name,
+		const char __user *const __user *argv,
+		const char __user *const __user *envp, struct pt_regs *regs)
 {
 	long error;
 	char *filename;

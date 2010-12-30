@@ -807,9 +807,10 @@ static int usbhid_output_raw_report(struct hid_device *hid, __u8 *buf, size_t co
 	struct usb_host_interface *interface = intf->cur_altsetting;
 	int ret;
 
-	if (usbhid->urbout) {
+	if (usbhid->urbout && report_type != HID_FEATURE_REPORT) {
 		int actual_length;
 		int skipped_report_id = 0;
+
 		if (buf[0] == 0x0) {
 			/* Don't send the Report ID */
 			buf++;
@@ -828,6 +829,7 @@ static int usbhid_output_raw_report(struct hid_device *hid, __u8 *buf, size_t co
 		}
 	} else {
 		int skipped_report_id = 0;
+		int report_id = buf[0];
 		if (buf[0] == 0x0) {
 			/* Don't send the Report ID */
 			buf++;
@@ -837,7 +839,7 @@ static int usbhid_output_raw_report(struct hid_device *hid, __u8 *buf, size_t co
 		ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			HID_REQ_SET_REPORT,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			((report_type + 1) << 8) | *buf,
+			((report_type + 1) << 8) | report_id,
 			interface->desc.bInterfaceNumber, buf, count,
 			USB_CTRL_SET_TIMEOUT);
 		/* count also the report id, if this was a numbered report. */
@@ -1445,6 +1447,11 @@ static const struct hid_device_id hid_usb_table[] = {
 	{ }
 };
 
+struct usb_interface *usbhid_find_interface(int minor)
+{
+	return usb_find_interface(&hid_driver, minor);
+}
+
 static struct hid_driver hid_usb_driver = {
 	.name = "generic-usb",
 	.id_table = hid_usb_table,
@@ -1463,9 +1470,6 @@ static int __init hid_init(void)
 	retval = usbhid_quirks_init(quirks_param);
 	if (retval)
 		goto usbhid_quirks_init_fail;
-	retval = hiddev_init();
-	if (retval)
-		goto hiddev_init_fail;
 	retval = usb_register(&hid_driver);
 	if (retval)
 		goto usb_register_fail;
@@ -1473,8 +1477,6 @@ static int __init hid_init(void)
 
 	return 0;
 usb_register_fail:
-	hiddev_exit();
-hiddev_init_fail:
 	usbhid_quirks_exit();
 usbhid_quirks_init_fail:
 	hid_unregister_driver(&hid_usb_driver);
@@ -1487,7 +1489,6 @@ no_queue:
 static void __exit hid_exit(void)
 {
 	usb_deregister(&hid_driver);
-	hiddev_exit();
 	usbhid_quirks_exit();
 	hid_unregister_driver(&hid_usb_driver);
 	destroy_workqueue(resumption_waker);

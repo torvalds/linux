@@ -11,17 +11,17 @@
 
 #include <linux/platform_device.h>
 #include <sound/sh_fsi.h>
-#include <../sound/soc/codecs/ak4642.h>
 
-static int fsi_ak4642_dai_init(struct snd_soc_codec *codec)
+static int fsi_ak4642_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_dai *dai = rtd->codec_dai;
 	int ret;
 
-	ret = snd_soc_dai_set_fmt(&ak4642_dai, SND_SOC_DAIFMT_CBM_CFM);
+	ret = snd_soc_dai_set_fmt(dai, SND_SOC_DAIFMT_CBM_CFM);
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_sysclk(&ak4642_dai, 0, 11289600, 0);
+	ret = snd_soc_dai_set_sysclk(dai, 0, 11289600, 0);
 
 	return ret;
 }
@@ -29,22 +29,23 @@ static int fsi_ak4642_dai_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link fsi_dai_link = {
 	.name		= "AK4642",
 	.stream_name	= "AK4642",
-	.cpu_dai	= &fsi_soc_dai[FSI_PORT_A],
-	.codec_dai	= &ak4642_dai,
+	.cpu_dai_name	= "fsia-dai", /* fsi A */
+	.codec_dai_name	= "ak4642-hifi",
+#ifdef CONFIG_MACH_AP4EVB
+	.platform_name	= "sh_fsi2",
+	.codec_name	= "ak4642-codec.0-0013",
+#else
+	.platform_name	= "sh_fsi.0",
+	.codec_name	= "ak4642-codec.0-0012",
+#endif
 	.init		= fsi_ak4642_dai_init,
 	.ops		= NULL,
 };
 
 static struct snd_soc_card fsi_soc_card  = {
-	.name		= "FSI",
-	.platform	= &fsi_soc_platform,
+	.name		= "FSI (AK4642)",
 	.dai_link	= &fsi_dai_link,
 	.num_links	= 1,
-};
-
-static struct snd_soc_device fsi_snd_devdata = {
-	.card		= &fsi_soc_card,
-	.codec_dev	= &soc_codec_dev_ak4642,
 };
 
 static struct platform_device *fsi_snd_device;
@@ -57,9 +58,7 @@ static int __init fsi_ak4642_init(void)
 	if (!fsi_snd_device)
 		goto out;
 
-	platform_set_drvdata(fsi_snd_device,
-			     &fsi_snd_devdata);
-	fsi_snd_devdata.dev = &fsi_snd_device->dev;
+	platform_set_drvdata(fsi_snd_device, &fsi_soc_card);
 	ret = platform_device_add(fsi_snd_device);
 
 	if (ret)

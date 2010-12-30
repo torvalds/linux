@@ -37,12 +37,6 @@
 #include "nouveau_connector.h"
 #include "nouveau_hw.h"
 
-static inline struct drm_encoder_slave_funcs *
-get_slave_funcs(struct nouveau_encoder *enc)
-{
-	return to_encoder_slave(to_drm_encoder(enc))->slave_funcs;
-}
-
 static struct nouveau_encoder *
 find_encoder_by_type(struct drm_connector *connector, int type)
 {
@@ -82,6 +76,22 @@ nouveau_encoder_connector_get(struct nouveau_encoder *encoder)
 	return NULL;
 }
 
+/*TODO: This could use improvement, and learn to handle the fixed
+ *      BIOS tables etc.  It's fine currently, for its only user.
+ */
+int
+nouveau_connector_bpp(struct drm_connector *connector)
+{
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+
+	if (nv_connector->edid && nv_connector->edid->revision >= 4) {
+		u8 bpc = ((nv_connector->edid->input & 0x70) >> 3) + 4;
+		if (bpc > 4)
+			return bpc;
+	}
+
+	return 18;
+}
 
 static void
 nouveau_connector_destroy(struct drm_connector *drm_connector)
@@ -110,7 +120,7 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 	int i;
 
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		struct nouveau_i2c_chan *i2c;
+		struct nouveau_i2c_chan *i2c = NULL;
 		struct nouveau_encoder *nv_encoder;
 		struct drm_mode_object *obj;
 		int id;
@@ -123,7 +133,9 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 		if (!obj)
 			continue;
 		nv_encoder = nouveau_encoder(obj_to_encoder(obj));
-		i2c = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
+
+		if (nv_encoder->dcb->i2c_index < 0xf)
+			i2c = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
 
 		if (i2c && nouveau_probe_i2c_addr(i2c, 0x50)) {
 			*pnv_encoder = nv_encoder;
@@ -131,6 +143,36 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 		}
 	}
 
+	return NULL;
+}
+
+static struct nouveau_encoder *
+nouveau_connector_of_detect(struct drm_connector *connector)
+{
+#ifdef __powerpc__
+	struct drm_device *dev = connector->dev;
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct nouveau_encoder *nv_encoder;
+	struct device_node *cn, *dn = pci_device_to_OF_node(dev->pdev);
+
+	if (!dn ||
+	    !((nv_encoder = find_encoder_by_type(connector, OUTPUT_TMDS)) ||
+	      (nv_encoder = find_encoder_by_type(connector, OUTPUT_ANALOG))))
+		return NULL;
+
+	for_each_child_of_node(dn, cn) {
+		const char *name = of_get_property(cn, "name", NULL);
+		const void *edid = of_get_property(cn, "EDID", NULL);
+		int idx = name ? name[strlen(name) - 1] - 'A' : 0;
+
+		if (nv_encoder->dcb->i2c_index == idx && edid) {
+			nv_connector->edid =
+				kmemdup(edid, EDID_LENGTH, GFP_KERNEL);
+			of_node_put(cn);
+			return nv_encoder;
+		}
+	}
+#endif
 	return NULL;
 }
 
@@ -172,7 +214,7 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 }
 
 static enum drm_connector_status
-nouveau_connector_detect(struct drm_connector *connector)
+nouveau_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
@@ -229,11 +271,17 @@ nouveau_connector_detect(struct drm_connector *connector)
 		return connector_status_connected;
 	}
 
+	nv_encoder = nouveau_connector_of_detect(connector);
+	if (nv_encoder) {
+		nouveau_connector_set_encoder(connector, nv_encoder);
+		return connector_status_connected;
+	}
+
 detect_analog:
 	nv_encoder = find_encoder_by_type(connector, OUTPUT_ANALOG);
 	if (!nv_encoder && !nouveau_tv_disable)
 		nv_encoder = find_encoder_by_type(connector, OUTPUT_TV);
-	if (nv_encoder) {
+	if (nv_encoder && force) {
 		struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 		struct drm_encoder_helper_funcs *helper =
 						encoder->helper_private;
@@ -250,7 +298,7 @@ detect_analog:
 }
 
 static enum drm_connector_status
-nouveau_connector_detect_lvds(struct drm_connector *connector)
+nouveau_connector_detect_lvds(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -271,7 +319,7 @@ nouveau_connector_detect_lvds(struct drm_connector *connector)
 
 	/* Try retrieving EDID via DDC */
 	if (!dev_priv->vbios.fp_no_ddc) {
-		status = nouveau_connector_detect(connector);
+		status = nouveau_connector_detect(connector, force);
 		if (status == connector_status_connected)
 			goto out;
 	}
@@ -360,6 +408,7 @@ nouveau_connector_set_property(struct drm_connector *connector,
 {
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
+	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 	struct drm_device *dev = connector->dev;
 	int ret;
 
@@ -432,8 +481,8 @@ nouveau_connector_set_property(struct drm_connector *connector,
 	}
 
 	if (nv_encoder && nv_encoder->dcb->type == OUTPUT_TV)
-		return get_slave_funcs(nv_encoder)->
-			set_property(to_drm_encoder(nv_encoder), connector, property, value);
+		return get_slave_funcs(encoder)->set_property(
+			encoder, connector, property, value);
 
 	return -EINVAL;
 }
@@ -545,6 +594,7 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
+	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 	int ret = 0;
 
 	/* destroy the native mode, the attached monitor could have changed.
@@ -560,8 +610,10 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 	if (nv_encoder->dcb->type == OUTPUT_LVDS &&
 	    (nv_encoder->dcb->lvdsconf.use_straps_for_mode ||
 	     dev_priv->vbios.fp_no_ddc) && nouveau_bios_fp_mode(dev, NULL)) {
-		nv_connector->native_mode = drm_mode_create(dev);
-		nouveau_bios_fp_mode(dev, nv_connector->native_mode);
+		struct drm_display_mode mode;
+
+		nouveau_bios_fp_mode(dev, &mode);
+		nv_connector->native_mode = drm_mode_duplicate(dev, &mode);
 	}
 
 	/* Find the native mode if this is a digital panel, if we didn't
@@ -580,8 +632,7 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 	}
 
 	if (nv_encoder->dcb->type == OUTPUT_TV)
-		ret = get_slave_funcs(nv_encoder)->
-			get_modes(to_drm_encoder(nv_encoder), connector);
+		ret = get_slave_funcs(encoder)->get_modes(encoder, connector);
 
 	if (nv_connector->dcb->type == DCB_CONNECTOR_LVDS ||
 	    nv_connector->dcb->type == DCB_CONNECTOR_eDP)
@@ -590,13 +641,31 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
+static unsigned
+get_tmds_link_bandwidth(struct drm_connector *connector)
+{
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct drm_nouveau_private *dev_priv = connector->dev->dev_private;
+	struct dcb_entry *dcb = nv_connector->detected_encoder->dcb;
+
+	if (dcb->location != DCB_LOC_ON_CHIP ||
+	    dev_priv->chipset >= 0x46)
+		return 165000;
+	else if (dev_priv->chipset >= 0x40)
+		return 155000;
+	else if (dev_priv->chipset >= 0x18)
+		return 135000;
+	else
+		return 112000;
+}
+
 static int
 nouveau_connector_mode_valid(struct drm_connector *connector,
 			     struct drm_display_mode *mode)
 {
-	struct drm_nouveau_private *dev_priv = connector->dev->dev_private;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
+	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 	unsigned min_clock = 25000, max_clock = min_clock;
 	unsigned clock = mode->clock;
 
@@ -611,11 +680,9 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 		max_clock = 400000;
 		break;
 	case OUTPUT_TMDS:
-		if ((dev_priv->card_type >= NV_50 && !nouveau_duallink) ||
-		    !nv_encoder->dcb->duallink_possible)
-			max_clock = 165000;
-		else
-			max_clock = 330000;
+		max_clock = get_tmds_link_bandwidth(connector);
+		if (nouveau_duallink && nv_encoder->dcb->duallink_possible)
+			max_clock *= 2;
 		break;
 	case OUTPUT_ANALOG:
 		max_clock = nv_encoder->dcb->crtconf.maxfreq;
@@ -623,15 +690,14 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 			max_clock = 350000;
 		break;
 	case OUTPUT_TV:
-		return get_slave_funcs(nv_encoder)->
-			mode_valid(to_drm_encoder(nv_encoder), mode);
+		return get_slave_funcs(encoder)->mode_valid(encoder, mode);
 	case OUTPUT_DP:
 		if (nv_encoder->dp.link_bw == DP_LINK_BW_2_7)
 			max_clock = nv_encoder->dp.link_nr * 270000;
 		else
 			max_clock = nv_encoder->dp.link_nr * 162000;
 
-		clock *= 3;
+		clock = clock * nouveau_connector_bpp(connector) / 8;
 		break;
 	default:
 		BUG_ON(1);
@@ -656,44 +722,6 @@ nouveau_connector_best_encoder(struct drm_connector *connector)
 		return to_drm_encoder(nv_connector->detected_encoder);
 
 	return NULL;
-}
-
-void
-nouveau_connector_set_polling(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
-	bool spare_crtc = false;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		spare_crtc |= !crtc->enabled;
-
-	connector->polled = 0;
-
-	switch (connector->connector_type) {
-	case DRM_MODE_CONNECTOR_VGA:
-	case DRM_MODE_CONNECTOR_TV:
-		if (dev_priv->card_type >= NV_50 ||
-		    (nv_gf4_disp_arch(dev) && spare_crtc))
-			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
-		break;
-
-	case DRM_MODE_CONNECTOR_DVII:
-	case DRM_MODE_CONNECTOR_DVID:
-	case DRM_MODE_CONNECTOR_HDMIA:
-	case DRM_MODE_CONNECTOR_DisplayPort:
-	case DRM_MODE_CONNECTOR_eDP:
-		if (dev_priv->card_type >= NV_50)
-			connector->polled = DRM_CONNECTOR_POLL_HPD;
-		else if (connector->connector_type == DRM_MODE_CONNECTOR_DVID ||
-			 spare_crtc)
-			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
-		break;
-
-	default:
-		break;
-	}
 }
 
 static const struct drm_connector_helper_funcs
@@ -821,6 +849,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 					dev->mode_config.scaling_mode_property,
 					nv_connector->scaling_mode);
 		}
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		/* fall-through */
 	case DCB_CONNECTOR_TV_0:
 	case DCB_CONNECTOR_TV_1:
@@ -837,10 +866,15 @@ nouveau_connector_create(struct drm_device *dev, int index)
 				dev->mode_config.dithering_mode_property,
 				nv_connector->use_dithering ?
 				DRM_MODE_DITHERING_ON : DRM_MODE_DITHERING_OFF);
+
+		if (dcb->type != DCB_CONNECTOR_LVDS) {
+			if (dev_priv->card_type >= NV_50)
+				connector->polled = DRM_CONNECTOR_POLL_HPD;
+			else
+				connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+		}
 		break;
 	}
-
-	nouveau_connector_set_polling(connector);
 
 	drm_sysfs_connector_add(connector);
 	dcb->drm = connector;

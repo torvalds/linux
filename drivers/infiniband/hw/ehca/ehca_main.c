@@ -713,7 +713,7 @@ static struct attribute_group ehca_dev_attr_grp = {
 	.attrs = ehca_dev_attrs
 };
 
-static int __devinit ehca_probe(struct of_device *dev,
+static int __devinit ehca_probe(struct platform_device *dev,
 				const struct of_device_id *id)
 {
 	struct ehca_shca *shca;
@@ -879,7 +879,7 @@ probe1:
 	return -EINVAL;
 }
 
-static int __devexit ehca_remove(struct of_device *dev)
+static int __devexit ehca_remove(struct platform_device *dev)
 {
 	struct ehca_shca *shca = dev_get_drvdata(&dev->dev);
 	unsigned long flags;

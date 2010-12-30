@@ -15,7 +15,7 @@
  *  Rewritten for 2.6 by Cesar Eduardo Barros
  *
  *  A datasheet for this chip can be found at
- *  http://www.silan.com.cn/english/products/pdf/SC92031AY.pdf
+ *  http://www.silan.com.cn/english/product/pdf/SC92031AY.pdf 
  */
 
 /* Note about set_mac_address: I don't know how to change the hardware
@@ -1251,16 +1251,6 @@ static int sc92031_ethtool_set_settings(struct net_device *dev,
 	return 0;
 }
 
-static void sc92031_ethtool_get_drvinfo(struct net_device *dev,
-		struct ethtool_drvinfo *drvinfo)
-{
-	struct sc92031_priv *priv = netdev_priv(dev);
-	struct pci_dev *pdev = priv->pdev;
-
-	strcpy(drvinfo->driver, SC92031_NAME);
-	strcpy(drvinfo->bus_info, pci_name(pdev));
-}
-
 static void sc92031_ethtool_get_wol(struct net_device *dev,
 		struct ethtool_wolinfo *wolinfo)
 {
@@ -1382,7 +1372,6 @@ static void sc92031_ethtool_get_ethtool_stats(struct net_device *dev,
 static const struct ethtool_ops sc92031_ethtool_ops = {
 	.get_settings		= sc92031_ethtool_get_settings,
 	.set_settings		= sc92031_ethtool_set_settings,
-	.get_drvinfo		= sc92031_ethtool_get_drvinfo,
 	.get_wol		= sc92031_ethtool_get_wol,
 	.set_wol		= sc92031_ethtool_set_wol,
 	.nway_reset		= sc92031_ethtool_nway_reset,

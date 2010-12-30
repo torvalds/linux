@@ -1,0 +1,22 @@
+config AUTOFS_FS
+	tristate "Kernel automounter support"
+	depends on BKL # unfixable, just use autofs4
+	help
+	  The automounter is a tool to automatically mount remote file systems
+	  on demand. This implementation is partially kernel-based to reduce
+	  overhead in the already-mounted case; this is unlike the BSD
+	  automounter (amd), which is a pure user space daemon.
+
+	  To use the automounter you need the user-space tools from the autofs
+	  package; you can find the location in <file:Documentation/Changes>.
+	  You also want to answer Y to "NFS file system support", below.
+
+	  If you want to use the newer version of the automounter with more
+	  features, say N here and say Y to "Kernel automounter v4 support",
+	  below.
+
+	  To compile this support as a module, choose M here: the module will be
+	  called autofs.
+
+	  If you are not a part of a fairly large, distributed network, you
+	  probably do not need an automounter, and can say N here.

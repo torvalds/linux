@@ -49,8 +49,6 @@ config USB_ULPI
 	  Enable this to support ULPI connected USB OTG transceivers which
 	  are likely found on embedded boards.
 
-	  The only chip currently supported is NXP's ISP1504
-
 config TWL4030_USB
 	tristate "TWL4030 USB Transceiver Driver"
 	depends on TWL4030_CORE && REGULATOR_TWL4030
@@ -68,5 +66,19 @@ config NOP_USB_XCEIV
 	 this driver is to be used by all the usb transceiver which are either
 	 built-in with usb ip or which are autonomous and doesn't require any
 	 phy programming such as ISP1x04 etc.
+
+config USB_LANGWELL_OTG
+	tristate "Intel Langwell USB OTG dual-role support"
+	depends on USB && PCI && INTEL_SCU_IPC
+	select USB_OTG
+	select USB_OTG_UTILS
+	help
+	  Say Y here if you want to build Intel Langwell USB OTG
+	  transciever driver in kernel. This driver implements role
+	  switch between EHCI host driver and Langwell USB OTG
+	  client driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called langwell_otg.
 
 endif # USB || OTG

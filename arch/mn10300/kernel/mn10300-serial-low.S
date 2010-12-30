@@ -39,7 +39,7 @@
 ###############################################################################
 	.balign	L1_CACHE_BYTES
 ENTRY(mn10300_serial_vdma_interrupt)
-	or	EPSW_IE,psw			# permit overriding by
+#	or	EPSW_IE,psw			# permit overriding by
 						# debugging interrupts
 	movm	[d2,d3,a2,a3,exreg0],(sp)
 
@@ -164,7 +164,7 @@ mnsc_vdma_tx_noint:
 	rti
 
 mnsc_vdma_tx_empty:
-	mov	+(GxICR_LEVEL_1|GxICR_DETECT),d2
+	mov	+(NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL)|GxICR_DETECT),d2
 	movhu	d2,(e3)			# disable the interrupt
 	movhu	(e3),d2			# flush
 
@@ -175,7 +175,7 @@ mnsc_vdma_tx_break:
 	movhu	(SCxCTR,e2),d2		# turn on break mode
 	or	SC01CTR_BKE,d2
 	movhu	d2,(SCxCTR,e2)
-	mov	+(GxICR_LEVEL_1|GxICR_DETECT),d2
+	mov	+(NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL)|GxICR_DETECT),d2
 	movhu	d2,(e3)			# disable transmit interrupts on this
 					# channel
 	movhu	(e3),d2			# flush

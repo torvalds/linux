@@ -910,14 +910,14 @@ static int mwl8k_rxq_init(struct ieee80211_hw *hw, int index)
 
 	rxq->rxd = pci_alloc_consistent(priv->pdev, size, &rxq->rxd_dma);
 	if (rxq->rxd == NULL) {
-		wiphy_err(hw->wiphy, "failed to alloc rx descriptors\n");
+		wiphy_err(hw->wiphy, "failed to alloc RX descriptors\n");
 		return -ENOMEM;
 	}
 	memset(rxq->rxd, 0, size);
 
 	rxq->buf = kmalloc(MWL8K_RX_DESCS * sizeof(*rxq->buf), GFP_KERNEL);
 	if (rxq->buf == NULL) {
-		wiphy_err(hw->wiphy, "failed to alloc rx skbuff list\n");
+		wiphy_err(hw->wiphy, "failed to alloc RX skbuff list\n");
 		pci_free_consistent(priv->pdev, size, rxq->rxd, rxq->rxd_dma);
 		return -ENOMEM;
 	}
@@ -1145,14 +1145,14 @@ static int mwl8k_txq_init(struct ieee80211_hw *hw, int index)
 
 	txq->txd = pci_alloc_consistent(priv->pdev, size, &txq->txd_dma);
 	if (txq->txd == NULL) {
-		wiphy_err(hw->wiphy, "failed to alloc tx descriptors\n");
+		wiphy_err(hw->wiphy, "failed to alloc TX descriptors\n");
 		return -ENOMEM;
 	}
 	memset(txq->txd, 0, size);
 
 	txq->skb = kmalloc(MWL8K_TX_DESCS * sizeof(*txq->skb), GFP_KERNEL);
 	if (txq->skb == NULL) {
-		wiphy_err(hw->wiphy, "failed to alloc tx skbuff list\n");
+		wiphy_err(hw->wiphy, "failed to alloc TX skbuff list\n");
 		pci_free_consistent(priv->pdev, size, txq->txd, txq->txd_dma);
 		return -ENOMEM;
 	}
@@ -1573,7 +1573,7 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 					PCI_DMA_BIDIRECTIONAL);
 
 	if (!timeout) {
-		wiphy_err(hw->wiphy, "command %s timeout after %u ms\n",
+		wiphy_err(hw->wiphy, "Command %s timeout after %u ms\n",
 			  mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
 			  MWL8K_CMD_TIMEOUT_MS);
 		rc = -ETIMEDOUT;
@@ -1584,11 +1584,11 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 
 		rc = cmd->result ? -EINVAL : 0;
 		if (rc)
-			wiphy_err(hw->wiphy, "command %s error 0x%x\n",
+			wiphy_err(hw->wiphy, "Command %s error 0x%x\n",
 				  mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
 				  le16_to_cpu(cmd->result));
 		else if (ms > 2000)
-			wiphy_notice(hw->wiphy, "command %s took %d ms\n",
+			wiphy_notice(hw->wiphy, "Command %s took %d ms\n",
 				     mwl8k_cmd_name(cmd->code,
 						    buf, sizeof(buf)),
 				     ms);
@@ -3210,7 +3210,7 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
 			 IRQF_SHARED, MWL8K_NAME, hw);
 	if (rc) {
-		wiphy_err(hw->wiphy, "failed to register irq handler\n");
+		wiphy_err(hw->wiphy, "failed to register IRQ handler\n");
 		return -EIO;
 	}
 
@@ -3926,7 +3926,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 
 	priv->sram = pci_iomap(pdev, 0, 0x10000);
 	if (priv->sram == NULL) {
-		wiphy_err(hw->wiphy, "cannot map device sram\n");
+		wiphy_err(hw->wiphy, "Cannot map device SRAM\n");
 		goto err_iounmap;
 	}
 
@@ -3938,7 +3938,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	if (priv->regs == NULL) {
 		priv->regs = pci_iomap(pdev, 2, 0x10000);
 		if (priv->regs == NULL) {
-			wiphy_err(hw->wiphy, "cannot map device registers\n");
+			wiphy_err(hw->wiphy, "Cannot map device registers\n");
 			goto err_iounmap;
 		}
 	}
@@ -3950,14 +3950,14 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	/* Ask userland hotplug daemon for the device firmware */
 	rc = mwl8k_request_firmware(priv);
 	if (rc) {
-		wiphy_err(hw->wiphy, "firmware files not found\n");
+		wiphy_err(hw->wiphy, "Firmware files not found\n");
 		goto err_stop_firmware;
 	}
 
 	/* Load firmware into hardware */
 	rc = mwl8k_load_firmware(hw);
 	if (rc) {
-		wiphy_err(hw->wiphy, "cannot start firmware\n");
+		wiphy_err(hw->wiphy, "Cannot start firmware\n");
 		goto err_stop_firmware;
 	}
 
@@ -4047,7 +4047,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
 			 IRQF_SHARED, MWL8K_NAME, hw);
 	if (rc) {
-		wiphy_err(hw->wiphy, "failed to register irq handler\n");
+		wiphy_err(hw->wiphy, "failed to register IRQ handler\n");
 		goto err_free_queues;
 	}
 
@@ -4067,7 +4067,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 		rc = mwl8k_cmd_get_hw_spec_sta(hw);
 	}
 	if (rc) {
-		wiphy_err(hw->wiphy, "cannot initialise firmware\n");
+		wiphy_err(hw->wiphy, "Cannot initialise firmware\n");
 		goto err_free_irq;
 	}
 
@@ -4081,14 +4081,14 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	/* Turn radio off */
 	rc = mwl8k_cmd_radio_disable(hw);
 	if (rc) {
-		wiphy_err(hw->wiphy, "cannot disable\n");
+		wiphy_err(hw->wiphy, "Cannot disable\n");
 		goto err_free_irq;
 	}
 
 	/* Clear MAC address */
 	rc = mwl8k_cmd_set_mac_addr(hw, NULL, "\x00\x00\x00\x00\x00\x00");
 	if (rc) {
-		wiphy_err(hw->wiphy, "cannot clear mac address\n");
+		wiphy_err(hw->wiphy, "Cannot clear MAC address\n");
 		goto err_free_irq;
 	}
 
@@ -4098,7 +4098,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 
 	rc = ieee80211_register_hw(hw);
 	if (rc) {
-		wiphy_err(hw->wiphy, "cannot register device\n");
+		wiphy_err(hw->wiphy, "Cannot register device\n");
 		goto err_free_queues;
 	}
 

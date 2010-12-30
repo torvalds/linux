@@ -21,7 +21,9 @@
 
 #include <arch/chip.h>
 
-#if CHIP_VA_WIDTH() > 32
+#if defined(__tile__)
+typedef unsigned long VirtualAddress;
+#elif CHIP_VA_WIDTH() > 32
 typedef unsigned long long VirtualAddress;
 #else
 typedef unsigned int VirtualAddress;
@@ -144,7 +146,10 @@ enum {
 
 	CALLER_SP_IN_R52_BASE = 4,
 
-	CALLER_SP_OFFSET_BASE = 8
+	CALLER_SP_OFFSET_BASE = 8,
+
+	/* Marks the entry point of certain functions. */
+	ENTRY_POINT_INFO_OP = 16
 };
 
 

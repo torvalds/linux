@@ -59,9 +59,7 @@
  * The ABI requires callers to allocate a caller state save area of
  * this many bytes at the bottom of each stack frame.
  */
-#ifdef __tile__
-#define C_ABI_SAVE_AREA_SIZE (2 * __SIZEOF_POINTER__)
-#endif
+#define C_ABI_SAVE_AREA_SIZE (2 * (CHIP_WORD_SIZE() / 8))
 
 /**
  * The operand to an 'info' opcode directing the backtracer to not

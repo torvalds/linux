@@ -255,7 +255,7 @@ void saa7134_dma_free(struct videobuf_queue *q,struct saa7134_buf *buf)
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 	BUG_ON(in_interrupt());
 
-	videobuf_waiton(&buf->vb,0,0);
+	videobuf_waiton(q, &buf->vb, 0, 0);
 	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
@@ -991,7 +991,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	if (card_is_empress(dev)) {
 		struct v4l2_subdev *sd =
 			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-				"saa6752hs", "saa6752hs",
+				"saa6752hs",
 				saa7134_boards[dev->board].empress_addr, NULL);
 
 		if (sd)
@@ -1002,7 +1002,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		struct v4l2_subdev *sd;
 
 		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap,	"saa6588", "saa6588",
+				&dev->i2c_adap, "saa6588",
 				0, I2C_ADDRS(saa7134_boards[dev->board].rds_addr));
 		if (sd) {
 			printk(KERN_INFO "%s: found RDS decoder\n", dev->name);

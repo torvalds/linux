@@ -83,12 +83,6 @@ struct rtc_plat_data {
 	void __iomem *ioaddr;
 	int irq;
 	struct clk *clk;
-	unsigned int irqen;
-	int alrm_sec;
-	int alrm_min;
-	int alrm_hour;
-	int alrm_mday;
-	struct timespec mxc_rtc_delta;
 	struct rtc_time g_rtc_alarm;
 };
 

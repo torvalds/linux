@@ -48,7 +48,6 @@ See the notes in the ni_atmio.o driver.
 #include "ni_stc.h"
 #include "8255.h"
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -263,11 +262,6 @@ static struct pcmcia_device *cur_dev = NULL;
 
 static int cs_attach(struct pcmcia_device *link)
 {
-	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
-	link->resource[0]->end = 16;
-	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-
 	cur_dev = link;
 
 	mio_cs_config(link);
@@ -301,16 +295,12 @@ static int mio_cs_resume(struct pcmcia_device *link)
 }
 
 
-static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cfg,
-				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
-				void *priv_data)
+static int mio_pcmcia_config_loop(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int base, ret;
 
-	p_dev->resource[0]->end = cfg->io.win[0].len;
-	p_dev->io_lines = cfg->io.flags & CISTPL_IO_LINES_MASK;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
 
 	for (base = 0x000; base < 0x400; base += 0x20) {
 		p_dev->resource[0]->start = base;
@@ -327,6 +317,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 	int ret;
 
 	DPRINTK("mio_cs_config(link=%p)\n", link);
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	ret = pcmcia_loop_config(link, mio_pcmcia_config_loop, NULL);
 	if (ret) {
@@ -337,7 +328,7 @@ static void mio_cs_config(struct pcmcia_device *link)
 	if (!link->irq)
 		dev_info(&link->dev, "no IRQ available\n");
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 }
 
 static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -446,9 +437,7 @@ struct pcmcia_driver ni_mio_cs_driver = {
 	.resume = &mio_cs_resume,
 	.id_table = ni_mio_cs_ids,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = "ni_mio_cs",
-		},
+	.name = "ni_mio_cs",
 };
 
 int init_module(void)

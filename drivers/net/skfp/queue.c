@@ -128,7 +128,7 @@ u_short smt_online(struct s_smc *smc, int on)
 {
 	queue_event(smc,EVENT_ECM,on ? EC_CONNECT : EC_DISCONNECT) ;
 	ev_dispatcher(smc) ;
-	return(smc->mib.fddiSMTCF_State) ;
+	return smc->mib.fddiSMTCF_State;
 }
 
 /*

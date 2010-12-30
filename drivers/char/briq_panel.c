@@ -6,7 +6,6 @@
 
 #include <linux/module.h>
 
-#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/tty.h>
@@ -67,15 +66,15 @@ static void set_led(char state)
 
 static int briq_panel_open(struct inode *ino, struct file *filep)
 {
-	lock_kernel();
+	tty_lock();
 	/* enforce single access, vfd_is_open is protected by BKL */
 	if (vfd_is_open) {
-		unlock_kernel();
+		tty_unlock();
 		return -EBUSY;
 	}
 	vfd_is_open = 1;
 
-	unlock_kernel();
+	tty_unlock();
 	return 0;
 }
 
@@ -186,6 +185,7 @@ static const struct file_operations briq_panel_fops = {
 	.write		= briq_panel_write,
 	.open		= briq_panel_open,
 	.release	= briq_panel_release,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice briq_panel_miscdev = {

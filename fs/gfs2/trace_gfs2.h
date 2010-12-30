@@ -39,7 +39,8 @@
 	{(1UL << GLF_INVALIDATE_IN_PROGRESS),	"i" },		\
 	{(1UL << GLF_REPLY_PENDING),		"r" },		\
 	{(1UL << GLF_INITIAL),			"I" },		\
-	{(1UL << GLF_FROZEN),			"F" })
+	{(1UL << GLF_FROZEN),			"F" },		\
+	{(1UL << GLF_QUEUED),			"q" })
 
 #ifndef NUMPTY
 #define NUMPTY

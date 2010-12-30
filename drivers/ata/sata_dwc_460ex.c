@@ -1459,7 +1459,7 @@ static void sata_dwc_qc_prep_by_tag(struct ata_queued_cmd *qc, u8 tag)
 {
 	struct scatterlist *sg = qc->sg;
 	struct ata_port *ap = qc->ap;
-	u32 dma_chan;
+	int dma_chan;
 	struct sata_dwc_device *hsdev = HSDEV_FROM_AP(ap);
 	struct sata_dwc_device_port *hsdevp = HSDEVP_FROM_AP(ap);
 	int err;
@@ -1588,7 +1588,7 @@ static const struct ata_port_info sata_dwc_port_info[] = {
 	},
 };
 
-static int sata_dwc_probe(struct of_device *ofdev,
+static int sata_dwc_probe(struct platform_device *ofdev,
 			const struct of_device_id *match)
 {
 	struct sata_dwc_device *hsdev;
@@ -1702,7 +1702,7 @@ error_out:
 	return err;
 }
 
-static int sata_dwc_remove(struct of_device *ofdev)
+static int sata_dwc_remove(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct ata_host *host = dev_get_drvdata(dev);

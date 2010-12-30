@@ -134,7 +134,7 @@ ENTRY(cpu_fa526_set_pte_ext)
 #endif
 	mov	pc, lr
 
-	__INIT
+	__CPUINIT
 
 	.type	__fa526_setup, #function
 __fa526_setup:

@@ -72,6 +72,7 @@
 #define DRM_VMW_PARAM_FIFO_OFFSET      3
 #define DRM_VMW_PARAM_HW_CAPS          4
 #define DRM_VMW_PARAM_FIFO_CAPS        5
+#define DRM_VMW_PARAM_MAX_FB_SIZE      6
 
 /**
  * struct drm_vmw_getparam_arg

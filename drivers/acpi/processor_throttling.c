@@ -32,8 +32,10 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/cpufreq.h>
+#ifdef CONFIG_ACPI_PROCFS
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#endif
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -1214,8 +1216,8 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 	return result;
 }
 
-/* proc interface */
 #ifdef CONFIG_ACPI_PROCFS
+/* proc interface */
 static int acpi_processor_throttling_seq_show(struct seq_file *seq,
 					      void *offset)
 {

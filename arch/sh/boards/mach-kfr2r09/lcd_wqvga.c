@@ -327,7 +327,7 @@ static int kfr2r09_lcd_backlight(int on)
 	return 0;
 }
 
-void kfr2r09_lcd_on(void *board_data)
+void kfr2r09_lcd_on(void *board_data, struct fb_info *info)
 {
 	kfr2r09_lcd_backlight(1);
 }

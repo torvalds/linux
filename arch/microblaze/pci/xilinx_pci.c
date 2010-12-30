@@ -16,6 +16,7 @@
 
 #include <linux/ioport.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/pci.h>
 #include <asm/io.h>
 

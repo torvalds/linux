@@ -825,6 +825,10 @@ struct fb_tile_ops {
  */
 #define FBINFO_BE_MATH  0x100000
 
+/* report to the VT layer that this fb driver can accept forced console
+   output like oopses */
+#define FBINFO_CAN_FORCE_OUTPUT     0x200000
+
 struct fb_info {
 	int node;
 	int flags;
@@ -927,6 +931,8 @@ static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
 #define fb_writel sbus_writel
 #define fb_writeq sbus_writeq
 #define fb_memset sbus_memset_io
+#define fb_memcpy_fromfb sbus_memcpy_fromio
+#define fb_memcpy_tofb sbus_memcpy_toio
 
 #elif defined(__i386__) || defined(__alpha__) || defined(__x86_64__) || defined(__hppa__) || defined(__sh__) || defined(__powerpc__) || defined(__avr32__) || defined(__bfin__)
 
@@ -939,6 +945,8 @@ static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
 #define fb_writel __raw_writel
 #define fb_writeq __raw_writeq
 #define fb_memset memset_io
+#define fb_memcpy_fromfb memcpy_fromio
+#define fb_memcpy_tofb memcpy_toio
 
 #else
 
@@ -951,6 +959,8 @@ static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
 #define fb_writel(b,addr) (*(volatile u32 *) (addr) = (b))
 #define fb_writeq(b,addr) (*(volatile u64 *) (addr) = (b))
 #define fb_memset memset
+#define fb_memcpy_fromfb memcpy
+#define fb_memcpy_tofb memcpy
 
 #endif
 
@@ -1112,6 +1122,7 @@ extern const struct fb_videomode *fb_find_best_display(const struct fb_monspecs 
 
 /* drivers/video/fbcmap.c */
 extern int fb_alloc_cmap(struct fb_cmap *cmap, int len, int transp);
+extern int fb_alloc_cmap_gfp(struct fb_cmap *cmap, int len, int transp, gfp_t flags);
 extern void fb_dealloc_cmap(struct fb_cmap *cmap);
 extern int fb_copy_cmap(const struct fb_cmap *from, struct fb_cmap *to);
 extern int fb_cmap_to_user(const struct fb_cmap *from, struct fb_cmap_user *to);

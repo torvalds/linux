@@ -40,8 +40,10 @@
 #include <linux/pm.h>
 #include <linux/cpufreq.h>
 #include <linux/cpu.h>
+#ifdef CONFIG_ACPI_PROCFS
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#endif
 #include <linux/dmi.h>
 #include <linux/moduleparam.h>
 #include <linux/cpuidle.h>
@@ -83,9 +85,6 @@ MODULE_LICENSE("GPL");
 
 static int acpi_processor_add(struct acpi_device *device);
 static int acpi_processor_remove(struct acpi_device *device, int type);
-#ifdef CONFIG_ACPI_PROCFS
-static int acpi_processor_info_open_fs(struct inode *inode, struct file *file);
-#endif
 static void acpi_processor_notify(struct acpi_device *device, u32 event);
 static acpi_status acpi_processor_hotadd_init(acpi_handle handle, int *p_cpu);
 static int acpi_processor_handle_eject(struct acpi_processor *pr);
@@ -113,15 +112,6 @@ static struct acpi_driver acpi_processor_driver = {
 
 #define INSTALL_NOTIFY_HANDLER		1
 #define UNINSTALL_NOTIFY_HANDLER	2
-#ifdef CONFIG_ACPI_PROCFS
-static const struct file_operations acpi_processor_info_fops = {
-	.owner = THIS_MODULE,
-	.open = acpi_processor_info_open_fs,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-#endif
 
 DEFINE_PER_CPU(struct acpi_processor *, processors);
 EXPORT_PER_CPU_SYMBOL(processors);
@@ -256,43 +246,8 @@ static int acpi_processor_errata(struct acpi_processor *pr)
 	return result;
 }
 
-/* --------------------------------------------------------------------------
-                              FS Interface (/proc)
-   -------------------------------------------------------------------------- */
-
 #ifdef CONFIG_ACPI_PROCFS
 static struct proc_dir_entry *acpi_processor_dir = NULL;
-
-static int acpi_processor_info_seq_show(struct seq_file *seq, void *offset)
-{
-	struct acpi_processor *pr = seq->private;
-
-
-	if (!pr)
-		goto end;
-
-	seq_printf(seq, "processor id:            %d\n"
-		   "acpi id:                 %d\n"
-		   "bus mastering control:   %s\n"
-		   "power management:        %s\n"
-		   "throttling control:      %s\n"
-		   "limit interface:         %s\n",
-		   pr->id,
-		   pr->acpi_id,
-		   pr->flags.bm_control ? "yes" : "no",
-		   pr->flags.power ? "yes" : "no",
-		   pr->flags.throttling ? "yes" : "no",
-		   pr->flags.limit ? "yes" : "no");
-
-      end:
-	return 0;
-}
-
-static int acpi_processor_info_open_fs(struct inode *inode, struct file *file)
-{
-	return single_open(file, acpi_processor_info_seq_show,
-			   PDE(inode)->data);
-}
 
 static int __cpuinit acpi_processor_add_fs(struct acpi_device *device)
 {
@@ -306,28 +261,11 @@ static int __cpuinit acpi_processor_add_fs(struct acpi_device *device)
 			return -ENODEV;
 	}
 
-	/* 'info' [R] */
-	entry = proc_create_data(ACPI_PROCESSOR_FILE_INFO,
-				 S_IRUGO, acpi_device_dir(device),
-				 &acpi_processor_info_fops,
-				 acpi_driver_data(device));
-	if (!entry)
-		return -EIO;
-
 	/* 'throttling' [R/W] */
 	entry = proc_create_data(ACPI_PROCESSOR_FILE_THROTTLING,
 				 S_IFREG | S_IRUGO | S_IWUSR,
 				 acpi_device_dir(device),
 				 &acpi_processor_throttling_fops,
-				 acpi_driver_data(device));
-	if (!entry)
-		return -EIO;
-
-	/* 'limit' [R/W] */
-	entry = proc_create_data(ACPI_PROCESSOR_FILE_LIMIT,
-				 S_IFREG | S_IRUGO | S_IWUSR,
-				 acpi_device_dir(device),
-				 &acpi_processor_limit_fops,
 				 acpi_driver_data(device));
 	if (!entry)
 		return -EIO;
@@ -337,11 +275,7 @@ static int acpi_processor_remove_fs(struct acpi_device *device)
 {
 
 	if (acpi_device_dir(device)) {
-		remove_proc_entry(ACPI_PROCESSOR_FILE_INFO,
-				  acpi_device_dir(device));
 		remove_proc_entry(ACPI_PROCESSOR_FILE_THROTTLING,
-				  acpi_device_dir(device));
-		remove_proc_entry(ACPI_PROCESSOR_FILE_LIMIT,
 				  acpi_device_dir(device));
 		remove_proc_entry(acpi_device_bid(device), acpi_processor_dir);
 		acpi_device_dir(device) = NULL;
@@ -359,7 +293,6 @@ static inline int acpi_processor_remove_fs(struct acpi_device *device)
 	return 0;
 }
 #endif
-
 /* --------------------------------------------------------------------------
                                  Driver Interface
    -------------------------------------------------------------------------- */
@@ -931,7 +864,7 @@ static int __init acpi_processor_init(void)
 		printk(KERN_DEBUG "ACPI: %s registered with cpuidle\n",
 			acpi_idle_driver.name);
 	} else {
-		printk(KERN_DEBUG "ACPI: acpi_idle yielding to %s",
+		printk(KERN_DEBUG "ACPI: acpi_idle yielding to %s\n",
 			cpuidle_get_driver()->name);
 	}
 
@@ -983,7 +916,5 @@ static void __exit acpi_processor_exit(void)
 
 module_init(acpi_processor_init);
 module_exit(acpi_processor_exit);
-
-EXPORT_SYMBOL(acpi_processor_set_thermal_limit);
 
 MODULE_ALIAS("processor");

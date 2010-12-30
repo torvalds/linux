@@ -27,10 +27,10 @@ struct zc_device {
 * Zydacron remote control has an invalid HID report descriptor,
 * that needs fixing before we can parse it.
 */
-static void zc_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-	unsigned int rsize)
+static __u8 *zc_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+	unsigned int *rsize)
 {
-	if (rsize >= 253 &&
+	if (*rsize >= 253 &&
 		rdesc[0x96] == 0xbc && rdesc[0x97] == 0xff &&
 		rdesc[0xca] == 0xbc && rdesc[0xcb] == 0xff &&
 		rdesc[0xe1] == 0xbc && rdesc[0xe2] == 0xff) {
@@ -40,6 +40,7 @@ static void zc_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 			rdesc[0x96] = rdesc[0xca] = rdesc[0xe1] = 0x0c;
 			rdesc[0x97] = rdesc[0xcb] = rdesc[0xe2] = 0x00;
 		}
+	return rdesc;
 }
 
 #define zc_map_key_clear(c) \

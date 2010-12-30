@@ -766,6 +766,10 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 	loff_t newsize = attr->ia_size;
 	int error;
 
+	error = inode_change_ok(inode, attr);
+	if (error)
+		return error;
+
 	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)
 					&& newsize != inode->i_size) {
 		struct page *page = NULL;
@@ -800,25 +804,22 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 			}
 		}
 
-		error = simple_setsize(inode, newsize);
+		/* XXX(truncate): truncate_setsize should be called last */
+		truncate_setsize(inode, newsize);
 		if (page)
 			page_cache_release(page);
-		if (error)
-			return error;
 		shmem_truncate_range(inode, newsize, (loff_t)-1);
 	}
 
-	error = inode_change_ok(inode, attr);
-	if (!error)
-		generic_setattr(inode, attr);
+	setattr_copy(inode, attr);
 #ifdef CONFIG_TMPFS_POSIX_ACL
-	if (!error && (attr->ia_valid & ATTR_MODE))
+	if (attr->ia_valid & ATTR_MODE)
 		error = generic_acl_chmod(inode);
 #endif
 	return error;
 }
 
-static void shmem_delete_inode(struct inode *inode)
+static void shmem_evict_inode(struct inode *inode)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
 
@@ -835,7 +836,7 @@ static void shmem_delete_inode(struct inode *inode)
 	}
 	BUG_ON(inode->i_blocks);
 	shmem_free_inode(inode->i_sb);
-	clear_inode(inode);
+	end_writeback(inode);
 }
 
 static inline int shmem_find_swp(swp_entry_t entry, swp_entry_t *dir, swp_entry_t *edir)
@@ -932,7 +933,7 @@ found:
 
 	/*
 	 * Move _head_ to start search for next from here.
-	 * But be careful: shmem_delete_inode checks list_empty without taking
+	 * But be careful: shmem_evict_inode checks list_empty without taking
 	 * mutex, and there's an instant in list_move_tail when info->swaplist
 	 * would appear empty, if it were the only one on shmem_swaplist.  We
 	 * could avoid doing it if inode NULL; or use this minor optimization.
@@ -1585,6 +1586,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 
 	inode = new_inode(sb);
 	if (inode) {
+		inode->i_ino = get_next_ino();
 		inode_init_owner(inode, dir, mode);
 		inode->i_blocks = 0;
 		inode->i_mapping->backing_dev_info = &shmem_backing_dev_info;
@@ -1902,7 +1904,7 @@ static int shmem_link(struct dentry *old_dentry, struct inode *dir, struct dentr
 	dir->i_size += BOGO_DIRENT_SIZE;
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	inc_nlink(inode);
-	atomic_inc(&inode->i_count);	/* New dentry reference */
+	ihold(inode);	/* New dentry reference */
 	dget(dentry);		/* Extra pinning count for the created dentry */
 	d_instantiate(dentry, inode);
 out:
@@ -2145,7 +2147,7 @@ static int shmem_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 	if (*len < 3)
 		return 255;
 
-	if (hlist_unhashed(&inode->i_hash)) {
+	if (inode_unhashed(inode)) {
 		/* Unfortunately insert_inode_hash is not idempotent,
 		 * so as we hash inodes here rather than at creation
 		 * time, we need a lock to ensure we only try
@@ -2153,7 +2155,7 @@ static int shmem_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 		 */
 		static DEFINE_SPINLOCK(lock);
 		spin_lock(&lock);
-		if (hlist_unhashed(&inode->i_hash))
+		if (inode_unhashed(inode))
 			__insert_inode_hash(inode,
 					    inode->i_ino + inode->i_generation);
 		spin_unlock(&lock);
@@ -2324,7 +2326,10 @@ static int shmem_show_options(struct seq_file *seq, struct vfsmount *vfs)
 
 static void shmem_put_super(struct super_block *sb)
 {
-	kfree(sb->s_fs_info);
+	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
+
+	percpu_counter_destroy(&sbinfo->used_blocks);
+	kfree(sbinfo);
 	sb->s_fs_info = NULL;
 }
 
@@ -2366,7 +2371,8 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
 #endif
 
 	spin_lock_init(&sbinfo->stat_lock);
-	percpu_counter_init(&sbinfo->used_blocks, 0);
+	if (percpu_counter_init(&sbinfo->used_blocks, 0))
+		goto failed;
 	sbinfo->free_inodes = sbinfo->max_inodes;
 
 	sb->s_maxbytes = SHMEM_MAX_BYTES;
@@ -2518,7 +2524,7 @@ static const struct super_operations shmem_ops = {
 	.remount_fs	= shmem_remount_fs,
 	.show_options	= shmem_show_options,
 #endif
-	.delete_inode	= shmem_delete_inode,
+	.evict_inode	= shmem_evict_inode,
 	.drop_inode	= generic_delete_inode,
 	.put_super	= shmem_put_super,
 };
@@ -2532,16 +2538,16 @@ static const struct vm_operations_struct shmem_vm_ops = {
 };
 
 
-static int shmem_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *shmem_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, shmem_fill_super, mnt);
+	return mount_nodev(fs_type, flags, data, shmem_fill_super);
 }
 
 static struct file_system_type tmpfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "tmpfs",
-	.get_sb		= shmem_get_sb,
+	.mount		= shmem_mount,
 	.kill_sb	= kill_litter_super,
 };
 
@@ -2637,7 +2643,7 @@ out:
 
 static struct file_system_type tmpfs_fs_type = {
 	.name		= "tmpfs",
-	.get_sb		= ramfs_get_sb,
+	.mount		= ramfs_mount,
 	.kill_sb	= kill_litter_super,
 };
 

@@ -41,7 +41,7 @@
 /* only for info exporting */
 static DEFINE_SPINLOCK(rds_tcp_tc_list_lock);
 static LIST_HEAD(rds_tcp_tc_list);
-unsigned int rds_tcp_tc_count;
+static unsigned int rds_tcp_tc_count;
 
 /* Track rds_tcp_connection structs so they can be cleaned up */
 static DEFINE_SPINLOCK(rds_tcp_conn_lock);
@@ -200,7 +200,7 @@ static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	struct rds_tcp_connection *tc;
 
 	tc = kmem_cache_alloc(rds_tcp_conn_slab, gfp);
-	if (tc == NULL)
+	if (!tc)
 		return -ENOMEM;
 
 	tc->t_sock = NULL;
@@ -221,7 +221,13 @@ static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 static void rds_tcp_conn_free(void *arg)
 {
 	struct rds_tcp_connection *tc = arg;
+	unsigned long flags;
 	rdsdebug("freeing tc %p\n", tc);
+
+	spin_lock_irqsave(&rds_tcp_conn_lock, flags);
+	list_del(&tc->t_tcp_node);
+	spin_unlock_irqrestore(&rds_tcp_conn_lock, flags);
+
 	kmem_cache_free(rds_tcp_conn_slab, tc);
 }
 
@@ -243,7 +249,7 @@ static void rds_tcp_destroy_conns(void)
 	}
 }
 
-void rds_tcp_exit(void)
+static void rds_tcp_exit(void)
 {
 	rds_info_deregister_func(RDS_INFO_TCP_SOCKETS, rds_tcp_tc_info);
 	rds_tcp_listen_stop();
@@ -258,7 +264,6 @@ struct rds_transport rds_tcp_transport = {
 	.laddr_check		= rds_tcp_laddr_check,
 	.xmit_prepare		= rds_tcp_xmit_prepare,
 	.xmit_complete		= rds_tcp_xmit_complete,
-	.xmit_cong_map		= rds_tcp_xmit_cong_map,
 	.xmit			= rds_tcp_xmit,
 	.recv			= rds_tcp_recv,
 	.conn_alloc		= rds_tcp_conn_alloc,
@@ -266,7 +271,6 @@ struct rds_transport rds_tcp_transport = {
 	.conn_connect		= rds_tcp_conn_connect,
 	.conn_shutdown		= rds_tcp_conn_shutdown,
 	.inc_copy_to_user	= rds_tcp_inc_copy_to_user,
-	.inc_purge		= rds_tcp_inc_purge,
 	.inc_free		= rds_tcp_inc_free,
 	.stats_info_copy	= rds_tcp_stats_info_copy,
 	.exit			= rds_tcp_exit,
@@ -276,14 +280,14 @@ struct rds_transport rds_tcp_transport = {
 	.t_prefer_loopback	= 1,
 };
 
-int __init rds_tcp_init(void)
+static int rds_tcp_init(void)
 {
 	int ret;
 
 	rds_tcp_conn_slab = kmem_cache_create("rds_tcp_connection",
 					      sizeof(struct rds_tcp_connection),
 					      0, 0, NULL);
-	if (rds_tcp_conn_slab == NULL) {
+	if (!rds_tcp_conn_slab) {
 		ret = -ENOMEM;
 		goto out;
 	}

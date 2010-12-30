@@ -127,14 +127,6 @@ static int __devinit pcf8574_kp_probe(struct i2c_client *client, const struct i2
 	idev->id.product = 0x0001;
 	idev->id.version = 0x0100;
 
-	input_set_drvdata(idev, lp);
-
-	ret = input_register_device(idev);
-	if (ret) {
-		dev_err(&client->dev, "input_register_device() failed\n");
-		goto fail_register;
-	}
-
 	lp->laststate = read_state(lp);
 
 	ret = request_threaded_irq(client->irq, NULL, pcf8574_kp_irq_handler,
@@ -142,16 +134,21 @@ static int __devinit pcf8574_kp_probe(struct i2c_client *client, const struct i2
 				   DRV_NAME, lp);
 	if (ret) {
 		dev_err(&client->dev, "IRQ %d is not free\n", client->irq);
-		goto fail_irq;
+		goto fail_free_device;
+	}
+
+	ret = input_register_device(idev);
+	if (ret) {
+		dev_err(&client->dev, "input_register_device() failed\n");
+		goto fail_free_irq;
 	}
 
 	i2c_set_clientdata(client, lp);
 	return 0;
 
- fail_irq:
-	input_unregister_device(idev);
- fail_register:
-	input_set_drvdata(idev, NULL);
+ fail_free_irq:
+	free_irq(client->irq, lp);
+ fail_free_device:
 	input_free_device(idev);
  fail_allocate:
 	kfree(lp);

@@ -38,6 +38,7 @@
 #include <linux/of_device.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/tcp.h>      /* needed for sizeof(tcphdr) */
@@ -159,7 +160,7 @@ static void temac_dma_dcr_out(struct temac_local *lp, int reg, u32 value)
  * temac_dcr_setup - If the DMA is DCR based, then setup the address and
  * I/O  functions
  */
-static int temac_dcr_setup(struct temac_local *lp, struct of_device *op,
+static int temac_dcr_setup(struct temac_local *lp, struct platform_device *op,
 				struct device_node *np)
 {
 	unsigned int dcrs;
@@ -184,7 +185,7 @@ static int temac_dcr_setup(struct temac_local *lp, struct of_device *op,
  * temac_dcr_setup - This is a stub for when DCR is not supported,
  * such as with MicroBlaze
  */
-static int temac_dcr_setup(struct temac_local *lp, struct of_device *op,
+static int temac_dcr_setup(struct temac_local *lp, struct platform_device *op,
 				struct device_node *np)
 {
 	return -1;
@@ -494,7 +495,7 @@ static u32 temac_setoptions(struct net_device *ndev, u32 options)
 	lp->options |= options;
 	mutex_unlock(&lp->indirect_mutex);
 
-	return (0);
+	return 0;
 }
 
 /* Initialize temac */
@@ -760,7 +761,7 @@ static void ll_temac_recv(struct net_device *ndev)
 		skb_put(skb, length);
 		skb->dev = ndev;
 		skb->protocol = eth_type_trans(skb, ndev);
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 
 		/* if we're doing rx csum offload, set it up */
 		if (((lp->temac_features & TEMAC_FEATURE_RX_CSUM) != 0) &&
@@ -902,8 +903,8 @@ temac_poll_controller(struct net_device *ndev)
 	disable_irq(lp->tx_irq);
 	disable_irq(lp->rx_irq);
 
-	ll_temac_rx_irq(lp->tx_irq, lp);
-	ll_temac_tx_irq(lp->rx_irq, lp);
+	ll_temac_rx_irq(lp->tx_irq, ndev);
+	ll_temac_tx_irq(lp->rx_irq, ndev);
 
 	enable_irq(lp->tx_irq);
 	enable_irq(lp->rx_irq);
@@ -952,7 +953,7 @@ static const struct attribute_group temac_attr_group = {
 };
 
 static int __init
-temac_of_probe(struct of_device *op, const struct of_device_id *match)
+temac_of_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct device_node *np;
 	struct temac_local *lp;
@@ -1094,7 +1095,7 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 	return rc;
 }
 
-static int __devexit temac_of_remove(struct of_device *op)
+static int __devexit temac_of_remove(struct platform_device *op)
 {
 	struct net_device *ndev = dev_get_drvdata(&op->dev);
 	struct temac_local *lp = netdev_priv(ndev);

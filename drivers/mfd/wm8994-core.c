@@ -326,8 +326,10 @@ static int wm8994_device_init(struct wm8994 *wm8994, unsigned long id, int irq)
 	wm8994->supplies = kzalloc(sizeof(struct regulator_bulk_data) *
 				   ARRAY_SIZE(wm8994_main_supplies),
 				   GFP_KERNEL);
-	if (!wm8994->supplies)
+	if (!wm8994->supplies) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(wm8994_main_supplies); i++)
 		wm8994->supplies[i].supply = wm8994_main_supplies[i];
@@ -495,10 +497,8 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	struct wm8994 *wm8994;
 
 	wm8994 = kzalloc(sizeof(struct wm8994), GFP_KERNEL);
-	if (wm8994 == NULL) {
-		kfree(i2c);
+	if (wm8994 == NULL)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(i2c, wm8994);
 	wm8994->dev = &i2c->dev;

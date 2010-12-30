@@ -255,43 +255,6 @@ static inline void atomic64_set(atomic64_t *v, u64 n)
 #define smp_mb__after_atomic_dec()	do { } while (0)
 #define smp_mb__after_atomic_inc()	do { } while (0)
 
-
-/*
- * Support "tns" atomic integers.  These are atomic integers that can
- * hold any value but "1".  They are more efficient than regular atomic
- * operations because the "lock" (aka acquire) step is a single "tns"
- * in the uncontended case, and the "unlock" (aka release) step is a
- * single "store" without an mf.  (However, note that on tilepro the
- * "tns" will evict the local cache line, so it's not all upside.)
- *
- * Note that you can ONLY observe the value stored in the pointer
- * using these operations; a direct read of the value may confusingly
- * return the special value "1".
- */
-
-int __tns_atomic_acquire(atomic_t *);
-void __tns_atomic_release(atomic_t *p, int v);
-
-static inline void tns_atomic_set(atomic_t *v, int i)
-{
-	__tns_atomic_acquire(v);
-	__tns_atomic_release(v, i);
-}
-
-static inline int tns_atomic_cmpxchg(atomic_t *v, int o, int n)
-{
-	int ret = __tns_atomic_acquire(v);
-	__tns_atomic_release(v, (ret == o) ? n : ret);
-	return ret;
-}
-
-static inline int tns_atomic_xchg(atomic_t *v, int n)
-{
-	int ret = __tns_atomic_acquire(v);
-	__tns_atomic_release(v, n);
-	return ret;
-}
-
 #endif /* !__ASSEMBLY__ */
 
 /*

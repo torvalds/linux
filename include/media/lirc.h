@@ -77,6 +77,7 @@
 #define LIRC_CAN_SET_REC_FILTER           0x08000000
 
 #define LIRC_CAN_MEASURE_CARRIER          0x02000000
+#define LIRC_CAN_USE_WIDEBAND_RECEIVER    0x04000000
 
 #define LIRC_CAN_SEND(x) ((x)&LIRC_CAN_SEND_MASK)
 #define LIRC_CAN_REC(x) ((x)&LIRC_CAN_REC_MASK)
@@ -145,7 +146,7 @@
  * if enabled from the next key press on the driver will send
  * LIRC_MODE2_FREQUENCY packets
  */
-#define LIRC_SET_MEASURE_CARRIER_MODE  _IOW('i', 0x0000001d, __u32)
+#define LIRC_SET_MEASURE_CARRIER_MODE	_IOW('i', 0x0000001d, __u32)
 
 /*
  * to set a range use
@@ -161,5 +162,7 @@
 
 #define LIRC_SETUP_START               _IO('i', 0x00000021)
 #define LIRC_SETUP_END                 _IO('i', 0x00000022)
+
+#define LIRC_SET_WIDEBAND_RECEIVER     _IOW('i', 0x00000023, __u32)
 
 #endif

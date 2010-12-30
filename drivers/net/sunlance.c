@@ -250,7 +250,7 @@ struct lance_private {
 	int		rx_new, tx_new;
 	int		rx_old, tx_old;
 
-	struct of_device *ledma;	/* If set this points to ledma	*/
+	struct platform_device *ledma;	/* If set this points to ledma	*/
 	char		tpe;		/* cable-selection is TPE	*/
 	char		auto_select;	/* cable-selection by carrier	*/
 	char		burst_sizes;	/* ledma SBus burst sizes	*/
@@ -265,8 +265,8 @@ struct lance_private {
 	char	       	       *name;
 	dma_addr_t		init_block_dvma;
 	struct net_device      *dev;		  /* Backpointer	*/
-	struct of_device       *op;
-	struct of_device       *lebuffer;
+	struct platform_device       *op;
+	struct platform_device       *lebuffer;
 	struct timer_list       multicast_timer;
 };
 
@@ -1272,7 +1272,7 @@ static void lance_free_hwresources(struct lance_private *lp)
 	if (lp->lregs)
 		of_iounmap(&lp->op->resource[0], lp->lregs, LANCE_REG_SIZE);
 	if (lp->dregs) {
-		struct of_device *ledma = lp->ledma;
+		struct platform_device *ledma = lp->ledma;
 
 		of_iounmap(&ledma->resource[0], lp->dregs,
 			   resource_size(&ledma->resource[0]));
@@ -1319,9 +1319,9 @@ static const struct net_device_ops sparc_lance_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int __devinit sparc_lance_probe_one(struct of_device *op,
-					   struct of_device *ledma,
-					   struct of_device *lebuffer)
+static int __devinit sparc_lance_probe_one(struct platform_device *op,
+					   struct platform_device *ledma,
+					   struct platform_device *lebuffer)
 {
 	struct device_node *dp = op->dev.of_node;
 	static unsigned version_printed;
@@ -1483,7 +1483,7 @@ no_link_test:
 	 */
 	init_timer(&lp->multicast_timer);
 	lp->multicast_timer.data = (unsigned long) dev;
-	lp->multicast_timer.function = &lance_set_multicast_retry;
+	lp->multicast_timer.function = lance_set_multicast_retry;
 
 	if (register_netdev(dev)) {
 		printk(KERN_ERR "SunLance: Cannot register device.\n");
@@ -1503,9 +1503,9 @@ fail:
 	return -ENODEV;
 }
 
-static int __devinit sunlance_sbus_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit sunlance_sbus_probe(struct platform_device *op, const struct of_device_id *match)
 {
-	struct of_device *parent = to_of_device(op->dev.parent);
+	struct platform_device *parent = to_platform_device(op->dev.parent);
 	struct device_node *parent_dp = parent->dev.of_node;
 	int err;
 
@@ -1519,7 +1519,7 @@ static int __devinit sunlance_sbus_probe(struct of_device *op, const struct of_d
 	return err;
 }
 
-static int __devexit sunlance_sbus_remove(struct of_device *op)
+static int __devexit sunlance_sbus_remove(struct platform_device *op)
 {
 	struct lance_private *lp = dev_get_drvdata(&op->dev);
 	struct net_device *net_dev = lp->dev;

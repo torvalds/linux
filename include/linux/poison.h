@@ -48,15 +48,6 @@
 #define POISON_FREE	0x6b	/* for use-after-free poisoning */
 #define	POISON_END	0xa5	/* end-byte of poisoning */
 
-/********** mm/hugetlb.c **********/
-/*
- * Private mappings of hugetlb pages use this poisoned value for
- * page->mapping. The core VM should not be doing anything with this mapping
- * but futex requires the existence of some page->mapping value even though it
- * is unused if PAGE_MAPPING_ANON is set.
- */
-#define HUGETLB_POISON	((void *)(0x00300300 + POISON_POINTER_DELTA + PAGE_MAPPING_ANON))
-
 /********** arch/$ARCH/mm/init.c **********/
 #define POISON_FREE_INITMEM	0xcc
 

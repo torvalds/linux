@@ -102,6 +102,9 @@ static inline u64 dma_get_mask(struct device *dev)
 	return DMA_BIT_MASK(32);
 }
 
+#ifdef ARCH_HAS_DMA_SET_COHERENT_MASK
+int dma_set_coherent_mask(struct device *dev, u64 mask);
+#else
 static inline int dma_set_coherent_mask(struct device *dev, u64 mask)
 {
 	if (!dma_supported(dev, mask))
@@ -109,6 +112,7 @@ static inline int dma_set_coherent_mask(struct device *dev, u64 mask)
 	dev->coherent_dma_mask = mask;
 	return 0;
 }
+#endif
 
 extern u64 dma_get_required_mask(struct device *dev);
 
@@ -141,6 +145,16 @@ static inline int dma_set_seg_boundary(struct device *dev, unsigned long mask)
 	} else
 		return -EIO;
 }
+
+#ifdef CONFIG_HAS_DMA
+static inline int dma_get_cache_alignment(void)
+{
+#ifdef ARCH_DMA_MINALIGN
+	return ARCH_DMA_MINALIGN;
+#endif
+	return 1;
+}
+#endif
 
 /* flags for the coherent memory api */
 #define	DMA_MEMORY_MAP			0x01

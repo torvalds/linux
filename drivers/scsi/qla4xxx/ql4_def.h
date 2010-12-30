@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
+#include <linux/aer.h>
 
 #include <net/tcp.h>
 #include <scsi/scsi.h>
@@ -137,6 +138,9 @@
 #define ISCSI_ALIAS_SIZE		32	/* ISCSI Alias name size */
 #define ISCSI_NAME_SIZE			0xE0	/* ISCSI Name size */
 
+#define QL4_SESS_RECOVERY_TMO		30	/* iSCSI session */
+						/* recovery timeout */
+
 #define LSDW(x) ((u32)((u64)(x)))
 #define MSDW(x) ((u32)((((u64)(x)) >> 16) >> 16))
 
@@ -158,6 +162,7 @@
 #define IOCB_TOV_MARGIN			10
 #define RELOGIN_TOV			18
 #define ISNS_DEREG_TOV			5
+#define HBA_ONLINE_TOV			30
 
 #define MAX_RESET_HA_RETRIES		2
 
@@ -249,7 +254,6 @@ struct ddb_entry {
 	uint32_t default_time2wait; /* Default Min time between
 				     * relogins (+aens) */
 
-	atomic_t port_down_timer; /* Device connection timer */
 	atomic_t retry_relogin_timer; /* Min Time between relogins
 				       * (4000 only) */
 	atomic_t relogin_timer;	/* Max Time to wait for relogin to complete */
@@ -378,7 +382,9 @@ struct scsi_qla_host {
 #define AF_MSI_ENABLED			16 /* 0x00010000 */
 #define AF_MSIX_ENABLED			17 /* 0x00020000 */
 #define AF_MBOX_COMMAND_NOPOLL		18 /* 0x00040000 */
-
+#define AF_FW_RECOVERY			19 /* 0x00080000 */
+#define AF_EEH_BUSY			20 /* 0x00100000 */
+#define AF_PCI_CHANNEL_IO_PERM_FAILURE	21 /* 0x00200000 */
 
 	unsigned long dpc_flags;
 
@@ -474,7 +480,6 @@ struct scsi_qla_host {
 	uint32_t timer_active;
 
 	/* Recovery Timers */
-	uint32_t port_down_retry_count;
 	uint32_t discovery_wait;
 	atomic_t check_relogin_timeouts;
 	uint32_t retry_reset_ha_cnt;
@@ -611,6 +616,15 @@ static inline int is_qla4032(struct scsi_qla_host *ha)
 }
 
 static inline int is_qla8022(struct scsi_qla_host *ha)
+{
+	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8022;
+}
+
+/* Note: Currently AER/EEH is now supported only for 8022 cards
+ * This function needs to be updated when AER/EEH is enabled
+ * for other cards.
+ */
+static inline int is_aer_supported(struct scsi_qla_host *ha)
 {
 	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8022;
 }

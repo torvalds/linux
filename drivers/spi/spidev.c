@@ -545,6 +545,7 @@ static const struct file_operations spidev_fops = {
 	.unlocked_ioctl = spidev_ioctl,
 	.open =		spidev_open,
 	.release =	spidev_release,
+	.llseek =	no_llseek,
 };
 
 /*-------------------------------------------------------------------------*/

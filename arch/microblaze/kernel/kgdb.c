@@ -80,7 +80,7 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 void microblaze_kgdb_break(struct pt_regs *regs)
 {
 	if (kgdb_handle_exception(1, SIGTRAP, 0, regs) != 0)
-		return 0;
+		return;
 
 	/* Jump over the first arch_kgdb_breakpoint which is barrier to
 	 * get kgdb work. The same solution is used for powerpc */
@@ -114,7 +114,6 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 {
 	char *ptr;
 	unsigned long address;
-	int cpu = smp_processor_id();
 
 	switch (remcom_in_buffer[0]) {
 	case 'c':
@@ -143,5 +142,9 @@ void kgdb_arch_exit(void)
  * Global data
  */
 struct kgdb_arch arch_kgdb_ops = {
+#ifdef __MICROBLAZEEL__
+	.gdb_bpt_instr = {0x18, 0x00, 0x0c, 0xba}, /* brki r16, 0x18 */
+#else
 	.gdb_bpt_instr = {0xba, 0x0c, 0x00, 0x18}, /* brki r16, 0x18 */
+#endif
 };

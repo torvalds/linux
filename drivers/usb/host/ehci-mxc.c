@@ -26,9 +26,6 @@
 #include <mach/mxc_ehci.h>
 
 #define ULPI_VIEWPORT_OFFSET	0x170
-#define PORTSC_OFFSET		0x184
-#define USBMODE_OFFSET		0x1a8
-#define USBMODE_CM_HOST		3
 
 struct ehci_mxc_priv {
 	struct clk *usbclk, *ahbclk;
@@ -39,6 +36,8 @@ struct ehci_mxc_priv {
 static int ehci_mxc_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	struct device *dev = hcd->self.controller;
+	struct mxc_usbh_platform_data *pdata = dev_get_platdata(dev);
 	int retval;
 
 	/* EHCI registers start at offset 0x100 */
@@ -51,6 +50,8 @@ static int ehci_mxc_setup(struct usb_hcd *hcd)
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
+	hcd->has_tt = 1;
+
 	retval = ehci_halt(ehci);
 	if (retval)
 		return retval;
@@ -60,11 +61,15 @@ static int ehci_mxc_setup(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
-	hcd->has_tt = 1;
-
 	ehci->sbrn = 0x20;
 
 	ehci_reset(ehci);
+
+	/* set up the PORTSCx register */
+	ehci_writel(ehci, pdata->portsc, &ehci->regs->port_status[0]);
+
+	/* is this really needed? */
+	msleep(10);
 
 	ehci_port_power(ehci, 0);
 	return 0;
@@ -117,7 +122,7 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	struct mxc_usbh_platform_data *pdata = pdev->dev.platform_data;
 	struct usb_hcd *hcd;
 	struct resource *res;
-	int irq, ret, temp;
+	int irq, ret;
 	struct ehci_mxc_priv *priv;
 	struct device *dev = &pdev->dev;
 
@@ -190,14 +195,6 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 		}
 		clk_enable(priv->ahbclk);
 	}
-
-	/* set USBMODE to host mode */
-	temp = readl(hcd->regs + USBMODE_OFFSET);
-	writel(temp | USBMODE_CM_HOST, hcd->regs + USBMODE_OFFSET);
-
-	/* set up the PORTSCx register */
-	writel(pdata->portsc, hcd->regs + PORTSC_OFFSET);
-	mdelay(10);
 
 	/* setup specific usb hw */
 	ret = mxc_initialize_usb_hw(pdev->id, pdata->flags);

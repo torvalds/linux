@@ -46,6 +46,8 @@
  * be incorporated into the next SCTP release.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/skbuff.h>
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
@@ -66,15 +68,19 @@ static const sctp_sm_table_entry_t bug = {
 	.name = "sctp_sf_bug"
 };
 
-#define DO_LOOKUP(_max, _type, _table) \
-	if ((event_subtype._type > (_max))) { \
-		printk(KERN_WARNING \
-		       "sctp table %p possible attack:" \
-		       " event %d exceeds max %d\n", \
-		       _table, event_subtype._type, _max); \
-		return &bug; \
-	} \
-	return &_table[event_subtype._type][(int)state];
+#define DO_LOOKUP(_max, _type, _table)					\
+({									\
+	const sctp_sm_table_entry_t *rtn;				\
+									\
+	if ((event_subtype._type > (_max))) {				\
+		pr_warn("table %p possible attack: event %d exceeds max %d\n", \
+			_table, event_subtype._type, _max);		\
+	        rtn = &bug;						\
+	} else								\
+		rtn = &_table[event_subtype._type][(int)state];		\
+									\
+	rtn;								\
+})
 
 const sctp_sm_table_entry_t *sctp_sm_lookup_event(sctp_event_t event_type,
 						  sctp_state_t state,
@@ -83,21 +89,15 @@ const sctp_sm_table_entry_t *sctp_sm_lookup_event(sctp_event_t event_type,
 	switch (event_type) {
 	case SCTP_EVENT_T_CHUNK:
 		return sctp_chunk_event_lookup(event_subtype.chunk, state);
-		break;
 	case SCTP_EVENT_T_TIMEOUT:
-		DO_LOOKUP(SCTP_EVENT_TIMEOUT_MAX, timeout,
-			  timeout_event_table);
-		break;
-
+		return DO_LOOKUP(SCTP_EVENT_TIMEOUT_MAX, timeout,
+				 timeout_event_table);
 	case SCTP_EVENT_T_OTHER:
-		DO_LOOKUP(SCTP_EVENT_OTHER_MAX, other, other_event_table);
-		break;
-
+		return DO_LOOKUP(SCTP_EVENT_OTHER_MAX, other,
+				 other_event_table);
 	case SCTP_EVENT_T_PRIMITIVE:
-		DO_LOOKUP(SCTP_EVENT_PRIMITIVE_MAX, primitive,
-			  primitive_event_table);
-		break;
-
+		return DO_LOOKUP(SCTP_EVENT_PRIMITIVE_MAX, primitive,
+				 primitive_event_table);
 	default:
 		/* Yikes!  We got an illegal event type.  */
 		return &bug;

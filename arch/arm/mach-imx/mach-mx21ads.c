@@ -67,7 +67,7 @@
 #define MX21ADS_IO_LED4_ON      0x4000
 #define MX21ADS_IO_LED3_ON      0x8000
 
-static unsigned int mx21ads_pins[] = {
+static const int mx21ads_pins[] __initconst = {
 
 	/* CS8900A */
 	(GPIO_PORTE | GPIO_GPIO | GPIO_IN | 11),
@@ -314,8 +314,6 @@ static struct sys_timer mx21ads_timer = {
 
 MACHINE_START(MX21ADS, "Freescale i.MX21ADS")
 	/* maintainer: Freescale Semiconductor, Inc. */
-	.phys_io        = MX21_AIPI_BASE_ADDR,
-	.io_pg_offst    = ((MX21_AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = MX21_PHYS_OFFSET + 0x100,
 	.map_io         = mx21ads_map_io,
 	.init_irq       = mx21_init_irq,

@@ -673,9 +673,6 @@ static int dib0700_probe(struct usb_interface *intf,
 			else
 				dev->props.rc.core.bulk_mode = false;
 
-			/* Need a higher delay, to avoid wrong repeat */
-			dev->rc_input_dev->rep[REP_DELAY] = 500;
-
 			dib0700_rc_setup(dev);
 
 			return 0;

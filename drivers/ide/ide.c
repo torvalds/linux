@@ -177,7 +177,7 @@ EXPORT_SYMBOL_GPL(ide_pci_clk);
 module_param_named(pci_clock, ide_pci_clk, int, 0);
 MODULE_PARM_DESC(pci_clock, "PCI bus clock frequency (in MHz)");
 
-static int ide_set_dev_param_mask(const char *s, struct kernel_param *kp)
+static int ide_set_dev_param_mask(const char *s, const struct kernel_param *kp)
 {
 	int a, b, i, j = 1;
 	unsigned int *dev_param_mask = (unsigned int *)kp->arg;
@@ -200,34 +200,40 @@ static int ide_set_dev_param_mask(const char *s, struct kernel_param *kp)
 	return 0;
 }
 
+static struct kernel_param_ops param_ops_ide_dev_mask = {
+	.set = ide_set_dev_param_mask
+};
+
+#define param_check_ide_dev_mask(name, p) param_check_uint(name, p)
+
 static unsigned int ide_nodma;
 
-module_param_call(nodma, ide_set_dev_param_mask, NULL, &ide_nodma, 0);
+module_param_named(nodma, ide_nodma, ide_dev_mask, 0);
 MODULE_PARM_DESC(nodma, "disallow DMA for a device");
 
 static unsigned int ide_noflush;
 
-module_param_call(noflush, ide_set_dev_param_mask, NULL, &ide_noflush, 0);
+module_param_named(noflush, ide_noflush, ide_dev_mask, 0);
 MODULE_PARM_DESC(noflush, "disable flush requests for a device");
 
 static unsigned int ide_nohpa;
 
-module_param_call(nohpa, ide_set_dev_param_mask, NULL, &ide_nohpa, 0);
+module_param_named(nohpa, ide_nohpa, ide_dev_mask, 0);
 MODULE_PARM_DESC(nohpa, "disable Host Protected Area for a device");
 
 static unsigned int ide_noprobe;
 
-module_param_call(noprobe, ide_set_dev_param_mask, NULL, &ide_noprobe, 0);
+module_param_named(noprobe, ide_noprobe, ide_dev_mask, 0);
 MODULE_PARM_DESC(noprobe, "skip probing for a device");
 
 static unsigned int ide_nowerr;
 
-module_param_call(nowerr, ide_set_dev_param_mask, NULL, &ide_nowerr, 0);
+module_param_named(nowerr, ide_nowerr, ide_dev_mask, 0);
 MODULE_PARM_DESC(nowerr, "ignore the ATA_DF bit for a device");
 
 static unsigned int ide_cdroms;
 
-module_param_call(cdrom, ide_set_dev_param_mask, NULL, &ide_cdroms, 0);
+module_param_named(cdrom, ide_cdroms, ide_dev_mask, 0);
 MODULE_PARM_DESC(cdrom, "force device as a CD-ROM");
 
 struct chs_geom {

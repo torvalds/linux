@@ -24,7 +24,6 @@
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
-#include <linux/wm97xx_batt.h>
 #include <linux/power_supply.h>
 #include <linux/sysdev.h>
 #include <linux/w1-gpio.h>
@@ -40,12 +39,13 @@
 #include <mach/mmc.h>
 #include <mach/pxafb.h>
 #include <mach/irda.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <mach/udc.h>
 #include <mach/ohci.h>
 #include <mach/pxa2xx-regs.h>
 #include <mach/palmasoc.h>
 #include <mach/camera.h>
+#include <mach/palm27x.h>
 
 #include <sound/pxa2xx-lib.h>
 
@@ -160,31 +160,9 @@ static unsigned long centro685_pin_config[] __initdata = {
 #endif /* CONFIG_MACH_CENTRO */
 
 /******************************************************************************
- * SD/MMC card controller
- ******************************************************************************/
-#ifdef CONFIG_MACH_TREO680
-static struct pxamci_platform_data treo680_mci_platform_data = {
-	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_card_detect	= GPIO_NR_TREO_SD_DETECT_N,
-	.gpio_card_ro		= GPIO_NR_TREO680_SD_READONLY,
-	.gpio_power		= GPIO_NR_TREO680_SD_POWER,
-};
-#endif /* CONFIG_MACH_TREO680 */
-
-#ifdef CONFIG_MACH_CENTRO
-static struct pxamci_platform_data centro_mci_platform_data = {
-	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_card_detect	= GPIO_NR_TREO_SD_DETECT_N,
-	.gpio_card_ro		= -1,
-	.gpio_power		= GPIO_NR_CENTRO_SD_POWER,
-	.gpio_power_invert	= 1,
-};
-#endif /* CONFIG_MACH_CENTRO */
-
-/******************************************************************************
  * GPIO keyboard
  ******************************************************************************/
-#ifdef CONFIG_MACH_TREO680
+#if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
 static unsigned int treo680_matrix_keys[] = {
 	KEY(0, 0, KEY_F8),		/* Red/Off/Power */
 	KEY(0, 1, KEY_LEFT),
@@ -244,19 +222,6 @@ static unsigned int treo680_matrix_keys[] = {
 	KEY(7, 5, KEY_I),
 };
 
-static struct pxa27x_keypad_platform_data treo680_keypad_platform_data = {
-	.matrix_key_rows	= 8,
-	.matrix_key_cols	= 7,
-	.matrix_key_map		= treo680_matrix_keys,
-	.matrix_key_map_size	= ARRAY_SIZE(treo680_matrix_keys),
-	.direct_key_map		= { KEY_CONNECT },
-	.direct_key_num		= 1,
-
-	.debounce_interval	= 30,
-};
-#endif /* CONFIG_MACH_TREO680 */
-
-#ifdef CONFIG_MACH_CENTRO
 static unsigned int centro_matrix_keys[] = {
 	KEY(0, 0, KEY_F9),		/* Home */
 	KEY(0, 1, KEY_LEFT),
@@ -316,157 +281,50 @@ static unsigned int centro_matrix_keys[] = {
 	KEY(7, 5, KEY_I),
 };
 
-static struct pxa27x_keypad_platform_data centro_keypad_platform_data = {
+static struct pxa27x_keypad_platform_data treo680_keypad_pdata = {
 	.matrix_key_rows	= 8,
 	.matrix_key_cols	= 7,
-	.matrix_key_map		= centro_matrix_keys,
-	.matrix_key_map_size	= ARRAY_SIZE(centro_matrix_keys),
+	.matrix_key_map		= treo680_matrix_keys,
+	.matrix_key_map_size	= ARRAY_SIZE(treo680_matrix_keys),
 	.direct_key_map		= { KEY_CONNECT },
 	.direct_key_num		= 1,
 
 	.debounce_interval	= 30,
 };
-#endif /* CONFIG_MACH_CENTRO */
 
-/******************************************************************************
- * aSoC audio
- ******************************************************************************/
-
-static pxa2xx_audio_ops_t treo_ac97_pdata = {
-	.reset_gpio	= 95,
-};
-
-/******************************************************************************
- * Backlight
- ******************************************************************************/
-static int treo_backlight_init(struct device *dev)
+static void __init palmtreo_kpc_init(void)
 {
-	int ret;
+	static struct pxa27x_keypad_platform_data *data = &treo680_keypad_pdata;
 
-	ret = gpio_request(GPIO_NR_TREO_BL_POWER, "BL POWER");
-	if (ret)
-		goto err;
-	ret = gpio_direction_output(GPIO_NR_TREO_BL_POWER, 0);
-	if (ret)
-		goto err2;
+	if (machine_is_centro()) {
+		data->matrix_key_map = centro_matrix_keys;
+		data->matrix_key_map_size = ARRAY_SIZE(centro_matrix_keys);
+	}
 
-	return 0;
-
-err2:
-	gpio_free(GPIO_NR_TREO_BL_POWER);
-err:
-	return ret;
+	pxa_set_keypad_info(&treo680_keypad_pdata);
 }
-
-static int treo_backlight_notify(struct device *dev, int brightness)
-{
-	gpio_set_value(GPIO_NR_TREO_BL_POWER, brightness);
-	return TREO_MAX_INTENSITY - brightness;
-};
-
-static void treo_backlight_exit(struct device *dev)
-{
-	gpio_free(GPIO_NR_TREO_BL_POWER);
-}
-
-static struct platform_pwm_backlight_data treo_backlight_data = {
-	.pwm_id		= 0,
-	.max_brightness	= TREO_MAX_INTENSITY,
-	.dft_brightness	= TREO_DEFAULT_INTENSITY,
-	.pwm_period_ns	= TREO_PERIOD_NS,
-	.init		= treo_backlight_init,
-	.notify		= treo_backlight_notify,
-	.exit		= treo_backlight_exit,
-};
-
-static struct platform_device treo_backlight = {
-	.name	= "pwm-backlight",
-	.dev	= {
-		.parent		= &pxa27x_device_pwm0.dev,
-		.platform_data	= &treo_backlight_data,
-	},
-};
-
-/******************************************************************************
- * IrDA
- ******************************************************************************/
-static struct pxaficp_platform_data treo_ficp_info = {
-	.gpio_pwdown		= GPIO_NR_TREO_IR_EN,
-	.transceiver_cap	= IR_SIRMODE | IR_OFF,
-};
-
-/******************************************************************************
- * UDC
- ******************************************************************************/
-static struct pxa2xx_udc_mach_info treo_udc_info __initdata = {
-	.gpio_vbus		= GPIO_NR_TREO_USB_DETECT,
-	.gpio_vbus_inverted	= 1,
-	.gpio_pullup		= GPIO_NR_TREO_USB_PULLUP,
-};
-
+#else
+static inline void palmtreo_kpc_init(void) {}
+#endif
 
 /******************************************************************************
  * USB host
  ******************************************************************************/
-#ifdef CONFIG_MACH_TREO680
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 static struct pxaohci_platform_data treo680_ohci_info = {
 	.port_mode    = PMM_PERPORT_MODE,
 	.flags        = ENABLE_PORT1 | ENABLE_PORT3,
 	.power_budget = 0,
 };
-#endif /* CONFIG_MACH_TREO680 */
 
-/******************************************************************************
- * Power supply
- ******************************************************************************/
-static int power_supply_init(struct device *dev)
+static void __init palmtreo_uhc_init(void)
 {
-	int ret;
-
-	ret = gpio_request(GPIO_NR_TREO_POWER_DETECT, "CABLE_STATE_AC");
-	if (ret)
-		goto err1;
-	ret = gpio_direction_input(GPIO_NR_TREO_POWER_DETECT);
-	if (ret)
-		goto err2;
-
-	return 0;
-
-err2:
-	gpio_free(GPIO_NR_TREO_POWER_DETECT);
-err1:
-	return ret;
+	if (machine_is_treo680())
+		pxa_set_ohci_info(&treo680_ohci_info);
 }
-
-static int treo_is_ac_online(void)
-{
-	return gpio_get_value(GPIO_NR_TREO_POWER_DETECT);
-}
-
-static void power_supply_exit(struct device *dev)
-{
-	gpio_free(GPIO_NR_TREO_POWER_DETECT);
-}
-
-static char *treo_supplicants[] = {
-	"main-battery",
-};
-
-static struct pda_power_pdata power_supply_info = {
-	.init		 = power_supply_init,
-	.is_ac_online    = treo_is_ac_online,
-	.exit		 = power_supply_exit,
-	.supplied_to     = treo_supplicants,
-	.num_supplicants = ARRAY_SIZE(treo_supplicants),
-};
-
-static struct platform_device power_supply = {
-	.name = "pda-power",
-	.id   = -1,
-	.dev  = {
-		.platform_data = &power_supply_info,
-	},
-};
+#else
+static inline void palmtreo_uhc_init(void) {}
+#endif
 
 /******************************************************************************
  * Vibra and LEDs
@@ -495,16 +353,6 @@ static struct gpio_led_platform_data treo680_gpio_led_info = {
 	.num_leds	= ARRAY_SIZE(treo680_gpio_leds),
 };
 
-static struct platform_device treo680_leds = {
-	.name   = "leds-gpio",
-	.id     = -1,
-	.dev    = {
-		.platform_data  = &treo680_gpio_led_info,
-	}
-};
-#endif /* CONFIG_MACH_TREO680 */
-
-#ifdef CONFIG_MACH_CENTRO
 static struct gpio_led centro_gpio_leds[] = {
 	{
 		.name			= "centro:vibra:vibra",
@@ -529,150 +377,70 @@ static struct gpio_led_platform_data centro_gpio_led_info = {
 	.num_leds	= ARRAY_SIZE(centro_gpio_leds),
 };
 
-static struct platform_device centro_leds = {
+static struct platform_device palmtreo_leds = {
 	.name   = "leds-gpio",
 	.id     = -1,
 	.dev    = {
-		.platform_data  = &centro_gpio_led_info,
+		.platform_data  = &treo680_gpio_led_info,
 	}
 };
-#endif /* CONFIG_MACH_CENTRO */
 
-/******************************************************************************
- * Framebuffer
- ******************************************************************************/
-/* TODO: add support for 324x324 */
-static struct pxafb_mode_info treo_lcd_modes[] = {
+static void __init palmtreo_leds_init(void)
 {
-	.pixclock		= 86538,
-	.xres			= 320,
-	.yres			= 320,
-	.bpp			= 16,
+	if (machine_is_centro())
+		palmtreo_leds.dev.platform_data = &centro_gpio_led_info;
 
-	.left_margin		= 20,
-	.right_margin		= 8,
-	.upper_margin		= 8,
-	.lower_margin		= 5,
-
-	.hsync_len		= 4,
-	.vsync_len		= 1,
-},
-};
-
-static void treo_lcd_power(int on, struct fb_var_screeninfo *info)
-{
-	gpio_set_value(GPIO_NR_TREO_BL_POWER, on);
+	platform_device_register(&palmtreo_leds);
 }
-
-static struct pxafb_mach_info treo_lcd_screen = {
-	.modes		= treo_lcd_modes,
-	.num_modes	= ARRAY_SIZE(treo_lcd_modes),
-	.lcd_conn	= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
-};
-
-/******************************************************************************
- * Power management - standby
- ******************************************************************************/
-static void __init treo_pm_init(void)
-{
-	static u32 resume[] = {
-		0xe3a00101,	/* mov	r0,	#0x40000000 */
-		0xe380060f,	/* orr	r0, r0, #0x00f00000 */
-		0xe590f008,	/* ldr	pc, [r0, #0x08] */
-	};
-
-	/* this is where the bootloader jumps */
-	memcpy(phys_to_virt(TREO_STR_BASE), resume, sizeof(resume));
-}
+#else
+static inline void palmtreo_leds_init(void) {}
+#endif
 
 /******************************************************************************
  * Machine init
  ******************************************************************************/
-static struct platform_device *treo_devices[] __initdata = {
-	&treo_backlight,
-	&power_supply,
-};
-
-#ifdef CONFIG_MACH_TREO680
-static struct platform_device *treo680_devices[] __initdata = {
-	&treo680_leds,
-};
-#endif /* CONFIG_MACH_TREO680 */
-
-#ifdef CONFIG_MACH_CENTRO
-static struct platform_device *centro_devices[] __initdata = {
-	&centro_leds,
-};
-#endif /* CONFIG_MACH_CENTRO */
-
-/* setup udc GPIOs initial state */
-static void __init treo_udc_init(void)
-{
-	if (!gpio_request(GPIO_NR_TREO_USB_PULLUP, "UDC Vbus")) {
-		gpio_direction_output(GPIO_NR_TREO_USB_PULLUP, 1);
-		gpio_free(GPIO_NR_TREO_USB_PULLUP);
-	}
-}
-
-static void __init treo_lcd_power_init(void)
-{
-	int ret;
-
-	ret = gpio_request(GPIO_NR_TREO_LCD_POWER, "LCD POWER");
-	if (ret) {
-		pr_err("Treo680: LCD power GPIO request failed!\n");
-		return;
-	}
-
-	ret = gpio_direction_output(GPIO_NR_TREO_LCD_POWER, 0);
-	if (ret) {
-		pr_err("Treo680: setting LCD power GPIO direction failed!\n");
-		gpio_free(GPIO_NR_TREO_LCD_POWER);
-		return;
-	}
-
-	treo_lcd_screen.pxafb_lcd_power = treo_lcd_power;
-}
-
 static void __init treo_reserve(void)
 {
 	memblock_reserve(0xa0000000, 0x1000);
 	memblock_reserve(0xa2000000, 0x1000);
 }
 
-static void __init treo_init(void)
+static void __init palmphone_common_init(void)
 {
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(treo_pin_config));
 	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
-
-	treo_pm_init();
-	pxa2xx_mfp_config(ARRAY_AND_SIZE(treo_pin_config));
-	treo_lcd_power_init();
-	set_pxa_fb_info(&treo_lcd_screen);
-	treo_udc_init();
-	pxa_set_udc_info(&treo_udc_info);
-	pxa_set_ac97_info(&treo_ac97_pdata);
-	pxa_set_ficp_info(&treo_ficp_info);
-
-	platform_add_devices(ARRAY_AND_SIZE(treo_devices));
+	palm27x_pm_init(TREO_STR_BASE);
+	palm27x_lcd_init(GPIO_NR_TREO_BL_POWER, &palm_320x320_new_lcd_mode);
+	palm27x_udc_init(GPIO_NR_TREO_USB_DETECT, GPIO_NR_TREO_USB_PULLUP, 1);
+	palm27x_irda_init(GPIO_NR_TREO_IR_EN);
+	palm27x_ac97_init(-1, -1, -1, 95);
+	palm27x_pwm_init(GPIO_NR_TREO_BL_POWER, -1);
+	palm27x_power_init(GPIO_NR_TREO_POWER_DETECT, -1);
+	palm27x_pmic_init();
+	palmtreo_kpc_init();
+	palmtreo_uhc_init();
+	palmtreo_leds_init();
 }
 
-#ifdef CONFIG_MACH_TREO680
 static void __init treo680_init(void)
 {
-	treo_init();
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(treo680_pin_config));
-	pxa_set_mci_info(&treo680_mci_platform_data);
-	pxa_set_keypad_info(&treo680_keypad_platform_data);
-	pxa_set_ohci_info(&treo680_ohci_info);
+	palmphone_common_init();
+	palm27x_mmc_init(GPIO_NR_TREO_SD_DETECT_N, GPIO_NR_TREO680_SD_READONLY,
+			GPIO_NR_TREO680_SD_POWER, 0);
+}
 
-	platform_add_devices(ARRAY_AND_SIZE(treo680_devices));
+static void __init centro_init(void)
+{
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(centro685_pin_config));
+	palmphone_common_init();
+	palm27x_mmc_init(GPIO_NR_TREO_SD_DETECT_N, -1,
+			GPIO_NR_CENTRO_SD_POWER, 1);
 }
 
 MACHINE_START(TREO680, "Palm Treo 680")
-	.phys_io        = TREO_PHYS_IO_START,
-	.io_pg_offst    = io_p2v(0x40000000),
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
 	.reserve	= treo_reserve,
@@ -680,28 +448,12 @@ MACHINE_START(TREO680, "Palm Treo 680")
 	.timer          = &pxa_timer,
 	.init_machine   = treo680_init,
 MACHINE_END
-#endif /* CONFIG_MACH_TREO680 */
-
-#ifdef CONFIG_MACH_CENTRO
-static void __init centro_init(void)
-{
-	treo_init();
-	pxa2xx_mfp_config(ARRAY_AND_SIZE(centro685_pin_config));
-	pxa_set_mci_info(&centro_mci_platform_data);
-
-	pxa_set_keypad_info(&centro_keypad_platform_data);
-
-	platform_add_devices(ARRAY_AND_SIZE(centro_devices));
-}
 
 MACHINE_START(CENTRO, "Palm Centro 685")
-	.phys_io        = TREO_PHYS_IO_START,
-	.io_pg_offst    = io_p2v(0x40000000),
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
 	.reserve	= treo_reserve,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
-       .init_machine   = centro_init,
+	.init_machine	= centro_init,
 MACHINE_END
-#endif /* CONFIG_MACH_CENTRO */

@@ -45,7 +45,6 @@ This document describes the Linux kernel Makefiles.
 		--- 7.1 header-y
 		--- 7.2 objhdr-y
 		--- 7.3 destination-y
-		--- 7.4 unifdef-y (deprecated)
 
 	=== 8 Kbuild Variables
 	=== 9 Makefile language
@@ -777,6 +776,13 @@ This will delete the directory debian, including all subdirectories.
 Kbuild will assume the directories to be in the same relative path as the
 Makefile if no absolute path is specified (path does not start with '/').
 
+To exclude certain files from make clean, use the $(no-clean-files) variable.
+This is only a special case used in the top level Kbuild file:
+
+	Example:
+		#Kbuild
+		no-clean-files := $(bounds-file) $(offsets-file)
+
 Usually kbuild descends down in subdirectories due to "obj-* := dir/",
 but in the architecture makefiles where the kbuild infrastructure
 is not sufficient this sometimes needs to be explicit.
@@ -1243,11 +1249,6 @@ See subsequent chapter for the syntax of the Kbuild file.
 
 	In the example above all exported headers in the Kbuild file
 	will be located in the directory "include/linux" when exported.
-
-
-	--- 7.4 unifdef-y (deprecated)
-
-	unifdef-y is deprecated. A direct replacement is header-y.
 
 
 === 8 Kbuild Variables

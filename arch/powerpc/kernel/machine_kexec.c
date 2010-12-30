@@ -14,9 +14,33 @@
 #include <linux/threads.h>
 #include <linux/memblock.h>
 #include <linux/of.h>
+#include <linux/irq.h>
+
 #include <asm/machdep.h>
 #include <asm/prom.h>
 #include <asm/sections.h>
+
+void machine_kexec_mask_interrupts(void) {
+	unsigned int i;
+
+	for_each_irq(i) {
+		struct irq_desc *desc = irq_to_desc(i);
+
+		if (!desc || !desc->chip)
+			continue;
+
+		if (desc->chip->eoi &&
+		    desc->status & IRQ_INPROGRESS)
+			desc->chip->eoi(i);
+
+		if (desc->chip->mask)
+			desc->chip->mask(i);
+
+		if (desc->chip->disable &&
+		    !(desc->status & IRQ_DISABLED))
+			desc->chip->disable(i);
+	}
+}
 
 void machine_crash_shutdown(struct pt_regs *regs)
 {

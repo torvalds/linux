@@ -2302,9 +2302,10 @@ static irqreturn_t qe_udc_irq(int irq, void *_udc)
 }
 
 /*-------------------------------------------------------------------------
-	Gadget driver register and unregister.
+	Gadget driver probe and unregister.
  --------------------------------------------------------------------------*/
-int usb_gadget_register_driver(struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	int retval;
 	unsigned long flags = 0;
@@ -2315,8 +2316,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 
 	if (!driver || (driver->speed != USB_SPEED_FULL
 			&& driver->speed != USB_SPEED_HIGH)
-			|| !driver->bind || !driver->disconnect
-			|| !driver->setup)
+			|| !bind || !driver->disconnect || !driver->setup)
 		return -EINVAL;
 
 	if (udc_controller->driver)
@@ -2332,7 +2332,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	udc_controller->gadget.speed = (enum usb_device_speed)(driver->speed);
 	spin_unlock_irqrestore(&udc_controller->lock, flags);
 
-	retval = driver->bind(&udc_controller->gadget);
+	retval = bind(&udc_controller->gadget);
 	if (retval) {
 		dev_err(udc_controller->dev, "bind to %s --> %d",
 				driver->driver.name, retval);
@@ -2353,7 +2353,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		udc_controller->gadget.name, driver->driver.name);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 {
@@ -2398,7 +2398,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 /* udc structure's alloc and setup, include ep-param alloc */
-static struct qe_udc __devinit *qe_udc_config(struct of_device *ofdev)
+static struct qe_udc __devinit *qe_udc_config(struct platform_device *ofdev)
 {
 	struct qe_udc *udc;
 	struct device_node *np = ofdev->dev.of_node;
@@ -2523,7 +2523,7 @@ static void qe_udc_release(struct device *dev)
 }
 
 /* Driver probe functions */
-static int __devinit qe_udc_probe(struct of_device *ofdev,
+static int __devinit qe_udc_probe(struct platform_device *ofdev,
 			const struct of_device_id *match)
 {
 	struct device_node *np = ofdev->dev.of_node;
@@ -2679,18 +2679,18 @@ err1:
 }
 
 #ifdef CONFIG_PM
-static int qe_udc_suspend(struct of_device *dev, pm_message_t state)
+static int qe_udc_suspend(struct platform_device *dev, pm_message_t state)
 {
 	return -ENOTSUPP;
 }
 
-static int qe_udc_resume(struct of_device *dev)
+static int qe_udc_resume(struct platform_device *dev)
 {
 	return -ENOTSUPP;
 }
 #endif
 
-static int __devexit qe_udc_remove(struct of_device *ofdev)
+static int __devexit qe_udc_remove(struct platform_device *ofdev)
 {
 	struct qe_ep *ep;
 	unsigned int size;

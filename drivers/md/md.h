@@ -29,6 +29,26 @@
 typedef struct mddev_s mddev_t;
 typedef struct mdk_rdev_s mdk_rdev_t;
 
+/* generic plugging support - like that provided with request_queue,
+ * but does not require a request_queue
+ */
+struct plug_handle {
+	void			(*unplug_fn)(struct plug_handle *);
+	struct timer_list	unplug_timer;
+	struct work_struct	unplug_work;
+	unsigned long		unplug_flag;
+};
+#define	PLUGGED_FLAG 1
+void plugger_init(struct plug_handle *plug,
+		  void (*unplug_fn)(struct plug_handle *));
+void plugger_set_plug(struct plug_handle *plug);
+int plugger_remove_plug(struct plug_handle *plug);
+static inline void plugger_flush(struct plug_handle *plug)
+{
+	del_timer_sync(&plug->unplug_timer);
+	cancel_work_sync(&plug->unplug_work);
+}
+
 /*
  * MD's 'extended' device
  */
@@ -67,7 +87,6 @@ struct mdk_rdev_s
 #define	Faulty		1		/* device is known to have a fault */
 #define	In_sync		2		/* device is in_sync with rest of array */
 #define	WriteMostly	4		/* Avoid reading if at all possible */
-#define	BarriersNotsupp	5		/* BIO_RW_BARRIER is not supported */
 #define	AllReserved	6		/* If whole device is reserved for
 					 * one array */
 #define	AutoDetected	7		/* added by auto-detect */
@@ -120,11 +139,15 @@ struct mddev_s
 	unsigned long			flags;
 #define MD_CHANGE_DEVS	0	/* Some device status has changed */
 #define MD_CHANGE_CLEAN 1	/* transition to or from 'clean' */
-#define MD_CHANGE_PENDING 2	/* superblock update in progress */
+#define MD_CHANGE_PENDING 2	/* switch from 'clean' to 'active' in progress */
 
 	int				suspended;
 	atomic_t			active_io;
 	int				ro;
+	int				sysfs_active; /* set when sysfs deletes
+						       * are happening, so run/
+						       * takeover/stop are not safe
+						       */
 
 	struct gendisk			*gendisk;
 
@@ -249,13 +272,6 @@ struct mddev_s
 	int				degraded;	/* whether md should consider
 							 * adding a spare
 							 */
-	int				barriers_work;	/* initialised to true, cleared as soon
-							 * as a barrier request to slave
-							 * fails.  Only supported
-							 */
-	struct bio			*biolist; 	/* bios that need to be retried
-							 * because BIO_RW_BARRIER is not supported
-							 */
 
 	atomic_t			recovery_active; /* blocks scheduled, but not written */
 	wait_queue_head_t		recovery_wait;
@@ -297,9 +313,14 @@ struct mddev_s
 							 * hot-adding a bitmap.  It should
 							 * eventually be settable by sysfs.
 							 */
+		/* When md is serving under dm, it might use a
+		 * dirty_log to store the bits.
+		 */
+		struct dm_dirty_log *log;
+
 		struct mutex		mutex;
 		unsigned long		chunksize;
-		unsigned long		daemon_sleep; /* how many seconds between updates? */
+		unsigned long		daemon_sleep; /* how many jiffies between updates? */
 		unsigned long		max_write_behind; /* write-behind mode */
 		int			external;
 	} bitmap_info;
@@ -308,16 +329,18 @@ struct mddev_s
 	struct list_head		all_mddevs;
 
 	struct attribute_group		*to_remove;
-	/* Generic barrier handling.
-	 * If there is a pending barrier request, all other
-	 * writes are blocked while the devices are flushed.
-	 * The last to finish a flush schedules a worker to
-	 * submit the barrier request (without the barrier flag),
-	 * then submit more flush requests.
+	struct plug_handle		*plug; /* if used by personality */
+
+	struct bio_set			*bio_set;
+
+	/* Generic flush handling.
+	 * The last to finish preflush schedules a worker to submit
+	 * the rest of the request (without the REQ_FLUSH flag).
 	 */
-	struct bio *barrier;
+	struct bio *flush_bio;
 	atomic_t flush_pending;
-	struct work_struct barrier_work;
+	struct work_struct flush_work;
+	struct work_struct event_work;	/* used by dm to report failure event */
 };
 
 
@@ -381,6 +404,18 @@ struct md_sysfs_entry {
 	ssize_t (*store)(mddev_t *, const char *, size_t);
 };
 extern struct attribute_group md_bitmap_group;
+
+static inline struct sysfs_dirent *sysfs_get_dirent_safe(struct sysfs_dirent *sd, char *name)
+{
+	if (sd)
+		return sysfs_get_dirent(sd, NULL, name);
+	return sd;
+}
+static inline void sysfs_notify_dirent_safe(struct sysfs_dirent *sd)
+{
+	if (sd)
+		sysfs_notify_dirent(sd);
+}
 
 static inline char * mdname (mddev_t * mddev)
 {
@@ -458,11 +493,11 @@ extern void md_done_sync(mddev_t *mddev, int blocks, int ok);
 extern void md_error(mddev_t *mddev, mdk_rdev_t *rdev);
 
 extern int mddev_congested(mddev_t *mddev, int bits);
-extern void md_barrier_request(mddev_t *mddev, struct bio *bio);
+extern void md_flush_request(mddev_t *mddev, struct bio *bio);
 extern void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 			   sector_t sector, int size, struct page *page);
 extern void md_super_wait(mddev_t *mddev);
-extern int sync_page_io(struct block_device *bdev, sector_t sector, int size,
+extern int sync_page_io(mdk_rdev_t *rdev, sector_t sector, int size,
 			struct page *page, int rw);
 extern void md_do_sync(mddev_t *mddev);
 extern void md_new_event(mddev_t *mddev);
@@ -474,5 +509,18 @@ extern int md_integrity_register(mddev_t *mddev);
 extern void md_integrity_add_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
 extern int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale);
 extern void restore_bitmap_write_access(struct file *file);
+extern void md_unplug(mddev_t *mddev);
 
+extern void mddev_init(mddev_t *mddev);
+extern int md_run(mddev_t *mddev);
+extern void md_stop(mddev_t *mddev);
+extern void md_stop_writes(mddev_t *mddev);
+extern void md_rdev_init(mdk_rdev_t *rdev);
+
+extern void mddev_suspend(mddev_t *mddev);
+extern void mddev_resume(mddev_t *mddev);
+extern struct bio *bio_clone_mddev(struct bio *bio, gfp_t gfp_mask,
+				   mddev_t *mddev);
+extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
+				   mddev_t *mddev);
 #endif /* _MD_MD_H */

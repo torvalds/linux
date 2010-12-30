@@ -65,6 +65,13 @@ OPTIONS
 		 the tree is considered as a new profiled object. +
 	Default: fractal,0.5.
 
+--stdio:: Use the stdio interface.
+
+--tui:: Use the TUI interface, that is integrated with annotate and allows
+        zooming into DSOs or threads, among other features. Use of --tui
+	requires a tty, if one is not present, as when piping to other
+	commands, the stdio interface is used.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1]

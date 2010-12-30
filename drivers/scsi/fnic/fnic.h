@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
+#include <linux/bitops.h>
 #include <scsi/libfc.h>
 #include <scsi/libfcoe.h>
 #include "fnic_io.h"
@@ -49,7 +50,6 @@
 /*
  * Tag bits used for special requests.
  */
-#define BIT(nr)			(1UL << (nr))
 #define FNIC_TAG_ABORT		BIT(30)		/* tag bit indicating abort */
 #define FNIC_TAG_DEV_RST	BIT(29)		/* indicates device reset */
 #define FNIC_TAG_MASK		(BIT(24) - 1)	/* mask for lookup */
@@ -246,7 +246,7 @@ void fnic_set_port_id(struct fc_lport *, u32, struct fc_frame *);
 void fnic_update_mac(struct fc_lport *, u8 *new);
 void fnic_update_mac_locked(struct fnic *, u8 *new);
 
-int fnic_queuecommand(struct scsi_cmnd *, void (*done)(struct scsi_cmnd *));
+int fnic_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
 int fnic_abort_cmd(struct scsi_cmnd *);
 int fnic_device_reset(struct scsi_cmnd *);
 int fnic_host_reset(struct scsi_cmnd *);

@@ -342,7 +342,8 @@ static int a3d_connect(struct gameport *gameport, struct gameport_driver *drv)
 
 		for (i = 0; i < 4; i++) {
 			if (i < 2)
-				input_set_abs_params(input_dev, axes[i], 48, input_dev->abs[axes[i]] * 2 - 48, 0, 8);
+				input_set_abs_params(input_dev, axes[i],
+					48, input_abs_get_val(input_dev, axes[i]) * 2 - 48, 0, 8);
 			else
 				input_set_abs_params(input_dev, axes[i], 2, 253, 0, 0);
 			input_set_abs_params(input_dev, ABS_HAT0X + i, -1, 1, 0, 0);

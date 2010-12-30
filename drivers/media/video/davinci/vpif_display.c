@@ -600,7 +600,7 @@ static int vpif_open(struct file *filep)
 
 	ch = video_get_drvdata(vdev);
 	/* Allocate memory for the file handle object */
-	fh = kmalloc(sizeof(struct vpif_fh), GFP_KERNEL);
+	fh = kzalloc(sizeof(struct vpif_fh), GFP_KERNEL);
 	if (fh == NULL) {
 		vpif_err("unable to allocate memory for file handle object\n");
 		return -ENOMEM;
@@ -853,7 +853,8 @@ static int vpif_reqbufs(struct file *file, void *priv,
 					    &video_qops, NULL,
 					    &common->irqlock,
 					    reqbuf->type, field,
-					    sizeof(struct videobuf_buffer), fh);
+					    sizeof(struct videobuf_buffer), fh,
+					    NULL);
 
 	/* Set io allowed member of file handle to TRUE */
 	fh->io_allowed[index] = 1;
@@ -935,9 +936,10 @@ static int vpif_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 			goto qbuf_exit;
 
 		if ((VIDEOBUF_NEEDS_INIT != buf1->state)
-			    && (buf1->baddr != tbuf.m.userptr))
+			    && (buf1->baddr != tbuf.m.userptr)) {
 			vpif_buffer_release(&common->buffer_queue, buf1);
 			buf1->baddr = tbuf.m.userptr;
+		}
 		break;
 
 	default:
@@ -1395,7 +1397,7 @@ static int initialize_vpif(void)
 	/* Allocate memory for six channel objects */
 	for (i = 0; i < VPIF_DISPLAY_MAX_DEVICES; i++) {
 		vpif_obj.dev[i] =
-		    kmalloc(sizeof(struct channel_obj), GFP_KERNEL);
+		    kzalloc(sizeof(struct channel_obj), GFP_KERNEL);
 		/* If memory allocation fails, return error */
 		if (!vpif_obj.dev[i]) {
 			free_channel_objects_index = i;
@@ -1541,7 +1543,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	config = pdev->dev.platform_data;
 	subdev_count = config->subdev_count;
 	subdevdata = config->subdevinfo;
-	vpif_obj.sd = kmalloc(sizeof(struct v4l2_subdev *) * subdev_count,
+	vpif_obj.sd = kzalloc(sizeof(struct v4l2_subdev *) * subdev_count,
 								GFP_KERNEL);
 	if (vpif_obj.sd == NULL) {
 		vpif_err("unable to allocate memory for subdevice pointers\n");
@@ -1551,7 +1553,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 
 	for (i = 0; i < subdev_count; i++) {
 		vpif_obj.sd[i] = v4l2_i2c_new_subdev_board(&vpif_obj.v4l2_dev,
-						i2c_adap, subdevdata[i].name,
+						i2c_adap,
 						&subdevdata[i].board_info,
 						NULL);
 		if (!vpif_obj.sd[i]) {
@@ -1610,7 +1612,7 @@ static int vpif_remove(struct platform_device *device)
 	return 0;
 }
 
-static struct platform_driver vpif_driver = {
+static __refdata struct platform_driver vpif_driver = {
 	.driver	= {
 			.name	= "vpif_display",
 			.owner	= THIS_MODULE,

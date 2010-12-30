@@ -66,6 +66,8 @@ static inline void oom_killer_enable(void)
 extern unsigned long badness(struct task_struct *p, struct mem_cgroup *mem,
 		      const nodemask_t *nodemask, unsigned long uptime);
 
+extern struct task_struct *find_lock_task_mm(struct task_struct *p);
+
 /* sysctls */
 extern int sysctl_oom_dump_tasks;
 extern int sysctl_oom_kill_allocating_task;

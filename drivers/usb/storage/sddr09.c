@@ -1760,7 +1760,7 @@ static int sddr09_probe(struct usb_interface *intf,
 	if (result)
 		return result;
 
-	if (us->protocol == US_PR_DPCM_USB) {
+	if (us->protocol == USB_PR_DPCM_USB) {
 		us->transport_name = "Control/Bulk-EUSB/SDDR09";
 		us->transport = dpcm_transport;
 		us->transport_reset = usb_stor_CB_reset;

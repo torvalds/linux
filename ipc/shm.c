@@ -108,7 +108,11 @@ void __init shm_init (void)
 {
 	shm_init_ns(&init_ipc_ns);
 	ipc_init_proc_interface("sysvipc/shm",
-				"       key      shmid perms       size  cpid  lpid nattch   uid   gid  cuid  cgid      atime      dtime      ctime\n",
+#if BITS_PER_LONG <= 32
+				"       key      shmid perms       size  cpid  lpid nattch   uid   gid  cuid  cgid      atime      dtime      ctime        rss       swap\n",
+#else
+				"       key      shmid perms                  size  cpid  lpid nattch   uid   gid  cuid  cgid      atime      dtime      ctime                   rss                  swap\n",
+#endif
 				IPC_SHM_IDS, sysvipc_shm_proc_show);
 }
 
@@ -298,6 +302,7 @@ static const struct file_operations shm_file_operations = {
 #ifndef CONFIG_MMU
 	.get_unmapped_area	= shm_get_unmapped_area,
 #endif
+	.llseek		= noop_llseek,
 };
 
 static const struct file_operations shm_file_operations_huge = {
@@ -305,6 +310,7 @@ static const struct file_operations shm_file_operations_huge = {
 	.fsync		= shm_fsync,
 	.release	= shm_release,
 	.get_unmapped_area	= shm_get_unmapped_area,
+	.llseek		= noop_llseek,
 };
 
 int is_file_shm_hugepages(struct file *file)
@@ -473,6 +479,7 @@ static inline unsigned long copy_shmid_to_user(void __user *buf, struct shmid64_
 	    {
 		struct shmid_ds out;
 
+		memset(&out, 0, sizeof(out));
 		ipc64_perm_to_ipc_perm(&in->shm_perm, &out.shm_perm);
 		out.shm_segsz	= in->shm_segsz;
 		out.shm_atime	= in->shm_atime;
@@ -542,6 +549,34 @@ static inline unsigned long copy_shminfo_to_user(void __user *buf, struct shminf
 }
 
 /*
+ * Calculate and add used RSS and swap pages of a shm.
+ * Called with shm_ids.rw_mutex held as a reader
+ */
+static void shm_add_rss_swap(struct shmid_kernel *shp,
+	unsigned long *rss_add, unsigned long *swp_add)
+{
+	struct inode *inode;
+
+	inode = shp->shm_file->f_path.dentry->d_inode;
+
+	if (is_file_hugepages(shp->shm_file)) {
+		struct address_space *mapping = inode->i_mapping;
+		struct hstate *h = hstate_file(shp->shm_file);
+		*rss_add += pages_per_huge_page(h) * mapping->nrpages;
+	} else {
+#ifdef CONFIG_SHMEM
+		struct shmem_inode_info *info = SHMEM_I(inode);
+		spin_lock(&info->lock);
+		*rss_add += inode->i_mapping->nrpages;
+		*swp_add += info->swapped;
+		spin_unlock(&info->lock);
+#else
+		*rss_add += inode->i_mapping->nrpages;
+#endif
+	}
+}
+
+/*
  * Called with shm_ids.rw_mutex held as a reader
  */
 static void shm_get_stat(struct ipc_namespace *ns, unsigned long *rss,
@@ -558,30 +593,13 @@ static void shm_get_stat(struct ipc_namespace *ns, unsigned long *rss,
 	for (total = 0, next_id = 0; total < in_use; next_id++) {
 		struct kern_ipc_perm *ipc;
 		struct shmid_kernel *shp;
-		struct inode *inode;
 
 		ipc = idr_find(&shm_ids(ns).ipcs_idr, next_id);
 		if (ipc == NULL)
 			continue;
 		shp = container_of(ipc, struct shmid_kernel, shm_perm);
 
-		inode = shp->shm_file->f_path.dentry->d_inode;
-
-		if (is_file_hugepages(shp->shm_file)) {
-			struct address_space *mapping = inode->i_mapping;
-			struct hstate *h = hstate_file(shp->shm_file);
-			*rss += pages_per_huge_page(h) * mapping->nrpages;
-		} else {
-#ifdef CONFIG_SHMEM
-			struct shmem_inode_info *info = SHMEM_I(inode);
-			spin_lock(&info->lock);
-			*rss += inode->i_mapping->nrpages;
-			*swp += info->swapped;
-			spin_unlock(&info->lock);
-#else
-			*rss += inode->i_mapping->nrpages;
-#endif
-		}
+		shm_add_rss_swap(shp, rss, swp);
 
 		total++;
 	}
@@ -1070,6 +1088,9 @@ SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
 static int sysvipc_shm_proc_show(struct seq_file *s, void *it)
 {
 	struct shmid_kernel *shp = it;
+	unsigned long rss = 0, swp = 0;
+
+	shm_add_rss_swap(shp, &rss, &swp);
 
 #if BITS_PER_LONG <= 32
 #define SIZE_SPEC "%10lu"
@@ -1079,7 +1100,8 @@ static int sysvipc_shm_proc_show(struct seq_file *s, void *it)
 
 	return seq_printf(s,
 			  "%10d %10d  %4o " SIZE_SPEC " %5u %5u  "
-			  "%5lu %5u %5u %5u %5u %10lu %10lu %10lu\n",
+			  "%5lu %5u %5u %5u %5u %10lu %10lu %10lu "
+			  SIZE_SPEC " " SIZE_SPEC "\n",
 			  shp->shm_perm.key,
 			  shp->shm_perm.id,
 			  shp->shm_perm.mode,
@@ -1093,6 +1115,8 @@ static int sysvipc_shm_proc_show(struct seq_file *s, void *it)
 			  shp->shm_perm.cgid,
 			  shp->shm_atim,
 			  shp->shm_dtim,
-			  shp->shm_ctim);
+			  shp->shm_ctim,
+			  rss * PAGE_SIZE,
+			  swp * PAGE_SIZE);
 }
 #endif

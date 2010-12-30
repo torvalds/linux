@@ -27,11 +27,10 @@
 #define L2_CACHE_ALIGN(x)	(((x)+(L2_CACHE_BYTES-1)) & -L2_CACHE_BYTES)
 
 /*
- * TILE-Gx is fully coherents so we don't need to define
- * ARCH_KMALLOC_MINALIGN.
+ * TILE-Gx is fully coherent so we don't need to define ARCH_DMA_MINALIGN.
  */
 #ifndef __tilegx__
-#define ARCH_KMALLOC_MINALIGN	L2_CACHE_BYTES
+#define ARCH_DMA_MINALIGN	L2_CACHE_BYTES
 #endif
 
 /* use the cache line size for the L2, which is where it counts */

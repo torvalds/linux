@@ -44,40 +44,26 @@
 
 #define MODULE_NAME "cx23885"
 
-static void convert_measurement(u32 x, struct ir_raw_event *y)
-{
-	if (x == V4L2_SUBDEV_IR_PULSE_RX_SEQ_END) {
-		y->pulse = false;
-		y->duration = V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS;
-		return;
-	}
-
-	y->pulse = (x & V4L2_SUBDEV_IR_PULSE_LEVEL_MASK) ? true : false;
-	y->duration = x & V4L2_SUBDEV_IR_PULSE_MAX_WIDTH_NS;
-}
-
 static void cx23885_input_process_measurements(struct cx23885_dev *dev,
 					       bool overrun)
 {
 	struct cx23885_kernel_ir *kernel_ir = dev->kernel_ir;
-	struct ir_raw_event kernel_ir_event;
 
-	u32 sd_ir_data[64];
 	ssize_t num;
 	int count, i;
 	bool handle = false;
+	struct ir_raw_event ir_core_event[64];
 
 	do {
 		num = 0;
-		v4l2_subdev_call(dev->sd_ir, ir, rx_read, (u8 *) sd_ir_data,
-				 sizeof(sd_ir_data), &num);
+		v4l2_subdev_call(dev->sd_ir, ir, rx_read, (u8 *) ir_core_event,
+				 sizeof(ir_core_event), &num);
 
-		count = num / sizeof(u32);
+		count = num / sizeof(struct ir_raw_event);
 
 		for (i = 0; i < count; i++) {
-			convert_measurement(sd_ir_data[i], &kernel_ir_event);
 			ir_raw_event_store(kernel_ir->inp_dev,
-					   &kernel_ir_event);
+					   &ir_core_event[i]);
 			handle = true;
 		}
 	} while (num != 0);
@@ -99,8 +85,10 @@ void cx23885_input_rx_work_handler(struct cx23885_dev *dev, u32 events)
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
+	case CX23885_BOARD_TEVII_S470:
+	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 		/*
-		 * The only board we handle right now.  However other boards
+		 * The only boards we handle right now.  However other boards
 		 * using the CX2388x integrated IR controller should be similar
 		 */
 		break;
@@ -148,6 +136,7 @@ static int cx23885_input_ir_start(struct cx23885_dev *dev)
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
+	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 		/*
 		 * The IR controller on this board only returns pulse widths.
 		 * Any other mode setting will fail to set up the device.
@@ -170,7 +159,38 @@ static int cx23885_input_ir_start(struct cx23885_dev *dev)
 		 * mark is received as low logic level;
 		 * falling edges are detected as rising edges; etc.
 		 */
-		params.invert = true;
+		params.invert_level = true;
+		break;
+	case CX23885_BOARD_TEVII_S470:
+		/*
+		 * The IR controller on this board only returns pulse widths.
+		 * Any other mode setting will fail to set up the device.
+		 */
+		params.mode = V4L2_SUBDEV_IR_MODE_PULSE_WIDTH;
+		params.enable = true;
+		params.interrupt_enable = true;
+		params.shutdown = false;
+
+		/* Setup for a standard NEC protocol */
+		params.carrier_freq = 37917; /* Hz, 455 kHz/12 for NEC */
+		params.carrier_range_lower = 33000; /* Hz */
+		params.carrier_range_upper = 43000; /* Hz */
+		params.duty_cycle = 33; /* percent, 33 percent for NEC */
+
+		/*
+		 * NEC max pulse width: (64/3)/(455 kHz/12) * 16 nec_units
+		 * (64/3)/(455 kHz/12) * 16 nec_units * 1.375 = 12378022 ns
+		 */
+		params.max_pulse_width = 12378022; /* ns */
+
+		/*
+		 * NEC noise filter min width: (64/3)/(455 kHz/12) * 1 nec_unit
+		 * (64/3)/(455 kHz/12) * 1 nec_units * 0.625 = 351648 ns
+		 */
+		params.noise_filter_min_width = 351648; /* ns */
+
+		params.modulation = false;
+		params.invert_level = true;
 		break;
 	}
 	v4l2_subdev_call(dev->sd_ir, ir, rx_s_parameters, &params);
@@ -244,11 +264,19 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
-		/* Integrated CX23888 IR controller */
+	case CX23885_BOARD_HAUPPAUGE_HVR1250:
+		/* Integrated CX2388[58] IR controller */
 		driver_type = RC_DRIVER_IR_RAW;
 		allowed_protos = IR_TYPE_ALL;
 		/* The grey Hauppauge RC-5 remote */
 		rc_map = RC_MAP_RC5_HAUPPAUGE_NEW;
+		break;
+	case CX23885_BOARD_TEVII_S470:
+		/* Integrated CX23885 IR controller */
+		driver_type = RC_DRIVER_IR_RAW;
+		allowed_protos = IR_TYPE_ALL;
+		/* A guess at the remote */
+		rc_map = RC_MAP_TEVII_NEC;
 		break;
 	default:
 		return -ENODEV;

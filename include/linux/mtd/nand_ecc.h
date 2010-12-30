@@ -1,7 +1,9 @@
 /*
  *  drivers/mtd/nand_ecc.h
  *
- *  Copyright (C) 2000 Steven J. Hill (sjhill@realitydiluted.com)
+ *  Copyright (C) 2000-2010 Steven J. Hill <sjhill@realitydiluted.com>
+ *			    David Woodhouse <dwmw2@infradead.org>
+ *			    Thomas Gleixner <tglx@linutronix.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

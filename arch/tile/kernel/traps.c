@@ -128,7 +128,9 @@ static int special_ill(bundle_bits bundle, int *sigp, int *codep)
 #ifdef __tilegx__
 	if ((bundle & TILEGX_BUNDLE_MODE_MASK) != 0)
 		return 0;
-	if (get_Opcode_X1(bundle) != UNARY_OPCODE_X1)
+	if (get_Opcode_X1(bundle) != RRR_0_OPCODE_X1)
+		return 0;
+	if (get_RRROpcodeExtension_X1(bundle) != UNARY_RRR_0_OPCODE_X1)
 		return 0;
 	if (get_UnaryOpcodeExtension_X1(bundle) != ILL_UNARY_OPCODE_X1)
 		return 0;
@@ -258,7 +260,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 		address = regs->pc;
 		break;
 	case INT_UNALIGN_DATA:
-#ifndef __tilegx__  /* FIXME: GX: no single-step yet */
+#ifndef __tilegx__  /* Emulated support for single step debugging */
 		if (unaligned_fixup >= 0) {
 			struct single_step_state *state =
 				current_thread_info()->step_state;
@@ -276,7 +278,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 	case INT_DOUBLE_FAULT:
 		/*
 		 * For double fault, "reason" is actually passed as
-		 * SYSTEM_SAVE_1_2, the hypervisor's double-fault info, so
+		 * SYSTEM_SAVE_K_2, the hypervisor's double-fault info, so
 		 * we can provide the original fault number rather than
 		 * the uninteresting "INT_DOUBLE_FAULT" so the user can
 		 * learn what actually struck while PL0 ICS was set.

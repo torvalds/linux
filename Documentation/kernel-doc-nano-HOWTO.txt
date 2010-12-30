@@ -345,5 +345,10 @@ documentation, in <filename>, for the functions listed.
 section titled <section title> from <filename>.
 Spaces are allowed in <section title>; do not quote the <section title>.
 
+!C<filename> is replaced by nothing, but makes the tools check that
+all DOC: sections and documented functions, symbols, etc. are used.
+This makes sense to use when you use !F/!P only and want to verify
+that all documentation is included.
+
 Tim.
 */ <twaugh@redhat.com>

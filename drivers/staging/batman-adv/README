@@ -1,4 +1,4 @@
-[state: 12-06-2010]
+[state: 04-09-2010]
 
 BATMAN-ADV
 ----------
@@ -67,15 +67,21 @@ All  mesh  wide  settings  can be found in batman's own interface
 folder:
 
 #  ls  /sys/class/net/bat0/mesh/
-#  aggregate_ogm   originators        transtable_global  vis_mode
-#  orig_interval   transtable_local   vis_data
+#  aggregated_ogms  bonding  orig_interval  vis_mode
+
+
+There is a special folder for debugging informations:
+
+#  ls /sys/kernel/debug/batman_adv/bat0/
+#  originators  socket  transtable_global  transtable_local
+#  vis_data
 
 
 Some of the files contain all sort of status information  regard-
 ing  the  mesh  network.  For  example, you can view the table of
 originators (mesh participants) with:
 
-# cat /sys/class/net/bat0/mesh/originators
+# cat /sys/kernel/debug/batman_adv/bat0/originators
 
 Other files allow to change batman's behaviour to better fit your
 requirements.  For instance, you can check the current originator
@@ -83,7 +89,7 @@ interval (value in milliseconds which determines how often batman
 sends its broadcast packets):
 
 # cat /sys/class/net/bat0/mesh/orig_interval
-# status: 1000
+# 1000
 
 and also change its value:
 
@@ -137,7 +143,7 @@ at least very similar) data.
 When  configured  as  server,  you can get a topology snapshot of
 your mesh:
 
-# cat /sys/class/net/bat0/mesh/vis_data
+# cat /sys/kernel/debug/batman_adv/bat0/vis_data
 
 This raw output is intended to be easily parsable and convertable
 with  other tools. Have a look at the batctl README if you want a
@@ -181,32 +187,25 @@ enabled when compiling the batman-adv module. When building  bat-
 man-adv  as  part of kernel, use "make menuconfig" and enable the
 option "B.A.T.M.A.N. debugging".
 
+Those additional  debug messages can be accessed  using a special
+file in debugfs
+
+# cat /sys/kernel/debug/batman_adv/bat0/log
+
 The additional debug output is by default disabled. It can be en-
-abled  either  at kernel modules load time or during run time. To
-enable debug output at module load time, add the module parameter
-debug=<value>.  <value> can take one of four values.
+abled  during run time. Following log_levels are defined:
 
 0 - All  debug  output  disabled
 1 - Enable messages related to routing / flooding / broadcasting
 2 - Enable route or hna added / changed / deleted
 3 - Enable all messages
 
-e.g.
+The debug output can be changed at runtime  using  the  file
+/sys/class/net/bat0/mesh/log_level. e.g.
 
-# modprobe batman-adv debug=2
+# echo 2 > /sys/class/net/bat0/mesh/log_level
 
-will load the module and enable debug messages for when routes or
-HNAs change.
-
-The debug output can also be changed at runtime  using  the  file
-/sys/module/batman-adv/parameters/debug. e.g.
-
-# echo 2 > /sys/module/batman-adv/parameters/debug
-
-enables debug messages for when routes or HNAs
-
-The  debug  output  is sent to the kernel logs. So try dmesg, lo-
-gread, etc to see the debug messages.
+will enable debug messages for when routes or HNAs change.
 
 
 BATCTL
@@ -230,8 +229,9 @@ CONTACT
 Please send us comments, experiences, questions, anything :)
 
 IRC:            #batman   on   irc.freenode.org
-Mailing-list:   b.a.t.m.a.n@open-mesh.net (optional  subscription
-          at https://lists.open-mesh.org/mm/listinfo/b.a.t.m.a.n)
+Mailing-list:   b.a.t.m.a.n@b.a.t.m.a.n@lists.open-mesh.org
+                (optional   subscription   at
+                 https://lists.open-mesh.org/mm/listinfo/b.a.t.m.a.n)
 
 You can also contact the Authors:
 

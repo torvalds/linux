@@ -28,8 +28,8 @@ extern void find_and_init_phbs(void);
 extern struct pci_dev *isa_bridge_pcidev;	/* may be NULL if no ISA bus */
 
 /** Bus Unit ID macros; get low and hi 32-bits of the 64-bit BUID */
-#define BUID_HI(buid) ((buid) >> 32)
-#define BUID_LO(buid) ((buid) & 0xffffffff)
+#define BUID_HI(buid) upper_32_bits(buid)
+#define BUID_LO(buid) lower_32_bits(buid)
 
 /* PCI device_node operations */
 struct device_node;

@@ -91,13 +91,13 @@ static void mark_open_files_invalid(struct cifsTconInfo *pTcon)
 	struct list_head *tmp1;
 
 /* list all files open on tree connection and mark them invalid */
-	write_lock(&GlobalSMBSeslock);
+	spin_lock(&cifs_file_list_lock);
 	list_for_each_safe(tmp, tmp1, &pTcon->openFileList) {
 		open_file = list_entry(tmp, struct cifsFileInfo, tlist);
 		open_file->invalidHandle = true;
 		open_file->oplock_break_cancelled = true;
 	}
-	write_unlock(&GlobalSMBSeslock);
+	spin_unlock(&cifs_file_list_lock);
 	/* BB Add call to invalidate_inodes(sb) for all superblocks mounted
 	   to this tcon */
 }
@@ -232,7 +232,7 @@ static int
 small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 		void **request_buf)
 {
-	int rc = 0;
+	int rc;
 
 	rc = cifs_reconnect_tcon(tcon, smb_command);
 	if (rc)
@@ -250,7 +250,7 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 	if (tcon != NULL)
 		cifs_stats_inc(&tcon->num_smbs_sent);
 
-	return rc;
+	return 0;
 }
 
 int
@@ -281,16 +281,9 @@ small_smb_init_no_tc(const int smb_command, const int wct,
 
 /* If the return code is zero, this function must fill in request_buf pointer */
 static int
-smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
-	 void **request_buf /* returned */ ,
-	 void **response_buf /* returned */ )
+__smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
+			void **request_buf, void **response_buf)
 {
-	int rc = 0;
-
-	rc = cifs_reconnect_tcon(tcon, smb_command);
-	if (rc)
-		return rc;
-
 	*request_buf = cifs_buf_get();
 	if (*request_buf == NULL) {
 		/* BB should we add a retry in here if not a writepage? */
@@ -309,7 +302,31 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
 	if (tcon != NULL)
 		cifs_stats_inc(&tcon->num_smbs_sent);
 
-	return rc;
+	return 0;
+}
+
+/* If the return code is zero, this function must fill in request_buf pointer */
+static int
+smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
+	 void **request_buf, void **response_buf)
+{
+	int rc;
+
+	rc = cifs_reconnect_tcon(tcon, smb_command);
+	if (rc)
+		return rc;
+
+	return __smb_init(smb_command, wct, tcon, request_buf, response_buf);
+}
+
+static int
+smb_init_no_reconnect(int smb_command, int wct, struct cifsTconInfo *tcon,
+			void **request_buf, void **response_buf)
+{
+	if (tcon->ses->need_reconnect || tcon->need_reconnect)
+		return -EHOSTDOWN;
+
+	return __smb_init(smb_command, wct, tcon, request_buf, response_buf);
 }
 
 static int validate_t2(struct smb_t2_rsp *pSMB)
@@ -486,7 +503,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 
 		if (rsp->EncryptionKeyLength ==
 				cpu_to_le16(CIFS_CRYPTO_KEY_SIZE)) {
-			memcpy(server->cryptKey, rsp->EncryptionKey,
+			memcpy(ses->server->cryptkey, rsp->EncryptionKey,
 				CIFS_CRYPTO_KEY_SIZE);
 		} else if (server->secMode & SECMODE_PW_ENCRYPT) {
 			rc = -EIO; /* need cryptkey unless plain text */
@@ -557,7 +574,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	server->timeAdj = (int)(__s16)le16_to_cpu(pSMBr->ServerTimeZone);
 	server->timeAdj *= 60;
 	if (pSMBr->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
-		memcpy(server->cryptKey, pSMBr->u.EncryptionKey,
+		memcpy(ses->server->cryptkey, pSMBr->u.EncryptionKey,
 		       CIFS_CRYPTO_KEY_SIZE);
 	} else if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC)
 			&& (pSMBr->EncryptionKeyLength == 0)) {
@@ -576,9 +593,9 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			rc = -EIO;
 			goto neg_err_exit;
 		}
-		read_lock(&cifs_tcp_ses_lock);
+		spin_lock(&cifs_tcp_ses_lock);
 		if (server->srv_count > 1) {
-			read_unlock(&cifs_tcp_ses_lock);
+			spin_unlock(&cifs_tcp_ses_lock);
 			if (memcmp(server->server_GUID,
 				   pSMBr->u.extended_response.
 				   GUID, 16) != 0) {
@@ -588,7 +605,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 					16);
 			}
 		} else {
-			read_unlock(&cifs_tcp_ses_lock);
+			spin_unlock(&cifs_tcp_ses_lock);
 			memcpy(server->server_GUID,
 			       pSMBr->u.extended_response.GUID, 16);
 		}
@@ -603,13 +620,15 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 				rc = 0;
 			else
 				rc = -EINVAL;
-
-			if (server->sec_kerberos || server->sec_mskerberos)
-				server->secType = Kerberos;
-			else if (server->sec_ntlmssp)
-				server->secType = RawNTLMSSP;
-			else
-				rc = -EOPNOTSUPP;
+			if (server->secType == Kerberos) {
+				if (!server->sec_kerberos &&
+						!server->sec_mskerberos)
+					rc = -EOPNOTSUPP;
+			} else if (server->secType == RawNTLMSSP) {
+				if (!server->sec_ntlmssp)
+					rc = -EOPNOTSUPP;
+			} else
+					rc = -EOPNOTSUPP;
 		}
 	} else
 		server->capabilities &= ~CAP_EXTENDED_SECURITY;
@@ -2459,95 +2478,6 @@ querySymLinkRetry:
 }
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
-/* Initialize NT TRANSACT SMB into small smb request buffer.
-   This assumes that all NT TRANSACTS that we init here have
-   total parm and data under about 400 bytes (to fit in small cifs
-   buffer size), which is the case so far, it easily fits. NB:
-	Setup words themselves and ByteCount
-	MaxSetupCount (size of returned setup area) and
-	MaxParameterCount (returned parms size) must be set by caller */
-static int
-smb_init_nttransact(const __u16 sub_command, const int setup_count,
-		   const int parm_len, struct cifsTconInfo *tcon,
-		   void **ret_buf)
-{
-	int rc;
-	__u32 temp_offset;
-	struct smb_com_ntransact_req *pSMB;
-
-	rc = small_smb_init(SMB_COM_NT_TRANSACT, 19 + setup_count, tcon,
-				(void **)&pSMB);
-	if (rc)
-		return rc;
-	*ret_buf = (void *)pSMB;
-	pSMB->Reserved = 0;
-	pSMB->TotalParameterCount = cpu_to_le32(parm_len);
-	pSMB->TotalDataCount  = 0;
-	pSMB->MaxDataCount = cpu_to_le32((tcon->ses->server->maxBuf -
-					  MAX_CIFS_HDR_SIZE) & 0xFFFFFF00);
-	pSMB->ParameterCount = pSMB->TotalParameterCount;
-	pSMB->DataCount  = pSMB->TotalDataCount;
-	temp_offset = offsetof(struct smb_com_ntransact_req, Parms) +
-			(setup_count * 2) - 4 /* for rfc1001 length itself */;
-	pSMB->ParameterOffset = cpu_to_le32(temp_offset);
-	pSMB->DataOffset = cpu_to_le32(temp_offset + parm_len);
-	pSMB->SetupCount = setup_count; /* no need to le convert byte fields */
-	pSMB->SubCommand = cpu_to_le16(sub_command);
-	return 0;
-}
-
-static int
-validate_ntransact(char *buf, char **ppparm, char **ppdata,
-		   __u32 *pparmlen, __u32 *pdatalen)
-{
-	char *end_of_smb;
-	__u32 data_count, data_offset, parm_count, parm_offset;
-	struct smb_com_ntransact_rsp *pSMBr;
-
-	*pdatalen = 0;
-	*pparmlen = 0;
-
-	if (buf == NULL)
-		return -EINVAL;
-
-	pSMBr = (struct smb_com_ntransact_rsp *)buf;
-
-	/* ByteCount was converted from little endian in SendReceive */
-	end_of_smb = 2 /* sizeof byte count */ + pSMBr->ByteCount +
-			(char *)&pSMBr->ByteCount;
-
-	data_offset = le32_to_cpu(pSMBr->DataOffset);
-	data_count = le32_to_cpu(pSMBr->DataCount);
-	parm_offset = le32_to_cpu(pSMBr->ParameterOffset);
-	parm_count = le32_to_cpu(pSMBr->ParameterCount);
-
-	*ppparm = (char *)&pSMBr->hdr.Protocol + parm_offset;
-	*ppdata = (char *)&pSMBr->hdr.Protocol + data_offset;
-
-	/* should we also check that parm and data areas do not overlap? */
-	if (*ppparm > end_of_smb) {
-		cFYI(1, "parms start after end of smb");
-		return -EINVAL;
-	} else if (parm_count + *ppparm > end_of_smb) {
-		cFYI(1, "parm end after end of smb");
-		return -EINVAL;
-	} else if (*ppdata > end_of_smb) {
-		cFYI(1, "data starts after end of smb");
-		return -EINVAL;
-	} else if (data_count + *ppdata > end_of_smb) {
-		cFYI(1, "data %p + count %d (%p) past smb end %p start %p",
-			*ppdata, data_count, (data_count + *ppdata),
-			end_of_smb, pSMBr);
-		return -EINVAL;
-	} else if (parm_count + data_count > pSMBr->ByteCount) {
-		cFYI(1, "parm count and data count larger than SMB");
-		return -EINVAL;
-	}
-	*pdatalen = data_count;
-	*pparmlen = parm_count;
-	return 0;
-}
-
 int
 CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
@@ -3037,7 +2967,97 @@ GetExtAttrOut:
 
 #endif /* CONFIG_POSIX */
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
+#ifdef CONFIG_CIFS_ACL
+/*
+ * Initialize NT TRANSACT SMB into small smb request buffer.  This assumes that
+ * all NT TRANSACTS that we init here have total parm and data under about 400
+ * bytes (to fit in small cifs buffer size), which is the case so far, it
+ * easily fits. NB: Setup words themselves and ByteCount MaxSetupCount (size of
+ * returned setup area) and MaxParameterCount (returned parms size) must be set
+ * by caller
+ */
+static int
+smb_init_nttransact(const __u16 sub_command, const int setup_count,
+		   const int parm_len, struct cifsTconInfo *tcon,
+		   void **ret_buf)
+{
+	int rc;
+	__u32 temp_offset;
+	struct smb_com_ntransact_req *pSMB;
+
+	rc = small_smb_init(SMB_COM_NT_TRANSACT, 19 + setup_count, tcon,
+				(void **)&pSMB);
+	if (rc)
+		return rc;
+	*ret_buf = (void *)pSMB;
+	pSMB->Reserved = 0;
+	pSMB->TotalParameterCount = cpu_to_le32(parm_len);
+	pSMB->TotalDataCount  = 0;
+	pSMB->MaxDataCount = cpu_to_le32((tcon->ses->server->maxBuf -
+					  MAX_CIFS_HDR_SIZE) & 0xFFFFFF00);
+	pSMB->ParameterCount = pSMB->TotalParameterCount;
+	pSMB->DataCount  = pSMB->TotalDataCount;
+	temp_offset = offsetof(struct smb_com_ntransact_req, Parms) +
+			(setup_count * 2) - 4 /* for rfc1001 length itself */;
+	pSMB->ParameterOffset = cpu_to_le32(temp_offset);
+	pSMB->DataOffset = cpu_to_le32(temp_offset + parm_len);
+	pSMB->SetupCount = setup_count; /* no need to le convert byte fields */
+	pSMB->SubCommand = cpu_to_le16(sub_command);
+	return 0;
+}
+
+static int
+validate_ntransact(char *buf, char **ppparm, char **ppdata,
+		   __u32 *pparmlen, __u32 *pdatalen)
+{
+	char *end_of_smb;
+	__u32 data_count, data_offset, parm_count, parm_offset;
+	struct smb_com_ntransact_rsp *pSMBr;
+
+	*pdatalen = 0;
+	*pparmlen = 0;
+
+	if (buf == NULL)
+		return -EINVAL;
+
+	pSMBr = (struct smb_com_ntransact_rsp *)buf;
+
+	/* ByteCount was converted from little endian in SendReceive */
+	end_of_smb = 2 /* sizeof byte count */ + pSMBr->ByteCount +
+			(char *)&pSMBr->ByteCount;
+
+	data_offset = le32_to_cpu(pSMBr->DataOffset);
+	data_count = le32_to_cpu(pSMBr->DataCount);
+	parm_offset = le32_to_cpu(pSMBr->ParameterOffset);
+	parm_count = le32_to_cpu(pSMBr->ParameterCount);
+
+	*ppparm = (char *)&pSMBr->hdr.Protocol + parm_offset;
+	*ppdata = (char *)&pSMBr->hdr.Protocol + data_offset;
+
+	/* should we also check that parm and data areas do not overlap? */
+	if (*ppparm > end_of_smb) {
+		cFYI(1, "parms start after end of smb");
+		return -EINVAL;
+	} else if (parm_count + *ppparm > end_of_smb) {
+		cFYI(1, "parm end after end of smb");
+		return -EINVAL;
+	} else if (*ppdata > end_of_smb) {
+		cFYI(1, "data starts after end of smb");
+		return -EINVAL;
+	} else if (data_count + *ppdata > end_of_smb) {
+		cFYI(1, "data %p + count %d (%p) past smb end %p start %p",
+			*ppdata, data_count, (data_count + *ppdata),
+			end_of_smb, pSMBr);
+		return -EINVAL;
+	} else if (parm_count + data_count > pSMBr->ByteCount) {
+		cFYI(1, "parm count and data count larger than SMB");
+		return -EINVAL;
+	}
+	*pdatalen = data_count;
+	*pparmlen = parm_count;
+	return 0;
+}
+
 /* Get Security Descriptor (by handle) from remote server for a file or dir */
 int
 CIFSSMBGetCIFSACL(const int xid, struct cifsTconInfo *tcon, __u16 fid,
@@ -3195,7 +3215,7 @@ setCifsAclRetry:
 	return (rc);
 }
 
-#endif /* CONFIG_CIFS_EXPERIMENTAL */
+#endif /* CONFIG_CIFS_ACL */
 
 /* Legacy Query Path Information call for lookup to old servers such
    as Win9x/WinME */
@@ -4534,8 +4554,8 @@ CIFSSMBQFSUnixInfo(const int xid, struct cifsTconInfo *tcon)
 
 	cFYI(1, "In QFSUnixInfo");
 QFSUnixRetry:
-	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
-		      (void **) &pSMBr);
+	rc = smb_init_no_reconnect(SMB_COM_TRANSACTION2, 15, tcon,
+				   (void **) &pSMB, (void **) &pSMBr);
 	if (rc)
 		return rc;
 
@@ -4604,8 +4624,8 @@ CIFSSMBSetFSUnixInfo(const int xid, struct cifsTconInfo *tcon, __u64 cap)
 	cFYI(1, "In SETFSUnixInfo");
 SETFSUnixRetry:
 	/* BB switch to small buf init to save memory */
-	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
-		      (void **) &pSMBr);
+	rc = smb_init_no_reconnect(SMB_COM_TRANSACTION2, 15, tcon,
+					(void **) &pSMB, (void **) &pSMBr);
 	if (rc)
 		return rc;
 

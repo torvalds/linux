@@ -255,10 +255,6 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 			error = -EINVAL;
 			goto err_out;
 		}
-		if (!list_empty(&flow->list)) {
-			error = -EEXIST;
-			goto err_out;
-		}
 	} else {
 		int i;
 		unsigned long cl;
@@ -279,8 +275,7 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 		goto err_out;
 	}
 	flow->filter_list = NULL;
-	flow->q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
-				    &pfifo_qdisc_ops, classid);
+	flow->q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops, classid);
 	if (!flow->q)
 		flow->q = &noop_qdisc;
 	pr_debug("atm_tc_change: qdisc %p\n", flow->q);
@@ -418,7 +413,7 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	ret = qdisc_enqueue(skb, flow->q);
-	if (ret != 0) {
+	if (ret != NET_XMIT_SUCCESS) {
 drop: __maybe_unused
 		if (net_xmit_drop_count(ret)) {
 			sch->qstats.drops++;
@@ -442,7 +437,7 @@ drop: __maybe_unused
 	 */
 	if (flow == &p->link) {
 		sch->q.qlen++;
-		return 0;
+		return NET_XMIT_SUCCESS;
 	}
 	tasklet_schedule(&p->task);
 	return NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
@@ -547,7 +542,7 @@ static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt)
 	INIT_LIST_HEAD(&p->flows);
 	INIT_LIST_HEAD(&p->link.list);
 	list_add(&p->link.list, &p->flows);
-	p->link.q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
+	p->link.q = qdisc_create_dflt(sch->dev_queue,
 				      &pfifo_qdisc_ops, sch->handle);
 	if (!p->link.q)
 		p->link.q = &noop_qdisc;

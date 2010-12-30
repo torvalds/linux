@@ -98,12 +98,6 @@ static struct resource bss_resource = {
 
 unsigned long ia64_max_cacheline_size;
 
-int dma_get_cache_alignment(void)
-{
-        return ia64_max_cacheline_size;
-}
-EXPORT_SYMBOL(dma_get_cache_alignment);
-
 unsigned long ia64_iobase;	/* virtual address for I/O accesses */
 EXPORT_SYMBOL(ia64_iobase);
 struct io_space io_space[MAX_IO_SPACES];
@@ -599,10 +593,6 @@ setup_arch (char **cmdline_p)
 
 	cpu_init();	/* initialize the bootstrap CPU */
 	mmu_context_init();	/* initialize context_id bitmap */
-
-#ifdef CONFIG_ACPI
-	acpi_boot_init();
-#endif
 
 	paravirt_banner();
 	paravirt_arch_setup_console(cmdline_p);

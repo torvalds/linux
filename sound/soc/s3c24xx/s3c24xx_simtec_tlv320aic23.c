@@ -62,8 +62,10 @@ static const struct snd_soc_dapm_route base_map[] = {
  * Attach our controls and configure the necessary codec
  * mappings for our sound card instance.
 */
-static int simtec_tlv320aic23_init(struct snd_soc_codec *codec)
+static int simtec_tlv320aic23_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
+
 	snd_soc_dapm_new_controls(codec, dapm_widgets,
 				  ARRAY_SIZE(dapm_widgets));
 
@@ -74,7 +76,7 @@ static int simtec_tlv320aic23_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_enable_pin(codec, "Line Out");
 	snd_soc_dapm_enable_pin(codec, "Mic Jack");
 
-	simtec_audio_init(codec);
+	simtec_audio_init(rtd);
 	snd_soc_dapm_sync(codec);
 
 	return 0;
@@ -83,28 +85,23 @@ static int simtec_tlv320aic23_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link simtec_dai_aic23 = {
 	.name		= "tlv320aic23",
 	.stream_name	= "TLV320AIC23",
-	.cpu_dai	= &s3c24xx_i2s_dai,
-	.codec_dai	= &tlv320aic23_dai,
+	.codec_name	= "tlv320aic3x-codec.0-0x1a",
+	.cpu_dai_name	= "s3c24xx-i2s",
+	.codec_dai_name = "tlv320aic3x-hifi",
+	.platform_name	= "s3c24xx-pcm-audio",
 	.init		= simtec_tlv320aic23_init,
 };
 
 /* simtec audio machine driver */
 static struct snd_soc_card snd_soc_machine_simtec_aic23 = {
 	.name		= "Simtec",
-	.platform	= &s3c24xx_soc_platform,
 	.dai_link	= &simtec_dai_aic23,
 	.num_links	= 1,
 };
 
-/* simtec audio subsystem */
-static struct snd_soc_device simtec_snd_devdata_aic23 = {
-	.card		= &snd_soc_machine_simtec_aic23,
-	.codec_dev	= &soc_codec_dev_tlv320aic23,
-};
-
 static int __devinit simtec_audio_tlv320aic23_probe(struct platform_device *pd)
 {
-	return simtec_audio_core_probe(pd, &simtec_snd_devdata_aic23);
+	return simtec_audio_core_probe(pd, &snd_soc_machine_simtec_aic23);
 }
 
 static struct platform_driver simtec_audio_tlv320aic23_platdrv = {

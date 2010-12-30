@@ -25,6 +25,7 @@
 */
 /*****************************************************************************/
 
+#include <linux/smp_lock.h>
 #include "easycap.h"
 #include "easycap_debug.h"
 #include "easycap_standard.h"
@@ -773,19 +774,10 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 SAY("WARNING: failed to adjust mute: control not found\n");
 return -ENOENT;
 }
-/****************************************************************************/
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-long
-easycap_ioctl_noinode(struct file *file, unsigned int cmd, unsigned long arg)\
-									{
-	return easycap_ioctl((struct inode *)NULL, file, cmd, arg);
-}
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+
 /*--------------------------------------------------------------------------*/
-int easycap_ioctl(struct inode *inode, struct file *file, \
-					unsigned int cmd, unsigned long arg)
+static int easycap_ioctl_bkl(struct inode *inode, struct file *file,
+			     unsigned int cmd, unsigned long arg)
 {
 static struct easycap *peasycap;
 static struct usb_device *p;
@@ -1956,19 +1948,22 @@ default: {
 }
 return 0;
 }
-/****************************************************************************/
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-long
-easysnd_ioctl_noinode(struct file *file, unsigned int cmd, unsigned long arg)
+
+long easycap_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	return easysnd_ioctl((struct inode *)NULL, file, cmd, arg);
+	struct inode *inode = file->f_dentry->d_inode;
+	long ret;
+
+	lock_kernel();
+	ret = easycap_ioctl_bkl(inode, file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
 }
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+
 /*--------------------------------------------------------------------------*/
-int easysnd_ioctl(struct inode *inode, struct file *file, \
-					unsigned int cmd, unsigned long arg)
+static int easysnd_ioctl_bkl(struct inode *inode, struct file *file,
+			     unsigned int cmd, unsigned long arg)
 {
 struct easycap *peasycap;
 struct usb_device *p;
@@ -2158,6 +2153,19 @@ default: {
 }
 return 0;
 }
+
+long easysnd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	long ret;
+
+	lock_kernel();
+	ret = easysnd_ioctl_bkl(inode, file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
 /*****************************************************************************/
 int explain_ioctl(__u32 wot)
 {

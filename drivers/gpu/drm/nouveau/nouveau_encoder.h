@@ -55,6 +55,7 @@ struct nouveau_encoder {
 			int dpcd_version;
 			int link_nr;
 			int link_bw;
+			bool enhanced_frame;
 		} dp;
 	};
 };
@@ -69,6 +70,12 @@ static inline struct nouveau_encoder *nouveau_encoder(struct drm_encoder *enc)
 static inline struct drm_encoder *to_drm_encoder(struct nouveau_encoder *enc)
 {
 	return &enc->base.base;
+}
+
+static inline struct drm_encoder_slave_funcs *
+get_slave_funcs(struct drm_encoder *enc)
+{
+	return to_encoder_slave(enc)->slave_funcs;
 }
 
 struct nouveau_connector *

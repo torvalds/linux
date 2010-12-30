@@ -413,18 +413,21 @@ static const struct file_operations debug_async_fops = {
 	.open		= debug_async_open,
 	.read		= debug_output,
 	.release	= debug_close,
+	.llseek		= default_llseek,
 };
 static const struct file_operations debug_periodic_fops = {
 	.owner		= THIS_MODULE,
 	.open		= debug_periodic_open,
 	.read		= debug_output,
 	.release	= debug_close,
+	.llseek		= default_llseek,
 };
 static const struct file_operations debug_registers_fops = {
 	.owner		= THIS_MODULE,
 	.open		= debug_registers_open,
 	.read		= debug_output,
 	.release	= debug_close,
+	.llseek		= default_llseek,
 };
 
 static struct dentry *ohci_debug_root;
@@ -645,7 +648,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		hcd->product_desc,
 		hcd_name);
 
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+	if (!HCD_HW_ACCESSIBLE(hcd)) {
 		size -= scnprintf (next, size,
 			"SUSPENDED (no register access)\n");
 		goto done;
@@ -687,7 +690,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 	next += temp;
 
 	temp = scnprintf (next, size, "hub poll timer %s\n",
-			ohci_to_hcd(ohci)->poll_rh ? "ON" : "off");
+			HCD_POLL_RH(ohci_to_hcd(ohci)) ? "ON" : "off");
 	size -= temp;
 	next += temp;
 

@@ -49,8 +49,8 @@ static struct i2c_board_info nv04_tv_encoder_info[] = {
 
 int nv04_tv_identify(struct drm_device *dev, int i2c_index)
 {
-	return nouveau_i2c_identify(dev, "TV encoder",
-				    nv04_tv_encoder_info, i2c_index);
+	return nouveau_i2c_identify(dev, "TV encoder", nv04_tv_encoder_info,
+				    NULL, i2c_index);
 }
 
 
@@ -89,7 +89,7 @@ static void nv04_tv_dpms(struct drm_encoder *encoder, int mode)
 
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_PLL_COEFF_SELECT, state->pllsel);
 
-	to_encoder_slave(encoder)->slave_funcs->dpms(encoder, mode);
+	get_slave_funcs(encoder)->dpms(encoder, mode);
 }
 
 static void nv04_tv_bind(struct drm_device *dev, int head, bool bind)
@@ -99,12 +99,10 @@ static void nv04_tv_bind(struct drm_device *dev, int head, bool bind)
 
 	state->tv_setup = 0;
 
-	if (bind) {
-		state->CRTC[NV_CIO_CRE_LCD__INDEX] = 0;
+	if (bind)
 		state->CRTC[NV_CIO_CRE_49] |= 0x10;
-	} else {
+	else
 		state->CRTC[NV_CIO_CRE_49] &= ~0x10;
-	}
 
 	NVWriteVgaCrtc(dev, head, NV_CIO_CRE_LCD__INDEX,
 		       state->CRTC[NV_CIO_CRE_LCD__INDEX]);
@@ -152,7 +150,7 @@ static void nv04_tv_mode_set(struct drm_encoder *encoder,
 	regp->tv_vskew = 1;
 	regp->tv_vsync_delay = 1;
 
-	to_encoder_slave(encoder)->slave_funcs->mode_set(encoder, mode, adjusted_mode);
+	get_slave_funcs(encoder)->mode_set(encoder, mode, adjusted_mode);
 }
 
 static void nv04_tv_commit(struct drm_encoder *encoder)
@@ -171,8 +169,7 @@ static void nv04_tv_commit(struct drm_encoder *encoder)
 
 static void nv04_tv_destroy(struct drm_encoder *encoder)
 {
-	to_encoder_slave(encoder)->slave_funcs->destroy(encoder);
-
+	get_slave_funcs(encoder)->destroy(encoder);
 	drm_encoder_cleanup(encoder);
 
 	kfree(encoder->helper_private);
@@ -229,7 +226,7 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_entry *entry)
 		goto fail_cleanup;
 
 	/* Fill the function pointers */
-	sfuncs = to_encoder_slave(encoder)->slave_funcs;
+	sfuncs = get_slave_funcs(encoder);
 
 	*hfuncs = (struct drm_encoder_helper_funcs) {
 		.dpms = nv04_tv_dpms,
@@ -243,7 +240,6 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_entry *entry)
 	};
 
 	/* Attach it to the specified connector. */
-	sfuncs->set_config(encoder, nv04_tv_encoder_info[type].platform_data);
 	sfuncs->create_resources(encoder, connector);
 	drm_mode_connector_attach_encoder(connector, encoder);
 

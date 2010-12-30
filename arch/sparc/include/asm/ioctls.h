@@ -80,6 +80,7 @@
 /* Get minor device of a pty master's FD -- Solaris equiv is ISPTM */
 #define TIOCGPTN	_IOR('t', 134, unsigned int) /* Get Pty Number */
 #define TIOCSPTLCK	_IOW('t', 135, int) /* Lock/unlock PTY */
+#define TIOCSIG		_IOW('t', 136, int) /* Generate signal on Pty slave */
 
 /* Little f */
 #define FIOCLEX		_IO('f', 1)
@@ -132,5 +133,6 @@
 #define TIOCPKT_START		 8
 #define TIOCPKT_NOSTOP		16
 #define TIOCPKT_DOSTOP		32
+#define TIOCPKT_IOCTL		64
 
 #endif /* !(_ASM_SPARC_IOCTLS_H) */

@@ -322,7 +322,8 @@ static struct platform_device *msm_sdcc_devices[] __initdata = {
 	&msm_device_sdc4,
 };
 
-int __init msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat,
+int __init msm_add_sdcc(unsigned int controller,
+			struct msm_mmc_platform_data *plat,
 			unsigned int stat_irq, unsigned long stat_irq_flags)
 {
 	struct platform_device	*pdev;

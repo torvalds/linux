@@ -337,10 +337,14 @@ static void report_finger_data(struct input_dev *input,
 			       const struct bcm5974_config *cfg,
 			       const struct tp_finger *f)
 {
-	input_report_abs(input, ABS_MT_TOUCH_MAJOR, raw2int(f->force_major));
-	input_report_abs(input, ABS_MT_TOUCH_MINOR, raw2int(f->force_minor));
-	input_report_abs(input, ABS_MT_WIDTH_MAJOR, raw2int(f->size_major));
-	input_report_abs(input, ABS_MT_WIDTH_MINOR, raw2int(f->size_minor));
+	input_report_abs(input, ABS_MT_TOUCH_MAJOR,
+			 raw2int(f->force_major) << 1);
+	input_report_abs(input, ABS_MT_TOUCH_MINOR,
+			 raw2int(f->force_minor) << 1);
+	input_report_abs(input, ABS_MT_WIDTH_MAJOR,
+			 raw2int(f->size_major) << 1);
+	input_report_abs(input, ABS_MT_WIDTH_MINOR,
+			 raw2int(f->size_minor) << 1);
 	input_report_abs(input, ABS_MT_ORIENTATION,
 			 MAX_FINGER_ORIENTATION - raw2int(f->orientation));
 	input_report_abs(input, ABS_MT_POSITION_X, raw2int(f->abs_x));

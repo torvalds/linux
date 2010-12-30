@@ -97,7 +97,7 @@ int jfs_mount(struct super_block *sb)
 
 	ipaimap = diReadSpecial(sb, AGGREGATE_I, 0);
 	if (ipaimap == NULL) {
-		jfs_err("jfs_mount: Faild to read AGGREGATE_I");
+		jfs_err("jfs_mount: Failed to read AGGREGATE_I");
 		rc = -EIO;
 		goto errout20;
 	}
@@ -148,7 +148,7 @@ int jfs_mount(struct super_block *sb)
 	if ((sbi->mntflag & JFS_BAD_SAIT) == 0) {
 		ipaimap2 = diReadSpecial(sb, AGGREGATE_I, 1);
 		if (!ipaimap2) {
-			jfs_err("jfs_mount: Faild to read AGGREGATE_I");
+			jfs_err("jfs_mount: Failed to read AGGREGATE_I");
 			rc = -EIO;
 			goto errout35;
 		}

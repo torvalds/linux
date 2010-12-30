@@ -11,7 +11,6 @@
 #include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/major.h>
-#include <linux/smp_lock.h>
 #include <linux/device_cgroup.h>
 #include <linux/highmem.h>
 #include <linux/blkdev.h>
@@ -47,6 +46,21 @@ inline struct block_device *I_BDEV(struct inode *inode)
 }
 
 EXPORT_SYMBOL(I_BDEV);
+
+/*
+ * move the inode from it's current bdi to the a new bdi. if the inode is dirty
+ * we need to move it onto the dirty list of @dst so that the inode is always
+ * on the right list.
+ */
+static void bdev_inode_switch_bdi(struct inode *inode,
+			struct backing_dev_info *dst)
+{
+	spin_lock(&inode_lock);
+	inode->i_data.backing_dev_info = dst;
+	if (inode->i_state & I_DIRTY)
+		list_move(&inode->i_wb_list, &dst->wb.b_dirty);
+	spin_unlock(&inode_lock);
+}
 
 static sector_t max_block(struct block_device *bdev)
 {
@@ -172,9 +186,8 @@ blkdev_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 
-	return blockdev_direct_IO_no_locking_newtrunc(rw, iocb, inode,
-				I_BDEV(inode), iov, offset, nr_segs,
-				blkdev_get_blocks, NULL);
+	return __blockdev_direct_IO(rw, iocb, inode, I_BDEV(inode), iov, offset,
+				    nr_segs, blkdev_get_blocks, NULL, NULL, 0);
 }
 
 int __sync_blockdev(struct block_device *bdev, int wait)
@@ -309,9 +322,8 @@ static int blkdev_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
-	*pagep = NULL;
-	return block_write_begin_newtrunc(file, mapping, pos, len, flags,
-				pagep, fsdata, blkdev_get_block);
+	return block_write_begin(mapping, pos, len, flags, pagep,
+				 blkdev_get_block);
 }
 
 static int blkdev_write_end(struct file *file, struct address_space *mapping,
@@ -372,7 +384,7 @@ int blkdev_fsync(struct file *filp, int datasync)
 	 */
 	mutex_unlock(&bd_inode->i_mutex);
 
-	error = blkdev_issue_flush(bdev, GFP_KERNEL, NULL, BLKDEV_IFL_WAIT);
+	error = blkdev_issue_flush(bdev, GFP_KERNEL, NULL);
 	if (error == -EOPNOTSUPP)
 		error = 0;
 
@@ -428,10 +440,13 @@ static inline void __bd_forget(struct inode *inode)
 	inode->i_mapping = &inode->i_data;
 }
 
-static void bdev_clear_inode(struct inode *inode)
+static void bdev_evict_inode(struct inode *inode)
 {
 	struct block_device *bdev = &BDEV_I(inode)->bdev;
 	struct list_head *p;
+	truncate_inode_pages(&inode->i_data, 0);
+	invalidate_inode_buffers(inode); /* is it needed here? */
+	end_writeback(inode);
 	spin_lock(&bdev_lock);
 	while ( (p = bdev->bd_inodes.next) != &bdev->bd_inodes ) {
 		__bd_forget(list_entry(p, struct inode, i_devices));
@@ -445,18 +460,18 @@ static const struct super_operations bdev_sops = {
 	.alloc_inode = bdev_alloc_inode,
 	.destroy_inode = bdev_destroy_inode,
 	.drop_inode = generic_delete_inode,
-	.clear_inode = bdev_clear_inode,
+	.evict_inode = bdev_evict_inode,
 };
 
-static int bd_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *bd_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_pseudo(fs_type, "bdev:", &bdev_sops, 0x62646576, mnt);
+	return mount_pseudo(fs_type, "bdev:", &bdev_sops, 0x62646576);
 }
 
 static struct file_system_type bd_type = {
 	.name		= "bdev",
-	.get_sb		= bd_get_sb,
+	.mount		= bd_mount,
 	.kill_sb	= kill_anon_super,
 };
 
@@ -549,7 +564,7 @@ EXPORT_SYMBOL(bdget);
  */
 struct block_device *bdgrab(struct block_device *bdev)
 {
-	atomic_inc(&bdev->bd_inode->i_count);
+	ihold(bdev->bd_inode);
 	return bdev;
 }
 
@@ -579,7 +594,7 @@ static struct block_device *bd_acquire(struct inode *inode)
 	spin_lock(&bdev_lock);
 	bdev = inode->i_bdev;
 	if (bdev) {
-		atomic_inc(&bdev->bd_inode->i_count);
+		ihold(bdev->bd_inode);
 		spin_unlock(&bdev_lock);
 		return bdev;
 	}
@@ -590,12 +605,12 @@ static struct block_device *bd_acquire(struct inode *inode)
 		spin_lock(&bdev_lock);
 		if (!inode->i_bdev) {
 			/*
-			 * We take an additional bd_inode->i_count for inode,
+			 * We take an additional reference to bd_inode,
 			 * and it's released in clear_inode() of inode.
 			 * So, we can access it via ->i_mapping always
 			 * without igrab().
 			 */
-			atomic_inc(&bdev->bd_inode->i_count);
+			ihold(bdev->bd_inode);
 			inode->i_bdev = bdev;
 			inode->i_mapping = bdev->bd_inode->i_mapping;
 			list_add(&inode->i_devices, &bdev->bd_inodes);
@@ -1339,19 +1354,20 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	/*
 	 * hooks: /n/, see "layering violations".
 	 */
-	ret = devcgroup_inode_permission(bdev->bd_inode, perm);
-	if (ret != 0) {
-		bdput(bdev);
-		return ret;
+	if (!for_part) {
+		ret = devcgroup_inode_permission(bdev->bd_inode, perm);
+		if (ret != 0) {
+			bdput(bdev);
+			return ret;
+		}
 	}
 
-	lock_kernel();
  restart:
 
 	ret = -ENXIO;
 	disk = get_gendisk(bdev->bd_dev, &partno);
 	if (!disk)
-		goto out_unlock_kernel;
+		goto out;
 
 	mutex_lock_nested(&bdev->bd_mutex, for_part);
 	if (!bdev->bd_openers) {
@@ -1388,7 +1404,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 				bdi = blk_get_backing_dev_info(bdev);
 				if (bdi == NULL)
 					bdi = &default_backing_dev_info;
-				bdev->bd_inode->i_data.backing_dev_info = bdi;
+				bdev_inode_switch_bdi(bdev->bd_inode, bdi);
 			}
 			if (bdev->bd_invalidated)
 				rescan_partitions(disk, bdev);
@@ -1403,8 +1419,8 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 			if (ret)
 				goto out_clear;
 			bdev->bd_contains = whole;
-			bdev->bd_inode->i_data.backing_dev_info =
-			   whole->bd_inode->i_data.backing_dev_info;
+			bdev_inode_switch_bdi(bdev->bd_inode,
+				whole->bd_inode->i_data.backing_dev_info);
 			bdev->bd_part = disk_get_part(disk, partno);
 			if (!(disk->flags & GENHD_FL_UP) ||
 			    !bdev->bd_part || !bdev->bd_part->nr_sects) {
@@ -1431,22 +1447,19 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	if (for_part)
 		bdev->bd_part_count++;
 	mutex_unlock(&bdev->bd_mutex);
-	unlock_kernel();
 	return 0;
 
  out_clear:
 	disk_put_part(bdev->bd_part);
 	bdev->bd_disk = NULL;
 	bdev->bd_part = NULL;
-	bdev->bd_inode->i_data.backing_dev_info = &default_backing_dev_info;
+	bdev_inode_switch_bdi(bdev->bd_inode, &default_backing_dev_info);
 	if (bdev != bdev->bd_contains)
 		__blkdev_put(bdev->bd_contains, mode, 1);
 	bdev->bd_contains = NULL;
  out_unlock_bdev:
 	mutex_unlock(&bdev->bd_mutex);
- out_unlock_kernel:
-	unlock_kernel();
-
+ out:
 	if (disk)
 		module_put(disk->fops->owner);
 	put_disk(disk);
@@ -1515,7 +1528,6 @@ static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 	struct block_device *victim = NULL;
 
 	mutex_lock_nested(&bdev->bd_mutex, for_part);
-	lock_kernel();
 	if (for_part)
 		bdev->bd_part_count--;
 
@@ -1535,12 +1547,12 @@ static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 		disk_put_part(bdev->bd_part);
 		bdev->bd_part = NULL;
 		bdev->bd_disk = NULL;
-		bdev->bd_inode->i_data.backing_dev_info = &default_backing_dev_info;
+		bdev_inode_switch_bdi(bdev->bd_inode,
+					&default_backing_dev_info);
 		if (bdev != bdev->bd_contains)
 			victim = bdev->bd_contains;
 		bdev->bd_contains = NULL;
 	}
-	unlock_kernel();
 	mutex_unlock(&bdev->bd_mutex);
 	bdput(bdev);
 	if (victim)

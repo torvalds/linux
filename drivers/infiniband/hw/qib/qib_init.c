@@ -1243,6 +1243,7 @@ static int __devinit qib_init_one(struct pci_dev *pdev,
 		qib_early_err(&pdev->dev, "QLogic PCIE device 0x%x cannot "
 		      "work if CONFIG_PCI_MSI is not enabled\n",
 		      ent->device);
+		dd = ERR_PTR(-ENODEV);
 #endif
 		break;
 

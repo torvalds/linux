@@ -23,7 +23,6 @@
 #include <linux/io.h>
 #include <linux/bcd.h>
 #include <linux/delay.h>
-#include <linux/version.h>
 #include <linux/slab.h>
 
 /*
@@ -404,7 +403,7 @@ static int pl031_probe(struct amba_device *adev, struct amba_id *id)
 	}
 
 	if (request_irq(adev->irq[0], pl031_interrupt,
-			IRQF_DISABLED | IRQF_SHARED, "rtc-pl031", ldata)) {
+			IRQF_DISABLED, "rtc-pl031", ldata)) {
 		ret = -EIO;
 		goto out_no_irq;
 	}

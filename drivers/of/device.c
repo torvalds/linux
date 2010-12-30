@@ -14,7 +14,7 @@
  * @ids: array of of device match structures to search in
  * @dev: the of device structure to match against
  *
- * Used by a driver to check whether an of_device present in the
+ * Used by a driver to check whether an platform_device present in the
  * system is in its list of supported devices.
  */
 const struct of_device_id *of_match_device(const struct of_device_id *matches,
@@ -81,28 +81,9 @@ struct device_attribute of_platform_device_attrs[] = {
 	__ATTR_NULL
 };
 
-/**
- * of_release_dev - free an of device structure when all users of it are finished.
- * @dev: device that's been disconnected
- *
- * Will be called only by the device core when all users of this of device are
- * done.
- */
-void of_release_dev(struct device *dev)
-{
-	struct platform_device *ofdev;
-
-	ofdev = to_platform_device(dev);
-	of_node_put(ofdev->dev.of_node);
-	kfree(ofdev);
-}
-EXPORT_SYMBOL(of_release_dev);
-
-int of_device_register(struct platform_device *ofdev)
+int of_device_add(struct platform_device *ofdev)
 {
 	BUG_ON(ofdev->dev.of_node == NULL);
-
-	device_initialize(&ofdev->dev);
 
 	/* name and id have to be set so that the platform bus doesn't get
 	 * confused on matching */
@@ -116,6 +97,12 @@ int of_device_register(struct platform_device *ofdev)
 		set_dev_node(&ofdev->dev, of_node_to_nid(ofdev->dev.of_node));
 
 	return device_add(&ofdev->dev);
+}
+
+int of_device_register(struct platform_device *pdev)
+{
+	device_initialize(&pdev->dev);
+	return of_device_add(pdev);
 }
 EXPORT_SYMBOL(of_device_register);
 

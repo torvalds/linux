@@ -73,12 +73,14 @@ int debug_lockdep_rcu_enabled(void)
 EXPORT_SYMBOL_GPL(debug_lockdep_rcu_enabled);
 
 /**
- * rcu_read_lock_bh_held - might we be in RCU-bh read-side critical section?
+ * rcu_read_lock_bh_held() - might we be in RCU-bh read-side critical section?
  *
  * Check for bottom half being disabled, which covers both the
  * CONFIG_PROVE_RCU and not cases.  Note that if someone uses
  * rcu_read_lock_bh(), but then later enables BH, lockdep (if enabled)
- * will show the situation.
+ * will show the situation.  This is useful for debug checks in functions
+ * that require that they be called within an RCU read-side critical
+ * section.
  *
  * Check debug_lockdep_rcu_enabled() to prevent false positives during boot.
  */
@@ -86,7 +88,7 @@ int rcu_read_lock_bh_held(void)
 {
 	if (!debug_lockdep_rcu_enabled())
 		return 1;
-	return in_softirq();
+	return in_softirq() || irqs_disabled();
 }
 EXPORT_SYMBOL_GPL(rcu_read_lock_bh_held);
 

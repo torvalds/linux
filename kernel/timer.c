@@ -37,7 +37,7 @@
 #include <linux/delay.h>
 #include <linux/tick.h>
 #include <linux/kallsyms.h>
-#include <linux/perf_event.h>
+#include <linux/irq_work.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 
@@ -326,6 +326,7 @@ EXPORT_SYMBOL_GPL(round_jiffies_up_relative);
 
 /**
  * set_timer_slack - set the allowed slack for a timer
+ * @timer: the timer to be modified
  * @slack_hz: the amount of time (in jiffies) allowed for rounding
  *
  * Set the amount of time, in jiffies, that a certain timer has
@@ -1251,6 +1252,12 @@ unsigned long get_next_timer_interrupt(unsigned long now)
 	struct tvec_base *base = __get_cpu_var(tvec_bases);
 	unsigned long expires;
 
+	/*
+	 * Pretend that there is no timer pending if the cpu is offline.
+	 * Possible pending timers will be migrated later to an active cpu.
+	 */
+	if (cpu_is_offline(smp_processor_id()))
+		return now + NEXT_TIMER_MAX_DELTA;
 	spin_lock(&base->lock);
 	if (time_before_eq(base->next_timer, base->timer_jiffies))
 		base->next_timer = __next_timer_interrupt(base);
@@ -1278,7 +1285,10 @@ void update_process_times(int user_tick)
 	run_local_timers();
 	rcu_check_callbacks(cpu, user_tick);
 	printk_tick();
-	perf_event_do_pending();
+#ifdef CONFIG_IRQ_WORK
+	if (in_irq())
+		irq_work_run();
+#endif
 	scheduler_tick();
 	run_posix_cpu_timers(p);
 }
@@ -1315,7 +1325,7 @@ void do_timer(unsigned long ticks)
 {
 	jiffies_64 += ticks;
 	update_wall_time();
-	calc_global_load();
+	calc_global_load(ticks);
 }
 
 #ifdef __ARCH_WANT_SYS_ALARM

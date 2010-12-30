@@ -823,4 +823,4 @@ int kdb_printf(const char *fmt, ...)
 
 	return r;
 }
-
+EXPORT_SYMBOL_GPL(kdb_printf);

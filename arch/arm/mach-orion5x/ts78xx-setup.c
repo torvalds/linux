@@ -216,6 +216,7 @@ static struct mtd_partition ts78xx_ts_nand_parts[] = {
 
 static struct platform_nand_data ts78xx_ts_nand_data = {
 	.chip	= {
+		.nr_chips		= 1,
 		.part_probe_types	= ts_nand_part_probes,
 		.partitions		= ts78xx_ts_nand_parts,
 		.nr_partitions		= ARRAY_SIZE(ts78xx_ts_nand_parts),
@@ -238,7 +239,7 @@ static struct platform_nand_data ts78xx_ts_nand_data = {
 static struct resource ts78xx_ts_nand_resources = {
 	.start		= TS_NAND_DATA,
 	.end		= TS_NAND_DATA + 4,
-	.flags		= IORESOURCE_IO,
+	.flags		= IORESOURCE_MEM,
 };
 
 static struct platform_device ts78xx_ts_nand_device = {
@@ -549,8 +550,6 @@ static void __init ts78xx_init(void)
 
 MACHINE_START(TS78XX, "Technologic Systems TS-78xx SBC")
 	/* Maintainer: Alexander Clouter <alex@digriz.org.uk> */
-	.phys_io	= ORION5X_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= ts78xx_init,
 	.map_io		= ts78xx_map_io,

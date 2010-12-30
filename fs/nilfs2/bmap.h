@@ -135,6 +135,12 @@ struct nilfs_bmap {
 /* state */
 #define NILFS_BMAP_DIRTY	0x00000001
 
+struct nilfs_bmap_store {
+	__le64 data[NILFS_BMAP_SIZE / sizeof(__le64)];
+	__u64 last_allocated_key;
+	__u64 last_allocated_ptr;
+	int state;
+};
 
 int nilfs_bmap_test_and_clear_dirty(struct nilfs_bmap *);
 int nilfs_bmap_read(struct nilfs_bmap *, struct nilfs_inode *);
@@ -153,9 +159,9 @@ int nilfs_bmap_lookup_at_level(struct nilfs_bmap *, __u64, int, __u64 *);
 int nilfs_bmap_mark(struct nilfs_bmap *, __u64, int);
 
 void nilfs_bmap_init_gc(struct nilfs_bmap *);
-void nilfs_bmap_init_gcdat(struct nilfs_bmap *, struct nilfs_bmap *);
-void nilfs_bmap_commit_gcdat(struct nilfs_bmap *, struct nilfs_bmap *);
 
+void nilfs_bmap_save(const struct nilfs_bmap *, struct nilfs_bmap_store *);
+void nilfs_bmap_restore(struct nilfs_bmap *, const struct nilfs_bmap_store *);
 
 static inline int nilfs_bmap_lookup(struct nilfs_bmap *bmap, __u64 key,
 				    __u64 *ptr)

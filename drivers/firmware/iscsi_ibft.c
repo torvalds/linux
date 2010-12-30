@@ -727,8 +727,10 @@ static void ibft_unregister(void)
 
 static void ibft_cleanup(void)
 {
-	ibft_unregister();
-	iscsi_boot_destroy_kset(boot_kset);
+	if (boot_kset) {
+		ibft_unregister();
+		iscsi_boot_destroy_kset(boot_kset);
+	}
 }
 
 static void __exit ibft_exit(void)

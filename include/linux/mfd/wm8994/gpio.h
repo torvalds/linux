@@ -36,6 +36,10 @@
 #define WM8994_GP_FN_WSEQ_STATUS    16
 #define WM8994_GP_FN_FIFO_ERROR     17
 #define WM8994_GP_FN_OPCLK          18
+#define WM8994_GP_FN_THW	    19
+#define WM8994_GP_FN_DCS_DONE	    20
+#define WM8994_GP_FN_FLL1_OUT       21
+#define WM8994_GP_FN_FLL2_OUT       22
 
 #define WM8994_GPN_DIR                          0x8000  /* GPN_DIR */
 #define WM8994_GPN_DIR_MASK                     0x8000  /* GPN_DIR */

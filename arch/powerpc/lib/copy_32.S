@@ -62,7 +62,7 @@
 
 	.text
 	.stabs	"arch/powerpc/lib/",N_SO,0,0,0f
-	.stabs	"copy32.S",N_SO,0,0,0f
+	.stabs	"copy_32.S",N_SO,0,0,0f
 0:
 
 CACHELINE_BYTES = L1_CACHE_BYTES

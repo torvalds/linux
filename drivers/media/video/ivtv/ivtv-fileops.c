@@ -150,12 +150,10 @@ void ivtv_release_stream(struct ivtv_stream *s)
 static void ivtv_dualwatch(struct ivtv *itv)
 {
 	struct v4l2_tuner vt;
-	u32 new_bitmap;
 	u32 new_stereo_mode;
-	const u32 stereo_mask = 0x0300;
-	const u32 dual = 0x0200;
+	const u32 dual = 0x02;
 
-	new_stereo_mode = itv->params.audio_properties & stereo_mask;
+	new_stereo_mode = v4l2_ctrl_g_ctrl(itv->cxhdl.audio_mode);
 	memset(&vt, 0, sizeof(vt));
 	ivtv_call_all(itv, tuner, g_tuner, &vt);
 	if (vt.audmode == V4L2_TUNER_MODE_LANG1_LANG2 && (vt.rxsubchans & V4L2_TUNER_SUB_LANG2))
@@ -164,16 +162,10 @@ static void ivtv_dualwatch(struct ivtv *itv)
 	if (new_stereo_mode == itv->dualwatch_stereo_mode)
 		return;
 
-	new_bitmap = new_stereo_mode | (itv->params.audio_properties & ~stereo_mask);
-
-	IVTV_DEBUG_INFO("dualwatch: change stereo flag from 0x%x to 0x%x. new audio_bitmask=0x%ux\n",
-			   itv->dualwatch_stereo_mode, new_stereo_mode, new_bitmap);
-
-	if (ivtv_vapi(itv, CX2341X_ENC_SET_AUDIO_PROPERTIES, 1, new_bitmap) == 0) {
-		itv->dualwatch_stereo_mode = new_stereo_mode;
-		return;
-	}
-	IVTV_DEBUG_INFO("dualwatch: changing stereo flag failed\n");
+	IVTV_DEBUG_INFO("dualwatch: change stereo flag from 0x%x to 0x%x.\n",
+			   itv->dualwatch_stereo_mode, new_stereo_mode);
+	if (v4l2_ctrl_s_ctrl(itv->cxhdl.audio_mode, new_stereo_mode))
+		IVTV_DEBUG_INFO("dualwatch: changing stereo flag failed\n");
 }
 
 static void ivtv_update_pgm_info(struct ivtv *itv)
@@ -894,7 +886,8 @@ int ivtv_v4l2_close(struct file *filp)
 		if (atomic_read(&itv->capturing) > 0) {
 			/* Undo video mute */
 			ivtv_vapi(itv, CX2341X_ENC_MUTE_VIDEO, 1,
-				itv->params.video_mute | (itv->params.video_mute_yuv << 8));
+				v4l2_ctrl_g_ctrl(itv->cxhdl.video_mute) |
+				(v4l2_ctrl_g_ctrl(itv->cxhdl.video_mute_yuv) << 8));
 		}
 		/* Done! Unmute and continue. */
 		ivtv_unmute(itv);

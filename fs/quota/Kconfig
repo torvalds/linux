@@ -4,6 +4,7 @@
 
 config QUOTA
 	bool "Quota support"
+	select QUOTACTL
 	help
 	  If you say Y here, you will be able to set per user limits for disk
 	  usage (also called disk quotas). Currently, it works for the
@@ -65,8 +66,7 @@ config QFMT_V2
 
 config QUOTACTL
 	bool
-	depends on XFS_QUOTA || QUOTA
-	default y
+	default n
 
 config QUOTACTL_COMPAT
 	bool

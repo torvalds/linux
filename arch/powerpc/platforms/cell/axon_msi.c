@@ -310,9 +310,9 @@ static void axon_msi_teardown_msi_irqs(struct pci_dev *dev)
 }
 
 static struct irq_chip msic_irq_chip = {
-	.mask		= mask_msi_irq,
-	.unmask		= unmask_msi_irq,
-	.shutdown	= unmask_msi_irq,
+	.irq_mask	= mask_msi_irq,
+	.irq_unmask	= unmask_msi_irq,
+	.irq_shutdown	= mask_msi_irq,
 	.name		= "AXON-MSI",
 };
 

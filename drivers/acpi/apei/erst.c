@@ -2,7 +2,7 @@
  * APEI Error Record Serialization Table support
  *
  * ERST is a way provided by APEI to save and retrieve hardware error
- * infomation to and from a persistent store.
+ * information to and from a persistent store.
  *
  * For more information about ERST, please refer to ACPI Specification
  * version 4.0, section 17.4.
@@ -33,6 +33,7 @@
 #include <linux/uaccess.h>
 #include <linux/cper.h>
 #include <linux/nmi.h>
+#include <linux/hardirq.h>
 #include <acpi/apei.h>
 
 #include "apei-internal.h"
@@ -85,7 +86,7 @@ static struct erst_erange {
  * It is used to provide exclusive accessing for ERST Error Log
  * Address Range too.
  */
-static DEFINE_SPINLOCK(erst_lock);
+static DEFINE_RAW_SPINLOCK(erst_lock);
 
 static inline int erst_errno(int command_status)
 {
@@ -265,13 +266,30 @@ static int erst_exec_move_data(struct apei_exec_context *ctx,
 {
 	int rc;
 	u64 offset;
+	void *src, *dst;
+
+	/* ioremap does not work in interrupt context */
+	if (in_interrupt()) {
+		pr_warning(ERST_PFX
+			   "MOVE_DATA can not be used in interrupt context");
+		return -EBUSY;
+	}
 
 	rc = __apei_exec_read_register(entry, &offset);
 	if (rc)
 		return rc;
-	memmove((void *)ctx->dst_base + offset,
-		(void *)ctx->src_base + offset,
-		ctx->var2);
+
+	src = ioremap(ctx->src_base + offset, ctx->var2);
+	if (!src)
+		return -ENOMEM;
+	dst = ioremap(ctx->dst_base + offset, ctx->var2);
+	if (!dst)
+		return -ENOMEM;
+
+	memmove(dst, src, ctx->var2);
+
+	iounmap(src);
+	iounmap(dst);
 
 	return 0;
 }
@@ -403,9 +421,9 @@ ssize_t erst_get_record_count(void)
 	if (erst_disable)
 		return -ENODEV;
 
-	spin_lock_irqsave(&erst_lock, flags);
+	raw_spin_lock_irqsave(&erst_lock, flags);
 	count = __erst_get_record_count();
-	spin_unlock_irqrestore(&erst_lock, flags);
+	raw_spin_unlock_irqrestore(&erst_lock, flags);
 
 	return count;
 }
@@ -438,9 +456,9 @@ int erst_get_next_record_id(u64 *record_id)
 	if (erst_disable)
 		return -ENODEV;
 
-	spin_lock_irqsave(&erst_lock, flags);
+	raw_spin_lock_irqsave(&erst_lock, flags);
 	rc = __erst_get_next_record_id(record_id);
-	spin_unlock_irqrestore(&erst_lock, flags);
+	raw_spin_unlock_irqrestore(&erst_lock, flags);
 
 	return rc;
 }
@@ -606,17 +624,17 @@ int erst_write(const struct cper_record_header *record)
 		return -EINVAL;
 
 	if (erst_erange.attr & ERST_RANGE_NVRAM) {
-		if (!spin_trylock_irqsave(&erst_lock, flags))
+		if (!raw_spin_trylock_irqsave(&erst_lock, flags))
 			return -EBUSY;
 		rc = __erst_write_to_nvram(record);
-		spin_unlock_irqrestore(&erst_lock, flags);
+		raw_spin_unlock_irqrestore(&erst_lock, flags);
 		return rc;
 	}
 
 	if (record->record_length > erst_erange.size)
 		return -EINVAL;
 
-	if (!spin_trylock_irqsave(&erst_lock, flags))
+	if (!raw_spin_trylock_irqsave(&erst_lock, flags))
 		return -EBUSY;
 	memcpy(erst_erange.vaddr, record, record->record_length);
 	rcd_erange = erst_erange.vaddr;
@@ -624,7 +642,7 @@ int erst_write(const struct cper_record_header *record)
 	memcpy(&rcd_erange->persistence_information, "ER", 2);
 
 	rc = __erst_write_to_storage(0);
-	spin_unlock_irqrestore(&erst_lock, flags);
+	raw_spin_unlock_irqrestore(&erst_lock, flags);
 
 	return rc;
 }
@@ -678,9 +696,9 @@ ssize_t erst_read(u64 record_id, struct cper_record_header *record,
 	if (erst_disable)
 		return -ENODEV;
 
-	spin_lock_irqsave(&erst_lock, flags);
+	raw_spin_lock_irqsave(&erst_lock, flags);
 	len = __erst_read(record_id, record, buflen);
-	spin_unlock_irqrestore(&erst_lock, flags);
+	raw_spin_unlock_irqrestore(&erst_lock, flags);
 	return len;
 }
 EXPORT_SYMBOL_GPL(erst_read);
@@ -701,20 +719,20 @@ ssize_t erst_read_next(struct cper_record_header *record, size_t buflen)
 	if (erst_disable)
 		return -ENODEV;
 
-	spin_lock_irqsave(&erst_lock, flags);
+	raw_spin_lock_irqsave(&erst_lock, flags);
 	rc = __erst_get_next_record_id(&record_id);
 	if (rc) {
-		spin_unlock_irqrestore(&erst_lock, flags);
+		raw_spin_unlock_irqrestore(&erst_lock, flags);
 		return rc;
 	}
 	/* no more record */
 	if (record_id == APEI_ERST_INVALID_RECORD_ID) {
-		spin_unlock_irqrestore(&erst_lock, flags);
+		raw_spin_unlock_irqrestore(&erst_lock, flags);
 		return 0;
 	}
 
 	len = __erst_read(record_id, record, buflen);
-	spin_unlock_irqrestore(&erst_lock, flags);
+	raw_spin_unlock_irqrestore(&erst_lock, flags);
 
 	return len;
 }
@@ -728,12 +746,12 @@ int erst_clear(u64 record_id)
 	if (erst_disable)
 		return -ENODEV;
 
-	spin_lock_irqsave(&erst_lock, flags);
+	raw_spin_lock_irqsave(&erst_lock, flags);
 	if (erst_erange.attr & ERST_RANGE_NVRAM)
 		rc = __erst_clear_from_nvram(record_id);
 	else
 		rc = __erst_clear_from_storage(record_id);
-	spin_unlock_irqrestore(&erst_lock, flags);
+	raw_spin_unlock_irqrestore(&erst_lock, flags);
 
 	return rc;
 }
@@ -749,7 +767,9 @@ __setup("erst_disable", setup_erst_disable);
 
 static int erst_check_table(struct acpi_table_erst *erst_tab)
 {
-	if (erst_tab->header_length != sizeof(struct acpi_table_erst))
+	if ((erst_tab->header_length !=
+	     (sizeof(struct acpi_table_erst) - sizeof(erst_tab->header)))
+	    && (erst_tab->header_length != sizeof(struct acpi_table_einj)))
 		return -EINVAL;
 	if (erst_tab->header.length < sizeof(struct acpi_table_erst))
 		return -EINVAL;

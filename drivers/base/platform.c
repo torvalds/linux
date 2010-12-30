@@ -147,6 +147,7 @@ static void platform_device_release(struct device *dev)
 	struct platform_object *pa = container_of(dev, struct platform_object,
 						  pdev.dev);
 
+	of_device_node_put(&pa->pdev.dev);
 	kfree(pa->pdev.dev.platform_data);
 	kfree(pa->pdev.resource);
 	kfree(pa);
@@ -192,6 +193,9 @@ int platform_device_add_resources(struct platform_device *pdev,
 {
 	struct resource *r;
 
+	if (!res)
+		return 0;
+
 	r = kmemdup(res, sizeof(struct resource) * num, GFP_KERNEL);
 	if (r) {
 		pdev->resource = r;
@@ -215,8 +219,12 @@ EXPORT_SYMBOL_GPL(platform_device_add_resources);
 int platform_device_add_data(struct platform_device *pdev, const void *data,
 			     size_t size)
 {
-	void *d = kmemdup(data, size, GFP_KERNEL);
+	void *d;
 
+	if (!data)
+		return 0;
+
+	d = kmemdup(data, size, GFP_KERNEL);
 	if (d) {
 		pdev->dev.platform_data = d;
 		return 0;
@@ -373,17 +381,13 @@ struct platform_device *__init_or_module platform_device_register_resndata(
 
 	pdev->dev.parent = parent;
 
-	if (res) {
-		ret = platform_device_add_resources(pdev, res, num);
-		if (ret)
-			goto err;
-	}
+	ret = platform_device_add_resources(pdev, res, num);
+	if (ret)
+		goto err;
 
-	if (data) {
-		ret = platform_device_add_data(pdev, data, size);
-		if (ret)
-			goto err;
-	}
+	ret = platform_device_add_data(pdev, data, size);
+	if (ret)
+		goto err;
 
 	ret = platform_device_add(pdev);
 	if (ret) {
@@ -488,12 +492,12 @@ int __init_or_module platform_driver_probe(struct platform_driver *drv,
 	 * if the probe was successful, and make sure any forced probes of
 	 * new devices fail.
 	 */
-	spin_lock(&platform_bus_type.p->klist_drivers.k_lock);
+	spin_lock(&drv->driver.bus->p->klist_drivers.k_lock);
 	drv->probe = NULL;
 	if (code == 0 && list_empty(&drv->driver.p->klist_devices.k_list))
 		retval = -ENODEV;
 	drv->driver.probe = platform_drv_probe_fail;
-	spin_unlock(&platform_bus_type.p->klist_drivers.k_lock);
+	spin_unlock(&drv->driver.bus->p->klist_drivers.k_lock);
 
 	if (code != retval)
 		platform_driver_unregister(drv);
@@ -530,17 +534,13 @@ struct platform_device * __init_or_module platform_create_bundle(
 		goto err_out;
 	}
 
-	if (res) {
-		error = platform_device_add_resources(pdev, res, n_res);
-		if (error)
-			goto err_pdev_put;
-	}
+	error = platform_device_add_resources(pdev, res, n_res);
+	if (error)
+		goto err_pdev_put;
 
-	if (data) {
-		error = platform_device_add_data(pdev, data, size);
-		if (error)
-			goto err_pdev_put;
-	}
+	error = platform_device_add_data(pdev, data, size);
+	if (error)
+		goto err_pdev_put;
 
 	error = platform_device_add(pdev);
 	if (error)
@@ -975,6 +975,41 @@ struct bus_type platform_bus_type = {
 	.pm		= &platform_dev_pm_ops,
 };
 EXPORT_SYMBOL_GPL(platform_bus_type);
+
+/**
+ * platform_bus_get_pm_ops() - return pointer to busses dev_pm_ops
+ *
+ * This function can be used by platform code to get the current
+ * set of dev_pm_ops functions used by the platform_bus_type.
+ */
+const struct dev_pm_ops * __init platform_bus_get_pm_ops(void)
+{
+	return platform_bus_type.pm;
+}
+
+/**
+ * platform_bus_set_pm_ops() - update dev_pm_ops for the platform_bus_type
+ *
+ * @pm: pointer to new dev_pm_ops struct to be used for platform_bus_type
+ *
+ * Platform code can override the dev_pm_ops methods of
+ * platform_bus_type by using this function.  It is expected that
+ * platform code will first do a platform_bus_get_pm_ops(), then
+ * kmemdup it, then customize selected methods and pass a pointer to
+ * the new struct dev_pm_ops to this function.
+ *
+ * Since platform-specific code is customizing methods for *all*
+ * devices (not just platform-specific devices) it is expected that
+ * any custom overrides of these functions will keep existing behavior
+ * and simply extend it.  For example, any customization of the
+ * runtime PM methods should continue to call the pm_generic_*
+ * functions as the default ones do in addition to the
+ * platform-specific behavior.
+ */
+void __init platform_bus_set_pm_ops(const struct dev_pm_ops *pm)
+{
+	platform_bus_type.pm = pm;
+}
 
 int __init platform_bus_init(void)
 {

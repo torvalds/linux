@@ -125,6 +125,17 @@ o	"b" is the batch limit for this CPU.  If more than this number
 	of RCU callbacks is ready to invoke, then the remainder will
 	be deferred.
 
+o	"ci" is the number of RCU callbacks that have been invoked for
+	this CPU.  Note that ci+ql is the number of callbacks that have
+	been registered in absence of CPU-hotplug activity.
+
+o	"co" is the number of RCU callbacks that have been orphaned due to
+	this CPU going offline.
+
+o	"ca" is the number of RCU callbacks that have been adopted due to
+	other CPUs going offline.  Note that ci+co-ca+ql is the number of
+	RCU callbacks registered on this CPU.
+
 There is also an rcu/rcudata.csv file with the same information in
 comma-separated-variable spreadsheet format.
 
@@ -180,7 +191,7 @@ o	"s" is the "signaled" state that drives force_quiescent_state()'s
 
 o	"jfq" is the number of jiffies remaining for this grace period
 	before force_quiescent_state() is invoked to help push things
-	along.  Note that CPUs in dyntick-idle mode thoughout the grace
+	along.  Note that CPUs in dyntick-idle mode throughout the grace
 	period will not report on their own, but rather must be check by
 	some other CPU via force_quiescent_state().
 

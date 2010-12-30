@@ -415,7 +415,6 @@ static void ar9002_hw_spur_mitigate(struct ath_hw *ah,
 	REG_WRITE(ah, AR_PHY_MASK2_P_61_45, tmp_mask);
 
 	REGWRITE_BUFFER_FLUSH(ah);
-	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 static void ar9002_olc_init(struct ath_hw *ah)
@@ -530,3 +529,38 @@ void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
 
 	ar9002_hw_set_nf_limits(ah);
 }
+
+void ath9k_hw_antdiv_comb_conf_get(struct ath_hw *ah,
+				   struct ath_hw_antcomb_conf *antconf)
+{
+	u32 regval;
+
+	regval = REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
+	antconf->main_lna_conf = (regval & AR_PHY_9285_ANT_DIV_MAIN_LNACONF) >>
+				  AR_PHY_9285_ANT_DIV_MAIN_LNACONF_S;
+	antconf->alt_lna_conf = (regval & AR_PHY_9285_ANT_DIV_ALT_LNACONF) >>
+				 AR_PHY_9285_ANT_DIV_ALT_LNACONF_S;
+	antconf->fast_div_bias = (regval & AR_PHY_9285_FAST_DIV_BIAS) >>
+				  AR_PHY_9285_FAST_DIV_BIAS_S;
+}
+EXPORT_SYMBOL(ath9k_hw_antdiv_comb_conf_get);
+
+void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
+				   struct ath_hw_antcomb_conf *antconf)
+{
+	u32 regval;
+
+	regval = REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
+	regval &= ~(AR_PHY_9285_ANT_DIV_MAIN_LNACONF |
+		    AR_PHY_9285_ANT_DIV_ALT_LNACONF |
+		    AR_PHY_9285_FAST_DIV_BIAS);
+	regval |= ((antconf->main_lna_conf << AR_PHY_9285_ANT_DIV_MAIN_LNACONF_S)
+		   & AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
+	regval |= ((antconf->alt_lna_conf << AR_PHY_9285_ANT_DIV_ALT_LNACONF_S)
+		   & AR_PHY_9285_ANT_DIV_ALT_LNACONF);
+	regval |= ((antconf->fast_div_bias << AR_PHY_9285_FAST_DIV_BIAS_S)
+		   & AR_PHY_9285_FAST_DIV_BIAS);
+
+	REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regval);
+}
+EXPORT_SYMBOL(ath9k_hw_antdiv_comb_conf_set);

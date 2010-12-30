@@ -720,6 +720,7 @@ static const struct file_operations envctrl_fops = {
 #endif
 	.open =			envctrl_open,
 	.release =		envctrl_release,
+	.llseek =		noop_llseek,
 };	
 
 static struct miscdevice envctrl_dev = {
@@ -1027,7 +1028,7 @@ static int kenvctrld(void *__unused)
 	return 0;
 }
 
-static int __devinit envctrl_probe(struct of_device *op,
+static int __devinit envctrl_probe(struct platform_device *op,
 				   const struct of_device_id *match)
 {
 	struct device_node *dp;
@@ -1104,7 +1105,7 @@ out_iounmap:
 	return err;
 }
 
-static int __devexit envctrl_remove(struct of_device *op)
+static int __devexit envctrl_remove(struct platform_device *op)
 {
 	int index;
 

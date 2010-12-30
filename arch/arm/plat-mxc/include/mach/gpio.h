@@ -19,6 +19,7 @@
 #ifndef __ASM_ARCH_MXC_GPIO_H__
 #define __ASM_ARCH_MXC_GPIO_H__
 
+#include <linux/spinlock.h>
 #include <mach/hardware.h>
 #include <asm-generic/gpio.h>
 

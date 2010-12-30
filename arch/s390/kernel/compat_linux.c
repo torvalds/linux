@@ -25,7 +25,6 @@
 #include <linux/resource.h>
 #include <linux/times.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/sem.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
@@ -436,7 +435,7 @@ sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo)
  * sys32_execve() executes a new program after the asm stub has set
  * things up for us.  This should basically do what I want it to.
  */
-asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,
+asmlinkage long sys32_execve(const char __user *name, compat_uptr_t __user *argv,
 			     compat_uptr_t __user *envp)
 {
 	struct pt_regs *regs = task_pt_regs(current);
@@ -570,7 +569,7 @@ static int cp_stat64(struct stat64_emu31 __user *ubuf, struct kstat *stat)
 	return copy_to_user(ubuf,&tmp,sizeof(tmp)) ? -EFAULT : 0; 
 }
 
-asmlinkage long sys32_stat64(char __user * filename, struct stat64_emu31 __user * statbuf)
+asmlinkage long sys32_stat64(const char __user * filename, struct stat64_emu31 __user * statbuf)
 {
 	struct kstat stat;
 	int ret = vfs_stat(filename, &stat);
@@ -579,7 +578,7 @@ asmlinkage long sys32_stat64(char __user * filename, struct stat64_emu31 __user 
 	return ret;
 }
 
-asmlinkage long sys32_lstat64(char __user * filename, struct stat64_emu31 __user * statbuf)
+asmlinkage long sys32_lstat64(const char __user * filename, struct stat64_emu31 __user * statbuf)
 {
 	struct kstat stat;
 	int ret = vfs_lstat(filename, &stat);
@@ -597,7 +596,7 @@ asmlinkage long sys32_fstat64(unsigned long fd, struct stat64_emu31 __user * sta
 	return ret;
 }
 
-asmlinkage long sys32_fstatat64(unsigned int dfd, char __user *filename,
+asmlinkage long sys32_fstatat64(unsigned int dfd, const char __user *filename,
 				struct stat64_emu31 __user* statbuf, int flag)
 {
 	struct kstat stat;
@@ -655,7 +654,7 @@ asmlinkage long sys32_read(unsigned int fd, char __user * buf, size_t count)
 	return sys_read(fd, buf, count);
 }
 
-asmlinkage long sys32_write(unsigned int fd, char __user * buf, size_t count)
+asmlinkage long sys32_write(unsigned int fd, const char __user * buf, size_t count)
 {
 	if ((compat_ssize_t) count < 0)
 		return -EINVAL; 

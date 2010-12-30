@@ -12,8 +12,8 @@
 #include "debug.h"
 #include "util.h"
 
-int verbose = 0;
-bool dump_trace = false;
+int verbose;
+bool dump_trace = false, quiet = false;
 
 int eprintf(int level, const char *fmt, ...)
 {
@@ -23,7 +23,7 @@ int eprintf(int level, const char *fmt, ...)
 	if (verbose >= level) {
 		va_start(args, fmt);
 		if (use_browser > 0)
-			ret = browser__show_help(fmt, args);
+			ret = ui_helpline__show_help(fmt, args);
 		else
 			ret = vfprintf(stderr, fmt, args);
 		va_end(args);

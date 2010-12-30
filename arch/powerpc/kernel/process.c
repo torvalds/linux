@@ -517,7 +517,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	account_system_vtime(current);
 	account_process_vtime(current);
-	calculate_steal_time();
 
 	/*
 	 * We can't take a PMU exception inside _switch() since there is a
@@ -728,7 +727,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		p->thread.regs = childregs;
 		if (clone_flags & CLONE_SETTLS) {
 #ifdef CONFIG_PPC64
-			if (!test_thread_flag(TIF_32BIT))
+			if (!is_32bit_task())
 				childregs->gpr[13] = childregs->gpr[6];
 			else
 #endif
@@ -823,7 +822,7 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	regs->nip = start;
 	regs->msr = MSR_USER;
 #else
-	if (!test_thread_flag(TIF_32BIT)) {
+	if (!is_32bit_task()) {
 		unsigned long entry, toc;
 
 		/* start is a relocated pointer to the function descriptor for
@@ -995,7 +994,7 @@ int sys_clone(unsigned long clone_flags, unsigned long usp,
 	if (usp == 0)
 		usp = regs->gpr[1];	/* stack pointer for child */
 #ifdef CONFIG_PPC64
-	if (test_thread_flag(TIF_32BIT)) {
+	if (is_32bit_task()) {
 		parent_tidp = TRUNC_PTR(parent_tidp);
 		child_tidp = TRUNC_PTR(child_tidp);
 	}
@@ -1027,15 +1026,16 @@ int sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
 	int error;
 	char *filename;
 
-	filename = getname((char __user *) a0);
+	filename = getname((const char __user *) a0);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
 	flush_fp_to_thread(current);
 	flush_altivec_to_thread(current);
 	flush_spe_to_thread(current);
-	error = do_execve(filename, (char __user * __user *) a1,
-			  (char __user * __user *) a2, regs);
+	error = do_execve(filename,
+			  (const char __user *const __user *) a1,
+			  (const char __user *const __user *) a2, regs);
 	putname(filename);
 out:
 	return error;
@@ -1198,19 +1198,17 @@ void ppc64_runlatch_on(void)
 	}
 }
 
-void ppc64_runlatch_off(void)
+void __ppc64_runlatch_off(void)
 {
 	unsigned long ctrl;
 
-	if (cpu_has_feature(CPU_FTR_CTRL) && test_thread_flag(TIF_RUNLATCH)) {
-		HMT_medium();
+	HMT_medium();
 
-		clear_thread_flag(TIF_RUNLATCH);
+	clear_thread_flag(TIF_RUNLATCH);
 
-		ctrl = mfspr(SPRN_CTRLF);
-		ctrl &= ~CTRL_RUNLATCH;
-		mtspr(SPRN_CTRLT, ctrl);
-	}
+	ctrl = mfspr(SPRN_CTRLF);
+	ctrl &= ~CTRL_RUNLATCH;
+	mtspr(SPRN_CTRLT, ctrl);
 }
 #endif
 
@@ -1299,14 +1297,3 @@ unsigned long randomize_et_dyn(unsigned long base)
 
 	return ret;
 }
-
-#ifdef CONFIG_SMP
-int arch_sd_sibling_asym_packing(void)
-{
-	if (cpu_has_feature(CPU_FTR_ASYM_SMT)) {
-		printk_once(KERN_INFO "Enabling Asymmetric SMT scheduling\n");
-		return SD_ASYM_PACKING;
-	}
-	return 0;
-}
-#endif

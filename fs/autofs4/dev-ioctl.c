@@ -724,6 +724,7 @@ static const struct file_operations _dev_ioctl_fops = {
 	.unlocked_ioctl	 = autofs_dev_ioctl,
 	.compat_ioctl = autofs_dev_ioctl_compat,
 	.owner	 = THIS_MODULE,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice _autofs_dev_ioctl_misc = {

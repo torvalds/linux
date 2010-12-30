@@ -50,14 +50,13 @@
 #include <mach/udc.h>
 #include <mach/pxa2xx_spi.h>
 #include <mach/corgi.h>
-#include <mach/sharpsl.h>
+#include <mach/sharpsl_pm.h>
 
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/scoop.h>
 
 #include "generic.h"
 #include "devices.h"
-#include "sharpsl.h"
 
 static unsigned long corgi_pin_config[] __initdata = {
 	/* Static Memory I/O */
@@ -184,8 +183,6 @@ static struct scoop_pcmcia_config corgi_pcmcia_config = {
 	.devs         = &corgi_pcmcia_scoop[0],
 	.num_devs     = 1,
 };
-
-EXPORT_SYMBOL(corgiscoop_device);
 
 static struct w100_mem_info corgi_fb_mem = {
 	.ext_cntl          = 0x00040003,
@@ -723,8 +720,6 @@ static void __init fixup_corgi(struct machine_desc *desc,
 
 #ifdef CONFIG_MACH_CORGI
 MACHINE_START(CORGI, "SHARP Corgi")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa25x_init_irq,
@@ -735,8 +730,6 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_SHEPHERD
 MACHINE_START(SHEPHERD, "SHARP Shepherd")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa25x_init_irq,
@@ -747,8 +740,6 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_HUSKY
 MACHINE_START(HUSKY, "SHARP Husky")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= fixup_corgi,
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa25x_init_irq,

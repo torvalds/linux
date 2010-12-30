@@ -87,7 +87,7 @@ static void hist_entry__add_cpumode_period(struct hist_entry *self,
 
 static struct hist_entry *hist_entry__new(struct hist_entry *template)
 {
-	size_t callchain_size = symbol_conf.use_callchain ? sizeof(struct callchain_node) : 0;
+	size_t callchain_size = symbol_conf.use_callchain ? sizeof(struct callchain_root) : 0;
 	struct hist_entry *self = malloc(sizeof(*self) + callchain_size);
 
 	if (self != NULL) {
@@ -226,6 +226,8 @@ static bool collapse__insert_entry(struct rb_root *root, struct hist_entry *he)
 
 		if (!cmp) {
 			iter->period += he->period;
+			if (symbol_conf.use_callchain)
+				callchain_merge(iter->callchain, he->callchain);
 			hist_entry__free(he);
 			return false;
 		}
@@ -876,6 +878,9 @@ unsigned int hists__sort_list_width(struct hists *self)
 		if (!se->elide)
 			ret += 2 + hists__col_len(self, se->se_width_idx);
 
+	if (verbose) /* Addr + origin */
+		ret += 3 + BITS_PER_LONG / 4;
+
 	return ret;
 }
 
@@ -980,9 +985,9 @@ int hist_entry__inc_addr_samples(struct hist_entry *self, u64 ip)
 	return 0;
 }
 
-static struct objdump_line *objdump_line__new(s64 offset, char *line)
+static struct objdump_line *objdump_line__new(s64 offset, char *line, size_t privsize)
 {
-	struct objdump_line *self = malloc(sizeof(*self));
+	struct objdump_line *self = malloc(sizeof(*self) + privsize);
 
 	if (self != NULL) {
 		self->offset = offset;
@@ -1014,7 +1019,7 @@ struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
 }
 
 static int hist_entry__parse_objdump_line(struct hist_entry *self, FILE *file,
-					  struct list_head *head)
+					  struct list_head *head, size_t privsize)
 {
 	struct symbol *sym = self->ms.sym;
 	struct objdump_line *objdump_line;
@@ -1065,7 +1070,7 @@ static int hist_entry__parse_objdump_line(struct hist_entry *self, FILE *file,
 			offset = -1;
 	}
 
-	objdump_line = objdump_line__new(offset, line);
+	objdump_line = objdump_line__new(offset, line, privsize);
 	if (objdump_line == NULL) {
 		free(line);
 		return -1;
@@ -1075,7 +1080,8 @@ static int hist_entry__parse_objdump_line(struct hist_entry *self, FILE *file,
 	return 0;
 }
 
-int hist_entry__annotate(struct hist_entry *self, struct list_head *head)
+int hist_entry__annotate(struct hist_entry *self, struct list_head *head,
+			 size_t privsize)
 {
 	struct symbol *sym = self->ms.sym;
 	struct map *map = self->ms.map;
@@ -1140,7 +1146,7 @@ fallback:
 		goto out_free_filename;
 
 	while (!feof(file))
-		if (hist_entry__parse_objdump_line(self, file, head) < 0)
+		if (hist_entry__parse_objdump_line(self, file, head, privsize) < 0)
 			break;
 
 	pclose(file);

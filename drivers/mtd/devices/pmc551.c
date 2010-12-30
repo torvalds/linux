@@ -98,7 +98,6 @@
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/pmc551.h>
-#include <linux/mtd/compatmac.h>
 
 static struct mtd_info *pmc551list;
 

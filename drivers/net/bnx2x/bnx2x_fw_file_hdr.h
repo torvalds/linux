@@ -31,6 +31,7 @@ struct bnx2x_fw_file_hdr {
 	struct bnx2x_fw_file_section csem_pram_data;
 	struct bnx2x_fw_file_section xsem_int_table_data;
 	struct bnx2x_fw_file_section xsem_pram_data;
+	struct bnx2x_fw_file_section iro_arr;
 	struct bnx2x_fw_file_section fw_version;
 };
 

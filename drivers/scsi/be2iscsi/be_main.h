@@ -35,7 +35,7 @@
 
 #include "be.h"
 #define DRV_NAME		"be2iscsi"
-#define BUILD_STR		"2.0.527.0"
+#define BUILD_STR		"2.0.549.0"
 #define BE_NAME			"ServerEngines BladeEngine2" \
 				"Linux iSCSI Driver version" BUILD_STR
 #define DRV_DESC		BE_NAME " " "Driver"
@@ -63,7 +63,7 @@
 #define BEISCSI_SGLIST_ELEMENTS	30
 
 #define BEISCSI_CMD_PER_LUN	128	/* scsi_host->cmd_per_lun */
-#define BEISCSI_MAX_SECTORS	256	/* scsi_host->max_sectors */
+#define BEISCSI_MAX_SECTORS	2048	/* scsi_host->max_sectors */
 
 #define BEISCSI_MAX_CMD_LEN	16	/* scsi_host->max_cmd_len */
 #define BEISCSI_NUM_MAX_LUN	256	/* scsi_host->max_lun */
@@ -312,6 +312,7 @@ struct beiscsi_hba {
 	struct list_head hba_queue;
 	unsigned short *cid_array;
 	struct iscsi_endpoint **ep_array;
+	struct iscsi_boot_kset *boot_kset;
 	struct Scsi_Host *shost;
 	struct {
 		/**
@@ -342,6 +343,8 @@ struct beiscsi_hba {
 	struct work_struct work_cqs;	/* The work being queued */
 	struct be_ctrl_info ctrl;
 	unsigned int generation;
+	unsigned int read_mac_address;
+	struct mgmt_session_info boot_sess;
 	struct invalidate_command_table inv_tbl[128];
 
 };

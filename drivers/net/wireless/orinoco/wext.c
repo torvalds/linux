@@ -589,8 +589,15 @@ static int orinoco_ioctl_getrate(struct net_device *dev,
 
 	/* If the interface is running we try to find more about the
 	   current mode */
-	if (netif_running(dev))
-		err = orinoco_hw_get_act_bitrate(priv, &bitrate);
+	if (netif_running(dev)) {
+		int act_bitrate;
+		int lerr;
+
+		/* Ignore errors if we can't get the actual bitrate */
+		lerr = orinoco_hw_get_act_bitrate(priv, &act_bitrate);
+		if (!lerr)
+			bitrate = act_bitrate;
+	}
 
 	orinoco_unlock(priv, &flags);
 
@@ -904,10 +911,10 @@ static int orinoco_ioctl_set_auth(struct net_device *dev,
 		 */
 		if (param->value) {
 			priv->tkip_cm_active = 1;
-			ret = hermes_enable_port(hw, 0);
+			ret = hermes_disable_port(hw, 0);
 		} else {
 			priv->tkip_cm_active = 0;
-			ret = hermes_disable_port(hw, 0);
+			ret = hermes_enable_port(hw, 0);
 		}
 		break;
 

@@ -112,6 +112,13 @@ enum mlx4_ib_qp_flags {
 	MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK	= 1 << 1,
 };
 
+struct mlx4_ib_gid_entry {
+	struct list_head	list;
+	union ib_gid		gid;
+	int			added;
+	u8			port;
+};
+
 struct mlx4_ib_qp {
 	struct ib_qp		ibqp;
 	struct mlx4_qp		mqp;
@@ -138,6 +145,8 @@ struct mlx4_ib_qp {
 	u8			resp_depth;
 	u8			sq_no_prefetch;
 	u8			state;
+	int			mlx_type;
+	struct list_head	gid_list;
 };
 
 struct mlx4_ib_srq {
@@ -157,7 +166,14 @@ struct mlx4_ib_srq {
 
 struct mlx4_ib_ah {
 	struct ib_ah		ibah;
-	struct mlx4_av		av;
+	union mlx4_ext_av       av;
+};
+
+struct mlx4_ib_iboe {
+	spinlock_t		lock;
+	struct net_device      *netdevs[MLX4_MAX_PORTS];
+	struct notifier_block 	nb;
+	union ib_gid		gid_table[MLX4_MAX_PORTS][128];
 };
 
 struct mlx4_ib_dev {
@@ -176,6 +192,7 @@ struct mlx4_ib_dev {
 
 	struct mutex		cap_mask_mutex;
 	bool			ib_active;
+	struct mlx4_ib_iboe	iboe;
 };
 
 static inline struct mlx4_ib_dev *to_mdev(struct ib_device *ibdev)
@@ -314,9 +331,20 @@ int mlx4_ib_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list, int npages,
 int mlx4_ib_unmap_fmr(struct list_head *fmr_list);
 int mlx4_ib_fmr_dealloc(struct ib_fmr *fmr);
 
+int mlx4_ib_resolve_grh(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah_attr,
+			u8 *mac, int *is_mcast, u8 port);
+
 static inline int mlx4_ib_ah_grh_present(struct mlx4_ib_ah *ah)
 {
-	return !!(ah->av.g_slid & 0x80);
+	u8 port = be32_to_cpu(ah->av.ib.port_pd) >> 24 & 3;
+
+	if (rdma_port_get_link_layer(ah->ibah.device, port) == IB_LINK_LAYER_ETHERNET)
+		return 1;
+
+	return !!(ah->av.ib.g_slid & 0x80);
 }
+
+int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
+		   union ib_gid *gid);
 
 #endif /* MLX4_IB_H */

@@ -59,6 +59,8 @@ typedef struct user_fp elf_fpregset_t;
 
 #define R_ARM_THM_CALL		10
 #define R_ARM_THM_JUMP24	30
+#define R_ARM_THM_MOVW_ABS_NC	47
+#define R_ARM_THM_MOVT_ABS	48
 
 /*
  * These are used to set parameters in the core dumps.
@@ -124,5 +126,9 @@ extern void elf_set_personality(const struct elf32_hdr *);
 struct mm_struct;
 extern unsigned long arch_randomize_brk(struct mm_struct *mm);
 #define arch_randomize_brk arch_randomize_brk
+
+extern int vectors_user_mapping(void);
+#define arch_setup_additional_pages(bprm, uses_interp) vectors_user_mapping()
+#define ARCH_HAS_SETUP_ADDITIONAL_PAGES
 
 #endif

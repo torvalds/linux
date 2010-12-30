@@ -30,7 +30,6 @@
 #include <linux/blkdev.h>
 #include <linux/pagemap.h>
 #include <asm/unaligned.h>
-#include <linux/smp_lock.h>
 
 #include <linux/usb/composite.h>
 #include <linux/usb/functionfs.h>
@@ -714,9 +713,7 @@ static long ffs_ep0_ioctl(struct file *file, unsigned code, unsigned long value)
 		struct ffs_function *func = ffs->func;
 		ret = func ? ffs_func_revmap_intf(func, value) : -ENODEV;
 	} else if (gadget->ops->ioctl) {
-		lock_kernel();
 		ret = gadget->ops->ioctl(gadget, code, value);
-		unlock_kernel();
 	} else {
 		ret = -ENOTTY;
 	}
@@ -982,6 +979,7 @@ ffs_sb_make_inode(struct super_block *sb, void *data,
 	if (likely(inode)) {
 		struct timespec current_time = CURRENT_TIME;
 
+		inode->i_ino	 = get_next_ino();
 		inode->i_mode    = perms->mode;
 		inode->i_uid     = perms->uid;
 		inode->i_gid     = perms->gid;
@@ -1177,9 +1175,9 @@ invalid:
 
 /* "mount -t functionfs dev_name /dev/function" ends up here */
 
-static int
-ffs_fs_get_sb(struct file_system_type *t, int flags,
-	      const char *dev_name, void *opts, struct vfsmount *mnt)
+static struct dentry *
+ffs_fs_mount(struct file_system_type *t, int flags,
+	      const char *dev_name, void *opts)
 {
 	struct ffs_sb_fill_data data = {
 		.perms = {
@@ -1195,14 +1193,14 @@ ffs_fs_get_sb(struct file_system_type *t, int flags,
 
 	ret = functionfs_check_dev_callback(dev_name);
 	if (unlikely(ret < 0))
-		return ret;
+		return ERR_PTR(ret);
 
 	ret = ffs_fs_parse_opts(&data, opts);
 	if (unlikely(ret < 0))
-		return ret;
+		return ERR_PTR(ret);
 
 	data.dev_name = dev_name;
-	return get_sb_single(t, flags, &data, ffs_sb_fill, mnt);
+	return mount_single(t, flags, &data, ffs_sb_fill);
 }
 
 static void
@@ -1221,7 +1219,7 @@ ffs_fs_kill_sb(struct super_block *sb)
 static struct file_system_type ffs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "functionfs",
-	.get_sb		= ffs_fs_get_sb,
+	.mount		= ffs_fs_mount,
 	.kill_sb	= ffs_fs_kill_sb,
 };
 
@@ -1377,7 +1375,8 @@ static void ffs_data_reset(struct ffs_data *ffs)
 
 static int functionfs_bind(struct ffs_data *ffs, struct usb_composite_dev *cdev)
 {
-	unsigned i, count;
+	struct usb_gadget_strings **lang;
+	int first_id;
 
 	ENTER();
 
@@ -1385,7 +1384,9 @@ static int functionfs_bind(struct ffs_data *ffs, struct usb_composite_dev *cdev)
 		 || test_and_set_bit(FFS_FL_BOUND, &ffs->flags)))
 		return -EBADFD;
 
-	ffs_data_get(ffs);
+	first_id = usb_string_ids_n(cdev, ffs->strings_count);
+	if (unlikely(first_id < 0))
+		return first_id;
 
 	ffs->ep0req = usb_ep_alloc_request(cdev->gadget->ep0, GFP_KERNEL);
 	if (unlikely(!ffs->ep0req))
@@ -1393,25 +1394,16 @@ static int functionfs_bind(struct ffs_data *ffs, struct usb_composite_dev *cdev)
 	ffs->ep0req->complete = ffs_ep0_complete;
 	ffs->ep0req->context = ffs;
 
-	/* Get strings identifiers */
-	for (count = ffs->strings_count, i = 0; i < count; ++i) {
-		struct usb_gadget_strings **lang;
-
-		int id = usb_string_id(cdev);
-		if (unlikely(id < 0)) {
-			usb_ep_free_request(cdev->gadget->ep0, ffs->ep0req);
-			ffs->ep0req = NULL;
-			return id;
-		}
-
-		lang = ffs->stringtabs;
-		do {
-			(*lang)->strings[i].id = id;
-			++lang;
-		} while (*lang);
+	lang = ffs->stringtabs;
+	for (lang = ffs->stringtabs; *lang; ++lang) {
+		struct usb_string *str = (*lang)->strings;
+		int id = first_id;
+		for (; str->s; ++id, ++str)
+			str->id = id;
 	}
 
 	ffs->gadget = cdev->gadget;
+	ffs_data_get(ffs);
 	return 0;
 }
 
@@ -1480,9 +1472,9 @@ static void ffs_epfiles_destroy(struct ffs_epfile *epfiles, unsigned count)
 }
 
 
-static int functionfs_add(struct usb_composite_dev *cdev,
-			  struct usb_configuration *c,
-			  struct ffs_data *ffs)
+static int functionfs_bind_config(struct usb_composite_dev *cdev,
+				  struct usb_configuration *c,
+				  struct ffs_data *ffs)
 {
 	struct ffs_function *func;
 	int ret;

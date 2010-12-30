@@ -17,7 +17,6 @@
 #include <linux/device.h>
 #include <linux/poll.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 
@@ -670,6 +669,7 @@ static const struct file_operations dasd_eer_fops = {
 	.read		= &dasd_eer_read,
 	.poll		= &dasd_eer_poll,
 	.owner		= THIS_MODULE,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice *dasd_eer_dev = NULL;

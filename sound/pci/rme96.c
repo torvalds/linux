@@ -1527,14 +1527,14 @@ snd_rme96_free(void *private_data)
 static void
 snd_rme96_free_spdif_pcm(struct snd_pcm *pcm)
 {
-	struct rme96 *rme96 = (struct rme96 *) pcm->private_data;
+	struct rme96 *rme96 = pcm->private_data;
 	rme96->spdif_pcm = NULL;
 }
 
 static void
 snd_rme96_free_adat_pcm(struct snd_pcm *pcm)
 {
-	struct rme96 *rme96 = (struct rme96 *) pcm->private_data;
+	struct rme96 *rme96 = pcm->private_data;
 	rme96->adat_pcm = NULL;
 }
 
@@ -1661,7 +1661,7 @@ static void
 snd_rme96_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
 	int n;
-	struct rme96 *rme96 = (struct rme96 *)entry->private_data;
+	struct rme96 *rme96 = entry->private_data;
 	
 	rme96->rcreg = readl(rme96->iobase + RME96_IO_CONTROL_REGISTER);
 
@@ -2348,7 +2348,7 @@ snd_rme96_probe(struct pci_dev *pci,
 	if (err < 0)
 		return err;
 	card->private_free = snd_rme96_card_free;
-	rme96 = (struct rme96 *)card->private_data;	
+	rme96 = card->private_data;
 	rme96->card = card;
 	rme96->pci = pci;
 	snd_card_set_dev(card, &pci->dev);

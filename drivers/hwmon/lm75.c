@@ -1,22 +1,22 @@
 /*
-    lm75.c - Part of lm_sensors, Linux kernel modules for hardware
-             monitoring
-    Copyright (c) 1998, 1999  Frodo Looijaard <frodol@dds.nl>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
+ * lm75.c - Part of lm_sensors, Linux kernel modules for hardware
+ *	 monitoring
+ * Copyright (c) 1998, 1999  Frodo Looijaard <frodol@dds.nl>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -103,7 +103,12 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm75_data *data = i2c_get_clientdata(client);
 	int nr = attr->index;
-	long temp = simple_strtol(buf, NULL, 10);
+	long temp;
+	int error;
+
+	error = strict_strtol(buf, 10, &temp);
+	if (error)
+		return error;
 
 	mutex_lock(&data->update_lock);
 	data->temp[nr] = LM75_TEMP_TO_REG(temp);
@@ -280,10 +285,49 @@ static int lm75_detect(struct i2c_client *new_client,
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int lm75_suspend(struct device *dev)
+{
+	int status;
+	struct i2c_client *client = to_i2c_client(dev);
+	status = lm75_read_value(client, LM75_REG_CONF);
+	if (status < 0) {
+		dev_dbg(&client->dev, "Can't read config? %d\n", status);
+		return status;
+	}
+	status = status | LM75_SHUTDOWN;
+	lm75_write_value(client, LM75_REG_CONF, status);
+	return 0;
+}
+
+static int lm75_resume(struct device *dev)
+{
+	int status;
+	struct i2c_client *client = to_i2c_client(dev);
+	status = lm75_read_value(client, LM75_REG_CONF);
+	if (status < 0) {
+		dev_dbg(&client->dev, "Can't read config? %d\n", status);
+		return status;
+	}
+	status = status & ~LM75_SHUTDOWN;
+	lm75_write_value(client, LM75_REG_CONF, status);
+	return 0;
+}
+
+static const struct dev_pm_ops lm75_dev_pm_ops = {
+	.suspend	= lm75_suspend,
+	.resume		= lm75_resume,
+};
+#define LM75_DEV_PM_OPS (&lm75_dev_pm_ops)
+#else
+#define LM75_DEV_PM_OPS NULL
+#endif /* CONFIG_PM */
+
 static struct i2c_driver lm75_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "lm75",
+		.pm	= LM75_DEV_PM_OPS,
 	},
 	.probe		= lm75_probe,
 	.remove		= lm75_remove,
@@ -296,9 +340,11 @@ static struct i2c_driver lm75_driver = {
 
 /* register access */
 
-/* All registers are word-sized, except for the configuration register.
-   LM75 uses a high-byte first convention, which is exactly opposite to
-   the SMBus standard. */
+/*
+ * All registers are word-sized, except for the configuration register.
+ * LM75 uses a high-byte first convention, which is exactly opposite to
+ * the SMBus standard.
+ */
 static int lm75_read_value(struct i2c_client *client, u8 reg)
 {
 	int value;

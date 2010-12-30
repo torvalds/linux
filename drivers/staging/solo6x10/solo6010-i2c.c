@@ -284,7 +284,7 @@ int solo_i2c_init(struct solo6010_dev *solo_dev)
 	solo_dev->i2c_id = -1;
 	solo_dev->i2c_state = IIC_STATE_IDLE;
 	init_waitqueue_head(&solo_dev->i2c_wait);
-	init_MUTEX(&solo_dev->i2c_sem);
+	sema_init(&solo_dev->i2c_sem, 1);
 
 	for (i = 0; i < SOLO_I2C_ADAPTERS; i++) {
 		struct i2c_adapter *adap = &solo_dev->i2c_adap[i];

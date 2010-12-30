@@ -8,8 +8,8 @@
 
 #include <linux/types.h>
 
-/* store then or system mask. */
-#define __raw_local_irq_stosm(__or)					\
+/* store then OR system mask. */
+#define __arch_local_irq_stosm(__or)					\
 ({									\
 	unsigned long __mask;						\
 	asm volatile(							\
@@ -18,8 +18,8 @@
 	__mask;								\
 })
 
-/* store then and system mask. */
-#define __raw_local_irq_stnsm(__and)					\
+/* store then AND system mask. */
+#define __arch_local_irq_stnsm(__and)					\
 ({									\
 	unsigned long __mask;						\
 	asm volatile(							\
@@ -29,39 +29,44 @@
 })
 
 /* set system mask. */
-#define __raw_local_irq_ssm(__mask)					\
-({									\
-	asm volatile("ssm   %0" : : "Q" (__mask) : "memory");		\
-})
-
-/* interrupt control.. */
-static inline unsigned long raw_local_irq_enable(void)
+static inline void __arch_local_irq_ssm(unsigned long flags)
 {
-	return __raw_local_irq_stosm(0x03);
+	asm volatile("ssm   %0" : : "Q" (flags) : "memory");
 }
 
-static inline unsigned long raw_local_irq_disable(void)
+static inline unsigned long arch_local_save_flags(void)
 {
-	return __raw_local_irq_stnsm(0xfc);
+	return __arch_local_irq_stosm(0x00);
 }
 
-#define raw_local_save_flags(x)						\
-do {									\
-	typecheck(unsigned long, x);					\
-	(x) = __raw_local_irq_stosm(0x00);				\
-} while (0)
-
-static inline void raw_local_irq_restore(unsigned long flags)
+static inline unsigned long arch_local_irq_save(void)
 {
-	__raw_local_irq_ssm(flags);
+	return __arch_local_irq_stnsm(0xfc);
 }
 
-static inline int raw_irqs_disabled_flags(unsigned long flags)
+static inline void arch_local_irq_disable(void)
+{
+	arch_local_irq_save();
+}
+
+static inline void arch_local_irq_enable(void)
+{
+	__arch_local_irq_stosm(0x03);
+}
+
+static inline void arch_local_irq_restore(unsigned long flags)
+{
+	__arch_local_irq_ssm(flags);
+}
+
+static inline bool arch_irqs_disabled_flags(unsigned long flags)
 {
 	return !(flags & (3UL << (BITS_PER_LONG - 8)));
 }
 
-/* For spinlocks etc */
-#define raw_local_irq_save(x)	((x) = raw_local_irq_disable())
+static inline bool arch_irqs_disabled(void)
+{
+	return arch_irqs_disabled_flags(arch_local_save_flags());
+}
 
 #endif /* __ASM_IRQFLAGS_H */

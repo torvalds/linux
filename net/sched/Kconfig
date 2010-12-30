@@ -518,6 +518,16 @@ config NET_ACT_SKBEDIT
 	  To compile this code as a module, choose M here: the
 	  module will be called act_skbedit.
 
+config NET_ACT_CSUM
+        tristate "Checksum Updating"
+        depends on NET_CLS_ACT && INET
+        ---help---
+	  Say Y here to update some common checksum after some direct
+	  packet alterations.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called act_csum.
+
 config NET_CLS_IND
 	bool "Incoming device classification"
 	depends on NET_CLS_U32 || NET_CLS_FW

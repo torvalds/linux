@@ -187,10 +187,8 @@ static void mddi_wait_interrupt(struct mddi_info *mddi, uint32_t intmask);
 
 static void mddi_handle_rev_data_avail(struct mddi_info *mddi)
 {
-	union mddi_rev *rev = mddi->rev_data;
 	uint32_t rev_data_count;
 	uint32_t rev_crc_err_count;
-	int i;
 	struct reg_read_info *ri;
 	size_t prev_offset;
 	uint16_t length;
@@ -320,7 +318,7 @@ static long mddi_wait_interrupt_timeout(struct mddi_info *mddi,
 static void mddi_wait_interrupt(struct mddi_info *mddi, uint32_t intmask)
 {
 	if (mddi_wait_interrupt_timeout(mddi, intmask, HZ/10) == 0)
-		printk(KERN_INFO KERN_ERR "mddi_wait_interrupt %d, timeout "
+		printk(KERN_INFO "mddi_wait_interrupt %d, timeout "
 		       "waiting for %x, INT = %x, STAT = %x gotint = %x\n",
 		       current->pid, intmask, mddi_readl(INT), mddi_readl(STAT),
 		       mddi->got_int);
@@ -467,8 +465,7 @@ static int __init mddi_get_client_caps(struct mddi_info *mddi)
 
 		if (mddi->flags & FLAG_HAVE_CAPS)
 			break;
-		printk(KERN_INFO KERN_ERR "mddi_init, timeout waiting for "
-				"caps\n");
+		printk(KERN_INFO "mddi_init, timeout waiting for caps\n");
 	}
 	return mddi->flags & FLAG_HAVE_CAPS;
 }
@@ -670,7 +667,7 @@ static int __init mddi_rev_data_setup(struct mddi_info *mddi)
 	return 0;
 }
 
-static int __init mddi_probe(struct platform_device *pdev)
+static int __devinit mddi_probe(struct platform_device *pdev)
 {
 	struct msm_mddi_platform_data *pdata = pdev->dev.platform_data;
 	struct mddi_info *mddi = &mddi_info[pdev->id];

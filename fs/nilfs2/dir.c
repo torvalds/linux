@@ -80,23 +80,10 @@ static unsigned nilfs_last_byte(struct inode *inode, unsigned long page_nr)
 	return last_byte;
 }
 
-static int nilfs_prepare_chunk_uninterruptible(struct page *page,
-					       struct address_space *mapping,
-					       unsigned from, unsigned to)
+static int nilfs_prepare_chunk(struct page *page, unsigned from, unsigned to)
 {
 	loff_t pos = page_offset(page) + from;
-	return block_write_begin(NULL, mapping, pos, to - from,
-				 AOP_FLAG_UNINTERRUPTIBLE, &page,
-				 NULL, nilfs_get_block);
-}
-
-static int nilfs_prepare_chunk(struct page *page,
-			       struct address_space *mapping,
-			       unsigned from, unsigned to)
-{
-	loff_t pos = page_offset(page) + from;
-	return block_write_begin(NULL, mapping, pos, to - from, 0, &page,
-				 NULL, nilfs_get_block);
+	return __block_write_begin(page, pos, to - from, nilfs_get_block);
 }
 
 static void nilfs_commit_chunk(struct page *page,
@@ -447,7 +434,7 @@ void nilfs_set_link(struct inode *dir, struct nilfs_dir_entry *de,
 	int err;
 
 	lock_page(page);
-	err = nilfs_prepare_chunk_uninterruptible(page, mapping, from, to);
+	err = nilfs_prepare_chunk(page, from, to);
 	BUG_ON(err);
 	de->inode = cpu_to_le64(inode->i_ino);
 	nilfs_set_de_type(de, inode);
@@ -528,7 +515,7 @@ int nilfs_add_link(struct dentry *dentry, struct inode *inode)
 got_it:
 	from = (char *)de - (char *)page_address(page);
 	to = from + rec_len;
-	err = nilfs_prepare_chunk(page, page->mapping, from, to);
+	err = nilfs_prepare_chunk(page, from, to);
 	if (err)
 		goto out_unlock;
 	if (de->inode) {
@@ -586,7 +573,7 @@ int nilfs_delete_entry(struct nilfs_dir_entry *dir, struct page *page)
 	if (pde)
 		from = (char *)pde - (char *)page_address(page);
 	lock_page(page);
-	err = nilfs_prepare_chunk(page, mapping, from, to);
+	err = nilfs_prepare_chunk(page, from, to);
 	BUG_ON(err);
 	if (pde)
 		pde->rec_len = nilfs_rec_len_to_disk(to - from);
@@ -614,7 +601,7 @@ int nilfs_make_empty(struct inode *inode, struct inode *parent)
 	if (!page)
 		return -ENOMEM;
 
-	err = nilfs_prepare_chunk(page, mapping, 0, chunk_size);
+	err = nilfs_prepare_chunk(page, 0, chunk_size);
 	if (unlikely(err)) {
 		unlock_page(page);
 		goto fail;

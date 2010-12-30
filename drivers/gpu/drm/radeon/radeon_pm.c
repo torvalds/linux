@@ -226,6 +226,11 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 {
 	int i;
 
+	/* no need to take locks, etc. if nothing's going to change */
+	if ((rdev->pm.requested_clock_mode_index == rdev->pm.current_clock_mode_index) &&
+	    (rdev->pm.requested_power_state_index == rdev->pm.current_power_state_index))
+		return;
+
 	mutex_lock(&rdev->ddev->struct_mutex);
 	mutex_lock(&rdev->vram_mutex);
 	mutex_lock(&rdev->cp.mutex);
@@ -472,9 +477,9 @@ static const struct attribute_group hwmon_attrgroup = {
 	.attrs = hwmon_attributes,
 };
 
-static void radeon_hwmon_init(struct radeon_device *rdev)
+static int radeon_hwmon_init(struct radeon_device *rdev)
 {
-	int err;
+	int err = 0;
 
 	rdev->pm.int_hwmon_dev = NULL;
 
@@ -483,15 +488,26 @@ static void radeon_hwmon_init(struct radeon_device *rdev)
 	case THERMAL_TYPE_RV770:
 	case THERMAL_TYPE_EVERGREEN:
 		rdev->pm.int_hwmon_dev = hwmon_device_register(rdev->dev);
+		if (IS_ERR(rdev->pm.int_hwmon_dev)) {
+			err = PTR_ERR(rdev->pm.int_hwmon_dev);
+			dev_err(rdev->dev,
+				"Unable to register hwmon device: %d\n", err);
+			break;
+		}
 		dev_set_drvdata(rdev->pm.int_hwmon_dev, rdev->ddev);
 		err = sysfs_create_group(&rdev->pm.int_hwmon_dev->kobj,
 					 &hwmon_attrgroup);
-		if (err)
-			DRM_ERROR("Unable to create hwmon sysfs file: %d\n", err);
+		if (err) {
+			dev_err(rdev->dev,
+				"Unable to create hwmon sysfs file: %d\n", err);
+			hwmon_device_unregister(rdev->dev);
+		}
 		break;
 	default:
 		break;
 	}
+
+	return err;
 }
 
 static void radeon_hwmon_fini(struct radeon_device *rdev)
@@ -540,6 +556,7 @@ void radeon_pm_resume(struct radeon_device *rdev)
 int radeon_pm_init(struct radeon_device *rdev)
 {
 	int ret;
+
 	/* default to profile method */
 	rdev->pm.pm_method = PM_METHOD_PROFILE;
 	rdev->pm.profile = PM_PROFILE_DEFAULT;
@@ -561,7 +578,9 @@ int radeon_pm_init(struct radeon_device *rdev)
 	}
 
 	/* set up the internal thermal sensor if applicable */
-	radeon_hwmon_init(rdev);
+	ret = radeon_hwmon_init(rdev);
+	if (ret)
+		return ret;
 	if (rdev->pm.num_power_states > 1) {
 		/* where's the best place to put these? */
 		ret = device_create_file(rdev->dev, &dev_attr_power_profile);
@@ -618,8 +637,6 @@ void radeon_pm_fini(struct radeon_device *rdev)
 	}
 
 	radeon_hwmon_fini(rdev);
-	if (rdev->pm.i2c_bus)
-		radeon_i2c_destroy(rdev->pm.i2c_bus);
 }
 
 void radeon_pm_compute_clocks(struct radeon_device *rdev)
@@ -695,72 +712,20 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 
 static bool radeon_pm_in_vbl(struct radeon_device *rdev)
 {
-	u32 stat_crtc = 0, vbl = 0, position = 0;
+	int  crtc, vpos, hpos, vbl_status;
 	bool in_vbl = true;
 
-	if (ASIC_IS_DCE4(rdev)) {
-		if (rdev->pm.active_crtcs & (1 << 0)) {
-			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
-				     EVERGREEN_CRTC0_REGISTER_OFFSET) & 0xfff;
-			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
-					  EVERGREEN_CRTC0_REGISTER_OFFSET) & 0xfff;
-		}
-		if (rdev->pm.active_crtcs & (1 << 1)) {
-			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
-				     EVERGREEN_CRTC1_REGISTER_OFFSET) & 0xfff;
-			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
-					  EVERGREEN_CRTC1_REGISTER_OFFSET) & 0xfff;
-		}
-		if (rdev->pm.active_crtcs & (1 << 2)) {
-			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
-				     EVERGREEN_CRTC2_REGISTER_OFFSET) & 0xfff;
-			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
-					  EVERGREEN_CRTC2_REGISTER_OFFSET) & 0xfff;
-		}
-		if (rdev->pm.active_crtcs & (1 << 3)) {
-			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
-				     EVERGREEN_CRTC3_REGISTER_OFFSET) & 0xfff;
-			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
-					  EVERGREEN_CRTC3_REGISTER_OFFSET) & 0xfff;
-		}
-		if (rdev->pm.active_crtcs & (1 << 4)) {
-			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
-				     EVERGREEN_CRTC4_REGISTER_OFFSET) & 0xfff;
-			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
-					  EVERGREEN_CRTC4_REGISTER_OFFSET) & 0xfff;
-		}
-		if (rdev->pm.active_crtcs & (1 << 5)) {
-			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
-				     EVERGREEN_CRTC5_REGISTER_OFFSET) & 0xfff;
-			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
-					  EVERGREEN_CRTC5_REGISTER_OFFSET) & 0xfff;
-		}
-	} else if (ASIC_IS_AVIVO(rdev)) {
-		if (rdev->pm.active_crtcs & (1 << 0)) {
-			vbl = RREG32(AVIVO_D1CRTC_V_BLANK_START_END) & 0xfff;
-			position = RREG32(AVIVO_D1CRTC_STATUS_POSITION) & 0xfff;
-		}
-		if (rdev->pm.active_crtcs & (1 << 1)) {
-			vbl = RREG32(AVIVO_D2CRTC_V_BLANK_START_END) & 0xfff;
-			position = RREG32(AVIVO_D2CRTC_STATUS_POSITION) & 0xfff;
-		}
-		if (position < vbl && position > 1)
-			in_vbl = false;
-	} else {
-		if (rdev->pm.active_crtcs & (1 << 0)) {
-			stat_crtc = RREG32(RADEON_CRTC_STATUS);
-			if (!(stat_crtc & 1))
-				in_vbl = false;
-		}
-		if (rdev->pm.active_crtcs & (1 << 1)) {
-			stat_crtc = RREG32(RADEON_CRTC2_STATUS);
-			if (!(stat_crtc & 1))
+	/* Iterate over all active crtc's. All crtc's must be in vblank,
+	 * otherwise return in_vbl == false.
+	 */
+	for (crtc = 0; (crtc < rdev->num_crtc) && in_vbl; crtc++) {
+		if (rdev->pm.active_crtcs & (1 << crtc)) {
+			vbl_status = radeon_get_crtc_scanoutpos(rdev, crtc, &vpos, &hpos);
+			if ((vbl_status & RADEON_SCANOUTPOS_VALID) &&
+			    !(vbl_status & RADEON_SCANOUTPOS_INVBL))
 				in_vbl = false;
 		}
 	}
-
-	if (position < vbl && position > 1)
-		in_vbl = false;
 
 	return in_vbl;
 }

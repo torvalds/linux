@@ -31,12 +31,18 @@ extern "C" {
 
 #define SRCTREE "srctree"
 
+#ifndef PACKAGE
 #define PACKAGE "linux"
+#endif
+
 #define LOCALEDIR "/usr/share/locale"
 
 #define _(text) gettext(text)
 #define N_(text) (text)
 
+#ifndef CONFIG_
+#define CONFIG_ "CONFIG_"
+#endif
 
 #define TF_COMMAND	0x0001
 #define TF_PARAM	0x0002
@@ -70,7 +76,10 @@ FILE *zconf_fopen(const char *name);
 void zconf_initscan(const char *name);
 void zconf_nextfile(const char *name);
 int zconf_lineno(void);
-char *zconf_curname(void);
+const char *zconf_curname(void);
+
+/* conf.c */
+void xfgets(char *str, int size, FILE *in);
 
 /* confdata.c */
 const char *conf_get_configname(void);
@@ -79,6 +88,13 @@ char *conf_get_default_confname(void);
 void sym_set_change_count(int count);
 void sym_add_change_count(int count);
 void conf_set_all_new_symbols(enum conf_def_mode mode);
+
+/* confdata.c and expr.c */
+static inline void xfwrite(const void *str, size_t len, size_t count, FILE *out)
+{
+	if (fwrite(str, len, count, out) < count)
+		fprintf(stderr, "\nError in writing or end of file.\n");
+}
 
 /* kconfig_load.c */
 void kconfig_load(void);
@@ -91,6 +107,7 @@ void menu_end_menu(void);
 void menu_add_entry(struct symbol *sym);
 void menu_end_entry(void);
 void menu_add_dep(struct expr *dep);
+void menu_add_visibility(struct expr *dep);
 struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *expr, struct expr *dep);
 struct property *menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep);
 void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep);

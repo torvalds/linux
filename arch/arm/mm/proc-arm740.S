@@ -55,7 +55,7 @@ ENTRY(cpu_arm740_reset)
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 	mov	pc, r0
 
-	__INIT
+	__CPUINIT
 
 	.type	__arm740_setup, #function
 __arm740_setup:

@@ -519,7 +519,7 @@ static struct console sunhv_console = {
 	.data	=	&sunhv_reg,
 };
 
-static int __devinit hv_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit hv_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct uart_port *port;
 	unsigned long minor;
@@ -598,7 +598,7 @@ out_free_port:
 	return err;
 }
 
-static int __devexit hv_remove(struct of_device *dev)
+static int __devexit hv_remove(struct platform_device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(&dev->dev);
 

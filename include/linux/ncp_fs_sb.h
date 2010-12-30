@@ -62,6 +62,7 @@ struct ncp_server {
 	int ncp_reply_size;
 
 	int root_setuped;
+	struct mutex root_setup_lock;
 
 	/* info for packet signing */
 	int sign_wanted;	/* 1=Server needs signed packets */
@@ -81,13 +82,14 @@ struct ncp_server {
 		size_t	len;
 		void*	data;
 	} priv;
+	struct rw_semaphore auth_rwsem;
 
 	/* nls info: codepage for volume and charset for I/O */
 	struct nls_table *nls_vol;
 	struct nls_table *nls_io;
 
 	/* maximum age in jiffies */
-	int dentry_ttl;
+	atomic_t dentry_ttl;
 
 	/* miscellaneous */
 	unsigned int flags;

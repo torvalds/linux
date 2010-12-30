@@ -38,7 +38,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
 #include <dspbridge/list.h>
 #include <dspbridge/sync.h>
 #include <dspbridge/utildefs.h>
@@ -966,23 +965,6 @@ int cmm_xlator_create(struct cmm_xlatorobject **xlator,
 		*xlator = (struct cmm_xlatorobject *)xlator_object;
 
 	return status;
-}
-
-/*
- *  ======== cmm_xlator_delete ========
- *  Purpose:
- *      Free the Xlator resources.
- *      VM gets freed later.
- */
-int cmm_xlator_delete(struct cmm_xlatorobject *xlator, bool force)
-{
-	struct cmm_xlator *xlator_obj = (struct cmm_xlator *)xlator;
-
-	DBC_REQUIRE(refs > 0);
-
-	kfree(xlator_obj);
-
-	return 0;
 }
 
 /*

@@ -586,6 +586,7 @@ static int ds2760_battery_remove(struct platform_device *pdev)
 					  &di->set_charged_work);
 	destroy_workqueue(di->monitor_wqueue);
 	power_supply_unregister(&di->bat);
+	kfree(di);
 
 	return 0;
 }

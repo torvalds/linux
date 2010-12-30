@@ -75,7 +75,7 @@ static int cy8ctmg110_write_regs(struct cy8ctmg110 *tsc, unsigned char reg,
 		unsigned char len, unsigned char *value)
 {
 	struct i2c_client *client = tsc->client;
-	unsigned int ret;
+	int ret;
 	unsigned char i2c_data[6];
 
 	BUG_ON(len > 5);
@@ -86,7 +86,7 @@ static int cy8ctmg110_write_regs(struct cy8ctmg110 *tsc, unsigned char reg,
 	ret = i2c_master_send(client, i2c_data, len + 1);
 	if (ret != 1) {
 		dev_err(&client->dev, "i2c write data cmd failed\n");
-		return ret;
+		return ret ? ret : -EIO;
 	}
 
 	return 0;
@@ -96,7 +96,7 @@ static int cy8ctmg110_read_regs(struct cy8ctmg110 *tsc,
 		unsigned char *data, unsigned char len, unsigned char cmd)
 {
 	struct i2c_client *client = tsc->client;
-	unsigned int ret;
+	int ret;
 	struct i2c_msg msg[2] = {
 		/* first write slave position to i2c devices */
 		{ client->addr, 0, 1, &cmd },
@@ -206,9 +206,9 @@ static int __devinit cy8ctmg110_probe(struct i2c_client *client,
 	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 
 	input_set_abs_params(input_dev, ABS_X,
-			CY8CTMG110_X_MIN, CY8CTMG110_X_MAX, 0, 0);
+			CY8CTMG110_X_MIN, CY8CTMG110_X_MAX, 4, 0);
 	input_set_abs_params(input_dev, ABS_Y,
-			CY8CTMG110_Y_MIN, CY8CTMG110_Y_MAX, 0, 0);
+			CY8CTMG110_Y_MIN, CY8CTMG110_Y_MAX, 4, 0);
 
 	if (ts->reset_pin) {
 		err = gpio_request(ts->reset_pin, NULL);

@@ -12,9 +12,10 @@
  *  GNU General Public License for more details.
  */
 
-#include <linux/workqueue.h>
-#include <linux/spinlock.h>
+#include <linux/kthread.h>
+#include <linux/mutex.h>
 #include <linux/sched.h>
+#include <linux/freezer.h>
 #include "ir-core-priv.h"
 
 /* Define the max number of pulse/space transitions to buffer */
@@ -24,7 +25,7 @@
 static LIST_HEAD(ir_raw_client_list);
 
 /* Used to handle IR raw handler extensions */
-static DEFINE_SPINLOCK(ir_raw_handler_lock);
+static DEFINE_MUTEX(ir_raw_handler_lock);
 static LIST_HEAD(ir_raw_handler_list);
 static u64 available_protocols;
 
@@ -33,20 +34,42 @@ static u64 available_protocols;
 static struct work_struct wq_load;
 #endif
 
-static void ir_raw_event_work(struct work_struct *work)
+static int ir_raw_event_thread(void *data)
 {
 	struct ir_raw_event ev;
 	struct ir_raw_handler *handler;
-	struct ir_raw_event_ctrl *raw =
-		container_of(work, struct ir_raw_event_ctrl, rx_work);
+	struct ir_raw_event_ctrl *raw = (struct ir_raw_event_ctrl *)data;
+	int retval;
 
-	while (kfifo_out(&raw->kfifo, &ev, sizeof(ev)) == sizeof(ev)) {
-		spin_lock(&ir_raw_handler_lock);
+	while (!kthread_should_stop()) {
+
+		spin_lock_irq(&raw->lock);
+		retval = kfifo_out(&raw->kfifo, &ev, sizeof(ev));
+
+		if (!retval) {
+			set_current_state(TASK_INTERRUPTIBLE);
+
+			if (kthread_should_stop())
+				set_current_state(TASK_RUNNING);
+
+			spin_unlock_irq(&raw->lock);
+			schedule();
+			continue;
+		}
+
+		spin_unlock_irq(&raw->lock);
+
+
+		BUG_ON(retval != sizeof(ev));
+
+		mutex_lock(&ir_raw_handler_lock);
 		list_for_each_entry(handler, &ir_raw_handler_list, list)
 			handler->decode(raw->input_dev, ev);
-		spin_unlock(&ir_raw_handler_lock);
 		raw->prev_ev = ev;
+		mutex_unlock(&ir_raw_handler_lock);
 	}
+
+	return 0;
 }
 
 /**
@@ -65,6 +88,9 @@ int ir_raw_event_store(struct input_dev *input_dev, struct ir_raw_event *ev)
 
 	if (!ir->raw)
 		return -EINVAL;
+
+	IR_dprintk(2, "sample: (%05dus %s)\n",
+		TO_US(ev->duration), TO_STR(ev->pulse));
 
 	if (kfifo_in(&ir->raw->kfifo, ev, sizeof(*ev)) != sizeof(*ev))
 		return -ENOMEM;
@@ -126,6 +152,77 @@ int ir_raw_event_store_edge(struct input_dev *input_dev, enum raw_event_type typ
 EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
 
 /**
+ * ir_raw_event_store_with_filter() - pass next pulse/space to decoders with some processing
+ * @input_dev:	the struct input_dev device descriptor
+ * @type:	the type of the event that has occurred
+ *
+ * This routine (which may be called from an interrupt context) works
+ * in similiar manner to ir_raw_event_store_edge.
+ * This routine is intended for devices with limited internal buffer
+ * It automerges samples of same type, and handles timeouts
+ */
+int ir_raw_event_store_with_filter(struct input_dev *input_dev,
+						struct ir_raw_event *ev)
+{
+	struct ir_input_dev *ir = input_get_drvdata(input_dev);
+	struct ir_raw_event_ctrl *raw = ir->raw;
+
+	if (!raw || !ir->props)
+		return -EINVAL;
+
+	/* Ignore spaces in idle mode */
+	if (ir->idle && !ev->pulse)
+		return 0;
+	else if (ir->idle)
+		ir_raw_event_set_idle(input_dev, false);
+
+	if (!raw->this_ev.duration) {
+		raw->this_ev = *ev;
+	} else if (ev->pulse == raw->this_ev.pulse) {
+		raw->this_ev.duration += ev->duration;
+	} else {
+		ir_raw_event_store(input_dev, &raw->this_ev);
+		raw->this_ev = *ev;
+	}
+
+	/* Enter idle mode if nessesary */
+	if (!ev->pulse && ir->props->timeout &&
+		raw->this_ev.duration >= ir->props->timeout) {
+		ir_raw_event_set_idle(input_dev, true);
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ir_raw_event_store_with_filter);
+
+/**
+ * ir_raw_event_set_idle() - hint the ir core if device is receiving
+ * IR data or not
+ * @input_dev: the struct input_dev device descriptor
+ * @idle: the hint value
+ */
+void ir_raw_event_set_idle(struct input_dev *input_dev, bool idle)
+{
+	struct ir_input_dev *ir = input_get_drvdata(input_dev);
+	struct ir_raw_event_ctrl *raw = ir->raw;
+
+	if (!ir->props || !ir->raw)
+		return;
+
+	IR_dprintk(2, "%s idle mode\n", idle ? "enter" : "leave");
+
+	if (idle) {
+		raw->this_ev.timeout = true;
+		ir_raw_event_store(input_dev, &raw->this_ev);
+		init_ir_raw_event(&raw->this_ev);
+	}
+
+	if (ir->props->s_idle)
+		ir->props->s_idle(ir->props->priv, idle);
+	ir->idle = idle;
+}
+EXPORT_SYMBOL_GPL(ir_raw_event_set_idle);
+
+/**
  * ir_raw_event_handle() - schedules the decoding of stored ir data
  * @input_dev:	the struct input_dev device descriptor
  *
@@ -134,11 +231,14 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
 void ir_raw_event_handle(struct input_dev *input_dev)
 {
 	struct ir_input_dev *ir = input_get_drvdata(input_dev);
+	unsigned long flags;
 
 	if (!ir->raw)
 		return;
 
-	schedule_work(&ir->raw->rx_work);
+	spin_lock_irqsave(&ir->raw->lock, flags);
+	wake_up_process(ir->raw->thread);
+	spin_unlock_irqrestore(&ir->raw->lock, flags);
 }
 EXPORT_SYMBOL_GPL(ir_raw_event_handle);
 
@@ -147,9 +247,9 @@ u64
 ir_raw_get_allowed_protocols()
 {
 	u64 protocols;
-	spin_lock(&ir_raw_handler_lock);
+	mutex_lock(&ir_raw_handler_lock);
 	protocols = available_protocols;
-	spin_unlock(&ir_raw_handler_lock);
+	mutex_unlock(&ir_raw_handler_lock);
 	return protocols;
 }
 
@@ -167,7 +267,7 @@ int ir_raw_event_register(struct input_dev *input_dev)
 		return -ENOMEM;
 
 	ir->raw->input_dev = input_dev;
-	INIT_WORK(&ir->raw->rx_work, ir_raw_event_work);
+
 	ir->raw->enabled_protocols = ~0;
 	rc = kfifo_alloc(&ir->raw->kfifo, sizeof(s64) * MAX_IR_EVENT_SIZE,
 			 GFP_KERNEL);
@@ -177,12 +277,24 @@ int ir_raw_event_register(struct input_dev *input_dev)
 		return rc;
 	}
 
-	spin_lock(&ir_raw_handler_lock);
+	spin_lock_init(&ir->raw->lock);
+	ir->raw->thread = kthread_run(ir_raw_event_thread, ir->raw,
+			"rc%u",  (unsigned int)ir->devno);
+
+	if (IS_ERR(ir->raw->thread)) {
+		int ret = PTR_ERR(ir->raw->thread);
+
+		kfree(ir->raw);
+		ir->raw = NULL;
+		return ret;
+	}
+
+	mutex_lock(&ir_raw_handler_lock);
 	list_add_tail(&ir->raw->list, &ir_raw_client_list);
 	list_for_each_entry(handler, &ir_raw_handler_list, list)
 		if (handler->raw_register)
 			handler->raw_register(ir->raw->input_dev);
-	spin_unlock(&ir_raw_handler_lock);
+	mutex_unlock(&ir_raw_handler_lock);
 
 	return 0;
 }
@@ -195,14 +307,14 @@ void ir_raw_event_unregister(struct input_dev *input_dev)
 	if (!ir->raw)
 		return;
 
-	cancel_work_sync(&ir->raw->rx_work);
+	kthread_stop(ir->raw->thread);
 
-	spin_lock(&ir_raw_handler_lock);
+	mutex_lock(&ir_raw_handler_lock);
 	list_del(&ir->raw->list);
 	list_for_each_entry(handler, &ir_raw_handler_list, list)
 		if (handler->raw_unregister)
 			handler->raw_unregister(ir->raw->input_dev);
-	spin_unlock(&ir_raw_handler_lock);
+	mutex_unlock(&ir_raw_handler_lock);
 
 	kfifo_free(&ir->raw->kfifo);
 	kfree(ir->raw);
@@ -217,13 +329,13 @@ int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler)
 {
 	struct ir_raw_event_ctrl *raw;
 
-	spin_lock(&ir_raw_handler_lock);
+	mutex_lock(&ir_raw_handler_lock);
 	list_add_tail(&ir_raw_handler->list, &ir_raw_handler_list);
 	if (ir_raw_handler->raw_register)
 		list_for_each_entry(raw, &ir_raw_client_list, list)
 			ir_raw_handler->raw_register(raw->input_dev);
 	available_protocols |= ir_raw_handler->protocols;
-	spin_unlock(&ir_raw_handler_lock);
+	mutex_unlock(&ir_raw_handler_lock);
 
 	return 0;
 }
@@ -233,13 +345,13 @@ void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler)
 {
 	struct ir_raw_event_ctrl *raw;
 
-	spin_lock(&ir_raw_handler_lock);
+	mutex_lock(&ir_raw_handler_lock);
 	list_del(&ir_raw_handler->list);
 	if (ir_raw_handler->raw_unregister)
 		list_for_each_entry(raw, &ir_raw_client_list, list)
 			ir_raw_handler->raw_unregister(raw->input_dev);
 	available_protocols &= ~ir_raw_handler->protocols;
-	spin_unlock(&ir_raw_handler_lock);
+	mutex_unlock(&ir_raw_handler_lock);
 }
 EXPORT_SYMBOL(ir_raw_handler_unregister);
 

@@ -37,8 +37,6 @@ static void __init nuc950evb_init(void)
 
 MACHINE_START(W90P950EVB, "W90P950EVB")
 	/* Maintainer: Wan ZongShun */
-	.phys_io	= W90X900_PA_UART,
-	.io_pg_offst	= (((u32)W90X900_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= 0,
 	.map_io		= nuc950evb_map_io,
 	.init_irq	= nuc900_init_irq,

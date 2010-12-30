@@ -67,6 +67,7 @@
 #include <linux/mutex.h>
 #include <linux/freezer.h>
 #include <linux/slab.h>
+#include <linux/kernel.h>
 
 #include <asm/unaligned.h>
 
@@ -1576,6 +1577,7 @@ static void cmvs_file_name(struct uea_softc *sc, char *const cmv_name, int ver)
 	char file_arr[] = "CMVxy.bin";
 	char *file;
 
+	kparam_block_sysfs_write(cmv_file);
 	/* set proper name corresponding modem version and line type */
 	if (cmv_file[sc->modem_index] == NULL) {
 		if (UEA_CHIP_VERSION(sc) == ADI930)
@@ -1594,6 +1596,7 @@ static void cmvs_file_name(struct uea_softc *sc, char *const cmv_name, int ver)
 	strlcat(cmv_name, file, UEA_FW_NAME_MAX);
 	if (ver == 2)
 		strlcat(cmv_name, ".v2", UEA_FW_NAME_MAX);
+	kparam_unblock_sysfs_write(cmv_file);
 }
 
 static int request_cmvs_old(struct uea_softc *sc,
@@ -2298,7 +2301,7 @@ out:
 	return ret;
 }
 
-static DEVICE_ATTR(stat_status, S_IWUGO | S_IRUGO, read_status, reboot);
+static DEVICE_ATTR(stat_status, S_IWUSR | S_IRUGO, read_status, reboot);
 
 static ssize_t read_human_status(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -2361,8 +2364,7 @@ out:
 	return ret;
 }
 
-static DEVICE_ATTR(stat_human_status, S_IWUGO | S_IRUGO,
-				read_human_status, NULL);
+static DEVICE_ATTR(stat_human_status, S_IRUGO, read_human_status, NULL);
 
 static ssize_t read_delin(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -2394,7 +2396,7 @@ out:
 	return ret;
 }
 
-static DEVICE_ATTR(stat_delin, S_IWUGO | S_IRUGO, read_delin, NULL);
+static DEVICE_ATTR(stat_delin, S_IRUGO, read_delin, NULL);
 
 #define UEA_ATTR(name, reset)					\
 								\
@@ -2436,7 +2438,6 @@ UEA_ATTR(firmid, 0);
 
 /* Retrieve the device End System Identifier (MAC) */
 
-#define htoi(x) (isdigit(x) ? x-'0' : toupper(x)-'A'+10)
 static int uea_getesi(struct uea_softc *sc, u_char * esi)
 {
 	unsigned char mac_str[2 * ETH_ALEN + 1];
@@ -2447,7 +2448,8 @@ static int uea_getesi(struct uea_softc *sc, u_char * esi)
 		return 1;
 
 	for (i = 0; i < ETH_ALEN; i++)
-		esi[i] = htoi(mac_str[2 * i]) * 16 + htoi(mac_str[2 * i + 1]);
+		esi[i] = hex_to_bin(mac_str[2 * i]) * 16 +
+			 hex_to_bin(mac_str[2 * i + 1]);
 
 	return 0;
 }

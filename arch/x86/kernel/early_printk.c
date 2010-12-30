@@ -14,6 +14,7 @@
 #include <xen/hvc-console.h>
 #include <asm/pci-direct.h>
 #include <asm/fixmap.h>
+#include <asm/mrst.h>
 #include <asm/pgtable.h>
 #include <linux/usb/ehci_def.h>
 
@@ -238,6 +239,18 @@ static int __init setup_early_printk(char *buf)
 #ifdef CONFIG_HVC_XEN
 		if (!strncmp(buf, "xen", 3))
 			early_console_register(&xenboot_console, keep);
+#endif
+#ifdef CONFIG_X86_MRST_EARLY_PRINTK
+		if (!strncmp(buf, "mrst", 4)) {
+			mrst_early_console_init();
+			early_console_register(&early_mrst_console, keep);
+		}
+
+		if (!strncmp(buf, "hsu", 3)) {
+			hsu_early_console_init();
+			early_console_register(&early_hsu_console, keep);
+		}
+
 #endif
 		buf++;
 	}

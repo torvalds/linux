@@ -21,18 +21,6 @@
 #define TRACER_RUNNING		BIT(TRACER_RUNNING_BIT)
 #define TRACER_CYCLE_ACC	BIT(TRACER_CYCLE_ACC_BIT)
 
-struct tracectx {
-	unsigned int	etb_bufsz;
-	void __iomem	*etb_regs;
-	void __iomem	*etm_regs;
-	unsigned long	flags;
-	int		ncmppairs;
-	int		etm_portsz;
-	struct device	*dev;
-	struct clk	*emu_clk;
-	struct mutex	mutex;
-};
-
 #define TRACER_TIMEOUT 10000
 
 #define etm_writel(t, v, x) \
@@ -47,8 +35,6 @@ struct tracectx {
 #define CSMR_DEVTYPE	0xfcc
 /* CoreSight Component Registers */
 #define CSCR_CLASS	0xff4
-
-#define CSCR_PRSR	0x314
 
 #define UNLOCK_MAGIC	0xc5acce55
 
@@ -114,10 +100,10 @@ struct tracectx {
 
 /* ETM status register, "ETM Architecture", 3.3.2 */
 #define ETMR_STATUS		(0x10)
-#define ETMST_OVERFLOW		(1 << 0)
-#define ETMST_PROGBIT		(1 << 1)
-#define ETMST_STARTSTOP		(1 << 2)
-#define ETMST_TRIGGER		(1 << 3)
+#define ETMST_OVERFLOW		BIT(0)
+#define ETMST_PROGBIT		BIT(1)
+#define ETMST_STARTSTOP		BIT(2)
+#define ETMST_TRIGGER		BIT(3)
 
 #define etm_progbit(t)		(etm_readl((t), ETMR_STATUS) & ETMST_PROGBIT)
 #define etm_started(t)		(etm_readl((t), ETMR_STATUS) & ETMST_STARTSTOP)
@@ -125,12 +111,18 @@ struct tracectx {
 
 #define ETMR_TRACEENCTRL2	0x1c
 #define ETMR_TRACEENCTRL	0x24
-#define ETMTE_INCLEXCL		(1 << 24)
+#define ETMTE_INCLEXCL		BIT(24)
 #define ETMR_TRACEENEVT		0x20
 #define ETMCTRL_OPTS		(ETMCTRL_DO_CPRT | \
 				ETMCTRL_DATA_DO_ADDR | \
 				ETMCTRL_BRANCH_OUTPUT | \
 				ETMCTRL_DO_CONTEXTID)
+
+/* ETM management registers, "ETM Architecture", 3.5.24 */
+#define ETMMR_OSLAR	0x300
+#define ETMMR_OSLSR	0x304
+#define ETMMR_OSSRR	0x308
+#define ETMMR_PDSR	0x314
 
 /* ETB registers, "CoreSight Components TRM", 9.3 */
 #define ETBR_DEPTH		0x04
@@ -142,12 +134,12 @@ struct tracectx {
 #define ETBR_CTRL		0x20
 #define ETBR_FORMATTERCTRL	0x304
 #define ETBFF_ENFTC		1
-#define ETBFF_ENFCONT		(1 << 1)
-#define ETBFF_FONFLIN		(1 << 4)
-#define ETBFF_MANUAL_FLUSH	(1 << 6)
-#define ETBFF_TRIGIN		(1 << 8)
-#define ETBFF_TRIGEVT		(1 << 9)
-#define ETBFF_TRIGFL		(1 << 10)
+#define ETBFF_ENFCONT		BIT(1)
+#define ETBFF_FONFLIN		BIT(4)
+#define ETBFF_MANUAL_FLUSH	BIT(6)
+#define ETBFF_TRIGIN		BIT(8)
+#define ETBFF_TRIGEVT		BIT(9)
+#define ETBFF_TRIGFL		BIT(10)
 
 #define etb_writel(t, v, x) \
 	(__raw_writel((v), (t)->etb_regs + (x)))

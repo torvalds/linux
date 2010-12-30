@@ -98,27 +98,29 @@ static inline int fls64(__u64 w)
 	return (sizeof(__u64) * 8) - __builtin_clzll(w);
 }
 
-static inline unsigned int hweight32(unsigned int w)
+static inline unsigned int __arch_hweight32(unsigned int w)
 {
 	return __builtin_popcount(w);
 }
 
-static inline unsigned int hweight16(unsigned int w)
+static inline unsigned int __arch_hweight16(unsigned int w)
 {
 	return __builtin_popcount(w & 0xffff);
 }
 
-static inline unsigned int hweight8(unsigned int w)
+static inline unsigned int __arch_hweight8(unsigned int w)
 {
 	return __builtin_popcount(w & 0xff);
 }
 
-static inline unsigned long hweight64(__u64 w)
+static inline unsigned long __arch_hweight64(__u64 w)
 {
 	return __builtin_popcountll(w);
 }
 
+#include <asm-generic/bitops/const_hweight.h>
 #include <asm-generic/bitops/lock.h>
+#include <asm-generic/bitops/find.h>
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/ext2-non-atomic.h>
 #include <asm-generic/bitops/minix.h>

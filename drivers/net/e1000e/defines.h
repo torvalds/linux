@@ -446,7 +446,9 @@
 
 /* Transmit Descriptor Control */
 #define E1000_TXDCTL_PTHRESH 0x0000003F /* TXDCTL Prefetch Threshold */
+#define E1000_TXDCTL_HTHRESH 0x00003F00 /* TXDCTL Host Threshold */
 #define E1000_TXDCTL_WTHRESH 0x003F0000 /* TXDCTL Writeback Threshold */
+#define E1000_TXDCTL_GRAN    0x01000000 /* TXDCTL Granularity */
 #define E1000_TXDCTL_FULL_TX_DESC_WB 0x01010000 /* GRAN=1, WTHRESH=1 */
 #define E1000_TXDCTL_MAX_TX_DESC_PREFETCH 0x0100001F /* GRAN=1, PTHRESH=31 */
 /* Enable the counting of desc. still to be processed. */
@@ -621,6 +623,7 @@
 #define E1000_FLASH_UPDATES  2000
 
 /* NVM Word Offsets */
+#define NVM_COMPAT                 0x0003
 #define NVM_ID_LED_SETTINGS        0x0004
 #define NVM_INIT_CONTROL2_REG      0x000F
 #define NVM_INIT_CONTROL3_PORT_B   0x0014
@@ -642,6 +645,9 @@
 
 /* Mask bits for fields in Word 0x1a of the NVM */
 #define NVM_WORD1A_ASPM_MASK  0x000C
+
+/* Mask bits for fields in Word 0x03 of the EEPROM */
+#define NVM_COMPAT_LOM    0x0800
 
 /* For checksumming, the sum of all words in the NVM should equal 0xBABA. */
 #define NVM_SUM                    0xBABA

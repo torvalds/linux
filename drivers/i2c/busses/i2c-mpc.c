@@ -560,7 +560,7 @@ static struct i2c_adapter mpc_ops = {
 	.timeout = HZ,
 };
 
-static int __devinit fsl_i2c_probe(struct of_device *op,
+static int __devinit fsl_i2c_probe(struct platform_device *op,
 				   const struct of_device_id *match)
 {
 	struct mpc_i2c *i2c;
@@ -632,6 +632,7 @@ static int __devinit fsl_i2c_probe(struct of_device *op,
 		dev_err(i2c->dev, "failed to add adapter\n");
 		goto fail_add;
 	}
+	of_i2c_register_devices(&i2c->adap);
 
 	return result;
 
@@ -646,7 +647,7 @@ static int __devinit fsl_i2c_probe(struct of_device *op,
 	return result;
 };
 
-static int __devexit fsl_i2c_remove(struct of_device *op)
+static int __devexit fsl_i2c_remove(struct platform_device *op)
 {
 	struct mpc_i2c *i2c = dev_get_drvdata(&op->dev);
 

@@ -26,6 +26,7 @@
 #ifndef _IPR_H
 #define _IPR_H
 
+#include <asm/unaligned.h>
 #include <linux/types.h>
 #include <linux/completion.h>
 #include <linux/libata.h>
@@ -37,8 +38,8 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.5.0"
-#define IPR_DRIVER_DATE "(February 11, 2010)"
+#define IPR_DRIVER_VERSION "2.5.1"
+#define IPR_DRIVER_DATE "(August 10, 2010)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
@@ -81,6 +82,7 @@
 
 #define IPR_SUBS_DEV_ID_57B4    0x033B
 #define IPR_SUBS_DEV_ID_57B2    0x035F
+#define IPR_SUBS_DEV_ID_57C4    0x0354
 #define IPR_SUBS_DEV_ID_57C6    0x0357
 #define IPR_SUBS_DEV_ID_57CC    0x035C
 
@@ -318,6 +320,11 @@ struct ipr_ext_vpd {
 	__be32 wwid[2];
 }__attribute__((packed));
 
+struct ipr_ext_vpd64 {
+	struct ipr_vpd vpd;
+	__be32 wwid[4];
+}__attribute__((packed));
+
 struct ipr_std_inq_data {
 	u8 peri_qual_dev_type;
 #define IPR_STD_INQ_PERI_QUAL(peri) ((peri) >> 5)
@@ -372,7 +379,7 @@ struct ipr_config_table_entry {
 
 	struct ipr_res_addr res_addr;
 	__be32 res_handle;
-	__be32 reserved4[2];
+	__be32 lun_wwn[2];
 	struct ipr_std_inq_data std_inq_data;
 }__attribute__ ((packed, aligned (4)));
 
@@ -394,7 +401,7 @@ struct ipr_config_table_entry64 {
 	__be64 res_path;
 	struct ipr_std_inq_data std_inq_data;
 	u8 reserved2[4];
-	__be64 reserved3[2]; // description text
+	__be64 reserved3[2];
 	u8 reserved4[8];
 }__attribute__ ((packed, aligned (8)));
 
@@ -913,7 +920,7 @@ struct ipr_hostrcb_type_24_error {
 	u8 array_id;
 	u8 last_res_path[8];
 	u8 protection_level[8];
-	struct ipr_ext_vpd array_vpd;
+	struct ipr_ext_vpd64 array_vpd;
 	u8 description[16];
 	u8 reserved2[3];
 	u8 num_entries;
@@ -1210,6 +1217,7 @@ struct ipr_resource_entry {
 
 	__be32 res_handle;
 	__be64 dev_id;
+	__be64 lun_wwn;
 	struct scsi_lun dev_lun;
 	u8 res_path[8];
 

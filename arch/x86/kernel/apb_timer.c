@@ -231,34 +231,6 @@ static void apbt_restart_clocksource(struct clocksource *cs)
 	apbt_start_counter(phy_cs_timer_id);
 }
 
-/* Setup IRQ routing via IOAPIC */
-#ifdef CONFIG_SMP
-static void apbt_setup_irq(struct apbt_dev *adev)
-{
-	struct irq_chip *chip;
-	struct irq_desc *desc;
-
-	/* timer0 irq has been setup early */
-	if (adev->irq == 0)
-		return;
-	desc = irq_to_desc(adev->irq);
-	chip = get_irq_chip(adev->irq);
-	disable_irq(adev->irq);
-	desc->status |= IRQ_MOVE_PCNTXT;
-	irq_set_affinity(adev->irq, cpumask_of(adev->cpu));
-	/* APB timer irqs are set up as mp_irqs, timer is edge triggerred */
-	set_irq_chip_and_handler_name(adev->irq, chip, handle_edge_irq, "edge");
-	enable_irq(adev->irq);
-	if (system_state == SYSTEM_BOOTING)
-		if (request_irq(adev->irq, apbt_interrupt_handler,
-				IRQF_TIMER | IRQF_DISABLED | IRQF_NOBALANCING,
-				adev->name, adev)) {
-			printk(KERN_ERR "Failed request IRQ for APBT%d\n",
-			       adev->num);
-		}
-}
-#endif
-
 static void apbt_enable_int(int n)
 {
 	unsigned long ctrl = apbt_readl(n, APBTMR_N_CONTROL);
@@ -334,6 +306,27 @@ static int __init apbt_clockevent_register(void)
 }
 
 #ifdef CONFIG_SMP
+
+static void apbt_setup_irq(struct apbt_dev *adev)
+{
+	/* timer0 irq has been setup early */
+	if (adev->irq == 0)
+		return;
+
+	if (system_state == SYSTEM_BOOTING) {
+		irq_modify_status(adev->irq, 0, IRQ_MOVE_PCNTXT);
+		/* APB timer irqs are set up as mp_irqs, timer is edge type */
+		__set_irq_handler(adev->irq, handle_edge_irq, 0, "edge");
+		if (request_irq(adev->irq, apbt_interrupt_handler,
+				IRQF_TIMER | IRQF_DISABLED | IRQF_NOBALANCING,
+				adev->name, adev)) {
+			printk(KERN_ERR "Failed request IRQ for APBT%d\n",
+			       adev->num);
+		}
+	} else
+		enable_irq(adev->irq);
+}
+
 /* Should be called with per cpu */
 void apbt_setup_secondary_clock(void)
 {
@@ -343,7 +336,7 @@ void apbt_setup_secondary_clock(void)
 
 	/* Don't register boot CPU clockevent */
 	cpu = smp_processor_id();
-	if (cpu == boot_cpu_id)
+	if (!cpu)
 		return;
 	/*
 	 * We need to calculate the scaled math multiplication factor for
@@ -389,16 +382,17 @@ static int apbt_cpuhp_notify(struct notifier_block *n,
 
 	switch (action & 0xf) {
 	case CPU_DEAD:
+		disable_irq(adev->irq);
 		apbt_disable_int(cpu);
-		if (system_state == SYSTEM_RUNNING)
+		if (system_state == SYSTEM_RUNNING) {
 			pr_debug("skipping APBT CPU %lu offline\n", cpu);
-		else if (adev) {
+		} else if (adev) {
 			pr_debug("APBT clockevent for cpu %lu offline\n", cpu);
 			free_irq(adev->irq, adev);
 		}
 		break;
 	default:
-		pr_debug(KERN_INFO "APBT notified %lu, no action\n", action);
+		pr_debug("APBT notified %lu, no action\n", action);
 	}
 	return NOTIFY_OK;
 }
@@ -552,7 +546,7 @@ bad_count:
 		pr_debug("APB CS going back %lx:%lx:%lx ",
 			 t2, last_read, t2 - last_read);
 bad_count_x3:
-		pr_debug(KERN_INFO "tripple check enforced\n");
+		pr_debug("triple check enforced\n");
 		t0 = apbt_readl(phy_cs_timer_id,
 				APBTMR_N_CURRENT_VALUE);
 		udelay(1);

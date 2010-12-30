@@ -44,7 +44,7 @@ struct electra_cf_socket {
 	unsigned		present:1;
 	unsigned		active:1;
 
-	struct of_device	*ofdev;
+	struct platform_device	*ofdev;
 	unsigned long		mem_phys;
 	void __iomem *		mem_base;
 	unsigned long		mem_size;
@@ -181,7 +181,7 @@ static struct pccard_operations electra_cf_ops = {
 	.set_mem_map		= electra_cf_set_mem_map,
 };
 
-static int __devinit electra_cf_probe(struct of_device *ofdev,
+static int __devinit electra_cf_probe(struct platform_device *ofdev,
 				      const struct of_device_id *match)
 {
 	struct device *device = &ofdev->dev;
@@ -325,7 +325,7 @@ fail1:
 
 }
 
-static int __devexit electra_cf_remove(struct of_device *ofdev)
+static int __devexit electra_cf_remove(struct platform_device *ofdev)
 {
 	struct device *device = &ofdev->dev;
 	struct electra_cf_socket *cf;

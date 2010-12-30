@@ -57,28 +57,22 @@ void fetch_ht_irq_msg(unsigned int irq, struct ht_irq_msg *msg)
 	*msg = cfg->msg;
 }
 
-void mask_ht_irq(unsigned int irq)
+void mask_ht_irq(struct irq_data *data)
 {
-	struct ht_irq_cfg *cfg;
-	struct ht_irq_msg msg;
+	struct ht_irq_cfg *cfg = irq_data_get_irq_data(data);
+	struct ht_irq_msg msg = cfg->msg;
 
-	cfg = get_irq_data(irq);
-
-	msg = cfg->msg;
 	msg.address_lo |= 1;
-	write_ht_irq_msg(irq, &msg);
+	write_ht_irq_msg(data->irq, &msg);
 }
 
-void unmask_ht_irq(unsigned int irq)
+void unmask_ht_irq(struct irq_data *data)
 {
-	struct ht_irq_cfg *cfg;
-	struct ht_irq_msg msg;
+	struct ht_irq_cfg *cfg = irq_data_get_irq_data(data);
+	struct ht_irq_msg msg = cfg->msg;
 
-	cfg = get_irq_data(irq);
-
-	msg = cfg->msg;
 	msg.address_lo &= ~1;
-	write_ht_irq_msg(irq, &msg);
+	write_ht_irq_msg(data->irq, &msg);
 }
 
 /**

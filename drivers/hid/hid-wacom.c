@@ -230,7 +230,7 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 				input_report_key(input, BTN_RIGHT, 0);
 				input_report_key(input, BTN_MIDDLE, 0);
 				input_report_abs(input, ABS_DISTANCE,
-						input->absmax[ABS_DISTANCE]);
+					input_abs_get_max(input, ABS_DISTANCE));
 			} else {
 				input_report_key(input, BTN_TOUCH, 0);
 				input_report_key(input, BTN_STYLUS, 0);
@@ -383,38 +383,37 @@ move_on:
 
 	/* Basics */
 	input->evbit[0] |= BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_REL);
-	input->absbit[0] |= BIT(ABS_X) | BIT(ABS_Y) |
-		BIT(ABS_PRESSURE) | BIT(ABS_DISTANCE);
-	input->relbit[0] |= BIT(REL_WHEEL);
-	set_bit(BTN_TOOL_PEN, input->keybit);
-	set_bit(BTN_TOUCH, input->keybit);
-	set_bit(BTN_STYLUS, input->keybit);
-	set_bit(BTN_STYLUS2, input->keybit);
-	set_bit(BTN_LEFT, input->keybit);
-	set_bit(BTN_RIGHT, input->keybit);
-	set_bit(BTN_MIDDLE, input->keybit);
+
+	__set_bit(REL_WHEEL, input->relbit);
+
+	__set_bit(BTN_TOOL_PEN, input->keybit);
+	__set_bit(BTN_TOUCH, input->keybit);
+	__set_bit(BTN_STYLUS, input->keybit);
+	__set_bit(BTN_STYLUS2, input->keybit);
+	__set_bit(BTN_LEFT, input->keybit);
+	__set_bit(BTN_RIGHT, input->keybit);
+	__set_bit(BTN_MIDDLE, input->keybit);
 
 	/* Pad */
 	input->evbit[0] |= BIT(EV_MSC);
-	input->mscbit[0] |= BIT(MSC_SERIAL);
-	set_bit(BTN_0, input->keybit);
-	set_bit(BTN_1, input->keybit);
-	set_bit(BTN_TOOL_FINGER, input->keybit);
+
+	__set_bit(MSC_SERIAL, input->mscbit);
+
+	__set_bit(BTN_0, input->keybit);
+	__set_bit(BTN_1, input->keybit);
+	__set_bit(BTN_TOOL_FINGER, input->keybit);
 
 	/* Distance, rubber and mouse */
-	input->absbit[0] |= BIT(ABS_DISTANCE);
-	set_bit(BTN_TOOL_RUBBER, input->keybit);
-	set_bit(BTN_TOOL_MOUSE, input->keybit);
+	__set_bit(BTN_TOOL_RUBBER, input->keybit);
+	__set_bit(BTN_TOOL_MOUSE, input->keybit);
 
-	input->absmax[ABS_PRESSURE] = 511;
-	input->absmax[ABS_DISTANCE] = 32;
-
-	input->absmax[ABS_X] = 16704;
-	input->absmax[ABS_Y] = 12064;
-	input->absfuzz[ABS_X] = 4;
-	input->absfuzz[ABS_Y] = 4;
+	input_set_abs_params(input, ABS_X, 0, 16704, 4, 0);
+	input_set_abs_params(input, ABS_Y, 0, 12064, 4, 0);
+	input_set_abs_params(input, ABS_PRESSURE, 0, 511, 0, 0);
+	input_set_abs_params(input, ABS_DISTANCE, 0, 32, 0, 0);
 
 	return 0;
+
 err_free:
 	kfree(wdata);
 	return ret;

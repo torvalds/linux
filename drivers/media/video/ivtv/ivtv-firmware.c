@@ -248,9 +248,9 @@ void ivtv_init_mpeg_decoder(struct ivtv *itv)
 	volatile u8 __iomem *mem_offset;
 
 	data[0] = 0;
-	data[1] = itv->params.width;	/* YUV source width */
-	data[2] = itv->params.height;
-	data[3] = itv->params.audio_properties;	/* Audio settings to use,
+	data[1] = itv->cxhdl.width;	/* YUV source width */
+	data[2] = itv->cxhdl.height;
+	data[3] = itv->cxhdl.audio_properties;	/* Audio settings to use,
 							   bitmap. see docs. */
 	if (ivtv_api(itv, CX2341X_DEC_SET_DECODER_SOURCE, 4, data)) {
 		IVTV_ERR("ivtv_init_mpeg_decoder failed to set decoder source\n");

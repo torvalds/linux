@@ -25,6 +25,7 @@
 #include <linux/major.h>
 #include <linux/delay.h>
 #include <linux/hdreg.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -123,6 +124,7 @@ struct blkvsc_driver_context {
 };
 
 /* Static decl */
+static DEFINE_MUTEX(blkvsc_mutex);
 static int blkvsc_probe(struct device *dev);
 static int blkvsc_remove(struct device *device);
 static void blkvsc_shutdown(struct device *device);
@@ -174,8 +176,6 @@ static int blkvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	struct storvsc_driver_object *storvsc_drv_obj = &g_blkvsc_drv.drv_obj;
 	struct driver_context *drv_ctx = &g_blkvsc_drv.drv_ctx;
 	int ret;
-
-	vmbus_get_interface(&storvsc_drv_obj->Base.VmbusChannelInterface);
 
 	storvsc_drv_obj->RingBufferSize = blkvsc_ringbuffer_size;
 
@@ -805,7 +805,8 @@ static void blkvsc_init_rw(struct blkvsc_request *blkvsc_req)
 			blkvsc_req->cmnd[0] = READ_16;
 		}
 
-		blkvsc_req->cmnd[1] |= blk_fua_rq(blkvsc_req->req) ? 0x8 : 0;
+		blkvsc_req->cmnd[1] |=
+			(blkvsc_req->req->cmd_flags & REQ_FUA) ? 0x8 : 0;
 
 		*(unsigned long long *)&blkvsc_req->cmnd[2] =
 				cpu_to_be64(blkvsc_req->sector_start);
@@ -821,7 +822,8 @@ static void blkvsc_init_rw(struct blkvsc_request *blkvsc_req)
 			blkvsc_req->cmnd[0] = READ_10;
 		}
 
-		blkvsc_req->cmnd[1] |= blk_fua_rq(blkvsc_req->req) ? 0x8 : 0;
+		blkvsc_req->cmnd[1] |=
+			(blkvsc_req->req->cmd_flags & REQ_FUA) ? 0x8 : 0;
 
 		*(unsigned int *)&blkvsc_req->cmnd[2] =
 				cpu_to_be32(blkvsc_req->sector_start);
@@ -1268,7 +1270,7 @@ static void blkvsc_request(struct request_queue *queue)
 		DPRINT_DBG(BLKVSC_DRV, "- req %p\n", req);
 
 		blkdev = req->rq_disk->private_data;
-		if (blkdev->shutting_down || !blk_fs_request(req) ||
+		if (blkdev->shutting_down || req->cmd_type != REQ_TYPE_FS ||
 		    blkdev->media_not_present) {
 			__blk_end_request_cur(req, 0);
 			continue;
@@ -1306,6 +1308,7 @@ static int blkvsc_open(struct block_device *bdev, fmode_t mode)
 	DPRINT_DBG(BLKVSC_DRV, "- users %d disk %s\n", blkdev->users,
 		   blkdev->gd->disk_name);
 
+	mutex_lock(&blkvsc_mutex);
 	spin_lock(&blkdev->lock);
 
 	if (!blkdev->users && blkdev->device_type == DVD_TYPE) {
@@ -1317,6 +1320,7 @@ static int blkvsc_open(struct block_device *bdev, fmode_t mode)
 	blkdev->users++;
 
 	spin_unlock(&blkdev->lock);
+	mutex_unlock(&blkvsc_mutex);
 	return 0;
 }
 
@@ -1327,6 +1331,7 @@ static int blkvsc_release(struct gendisk *disk, fmode_t mode)
 	DPRINT_DBG(BLKVSC_DRV, "- users %d disk %s\n", blkdev->users,
 		   blkdev->gd->disk_name);
 
+	mutex_lock(&blkvsc_mutex);
 	spin_lock(&blkdev->lock);
 	if (blkdev->users == 1) {
 		spin_unlock(&blkdev->lock);
@@ -1337,6 +1342,7 @@ static int blkvsc_release(struct gendisk *disk, fmode_t mode)
 	blkdev->users--;
 
 	spin_unlock(&blkdev->lock);
+	mutex_unlock(&blkvsc_mutex);
 	return 0;
 }
 

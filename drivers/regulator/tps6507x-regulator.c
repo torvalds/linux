@@ -614,6 +614,7 @@ int tps6507x_pmic_probe(struct platform_device *pdev)
 	}
 
 	tps6507x_dev->pmic = tps;
+	platform_set_drvdata(pdev, tps6507x_dev);
 
 	return 0;
 
@@ -625,12 +626,6 @@ fail:
 	return error;
 }
 
-/**
- * tps6507x_remove - TPS6507x driver i2c remove handler
- * @client: i2c driver client device structure
- *
- * Unregister TPS driver as an i2c client device driver
- */
 static int __devexit tps6507x_pmic_remove(struct platform_device *pdev)
 {
 	struct tps6507x_dev *tps6507x_dev = platform_get_drvdata(pdev);

@@ -203,6 +203,7 @@ struct ktermios {
 #define PENDIN	0040000		/* Retype pending input (state).  */
 #define TOSTOP	0100000		/* Send SIGTTOU for background output.  */
 #define ITOSTOP	TOSTOP
+#define EXTPROC	0200000		/* External processing on pty */
 
 /* ioctl (fd, TIOCSERGETLSR, &result) where result may be as below */
 #define TIOCSER_TEMT    0x01	/* Transmitter physically empty */

@@ -1,7 +1,7 @@
 /*
  * cpia CPiA (1) gspca driver
  *
- * Copyright (C) 2010 Hans de Goede <hdgoede@redhat.com>
+ * Copyright (C) 2010 Hans de Goede <hdegoede@redhat.com>
  *
  * This module is adapted from the in kernel v4l1 cpia driver which is :
  *
@@ -30,7 +30,7 @@
 
 #include "gspca.h"
 
-MODULE_AUTHOR("Hans de Goede <hdgoede@redhat.com>");
+MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("Vision CPiA");
 MODULE_LICENSE("GPL");
 
@@ -373,9 +373,14 @@ static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setcomptarget(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcomptarget(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setilluminator1(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getilluminator1(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setilluminator2(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getilluminator2(struct gspca_dev *gspca_dev, __s32 *val);
 
 static const struct ctrl sd_ctrls[] = {
 	{
+#define BRIGHTNESS_IDX 0
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
@@ -390,6 +395,7 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setbrightness,
 	    .get = sd_getbrightness,
 	},
+#define CONTRAST_IDX 1
 	{
 	    {
 		.id      = V4L2_CID_CONTRAST,
@@ -404,6 +410,7 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setcontrast,
 	    .get = sd_getcontrast,
 	},
+#define SATURATION_IDX 2
 	{
 	    {
 		.id      = V4L2_CID_SATURATION,
@@ -418,6 +425,7 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setsaturation,
 	    .get = sd_getsaturation,
 	},
+#define POWER_LINE_FREQUENCY_IDX 3
 	{
 		{
 			.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -432,6 +440,37 @@ static const struct ctrl sd_ctrls[] = {
 		.set = sd_setfreq,
 		.get = sd_getfreq,
 	},
+#define ILLUMINATORS_1_IDX 4
+	{
+		{
+			.id	 = V4L2_CID_ILLUMINATORS_1,
+			.type    = V4L2_CTRL_TYPE_BOOLEAN,
+			.name    = "Illuminator 1",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
+#define ILLUMINATORS_1_DEF 0
+			.default_value = ILLUMINATORS_1_DEF,
+		},
+		.set = sd_setilluminator1,
+		.get = sd_getilluminator1,
+	},
+#define ILLUMINATORS_2_IDX 5
+	{
+		{
+			.id	 = V4L2_CID_ILLUMINATORS_2,
+			.type    = V4L2_CTRL_TYPE_BOOLEAN,
+			.name    = "Illuminator 2",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
+#define ILLUMINATORS_2_DEF 0
+			.default_value = ILLUMINATORS_2_DEF,
+		},
+		.set = sd_setilluminator2,
+		.get = sd_getilluminator2,
+	},
+#define COMP_TARGET_IDX 6
 	{
 		{
 #define V4L2_CID_COMP_TARGET V4L2_CID_PRIVATE_BASE
@@ -510,7 +549,7 @@ retry:
 			      gspca_dev->usb_buf, databytes, 1000);
 
 	if (ret < 0)
-		PDEBUG(D_ERR, "usb_control_msg %02x, error %d", command[1],
+		err("usb_control_msg %02x, error %d", command[1],
 		       ret);
 
 	if (ret == -EPIPE && retries > 0) {
@@ -1059,7 +1098,6 @@ static int command_resume(struct gspca_dev *gspca_dev)
 			  0, sd->params.streamStartLine, 0, 0);
 }
 
-#if 0 /* Currently unused */
 static int command_setlights(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1079,7 +1117,6 @@ static int command_setlights(struct gspca_dev *gspca_dev)
 	return do_command(gspca_dev, CPIA_COMMAND_WriteMCPort, 2, 0,
 			  p1 | p2 | 0xE0, 0);
 }
-#endif
 
 static int set_flicker(struct gspca_dev *gspca_dev, int on, int apply)
 {
@@ -1236,7 +1273,7 @@ static void monitor_exposure(struct gspca_dev *gspca_dev)
 	cmd[7] = 0;
 	ret = cpia_usb_transferCmd(gspca_dev, cmd);
 	if (ret) {
-		PDEBUG(D_ERR, "ReadVPRegs(30,4,9,8) - failed: %d", ret);
+		err("ReadVPRegs(30,4,9,8) - failed: %d", ret);
 		return;
 	}
 	exp_acc = gspca_dev->usb_buf[0];
@@ -1716,7 +1753,9 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
+#ifdef GSPCA_DEBUG
 	struct sd *sd = (struct sd *) gspca_dev;
+#endif
 	int ret;
 
 	/* Start / Stop the camera to make sure we are talking to
@@ -1725,6 +1764,14 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	ret = sd_start(gspca_dev);
 	if (ret)
 		return ret;
+
+	/* Ensure the QX3 illuminators' states are restored upon resume,
+	   or disable the illuminator controls, if this isn't a QX3 */
+	if (sd->params.qx3.qx3_detected)
+		command_setlights(gspca_dev);
+	else
+		gspca_dev->ctrl_dis |=
+			((1 << ILLUMINATORS_1_IDX) | (1 << ILLUMINATORS_2_IDX));
 
 	sd_stopN(gspca_dev);
 
@@ -1929,6 +1976,72 @@ static int sd_getcomptarget(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+static int sd_setilluminator(struct gspca_dev *gspca_dev, __s32 val, int n)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int ret;
+
+	if (!sd->params.qx3.qx3_detected)
+		return -EINVAL;
+
+	switch (n) {
+	case 1:
+		sd->params.qx3.bottomlight = val ? 1 : 0;
+		break;
+	case 2:
+		sd->params.qx3.toplight = val ? 1 : 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = command_setlights(gspca_dev);
+	if (ret && ret != -EINVAL)
+		ret = -EBUSY;
+
+	return ret;
+}
+
+static int sd_setilluminator1(struct gspca_dev *gspca_dev, __s32 val)
+{
+	return sd_setilluminator(gspca_dev, val, 1);
+}
+
+static int sd_setilluminator2(struct gspca_dev *gspca_dev, __s32 val)
+{
+	return sd_setilluminator(gspca_dev, val, 2);
+}
+
+static int sd_getilluminator(struct gspca_dev *gspca_dev, __s32 *val, int n)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (!sd->params.qx3.qx3_detected)
+		return -EINVAL;
+
+	switch (n) {
+	case 1:
+		*val = sd->params.qx3.bottomlight;
+		break;
+	case 2:
+		*val = sd->params.qx3.toplight;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int sd_getilluminator1(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	return sd_getilluminator(gspca_dev, val, 1);
+}
+
+static int sd_getilluminator2(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	return sd_getilluminator(gspca_dev, val, 2);
+}
+
 static int sd_querymenu(struct gspca_dev *gspca_dev,
 			struct v4l2_querymenu *menu)
 {
@@ -2004,17 +2117,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

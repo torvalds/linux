@@ -748,7 +748,6 @@ static int __devinit sh_irda_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct sh_irda_self *self;
 	struct resource *res;
-	char clk_name[8];
 	int irq;
 	int err = -ENOMEM;
 
@@ -775,10 +774,9 @@ static int __devinit sh_irda_probe(struct platform_device *pdev)
 	if (err)
 		goto err_mem_2;
 
-	snprintf(clk_name, sizeof(clk_name), "irda%d", pdev->id);
-	self->clk = clk_get(&pdev->dev, clk_name);
+	self->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(self->clk)) {
-		dev_err(&pdev->dev, "cannot get clock \"%s\"\n", clk_name);
+		dev_err(&pdev->dev, "cannot get irda clock\n");
 		goto err_mem_3;
 	}
 

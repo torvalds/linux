@@ -26,7 +26,6 @@
 #include <linux/kmod.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
@@ -441,7 +440,7 @@ static int cx23885_start_video_dma(struct cx23885_dev *dev,
 	q->count = 1;
 
 	/* enable irq */
-	cx_set(PCI_INT_MSK, cx_read(PCI_INT_MSK) | 0x01);
+	cx23885_irq_add_enable(dev, 0x01);
 	cx_set(VID_A_INT_MSK, 0x000011);
 
 	/* start dma */
@@ -743,8 +742,6 @@ static int video_open(struct file *file)
 	if (NULL == fh)
 		return -ENOMEM;
 
-	lock_kernel();
-
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
@@ -758,11 +755,9 @@ static int video_open(struct file *file)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx23885_buffer),
-			    fh);
+			    fh, NULL);
 
 	dprintk(1, "post videobuf_queue_init()\n");
-
-	unlock_kernel();
 
 	return 0;
 }
@@ -1165,9 +1160,10 @@ static int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
 	i->type  = V4L2_INPUT_TYPE_CAMERA;
 	strcpy(i->name, iname[INPUT(n)->type]);
 	if ((CX23885_VMUX_TELEVISION == INPUT(n)->type) ||
-		(CX23885_VMUX_CABLE == INPUT(n)->type))
+		(CX23885_VMUX_CABLE == INPUT(n)->type)) {
 		i->type = V4L2_INPUT_TYPE_TUNER;
 		i->std = CX23885_NORMS;
+	}
 	return 0;
 }
 
@@ -1202,6 +1198,21 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	mutex_lock(&dev->lock);
 	cx23885_video_mux(dev, i);
 	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static int vidioc_log_status(struct file *file, void *priv)
+{
+	struct cx23885_fh  *fh  = priv;
+	struct cx23885_dev *dev = fh->dev;
+
+	printk(KERN_INFO
+		"%s/0: ============  START LOG STATUS  ============\n",
+	       dev->name);
+	call_all(dev, core, log_status);
+	printk(KERN_INFO
+		"%s/0: =============  END LOG STATUS  =============\n",
+	       dev->name);
 	return 0;
 }
 
@@ -1410,6 +1421,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_enum_input    = vidioc_enum_input,
 	.vidioc_g_input       = vidioc_g_input,
 	.vidioc_s_input       = vidioc_s_input,
+	.vidioc_log_status    = vidioc_log_status,
 	.vidioc_queryctrl     = vidioc_queryctrl,
 	.vidioc_g_ctrl        = vidioc_g_ctrl,
 	.vidioc_s_ctrl        = vidioc_s_ctrl,
@@ -1449,7 +1461,7 @@ static const struct v4l2_file_operations radio_fops = {
 void cx23885_video_unregister(struct cx23885_dev *dev)
 {
 	dprintk(1, "%s()\n", __func__);
-	cx_clear(PCI_INT_MSK, 1);
+	cx23885_irq_remove(dev, 0x01);
 
 	if (dev->video_dev) {
 		if (video_is_registered(dev->video_dev))
@@ -1486,7 +1498,8 @@ int cx23885_video_register(struct cx23885_dev *dev)
 		VID_A_DMA_CTL, 0x11, 0x00);
 
 	/* Don't enable VBI yet */
-	cx_set(PCI_INT_MSK, 1);
+
+	cx23885_irq_add_enable(dev, 0x01);
 
 	if (TUNER_ABSENT != dev->tuner_type) {
 		struct v4l2_subdev *sd = NULL;
@@ -1494,11 +1507,11 @@ int cx23885_video_register(struct cx23885_dev *dev)
 		if (dev->tuner_addr)
 			sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[1].i2c_adap,
-				"tuner", "tuner", dev->tuner_addr, NULL);
+				"tuner", dev->tuner_addr, NULL);
 		else
 			sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[1].i2c_adap,
-				"tuner", "tuner", 0, v4l2_i2c_tuner_addrs(ADDRS_TV));
+				"tuner", 0, v4l2_i2c_tuner_addrs(ADDRS_TV));
 		if (sd) {
 			struct tuner_setup tun_setup;
 

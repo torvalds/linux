@@ -51,7 +51,6 @@
 #include <asm/system.h>
 
 #include <pcmcia/ss.h>
-#include <pcmcia/cs.h>
 
 #include <linux/isapnp.h>
 

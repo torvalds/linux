@@ -395,7 +395,7 @@ static int __devinit si470x_i2c_probe(struct i2c_client *client,
 	radio->registers[POWERCFG] = POWERCFG_ENABLE;
 	if (si470x_set_register(radio, POWERCFG) < 0) {
 		retval = -EIO;
-		goto err_all;
+		goto err_video;
 	}
 	msleep(110);
 

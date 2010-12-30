@@ -55,9 +55,6 @@ extern void iounmap(volatile void __iomem *addr);
 #define ioremap_writethrough(physaddr, size)	ioremap(physaddr, size)
 #define ioremap_fullcache(physaddr, size)	ioremap(physaddr, size)
 
-void __iomem *ioport_map(unsigned long port, unsigned int len);
-extern inline void ioport_unmap(void __iomem *addr) {}
-
 #define mmiowb()
 
 /* Conversion between virtual and physical mappings.  */
@@ -164,22 +161,22 @@ static inline void _tile_writeq(u64 val, unsigned long addr)
 #define iowrite32 writel
 #define iowrite64 writeq
 
-static inline void *memcpy_fromio(void *dst, void *src, int len)
+static inline void memcpy_fromio(void *dst, const volatile void __iomem *src,
+				 size_t len)
 {
 	int x;
 	BUG_ON((unsigned long)src & 0x3);
 	for (x = 0; x < len; x += 4)
 		*(u32 *)(dst + x) = readl(src + x);
-	return dst;
 }
 
-static inline void *memcpy_toio(void *dst, void *src, int len)
+static inline void memcpy_toio(volatile void __iomem *dst, const void *src,
+				size_t len)
 {
 	int x;
 	BUG_ON((unsigned long)dst & 0x3);
 	for (x = 0; x < len; x += 4)
 		writel(*(u32 *)(src + x), dst + x);
-	return dst;
 }
 
 /*
@@ -189,10 +186,20 @@ static inline void *memcpy_toio(void *dst, void *src, int len)
  * we never run, uses them unconditionally.
  */
 
-static inline int ioport_panic(void)
+static inline long ioport_panic(void)
 {
 	panic("inb/outb and friends do not exist on tile");
 	return 0;
+}
+
+static inline void __iomem *ioport_map(unsigned long port, unsigned int len)
+{
+	return (void __iomem *) ioport_panic();
+}
+
+static inline void ioport_unmap(void __iomem *addr)
+{
+	ioport_panic();
 }
 
 static inline u8 inb(unsigned long addr)

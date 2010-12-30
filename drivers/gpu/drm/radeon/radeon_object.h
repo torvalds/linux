@@ -124,11 +124,8 @@ static inline int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type,
 	int r;
 
 	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, 0);
-	if (unlikely(r != 0)) {
-		if (r != -ERESTARTSYS)
-			dev_err(bo->rdev->dev, "%p reserve failed for wait\n", bo);
+	if (unlikely(r != 0))
 		return r;
-	}
 	spin_lock(&bo->tbo.lock);
 	if (mem_type)
 		*mem_type = bo->tbo.mem.mem_type;
@@ -140,9 +137,10 @@ static inline int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type,
 }
 
 extern int radeon_bo_create(struct radeon_device *rdev,
-				struct drm_gem_object *gobj, unsigned long size,
-				bool kernel, u32 domain,
-				struct radeon_bo **bo_ptr);
+			    struct drm_gem_object *gobj, unsigned long size,
+			    int byte_align,
+			    bool kernel, u32 domain,
+			    struct radeon_bo **bo_ptr);
 extern int radeon_bo_kmap(struct radeon_bo *bo, void **ptr);
 extern void radeon_bo_kunmap(struct radeon_bo *bo);
 extern void radeon_bo_unref(struct radeon_bo **bo);

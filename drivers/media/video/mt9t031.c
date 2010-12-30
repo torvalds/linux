@@ -163,7 +163,7 @@ static int mt9t031_disable(struct i2c_client *client)
 
 static int mt9t031_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
 	if (enable)
@@ -393,7 +393,7 @@ static int mt9t031_set_params(struct i2c_client *client,
 static int mt9t031_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
 	struct v4l2_rect rect = a->c;
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 
 	rect.width = ALIGN(rect.width, 2);
@@ -410,7 +410,7 @@ static int mt9t031_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 
 static int mt9t031_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 
 	a->c	= mt9t031->rect;
@@ -436,7 +436,7 @@ static int mt9t031_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 static int mt9t031_g_fmt(struct v4l2_subdev *sd,
 			 struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 
 	mf->width	= mt9t031->rect.width / mt9t031->xskip;
@@ -451,7 +451,7 @@ static int mt9t031_g_fmt(struct v4l2_subdev *sd,
 static int mt9t031_s_fmt(struct v4l2_subdev *sd,
 			 struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 	u16 xskip, yskip;
 	struct v4l2_rect rect = mt9t031->rect;
@@ -490,7 +490,7 @@ static int mt9t031_try_fmt(struct v4l2_subdev *sd,
 static int mt9t031_g_chip_ident(struct v4l2_subdev *sd,
 				struct v4l2_dbg_chip_ident *id)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 
 	if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
@@ -509,7 +509,7 @@ static int mt9t031_g_chip_ident(struct v4l2_subdev *sd,
 static int mt9t031_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0xff)
 		return -EINVAL;
@@ -528,7 +528,7 @@ static int mt9t031_g_register(struct v4l2_subdev *sd,
 static int mt9t031_s_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0xff)
 		return -EINVAL;
@@ -545,7 +545,7 @@ static int mt9t031_s_register(struct v4l2_subdev *sd,
 
 static int mt9t031_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 	int data;
 
@@ -577,7 +577,7 @@ static int mt9t031_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 static int mt9t031_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 	const struct v4l2_queryctrl *qctrl;
 	int data;
@@ -703,7 +703,7 @@ static int mt9t031_runtime_resume(struct device *dev)
 	struct soc_camera_device *icd = container_of(vdev->parent,
 		struct soc_camera_device, dev);
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 
 	int ret;
@@ -780,7 +780,7 @@ static int mt9t031_video_probe(struct i2c_client *client)
 
 static int mt9t031_g_skip_top_lines(struct v4l2_subdev *sd, u32 *lines)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t031 *mt9t031 = to_mt9t031(client);
 
 	*lines = mt9t031->y_skip_top;

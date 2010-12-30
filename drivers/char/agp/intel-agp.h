@@ -1,6 +1,8 @@
 /*
  * Common Intel AGPGART and GTT definitions.
  */
+#ifndef _INTEL_AGP_H
+#define _INTEL_AGP_H
 
 /* Intel registers */
 #define INTEL_APSIZE	0xb4
@@ -184,6 +186,8 @@
 #define PCI_DEVICE_ID_INTEL_Q33_IG          0x29D2
 #define PCI_DEVICE_ID_INTEL_B43_HB          0x2E40
 #define PCI_DEVICE_ID_INTEL_B43_IG          0x2E42
+#define PCI_DEVICE_ID_INTEL_B43_1_HB        0x2E90
+#define PCI_DEVICE_ID_INTEL_B43_1_IG        0x2E92
 #define PCI_DEVICE_ID_INTEL_GM45_HB         0x2A40
 #define PCI_DEVICE_ID_INTEL_GM45_IG         0x2A42
 #define PCI_DEVICE_ID_INTEL_EAGLELAKE_HB        0x2E00
@@ -200,46 +204,18 @@
 #define PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB	    0x0062
 #define PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB    0x006a
 #define PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG	    0x0046
-#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB  0x0100
-#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_IG  0x0102
-#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB  0x0104
-#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_IG  0x0106
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB		0x0100  /* Desktop */
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT1_IG		0x0102
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT2_IG		0x0112
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT2_PLUS_IG	0x0122
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB		0x0104  /* Mobile */
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT1_IG	0x0106
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT2_IG	0x0116
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT2_PLUS_IG	0x0126
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_HB		0x0108  /* Server */
+#define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_IG		0x010A
 
-/* cover 915 and 945 variants */
-#define IS_I915 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_E7221_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915G_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945G_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945GM_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945GME_HB)
-
-#define IS_I965 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82946GZ_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82G35_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965Q_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965G_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GM_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GME_HB)
-
-#define IS_G33 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G33_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q35_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q33_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_HB)
-
-#define IS_PINEVIEW (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_HB)
-
-#define IS_SNB (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB)
-
-#define IS_G4X (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_EAGLELAKE_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q45_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G45_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_GM45_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G41_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_B43_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB || \
-		IS_SNB)
+int intel_gmch_probe(struct pci_dev *pdev,
+			       struct agp_bridge_data *bridge);
+void intel_gmch_remove(struct pci_dev *pdev);
+#endif

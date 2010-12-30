@@ -35,7 +35,7 @@
 
 
 struct ndfc_controller {
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 	void __iomem *ndfcbase;
 	struct mtd_info mtd;
 	struct nand_chip chip;
@@ -225,11 +225,11 @@ err:
 	return ret;
 }
 
-static int __devinit ndfc_probe(struct of_device *ofdev,
+static int __devinit ndfc_probe(struct platform_device *ofdev,
 				const struct of_device_id *match)
 {
 	struct ndfc_controller *ndfc = &ndfc_ctrl;
-	const u32 *reg;
+	const __be32 *reg;
 	u32 ccr;
 	int err, len;
 
@@ -244,7 +244,7 @@ static int __devinit ndfc_probe(struct of_device *ofdev,
 		dev_err(&ofdev->dev, "unable read reg property (%d)\n", len);
 		return -ENOENT;
 	}
-	ndfc->chip_select = reg[0];
+	ndfc->chip_select = be32_to_cpu(reg[0]);
 
 	ndfc->ndfcbase = of_iomap(ofdev->dev.of_node, 0);
 	if (!ndfc->ndfcbase) {
@@ -257,7 +257,7 @@ static int __devinit ndfc_probe(struct of_device *ofdev,
 	/* It is ok if ccr does not exist - just default to 0 */
 	reg = of_get_property(ofdev->dev.of_node, "ccr", NULL);
 	if (reg)
-		ccr |= *reg;
+		ccr |= be32_to_cpup(reg);
 
 	out_be32(ndfc->ndfcbase + NDFC_CCR, ccr);
 
@@ -265,7 +265,7 @@ static int __devinit ndfc_probe(struct of_device *ofdev,
 	reg = of_get_property(ofdev->dev.of_node, "bank-settings", NULL);
 	if (reg) {
 		int offset = NDFC_BCFG0 + (ndfc->chip_select << 2);
-		out_be32(ndfc->ndfcbase + offset, *reg);
+		out_be32(ndfc->ndfcbase + offset, be32_to_cpup(reg));
 	}
 
 	err = ndfc_chip_init(ndfc, ofdev->dev.of_node);
@@ -277,7 +277,7 @@ static int __devinit ndfc_probe(struct of_device *ofdev,
 	return 0;
 }
 
-static int __devexit ndfc_remove(struct of_device *ofdev)
+static int __devexit ndfc_remove(struct platform_device *ofdev)
 {
 	struct ndfc_controller *ndfc = dev_get_drvdata(&ofdev->dev);
 

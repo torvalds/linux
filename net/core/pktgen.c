@@ -729,16 +729,14 @@ static int hex32_arg(const char __user *user_buffer, unsigned long maxlen,
 	*num = 0;
 
 	for (; i < maxlen; i++) {
+		int value;
 		char c;
 		*num <<= 4;
 		if (get_user(c, &user_buffer[i]))
 			return -EFAULT;
-		if ((c >= '0') && (c <= '9'))
-			*num |= c - '0';
-		else if ((c >= 'a') && (c <= 'f'))
-			*num |= c - 'a' + 10;
-		else if ((c >= 'A') && (c <= 'F'))
-			*num |= c - 'A' + 10;
+		value = hex_to_bin(c);
+		if (value >= 0)
+			*num |= value;
 		else
 			break;
 	}
@@ -773,10 +771,10 @@ done:
 static unsigned long num_arg(const char __user * user_buffer,
 			     unsigned long maxlen, unsigned long *num)
 {
-	int i = 0;
+	int i;
 	*num = 0;
 
-	for (; i < maxlen; i++) {
+	for (i = 0; i < maxlen; i++) {
 		char c;
 		if (get_user(c, &user_buffer[i]))
 			return -EFAULT;
@@ -791,9 +789,9 @@ static unsigned long num_arg(const char __user * user_buffer,
 
 static int strn_len(const char __user * user_buffer, unsigned int maxlen)
 {
-	int i = 0;
+	int i;
 
-	for (; i < maxlen; i++) {
+	for (i = 0; i < maxlen; i++) {
 		char c;
 		if (get_user(c, &user_buffer[i]))
 			return -EFAULT;
@@ -848,7 +846,7 @@ static ssize_t pktgen_if_write(struct file *file,
 {
 	struct seq_file *seq = file->private_data;
 	struct pktgen_dev *pkt_dev = seq->private;
-	int i = 0, max, len;
+	int i, max, len;
 	char name[16], valstr[32];
 	unsigned long value = 0;
 	char *pg_result = NULL;
@@ -862,13 +860,13 @@ static ssize_t pktgen_if_write(struct file *file,
 		return -EINVAL;
 	}
 
-	max = count - i;
-	tmp = count_trail_chars(&user_buffer[i], max);
+	max = count;
+	tmp = count_trail_chars(user_buffer, max);
 	if (tmp < 0) {
 		pr_warning("illegal format\n");
 		return tmp;
 	}
-	i += tmp;
+	i = tmp;
 
 	/* Read variable name */
 
@@ -889,10 +887,11 @@ static ssize_t pktgen_if_write(struct file *file,
 	i += len;
 
 	if (debug) {
-		char tb[count + 1];
-		if (copy_from_user(tb, user_buffer, count))
+		size_t copy = min_t(size_t, count, 1023);
+		char tb[copy + 1];
+		if (copy_from_user(tb, user_buffer, copy))
 			return -EFAULT;
-		tb[count] = 0;
+		tb[copy] = 0;
 		printk(KERN_DEBUG "pktgen: %s,%lu  buffer -:%s:-\n", name,
 		       (unsigned long)count, tb);
 	}
@@ -1766,7 +1765,7 @@ static ssize_t pktgen_thread_write(struct file *file,
 {
 	struct seq_file *seq = file->private_data;
 	struct pktgen_thread *t = seq->private;
-	int i = 0, max, len, ret;
+	int i, max, len, ret;
 	char name[40];
 	char *pg_result;
 
@@ -1775,12 +1774,12 @@ static ssize_t pktgen_thread_write(struct file *file,
 		return -EINVAL;
 	}
 
-	max = count - i;
-	len = count_trail_chars(&user_buffer[i], max);
+	max = count;
+	len = count_trail_chars(user_buffer, max);
 	if (len < 0)
 		return len;
 
-	i += len;
+	i = len;
 
 	/* Read variable name */
 
@@ -1977,7 +1976,7 @@ static struct net_device *pktgen_dev_get_by_name(struct pktgen_dev *pkt_dev,
 						 const char *ifname)
 {
 	char b[IFNAMSIZ+5];
-	int i = 0;
+	int i;
 
 	for (i = 0; ifname[i] != '@'; i++) {
 		if (i == IFNAMSIZ)
@@ -2521,8 +2520,8 @@ static void free_SAs(struct pktgen_dev *pkt_dev)
 {
 	if (pkt_dev->cflows) {
 		/* let go of the SAs if we have them */
-		int i = 0;
-		for (;  i < pkt_dev->cflows; i++) {
+		int i;
+		for (i = 0; i < pkt_dev->cflows; i++) {
 			struct xfrm_state *x = pkt_dev->flows[i].x;
 			if (x) {
 				xfrm_state_put(x);
@@ -2613,8 +2612,8 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	/* Update any of the values, used when we're incrementing various
 	 * fields.
 	 */
-	queue_map = pkt_dev->cur_queue_map;
 	mod_cur_headers(pkt_dev);
+	queue_map = pkt_dev->cur_queue_map;
 
 	datalen = (odev->hard_header_len + 16) & ~0xf;
 
@@ -2977,8 +2976,8 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	/* Update any of the values, used when we're incrementing various
 	 * fields.
 	 */
-	queue_map = pkt_dev->cur_queue_map;
 	mod_cur_headers(pkt_dev);
+	queue_map = pkt_dev->cur_queue_map;
 
 	skb = __netdev_alloc_skb(odev,
 				 pkt_dev->cur_pkt_size + 64
@@ -3907,8 +3906,6 @@ static void __exit pg_cleanup(void)
 {
 	struct pktgen_thread *t;
 	struct list_head *q, *n;
-	wait_queue_head_t queue;
-	init_waitqueue_head(&queue);
 
 	/* Stop all interfaces & threads */
 

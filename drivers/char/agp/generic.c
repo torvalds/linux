@@ -437,11 +437,6 @@ int agp_bind_memory(struct agp_memory *curr, off_t pg_start)
 		curr->is_flushed = true;
 	}
 
-	if (curr->bridge->driver->agp_map_memory) {
-		ret_val = curr->bridge->driver->agp_map_memory(curr);
-		if (ret_val)
-			return ret_val;
-	}
 	ret_val = curr->bridge->driver->insert_memory(curr, pg_start, curr->type);
 
 	if (ret_val != 0)
@@ -482,9 +477,6 @@ int agp_unbind_memory(struct agp_memory *curr)
 
 	if (ret_val != 0)
 		return ret_val;
-
-	if (curr->bridge->driver->agp_unmap_memory)
-		curr->bridge->driver->agp_unmap_memory(curr);
 
 	curr->is_bound = false;
 	curr->pg_start = 0;
@@ -984,7 +976,9 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 
 	bridge->driver->cache_flush();
 #ifdef CONFIG_X86
-	set_memory_uc((unsigned long)table, 1 << page_order);
+	if (set_memory_uc((unsigned long)table, 1 << page_order))
+		printk(KERN_WARNING "Could not set GATT table memory to UC!");
+
 	bridge->gatt_table = (void *)table;
 #else
 	bridge->gatt_table = ioremap_nocache(virt_to_phys(table),

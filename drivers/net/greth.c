@@ -893,7 +893,7 @@ static int greth_rx_gbit(struct net_device *dev, int limit)
 				if (greth->flags & GRETH_FLAG_RX_CSUM && hw_checksummed(status))
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
 				else
-					skb->ip_summed = CHECKSUM_NONE;
+					skb_checksum_none_assert(skb);
 
 				skb->protocol = eth_type_trans(skb, dev);
 				dev->stats.rx_packets++;
@@ -1373,7 +1373,7 @@ error:
 }
 
 /* Initialize the GRETH MAC */
-static int __devinit greth_of_probe(struct of_device *ofdev, const struct of_device_id *match)
+static int __devinit greth_of_probe(struct platform_device *ofdev, const struct of_device_id *match)
 {
 	struct net_device *dev;
 	struct greth_private *greth;
@@ -1412,7 +1412,7 @@ static int __devinit greth_of_probe(struct of_device *ofdev, const struct of_dev
 	}
 
 	regs = (struct greth_regs *) greth->regs;
-	greth->irq = ofdev->irqs[0];
+	greth->irq = ofdev->archdata.irqs[0];
 
 	dev_set_drvdata(greth->dev, dev);
 	SET_NETDEV_DEV(dev, greth->dev);
@@ -1547,10 +1547,10 @@ static int __devinit greth_of_probe(struct of_device *ofdev, const struct of_dev
 	dev->netdev_ops = &greth_netdev_ops;
 	dev->ethtool_ops = &greth_ethtool_ops;
 
-	if (register_netdev(dev)) {
+	err = register_netdev(dev);
+	if (err) {
 		if (netif_msg_probe(greth))
 			dev_err(greth->dev, "netdevice registration failed.\n");
-		err = -ENOMEM;
 		goto error5;
 	}
 
@@ -1572,7 +1572,7 @@ error1:
 	return err;
 }
 
-static int __devexit greth_of_remove(struct of_device *of_dev)
+static int __devexit greth_of_remove(struct platform_device *of_dev)
 {
 	struct net_device *ndev = dev_get_drvdata(&of_dev->dev);
 	struct greth_private *greth = netdev_priv(ndev);

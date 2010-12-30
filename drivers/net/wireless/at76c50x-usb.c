@@ -655,7 +655,7 @@ static int at76_get_hw_config(struct at76_priv *priv)
 exit:
 	kfree(hwcfg);
 	if (ret < 0)
-		wiphy_err(priv->hw->wiphy, "cannot get hw config (error %d)\n",
+		wiphy_err(priv->hw->wiphy, "cannot get HW Config (error %d)\n",
 			  ret);
 
 	return ret;
@@ -960,7 +960,7 @@ static void at76_dump_mib_mac_addr(struct at76_priv *priv)
 			   sizeof(struct mib_mac_addr));
 	if (ret < 0) {
 		wiphy_err(priv->hw->wiphy,
-			  "at76_get_mib (mac_addr) failed: %d\n", ret);
+			  "at76_get_mib (MAC_ADDR) failed: %d\n", ret);
 		goto exit;
 	}
 
@@ -989,7 +989,7 @@ static void at76_dump_mib_mac_wep(struct at76_priv *priv)
 			   sizeof(struct mib_mac_wep));
 	if (ret < 0) {
 		wiphy_err(priv->hw->wiphy,
-			  "at76_get_mib (mac_wep) failed: %d\n", ret);
+			  "at76_get_mib (MAC_WEP) failed: %d\n", ret);
 		goto exit;
 	}
 
@@ -1026,7 +1026,7 @@ static void at76_dump_mib_mac_mgmt(struct at76_priv *priv)
 			   sizeof(struct mib_mac_mgmt));
 	if (ret < 0) {
 		wiphy_err(priv->hw->wiphy,
-			  "at76_get_mib (mac_mgmt) failed: %d\n", ret);
+			  "at76_get_mib (MAC_MGMT) failed: %d\n", ret);
 		goto exit;
 	}
 
@@ -1062,7 +1062,7 @@ static void at76_dump_mib_mac(struct at76_priv *priv)
 	ret = at76_get_mib(priv->udev, MIB_MAC, m, sizeof(struct mib_mac));
 	if (ret < 0) {
 		wiphy_err(priv->hw->wiphy,
-			  "at76_get_mib (mac) failed: %d\n", ret);
+			  "at76_get_mib (MAC) failed: %d\n", ret);
 		goto exit;
 	}
 
@@ -1099,7 +1099,7 @@ static void at76_dump_mib_phy(struct at76_priv *priv)
 	ret = at76_get_mib(priv->udev, MIB_PHY, m, sizeof(struct mib_phy));
 	if (ret < 0) {
 		wiphy_err(priv->hw->wiphy,
-			  "at76_get_mib (phy) failed: %d\n", ret);
+			  "at76_get_mib (PHY) failed: %d\n", ret);
 		goto exit;
 	}
 
@@ -1132,7 +1132,7 @@ static void at76_dump_mib_local(struct at76_priv *priv)
 	ret = at76_get_mib(priv->udev, MIB_LOCAL, m, sizeof(struct mib_local));
 	if (ret < 0) {
 		wiphy_err(priv->hw->wiphy,
-			  "at76_get_mib (local) failed: %d\n", ret);
+			  "at76_get_mib (LOCAL) failed: %d\n", ret);
 		goto exit;
 	}
 
@@ -1158,7 +1158,7 @@ static void at76_dump_mib_mdomain(struct at76_priv *priv)
 			   sizeof(struct mib_mdomain));
 	if (ret < 0) {
 		wiphy_err(priv->hw->wiphy,
-			  "at76_get_mib (mdomain) failed: %d\n", ret);
+			  "at76_get_mib (MDOMAIN) failed: %d\n", ret);
 		goto exit;
 	}
 
@@ -1229,7 +1229,7 @@ static int at76_submit_rx_urb(struct at76_priv *priv)
 	struct sk_buff *skb = priv->rx_skb;
 
 	if (!priv->rx_urb) {
-		wiphy_err(priv->hw->wiphy, "%s: priv->rx_urb is null\n",
+		wiphy_err(priv->hw->wiphy, "%s: priv->rx_urb is NULL\n",
 			  __func__);
 		return -EFAULT;
 	}
@@ -1525,8 +1525,7 @@ static void at76_rx_tasklet(unsigned long param)
 
 	if (priv->device_unplugged) {
 		at76_dbg(DBG_DEVSTART, "device unplugged");
-		if (urb)
-			at76_dbg(DBG_DEVSTART, "urb status %d", urb->status);
+		at76_dbg(DBG_DEVSTART, "urb status %d", urb->status);
 		return;
 	}
 
@@ -1792,7 +1791,7 @@ static int at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		wiphy_err(priv->hw->wiphy, "error in tx submit urb: %d\n", ret);
 		if (ret == -EINVAL)
 			wiphy_err(priv->hw->wiphy,
-				  "-einval: tx urb %p hcpriv %p complete %p\n",
+				  "-EINVAL: tx urb %p hcpriv %p complete %p\n",
 				  priv->tx_urb,
 				  priv->tx_urb->hcpriv, priv->tx_urb->complete);
 	}
@@ -2061,11 +2060,12 @@ static int at76_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	int i;
 
-	at76_dbg(DBG_MAC80211, "%s(): cmd %d key->alg %d key->keyidx %d "
+	at76_dbg(DBG_MAC80211, "%s(): cmd %d key->cipher %d key->keyidx %d "
 		 "key->keylen %d",
-		 __func__, cmd, key->alg, key->keyidx, key->keylen);
+		 __func__, cmd, key->cipher, key->keyidx, key->keylen);
 
-	if (key->alg != ALG_WEP)
+	if ((key->cipher != WLAN_CIPHER_SUITE_WEP40) &&
+	    (key->cipher != WLAN_CIPHER_SUITE_WEP104))
 		return -EOPNOTSUPP;
 
 	key->hw_key_idx = key->keyidx;
@@ -2310,7 +2310,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 
 	priv->mac80211_registered = 1;
 
-	wiphy_info(priv->hw->wiphy, "usb %s, mac %pm, firmware %d.%d.%d-%d\n",
+	wiphy_info(priv->hw->wiphy, "USB %s, MAC %pM, firmware %d.%d.%d-%d\n",
 		   dev_name(&interface->dev), priv->mac_addr,
 		   priv->fw_version.major, priv->fw_version.minor,
 		   priv->fw_version.patch, priv->fw_version.build);

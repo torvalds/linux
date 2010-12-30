@@ -12,6 +12,7 @@ int bind_evtchn_to_irqhandler(unsigned int evtchn,
 			      irq_handler_t handler,
 			      unsigned long irqflags, const char *devname,
 			      void *dev_id);
+int bind_virq_to_irq(unsigned int virq, unsigned int cpu);
 int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
 			    irq_handler_t handler,
 			    unsigned long irqflags, const char *devname,
@@ -53,6 +54,10 @@ bool xen_test_irq_pending(int irq);
    irq will be disabled so it won't deliver an interrupt. */
 void xen_poll_irq(int irq);
 
+/* Poll waiting for an irq to become pending with a timeout.  In the usual case,
+ * the irq will be disabled so it won't deliver an interrupt. */
+void xen_poll_irq_timeout(int irq, u64 timeout);
+
 /* Determine the IRQ which is bound to an event channel */
 unsigned irq_from_evtchn(unsigned int evtchn);
 
@@ -62,5 +67,31 @@ extern int xen_have_vector_callback;
 int xen_set_callback_via(uint64_t via);
 void xen_evtchn_do_upcall(struct pt_regs *regs);
 void xen_hvm_evtchn_do_upcall(void);
+
+/* Allocate an irq for a physical interrupt, given a gsi.  "Legacy"
+ * GSIs are identity mapped; others are dynamically allocated as
+ * usual. */
+int xen_allocate_pirq(unsigned gsi, int shareable, char *name);
+int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name);
+
+#ifdef CONFIG_PCI_MSI
+/* Allocate an irq and a pirq to be used with MSIs. */
+#define XEN_ALLOC_PIRQ (1 << 0)
+#define XEN_ALLOC_IRQ  (1 << 1)
+void xen_allocate_pirq_msi(char *name, int *irq, int *pirq, int alloc_mask);
+int xen_create_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int type);
+#endif
+
+/* De-allocates the above mentioned physical interrupt. */
+int xen_destroy_irq(int irq);
+
+/* Return vector allocated to pirq */
+int xen_vector_from_irq(unsigned pirq);
+
+/* Return gsi allocated to pirq */
+int xen_gsi_from_irq(unsigned pirq);
+
+/* Return irq from pirq */
+int xen_irq_from_pirq(unsigned pirq);
 
 #endif	/* _XEN_EVENTS_H */

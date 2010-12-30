@@ -745,13 +745,32 @@ static int raumfeld_is_usb_online(void)
 
 static char *raumfeld_power_supplicants[] = { "ds2760-battery.0" };
 
+static void raumfeld_power_signal_charged(void)
+{
+	struct power_supply *psy =
+		power_supply_get_by_name(raumfeld_power_supplicants[0]);
+
+	if (psy)
+		power_supply_set_battery_charged(psy);
+}
+
+static int raumfeld_power_resume(void)
+{
+	/* check if GPIO_CHARGE_DONE went low while we were sleeping */
+	if (!gpio_get_value(GPIO_CHARGE_DONE))
+		raumfeld_power_signal_charged();
+
+	return 0;
+}
+
 static struct pda_power_pdata power_supply_info = {
 	.init			= power_supply_init,
 	.is_ac_online		= raumfeld_is_ac_online,
 	.is_usb_online		= raumfeld_is_usb_online,
 	.exit			= power_supply_exit,
 	.supplied_to		= raumfeld_power_supplicants,
-	.num_supplicants	= ARRAY_SIZE(raumfeld_power_supplicants)
+	.num_supplicants	= ARRAY_SIZE(raumfeld_power_supplicants),
+	.resume			= raumfeld_power_resume,
 };
 
 static struct resource power_supply_resources[] = {
@@ -766,13 +785,7 @@ static struct resource power_supply_resources[] = {
 
 static irqreturn_t charge_done_irq(int irq, void *dev_id)
 {
-	struct power_supply *psy;
-
-	psy = power_supply_get_by_name("ds2760-battery.0");
-
-	if (psy)
-		power_supply_set_battery_charged(psy);
-
+	raumfeld_power_signal_charged();
 	return IRQ_HANDLED;
 }
 
@@ -1070,8 +1083,6 @@ static void __init raumfeld_speaker_init(void)
 
 #ifdef CONFIG_MACH_RAUMFELD_RC
 MACHINE_START(RAUMFELD_RC, "Raumfeld Controller")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= RAUMFELD_SDRAM_BASE + 0x100,
 	.init_machine	= raumfeld_controller_init,
 	.map_io		= pxa_map_io,
@@ -1082,8 +1093,6 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_RAUMFELD_CONNECTOR
 MACHINE_START(RAUMFELD_CONNECTOR, "Raumfeld Connector")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= RAUMFELD_SDRAM_BASE + 0x100,
 	.init_machine	= raumfeld_connector_init,
 	.map_io		= pxa_map_io,
@@ -1094,8 +1103,6 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_RAUMFELD_SPEAKER
 MACHINE_START(RAUMFELD_SPEAKER, "Raumfeld Speaker")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= RAUMFELD_SDRAM_BASE + 0x100,
 	.init_machine	= raumfeld_speaker_init,
 	.map_io		= pxa_map_io,

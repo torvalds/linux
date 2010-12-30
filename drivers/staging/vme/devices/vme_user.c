@@ -683,7 +683,7 @@ static int __init vme_user_probe(struct device *dev, int cur_bus, int cur_slot)
 	for (i = 0; i < VME_DEVS; i++) {
 		image[i].kern_buf = NULL;
 		image[i].pci_buf = 0;
-		init_MUTEX(&(image[i].sem));
+		sema_init(&(image[i].sem), 1);
 		image[i].device = NULL;
 		image[i].resource = NULL;
 		image[i].users = 0;

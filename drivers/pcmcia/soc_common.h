@@ -11,7 +11,6 @@
 
 /* include the world */
 #include <linux/cpufreq.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cistpl.h>
 

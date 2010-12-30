@@ -73,7 +73,8 @@ source "drivers/gpu/drm/radeon/Kconfig"
 
 config DRM_I810
 	tristate "Intel I810"
-	depends on DRM && AGP && AGP_INTEL
+	# BKL usage in order to avoid AB-BA deadlocks, may become BROKEN_ON_SMP
+	depends on DRM && AGP && AGP_INTEL && BKL
 	help
 	  Choose this option if you have an Intel I810 graphics card.  If M is
 	  selected, the module will be called i810.  AGP support is required
@@ -86,6 +87,8 @@ choice
 
 config DRM_I830
 	tristate "i830 driver"
+	# BKL usage in order to avoid AB-BA deadlocks, i830 may get removed
+	depends on BKL
 	help
 	  Choose this option if you have a system that has Intel 830M, 845G,
 	  852GM, 855GM or 865G integrated graphics.  If M is selected, the

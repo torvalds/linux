@@ -441,14 +441,12 @@ int au1x00_pcmcia_socket_probe(struct device *dev, struct pcmcia_low_level *ops,
 
 
 out_err:
-	flush_scheduled_work();
 	ops->hw_shutdown(skt);
 	while (i-- > 0) {
 		skt = PCMCIA_SOCKET(i);
 
 		del_timer_sync(&skt->poll_timer);
 		pcmcia_unregister_socket(&skt->socket);
-		flush_scheduled_work();
 		if (i == 0) {
 			iounmap(skt->virt_io + (u32)mips_io_port_base);
 			skt->virt_io = NULL;
@@ -480,7 +478,6 @@ int au1x00_drv_pcmcia_remove(struct platform_device *dev)
 
 		del_timer_sync(&skt->poll_timer);
 		pcmcia_unregister_socket(&skt->socket);
-		flush_scheduled_work();
 		skt->ops->hw_shutdown(skt);
 		au1x00_pcmcia_config_skt(skt, &dead_socket);
 		iounmap(skt->virt_io + (u32)mips_io_port_base);

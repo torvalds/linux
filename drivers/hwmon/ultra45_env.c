@@ -234,7 +234,7 @@ static const struct attribute_group env_group = {
 	.attrs = env_attributes,
 };
 
-static int __devinit env_probe(struct of_device *op,
+static int __devinit env_probe(struct platform_device *op,
 			       const struct of_device_id *match)
 {
 	struct env *p = kzalloc(sizeof(*p), GFP_KERNEL);
@@ -276,7 +276,7 @@ out_free:
 	goto out;
 }
 
-static int __devexit env_remove(struct of_device *op)
+static int __devexit env_remove(struct platform_device *op)
 {
 	struct env *p = dev_get_drvdata(&op->dev);
 

@@ -852,8 +852,8 @@ xfs_convert_page(
 		SetPageUptodate(page);
 
 	if (count) {
-		wbc->nr_to_write--;
-		if (wbc->nr_to_write <= 0)
+		if (--wbc->nr_to_write <= 0 &&
+		    wbc->sync_mode == WB_SYNC_NONE)
 			done = 1;
 	}
 	xfs_start_page_writeback(page, !page_dirty, count);
@@ -934,7 +934,6 @@ xfs_aops_discard_page(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct buffer_head	*bh, *head;
 	loff_t			offset = page_offset(page);
-	ssize_t			len = 1 << inode->i_blkbits;
 
 	if (!xfs_is_delayed_page(page, IO_DELAY))
 		goto out_invalidate;
@@ -949,58 +948,14 @@ xfs_aops_discard_page(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	bh = head = page_buffers(page);
 	do {
-		int		done;
-		xfs_fileoff_t	offset_fsb;
-		xfs_bmbt_irec_t	imap;
-		int		nimaps = 1;
 		int		error;
-		xfs_fsblock_t	firstblock;
-		xfs_bmap_free_t flist;
+		xfs_fileoff_t	start_fsb;
 
 		if (!buffer_delay(bh))
 			goto next_buffer;
 
-		offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
-
-		/*
-		 * Map the range first and check that it is a delalloc extent
-		 * before trying to unmap the range. Otherwise we will be
-		 * trying to remove a real extent (which requires a
-		 * transaction) or a hole, which is probably a bad idea...
-		 */
-		error = xfs_bmapi(NULL, ip, offset_fsb, 1,
-				XFS_BMAPI_ENTIRE,  NULL, 0, &imap,
-				&nimaps, NULL);
-
-		if (error) {
-			/* something screwed, just bail */
-			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-				xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
-				"page discard failed delalloc mapping lookup.");
-			}
-			break;
-		}
-		if (!nimaps) {
-			/* nothing there */
-			goto next_buffer;
-		}
-		if (imap.br_startblock != DELAYSTARTBLOCK) {
-			/* been converted, ignore */
-			goto next_buffer;
-		}
-		WARN_ON(imap.br_blockcount == 0);
-
-		/*
-		 * Note: while we initialise the firstblock/flist pair, they
-		 * should never be used because blocks should never be
-		 * allocated or freed for a delalloc extent and hence we need
-		 * don't cancel or finish them after the xfs_bunmapi() call.
-		 */
-		xfs_bmap_init(&flist, &firstblock);
-		error = xfs_bunmapi(NULL, ip, offset_fsb, 1, 0, 1, &firstblock,
-					&flist, &done);
-
-		ASSERT(!flist.xbf_count && !flist.xbf_first);
+		start_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
+		error = xfs_bmap_punch_delalloc_range(ip, start_fsb, 1);
 		if (error) {
 			/* something screwed, just bail */
 			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
@@ -1010,7 +965,7 @@ xfs_aops_discard_page(
 			break;
 		}
 next_buffer:
-		offset += len;
+		offset += 1 << inode->i_blkbits;
 
 	} while ((bh = bh->b_this_page) != head);
 
@@ -1068,7 +1023,7 @@ xfs_vm_writepage(
 	 * by themselves.
 	 */
 	if ((current->flags & (PF_MEMALLOC|PF_KSWAPD)) == PF_MEMALLOC)
-		goto out_fail;
+		goto redirty;
 
 	/*
 	 * We need a transaction if there are delalloc or unwritten buffers
@@ -1080,7 +1035,7 @@ xfs_vm_writepage(
 	 */
 	xfs_count_page_state(page, &delalloc, &unwritten);
 	if ((current->flags & PF_FSTRANS) && (delalloc || unwritten))
-		goto out_fail;
+		goto redirty;
 
 	/* Is this page beyond the end of the file? */
 	offset = i_size_read(inode);
@@ -1111,11 +1066,12 @@ xfs_vm_writepage(
 			uptodate = 0;
 
 		/*
-		 * A hole may still be marked uptodate because discard_buffer
-		 * leaves the flag set.
+		 * set_page_dirty dirties all buffers in a page, independent
+		 * of their state.  The dirty state however is entirely
+		 * meaningless for holes (!mapped && uptodate), so skip
+		 * buffers covering holes here.
 		 */
 		if (!buffer_mapped(bh) && buffer_uptodate(bh)) {
-			ASSERT(!buffer_dirty(bh));
 			imap_valid = 0;
 			continue;
 		}
@@ -1139,8 +1095,7 @@ xfs_vm_writepage(
 				type = IO_DELAY;
 				flags = BMAPI_ALLOCATE;
 
-				if (wbc->sync_mode == WB_SYNC_NONE &&
-				    wbc->nonblocking)
+				if (wbc->sync_mode == WB_SYNC_NONE)
 					flags |= BMAPI_TRYLOCK;
 			}
 
@@ -1245,12 +1200,15 @@ error:
 	if (iohead)
 		xfs_cancel_ioend(iohead);
 
+	if (err == -EAGAIN)
+		goto redirty;
+
 	xfs_aops_discard_page(page);
 	ClearPageUptodate(page);
 	unlock_page(page);
 	return err;
 
-out_fail:
+redirty:
 	redirty_page_for_writepage(wbc, page);
 	unlock_page(page);
 	return 0;
@@ -1478,20 +1436,67 @@ xfs_vm_direct_IO(
 	if (rw & WRITE) {
 		iocb->private = xfs_alloc_ioend(inode, IO_NEW);
 
-		ret = blockdev_direct_IO_no_locking(rw, iocb, inode, bdev, iov,
-						    offset, nr_segs,
-						    xfs_get_blocks_direct,
-						    xfs_end_io_direct_write);
+		ret = __blockdev_direct_IO(rw, iocb, inode, bdev, iov,
+					    offset, nr_segs,
+					    xfs_get_blocks_direct,
+					    xfs_end_io_direct_write, NULL, 0);
 		if (ret != -EIOCBQUEUED && iocb->private)
 			xfs_destroy_ioend(iocb->private);
 	} else {
-		ret = blockdev_direct_IO_no_locking(rw, iocb, inode, bdev, iov,
-						    offset, nr_segs,
-						    xfs_get_blocks_direct,
-						    NULL);
+		ret = __blockdev_direct_IO(rw, iocb, inode, bdev, iov,
+					    offset, nr_segs,
+					    xfs_get_blocks_direct,
+					    NULL, NULL, 0);
 	}
 
 	return ret;
+}
+
+STATIC void
+xfs_vm_write_failed(
+	struct address_space	*mapping,
+	loff_t			to)
+{
+	struct inode		*inode = mapping->host;
+
+	if (to > inode->i_size) {
+		/*
+		 * punch out the delalloc blocks we have already allocated. We
+		 * don't call xfs_setattr() to do this as we may be in the
+		 * middle of a multi-iovec write and so the vfs inode->i_size
+		 * will not match the xfs ip->i_size and so it will zero too
+		 * much. Hence we jus truncate the page cache to zero what is
+		 * necessary and punch the delalloc blocks directly.
+		 */
+		struct xfs_inode	*ip = XFS_I(inode);
+		xfs_fileoff_t		start_fsb;
+		xfs_fileoff_t		end_fsb;
+		int			error;
+
+		truncate_pagecache(inode, to, inode->i_size);
+
+		/*
+		 * Check if there are any blocks that are outside of i_size
+		 * that need to be trimmed back.
+		 */
+		start_fsb = XFS_B_TO_FSB(ip->i_mount, inode->i_size) + 1;
+		end_fsb = XFS_B_TO_FSB(ip->i_mount, to);
+		if (end_fsb <= start_fsb)
+			return;
+
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		error = xfs_bmap_punch_delalloc_range(ip, start_fsb,
+							end_fsb - start_fsb);
+		if (error) {
+			/* something screwed, just bail */
+			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+				xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+			"xfs_vm_write_failed: unable to clean up ino %lld",
+						ip->i_ino);
+			}
+		}
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	}
 }
 
 STATIC int
@@ -1504,9 +1509,31 @@ xfs_vm_write_begin(
 	struct page		**pagep,
 	void			**fsdata)
 {
-	*pagep = NULL;
-	return block_write_begin(file, mapping, pos, len, flags | AOP_FLAG_NOFS,
-				 pagep, fsdata, xfs_get_blocks);
+	int			ret;
+
+	ret = block_write_begin(mapping, pos, len, flags | AOP_FLAG_NOFS,
+				pagep, xfs_get_blocks);
+	if (unlikely(ret))
+		xfs_vm_write_failed(mapping, pos + len);
+	return ret;
+}
+
+STATIC int
+xfs_vm_write_end(
+	struct file		*file,
+	struct address_space	*mapping,
+	loff_t			pos,
+	unsigned		len,
+	unsigned		copied,
+	struct page		*page,
+	void			*fsdata)
+{
+	int			ret;
+
+	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
+	if (unlikely(ret < len))
+		xfs_vm_write_failed(mapping, pos + len);
+	return ret;
 }
 
 STATIC sector_t
@@ -1551,7 +1578,7 @@ const struct address_space_operations xfs_address_space_operations = {
 	.releasepage		= xfs_vm_releasepage,
 	.invalidatepage		= xfs_vm_invalidatepage,
 	.write_begin		= xfs_vm_write_begin,
-	.write_end		= generic_write_end,
+	.write_end		= xfs_vm_write_end,
 	.bmap			= xfs_vm_bmap,
 	.direct_IO		= xfs_vm_direct_IO,
 	.migratepage		= buffer_migrate_page,

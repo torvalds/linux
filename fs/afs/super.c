@@ -16,9 +16,9 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mount.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/parser.h>
@@ -29,9 +29,8 @@
 #define AFS_FS_MAGIC 0x6B414653 /* 'kAFS' */
 
 static void afs_i_init_once(void *foo);
-static int afs_get_sb(struct file_system_type *fs_type,
-		      int flags, const char *dev_name,
-		      void *data, struct vfsmount *mnt);
+static struct dentry *afs_mount(struct file_system_type *fs_type,
+		      int flags, const char *dev_name, void *data);
 static struct inode *afs_alloc_inode(struct super_block *sb);
 static void afs_put_super(struct super_block *sb);
 static void afs_destroy_inode(struct inode *inode);
@@ -40,7 +39,7 @@ static int afs_statfs(struct dentry *dentry, struct kstatfs *buf);
 struct file_system_type afs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "afs",
-	.get_sb		= afs_get_sb,
+	.mount		= afs_mount,
 	.kill_sb	= kill_anon_super,
 	.fs_flags	= 0,
 };
@@ -48,8 +47,9 @@ struct file_system_type afs_fs_type = {
 static const struct super_operations afs_super_ops = {
 	.statfs		= afs_statfs,
 	.alloc_inode	= afs_alloc_inode,
+	.drop_inode	= afs_drop_inode,
 	.destroy_inode	= afs_destroy_inode,
-	.clear_inode	= afs_clear_inode,
+	.evict_inode	= afs_evict_inode,
 	.put_super	= afs_put_super,
 	.show_options	= generic_show_options,
 };
@@ -62,12 +62,14 @@ enum {
 	afs_opt_cell,
 	afs_opt_rwpath,
 	afs_opt_vol,
+	afs_opt_autocell,
 };
 
 static const match_table_t afs_options_list = {
 	{ afs_opt_cell,		"cell=%s"	},
 	{ afs_opt_rwpath,	"rwpath"	},
 	{ afs_opt_vol,		"vol=%s"	},
+	{ afs_opt_autocell,	"autocell"	},
 	{ afs_no_opt,		NULL		},
 };
 
@@ -151,7 +153,8 @@ static int afs_parse_options(struct afs_mount_params *params,
 		switch (token) {
 		case afs_opt_cell:
 			cell = afs_cell_lookup(args[0].from,
-					       args[0].to - args[0].from);
+					       args[0].to - args[0].from,
+					       false);
 			if (IS_ERR(cell))
 				return PTR_ERR(cell);
 			afs_put_cell(params->cell);
@@ -164,6 +167,10 @@ static int afs_parse_options(struct afs_mount_params *params,
 
 		case afs_opt_vol:
 			*devname = args[0].from;
+			break;
+
+		case afs_opt_autocell:
+			params->autocell = 1;
 			break;
 
 		default:
@@ -252,10 +259,10 @@ static int afs_parse_device_name(struct afs_mount_params *params,
 
 	/* lookup the cell record */
 	if (cellname || !params->cell) {
-		cell = afs_cell_lookup(cellname, cellnamesz);
+		cell = afs_cell_lookup(cellname, cellnamesz, true);
 		if (IS_ERR(cell)) {
-			printk(KERN_ERR "kAFS: unable to lookup cell '%s'\n",
-			       cellname ?: "");
+			printk(KERN_ERR "kAFS: unable to lookup cell '%*.*s'\n",
+			       cellnamesz, cellnamesz, cellname ?: "");
 			return PTR_ERR(cell);
 		}
 		afs_put_cell(params->cell);
@@ -321,6 +328,9 @@ static int afs_fill_super(struct super_block *sb, void *data)
 	if (IS_ERR(inode))
 		goto error_inode;
 
+	if (params->autocell)
+		set_bit(AFS_VNODE_AUTOCELL, &AFS_FS_I(inode)->flags);
+
 	ret = -ENOMEM;
 	root = d_alloc_root(inode);
 	if (!root)
@@ -348,11 +358,8 @@ error:
 /*
  * get an AFS superblock
  */
-static int afs_get_sb(struct file_system_type *fs_type,
-		      int flags,
-		      const char *dev_name,
-		      void *options,
-		      struct vfsmount *mnt)
+static struct dentry *afs_mount(struct file_system_type *fs_type,
+		      int flags, const char *dev_name, void *options)
 {
 	struct afs_mount_params params;
 	struct super_block *sb;
@@ -416,12 +423,11 @@ static int afs_get_sb(struct file_system_type *fs_type,
 		ASSERTCMP(sb->s_flags, &, MS_ACTIVE);
 	}
 
-	simple_set_mnt(mnt, sb);
 	afs_put_volume(params.volume);
 	afs_put_cell(params.cell);
 	kfree(new_opts);
 	_leave(" = 0 [%p]", sb);
-	return 0;
+	return dget(sb->s_root);
 
 error:
 	afs_put_volume(params.volume);
@@ -429,7 +435,7 @@ error:
 	key_put(params.key);
 	kfree(new_opts);
 	_leave(" = %d", ret);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 /*
@@ -441,11 +447,7 @@ static void afs_put_super(struct super_block *sb)
 
 	_enter("");
 
-	lock_kernel();
-
 	afs_put_volume(as->volume);
-
-	unlock_kernel();
 
 	_leave("");
 }

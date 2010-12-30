@@ -1149,7 +1149,7 @@ out_err:
  * Note: If it is called early in the boot process, @val is stored and
  *	 parsed later in hvc_iucv_init().
  */
-static int param_set_vmidfilter(const char *val, struct kernel_param *kp)
+static int param_set_vmidfilter(const char *val, const struct kernel_param *kp)
 {
 	int rc;
 
@@ -1176,7 +1176,7 @@ static int param_set_vmidfilter(const char *val, struct kernel_param *kp)
  * The function stores the filter as a comma-separated list of z/VM user IDs
  * in @buffer. Typically, sysfs routines call this function for attr show.
  */
-static int param_get_vmidfilter(char *buffer, struct kernel_param *kp)
+static int param_get_vmidfilter(char *buffer, const struct kernel_param *kp)
 {
 	int rc;
 	size_t index, len;
@@ -1202,6 +1202,11 @@ static int param_get_vmidfilter(char *buffer, struct kernel_param *kp)
 }
 
 #define param_check_vmidfilter(name, p) __param_check(name, p, void)
+
+static struct kernel_param_ops param_ops_vmidfilter = {
+	.set = param_set_vmidfilter,
+	.get = param_get_vmidfilter,
+};
 
 /**
  * hvc_iucv_init() - z/VM IUCV HVC device driver initialization
@@ -1298,13 +1303,11 @@ static int __init hvc_iucv_init(void)
 	if (rc) {
 		pr_err("Registering IUCV handlers failed with error code=%d\n",
 			rc);
-		goto out_error_iucv;
+		goto out_error_hvc;
 	}
 
 	return 0;
 
-out_error_iucv:
-	iucv_unregister(&hvc_iucv_handler, 0);
 out_error_hvc:
 	for (i = 0; i < hvc_iucv_devices; i++)
 		if (hvc_iucv_table[i])

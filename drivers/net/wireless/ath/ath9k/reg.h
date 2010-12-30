@@ -107,12 +107,6 @@
 #define AR_RXCFG_DMASZ_256B  6
 #define AR_RXCFG_DMASZ_512B  7
 
-#define AR_MIBC              0x0040
-#define AR_MIBC_COW          0x00000001
-#define AR_MIBC_FMC          0x00000002
-#define AR_MIBC_CMC          0x00000004
-#define AR_MIBC_MCS          0x00000008
-
 #define AR_TOPS              0x0044
 #define AR_TOPS_MASK         0x0000FFFF
 
@@ -709,6 +703,7 @@
 #define AR_WA_RESET_EN                  (1 << 18) /* Sw Control to enable PCI-Reset to POR (bit 15) */
 #define AR_WA_ANALOG_SHIFT              (1 << 20)
 #define AR_WA_POR_SHORT                 (1 << 21) /* PCI-E Phy reset control */
+#define AR_WA_BIT22			(1 << 22)
 #define AR9285_WA_DEFAULT		0x004a050b
 #define AR9280_WA_DEFAULT           	0x0040073b
 #define AR_WA_DEFAULT               	0x0000073f
@@ -819,49 +814,23 @@
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9160_11))
 #define AR_SREV_9280(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9280))
-#define AR_SREV_9280_10_OR_LATER(_ah) \
+#define AR_SREV_9280_20_OR_LATER(_ah) \
 	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9280))
 #define AR_SREV_9280_20(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9280) && \
-		((_ah)->hw_version.macRev >= AR_SREV_REVISION_9280_20))
-#define AR_SREV_9280_20_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9280) || \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9280) && \
-	((_ah)->hw_version.macRev >= AR_SREV_REVISION_9280_20)))
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9280))
 
 #define AR_SREV_9285(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9285))
-#define AR_SREV_9285_10_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9285))
-#define AR_SREV_9285_11(_ah) \
-	(AR_SREV_9285(ah) && \
-	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9285_11))
-#define AR_SREV_9285_11_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9285) || \
-	 (AR_SREV_9285(ah) && ((_ah)->hw_version.macRev >= \
-			       AR_SREV_REVISION_9285_11)))
-#define AR_SREV_9285_12(_ah) \
-	(AR_SREV_9285(ah) && \
-	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9285_12))
 #define AR_SREV_9285_12_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9285) || \
-	 (AR_SREV_9285(ah) && ((_ah)->hw_version.macRev >= \
-			       AR_SREV_REVISION_9285_12)))
+	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9285))
 
 #define AR_SREV_9287(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287))
-#define AR_SREV_9287_10_OR_LATER(_ah) \
+#define AR_SREV_9287_11_OR_LATER(_ah) \
 	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9287))
-#define AR_SREV_9287_10(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
-	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9287_10))
 #define AR_SREV_9287_11(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9287_11))
-#define AR_SREV_9287_11_OR_LATER(_ah) \
-	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9287) || \
-	 (((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
-	  ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9287_11)))
 #define AR_SREV_9287_12(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9287_12))
@@ -885,9 +854,6 @@
 
 #define AR_SREV_9300(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9300))
-#define AR_SREV_9300_20(_ah) \
-	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9300) && \
-	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9300_20))
 #define AR_SREV_9300_20_OR_LATER(_ah) \
 	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9300) || \
 	 (((_ah)->hw_version.macVersion == AR_SREV_VERSION_9300) && \
@@ -899,7 +865,14 @@
 
 #define AR_DEVID_7010(_ah) \
 	(((_ah)->hw_version.devid == 0x7010) || \
-	 ((_ah)->hw_version.devid == 0x9018))
+	 ((_ah)->hw_version.devid == 0x7015) || \
+	 ((_ah)->hw_version.devid == 0x9018) || \
+	 ((_ah)->hw_version.devid == 0xA704) || \
+	 ((_ah)->hw_version.devid == 0x1200))
+
+#define AR9287_HTC_DEVID(_ah) \
+	(((_ah)->hw_version.devid == 0x7015) || \
+	 ((_ah)->hw_version.devid == 0x1200))
 
 #define AR_RADIO_SREV_MAJOR                   0xf0
 #define AR_RAD5133_SREV_MAJOR                 0xc0
@@ -1011,10 +984,12 @@ enum {
 #define AR9287_GPIO_IN_VAL_S                     11
 #define AR9271_GPIO_IN_VAL                       0xFFFF0000
 #define AR9271_GPIO_IN_VAL_S                     16
-#define AR9300_GPIO_IN_VAL                       0x0001FFFF
-#define AR9300_GPIO_IN_VAL_S                     0
 #define AR7010_GPIO_IN_VAL                       0x0000FFFF
 #define AR7010_GPIO_IN_VAL_S                     0
+
+#define AR_GPIO_IN				 0x404c
+#define AR9300_GPIO_IN_VAL                       0x0001FFFF
+#define AR9300_GPIO_IN_VAL_S                     0
 
 #define AR_GPIO_OE_OUT                           (AR_SREV_9300_20_OR_LATER(ah) ? 0x4050 : 0x404c)
 #define AR_GPIO_OE_OUT_DRV                       0x3
@@ -1548,11 +1523,6 @@ enum {
 #define AR_TPC_CTS_S           0x08
 #define AR_TPC_CHIRP           0x003f0000
 #define AR_TPC_CHIRP_S         0x16
-
-#define AR_TFCNT           0x80ec
-#define AR_RFCNT           0x80f0
-#define AR_RCCNT           0x80f4
-#define AR_CCCNT           0x80f8
 
 #define AR_QUIET1          0x80fc
 #define AR_QUIET1_NEXT_QUIET_S         0

@@ -4,17 +4,23 @@ config MIPS
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select HAVE_PERF_EVENTS
+	select PERF_USE_VMALLOC
 	select HAVE_ARCH_KGDB
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_C_RECORDMCOUNT
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select RTC_LIB if !MACH_LOONGSON
-
-mainmenu "Linux/MIPS Kernel Configuration"
+	select GENERIC_ATOMIC64 if !64BIT
+	select HAVE_DMA_ATTRS
+	select HAVE_DMA_API_DEBUG
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_PROBE
 
 menu "Machine selection"
 
@@ -692,6 +698,9 @@ config CAVIUM_OCTEON_REFERENCE_BOARD
 	select SWAP_IO_SPACE
 	select HW_HAS_PCI
 	select ARCH_SUPPORTS_MSI
+	select ZONE_DMA32
+	select USB_ARCH_HAS_OHCI
+	select USB_ARCH_HAS_EHCI
 	help
 	  This option supports all of the Octeon reference boards from Cavium
 	  Networks. It builds a kernel that dynamically determines the Octeon
@@ -880,10 +889,14 @@ config NO_IOPORT
 config GENERIC_ISA_DMA
 	bool
 	select ZONE_DMA if GENERIC_ISA_DMA_SUPPORT_BROKEN=n
+	select ISA_DMA_API
 
 config GENERIC_ISA_DMA_SUPPORT_BROKEN
 	bool
 	select GENERIC_ISA_DMA
+
+config ISA_DMA_API
+	bool
 
 config GENERIC_GPIO
 	bool
@@ -1331,6 +1344,57 @@ config CPU_CAVIUM_OCTEON
 	  can have up to 16 Mips64v2 cores and 8 integrated gigabit ethernets.
 	  Full details can be found at http://www.caviumnetworks.com.
 
+config CPU_BMIPS3300
+	bool "BMIPS3300"
+	depends on SYS_HAS_CPU_BMIPS3300
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select WEAK_ORDERING
+	help
+	  Broadcom BMIPS3300 processors.
+
+config CPU_BMIPS4350
+	bool "BMIPS4350"
+	depends on SYS_HAS_CPU_BMIPS4350
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_HOTPLUG_CPU
+	select WEAK_ORDERING
+	help
+	  Broadcom BMIPS4350 ("VIPER") processors.
+
+config CPU_BMIPS4380
+	bool "BMIPS4380"
+	depends on SYS_HAS_CPU_BMIPS4380
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_HOTPLUG_CPU
+	select WEAK_ORDERING
+	help
+	  Broadcom BMIPS4380 processors.
+
+config CPU_BMIPS5000
+	bool "BMIPS5000"
+	depends on SYS_HAS_CPU_BMIPS5000
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_HOTPLUG_CPU
+	select WEAK_ORDERING
+	help
+	  Broadcom BMIPS5000 processors.
+
 endchoice
 
 if CPU_LOONGSON2F
@@ -1447,6 +1511,18 @@ config SYS_HAS_CPU_SB1
 	bool
 
 config SYS_HAS_CPU_CAVIUM_OCTEON
+	bool
+
+config SYS_HAS_CPU_BMIPS3300
+	bool
+
+config SYS_HAS_CPU_BMIPS4350
+	bool
+
+config SYS_HAS_CPU_BMIPS4380
+	bool
+
+config SYS_HAS_CPU_BMIPS5000
 	bool
 
 #
@@ -1590,6 +1666,28 @@ config PAGE_SIZE_64KB
 
 endchoice
 
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order"
+	range 13 64 if SYS_SUPPORTS_HUGETLBFS && PAGE_SIZE_32KB
+	default "13" if SYS_SUPPORTS_HUGETLBFS && PAGE_SIZE_32KB
+	range 12 64 if SYS_SUPPORTS_HUGETLBFS && PAGE_SIZE_16KB
+	default "12" if SYS_SUPPORTS_HUGETLBFS && PAGE_SIZE_16KB
+	range 11 64
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
+
+	  The page size is not necessarily 4KB.  Keep this in mind
+	  when choosing a value for this option.
+
 config BOARD_SCACHE
 	bool
 
@@ -1646,8 +1744,16 @@ config MIPS_MT_SMP
 	select SYS_SUPPORTS_SMP
 	select SMP_UP
 	help
-	  This is a kernel model which is also known a VSMP or lately
-	  has been marketesed into SMVP.
+	  This is a kernel model which is known a VSMP but lately has been
+	  marketesed into SMVP.
+	  Virtual SMP uses the processor's VPEs  to implement virtual
+	  processors. In currently available configuration of the 34K processor
+	  this allows for a dual processor. Both processors will share the same
+	  primary caches; each will obtain the half of the TLB for it's own
+	  exclusive use. For a layman this model can be described as similar to
+	  what Intel calls Hyperthreading.
+
+	  For further information see http://www.linux-mips.org/wiki/34K#VSMP
 
 config MIPS_MT_SMTC
 	bool "SMTC: Use all TCs on all VPEs for SMP"
@@ -1664,6 +1770,14 @@ config MIPS_MT_SMTC
 	help
 	  This is a kernel model which is known a SMTC or lately has been
 	  marketesed into SMVP.
+	  is presenting the available TC's of the core as processors to Linux.
+	  On currently available 34K processors this means a Linux system will
+	  see up to 5 processors. The implementation of the SMTC kernel differs
+	  significantly from VSMP and cannot efficiently coexist in the same
+	  kernel binary so the choice between VSMP and SMTC is a compile time
+	  decision.
+
+	  For further information see http://www.linux-mips.org/wiki/34K#SMTC
 
 endchoice
 
@@ -1832,20 +1946,6 @@ config CPU_R4400_WORKAROUNDS
 	bool
 
 #
-# Use the generic interrupt handling code in kernel/irq/:
-#
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_IRQ_PROBE
-	bool
-	default y
-
-config IRQ_PER_CPU
-	bool
-
-#
 # - Highmem only makes sense for the 32-bit kernel.
 # - The current highmem code will only work properly on physically indexed
 #   caches such as R3000, SB1, R7000 or those that look like they're virtually
@@ -1908,6 +2008,14 @@ config NODES_SHIFT
 	int
 	default "6"
 	depends on NEED_MULTIPLE_NODES
+
+config HW_PERF_EVENTS
+	bool "Enable hardware performance counter support for perf events"
+	depends on PERF_EVENTS && !MIPS_MT_SMTC && OPROFILE=n && CPU_MIPS32
+	default y
+	help
+	  Enable hardware performance counter support for perf events. If
+	  disabled, perf events will use software events only.
 
 source "mm/Kconfig"
 
@@ -2107,6 +2215,13 @@ config SECCOMP
 
 	  If unsure, say Y. Only embedded should say N here.
 
+config USE_OF
+	bool "Flattened Device Tree support"
+	select OF
+	select OF_FLATTREE
+	help
+	  Include support for flattened device tree machine descriptions.
+
 endmenu
 
 config LOCKDEP_SUPPORT
@@ -2175,10 +2290,14 @@ config TC
 	bool "TURBOchannel support"
 	depends on MACH_DECSTATION
 	help
-	  TurboChannel is a DEC (now Compaq (now HP)) bus for Alpha and MIPS
-	  processors.  Documentation on writing device drivers for TurboChannel
-	  is available at:
-	  <http://www.cs.arizona.edu/computer.help/policy/DIGITAL_unix/AA-PS3HD-TET1_html/TITLE.html>.
+	  TURBOchannel is a DEC (now Compaq (now HP)) bus for Alpha and MIPS
+	  processors.  TURBOchannel programming specifications are available
+	  at:
+	  <ftp://ftp.hp.com/pub/alphaserver/archive/triadd/>
+	  and:
+	  <http://www.computer-refuge.org/classiccmp/ftp.digital.com/pub/DEC/TriAdd/>
+	  Linux driver support status is documented at:
+	  <http://www.linux-mips.org/wiki/DECstation>
 
 #config ACCESSBUS
 #	bool "Access.Bus support"

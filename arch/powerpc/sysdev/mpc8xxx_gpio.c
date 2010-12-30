@@ -389,6 +389,9 @@ static int __init mpc8xxx_add_gpiochips(void)
 	for_each_matching_node(np, mpc8xxx_gpio_ids)
 		mpc8xxx_add_controller(np);
 
+	for_each_compatible_node(np, NULL, "fsl,qoriq-gpio")
+		mpc8xxx_add_controller(np);
+
 	return 0;
 }
 arch_initcall(mpc8xxx_add_gpiochips);

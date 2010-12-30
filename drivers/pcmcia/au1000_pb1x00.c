@@ -31,7 +31,6 @@
 #include <linux/proc_fs.h>
 #include <linux/types.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cistpl.h>
 

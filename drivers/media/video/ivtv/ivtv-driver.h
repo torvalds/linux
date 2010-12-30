@@ -62,6 +62,7 @@
 #include <linux/dvb/audio.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
 #include <media/tuner.h>
@@ -631,6 +632,8 @@ struct ivtv {
 	struct ivtv_options options; 	/* user options */
 
 	struct v4l2_device v4l2_dev;
+	struct cx2341x_handler cxhdl;
+	struct v4l2_ctrl_handler hdl_gpio;
 	struct v4l2_subdev sd_gpio;	/* GPIO sub-device */
 	u16 instance;
 
@@ -648,7 +651,6 @@ struct ivtv {
 	v4l2_std_id std_out;            /* current TV output standard */
 	u8 audio_stereo_mode;           /* decoder setting how to handle stereo MPEG audio */
 	u8 audio_bilingual_mode;        /* decoder setting how to handle bilingual MPEG audio */
-	struct cx2341x_mpeg_params params;              /* current encoder parameters */
 
 
 	/* Locking */
@@ -809,15 +811,23 @@ static inline int ivtv_raw_vbi(const struct ivtv *itv)
 /* Call the specified callback for all subdevs matching hw (if 0, then
    match them all). Ignore any errors. */
 #define ivtv_call_hw(itv, hw, o, f, args...) 				\
-	__v4l2_device_call_subdevs(&(itv)->v4l2_dev, !(hw) || (sd->grp_id & (hw)), o, f , ##args)
+	do {								\
+		struct v4l2_subdev *__sd;				\
+		__v4l2_device_call_subdevs_p(&(itv)->v4l2_dev, __sd,	\
+			!(hw) || (__sd->grp_id & (hw)), o, f , ##args);	\
+	} while (0)
 
 #define ivtv_call_all(itv, o, f, args...) ivtv_call_hw(itv, 0, o, f , ##args)
 
 /* Call the specified callback for all subdevs matching hw (if 0, then
    match them all). If the callback returns an error other than 0 or
    -ENOIOCTLCMD, then return with that error code. */
-#define ivtv_call_hw_err(itv, hw, o, f, args...)  		\
-	__v4l2_device_call_subdevs_until_err(&(itv)->v4l2_dev, !(hw) || (sd->grp_id & (hw)), o, f , ##args)
+#define ivtv_call_hw_err(itv, hw, o, f, args...)			\
+({									\
+	struct v4l2_subdev *__sd;					\
+	__v4l2_device_call_subdevs_until_err_p(&(itv)->v4l2_dev, __sd,	\
+		!(hw) || (__sd->grp_id & (hw)), o, f , ##args);		\
+})
 
 #define ivtv_call_all_err(itv, o, f, args...) ivtv_call_hw_err(itv, 0, o, f , ##args)
 
