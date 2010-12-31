@@ -240,9 +240,7 @@ static void node_is_down(struct publication *publ)
 		    publ->type, publ->lower, publ->node, publ->ref, publ->key);
 	}
 
-	if (p) {
-		kfree(p);
-	}
+	kfree(p);
 }
 
 /**

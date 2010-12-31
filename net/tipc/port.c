@@ -269,9 +269,7 @@ int tipc_deleteport(u32 ref)
 		buf = port_build_peer_abort_msg(p_ptr, TIPC_ERR_NO_PORT);
 		tipc_nodesub_unsubscribe(&p_ptr->subscription);
 	}
-	if (p_ptr->user_port) {
-		kfree(p_ptr->user_port);
-	}
+	kfree(p_ptr->user_port);
 
 	spin_lock_bh(&tipc_port_list_lock);
 	list_del(&p_ptr->port_list);
