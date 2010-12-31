@@ -2216,6 +2216,7 @@ static int zoran_dqbuf(struct file *file, void *__fh, struct v4l2_buffer *buf)
 			res = -EAGAIN;
 			goto dqbuf_unlock_and_return;
 		}
+		bs.frame = 0; /* suppress compiler warning */
 		res = jpg_sync(fh, &bs);
 		if (res)
 			goto dqbuf_unlock_and_return;
