@@ -1304,7 +1304,6 @@ static void ngene_stop(struct ngene *dev)
 static int ngene_start(struct ngene *dev)
 {
 	int stat;
-	unsigned long flags;
 	int i;
 
 	pci_set_master(dev->pci_dev);
@@ -1337,6 +1336,8 @@ static int ngene_start(struct ngene *dev)
 #ifdef CONFIG_PCI_MSI
 	/* enable MSI if kernel and card support it */
 	if (pci_msi_enabled() && dev->card_info->msi_supported) {
+		unsigned long flags;
+
 		ngwritel(0, NGENE_INT_ENABLE);
 		free_irq(dev->pci_dev->irq, dev);
 		stat = pci_enable_msi(dev->pci_dev);
