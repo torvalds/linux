@@ -3914,7 +3914,8 @@ static void beiscsi_cleanup_task(struct iscsi_task *task)
 			io_task->psgl_handle = NULL;
 		}
 	} else {
-		if ((task->hdr->opcode & ISCSI_OPCODE_MASK) == ISCSI_OP_LOGIN)
+		if (task->hdr &&
+		   ((task->hdr->opcode & ISCSI_OPCODE_MASK) == ISCSI_OP_LOGIN))
 			return;
 		if (io_task->psgl_handle) {
 			spin_lock(&phba->mgmt_sgl_lock);
