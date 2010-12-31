@@ -1533,11 +1533,11 @@ static int fb1_set_par(struct fb_info *info)
     smem_len = fix->line_length * yvir + cblen + crlen;
     map_size = PAGE_ALIGN(smem_len);
 
-    fix->smem_start = y_addr;
+   // fix->smem_start = y_addr;
     fix->smem_len = smem_len;
-    fix->mmio_start = uv_addr;
+  //  fix->mmio_start = uv_addr;
 
-    par->addr_seted = ((-1==(int)y_addr) || (0==(int)y_addr) || (win0_en==0)) ? 0 : 1;
+ //   par->addr_seted = ((-1==(int)y_addr) || (0==(int)y_addr) || (win0_en==0)) ? 0 : 1;
     fbprintk("buffer alloced by user fix->smem_start = %8x, fix->smem_len = %8x, fix->mmio_start = %8x \n", (u32)fix->smem_start, (u32)fix->smem_len, (u32)fix->mmio_start);
 
     par->format = format;
@@ -1554,8 +1554,9 @@ static int fb1_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
     struct win0_par *par = info->par;
      // enable win0 after the win0 addr is seted
-    par->par_seted = 1;
+
     win0_pan(info);
+    par->par_seted = 1;
     return 0;
 }
 
@@ -1592,7 +1593,8 @@ int fb1_release(struct fb_info *info, int user)
         par->refcount--;
         inf->video_mode = 0;
         par->par_seted = 0;
-
+        par->addr_seted = 0;
+        win0_blank(FB_BLANK_POWERDOWN, info);
         win1_blank(FB_BLANK_POWERDOWN, info);
         // wait for lcdc stop access memory
         msleep(50);
@@ -1612,6 +1614,7 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
     struct rk29fb_inf *inf = dev_get_drvdata(info->device);
     struct win0_par *par = info->par;
+    struct fb_fix_screeninfo *fix0 = &info->fix;
     void __user *argp = (void __user *)arg;
 
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
@@ -1645,12 +1648,15 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 
             yuv_phy[0] += par->y_offset;
             yuv_phy[1] += par->c_offset;
+            fix0->smem_start = yuv_phy[0];
+            fix0->mmio_start = yuv_phy[1];
 
             LcdWrReg(inf, WIN0_YRGB_MST, yuv_phy[0]);
             LcdWrReg(inf, WIN0_CBR_MST, yuv_phy[1]);
-            LcdWrReg(inf, REG_CFG_DONE, 0x01);
             // enable win0 after the win0 par is seted
+            LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(par->par_seted && par->addr_seted));
             par->addr_seted = 1;
+            LcdWrReg(inf, REG_CFG_DONE, 0x01);
             if(par->par_seted) {
                 unsigned long flags;
                 if (par->mirror.c_offset) {
@@ -1661,7 +1667,6 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
                 }
 
                 local_irq_save(flags);
-    	        LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(par->par_seted));
                 par->mirror.y_offset = yuv_phy[0];
                 par->mirror.c_offset = yuv_phy[1];
                 local_irq_restore(flags);
