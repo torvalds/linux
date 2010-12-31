@@ -1574,13 +1574,23 @@ static void __init machine_rk29_init_irq(void)
 	rk29_gpio_init(rk29_gpiobankinit, MAX_BANK);
 	rk29_gpio_irq_setup();
 }
+
 #define POWER_ON_PIN RK29_PIN4_PA4
+static void rk29_pm_power_off(void)
+{
+	printk(KERN_ERR "rk29_pm_power_off start...\n");
+	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
+	while (1);
+}
+
 static void __init machine_rk29_board_init(void)
 {
 	rk29_board_iomux_init();
+
 	gpio_request(POWER_ON_PIN,"poweronpin");
 	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
+	pm_power_off = rk29_pm_power_off;
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
                 rk29sdk_wifi_bt_gpio_control_init();
