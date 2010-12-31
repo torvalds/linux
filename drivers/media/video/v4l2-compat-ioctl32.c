@@ -165,8 +165,6 @@ static int get_v4l2_format32(struct v4l2_format *kp, struct v4l2_format32 __user
 		if (copy_from_user(kp, up, sizeof(kp->fmt.raw_data)))
 			return -EFAULT;
 		return 0;
-	case 0:
-		return -EINVAL;
 	default:
 		printk(KERN_INFO "compat_ioctl32: unexpected VIDIOC_FMT type %d\n",
 								kp->type);
@@ -196,8 +194,6 @@ static int put_v4l2_format32(struct v4l2_format *kp, struct v4l2_format32 __user
 		if (copy_to_user(up, kp, sizeof(up->fmt.raw_data)))
 			return -EFAULT;
 		return 0;
-	case 0:
-		return -EINVAL;
 	default:
 		printk(KERN_INFO "compat_ioctl32: unexpected VIDIOC_FMT type %d\n",
 								kp->type);
