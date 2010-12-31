@@ -1917,8 +1917,10 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 			netif_printk(sky2, tx_done, KERN_DEBUG, dev,
 				     "tx done %u\n", idx);
 
-			dev->stats.tx_packets++;
-			dev->stats.tx_bytes += skb->len;
+			u64_stats_update_begin(&sky2->tx_stats.syncp);
+			++sky2->tx_stats.packets;
+			sky2->tx_stats.bytes += skb->len;
+			u64_stats_update_end(&sky2->tx_stats.syncp);
 
 			re->skb = NULL;
 			dev_kfree_skb_any(skb);
@@ -2460,7 +2462,7 @@ static struct sk_buff *sky2_receive(struct net_device *dev,
 
 	/* if length reported by DMA does not match PHY, packet was truncated */
 	if (length != count)
-		goto len_error;
+		goto error;
 
 okay:
 	if (length < copybreak)
@@ -2475,33 +2477,12 @@ resubmit:
 
 	return skb;
 
-len_error:
-	/* Truncation of overlength packets
-	   causes PHY length to not match MAC length */
-	++dev->stats.rx_length_errors;
-	if (net_ratelimit())
-		netif_info(sky2, rx_err, dev,
-			   "rx length error: status %#x length %d\n",
-			   status, length);
-	goto resubmit;
-
 error:
 	++dev->stats.rx_errors;
-	if (status & GMR_FS_RX_FF_OV) {
-		dev->stats.rx_over_errors++;
-		goto resubmit;
-	}
 
 	if (net_ratelimit())
 		netif_info(sky2, rx_err, dev,
 			   "rx error, status 0x%x length %d\n", status, length);
-
-	if (status & (GMR_FS_LONG_ERR | GMR_FS_UN_SIZE))
-		dev->stats.rx_length_errors++;
-	if (status & GMR_FS_FRAGMENT)
-		dev->stats.rx_frame_errors++;
-	if (status & GMR_FS_CRC_ERR)
-		dev->stats.rx_crc_errors++;
 
 	goto resubmit;
 }
@@ -2543,14 +2524,19 @@ static inline void sky2_skb_rx(const struct sky2_port *sky2,
 static inline void sky2_rx_done(struct sky2_hw *hw, unsigned port,
 				unsigned packets, unsigned bytes)
 {
-	if (packets) {
-		struct net_device *dev = hw->dev[port];
+	struct net_device *dev = hw->dev[port];
+	struct sky2_port *sky2 = netdev_priv(dev);
 
-		dev->stats.rx_packets += packets;
-		dev->stats.rx_bytes += bytes;
-		dev->last_rx = jiffies;
-		sky2_rx_update(netdev_priv(dev), rxqaddr[port]);
-	}
+	if (packets == 0)
+		return;
+
+	u64_stats_update_begin(&sky2->rx_stats.syncp);
+	sky2->rx_stats.packets += packets;
+	sky2->rx_stats.bytes += bytes;
+	u64_stats_update_end(&sky2->rx_stats.syncp);
+
+	dev->last_rx = jiffies;
+	sky2_rx_update(netdev_priv(dev), rxqaddr[port]);
 }
 
 static void sky2_rx_checksum(struct sky2_port *sky2, u32 status)
@@ -3626,13 +3612,11 @@ static void sky2_phy_stats(struct sky2_port *sky2, u64 * data, unsigned count)
 	unsigned port = sky2->port;
 	int i;
 
-	data[0] = (u64) gma_read32(hw, port, GM_TXO_OK_HI) << 32
-	    | (u64) gma_read32(hw, port, GM_TXO_OK_LO);
-	data[1] = (u64) gma_read32(hw, port, GM_RXO_OK_HI) << 32
-	    | (u64) gma_read32(hw, port, GM_RXO_OK_LO);
+	data[0] = get_stats64(hw, port, GM_TXO_OK_LO);
+	data[1] = get_stats64(hw, port, GM_RXO_OK_LO);
 
 	for (i = 2; i < count; i++)
-		data[i] = (u64) gma_read32(hw, port, sky2_stats[i].offset);
+		data[i] = get_stats32(hw, port, sky2_stats[i].offset);
 }
 
 static void sky2_set_msglevel(struct net_device *netdev, u32 value)
@@ -3748,6 +3732,51 @@ static void sky2_set_multicast(struct net_device *dev)
 		    (u16) filter[6] | ((u16) filter[7] << 8));
 
 	gma_write16(hw, port, GM_RX_CTRL, reg);
+}
+
+static struct rtnl_link_stats64 *sky2_get_stats(struct net_device *dev,
+						struct rtnl_link_stats64 *stats)
+{
+	struct sky2_port *sky2 = netdev_priv(dev);
+	struct sky2_hw *hw = sky2->hw;
+	unsigned port = sky2->port;
+	unsigned int start;
+	u64 _bytes, _packets;
+
+	do {
+		start = u64_stats_fetch_begin_bh(&sky2->rx_stats.syncp);
+		_bytes = sky2->rx_stats.bytes;
+		_packets = sky2->rx_stats.packets;
+	} while (u64_stats_fetch_retry_bh(&sky2->rx_stats.syncp, start));
+
+	stats->rx_packets = _packets;
+	stats->rx_bytes = _bytes;
+
+	do {
+		start = u64_stats_fetch_begin_bh(&sky2->tx_stats.syncp);
+		_bytes = sky2->tx_stats.bytes;
+		_packets = sky2->tx_stats.packets;
+	} while (u64_stats_fetch_retry_bh(&sky2->tx_stats.syncp, start));
+
+	stats->tx_packets = _packets;
+	stats->tx_bytes = _bytes;
+
+	stats->multicast = get_stats32(hw, port, GM_RXF_MC_OK)
+		+ get_stats32(hw, port, GM_RXF_BC_OK);
+
+	stats->collisions = get_stats32(hw, port, GM_TXF_COL);
+
+	stats->rx_length_errors = get_stats32(hw, port, GM_RXF_LNG_ERR);
+	stats->rx_crc_errors = get_stats32(hw, port, GM_RXF_FCS_ERR);
+	stats->rx_frame_errors = get_stats32(hw, port, GM_RXF_SHT)
+		+ get_stats32(hw, port, GM_RXE_FRAG);
+	stats->rx_over_errors = get_stats32(hw, port, GM_RXE_FIFO_OV);
+
+	stats->rx_dropped = dev->stats.rx_dropped;
+	stats->rx_fifo_errors = dev->stats.rx_fifo_errors;
+	stats->tx_fifo_errors = dev->stats.tx_fifo_errors;
+
+	return stats;
 }
 
 /* Can have one global because blinking is controlled by
@@ -4524,6 +4553,7 @@ static const struct net_device_ops sky2_netdev_ops[2] = {
 	.ndo_set_multicast_list	= sky2_set_multicast,
 	.ndo_change_mtu		= sky2_change_mtu,
 	.ndo_tx_timeout		= sky2_tx_timeout,
+	.ndo_get_stats64	= sky2_get_stats,
 #ifdef SKY2_VLAN_TAG_USED
 	.ndo_vlan_rx_register	= sky2_vlan_rx_register,
 #endif
@@ -4541,6 +4571,7 @@ static const struct net_device_ops sky2_netdev_ops[2] = {
 	.ndo_set_multicast_list	= sky2_set_multicast,
 	.ndo_change_mtu		= sky2_change_mtu,
 	.ndo_tx_timeout		= sky2_tx_timeout,
+	.ndo_get_stats64	= sky2_get_stats,
 #ifdef SKY2_VLAN_TAG_USED
 	.ndo_vlan_rx_register	= sky2_vlan_rx_register,
 #endif
