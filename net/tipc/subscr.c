@@ -36,7 +36,7 @@
 
 #include "core.h"
 #include "name_table.h"
-#include "user_reg.h"
+#include "port.h"
 #include "subscr.h"
 
 /**
@@ -64,7 +64,6 @@ struct subscriber {
  */
 
 struct top_srv {
-	u32 user_ref;
 	u32 setup_port;
 	atomic_t subscription_count;
 	struct list_head subscriber_list;
@@ -494,7 +493,7 @@ static void subscr_named_msg_event(void *usr_handle,
 
 	/* Create server port & establish connection to subscriber */
 
-	tipc_createport(topsrv.user_ref,
+	tipc_createport(0,
 			subscriber,
 			importance,
 			NULL,
@@ -549,13 +548,7 @@ int tipc_subscr_start(void)
 	INIT_LIST_HEAD(&topsrv.subscriber_list);
 
 	spin_lock_bh(&topsrv.lock);
-	res = tipc_attach(&topsrv.user_ref);
-	if (res) {
-		spin_unlock_bh(&topsrv.lock);
-		return res;
-	}
-
-	res = tipc_createport(topsrv.user_ref,
+	res = tipc_createport(0,
 			      NULL,
 			      TIPC_CRITICAL_IMPORTANCE,
 			      NULL,
@@ -570,16 +563,17 @@ int tipc_subscr_start(void)
 		goto failed;
 
 	res = tipc_nametbl_publish_rsv(topsrv.setup_port, TIPC_NODE_SCOPE, &seq);
-	if (res)
+	if (res) {
+		tipc_deleteport(topsrv.setup_port);
+		topsrv.setup_port = 0;
 		goto failed;
+	}
 
 	spin_unlock_bh(&topsrv.lock);
 	return 0;
 
 failed:
 	err("Failed to create subscription service\n");
-	tipc_detach(topsrv.user_ref);
-	topsrv.user_ref = 0;
 	spin_unlock_bh(&topsrv.lock);
 	return res;
 }
@@ -590,8 +584,10 @@ void tipc_subscr_stop(void)
 	struct subscriber *subscriber_temp;
 	spinlock_t *subscriber_lock;
 
-	if (topsrv.user_ref) {
+	if (topsrv.setup_port) {
 		tipc_deleteport(topsrv.setup_port);
+		topsrv.setup_port = 0;
+
 		list_for_each_entry_safe(subscriber, subscriber_temp,
 					 &topsrv.subscriber_list,
 					 subscriber_list) {
@@ -600,7 +596,5 @@ void tipc_subscr_stop(void)
 			subscr_terminate(subscriber);
 			spin_unlock_bh(subscriber_lock);
 		}
-		tipc_detach(topsrv.user_ref);
-		topsrv.user_ref = 0;
 	}
 }
