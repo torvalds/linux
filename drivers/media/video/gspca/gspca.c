@@ -508,8 +508,8 @@ static int gspca_is_compressed(__u32 format)
 	return 0;
 }
 
-static int frame_alloc(struct gspca_dev *gspca_dev,
-			unsigned int count)
+static int frame_alloc(struct gspca_dev *gspca_dev, struct file *file,
+			enum v4l2_memory memory, unsigned int count)
 {
 	struct gspca_frame *frame;
 	unsigned int frsz;
@@ -519,7 +519,6 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 	frsz = gspca_dev->cam.cam_mode[i].sizeimage;
 	PDEBUG(D_STREAM, "frame alloc frsz: %d", frsz);
 	frsz = PAGE_ALIGN(frsz);
-	gspca_dev->frsz = frsz;
 	if (count >= GSPCA_MAX_FRAMES)
 		count = GSPCA_MAX_FRAMES - 1;
 	gspca_dev->frbuf = vmalloc_32(frsz * count);
@@ -527,6 +526,9 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 		err("frame alloc failed");
 		return -ENOMEM;
 	}
+	gspca_dev->capt_file = file;
+	gspca_dev->memory = memory;
+	gspca_dev->frsz = frsz;
 	gspca_dev->nframes = count;
 	for (i = 0; i < count; i++) {
 		frame = &gspca_dev->frame[i];
@@ -535,7 +537,7 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 		frame->v4l2_buf.flags = 0;
 		frame->v4l2_buf.field = V4L2_FIELD_NONE;
 		frame->v4l2_buf.length = frsz;
-		frame->v4l2_buf.memory = gspca_dev->memory;
+		frame->v4l2_buf.memory = memory;
 		frame->v4l2_buf.sequence = 0;
 		frame->data = gspca_dev->frbuf + i * frsz;
 		frame->v4l2_buf.m.offset = i * frsz;
@@ -558,6 +560,9 @@ static void frame_free(struct gspca_dev *gspca_dev)
 			gspca_dev->frame[i].data = NULL;
 	}
 	gspca_dev->nframes = 0;
+	gspca_dev->frsz = 0;
+	gspca_dev->capt_file = NULL;
+	gspca_dev->memory = GSPCA_MEMORY_NO;
 }
 
 static void destroy_urbs(struct gspca_dev *gspca_dev)
@@ -1250,8 +1255,6 @@ static int dev_close(struct file *file)
 			mutex_unlock(&gspca_dev->usb_lock);
 		}
 		frame_free(gspca_dev);
-		gspca_dev->capt_file = NULL;
-		gspca_dev->memory = GSPCA_MEMORY_NO;
 	}
 	file->private_data = NULL;
 	module_put(gspca_dev->module);
@@ -1524,17 +1527,13 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	}
 
 	/* free the previous allocated buffers, if any */
-	if (gspca_dev->nframes != 0) {
+	if (gspca_dev->nframes != 0)
 		frame_free(gspca_dev);
-		gspca_dev->capt_file = NULL;
-	}
 	if (rb->count == 0)			/* unrequest */
 		goto out;
-	gspca_dev->memory = rb->memory;
-	ret = frame_alloc(gspca_dev, rb->count);
+	ret = frame_alloc(gspca_dev, file, rb->memory, rb->count);
 	if (ret == 0) {
 		rb->count = gspca_dev->nframes;
-		gspca_dev->capt_file = file;
 		if (streaming)
 			ret = gspca_init_transfer(gspca_dev);
 	}
