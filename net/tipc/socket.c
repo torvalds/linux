@@ -1755,20 +1755,16 @@ static int getsockopt(struct socket *sock,
 
 	release_sock(sk);
 
-	if (res) {
-		/* "get" failed */
-	}
-	else if (len < sizeof(value)) {
-		res = -EINVAL;
-	}
-	else if (copy_to_user(ov, &value, sizeof(value))) {
-		res = -EFAULT;
-	}
-	else {
-		res = put_user(sizeof(value), ol);
-	}
+	if (res)
+		return res;	/* "get" failed */
 
-	return res;
+	if (len < sizeof(value))
+		return -EINVAL;
+
+	if (copy_to_user(ov, &value, sizeof(value)))
+		return -EFAULT;
+
+	return put_user(sizeof(value), ol);
 }
 
 /**
