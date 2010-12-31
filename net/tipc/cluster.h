@@ -40,26 +40,21 @@
 #include "addr.h"
 #include "net.h"
 
-#define LOWEST_SLAVE  2048u
-
 /**
  * struct cluster - TIPC cluster structure
  * @addr: network address of cluster
  * @nodes: array of pointers to all nodes within cluster
  * @highest_node: id of highest numbered node within cluster
- * @highest_slave: (used for secondary node support)
  */
 
 struct cluster {
 	u32 addr;
 	struct tipc_node **nodes;
 	u32 highest_node;
-	u32 highest_slave;
 };
 
 
 extern struct tipc_node **tipc_local_nodes;
-extern u32 tipc_highest_allowed_slave;
 extern struct tipc_node_map tipc_cltr_bcast_nodes;
 
 void tipc_cltr_remove_as_router(struct cluster *c_ptr, u32 router);
@@ -70,12 +65,10 @@ void tipc_cltr_recv_routing_table(struct sk_buff *buf);
 struct cluster *tipc_cltr_create(u32 addr);
 void tipc_cltr_delete(struct cluster *c_ptr);
 void tipc_cltr_attach_node(struct cluster *c_ptr, struct tipc_node *n_ptr);
-void tipc_cltr_send_slave_routes(struct cluster *c_ptr, u32 dest);
 void tipc_cltr_broadcast(struct sk_buff *buf);
 int tipc_cltr_init(void);
 
 void tipc_cltr_bcast_new_route(struct cluster *c_ptr, u32 dest, u32 lo, u32 hi);
-void tipc_cltr_send_local_routes(struct cluster *c_ptr, u32 dest);
 void tipc_cltr_bcast_lost_route(struct cluster *c_ptr, u32 dest, u32 lo, u32 hi);
 
 static inline struct cluster *tipc_cltr_find(u32 addr)

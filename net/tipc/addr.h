@@ -57,16 +57,6 @@ static inline int in_own_cluster(u32 addr)
 	return !((addr ^ tipc_own_addr) >> 12);
 }
 
-static inline int is_slave(u32 addr)
-{
-	return addr & 0x800;
-}
-
-static inline int may_route(u32 addr)
-{
-	return(addr ^ tipc_own_addr) >> 11;
-}
-
 /**
  * addr_domain - convert 2-bit scope value to equivalent message lookup domain
  *

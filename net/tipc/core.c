@@ -56,10 +56,6 @@
 #define CONFIG_TIPC_NODES 255
 #endif
 
-#ifndef CONFIG_TIPC_SLAVE_NODES
-#define CONFIG_TIPC_SLAVE_NODES 0
-#endif
-
 #ifndef CONFIG_TIPC_PORTS
 #define CONFIG_TIPC_PORTS 8191
 #endif
@@ -82,7 +78,6 @@ const char tipc_alphabet[] =
 u32 tipc_own_addr;
 int tipc_max_clusters;
 int tipc_max_nodes;
-int tipc_max_slaves;
 int tipc_max_ports;
 int tipc_max_subscriptions;
 int tipc_max_publications;
@@ -206,7 +201,6 @@ static int __init tipc_init(void)
 	tipc_max_ports = CONFIG_TIPC_PORTS;
 	tipc_max_clusters = CONFIG_TIPC_CLUSTERS;
 	tipc_max_nodes = CONFIG_TIPC_NODES;
-	tipc_max_slaves = CONFIG_TIPC_SLAVE_NODES;
 	tipc_net_id = 4711;
 
 	if ((res = tipc_core_start()))

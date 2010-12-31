@@ -1110,10 +1110,7 @@ int tipc_connect2port(u32 ref, struct tipc_portid const *peer)
 	msg_set_origport(msg, p_ptr->publ.ref);
 	msg_set_transp_seqno(msg, 42);
 	msg_set_type(msg, TIPC_CONN_MSG);
-	if (!may_route(peer->node))
-		msg_set_hdr_sz(msg, SHORT_H_SIZE);
-	else
-		msg_set_hdr_sz(msg, LONG_H_SIZE);
+	msg_set_hdr_sz(msg, SHORT_H_SIZE);
 
 	p_ptr->probing_interval = PROBING_INTERVAL;
 	p_ptr->probing_state = CONFIRMED;

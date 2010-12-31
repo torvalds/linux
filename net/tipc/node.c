@@ -333,8 +333,6 @@ static void node_established_contact(struct tipc_node *n_ptr)
 	/* Syncronize broadcast acks */
 	n_ptr->bclink.acked = tipc_bclink_get_last_sent();
 
-	if (is_slave(tipc_own_addr))
-		return;
 	if (!in_own_cluster(n_ptr->addr)) {
 		/* Usage case 1 (see above) */
 		c_ptr = tipc_cltr_find(tipc_own_addr);
@@ -347,13 +345,6 @@ static void node_established_contact(struct tipc_node *n_ptr)
 	}
 
 	c_ptr = n_ptr->owner;
-	if (is_slave(n_ptr->addr)) {
-		/* Usage case 2 (see above) */
-		tipc_cltr_bcast_new_route(c_ptr, n_ptr->addr, 1, tipc_max_nodes);
-		tipc_cltr_send_local_routes(c_ptr, n_ptr->addr);
-		return;
-	}
-
 	if (n_ptr->bclink.supported) {
 		tipc_nmap_add(&tipc_cltr_bcast_nodes, n_ptr->addr);
 		if (n_ptr->addr < tipc_own_addr)
@@ -362,9 +353,6 @@ static void node_established_contact(struct tipc_node *n_ptr)
 
 	/* Case 3 (see above) */
 	tipc_net_send_external_routes(n_ptr->addr);
-	tipc_cltr_send_slave_routes(c_ptr, n_ptr->addr);
-	tipc_cltr_bcast_new_route(c_ptr, n_ptr->addr, LOWEST_SLAVE,
-				  tipc_highest_allowed_slave);
 }
 
 static void node_cleanup_finished(unsigned long node_addr)
@@ -404,33 +392,20 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 	}
 
 	/* Update routing tables */
-	if (is_slave(tipc_own_addr)) {
-		tipc_net_remove_as_router(n_ptr->addr);
+	if (!in_own_cluster(n_ptr->addr)) {
+		/* Case 4 (see above) */
+		c_ptr = tipc_cltr_find(tipc_own_addr);
+		tipc_cltr_bcast_lost_route(c_ptr, n_ptr->addr, 1,
+					   tipc_max_nodes);
 	} else {
-		if (!in_own_cluster(n_ptr->addr)) {
-			/* Case 4 (see above) */
-			c_ptr = tipc_cltr_find(tipc_own_addr);
-			tipc_cltr_bcast_lost_route(c_ptr, n_ptr->addr, 1,
-						   tipc_max_nodes);
-		} else {
-			/* Case 5 (see above) */
-			c_ptr = tipc_cltr_find(n_ptr->addr);
-			if (is_slave(n_ptr->addr)) {
-				tipc_cltr_bcast_lost_route(c_ptr, n_ptr->addr, 1,
-							   tipc_max_nodes);
-			} else {
-				if (n_ptr->bclink.supported) {
-					tipc_nmap_remove(&tipc_cltr_bcast_nodes,
-							 n_ptr->addr);
-					if (n_ptr->addr < tipc_own_addr)
-						tipc_own_tag--;
-				}
-				tipc_net_remove_as_router(n_ptr->addr);
-				tipc_cltr_bcast_lost_route(c_ptr, n_ptr->addr,
-							   LOWEST_SLAVE,
-							   tipc_highest_allowed_slave);
-			}
+		/* Case 5 (see above) */
+		c_ptr = tipc_cltr_find(n_ptr->addr);
+		if (n_ptr->bclink.supported) {
+			tipc_nmap_remove(&tipc_cltr_bcast_nodes, n_ptr->addr);
+			if (n_ptr->addr < tipc_own_addr)
+				tipc_own_tag--;
 		}
+		tipc_net_remove_as_router(n_ptr->addr);
 	}
 	if (tipc_node_has_active_routes(n_ptr))
 		return;
@@ -482,18 +457,13 @@ struct tipc_node *tipc_node_select_next_hop(u32 addr, u32 selector)
 		return n_ptr;
 
 	/* Cluster local system nodes *must* have direct links */
-	if (!is_slave(addr) && in_own_cluster(addr))
+	if (in_own_cluster(addr))
 		return NULL;
 
 	/* Look for cluster local router with direct link to node */
 	router_addr = tipc_node_select_router(n_ptr, selector);
 	if (router_addr)
 		return tipc_node_select(router_addr, selector);
-
-	/* Slave nodes can only be accessed within own cluster via a
-	   known router with direct link -- if no router was found,give up */
-	if (is_slave(addr))
-		return NULL;
 
 	/* Inter zone/cluster -- find any direct link to remote cluster */
 	addr = tipc_addr(tipc_zone(addr), tipc_cluster(addr), 0);
@@ -603,8 +573,7 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 		return tipc_cfg_reply_none();
 	}
 
-	/* For now, get space for all other nodes
-	   (will need to modify this when slave nodes are supported */
+	/* For now, get space for all other nodes */
 
 	payload_size = TLV_SPACE(sizeof(node_info)) * (tipc_max_nodes - 1);
 	if (payload_size > 32768u) {

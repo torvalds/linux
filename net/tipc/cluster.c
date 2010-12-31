@@ -43,7 +43,6 @@ static void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf,
 
 struct tipc_node **tipc_local_nodes = NULL;
 struct tipc_node_map tipc_cltr_bcast_nodes = {0,{0,}};
-u32 tipc_highest_allowed_slave = 0;
 
 struct cluster *tipc_cltr_create(u32 addr)
 {
@@ -57,10 +56,7 @@ struct cluster *tipc_cltr_create(u32 addr)
 	}
 
 	c_ptr->addr = tipc_addr(tipc_zone(addr), tipc_cluster(addr), 0);
-	if (in_own_cluster(addr))
-		max_nodes = LOWEST_SLAVE + tipc_max_slaves;
-	else
-		max_nodes = tipc_max_nodes + 1;
+	max_nodes = tipc_max_nodes + 1;
 
 	c_ptr->nodes = kcalloc(max_nodes + 1, sizeof(void*), GFP_ATOMIC);
 	if (c_ptr->nodes == NULL) {
@@ -71,7 +67,6 @@ struct cluster *tipc_cltr_create(u32 addr)
 
 	if (in_own_cluster(addr))
 		tipc_local_nodes = c_ptr->nodes;
-	c_ptr->highest_slave = LOWEST_SLAVE - 1;
 	c_ptr->highest_node = 0;
 
 	tipc_net.clusters[1] = c_ptr;
@@ -87,9 +82,6 @@ void tipc_cltr_delete(struct cluster *c_ptr)
 	for (n_num = 1; n_num <= c_ptr->highest_node; n_num++) {
 		tipc_node_delete(c_ptr->nodes[n_num]);
 	}
-	for (n_num = LOWEST_SLAVE; n_num <= c_ptr->highest_slave; n_num++) {
-		tipc_node_delete(c_ptr->nodes[n_num]);
-	}
 	kfree(c_ptr->nodes);
 	kfree(c_ptr);
 }
@@ -100,8 +92,6 @@ void tipc_cltr_attach_node(struct cluster *c_ptr, struct tipc_node *n_ptr)
 	u32 n_num = tipc_node(n_ptr->addr);
 	u32 max_n_num = tipc_max_nodes;
 
-	if (in_own_cluster(n_ptr->addr))
-		max_n_num = tipc_highest_allowed_slave;
 	assert(n_num > 0);
 	assert(n_num <= max_n_num);
 	assert(c_ptr->nodes[n_num] == NULL);
@@ -237,41 +227,6 @@ void tipc_cltr_bcast_lost_route(struct cluster *c_ptr, u32 dest,
 	}
 }
 
-void tipc_cltr_send_slave_routes(struct cluster *c_ptr, u32 dest)
-{
-	struct sk_buff *buf;
-	struct tipc_msg *msg;
-	u32 highest = c_ptr->highest_slave;
-	u32 n_num;
-	int send = 0;
-
-	assert(!is_slave(dest));
-	assert(in_own_cluster(dest));
-	assert(in_own_cluster(c_ptr->addr));
-	if (highest <= LOWEST_SLAVE)
-		return;
-	buf = tipc_cltr_prepare_routing_msg(highest - LOWEST_SLAVE + 1,
-					    c_ptr->addr);
-	if (buf) {
-		msg = buf_msg(buf);
-		msg_set_remote_node(msg, c_ptr->addr);
-		msg_set_type(msg, SLAVE_ROUTING_TABLE);
-		for (n_num = LOWEST_SLAVE; n_num <= highest; n_num++) {
-			if (c_ptr->nodes[n_num] &&
-			    tipc_node_has_active_links(c_ptr->nodes[n_num])) {
-				send = 1;
-				msg_set_dataoctet(msg, n_num);
-			}
-		}
-		if (send)
-			tipc_link_send(buf, dest, dest);
-		else
-			buf_discard(buf);
-	} else {
-		warn("Memory squeeze: broadcast of lost route failed\n");
-	}
-}
-
 void tipc_cltr_send_ext_routes(struct cluster *c_ptr, u32 dest)
 {
 	struct sk_buff *buf;
@@ -282,7 +237,6 @@ void tipc_cltr_send_ext_routes(struct cluster *c_ptr, u32 dest)
 
 	if (in_own_cluster(c_ptr->addr))
 		return;
-	assert(!is_slave(dest));
 	assert(in_own_cluster(dest));
 	highest = c_ptr->highest_node;
 	buf = tipc_cltr_prepare_routing_msg(highest + 1, c_ptr->addr);
@@ -303,37 +257,6 @@ void tipc_cltr_send_ext_routes(struct cluster *c_ptr, u32 dest)
 			buf_discard(buf);
 	} else {
 		warn("Memory squeeze: broadcast of external route failed\n");
-	}
-}
-
-void tipc_cltr_send_local_routes(struct cluster *c_ptr, u32 dest)
-{
-	struct sk_buff *buf;
-	struct tipc_msg *msg;
-	u32 highest = c_ptr->highest_node;
-	u32 n_num;
-	int send = 0;
-
-	assert(is_slave(dest));
-	assert(in_own_cluster(c_ptr->addr));
-	buf = tipc_cltr_prepare_routing_msg(highest, c_ptr->addr);
-	if (buf) {
-		msg = buf_msg(buf);
-		msg_set_remote_node(msg, c_ptr->addr);
-		msg_set_type(msg, LOCAL_ROUTING_TABLE);
-		for (n_num = 1; n_num <= highest; n_num++) {
-			if (c_ptr->nodes[n_num] &&
-			    tipc_node_has_active_links(c_ptr->nodes[n_num])) {
-				send = 1;
-				msg_set_dataoctet(msg, n_num);
-			}
-		}
-		if (send)
-			tipc_link_send(buf, dest, dest);
-		else
-			buf_discard(buf);
-	} else {
-		warn("Memory squeeze: broadcast of local route failed\n");
 	}
 }
 
@@ -366,8 +289,6 @@ void tipc_cltr_recv_routing_table(struct sk_buff *buf)
 	c_num = tipc_cluster(rem_node);
 
 	switch (msg_type(msg)) {
-	case LOCAL_ROUTING_TABLE:
-		assert(is_slave(tipc_own_addr));
 	case EXT_ROUTING_TABLE:
 		for (n_num = 1; n_num < table_size; n_num++) {
 			if (node_table[n_num]) {
@@ -382,29 +303,10 @@ void tipc_cltr_recv_routing_table(struct sk_buff *buf)
 		}
 		break;
 	case SLAVE_ROUTING_TABLE:
-		assert(!is_slave(tipc_own_addr));
 		assert(in_own_cluster(c_ptr->addr));
-		for (n_num = 1; n_num < table_size; n_num++) {
-			if (node_table[n_num]) {
-				u32 slave_num = n_num + LOWEST_SLAVE;
-				u32 addr = tipc_addr(z_num, c_num, slave_num);
-				n_ptr = c_ptr->nodes[slave_num];
-				if (!n_ptr) {
-					n_ptr = tipc_node_create(addr);
-				}
-				if (n_ptr)
-					tipc_node_add_router(n_ptr, router);
-			}
-		}
 		break;
 	case ROUTE_ADDITION:
-		if (!is_slave(tipc_own_addr)) {
-			assert(!in_own_cluster(c_ptr->addr) ||
-			       is_slave(rem_node));
-		} else {
-			assert(in_own_cluster(c_ptr->addr) &&
-			       !is_slave(rem_node));
-		}
+		assert(!in_own_cluster(c_ptr->addr));
 		n_ptr = c_ptr->nodes[tipc_node(rem_node)];
 		if (!n_ptr)
 			n_ptr = tipc_node_create(rem_node);
@@ -412,13 +314,7 @@ void tipc_cltr_recv_routing_table(struct sk_buff *buf)
 			tipc_node_add_router(n_ptr, router);
 		break;
 	case ROUTE_REMOVAL:
-		if (!is_slave(tipc_own_addr)) {
-			assert(!in_own_cluster(c_ptr->addr) ||
-			       is_slave(rem_node));
-		} else {
-			assert(in_own_cluster(c_ptr->addr) &&
-			       !is_slave(rem_node));
-		}
+		assert(!in_own_cluster(c_ptr->addr));
 		n_ptr = c_ptr->nodes[tipc_node(rem_node)];
 		if (n_ptr)
 			tipc_node_remove_router(n_ptr, router);
@@ -431,22 +327,12 @@ void tipc_cltr_recv_routing_table(struct sk_buff *buf)
 
 void tipc_cltr_remove_as_router(struct cluster *c_ptr, u32 router)
 {
-	u32 start_entry;
-	u32 tstop;
 	u32 n_num;
 
-	if (is_slave(router))
-		return;	/* Slave nodes can not be routers */
+	if (in_own_cluster(c_ptr->addr))
+		return;
 
-	if (in_own_cluster(c_ptr->addr)) {
-		start_entry = LOWEST_SLAVE;
-		tstop = c_ptr->highest_slave;
-	} else {
-		start_entry = 1;
-		tstop = c_ptr->highest_node;
-	}
-
-	for (n_num = start_entry; n_num <= tstop; n_num++) {
+	for (n_num = 1; n_num <= c_ptr->highest_node; n_num++) {
 		if (c_ptr->nodes[n_num]) {
 			tipc_node_remove_router(c_ptr->nodes[n_num], router);
 		}
@@ -466,13 +352,11 @@ static void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf,
 	u32 tstop;
 
 	assert(lower <= upper);
-	assert(((lower >= 1) && (lower <= tipc_max_nodes)) ||
-	       ((lower >= LOWEST_SLAVE) && (lower <= tipc_highest_allowed_slave)));
-	assert(((upper >= 1) && (upper <= tipc_max_nodes)) ||
-	       ((upper >= LOWEST_SLAVE) && (upper <= tipc_highest_allowed_slave)));
+	assert((lower >= 1) && (lower <= tipc_max_nodes));
+	assert((upper >= 1) && (upper <= tipc_max_nodes));
 	assert(in_own_cluster(c_ptr->addr));
 
-	tstop = is_slave(upper) ? c_ptr->highest_slave : c_ptr->highest_node;
+	tstop = c_ptr->highest_node;
 	if (tstop > upper)
 		tstop = upper;
 	for (n_num = lower; n_num <= tstop; n_num++) {
@@ -498,32 +382,23 @@ void tipc_cltr_broadcast(struct sk_buff *buf)
 	struct cluster *c_ptr;
 	struct tipc_node *n_ptr;
 	u32 n_num;
-	u32 tstart;
-	u32 tstop;
-	u32 node_type;
 
 	if (tipc_mode == TIPC_NET_MODE) {
 		c_ptr = tipc_cltr_find(tipc_own_addr);
 		assert(in_own_cluster(c_ptr->addr));	/* For now */
 
-		/* Send to standard nodes, then repeat loop sending to slaves */
-		tstart = 1;
-		tstop = c_ptr->highest_node;
-		for (node_type = 1; node_type <= 2; node_type++) {
-			for (n_num = tstart; n_num <= tstop; n_num++) {
-				n_ptr = c_ptr->nodes[n_num];
-				if (n_ptr && tipc_node_has_active_links(n_ptr)) {
-					buf_copy = skb_copy(buf, GFP_ATOMIC);
-					if (buf_copy == NULL)
-						goto exit;
-					msg_set_destnode(buf_msg(buf_copy),
-							 n_ptr->addr);
-					tipc_link_send(buf_copy, n_ptr->addr,
-						       n_ptr->addr);
-				}
+		/* Send to nodes */
+		for (n_num = 1; n_num <= c_ptr->highest_node; n_num++) {
+			n_ptr = c_ptr->nodes[n_num];
+			if (n_ptr && tipc_node_has_active_links(n_ptr)) {
+				buf_copy = skb_copy(buf, GFP_ATOMIC);
+				if (buf_copy == NULL)
+					goto exit;
+				msg_set_destnode(buf_msg(buf_copy),
+						 n_ptr->addr);
+				tipc_link_send(buf_copy, n_ptr->addr,
+					       n_ptr->addr);
 			}
-			tstart = LOWEST_SLAVE;
-			tstop = c_ptr->highest_slave;
 		}
 	}
 exit:
@@ -532,7 +407,6 @@ exit:
 
 int tipc_cltr_init(void)
 {
-	tipc_highest_allowed_slave = LOWEST_SLAVE + tipc_max_slaves;
 	return tipc_cltr_create(tipc_own_addr) ? 0 : -ENOMEM;
 }
 

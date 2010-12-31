@@ -149,10 +149,6 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 	}
 	if (!tipc_in_scope(dest, tipc_own_addr))
 		return;
-	if (is_slave(tipc_own_addr) && is_slave(orig))
-		return;
-	if (is_slave(orig) && !in_own_cluster(orig))
-		return;
 	if (in_own_cluster(orig)) {
 		/* Always accept link here */
 		struct sk_buff *rbuf;
