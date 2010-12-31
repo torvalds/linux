@@ -824,24 +824,14 @@ config FB_N411
 config FB_HGA
 	tristate "Hercules mono graphics support"
 	depends on FB && X86
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
 	help
 	  Say Y here if you have a Hercules mono graphics card.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hgafb.
 
-	  As this card technology is 15 years old, most people will answer N
-	  here.
-
-config FB_HGA_ACCEL
-	bool "Hercules mono Acceleration functions (EXPERIMENTAL)"
-	depends on FB_HGA && EXPERIMENTAL
-	---help---
-	This will compile the Hercules mono graphics with
-	acceleration functions.
+	  As this card technology is at least 25 years old,
+	  most people will answer N here.
 
 config FB_SGIVW
 	tristate "SGI Visual Workstation framebuffer support"
