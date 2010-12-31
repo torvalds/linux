@@ -195,7 +195,6 @@ struct ath_rc_stats {
  * @rate_max_phy: phy index for the max rate
  * @per: PER for every valid rate in %
  * @probe_interval: interval for ratectrl to probe for other rates
- * @prev_data_rix: rate idx of last data frame
  * @ht_cap: HT capabilities
  * @neg_rates: Negotatied rates
  * @neg_ht_rates: Negotiated HT rates
@@ -214,10 +213,8 @@ struct ath_rate_priv {
 	u32 probe_time;
 	u32 per_down_time;
 	u32 probe_interval;
-	u32 prev_data_rix;
 	struct ath_rateset neg_rates;
 	struct ath_rateset neg_ht_rates;
-	struct ath_rate_softc *asc;
 	const struct ath_rate_table *rate_table;
 
 	struct dentry *debugfs_rcstats;
