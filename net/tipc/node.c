@@ -62,9 +62,9 @@ u32 tipc_own_tag = 0;
 
 struct tipc_node *tipc_node_create(u32 addr)
 {
-	struct cluster *c_ptr;
 	struct tipc_node *n_ptr;
 	struct tipc_node **curr_node;
+	u32 n_num;
 
 	spin_lock_bh(&node_create_lock);
 
@@ -84,21 +84,14 @@ struct tipc_node *tipc_node_create(u32 addr)
 		return NULL;
 	}
 
-	c_ptr = tipc_cltr_find(addr);
-	if (!c_ptr) {
-		c_ptr = tipc_cltr_create(addr);
-	}
-	if (!c_ptr) {
-		spin_unlock_bh(&node_create_lock);
-		kfree(n_ptr);
-		return NULL;
-	}
-
 	n_ptr->addr = addr;
 	spin_lock_init(&n_ptr->lock);
 	INIT_LIST_HEAD(&n_ptr->nsub);
-	n_ptr->owner = c_ptr;
-	tipc_cltr_attach_node(c_ptr, n_ptr);
+
+	n_num = tipc_node(addr);
+	tipc_net.nodes[n_num] = n_ptr;
+	if (n_num > tipc_net.highest_node)
+		tipc_net.highest_node = n_num;
 
 	/* Insert node into ordered list */
 	for (curr_node = &tipc_nodes; *curr_node;
@@ -115,11 +108,19 @@ struct tipc_node *tipc_node_create(u32 addr)
 
 void tipc_node_delete(struct tipc_node *n_ptr)
 {
+	u32 n_num;
+
 	if (!n_ptr)
 		return;
 
 	dbg("node %x deleted\n", n_ptr->addr);
+	n_num = tipc_node(n_ptr->addr);
+	tipc_net.nodes[n_num] = NULL;
 	kfree(n_ptr);
+
+	while (!tipc_net.nodes[tipc_net.highest_node])
+		if (--tipc_net.highest_node == 0)
+			break;
 }
 
 
@@ -324,7 +325,7 @@ static void node_established_contact(struct tipc_node *n_ptr)
 	n_ptr->bclink.acked = tipc_bclink_get_last_sent();
 
 	if (n_ptr->bclink.supported) {
-		tipc_nmap_add(&tipc_cltr_bcast_nodes, n_ptr->addr);
+		tipc_nmap_add(&tipc_bcast_nmap, n_ptr->addr);
 		if (n_ptr->addr < tipc_own_addr)
 			tipc_own_tag++;
 	}
@@ -361,13 +362,11 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		buf_discard(n_ptr->bclink.defragm);
 		n_ptr->bclink.defragm = NULL;
 	}
-	if (in_own_cluster(n_ptr->addr) && n_ptr->bclink.supported) {
-		tipc_bclink_acknowledge(n_ptr, mod(n_ptr->bclink.acked + 10000));
-	}
 
-	/* Update routing tables */
 	if (n_ptr->bclink.supported) {
-		tipc_nmap_remove(&tipc_cltr_bcast_nodes, n_ptr->addr);
+		tipc_bclink_acknowledge(n_ptr,
+					mod(n_ptr->bclink.acked + 10000));
+		tipc_nmap_remove(&tipc_bcast_nmap, n_ptr->addr);
 		if (n_ptr->addr < tipc_own_addr)
 			tipc_own_tag--;
 	}

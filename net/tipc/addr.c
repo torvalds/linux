@@ -35,7 +35,8 @@
  */
 
 #include "core.h"
-#include "cluster.h"
+#include "node.h"
+#include "addr.h"
 
 /**
  * tipc_addr_domain_valid - validates a network domain address
@@ -54,8 +55,6 @@ int tipc_addr_domain_valid(u32 addr)
 	u32 max_nodes = tipc_max_nodes;
 
 	if (n > max_nodes)
-		return 0;
-	if (c > tipc_max_clusters)
 		return 0;
 
 	if (n && (!z || !c))

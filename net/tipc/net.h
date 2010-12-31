@@ -37,16 +37,18 @@
 #ifndef _TIPC_NET_H
 #define _TIPC_NET_H
 
-struct cluster;
+struct tipc_node;
 
 /**
  * struct network - TIPC network structure
- * @clusters: array of pointers to all clusters within zone
+ * @nodes: array of pointers to all nodes within cluster
+ * @highest_node: id of highest numbered node within cluster
  * @links: number of (unicast) links to cluster
  */
 
 struct network {
-	struct cluster *clusters[2]; /* currently limited to just 1 cluster */
+	struct tipc_node **nodes;
+	u32 highest_node;
 	u32 links;
 };
 

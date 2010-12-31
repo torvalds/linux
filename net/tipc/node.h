@@ -38,14 +38,14 @@
 #define _TIPC_NODE_H
 
 #include "node_subscr.h"
-#include "cluster.h"
+#include "addr.h"
+#include "net.h"
 #include "bearer.h"
 
 /**
  * struct tipc_node - TIPC node structure
  * @addr: network address of node
  * @lock: spinlock governing access to structure
- * @owner: pointer to cluster that node belongs to
  * @next: pointer to next node in sorted list of cluster's nodes
  * @nsub: list of "node down" subscriptions monitoring node
  * @active_links: pointers to active links to node
@@ -69,7 +69,6 @@
 struct tipc_node {
 	u32 addr;
 	spinlock_t lock;
-	struct cluster *owner;
 	struct tipc_node *next;
 	struct list_head nsub;
 	struct link *active_links[2];
@@ -108,7 +107,7 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 static inline struct tipc_node *tipc_node_find(u32 addr)
 {
 	if (likely(in_own_cluster(addr)))
-		return tipc_local_nodes[tipc_node(addr)];
+		return tipc_net.nodes[tipc_node(addr)];
 	return NULL;
 }
 

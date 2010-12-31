@@ -35,7 +35,7 @@
  */
 
 #include "core.h"
-#include "cluster.h"
+#include "addr.h"
 #include "link.h"
 #include "name_distr.h"
 
@@ -107,6 +107,26 @@ static struct sk_buff *named_prepare_buf(u32 type, u32 size, u32 dest)
 	return buf;
 }
 
+static void named_cluster_distribute(struct sk_buff *buf)
+{
+	struct sk_buff *buf_copy;
+	struct tipc_node *n_ptr;
+	u32 n_num;
+
+	for (n_num = 1; n_num <= tipc_net.highest_node; n_num++) {
+		n_ptr = tipc_net.nodes[n_num];
+		if (n_ptr && tipc_node_has_active_links(n_ptr)) {
+			buf_copy = skb_copy(buf, GFP_ATOMIC);
+			if (!buf_copy)
+				break;
+			msg_set_destnode(buf_msg(buf_copy), n_ptr->addr);
+			tipc_link_send(buf_copy, n_ptr->addr, n_ptr->addr);
+		}
+	}
+
+	buf_discard(buf);
+}
+
 /**
  * tipc_named_publish - tell other nodes about a new publication by this node
  */
@@ -127,8 +147,8 @@ void tipc_named_publish(struct publication *publ)
 
 	item = (struct distr_item *)msg_data(buf_msg(buf));
 	publ_to_item(item, publ);
-	dbg("tipc_named_withdraw: broadcasting publish msg\n");
-	tipc_cltr_broadcast(buf);
+	dbg("tipc_named_publish: broadcasting publish msg\n");
+	named_cluster_distribute(buf);
 }
 
 /**
@@ -152,7 +172,7 @@ void tipc_named_withdraw(struct publication *publ)
 	item = (struct distr_item *)msg_data(buf_msg(buf));
 	publ_to_item(item, publ);
 	dbg("tipc_named_withdraw: broadcasting withdraw msg\n");
-	tipc_cltr_broadcast(buf);
+	named_cluster_distribute(buf);
 }
 
 /**

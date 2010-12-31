@@ -184,7 +184,6 @@ void tipc_dump_dbg(struct print_buf *, const char *fmt, ...);
  */
 
 extern u32 tipc_own_addr;
-extern int tipc_max_clusters;
 extern int tipc_max_nodes;
 extern int tipc_max_ports;
 extern int tipc_max_subscriptions;

@@ -29,16 +29,6 @@ config TIPC_ADVANCED
 	  Saying Y here will open some advanced configuration for TIPC.
 	  Most users do not need to bother; if unsure, just say N.
 
-config TIPC_CLUSTERS
-	int "Maximum number of clusters in a zone"
-	depends on TIPC_ADVANCED
-	range 1 1
-	default "1"
-	help
-	  Specifies how many clusters can be supported in a TIPC zone.
-
-	  *** Currently TIPC only supports a single cluster per zone. ***
-
 config TIPC_NODES
 	int "Maximum number of nodes in a cluster"
 	depends on TIPC_ADVANCED
