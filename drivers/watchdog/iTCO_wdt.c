@@ -1,7 +1,7 @@
 /*
  *	intel TCO Watchdog Driver
  *
- *	(c) Copyright 2006-2009 Wim Van Sebroeck <wim@iguana.be>.
+ *	(c) Copyright 2006-2010 Wim Van Sebroeck <wim@iguana.be>.
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -26,6 +26,7 @@
  *	document number 301473-002, 301474-026: 82801F (ICH6)
  *	document number 313082-001, 313075-006: 631xESB, 632xESB
  *	document number 307013-003, 307014-024: 82801G (ICH7)
+ *	document number 322896-001, 322897-001: NM10
  *	document number 313056-003, 313057-017: 82801H (ICH8)
  *	document number 316972-004, 316973-012: 82801I (ICH9)
  *	document number 319973-002, 319974-002: 82801J (ICH10)
@@ -85,6 +86,7 @@ enum iTCO_chipsets {
 	TCO_ICH7DH,	/* ICH7DH */
 	TCO_ICH7M,	/* ICH7-M & ICH7-U */
 	TCO_ICH7MDH,	/* ICH7-M DH */
+	TCO_NM10,	/* NM10 */
 	TCO_ICH8,	/* ICH8 & ICH8R */
 	TCO_ICH8DH,	/* ICH8DH */
 	TCO_ICH8DO,	/* ICH8DO */
@@ -174,6 +176,7 @@ static struct {
 	{"ICH7DH", 2},
 	{"ICH7-M or ICH7-U", 2},
 	{"ICH7-M DH", 2},
+	{"NM10", 2},
 	{"ICH8 or ICH8R", 2},
 	{"ICH8DH", 2},
 	{"ICH8DO", 2},
@@ -291,6 +294,7 @@ static struct pci_device_id iTCO_wdt_pci_tbl[] = {
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH7_30,		TCO_ICH7DH)},
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH7_1,		TCO_ICH7M)},
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH7_31,		TCO_ICH7MDH)},
+	{ ITCO_PCI_DEVICE(0x27bc,				TCO_NM10)},
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_0,		TCO_ICH8)},
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_2,		TCO_ICH8DH)},
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_3,		TCO_ICH8DO)},
