@@ -3785,7 +3785,7 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 	dma_addr_t paddr;
 
 	io_task->cmd_bhs = pci_pool_alloc(beiscsi_sess->bhs_pool,
-					  GFP_KERNEL, &paddr);
+					  GFP_ATOMIC, &paddr);
 	if (!io_task->cmd_bhs)
 		return -ENOMEM;
 	io_task->bhs_pa.u.a64.address = paddr;
