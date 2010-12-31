@@ -26,6 +26,7 @@
 #include <plat/devs.h>
 #include <plat/sdhci.h>
 #include <plat/iic.h>
+#include <plat/pd.h>
 
 #include <mach/map.h>
 
@@ -146,16 +147,23 @@ static struct i2c_board_info i2c_devs1[] __initdata = {
 };
 
 static struct platform_device *smdkc210_devices[] __initdata = {
-	&s3c_device_i2c1,
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc3,
+	&s3c_device_i2c1,
 	&s3c_device_rtc,
 	&s3c_device_wdt,
-	&smdkc210_smsc911x,
 	&s5pv310_device_ac97,
 	&s5pv310_device_i2s0,
+	&s5pv310_device_pd[PD_MFC],
+	&s5pv310_device_pd[PD_G3D],
+	&s5pv310_device_pd[PD_LCD0],
+	&s5pv310_device_pd[PD_LCD1],
+	&s5pv310_device_pd[PD_CAM],
+	&s5pv310_device_pd[PD_TV],
+	&s5pv310_device_pd[PD_GPS],
+	&smdkc210_smsc911x,
 };
 
 static void __init smdkc210_smsc911x_init(void)

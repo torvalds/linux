@@ -15,6 +15,11 @@ config CPU_S5PV310
 	help
 	  Enable S5PV310 CPU support
 
+config S5PV310_DEV_PD
+	bool
+	help
+	  Compile in platform device definitions for Power Domain
+
 config S5PV310_SETUP_I2C1
 	bool
 	help
@@ -75,6 +80,7 @@ config MACH_SMDKC210
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
+	select S5PV310_DEV_PD
 	select S5PV310_SETUP_I2C1
 	select S5PV310_SETUP_SDHCI
 	help
@@ -85,6 +91,10 @@ config MACH_UNIVERSAL_C210
 	bool "Mobile UNIVERSAL_C210 Board"
 	select CPU_S5PV310
 	select S5P_DEV_ONENAND
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S5PV310_SETUP_SDHCI
 	select S3C_DEV_I2C1
 	select S5PV310_SETUP_I2C1
 	help
@@ -105,6 +115,7 @@ config MACH_SMDKV310
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
+	select S5PV310_DEV_PD
 	select S5PV310_SETUP_I2C1
 	select S5PV310_SETUP_SDHCI
 	help
