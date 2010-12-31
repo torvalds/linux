@@ -1497,6 +1497,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		return -ERESTARTSYS;
 
 	if (gspca_dev->memory != GSPCA_MEMORY_NO
+	    && gspca_dev->memory != GSPCA_MEMORY_READ
 	    && gspca_dev->memory != rb->memory) {
 		ret = -EBUSY;
 		goto out;
@@ -1525,6 +1526,9 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		gspca_stream_off(gspca_dev);
 		mutex_unlock(&gspca_dev->usb_lock);
 	}
+	/* Don't restart the stream when switching from read to mmap mode */
+	if (gspca_dev->memory == GSPCA_MEMORY_READ)
+		streaming = 0;
 
 	/* free the previous allocated buffers, if any */
 	if (gspca_dev->nframes != 0)
