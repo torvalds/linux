@@ -1061,7 +1061,7 @@ int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector)
 	int res = -ELINKCONG;
 
 	read_lock_bh(&tipc_net_lock);
-	n_ptr = tipc_node_select(dest, selector);
+	n_ptr = tipc_node_find(dest);
 	if (n_ptr) {
 		tipc_node_lock(n_ptr);
 		l_ptr = n_ptr->active_links[selector & 1];
@@ -1137,7 +1137,7 @@ int tipc_send_buf_fast(struct sk_buff *buf, u32 destnode)
 		return tipc_port_recv_msg(buf);
 
 	read_lock_bh(&tipc_net_lock);
-	n_ptr = tipc_node_select(destnode, selector);
+	n_ptr = tipc_node_find(destnode);
 	if (likely(n_ptr)) {
 		tipc_node_lock(n_ptr);
 		l_ptr = n_ptr->active_links[selector];
@@ -1186,7 +1186,7 @@ again:
 			!sender->user_port, &buf);
 
 	read_lock_bh(&tipc_net_lock);
-	node = tipc_node_select(destaddr, selector);
+	node = tipc_node_find(destaddr);
 	if (likely(node)) {
 		tipc_node_lock(node);
 		l_ptr = node->active_links[selector];
@@ -1376,7 +1376,7 @@ error:
 	 * Now we have a buffer chain. Select a link and check
 	 * that packet size is still OK
 	 */
-	node = tipc_node_select(destaddr, sender->publ.ref & 1);
+	node = tipc_node_find(destaddr);
 	if (likely(node)) {
 		tipc_node_lock(node);
 		l_ptr = node->active_links[sender->publ.ref & 1];
@@ -1893,7 +1893,7 @@ deliver:
 						continue;
 					case ROUTE_DISTRIBUTOR:
 						tipc_node_unlock(n_ptr);
-						tipc_cltr_recv_routing_table(buf);
+						buf_discard(buf);
 						continue;
 					case NAME_DISTRIBUTOR:
 						tipc_node_unlock(n_ptr);
@@ -2852,7 +2852,6 @@ void tipc_link_set_queue_limits(struct link *l_ptr, u32 window)
 	l_ptr->queue_limit[TIPC_HIGH_IMPORTANCE + 4] = 900;
 	l_ptr->queue_limit[TIPC_CRITICAL_IMPORTANCE + 4] = 1200;
 	l_ptr->queue_limit[CONN_MANAGER] = 1200;
-	l_ptr->queue_limit[ROUTE_DISTRIBUTOR] = 1200;
 	l_ptr->queue_limit[CHANGEOVER_PROTOCOL] = 2500;
 	l_ptr->queue_limit[NAME_DISTRIBUTOR] = 3000;
 	/* FRAGMENT and LAST_FRAGMENT packets */
@@ -3154,7 +3153,7 @@ u32 tipc_link_get_max_pkt(u32 dest, u32 selector)
 		return MAX_MSG_SIZE;
 
 	read_lock_bh(&tipc_net_lock);
-	n_ptr = tipc_node_select(dest, selector);
+	n_ptr = tipc_node_find(dest);
 	if (n_ptr) {
 		tipc_node_lock(n_ptr);
 		l_ptr = n_ptr->active_links[selector & 1];

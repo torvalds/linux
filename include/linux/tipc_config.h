@@ -254,11 +254,6 @@ struct tipc_link_create {
 	struct tipc_media_addr peer_addr;
 	char bearer_name[TIPC_MAX_BEARER_NAME];
 };
-
-struct tipc_route_info {
-	__u32 dest;
-	__u32 router;
-};
 #endif
 
 /*

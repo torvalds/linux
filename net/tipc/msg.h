@@ -540,7 +540,7 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 #define  MSG_BUNDLER          6
 #define  LINK_PROTOCOL        7
 #define  CONN_MANAGER         8
-#define  ROUTE_DISTRIBUTOR    9
+#define  ROUTE_DISTRIBUTOR    9		/* obsoleted */
 #define  CHANGEOVER_PROTOCOL  10
 #define  NAME_DISTRIBUTOR     11
 #define  MSG_FRAGMENTER       12
@@ -817,11 +817,6 @@ static inline u32 msg_remote_node(struct tipc_msg *m)
 static inline void msg_set_remote_node(struct tipc_msg *m, u32 a)
 {
 	msg_set_word(m, msg_hdr_sz(m)/4, a);
-}
-
-static inline void msg_set_dataoctet(struct tipc_msg *m, u32 pos)
-{
-	msg_data(m)[pos + 4] = 1;
 }
 
 /*

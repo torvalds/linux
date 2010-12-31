@@ -95,11 +95,10 @@ struct tipc_node *tipc_node_create(u32 addr)
 	}
 
 	n_ptr->addr = addr;
-		spin_lock_init(&n_ptr->lock);
+	spin_lock_init(&n_ptr->lock);
 	INIT_LIST_HEAD(&n_ptr->nsub);
 	n_ptr->owner = c_ptr;
 	tipc_cltr_attach_node(c_ptr, n_ptr);
-	n_ptr->last_router = -1;
 
 	/* Insert node into ordered list */
 	for (curr_node = &tipc_nodes; *curr_node;
@@ -229,14 +228,9 @@ int tipc_node_has_redundant_links(struct tipc_node *n_ptr)
 	return n_ptr->working_links > 1;
 }
 
-static int tipc_node_has_active_routes(struct tipc_node *n_ptr)
-{
-	return n_ptr && (n_ptr->last_router >= 0);
-}
-
 int tipc_node_is_up(struct tipc_node *n_ptr)
 {
-	return tipc_node_has_active_links(n_ptr) || tipc_node_has_active_routes(n_ptr);
+	return tipc_node_has_active_links(n_ptr);
 }
 
 struct tipc_node *tipc_node_attach_link(struct link *l_ptr)
@@ -323,36 +317,17 @@ void tipc_node_detach_link(struct tipc_node *n_ptr, struct link *l_ptr)
 
 static void node_established_contact(struct tipc_node *n_ptr)
 {
-	struct cluster *c_ptr;
-
 	dbg("node_established_contact:-> %x\n", n_ptr->addr);
-	if (!tipc_node_has_active_routes(n_ptr) && in_own_cluster(n_ptr->addr)) {
-		tipc_k_signal((Handler)tipc_named_node_up, n_ptr->addr);
-	}
+	tipc_k_signal((Handler)tipc_named_node_up, n_ptr->addr);
 
 	/* Syncronize broadcast acks */
 	n_ptr->bclink.acked = tipc_bclink_get_last_sent();
 
-	if (!in_own_cluster(n_ptr->addr)) {
-		/* Usage case 1 (see above) */
-		c_ptr = tipc_cltr_find(tipc_own_addr);
-		if (!c_ptr)
-			c_ptr = tipc_cltr_create(tipc_own_addr);
-		if (c_ptr)
-			tipc_cltr_bcast_new_route(c_ptr, n_ptr->addr, 1,
-						  tipc_max_nodes);
-		return;
-	}
-
-	c_ptr = n_ptr->owner;
 	if (n_ptr->bclink.supported) {
 		tipc_nmap_add(&tipc_cltr_bcast_nodes, n_ptr->addr);
 		if (n_ptr->addr < tipc_own_addr)
 			tipc_own_tag++;
 	}
-
-	/* Case 3 (see above) */
-	tipc_net_send_external_routes(n_ptr->addr);
 }
 
 static void node_cleanup_finished(unsigned long node_addr)
@@ -371,7 +346,6 @@ static void node_cleanup_finished(unsigned long node_addr)
 
 static void node_lost_contact(struct tipc_node *n_ptr)
 {
-	struct cluster *c_ptr;
 	struct tipc_node_subscr *ns, *tns;
 	char addr_string[16];
 	u32 i;
@@ -392,23 +366,11 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 	}
 
 	/* Update routing tables */
-	if (!in_own_cluster(n_ptr->addr)) {
-		/* Case 4 (see above) */
-		c_ptr = tipc_cltr_find(tipc_own_addr);
-		tipc_cltr_bcast_lost_route(c_ptr, n_ptr->addr, 1,
-					   tipc_max_nodes);
-	} else {
-		/* Case 5 (see above) */
-		c_ptr = tipc_cltr_find(n_ptr->addr);
-		if (n_ptr->bclink.supported) {
-			tipc_nmap_remove(&tipc_cltr_bcast_nodes, n_ptr->addr);
-			if (n_ptr->addr < tipc_own_addr)
-				tipc_own_tag--;
-		}
-		tipc_net_remove_as_router(n_ptr->addr);
+	if (n_ptr->bclink.supported) {
+		tipc_nmap_remove(&tipc_cltr_bcast_nodes, n_ptr->addr);
+		if (n_ptr->addr < tipc_own_addr)
+			tipc_own_tag--;
 	}
-	if (tipc_node_has_active_routes(n_ptr))
-		return;
 
 	info("Lost contact with %s\n",
 	     tipc_addr_string_fill(addr_string, n_ptr->addr));
@@ -435,120 +397,6 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 
 	n_ptr->cleanup_required = 1;
 	tipc_k_signal((Handler)node_cleanup_finished, n_ptr->addr);
-}
-
-/**
- * tipc_node_select_next_hop - find the next-hop node for a message
- *
- * Called by when cluster local lookup has failed.
- */
-
-struct tipc_node *tipc_node_select_next_hop(u32 addr, u32 selector)
-{
-	struct tipc_node *n_ptr;
-	u32 router_addr;
-
-	if (!tipc_addr_domain_valid(addr))
-		return NULL;
-
-	/* Look for direct link to destination processsor */
-	n_ptr = tipc_node_find(addr);
-	if (n_ptr && tipc_node_has_active_links(n_ptr))
-		return n_ptr;
-
-	/* Cluster local system nodes *must* have direct links */
-	if (in_own_cluster(addr))
-		return NULL;
-
-	/* Look for cluster local router with direct link to node */
-	router_addr = tipc_node_select_router(n_ptr, selector);
-	if (router_addr)
-		return tipc_node_select(router_addr, selector);
-
-	/* Inter zone/cluster -- find any direct link to remote cluster */
-	addr = tipc_addr(tipc_zone(addr), tipc_cluster(addr), 0);
-	n_ptr = tipc_net_select_remote_node(addr, selector);
-	if (n_ptr && tipc_node_has_active_links(n_ptr))
-		return n_ptr;
-
-	/* Last resort -- look for any router to anywhere in remote zone */
-	router_addr =  tipc_net_select_router(addr, selector);
-	if (router_addr)
-		return tipc_node_select(router_addr, selector);
-
-	return NULL;
-}
-
-/**
- * tipc_node_select_router - select router to reach specified node
- *
- * Uses a deterministic and fair algorithm for selecting router node.
- */
-
-u32 tipc_node_select_router(struct tipc_node *n_ptr, u32 ref)
-{
-	u32 ulim;
-	u32 mask;
-	u32 start;
-	u32 r;
-
-	if (!n_ptr)
-		return 0;
-
-	if (n_ptr->last_router < 0)
-		return 0;
-	ulim = ((n_ptr->last_router + 1) * 32) - 1;
-
-	/* Start entry must be random */
-	mask = tipc_max_nodes;
-	while (mask > ulim)
-		mask >>= 1;
-	start = ref & mask;
-	r = start;
-
-	/* Lookup upwards with wrap-around */
-	do {
-		if (((n_ptr->routers[r / 32]) >> (r % 32)) & 1)
-			break;
-	} while (++r <= ulim);
-	if (r > ulim) {
-		r = 1;
-		do {
-			if (((n_ptr->routers[r / 32]) >> (r % 32)) & 1)
-				break;
-		} while (++r < start);
-		assert(r != start);
-	}
-	assert(r && (r <= ulim));
-	return tipc_addr(own_zone(), own_cluster(), r);
-}
-
-void tipc_node_add_router(struct tipc_node *n_ptr, u32 router)
-{
-	u32 r_num = tipc_node(router);
-
-	n_ptr->routers[r_num / 32] =
-		((1 << (r_num % 32)) | n_ptr->routers[r_num / 32]);
-	n_ptr->last_router = tipc_max_nodes / 32;
-	while ((--n_ptr->last_router >= 0) &&
-	       !n_ptr->routers[n_ptr->last_router]);
-}
-
-void tipc_node_remove_router(struct tipc_node *n_ptr, u32 router)
-{
-	u32 r_num = tipc_node(router);
-
-	if (n_ptr->last_router < 0)
-		return;		/* No routes */
-
-	n_ptr->routers[r_num / 32] =
-		((~(1 << (r_num % 32))) & (n_ptr->routers[r_num / 32]));
-	n_ptr->last_router = tipc_max_nodes / 32;
-	while ((--n_ptr->last_router >= 0) &&
-	       !n_ptr->routers[n_ptr->last_router]);
-
-	if (!tipc_node_is_up(n_ptr))
-		node_lost_contact(n_ptr);
 }
 
 struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)

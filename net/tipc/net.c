@@ -112,48 +112,6 @@
 DEFINE_RWLOCK(tipc_net_lock);
 struct network tipc_net;
 
-struct tipc_node *tipc_net_select_remote_node(u32 addr, u32 ref)
-{
-	struct cluster *c_ptr;
-
-	c_ptr = tipc_net.clusters[1];
-	if (!c_ptr)
-		return NULL;
-	return tipc_cltr_select_node(c_ptr, ref);
-}
-
-u32 tipc_net_select_router(u32 addr, u32 ref)
-{
-	struct cluster *c_ptr;
-
-	c_ptr = tipc_net.clusters[1];
-	if (!c_ptr)
-		return 0;
-	return tipc_cltr_select_router(c_ptr, ref);
-}
-
-void tipc_net_remove_as_router(u32 router)
-{
-	u32 c_num;
-
-	for (c_num = 1; c_num <= tipc_max_clusters; c_num++) {
-		if (!tipc_net.clusters[c_num])
-			continue;
-		tipc_cltr_remove_as_router(tipc_net.clusters[c_num], router);
-	}
-}
-
-void tipc_net_send_external_routes(u32 dest)
-{
-	u32 c_num;
-
-	for (c_num = 1; c_num <= tipc_max_clusters; c_num++) {
-		if (tipc_net.clusters[c_num])
-			tipc_cltr_send_ext_routes(tipc_net.clusters[c_num],
-						  dest);
-	}
-}
-
 static void net_stop(void)
 {
 	u32 c_num;
@@ -225,9 +183,6 @@ void tipc_net_route_msg(struct sk_buff *buf)
 			return;
 		}
 		switch (msg_user(msg)) {
-		case ROUTE_DISTRIBUTOR:
-			tipc_cltr_recv_routing_table(buf);
-			break;
 		case NAME_DISTRIBUTOR:
 			tipc_named_recv(buf);
 			break;

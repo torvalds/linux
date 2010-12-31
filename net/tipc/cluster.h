@@ -57,19 +57,11 @@ struct cluster {
 extern struct tipc_node **tipc_local_nodes;
 extern struct tipc_node_map tipc_cltr_bcast_nodes;
 
-void tipc_cltr_remove_as_router(struct cluster *c_ptr, u32 router);
-void tipc_cltr_send_ext_routes(struct cluster *c_ptr, u32 dest);
-struct tipc_node *tipc_cltr_select_node(struct cluster *c_ptr, u32 selector);
-u32 tipc_cltr_select_router(struct cluster *c_ptr, u32 ref);
-void tipc_cltr_recv_routing_table(struct sk_buff *buf);
 struct cluster *tipc_cltr_create(u32 addr);
 void tipc_cltr_delete(struct cluster *c_ptr);
 void tipc_cltr_attach_node(struct cluster *c_ptr, struct tipc_node *n_ptr);
 void tipc_cltr_broadcast(struct sk_buff *buf);
 int tipc_cltr_init(void);
-
-void tipc_cltr_bcast_new_route(struct cluster *c_ptr, u32 dest, u32 lo, u32 hi);
-void tipc_cltr_bcast_lost_route(struct cluster *c_ptr, u32 dest, u32 lo, u32 hi);
 
 static inline struct cluster *tipc_cltr_find(u32 addr)
 {
