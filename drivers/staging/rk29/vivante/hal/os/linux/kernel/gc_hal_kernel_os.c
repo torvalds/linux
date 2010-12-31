@@ -2673,6 +2673,8 @@ gceSTATUS gckOS_AllocatePagedMemoryEx(
             if(addr) {
                 g_pages_alloced += numPages;
                 //printk("alloc %d / %d \n", numPages, g_pages_alloced);
+            } else {
+                printk("gpu : alloc %d fail! (%d/8192)\n", numPages,  g_pages_alloced);
             }
         }
 #else
