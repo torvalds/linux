@@ -173,7 +173,7 @@ static int __devinit isl6271a_probe(struct i2c_client *i2c,
 						init_data, pmic);
 		if (IS_ERR(pmic->rdev[i])) {
 			dev_err(&i2c->dev, "failed to register %s\n", id->name);
-			err = PTR_ERR(pmic->rdev);
+			err = PTR_ERR(pmic->rdev[i]);
 			goto error;
 		}
 	}
