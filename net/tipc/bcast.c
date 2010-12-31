@@ -45,8 +45,6 @@
 
 #define BCLINK_WIN_DEFAULT 20		/* bcast link window size (default) */
 
-#define BCLINK_LOG_BUF_SIZE 0
-
 /*
  * Loss rate for incoming broadcast frames; used to test retransmission code.
  * Set to N to cause every N'th frame to be discarded; 0 => don't discard any.
@@ -774,7 +772,6 @@ int tipc_bclink_init(void)
 	bcbearer = kzalloc(sizeof(*bcbearer), GFP_ATOMIC);
 	bclink = kzalloc(sizeof(*bclink), GFP_ATOMIC);
 	if (!bcbearer || !bclink) {
- nomem:
 		warn("Multicast link creation failed, no memory\n");
 		kfree(bcbearer);
 		bcbearer = NULL;
@@ -799,14 +796,6 @@ int tipc_bclink_init(void)
 	bcl->state = WORKING_WORKING;
 	strlcpy(bcl->name, tipc_bclink_name, TIPC_MAX_LINK_NAME);
 
-	if (BCLINK_LOG_BUF_SIZE) {
-		char *pb = kmalloc(BCLINK_LOG_BUF_SIZE, GFP_ATOMIC);
-
-		if (!pb)
-			goto nomem;
-		tipc_printbuf_init(&bcl->print_buf, pb, BCLINK_LOG_BUF_SIZE);
-	}
-
 	return 0;
 }
 
@@ -815,8 +804,6 @@ void tipc_bclink_stop(void)
 	spin_lock_bh(&bc_lock);
 	if (bcbearer) {
 		tipc_link_stop(bcl);
-		if (BCLINK_LOG_BUF_SIZE)
-			kfree(bcl->print_buf.buf);
 		bcl = NULL;
 		kfree(bclink);
 		bclink = NULL;

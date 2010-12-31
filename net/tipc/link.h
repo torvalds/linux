@@ -107,7 +107,6 @@
  * @long_msg_seq_no: next identifier to use for outbound fragmented messages
  * @defragm_buf: list of partially reassembled inbound message fragments
  * @stats: collects statistics regarding link activity
- * @print_buf: print buffer used to log link activity
  */
 
 struct link {
@@ -210,8 +209,6 @@ struct link {
 		u32 msg_lengths_total;
 		u32 msg_length_profile[7];
 	} stats;
-
-	struct print_buf print_buf;
 };
 
 struct port;

@@ -96,62 +96,9 @@ static int  link_send_sections_long(struct port *sender,
 static void link_check_defragm_bufs(struct link *l_ptr);
 static void link_state_event(struct link *l_ptr, u32 event);
 static void link_reset_statistics(struct link *l_ptr);
-static void link_print(struct link *l_ptr, struct print_buf *buf,
-		       const char *str);
+static void link_print(struct link *l_ptr, const char *str);
 static void link_start(struct link *l_ptr);
 static int link_send_long_buf(struct link *l_ptr, struct sk_buff *buf);
-
-
-/*
- * Debugging code used by link routines only
- *
- * When debugging link problems on a system that has multiple links,
- * the standard TIPC debugging routines may not be useful since they
- * allow the output from multiple links to be intermixed.  For this reason
- * routines of the form "dbg_link_XXX()" have been created that will capture
- * debug info into a link's personal print buffer, which can then be dumped
- * into the TIPC system log (TIPC_LOG) upon request.
- *
- * To enable per-link debugging, use LINK_LOG_BUF_SIZE to specify the size
- * of the print buffer used by each link.  If LINK_LOG_BUF_SIZE is set to 0,
- * the dbg_link_XXX() routines simply send their output to the standard
- * debug print buffer (DBG_OUTPUT), if it has been defined; this can be useful
- * when there is only a single link in the system being debugged.
- *
- * Notes:
- * - When enabled, LINK_LOG_BUF_SIZE should be set to at least TIPC_PB_MIN_SIZE
- * - "l_ptr" must be valid when using dbg_link_XXX() macros
- */
-
-#define LINK_LOG_BUF_SIZE 0
-
-#define dbg_link(fmt, arg...) \
-	do { \
-		if (LINK_LOG_BUF_SIZE) \
-			tipc_printf(&l_ptr->print_buf, fmt, ## arg); \
-	} while (0)
-#define dbg_link_msg(msg, txt) \
-	do { \
-		if (LINK_LOG_BUF_SIZE) \
-			tipc_msg_dbg(&l_ptr->print_buf, msg, txt); \
-	} while (0)
-#define dbg_link_state(txt) \
-	do { \
-		if (LINK_LOG_BUF_SIZE) \
-			link_print(l_ptr, &l_ptr->print_buf, txt); \
-	} while (0)
-#define dbg_link_dump() do { \
-	if (LINK_LOG_BUF_SIZE) { \
-		tipc_printf(LOG, "\n\nDumping link <%s>:\n", l_ptr->name); \
-		tipc_printbuf_move(LOG, &l_ptr->print_buf); \
-	} \
-} while (0)
-
-static void dbg_print_link(struct link *l_ptr, const char *str)
-{
-	if (DBG_OUTPUT != TIPC_NULL)
-		link_print(l_ptr, DBG_OUTPUT, str);
-}
 
 /*
  *  Simple link routines
@@ -366,17 +313,6 @@ struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
 		return NULL;
 	}
 
-	if (LINK_LOG_BUF_SIZE) {
-		char *pb = kmalloc(LINK_LOG_BUF_SIZE, GFP_ATOMIC);
-
-		if (!pb) {
-			kfree(l_ptr);
-			warn("Link creation failed, no memory for print buffer\n");
-			return NULL;
-		}
-		tipc_printbuf_init(&l_ptr->print_buf, pb, LINK_LOG_BUF_SIZE);
-	}
-
 	l_ptr->addr = peer;
 	if_name = strchr(b_ptr->publ.name, ':') + 1;
 	sprintf(l_ptr->name, "%u.%u.%u:%s-%u.%u.%u:",
@@ -411,8 +347,6 @@ struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
 
 	l_ptr->owner = tipc_node_attach_link(l_ptr);
 	if (!l_ptr->owner) {
-		if (LINK_LOG_BUF_SIZE)
-			kfree(l_ptr->print_buf.buf);
 		kfree(l_ptr);
 		return NULL;
 	}
@@ -447,8 +381,6 @@ void tipc_link_delete(struct link *l_ptr)
 	tipc_node_detach_link(l_ptr->owner, l_ptr);
 	tipc_link_stop(l_ptr);
 	list_del_init(&l_ptr->link_list);
-	if (LINK_LOG_BUF_SIZE)
-		kfree(l_ptr->print_buf.buf);
 	tipc_node_unlock(l_ptr->owner);
 	k_term_timer(&l_ptr->timer);
 	kfree(l_ptr);
@@ -607,7 +539,6 @@ void tipc_link_reset(struct link *l_ptr)
 	link_init_max_pkt(l_ptr);
 
 	l_ptr->state = RESET_UNKNOWN;
-	dbg_link_state("Resetting Link\n");
 
 	if ((prev_state == RESET_UNKNOWN) || (prev_state == RESET_RESET))
 		return;
@@ -686,20 +617,14 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 		}
 		return;	  /* Changeover going on */
 	}
-	dbg_link("STATE_EV: <%s> ", l_ptr->name);
 
 	switch (l_ptr->state) {
 	case WORKING_WORKING:
-		dbg_link("WW/");
 		switch (event) {
 		case TRAFFIC_MSG_EVT:
-			dbg_link("TRF-");
-			/* fall through */
 		case ACTIVATE_MSG:
-			dbg_link("ACT\n");
 			break;
 		case TIMEOUT_EVT:
-			dbg_link("TIM ");
 			if (l_ptr->next_in_no != l_ptr->checkpoint) {
 				l_ptr->checkpoint = l_ptr->next_in_no;
 				if (tipc_bclink_acks_missing(l_ptr->owner)) {
@@ -714,7 +639,6 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 				link_set_timer(l_ptr, cont_intv);
 				break;
 			}
-			dbg_link(" -> WU\n");
 			l_ptr->state = WORKING_UNKNOWN;
 			l_ptr->fsm_msg_cnt = 0;
 			tipc_link_send_proto_msg(l_ptr, STATE_MSG, 1, 0, 0, 0, 0);
@@ -722,7 +646,6 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 			link_set_timer(l_ptr, cont_intv / 4);
 			break;
 		case RESET_MSG:
-			dbg_link("RES -> RR\n");
 			info("Resetting link <%s>, requested by peer\n",
 			     l_ptr->name);
 			tipc_link_reset(l_ptr);
@@ -737,18 +660,14 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 		}
 		break;
 	case WORKING_UNKNOWN:
-		dbg_link("WU/");
 		switch (event) {
 		case TRAFFIC_MSG_EVT:
-			dbg_link("TRF-");
 		case ACTIVATE_MSG:
-			dbg_link("ACT -> WW\n");
 			l_ptr->state = WORKING_WORKING;
 			l_ptr->fsm_msg_cnt = 0;
 			link_set_timer(l_ptr, cont_intv);
 			break;
 		case RESET_MSG:
-			dbg_link("RES -> RR\n");
 			info("Resetting link <%s>, requested by peer "
 			     "while probing\n", l_ptr->name);
 			tipc_link_reset(l_ptr);
@@ -759,9 +678,7 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 			link_set_timer(l_ptr, cont_intv);
 			break;
 		case TIMEOUT_EVT:
-			dbg_link("TIM ");
 			if (l_ptr->next_in_no != l_ptr->checkpoint) {
-				dbg_link("-> WW\n");
 				l_ptr->state = WORKING_WORKING;
 				l_ptr->fsm_msg_cnt = 0;
 				l_ptr->checkpoint = l_ptr->next_in_no;
@@ -772,16 +689,11 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 				}
 				link_set_timer(l_ptr, cont_intv);
 			} else if (l_ptr->fsm_msg_cnt < l_ptr->abort_limit) {
-				dbg_link("Probing %u/%u,timer = %u ms)\n",
-					 l_ptr->fsm_msg_cnt, l_ptr->abort_limit,
-					 cont_intv / 4);
 				tipc_link_send_proto_msg(l_ptr, STATE_MSG,
 							 1, 0, 0, 0, 0);
 				l_ptr->fsm_msg_cnt++;
 				link_set_timer(l_ptr, cont_intv / 4);
 			} else {	/* Link has failed */
-				dbg_link("-> RU (%u probes unanswered)\n",
-					 l_ptr->fsm_msg_cnt);
 				warn("Resetting link <%s>, peer not responding\n",
 				     l_ptr->name);
 				tipc_link_reset(l_ptr);
@@ -798,18 +710,13 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 		}
 		break;
 	case RESET_UNKNOWN:
-		dbg_link("RU/");
 		switch (event) {
 		case TRAFFIC_MSG_EVT:
-			dbg_link("TRF-\n");
 			break;
 		case ACTIVATE_MSG:
 			other = l_ptr->owner->active_links[0];
-			if (other && link_working_unknown(other)) {
-				dbg_link("ACT\n");
+			if (other && link_working_unknown(other))
 				break;
-			}
-			dbg_link("ACT -> WW\n");
 			l_ptr->state = WORKING_WORKING;
 			l_ptr->fsm_msg_cnt = 0;
 			link_activate(l_ptr);
@@ -818,8 +725,6 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 			link_set_timer(l_ptr, cont_intv);
 			break;
 		case RESET_MSG:
-			dbg_link("RES\n");
-			dbg_link(" -> RR\n");
 			l_ptr->state = RESET_RESET;
 			l_ptr->fsm_msg_cnt = 0;
 			tipc_link_send_proto_msg(l_ptr, ACTIVATE_MSG, 1, 0, 0, 0, 0);
@@ -827,11 +732,9 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 			link_set_timer(l_ptr, cont_intv);
 			break;
 		case STARTING_EVT:
-			dbg_link("START-");
 			l_ptr->started = 1;
 			/* fall through */
 		case TIMEOUT_EVT:
-			dbg_link("TIM\n");
 			tipc_link_send_proto_msg(l_ptr, RESET_MSG, 0, 0, 0, 0, 0);
 			l_ptr->fsm_msg_cnt++;
 			link_set_timer(l_ptr, cont_intv);
@@ -841,18 +744,12 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 		}
 		break;
 	case RESET_RESET:
-		dbg_link("RR/ ");
 		switch (event) {
 		case TRAFFIC_MSG_EVT:
-			dbg_link("TRF-");
-			/* fall through */
 		case ACTIVATE_MSG:
 			other = l_ptr->owner->active_links[0];
-			if (other && link_working_unknown(other)) {
-				dbg_link("ACT\n");
+			if (other && link_working_unknown(other))
 				break;
-			}
-			dbg_link("ACT -> WW\n");
 			l_ptr->state = WORKING_WORKING;
 			l_ptr->fsm_msg_cnt = 0;
 			link_activate(l_ptr);
@@ -861,14 +758,11 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 			link_set_timer(l_ptr, cont_intv);
 			break;
 		case RESET_MSG:
-			dbg_link("RES\n");
 			break;
 		case TIMEOUT_EVT:
-			dbg_link("TIM\n");
 			tipc_link_send_proto_msg(l_ptr, ACTIVATE_MSG, 0, 0, 0, 0, 0);
 			l_ptr->fsm_msg_cnt++;
 			link_set_timer(l_ptr, cont_intv);
-			dbg_link("fsm_msg_cnt %u\n", l_ptr->fsm_msg_cnt);
 			break;
 		default:
 			err("Unknown link event %u in RR state\n", event);
@@ -1515,8 +1409,7 @@ static void link_reset_all(unsigned long addr)
 
 	for (i = 0; i < MAX_BEARERS; i++) {
 		if (n_ptr->links[i]) {
-			link_print(n_ptr->links[i], TIPC_OUTPUT,
-				   "Resetting link\n");
+			link_print(n_ptr->links[i], "Resetting link\n");
 			tipc_link_reset(n_ptr->links[i]);
 		}
 	}
@@ -1535,7 +1428,7 @@ static void link_retransmit_failure(struct link *l_ptr, struct sk_buff *buf)
 
 		/* Handle failure on standard link */
 
-		link_print(l_ptr, TIPC_OUTPUT, "Resetting link\n");
+		link_print(l_ptr, "Resetting link\n");
 		tipc_link_reset(l_ptr);
 
 	} else {
@@ -1545,21 +1438,21 @@ static void link_retransmit_failure(struct link *l_ptr, struct sk_buff *buf)
 		struct tipc_node *n_ptr;
 		char addr_string[16];
 
-		tipc_printf(TIPC_OUTPUT, "Msg seq number: %u,  ", msg_seqno(msg));
-		tipc_printf(TIPC_OUTPUT, "Outstanding acks: %lu\n",
-				     (unsigned long) TIPC_SKB_CB(buf)->handle);
+		info("Msg seq number: %u,  ", msg_seqno(msg));
+		info("Outstanding acks: %lu\n",
+		     (unsigned long) TIPC_SKB_CB(buf)->handle);
 
 		n_ptr = l_ptr->owner->next;
 		tipc_node_lock(n_ptr);
 
 		tipc_addr_string_fill(addr_string, n_ptr->addr);
-		tipc_printf(TIPC_OUTPUT, "Multicast link info for %s\n", addr_string);
-		tipc_printf(TIPC_OUTPUT, "Supported: %d,  ", n_ptr->bclink.supported);
-		tipc_printf(TIPC_OUTPUT, "Acked: %u\n", n_ptr->bclink.acked);
-		tipc_printf(TIPC_OUTPUT, "Last in: %u,  ", n_ptr->bclink.last_in);
-		tipc_printf(TIPC_OUTPUT, "Gap after: %u,  ", n_ptr->bclink.gap_after);
-		tipc_printf(TIPC_OUTPUT, "Gap to: %u\n", n_ptr->bclink.gap_to);
-		tipc_printf(TIPC_OUTPUT, "Nack sync: %u\n\n", n_ptr->bclink.nack_sync);
+		info("Multicast link info for %s\n", addr_string);
+		info("Supported: %d,  ", n_ptr->bclink.supported);
+		info("Acked: %u\n", n_ptr->bclink.acked);
+		info("Last in: %u,  ", n_ptr->bclink.last_in);
+		info("Gap after: %u,  ", n_ptr->bclink.gap_after);
+		info("Gap to: %u\n", n_ptr->bclink.gap_to);
+		info("Nack sync: %u\n\n", n_ptr->bclink.nack_sync);
 
 		tipc_k_signal((Handler)link_reset_all, (unsigned long)n_ptr->addr);
 
@@ -1581,7 +1474,6 @@ void tipc_link_retransmit(struct link *l_ptr, struct sk_buff *buf,
 
 	if (tipc_bearer_congested(l_ptr->b_ptr, l_ptr)) {
 		if (l_ptr->retransm_queue_size == 0) {
-			dbg_print_link(l_ptr, "   ");
 			l_ptr->retransm_queue_head = msg_seqno(msg);
 			l_ptr->retransm_queue_size = retransmits;
 		} else {
@@ -2458,7 +2350,6 @@ static int link_recv_changeover_msg(struct link **l_ptr,
 	if (dest_link->exp_msg_count == 0) {
 		warn("Link switchover error, "
 		     "got too many tunnelled messages\n");
-		dbg_print_link(dest_link, "LINK:");
 		goto exit;
 	}
 	dest_link->exp_msg_count--;
@@ -3066,14 +2957,22 @@ u32 tipc_link_get_max_pkt(u32 dest, u32 selector)
 	return res;
 }
 
-static void link_print(struct link *l_ptr, struct print_buf *buf,
-		       const char *str)
+static void link_print(struct link *l_ptr, const char *str)
 {
+	char print_area[256];
+	struct print_buf pb;
+	struct print_buf *buf = &pb;
+
+	tipc_printbuf_init(buf, print_area, sizeof(print_area));
+
 	tipc_printf(buf, str);
-	if (link_reset_reset(l_ptr) || link_reset_unknown(l_ptr))
-		return;
 	tipc_printf(buf, "Link %x<%s>:",
 		    l_ptr->addr, l_ptr->b_ptr->publ.name);
+
+#ifdef CONFIG_TIPC_DEBUG
+	if (link_reset_reset(l_ptr) || link_reset_unknown(l_ptr))
+		goto print_state;
+
 	tipc_printf(buf, ": NXO(%u):", mod(l_ptr->next_out_no));
 	tipc_printf(buf, "NXI(%u):", mod(l_ptr->next_in_no));
 	tipc_printf(buf, "SQUE");
@@ -3104,14 +3003,20 @@ static void link_print(struct link *l_ptr, struct print_buf *buf,
 				    l_ptr->deferred_inqueue_sz);
 		}
 	}
+print_state:
+#endif
+
 	if (link_working_unknown(l_ptr))
 		tipc_printf(buf, ":WU");
-	if (link_reset_reset(l_ptr))
+	else if (link_reset_reset(l_ptr))
 		tipc_printf(buf, ":RR");
-	if (link_reset_unknown(l_ptr))
+	else if (link_reset_unknown(l_ptr))
 		tipc_printf(buf, ":RU");
-	if (link_working_working(l_ptr))
+	else if (link_working_working(l_ptr))
 		tipc_printf(buf, ":WW");
 	tipc_printf(buf, "\n");
+
+	tipc_printbuf_validate(buf);
+	info("%s", print_area);
 }
 
