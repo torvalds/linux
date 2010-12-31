@@ -35,7 +35,6 @@
  */
 
 #include "core.h"
-#include "addr.h"
 #include "link.h"
 #include "name_distr.h"
 

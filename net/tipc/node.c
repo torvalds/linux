@@ -37,7 +37,6 @@
 #include "core.h"
 #include "config.h"
 #include "node.h"
-#include "port.h"
 #include "name_distr.h"
 
 static void node_lost_contact(struct tipc_node *n_ptr);

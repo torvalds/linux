@@ -34,10 +34,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/netdevice.h>
-#include <linux/slab.h>
-#include <net/net_namespace.h>
-
 #include "core.h"
 #include "bearer.h"
 

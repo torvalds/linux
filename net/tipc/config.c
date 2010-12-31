@@ -36,7 +36,6 @@
 
 #include "core.h"
 #include "port.h"
-#include "link.h"
 #include "name_table.h"
 #include "config.h"
 

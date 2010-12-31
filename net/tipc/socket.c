@@ -34,17 +34,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/module.h>
-#include <linux/types.h>
-#include <linux/net.h>
-#include <linux/socket.h>
-#include <linux/errno.h>
-#include <linux/mm.h>
-#include <linux/poll.h>
-#include <linux/fcntl.h>
-#include <linux/gfp.h>
-#include <asm/string.h>
-#include <asm/atomic.h>
 #include <net/sock.h>
 
 #include <linux/tipc.h>

@@ -37,7 +37,6 @@
 #include "core.h"
 #include "config.h"
 #include "bearer.h"
-#include "port.h"
 #include "discover.h"
 
 #define MAX_ADDR_STR 32

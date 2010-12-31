@@ -37,8 +37,6 @@
 #include "core.h"
 #include "link.h"
 #include "discover.h"
-#include "port.h"
-#include "name_table.h"
 
 #define TIPC_LINK_REQ_INIT	125	/* min delay during bearer start up */
 #define TIPC_LINK_REQ_FAST	2000	/* normal delay if bearer has no links */

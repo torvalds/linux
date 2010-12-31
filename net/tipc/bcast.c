@@ -38,7 +38,6 @@
 #include "core.h"
 #include "link.h"
 #include "port.h"
-#include "name_distr.h"
 #include "bcast.h"
 
 #define MAX_PKT_DEFAULT_MCAST 1500	/* bcast link max packet size (fixed) */

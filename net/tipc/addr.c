@@ -35,7 +35,6 @@
  */
 
 #include "core.h"
-#include "node.h"
 #include "addr.h"
 
 /**

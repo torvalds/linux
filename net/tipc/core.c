@@ -34,14 +34,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/random.h>
-
 #include "core.h"
 #include "ref.h"
-#include "net.h"
 #include "name_table.h"
 #include "subscr.h"
 #include "config.h"

@@ -36,10 +36,8 @@
 
 #include "core.h"
 #include "net.h"
-#include "name_table.h"
 #include "name_distr.h"
 #include "subscr.h"
-#include "link.h"
 #include "port.h"
 #include "config.h"
 
