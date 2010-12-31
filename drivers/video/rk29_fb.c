@@ -1941,23 +1941,6 @@ static int __init rk29fb_probe (struct platform_device *pdev)
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
-    /* Fix DMC AXI host priority. FIXME: Move to bootloader in the future? */
-    __raw_writel(0x7, RK29_DDRC_BASE+0x200);
-    __raw_writel(0x7, RK29_DDRC_BASE+0x204);
-    __raw_writel(0x7, RK29_DDRC_BASE+0x208);
-    __raw_writel(0x7, RK29_DDRC_BASE+0x20c);
-    __raw_writel(0x7, RK29_DDRC_BASE+0x210);
-    __raw_writel(0x10007eff, RK29_DDRC_BASE+0x280);
-    __raw_writel(0x1e007eff, RK29_DDRC_BASE+0x284);
-    __raw_writel(0x1e007eff, RK29_DDRC_BASE+0x288);
-    __raw_writel(0x1e007eff, RK29_DDRC_BASE+0x28c);
-    __raw_writel(0x1e007eff, RK29_DDRC_BASE+0x290);
-    __raw_writel(0x1e007eff, RK29_DDRC_BASE+0x294);
-    __raw_writel(0x1e007eff, RK29_DDRC_BASE+0x298);
-    __raw_writel(0x1e007eff, RK29_DDRC_BASE+0x29c);
-    __raw_writel(0x2, RK29_DDRC_BASE+0x2a0);
-    *(volatile u32 *)(RK29_GRF_BASE+0xac) = ((*(volatile u32 *)(RK29_GRF_BASE+0xac)) & ~0x3FF) | 0x246;
-
     /* Malloc rk29fb_inf and set it to pdev for drvdata */
     fbprintk(">> Malloc rk29fb_inf and set it to pdev for drvdata \n");
     inf = kmalloc(sizeof(struct rk29fb_inf), GFP_KERNEL);
