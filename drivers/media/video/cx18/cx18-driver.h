@@ -565,7 +565,7 @@ struct cx18 {
 	struct cx18_av_state av_state;
 
 	/* codec settings */
-	struct cx2341x_mpeg_params params;
+	struct cx2341x_handler cxhdl;
 	u32 filter_mode;
 	u32 temporal_strength;
 	u32 spatial_strength;

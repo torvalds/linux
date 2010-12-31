@@ -152,8 +152,8 @@ static int cx18_g_fmt_vid_cap(struct file *file, void *fh,
 	struct cx18 *cx = id->cx;
 	struct v4l2_pix_format *pixfmt = &fmt->fmt.pix;
 
-	pixfmt->width = cx->params.width;
-	pixfmt->height = cx->params.height;
+	pixfmt->width = cx->cxhdl.width;
+	pixfmt->height = cx->cxhdl.height;
 	pixfmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	pixfmt->field = V4L2_FIELD_INTERLACED;
 	pixfmt->priv = 0;
@@ -287,14 +287,14 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 	w = fmt->fmt.pix.width;
 	h = fmt->fmt.pix.height;
 
-	if (cx->params.width == w && cx->params.height == h)
+	if (cx->cxhdl.width == w && cx->cxhdl.height == h)
 		return 0;
 
 	if (atomic_read(&cx->ana_capturing) > 0)
 		return -EBUSY;
 
-	mbus_fmt.width = cx->params.width = w;
-	mbus_fmt.height = cx->params.height = h;
+	mbus_fmt.width = cx->cxhdl.width = w;
+	mbus_fmt.height = cx->cxhdl.height = h;
 	mbus_fmt.code = V4L2_MBUS_FMT_FIXED;
 	v4l2_subdev_call(cx->sd_av, video, s_mbus_fmt, &mbus_fmt);
 	return cx18_g_fmt_vid_cap(file, fh, fmt);
@@ -696,9 +696,10 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
 
 	cx->std = *std;
 	cx->is_60hz = (*std & V4L2_STD_525_60) ? 1 : 0;
-	cx->params.is_50hz = cx->is_50hz = !cx->is_60hz;
-	cx->params.width = 720;
-	cx->params.height = cx->is_50hz ? 576 : 480;
+	cx->is_50hz = !cx->is_60hz;
+	cx2341x_handler_set_50hz(&cx->cxhdl, cx->is_50hz);
+	cx->cxhdl.width = 720;
+	cx->cxhdl.height = cx->is_50hz ? 576 : 480;
 	cx->vbi.count = cx->is_50hz ? 18 : 12;
 	cx->vbi.start[0] = cx->is_50hz ? 6 : 10;
 	cx->vbi.start[1] = cx->is_50hz ? 318 : 273;
@@ -1035,7 +1036,7 @@ static int cx18_log_status(struct file *file, void *fh)
 	mutex_unlock(&cx->gpio_lock);
 	CX18_INFO("Tuner: %s\n",
 		test_bit(CX18_F_I_RADIO_USER, &cx->i_flags) ?  "Radio" : "TV");
-	cx2341x_log_status(&cx->params, cx->v4l2_dev.name);
+	v4l2_ctrl_handler_log_status(&cx->cxhdl.hdl, cx->v4l2_dev.name);
 	CX18_INFO("Status flags: 0x%08lx\n", cx->i_flags);
 	for (i = 0; i < CX18_MAX_STREAMS; i++) {
 		struct cx18_stream *s = &cx->streams[i];
@@ -1136,11 +1137,6 @@ static const struct v4l2_ioctl_ops cx18_ioctl_ops = {
 	.vidioc_s_register              = cx18_s_register,
 #endif
 	.vidioc_default                 = cx18_default,
-	.vidioc_queryctrl               = cx18_queryctrl,
-	.vidioc_querymenu               = cx18_querymenu,
-	.vidioc_g_ext_ctrls             = cx18_g_ext_ctrls,
-	.vidioc_s_ext_ctrls             = cx18_s_ext_ctrls,
-	.vidioc_try_ext_ctrls           = cx18_try_ext_ctrls,
 };
 
 void cx18_set_funcs(struct video_device *vdev)
