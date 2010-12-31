@@ -1338,17 +1338,16 @@ void iscsi_session_failure(struct iscsi_session *session,
 {
 	struct iscsi_conn *conn;
 	struct device *dev;
-	unsigned long flags;
 
-	spin_lock_irqsave(&session->lock, flags);
+	spin_lock_bh(&session->lock);
 	conn = session->leadconn;
 	if (session->state == ISCSI_STATE_TERMINATE || !conn) {
-		spin_unlock_irqrestore(&session->lock, flags);
+		spin_unlock_bh(&session->lock);
 		return;
 	}
 
 	dev = get_device(&conn->cls_conn->dev);
-	spin_unlock_irqrestore(&session->lock, flags);
+	spin_unlock_bh(&session->lock);
 	if (!dev)
 	        return;
 	/*
@@ -1367,17 +1366,16 @@ EXPORT_SYMBOL_GPL(iscsi_session_failure);
 void iscsi_conn_failure(struct iscsi_conn *conn, enum iscsi_err err)
 {
 	struct iscsi_session *session = conn->session;
-	unsigned long flags;
 
-	spin_lock_irqsave(&session->lock, flags);
+	spin_lock_bh(&session->lock);
 	if (session->state == ISCSI_STATE_FAILED) {
-		spin_unlock_irqrestore(&session->lock, flags);
+		spin_unlock_bh(&session->lock);
 		return;
 	}
 
 	if (conn->stop_stage == 0)
 		session->state = ISCSI_STATE_FAILED;
-	spin_unlock_irqrestore(&session->lock, flags);
+	spin_unlock_bh(&session->lock);
 
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
