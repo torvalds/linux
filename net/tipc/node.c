@@ -44,7 +44,7 @@ static void node_established_contact(struct tipc_node *n_ptr);
 
 static DEFINE_SPINLOCK(node_create_lock);
 
-u32 tipc_own_tag = 0;
+u32 tipc_own_tag;
 
 /**
  * tipc_node_create - create neighboring node

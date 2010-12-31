@@ -70,7 +70,7 @@ struct top_srv {
 	spinlock_t lock;
 };
 
-static struct top_srv topsrv = { 0 };
+static struct top_srv topsrv;
 
 /**
  * htohl - convert value to endianness used by destination

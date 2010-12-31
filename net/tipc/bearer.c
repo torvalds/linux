@@ -42,7 +42,7 @@
 #define MAX_ADDR_STR 32
 
 static struct media media_list[MAX_MEDIA];
-static u32 media_count = 0;
+static u32 media_count;
 
 struct bearer tipc_bearers[MAX_BEARERS];
 

@@ -103,9 +103,9 @@ struct bclink {
 };
 
 
-static struct bcbearer *bcbearer = NULL;
-static struct bclink *bclink = NULL;
-static struct link *bcl = NULL;
+static struct bcbearer *bcbearer;
+static struct bclink *bclink;
+static struct link *bcl;
 static DEFINE_SPINLOCK(bc_lock);
 
 /* broadcast-capable node map */
@@ -425,7 +425,7 @@ int tipc_bclink_send_msg(struct sk_buff *buf)
 void tipc_bclink_recv_pkt(struct sk_buff *buf)
 {
 #if (TIPC_BCAST_LOSS_RATE)
-	static int rx_count = 0;
+	static int rx_count;
 #endif
 	struct tipc_msg *msg = buf_msg(buf);
 	struct tipc_node *node = tipc_node_find(msg_prevnode(msg));

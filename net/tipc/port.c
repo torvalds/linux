@@ -46,8 +46,8 @@
 
 #define MAX_REJECT_SIZE 1024
 
-static struct sk_buff *msg_queue_head = NULL;
-static struct sk_buff *msg_queue_tail = NULL;
+static struct sk_buff *msg_queue_head;
+static struct sk_buff *msg_queue_tail;
 
 DEFINE_SPINLOCK(tipc_port_list_lock);
 static DEFINE_SPINLOCK(queue_lock);

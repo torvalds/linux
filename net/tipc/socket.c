@@ -68,7 +68,7 @@ static const struct proto_ops msg_ops;
 
 static struct proto tipc_proto;
 
-static int sockets_enabled = 0;
+static int sockets_enabled;
 
 static atomic_t tipc_queue_size = ATOMIC_INIT(0);
 

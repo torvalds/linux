@@ -73,7 +73,7 @@ struct distr_item {
  */
 
 static LIST_HEAD(publ_root);
-static u32 publ_cnt = 0;
+static u32 publ_cnt;
 
 /**
  * publ_to_item - add publication info to a publication message

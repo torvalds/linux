@@ -89,7 +89,7 @@ struct ref_table {
  * have a reference value of 0 (although this is unlikely).
  */
 
-static struct ref_table tipc_ref_table = { NULL };
+static struct ref_table tipc_ref_table;
 
 static DEFINE_RWLOCK(ref_table_lock);
 

@@ -56,7 +56,7 @@ struct eth_bearer {
 };
 
 static struct eth_bearer eth_bearers[MAX_ETH_BEARERS];
-static int eth_started = 0;
+static int eth_started;
 static struct notifier_block notifier;
 
 /**

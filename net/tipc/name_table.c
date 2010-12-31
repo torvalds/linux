@@ -104,7 +104,7 @@ struct name_table {
 	u32 local_publ_count;
 };
 
-static struct name_table table = { NULL } ;
+static struct name_table table;
 static atomic_t rsv_publ_ok = ATOMIC_INIT(0);
 DEFINE_RWLOCK(tipc_nametbl_lock);
 
