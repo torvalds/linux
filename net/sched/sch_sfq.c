@@ -297,6 +297,7 @@ static inline struct sk_buff *slot_dequeue_head(struct sfq_slot *slot)
 	struct sk_buff *skb = slot->skblist_next;
 
 	slot->skblist_next = skb->next;
+	skb->next->prev = (struct sk_buff *)slot;
 	skb->next = skb->prev = NULL;
 	return skb;
 }
@@ -380,7 +381,6 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		q->ht[hash] = x;
 		slot = &q->slots[x];
 		slot->hash = hash;
-		slot_queue_init(slot);
 	}
 
 	/* If selected queue has length q->limit, do simple tail drop,
@@ -545,8 +545,10 @@ static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
 			return err;
 	}
 
-	for (i = 0; i < SFQ_SLOTS; i++)
+	for (i = 0; i < SFQ_SLOTS; i++) {
+		slot_queue_init(&q->slots[i]);
 		sfq_link(q, i);
+	}
 	return 0;
 }
 
