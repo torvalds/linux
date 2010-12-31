@@ -251,7 +251,8 @@ static int bearer_name_validate(const char *name,
 	/* ensure all component parts of bearer name are present */
 
 	media_name = name_copy;
-	if ((if_name = strchr(media_name, ':')) == NULL)
+	if_name = strchr(media_name, ':');
+	if (if_name == NULL)
 		return 0;
 	*(if_name++) = 0;
 	media_len = if_name - media_name;

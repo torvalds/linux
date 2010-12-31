@@ -187,14 +187,17 @@ static int link_name_validate(const char *name, struct link_name *name_parts)
 	/* ensure all component parts of link name are present */
 
 	addr_local = name_copy;
-	if ((if_local = strchr(addr_local, ':')) == NULL)
+	if_local = strchr(addr_local, ':');
+	if (if_local == NULL)
 		return 0;
 	*(if_local++) = 0;
-	if ((addr_peer = strchr(if_local, '-')) == NULL)
+	addr_peer = strchr(if_local, '-');
+	if (addr_peer == NULL)
 		return 0;
 	*(addr_peer++) = 0;
 	if_local_len = addr_peer - if_local;
-	if ((if_peer = strchr(addr_peer, ':')) == NULL)
+	if_peer = strchr(addr_peer, ':');
+	if (if_peer == NULL)
 		return 0;
 	*(if_peer++) = 0;
 	if_peer_len = strlen(if_peer) + 1;
@@ -2044,8 +2047,8 @@ static void link_recv_proto_msg(struct link *l_ptr, struct sk_buff *buf)
 
 		strcpy((strrchr(l_ptr->name, ':') + 1), (char *)msg_data(msg));
 
-		if ((msg_tol = msg_link_tolerance(msg)) &&
-		    (msg_tol > l_ptr->tolerance))
+		msg_tol = msg_link_tolerance(msg);
+		if (msg_tol > l_ptr->tolerance)
 			link_set_supervision_props(l_ptr, msg_tol);
 
 		if (msg_linkprio(msg) > l_ptr->priority)
@@ -2074,7 +2077,8 @@ static void link_recv_proto_msg(struct link *l_ptr, struct sk_buff *buf)
 		break;
 	case STATE_MSG:
 
-		if ((msg_tol = msg_link_tolerance(msg)))
+		msg_tol = msg_link_tolerance(msg);
+		if (msg_tol)
 			link_set_supervision_props(l_ptr, msg_tol);
 
 		if (msg_linkprio(msg) &&

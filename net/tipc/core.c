@@ -115,10 +115,11 @@ int tipc_core_start_net(unsigned long addr)
 {
 	int res;
 
-	if ((res = tipc_net_start(addr)) ||
-	    (res = tipc_eth_media_start())) {
+	res = tipc_net_start(addr);
+	if (!res)
+		res = tipc_eth_media_start();
+	if (res)
 		tipc_core_stop_net();
-	}
 	return res;
 }
 
@@ -157,15 +158,22 @@ static int tipc_core_start(void)
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
 	tipc_mode = TIPC_NODE_MODE;
 
-	if ((res = tipc_handler_start()) ||
-	    (res = tipc_ref_table_init(tipc_max_ports, tipc_random)) ||
-	    (res = tipc_nametbl_init()) ||
-	    (res = tipc_k_signal((Handler)tipc_subscr_start, 0)) ||
-	    (res = tipc_k_signal((Handler)tipc_cfg_init, 0)) ||
-	    (res = tipc_netlink_start()) ||
-	    (res = tipc_socket_init())) {
+	res = tipc_handler_start();
+	if (!res)
+		res = tipc_ref_table_init(tipc_max_ports, tipc_random);
+	if (!res)
+		res = tipc_nametbl_init();
+	if (!res)
+		res = tipc_k_signal((Handler)tipc_subscr_start, 0);
+	if (!res)
+		res = tipc_k_signal((Handler)tipc_cfg_init, 0);
+	if (!res)
+		res = tipc_netlink_start();
+	if (!res)
+		res = tipc_socket_init();
+	if (res)
 		tipc_core_stop();
-	}
+
 	return res;
 }
 
@@ -188,7 +196,8 @@ static int __init tipc_init(void)
 	tipc_max_nodes = CONFIG_TIPC_NODES;
 	tipc_net_id = 4711;
 
-	if ((res = tipc_core_start()))
+	res = tipc_core_start();
+	if (res)
 		err("Unable to start in single node mode\n");
 	else
 		info("Started in single node mode\n");

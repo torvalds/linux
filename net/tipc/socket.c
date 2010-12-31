@@ -563,7 +563,8 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 
 	do {
 		if (dest->addrtype == TIPC_ADDR_NAME) {
-			if ((res = dest_name_check(dest, m)))
+			res = dest_name_check(dest, m);
+			if (res)
 				break;
 			res = tipc_send2name(tport->ref,
 					     &dest->addr.name.name,
@@ -580,7 +581,8 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 				res = -EOPNOTSUPP;
 				break;
 			}
-			if ((res = dest_name_check(dest, m)))
+			res = dest_name_check(dest, m);
+			if (res)
 				break;
 			res = tipc_multicast(tport->ref,
 					     &dest->addr.nameseq,
@@ -750,7 +752,8 @@ static int send_stream(struct kiocb *iocb, struct socket *sock,
 				bytes_to_send = curr_left;
 			my_iov.iov_base = curr_start;
 			my_iov.iov_len = bytes_to_send;
-			if ((res = send_packet(NULL, sock, &my_msg, 0)) < 0) {
+			res = send_packet(NULL, sock, &my_msg, 0);
+			if (res < 0) {
 				if (bytes_sent)
 					res = bytes_sent;
 				goto exit;
@@ -845,12 +848,15 @@ static int anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
 	if (unlikely(err)) {
 		anc_data[0] = err;
 		anc_data[1] = msg_data_sz(msg);
-		if ((res = put_cmsg(m, SOL_TIPC, TIPC_ERRINFO, 8, anc_data)))
+		res = put_cmsg(m, SOL_TIPC, TIPC_ERRINFO, 8, anc_data);
+		if (res)
 			return res;
-		if (anc_data[1] &&
-		    (res = put_cmsg(m, SOL_TIPC, TIPC_RETDATA, anc_data[1],
-				    msg_data(msg))))
-			return res;
+		if (anc_data[1]) {
+			res = put_cmsg(m, SOL_TIPC, TIPC_RETDATA, anc_data[1],
+				       msg_data(msg));
+			if (res)
+				return res;
+		}
 	}
 
 	/* Optionally capture message destination object */
@@ -878,9 +884,11 @@ static int anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
 	default:
 		has_name = 0;
 	}
-	if (has_name &&
-	    (res = put_cmsg(m, SOL_TIPC, TIPC_DESTNAME, 12, anc_data)))
-		return res;
+	if (has_name) {
+		res = put_cmsg(m, SOL_TIPC, TIPC_DESTNAME, 12, anc_data);
+		if (res)
+			return res;
+	}
 
 	return 0;
 }
@@ -1664,7 +1672,8 @@ static int setsockopt(struct socket *sock,
 		return -ENOPROTOOPT;
 	if (ol < sizeof(value))
 		return -EINVAL;
-	if ((res = get_user(value, (u32 __user *)ov)))
+	res = get_user(value, (u32 __user *)ov);
+	if (res)
 		return res;
 
 	lock_sock(sk);
@@ -1722,7 +1731,8 @@ static int getsockopt(struct socket *sock,
 		return put_user(0, ol);
 	if (lvl != SOL_TIPC)
 		return -ENOPROTOOPT;
-	if ((res = get_user(len, ol)))
+	res = get_user(len, ol);
+	if (res)
 		return res;
 
 	lock_sock(sk);
