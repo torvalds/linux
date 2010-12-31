@@ -42,7 +42,6 @@
 #include "core.h"
 #include "ref.h"
 #include "net.h"
-#include "user_reg.h"
 #include "name_table.h"
 #include "subscr.h"
 #include "config.h"
@@ -144,7 +143,6 @@ static void tipc_core_stop(void)
 	tipc_handler_stop();
 	tipc_cfg_stop();
 	tipc_subscr_stop();
-	tipc_reg_stop();
 	tipc_nametbl_stop();
 	tipc_ref_table_stop();
 	tipc_socket_stop();
@@ -167,7 +165,6 @@ static int tipc_core_start(void)
 
 	if ((res = tipc_handler_start()) ||
 	    (res = tipc_ref_table_init(tipc_max_ports, tipc_random)) ||
-	    (res = tipc_reg_start()) ||
 	    (res = tipc_nametbl_init()) ||
 	    (res = tipc_k_signal((Handler)tipc_subscr_start, 0)) ||
 	    (res = tipc_k_signal((Handler)tipc_cfg_init, 0)) ||

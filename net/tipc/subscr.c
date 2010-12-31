@@ -493,8 +493,7 @@ static void subscr_named_msg_event(void *usr_handle,
 
 	/* Create server port & establish connection to subscriber */
 
-	tipc_createport(0,
-			subscriber,
+	tipc_createport(subscriber,
 			importance,
 			NULL,
 			NULL,
@@ -548,8 +547,7 @@ int tipc_subscr_start(void)
 	INIT_LIST_HEAD(&topsrv.subscriber_list);
 
 	spin_lock_bh(&topsrv.lock);
-	res = tipc_createport(0,
-			      NULL,
+	res = tipc_createport(NULL,
 			      TIPC_CRITICAL_IMPORTANCE,
 			      NULL,
 			      NULL,

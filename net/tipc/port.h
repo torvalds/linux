@@ -77,15 +77,12 @@ typedef void (*tipc_continue_event) (void *usr_handle, u32 portref);
 
 /**
  * struct user_port - TIPC user port (used with native API)
- * @user_ref: id of user who created user port
  * @usr_handle: user-specified field
  * @ref: object reference to associated TIPC port
  * <various callback routines>
- * @uport_list: adjacent user ports in list of ports held by user
  */
 
 struct user_port {
-	u32 user_ref;
 	void *usr_handle;
 	u32 ref;
 	tipc_msg_err_event err_cb;
@@ -95,7 +92,6 @@ struct user_port {
 	tipc_named_msg_event named_msg_cb;
 	tipc_conn_msg_event conn_msg_cb;
 	tipc_continue_event continue_event_cb;
-	struct list_head uport_list;
 };
 
 /**
@@ -181,7 +177,7 @@ int tipc_send_buf_fast(struct sk_buff *buf, u32 destnode);
 
 void tipc_acknowledge(u32 port_ref, u32 ack);
 
-int tipc_createport(unsigned int tipc_user, void *usr_handle,
+int tipc_createport(void *usr_handle,
 		unsigned int importance, tipc_msg_err_event error_cb,
 		tipc_named_msg_err_event named_error_cb,
 		tipc_conn_shutdown_event conn_error_cb, tipc_msg_event msg_cb,

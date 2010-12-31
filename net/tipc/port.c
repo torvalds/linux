@@ -38,7 +38,6 @@
 #include "config.h"
 #include "port.h"
 #include "name_table.h"
-#include "user_reg.h"
 
 /* Connection management: */
 #define PROBING_INTERVAL 3600000	/* [ms] => 1 h */
@@ -272,7 +271,6 @@ int tipc_deleteport(u32 ref)
 		tipc_nodesub_unsubscribe(&p_ptr->subscription);
 	}
 	if (p_ptr->user_port) {
-		tipc_reg_remove_port(p_ptr->user_port);
 		kfree(p_ptr->user_port);
 	}
 
@@ -934,12 +932,10 @@ void tipc_acknowledge(u32 ref, u32 ack)
 }
 
 /*
- * tipc_createport(): user level call. Will add port to
- *                    registry if non-zero user_ref.
+ * tipc_createport(): user level call.
  */
 
-int tipc_createport(u32 user_ref,
-		    void *usr_handle,
+int tipc_createport(void *usr_handle,
 		    unsigned int importance,
 		    tipc_msg_err_event error_cb,
 		    tipc_named_msg_err_event named_error_cb,
@@ -966,7 +962,6 @@ int tipc_createport(u32 user_ref,
 	}
 
 	p_ptr->user_port = up_ptr;
-	up_ptr->user_ref = user_ref;
 	up_ptr->usr_handle = usr_handle;
 	up_ptr->ref = p_ptr->publ.ref;
 	up_ptr->err_cb = error_cb;
@@ -976,8 +971,6 @@ int tipc_createport(u32 user_ref,
 	up_ptr->named_msg_cb = named_msg_cb;
 	up_ptr->conn_msg_cb = conn_msg_cb;
 	up_ptr->continue_event_cb = continue_event_cb;
-	INIT_LIST_HEAD(&up_ptr->uport_list);
-	tipc_reg_add_port(up_ptr);
 	*portref = p_ptr->publ.ref;
 	tipc_port_unlock(p_ptr);
 	return 0;

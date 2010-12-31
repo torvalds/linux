@@ -500,7 +500,7 @@ int tipc_cfg_init(void)
 	struct tipc_name_seq seq;
 	int res;
 
-	res = tipc_createport(0, NULL, TIPC_CRITICAL_IMPORTANCE,
+	res = tipc_createport(NULL, TIPC_CRITICAL_IMPORTANCE,
 			      NULL, NULL, NULL,
 			      NULL, cfg_named_msg_event, NULL,
 			      NULL, &config_port_ref);
