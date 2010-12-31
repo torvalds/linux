@@ -83,6 +83,7 @@ struct print_buf;	/* log.h */
  *       user-defined buffers can be configured to do the same thing.
  */
 extern struct print_buf *const TIPC_NULL;
+extern struct print_buf *const TIPC_CONS;
 extern struct print_buf *const TIPC_LOG;
 
 void tipc_printf(struct print_buf *, const char *fmt, ...);
@@ -95,56 +96,26 @@ void tipc_printf(struct print_buf *, const char *fmt, ...);
 #define TIPC_OUTPUT TIPC_LOG
 #endif
 
-/*
- * TIPC can be configured to send system messages to TIPC_OUTPUT
- * or to the system console only.
- */
+#define err(fmt, arg...)  tipc_printf(TIPC_OUTPUT, \
+				      KERN_ERR "TIPC: " fmt, ## arg)
+#define warn(fmt, arg...) tipc_printf(TIPC_OUTPUT, \
+				      KERN_WARNING "TIPC: " fmt, ## arg)
+#define info(fmt, arg...) tipc_printf(TIPC_OUTPUT, \
+				      KERN_NOTICE "TIPC: " fmt, ## arg)
 
 #ifdef CONFIG_TIPC_DEBUG
-
-#define err(fmt, arg...)  tipc_printf(TIPC_OUTPUT, \
-					KERN_ERR "TIPC: " fmt, ## arg)
-#define warn(fmt, arg...) tipc_printf(TIPC_OUTPUT, \
-					KERN_WARNING "TIPC: " fmt, ## arg)
-#define info(fmt, arg...) tipc_printf(TIPC_OUTPUT, \
-					KERN_NOTICE "TIPC: " fmt, ## arg)
-
-#else
-
-#define err(fmt, arg...)  printk(KERN_ERR "TIPC: " fmt , ## arg)
-#define info(fmt, arg...) printk(KERN_INFO "TIPC: " fmt , ## arg)
-#define warn(fmt, arg...) printk(KERN_WARNING "TIPC: " fmt , ## arg)
-
-#endif
 
 /*
  * DBG_OUTPUT is the destination print buffer for debug messages.
- * It defaults to the the null print buffer, but can be redefined
- * (typically in the individual .c files being debugged) to allow
- * selected debug messages to be generated where needed.
  */
 
 #ifndef DBG_OUTPUT
-#define DBG_OUTPUT TIPC_NULL
+#define DBG_OUTPUT TIPC_LOG
 #endif
 
-/*
- * TIPC can be configured to send debug messages to the specified print buffer
- * (typically DBG_OUTPUT) or to suppress them entirely.
- */
+#define dbg(fmt, arg...)  tipc_printf(DBG_OUTPUT, KERN_DEBUG fmt, ## arg);
 
-#ifdef CONFIG_TIPC_DEBUG
-
-#define dbg(fmt, arg...)  \
-	do { \
-		if (DBG_OUTPUT != TIPC_NULL) \
-			tipc_printf(DBG_OUTPUT, fmt, ## arg); \
-	} while (0)
-#define msg_dbg(msg, txt) \
-	do { \
-		if (DBG_OUTPUT != TIPC_NULL) \
-			tipc_msg_dbg(DBG_OUTPUT, msg, txt); \
-	} while (0)
+#define msg_dbg(msg, txt) tipc_msg_dbg(DBG_OUTPUT, msg, txt);
 
 void tipc_msg_dbg(struct print_buf *, struct tipc_msg *, const char *);
 
@@ -153,7 +124,7 @@ void tipc_msg_dbg(struct print_buf *, struct tipc_msg *, const char *);
 #define dbg(fmt, arg...)	do {} while (0)
 #define msg_dbg(msg, txt)	do {} while (0)
 
-#define tipc_msg_dbg(...)	do {} while (0)
+#define tipc_msg_dbg(buf, msg, txt) do {} while (0)
 
 #endif
 

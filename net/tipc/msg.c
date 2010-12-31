@@ -138,6 +138,7 @@ int tipc_msg_build(struct tipc_msg *hdr,
 void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 {
 	u32 usr = msg_user(msg);
+	tipc_printf(buf, KERN_DEBUG);
 	tipc_printf(buf, str);
 
 	switch (usr) {

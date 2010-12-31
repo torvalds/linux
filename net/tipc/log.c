@@ -52,7 +52,7 @@ static struct print_buf null_buf = { NULL, 0, NULL, 0 };
 struct print_buf *const TIPC_NULL = &null_buf;
 
 static struct print_buf cons_buf = { NULL, 0, NULL, 1 };
-static struct print_buf *const TIPC_CONS = &cons_buf;
+struct print_buf *const TIPC_CONS = &cons_buf;
 
 static struct print_buf log_buf = { NULL, 0, NULL, 1 };
 struct print_buf *const TIPC_LOG = &log_buf;
@@ -76,8 +76,6 @@ struct print_buf *const TIPC_LOG = &log_buf;
 static char print_string[TIPC_PB_MAX_STR];
 static DEFINE_SPINLOCK(print_lock);
 
-static void tipc_printbuf_reset(struct print_buf *pb);
-static int  tipc_printbuf_empty(struct print_buf *pb);
 static void tipc_printbuf_move(struct print_buf *pb_to,
 			       struct print_buf *pb_from);
 
