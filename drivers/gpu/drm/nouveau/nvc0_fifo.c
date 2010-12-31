@@ -33,6 +33,7 @@ struct nvc0_fifo_priv {
 	struct nouveau_gpuobj *playlist[2];
 	int cur_playlist;
 	struct nouveau_vma user_vma;
+	int spoon_nr;
 };
 
 struct nvc0_fifo_chan {
@@ -324,13 +325,18 @@ nvc0_fifo_init(struct drm_device *dev)
 	nv_wr32(dev, 0x000204, 0xffffffff);
 	nv_wr32(dev, 0x002204, 0xffffffff);
 
+	priv->spoon_nr = hweight32(nv_rd32(dev, 0x002204));
+	NV_DEBUG(dev, "PFIFO: %d subfifo(s)\n", priv->spoon_nr);
+
 	/* assign engines to subfifos */
-	nv_wr32(dev, 0x002208, ~(1 << 0)); /* PGRAPH */
-	nv_wr32(dev, 0x00220c, ~(1 << 1)); /* PVP */
-	nv_wr32(dev, 0x002210, ~(1 << 1)); /* PPP */
-	nv_wr32(dev, 0x002214, ~(1 << 1)); /* PBSP */
-	nv_wr32(dev, 0x002218, ~(1 << 2)); /* PCE0 */
-	nv_wr32(dev, 0x00221c, ~(1 << 1)); /* PCE1 */
+	if (priv->spoon_nr >= 3) {
+		nv_wr32(dev, 0x002208, ~(1 << 0)); /* PGRAPH */
+		nv_wr32(dev, 0x00220c, ~(1 << 1)); /* PVP */
+		nv_wr32(dev, 0x002210, ~(1 << 1)); /* PPP */
+		nv_wr32(dev, 0x002214, ~(1 << 1)); /* PBSP */
+		nv_wr32(dev, 0x002218, ~(1 << 2)); /* PCE0 */
+		nv_wr32(dev, 0x00221c, ~(1 << 1)); /* PCE1 */
+	}
 
 	/* PSUBFIFO[n] */
 	for (i = 0; i < 3; i++) {
