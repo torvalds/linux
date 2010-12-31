@@ -89,6 +89,7 @@ enum {
 	ISCSI_TASK_RUNNING,
 	ISCSI_TASK_ABRT_TMF,		/* aborted due to TMF */
 	ISCSI_TASK_ABRT_SESS_RECOV,	/* aborted due to session recovery */
+	ISCSI_TASK_REQUEUE_SCSIQ,	/* qcmd requeueing to scsi-ml */
 };
 
 struct iscsi_r2t_info {
@@ -341,7 +342,7 @@ extern int iscsi_eh_abort(struct scsi_cmnd *sc);
 extern int iscsi_eh_recover_target(struct scsi_cmnd *sc);
 extern int iscsi_eh_session_reset(struct scsi_cmnd *sc);
 extern int iscsi_eh_device_reset(struct scsi_cmnd *sc);
-extern int iscsi_queuecommand(struct Scsi_Host *h, struct scsi_cmnd *sc);
+extern int iscsi_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc);
 
 /*
  * iSCSI host helpers.
