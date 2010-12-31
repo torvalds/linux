@@ -145,23 +145,15 @@ void tipc_printf(struct print_buf *, const char *fmt, ...);
 		if (DBG_OUTPUT != TIPC_NULL) \
 			tipc_msg_dbg(DBG_OUTPUT, msg, txt); \
 	} while (0)
-#define dump(fmt, arg...) \
-	do { \
-		if (DBG_OUTPUT != TIPC_NULL) \
-			tipc_dump_dbg(DBG_OUTPUT, fmt, ##arg); \
-	} while (0)
 
 void tipc_msg_dbg(struct print_buf *, struct tipc_msg *, const char *);
-void tipc_dump_dbg(struct print_buf *, const char *fmt, ...);
 
 #else
 
 #define dbg(fmt, arg...)	do {} while (0)
 #define msg_dbg(msg, txt)	do {} while (0)
-#define dump(fmt, arg...)	do {} while (0)
 
 #define tipc_msg_dbg(...)	do {} while (0)
-#define tipc_dump_dbg(...)	do {} while (0)
 
 #endif
 
