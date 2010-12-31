@@ -42,7 +42,8 @@
 
 #define _GC_OBJ_ZONE    gcvZONE_OS
 
-#define PAGE_ALLOC_LIMIT                    1   // 限制Page申请数
+#define PAGE_ALLOC_LIMIT                    1   // 限制Page申请
+#define PAGE_ALLOC_LIMIT_SIZE               0   // 限制Page申请的大小,单位为M
 
 #if PAGE_ALLOC_LIMIT
 int g_pages_alloced = 0;
@@ -2665,7 +2666,7 @@ gceSTATUS gckOS_AllocatePagedMemoryEx(
     if (Contiguous)
     {
 #if PAGE_ALLOC_LIMIT
-        if((g_pages_alloced + numPages) > 256*32) {
+        if( (g_pages_alloced + numPages) > (256*PAGE_ALLOC_LIMIT_SIZE) ) {
             //printk("full %d! \n", g_pages_alloced);
             addr = NULL;
         } else {
@@ -2674,7 +2675,7 @@ gceSTATUS gckOS_AllocatePagedMemoryEx(
                 g_pages_alloced += numPages;
                 //printk("alloc %d / %d \n", numPages, g_pages_alloced);
             } else {
-                printk("gpu : alloc %d fail! (%d/8192)\n", numPages,  g_pages_alloced);
+                printk("gpu : alloc %d fail! (%d/%d)\n", numPages,  g_pages_alloced, (256*PAGE_ALLOC_LIMIT_SIZE) );
             }
         }
 #else
