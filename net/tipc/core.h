@@ -59,7 +59,7 @@
 #define TIPC_MOD_VER "2.0.0"
 
 struct tipc_msg;	/* msg.h */
-struct print_buf;	/* dbg.h */
+struct print_buf;	/* log.h */
 
 /*
  * TIPC sanity test macros

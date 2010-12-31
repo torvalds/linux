@@ -1,5 +1,5 @@
 /*
- * net/tipc/dbg.h: Include file for TIPC print buffer routines
+ * net/tipc/log.h: Include file for TIPC print buffer routines
  *
  * Copyright (c) 1997-2006, Ericsson AB
  * Copyright (c) 2005-2007, Wind River Systems

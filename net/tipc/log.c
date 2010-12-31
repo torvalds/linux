@@ -1,5 +1,5 @@
 /*
- * net/tipc/dbg.c: TIPC print buffer routines for debugging
+ * net/tipc/log.c: TIPC print buffer routines for debugging
  *
  * Copyright (c) 1996-2006, Ericsson AB
  * Copyright (c) 2005-2007, Wind River Systems
@@ -36,7 +36,7 @@
 
 #include "core.h"
 #include "config.h"
-#include "dbg.h"
+#include "log.h"
 
 /*
  * TIPC pre-defines the following print buffers:
@@ -81,13 +81,13 @@ static int  tipc_printbuf_empty(struct print_buf *pb);
 static void tipc_printbuf_move(struct print_buf *pb_to,
 			       struct print_buf *pb_from);
 
-#define FORMAT(PTR,LEN,FMT) \
+#define FORMAT(PTR, LEN, FMT) \
 {\
-       va_list args;\
-       va_start(args, FMT);\
-       LEN = vsprintf(PTR, FMT, args);\
-       va_end(args);\
-       *(PTR + LEN) = '\0';\
+	va_list args;\
+	va_start(args, FMT);\
+	LEN = vsprintf(PTR, FMT, args);\
+	va_end(args);\
+	*(PTR + LEN) = '\0';\
 }
 
 /**
@@ -353,10 +353,8 @@ int tipc_log_resize(int log_size)
 	int res = 0;
 
 	spin_lock_bh(&print_lock);
-	if (TIPC_LOG->buf) {
-		kfree(TIPC_LOG->buf);
-		TIPC_LOG->buf = NULL;
-	}
+	kfree(TIPC_LOG->buf);
+	TIPC_LOG->buf = NULL;
 	if (log_size) {
 		if (log_size < TIPC_PB_MIN_SIZE)
 			log_size = TIPC_PB_MIN_SIZE;
@@ -407,8 +405,7 @@ struct sk_buff *tipc_log_dump(void)
 	} else if (tipc_printbuf_empty(TIPC_LOG)) {
 		spin_unlock_bh(&print_lock);
 		reply = tipc_cfg_reply_ultra_string("log is empty\n");
-	}
-	else {
+	} else {
 		struct tlv_desc *rep_tlv;
 		struct print_buf pb;
 		int str_len;
@@ -429,4 +426,3 @@ struct sk_buff *tipc_log_dump(void)
 	}
 	return reply;
 }
-
