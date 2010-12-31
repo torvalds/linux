@@ -2019,9 +2019,7 @@ static unsigned int dev_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &gspca_dev->wq, wait);
 
 	/* if reqbufs is not done, the user would use read() */
-	if (gspca_dev->nframes == 0) {
-		if (gspca_dev->memory != GSPCA_MEMORY_NO)
-			return POLLERR;		/* not the 1st time */
+	if (gspca_dev->memory == GSPCA_MEMORY_NO) {
 		ret = read_alloc(gspca_dev, file);
 		if (ret != 0)
 			return POLLERR;
@@ -2053,18 +2051,10 @@ static ssize_t dev_read(struct file *file, char __user *data,
 	PDEBUG(D_FRAM, "read (%zd)", count);
 	if (!gspca_dev->present)
 		return -ENODEV;
-	switch (gspca_dev->memory) {
-	case GSPCA_MEMORY_NO:			/* first time */
+	if (gspca_dev->memory == GSPCA_MEMORY_NO) { /* first time ? */
 		ret = read_alloc(gspca_dev, file);
 		if (ret != 0)
 			return ret;
-		break;
-	case GSPCA_MEMORY_READ:
-		if (gspca_dev->capt_file == file)
-			break;
-		/* fall thru */
-	default:
-		return -EINVAL;
 	}
 
 	/* get a frame */
