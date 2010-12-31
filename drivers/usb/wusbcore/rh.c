@@ -156,7 +156,7 @@ int wusbhc_rh_status_data(struct usb_hcd *usb_hcd, char *_buf)
 EXPORT_SYMBOL_GPL(wusbhc_rh_status_data);
 
 /*
- * Return the hub's desciptor
+ * Return the hub's descriptor
  *
  * NOTE: almost cut and paste from ehci-hub.c
  *
