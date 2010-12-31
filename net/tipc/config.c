@@ -65,10 +65,8 @@ int tipc_cfg_append_tlv(struct sk_buff *buf, int tlv_type,
 	struct tlv_desc *tlv = (struct tlv_desc *)skb_tail_pointer(buf);
 	int new_tlv_space = TLV_SPACE(tlv_data_size);
 
-	if (skb_tailroom(buf) < new_tlv_space) {
-		dbg("tipc_cfg_append_tlv unable to append TLV\n");
+	if (skb_tailroom(buf) < new_tlv_space)
 		return 0;
-	}
 	skb_put(buf, new_tlv_space);
 	tlv->tlv_type = htons(tlv_type);
 	tlv->tlv_len  = htons(TLV_LENGTH(tlv_data_size));

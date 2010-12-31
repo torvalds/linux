@@ -87,7 +87,6 @@ static void publ_to_item(struct distr_item *i, struct publication *p)
 	i->upper = htonl(p->upper);
 	i->ref = htonl(p->ref);
 	i->key = htonl(p->key);
-	dbg("publ_to_item: %u, %u, %u\n", p->type, p->lower, p->upper);
 }
 
 /**
@@ -147,7 +146,6 @@ void tipc_named_publish(struct publication *publ)
 
 	item = (struct distr_item *)msg_data(buf_msg(buf));
 	publ_to_item(item, publ);
-	dbg("tipc_named_publish: broadcasting publish msg\n");
 	named_cluster_distribute(buf);
 }
 
@@ -171,7 +169,6 @@ void tipc_named_withdraw(struct publication *publ)
 
 	item = (struct distr_item *)msg_data(buf_msg(buf));
 	publ_to_item(item, publ);
-	dbg("tipc_named_withdraw: broadcasting withdraw msg\n");
 	named_cluster_distribute(buf);
 }
 
@@ -209,9 +206,6 @@ void tipc_named_node_up(unsigned long node)
 		left -= ITEM_SIZE;
 		if (!left) {
 			msg_set_link_selector(buf_msg(buf), node);
-			dbg("tipc_named_node_up: sending publish msg to "
-			    "<%u.%u.%u>\n", tipc_zone(node),
-			    tipc_cluster(node), tipc_node(node));
 			tipc_link_send(buf, node, node);
 			buf = NULL;
 		}
@@ -236,8 +230,6 @@ static void node_is_down(struct publication *publ)
 	struct publication *p;
 
 	write_lock_bh(&tipc_nametbl_lock);
-	dbg("node_is_down: withdrawing %u, %u, %u\n",
-	    publ->type, publ->lower, publ->upper);
 	publ->key += 1222345;
 	p = tipc_nametbl_remove_publ(publ->type, publ->lower,
 				     publ->node, publ->ref, publ->key);
@@ -268,9 +260,6 @@ void tipc_named_recv(struct sk_buff *buf)
 	write_lock_bh(&tipc_nametbl_lock);
 	while (count--) {
 		if (msg_type(msg) == PUBLICATION) {
-			dbg("tipc_named_recv: got publication for %u, %u, %u\n",
-			    ntohl(item->type), ntohl(item->lower),
-			    ntohl(item->upper));
 			publ = tipc_nametbl_insert_publ(ntohl(item->type),
 							ntohl(item->lower),
 							ntohl(item->upper),
@@ -285,9 +274,6 @@ void tipc_named_recv(struct sk_buff *buf)
 						       (net_ev_handler)node_is_down);
 			}
 		} else if (msg_type(msg) == WITHDRAWAL) {
-			dbg("tipc_named_recv: got withdrawl for %u, %u, %u\n",
-			    ntohl(item->type), ntohl(item->lower),
-			    ntohl(item->upper));
 			publ = tipc_nametbl_remove_publ(ntohl(item->type),
 							ntohl(item->lower),
 							msg_orignode(msg),

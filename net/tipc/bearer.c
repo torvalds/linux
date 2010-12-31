@@ -164,7 +164,6 @@ int  tipc_register_media(u32 media_type,
 	m_ptr->priority = bearer_priority;
 	m_ptr->tolerance = link_tolerance;
 	m_ptr->window = send_window_limit;
-	dbg("Media <%s> registered\n", name);
 	res = 0;
 exit:
 	write_unlock_bh(&tipc_net_lock);

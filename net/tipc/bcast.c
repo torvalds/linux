@@ -436,8 +436,6 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 	u32 seqno;
 	struct sk_buff *deferred;
 
-	msg_dbg(msg, "<BC<<<");
-
 	if (unlikely(!node || !tipc_node_is_up(node) || !node->bclink.supported ||
 		     (msg_mc_netid(msg) != tipc_net_id))) {
 		buf_discard(buf);
@@ -445,7 +443,6 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 	}
 
 	if (unlikely(msg_user(msg) == BCAST_PROTOCOL)) {
-		msg_dbg(msg, "<BCNACK<<<");
 		if (msg_destnode(msg) == tipc_own_addr) {
 			tipc_node_lock(node);
 			tipc_bclink_acknowledge(node, msg_bcast_ack(msg));

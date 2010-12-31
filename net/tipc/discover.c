@@ -133,7 +133,6 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 	u32 type = msg_type(msg);
 
 	msg_get_media_addr(msg,&media_addr);
-	msg_dbg(msg, "RECV:");
 	buf_discard(buf);
 
 	if (net_id != tipc_net_id)
@@ -156,7 +155,6 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 		struct tipc_node *n_ptr = tipc_node_find(orig);
 		int link_fully_up;
 
-		dbg(" in own cluster\n");
 		if (n_ptr == NULL) {
 			n_ptr = tipc_node_create(orig);
 			if (!n_ptr)
@@ -173,7 +171,6 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 
 		link = n_ptr->links[b_ptr->identity];
 		if (!link) {
-			dbg("creating link\n");
 			link = tipc_link_create(b_ptr, orig, &media_addr);
 			if (!link) {
 				spin_unlock_bh(&n_ptr->lock);
@@ -198,7 +195,6 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 			return;
 		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, 1, orig, b_ptr);
 		if (rbuf != NULL) {
-			msg_dbg(buf_msg(rbuf),"SEND:");
 			b_ptr->media->send_msg(rbuf, &b_ptr->publ, &media_addr);
 			buf_discard(rbuf);
 		}

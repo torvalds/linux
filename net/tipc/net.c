@@ -138,22 +138,18 @@ static void net_route_named_msg(struct sk_buff *buf)
 	u32 dport;
 
 	if (!msg_named(msg)) {
-		msg_dbg(msg, "tipc_net->drop_nam:");
 		buf_discard(buf);
 		return;
 	}
 
 	dnode = addr_domain(msg_lookup_scope(msg));
 	dport = tipc_nametbl_translate(msg_nametype(msg), msg_nameinst(msg), &dnode);
-	dbg("tipc_net->lookup<%u,%u>-><%u,%x>\n",
-	    msg_nametype(msg), msg_nameinst(msg), dport, dnode);
 	if (dport) {
 		msg_set_destnode(msg, dnode);
 		msg_set_destport(msg, dport);
 		tipc_net_route_msg(buf);
 		return;
 	}
-	msg_dbg(msg, "tipc_net->rej:NO NAME: ");
 	tipc_reject_msg(buf, TIPC_ERR_NO_NAME);
 }
 
@@ -169,17 +165,13 @@ void tipc_net_route_msg(struct sk_buff *buf)
 	msg_incr_reroute_cnt(msg);
 	if (msg_reroute_cnt(msg) > 6) {
 		if (msg_errcode(msg)) {
-			msg_dbg(msg, "NET>DISC>:");
 			buf_discard(buf);
 		} else {
-			msg_dbg(msg, "NET>REJ>:");
 			tipc_reject_msg(buf, msg_destport(msg) ?
 					TIPC_ERR_NO_PORT : TIPC_ERR_NO_NAME);
 		}
 		return;
 	}
-
-	msg_dbg(msg, "tipc_net->rout: ");
 
 	/* Handle message for this node */
 	dnode = msg_short(msg) ? tipc_own_addr : msg_destnode(msg);
@@ -201,14 +193,12 @@ void tipc_net_route_msg(struct sk_buff *buf)
 			tipc_port_recv_proto_msg(buf);
 			break;
 		default:
-			msg_dbg(msg,"DROP/NET/<REC<");
 			buf_discard(buf);
 		}
 		return;
 	}
 
 	/* Handle message for another node */
-	msg_dbg(msg, "NET>SEND>: ");
 	skb_trim(buf, msg_size(msg));
 	tipc_link_send(buf, dnode, msg_link_selector(msg));
 }

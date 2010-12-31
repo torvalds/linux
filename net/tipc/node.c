@@ -97,7 +97,6 @@ void tipc_node_delete(struct tipc_node *n_ptr)
 	if (!n_ptr)
 		return;
 
-	dbg("node %x deleted\n", n_ptr->addr);
 	n_num = tipc_node(n_ptr->addr);
 	tipc_net.nodes[n_num] = NULL;
 	kfree(n_ptr);
@@ -124,7 +123,6 @@ void tipc_node_link_up(struct tipc_node *n_ptr, struct link *l_ptr)
 	     l_ptr->name, l_ptr->b_ptr->net_plane);
 
 	if (!active[0]) {
-		dbg(" link %x into %x/%x\n", l_ptr, &active[0], &active[1]);
 		active[0] = active[1] = l_ptr;
 		node_established_contact(n_ptr);
 		return;
@@ -302,7 +300,6 @@ void tipc_node_detach_link(struct tipc_node *n_ptr, struct link *l_ptr)
 
 static void node_established_contact(struct tipc_node *n_ptr)
 {
-	dbg("node_established_contact:-> %x\n", n_ptr->addr);
 	tipc_k_signal((Handler)tipc_named_node_up, n_ptr->addr);
 
 	/* Syncronize broadcast acks */

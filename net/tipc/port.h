@@ -316,7 +316,6 @@ static inline int tipc_port_recv_msg(struct sk_buff *buf)
 		err = TIPC_ERR_NO_PORT;
 	}
 reject:
-	dbg("port->rejecting, err = %x..\n",err);
 	return tipc_reject_msg(buf, err);
 }
 

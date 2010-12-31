@@ -1226,42 +1226,25 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 	 */
 
 	if (sock->state == SS_READY) {
-		if (msg_connected(msg)) {
-			msg_dbg(msg, "dispatch filter 1\n");
+		if (msg_connected(msg))
 			return TIPC_ERR_NO_PORT;
-		}
 	} else {
-		if (msg_mcast(msg)) {
-			msg_dbg(msg, "dispatch filter 2\n");
+		if (msg_mcast(msg))
 			return TIPC_ERR_NO_PORT;
-		}
 		if (sock->state == SS_CONNECTED) {
-			if (!msg_connected(msg)) {
-				msg_dbg(msg, "dispatch filter 3\n");
+			if (!msg_connected(msg))
 				return TIPC_ERR_NO_PORT;
-			}
-		}
-		else if (sock->state == SS_CONNECTING) {
-			if (!msg_connected(msg) && (msg_errcode(msg) == 0)) {
-				msg_dbg(msg, "dispatch filter 4\n");
+		} else if (sock->state == SS_CONNECTING) {
+			if (!msg_connected(msg) && (msg_errcode(msg) == 0))
 				return TIPC_ERR_NO_PORT;
-			}
-		}
-		else if (sock->state == SS_LISTENING) {
-			if (msg_connected(msg) || msg_errcode(msg)) {
-				msg_dbg(msg, "dispatch filter 5\n");
+		} else if (sock->state == SS_LISTENING) {
+			if (msg_connected(msg) || msg_errcode(msg))
 				return TIPC_ERR_NO_PORT;
-			}
-		}
-		else if (sock->state == SS_DISCONNECTING) {
-			msg_dbg(msg, "dispatch filter 6\n");
+		} else if (sock->state == SS_DISCONNECTING) {
 			return TIPC_ERR_NO_PORT;
-		}
-		else /* (sock->state == SS_UNCONNECTED) */ {
-			if (msg_connected(msg) || msg_errcode(msg)) {
-				msg_dbg(msg, "dispatch filter 7\n");
+		} else /* (sock->state == SS_UNCONNECTED) */ {
+			if (msg_connected(msg) || msg_errcode(msg))
 				return TIPC_ERR_NO_PORT;
-			}
 		}
 	}
 
@@ -1280,7 +1263,6 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 
 	/* Enqueue message (finally!) */
 
-	msg_dbg(msg, "<DISP<: ");
 	TIPC_SKB_CB(buf)->handle = msg_data(msg);
 	atomic_inc(&tipc_queue_size);
 	__skb_queue_tail(&sk->sk_receive_queue, buf);
@@ -1588,7 +1570,6 @@ static int accept(struct socket *sock, struct socket *new_sock, int flags)
 		 * Respond to 'SYN+' by queuing it on new socket.
 		 */
 
-		msg_dbg(msg,"<ACC<: ");
 		if (!msg_data_sz(msg)) {
 			struct msghdr m = {NULL,};
 

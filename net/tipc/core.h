@@ -243,7 +243,6 @@ u32 tipc_k_signal(Handler routine, unsigned long argument);
 static inline void k_init_timer(struct timer_list *timer, Handler routine,
 				unsigned long argument)
 {
-	dbg("initializing timer %p\n", timer);
 	setup_timer(timer, routine, argument);
 }
 
@@ -263,7 +262,6 @@ static inline void k_init_timer(struct timer_list *timer, Handler routine,
 
 static inline void k_start_timer(struct timer_list *timer, unsigned long msec)
 {
-	dbg("starting timer %p for %u\n", timer, msec);
 	mod_timer(timer, jiffies + msecs_to_jiffies(msec) + 1);
 }
 
@@ -280,7 +278,6 @@ static inline void k_start_timer(struct timer_list *timer, unsigned long msec)
 
 static inline void k_cancel_timer(struct timer_list *timer)
 {
-	dbg("cancelling timer %p\n", timer);
 	del_timer_sync(timer);
 }
 
@@ -298,7 +295,6 @@ static inline void k_cancel_timer(struct timer_list *timer)
 
 static inline void k_term_timer(struct timer_list *timer)
 {
-	dbg("terminating timer %p\n", timer);
 }
 
 

@@ -188,7 +188,6 @@ void tipc_port_recv_mcast(struct sk_buff *buf, struct port_list *dp)
 
 			if (b == NULL) {
 				warn("Unable to deliver multicast message(s)\n");
-				msg_dbg(msg, "LOST:");
 				goto exit;
 			}
 			if ((index == 0) && (cnt != 0)) {
@@ -280,7 +279,6 @@ int tipc_deleteport(u32 ref)
 	spin_unlock_bh(&tipc_port_list_lock);
 	k_term_timer(&p_ptr->timer);
 	kfree(p_ptr);
-	dbg("Deleted port %u\n", ref);
 	tipc_net_route_msg(buf);
 	return 0;
 }
@@ -366,7 +364,6 @@ static struct sk_buff *port_build_proto_msg(u32 destport, u32 destnode,
 		msg_set_orignode(msg, orignode);
 		msg_set_transp_seqno(msg, seqno);
 		msg_set_msgcnt(msg, ack);
-		msg_dbg(msg, "PORT>SEND>:");
 	}
 	return buf;
 }
@@ -384,7 +381,6 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 		data_sz = MAX_REJECT_SIZE;
 	if (msg_connected(msg) && (imp < TIPC_CRITICAL_IMPORTANCE))
 		imp++;
-	msg_dbg(msg, "port->rej: ");
 
 	/* discard rejected message if it shouldn't be returned to sender */
 	if (msg_errcode(msg) || msg_dest_droppable(msg)) {
@@ -546,8 +542,6 @@ void tipc_port_recv_proto_msg(struct sk_buff *buf)
 	u32 err = TIPC_OK;
 	struct sk_buff *r_buf = NULL;
 	struct sk_buff *abort_buf = NULL;
-
-	msg_dbg(msg, "PORT<RECV<:");
 
 	if (!p_ptr) {
 		err = TIPC_ERR_NO_PORT;
@@ -1015,9 +1009,6 @@ int tipc_publish(u32 ref, unsigned int scope, struct tipc_name_seq const *seq)
 	if (!p_ptr)
 		return -EINVAL;
 
-	dbg("tipc_publ %u, p_ptr = %x, conn = %x, scope = %x, "
-	    "lower = %u, upper = %u\n",
-	    ref, p_ptr, p_ptr->publ.connected, scope, seq->lower, seq->upper);
 	if (p_ptr->publ.connected)
 		goto exit;
 	if (seq->lower > seq->upper)
@@ -1357,7 +1348,6 @@ int tipc_send_buf2port(u32 ref, struct tipc_portid const *dest,
 
 	skb_push(buf, DIR_MSG_H_SIZE);
 	skb_copy_to_linear_data(buf, msg, DIR_MSG_H_SIZE);
-	msg_dbg(msg, "buf2port: ");
 	p_ptr->sent++;
 	if (dest->node == tipc_own_addr)
 		return tipc_port_recv_msg(buf);
