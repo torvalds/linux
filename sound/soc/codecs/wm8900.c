@@ -684,15 +684,15 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
 			reg &= ~WM8900_REG_DACCTRL_DAC_SB_FILT;
 
 		snd_soc_write(codec, WM8900_REG_DACCTRL, reg);
-		
+	}
         	snd_soc_write(codec, WM8900_REG_POWER3, 0xEF);
         	
         	snd_soc_write(codec, WM8900_REG_LOUTMIXCTL1, 0x150);
         	snd_soc_write(codec, WM8900_REG_ROUTMIXCTL1, 0x150);
-        	snd_soc_write(codec, WM8900_REG_LOUT2CTL, 0x126);
-        	snd_soc_write(codec, WM8900_REG_ROUT2CTL, 0x126);
+        	snd_soc_write(codec, WM8900_REG_LOUT2CTL, 0x139);
+        	snd_soc_write(codec, WM8900_REG_ROUT2CTL, 0x139);
         	snd_soc_write(codec, WM8900_REG_HPCTL1, 0xC0);		
-	} else {
+	//} else {
                 snd_soc_write(codec, WM8900_REG_POWER1, 0x211D);
                 snd_soc_write(codec, WM8900_REG_POWER2, 0xC03F);
                 
@@ -706,7 +706,7 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
                 snd_soc_write(codec, WM8900_REG_RINVOL, 0x0115);
                 snd_soc_write(codec, WM8900_REG_INBOOSTMIX1, 0x0042);
                 snd_soc_write(codec, WM8900_REG_INBOOSTMIX2, 0x0042);
-                snd_soc_write(codec, WM8900_REG_ADCPATH, 0x0077);
+                snd_soc_write(codec, WM8900_REG_ADCPATH, 0x0055);
                 
                 
                 /*
@@ -723,7 +723,7 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
                 snd_soc_write(codec, 0x36, 0x011F);
                 snd_soc_write(codec, 0x3A, 0x00C0);
                 */
-	}
+	//}
         WM8900_DBG("<<<<<<<<<<<<<<<<<<<<Exit:%s, %d \n", __FUNCTION__, __LINE__);
 	return 0;
 }
@@ -1349,12 +1349,17 @@ static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 	snd_soc_write(codec, WM8900_REG_RADC_DV,
 		      snd_soc_read(codec, WM8900_REG_RADC_DV) | 0x100);
 
+
         /* For Fzf Test */
         #if 1
 	snd_soc_write(codec, WM8900_REG_LDAC_DV,
 		      (snd_soc_read(codec, WM8900_REG_LDAC_DV)&0xFF00) | 0xB0);
 	snd_soc_write(codec, WM8900_REG_RDAC_DV,
 		      (snd_soc_read(codec, WM8900_REG_RDAC_DV)&0xFF00) | 0xB0);
+
+        snd_soc_write(codec, WM8900_REG_AUDIO2,
+                      (snd_soc_read(codec, WM8900_REG_AUDIO2) | (0<<10)));
+        		      
         #endif
 	/* Set the DAC and mixer output bias */
 	snd_soc_write(codec, WM8900_REG_OUTBIASCTL, 0x81);
