@@ -640,7 +640,7 @@ s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data;
 
-	/* Enable CRS on TX. This must be set for half-duplex operation. */
+	/* Enable CRS on Tx. This must be set for half-duplex operation. */
 	ret_val = e1e_rphy(hw, I82577_CFG_REG, &phy_data);
 	if (ret_val)
 		goto out;
