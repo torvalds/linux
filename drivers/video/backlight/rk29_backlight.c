@@ -304,6 +304,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
     register_early_suspend(&bl_early_suspend);
 #endif
 
+    printk("RK29 Backlight Driver Initialized.\n");
     return ret;
 }
 
@@ -387,7 +388,4 @@ static int __init rk29_backlight_init(void)
 	platform_driver_register(&rk29_backlight_driver);
 	return 0;
 }
-//rootfs_initcall(rk29_backlight_init);
-
-late_initcall(rk29_backlight_init);
-//module_init(rk29_backlight_init);
+postcore_initcall_sync(rk29_backlight_init);
