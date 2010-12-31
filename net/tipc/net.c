@@ -36,7 +36,6 @@
 
 #include "core.h"
 #include "net.h"
-#include "zone.h"
 #include "name_table.h"
 #include "name_distr.h"
 #include "subscr.h"
@@ -111,46 +110,56 @@
 */
 
 DEFINE_RWLOCK(tipc_net_lock);
-static struct _zone *tipc_zones[256] = { NULL, };
-struct network tipc_net = { tipc_zones };
+struct network tipc_net;
 
 struct tipc_node *tipc_net_select_remote_node(u32 addr, u32 ref)
 {
-	return tipc_zone_select_remote_node(tipc_net.zones[tipc_zone(addr)], addr, ref);
+	struct cluster *c_ptr;
+
+	c_ptr = tipc_net.clusters[1];
+	if (!c_ptr)
+		return NULL;
+	return tipc_cltr_select_node(c_ptr, ref);
 }
 
 u32 tipc_net_select_router(u32 addr, u32 ref)
 {
-	return tipc_zone_select_router(tipc_net.zones[tipc_zone(addr)], addr, ref);
+	struct cluster *c_ptr;
+
+	c_ptr = tipc_net.clusters[1];
+	if (!c_ptr)
+		return 0;
+	return tipc_cltr_select_router(c_ptr, ref);
 }
 
 void tipc_net_remove_as_router(u32 router)
 {
-	u32 z_num;
+	u32 c_num;
 
-	for (z_num = 1; z_num <= tipc_max_zones; z_num++) {
-		if (!tipc_net.zones[z_num])
+	for (c_num = 1; c_num <= tipc_max_clusters; c_num++) {
+		if (!tipc_net.clusters[c_num])
 			continue;
-		tipc_zone_remove_as_router(tipc_net.zones[z_num], router);
+		tipc_cltr_remove_as_router(tipc_net.clusters[c_num], router);
 	}
 }
 
 void tipc_net_send_external_routes(u32 dest)
 {
-	u32 z_num;
+	u32 c_num;
 
-	for (z_num = 1; z_num <= tipc_max_zones; z_num++) {
-		if (tipc_net.zones[z_num])
-			tipc_zone_send_external_routes(tipc_net.zones[z_num], dest);
+	for (c_num = 1; c_num <= tipc_max_clusters; c_num++) {
+		if (tipc_net.clusters[c_num])
+			tipc_cltr_send_ext_routes(tipc_net.clusters[c_num],
+						  dest);
 	}
 }
 
 static void net_stop(void)
 {
-	u32 z_num;
+	u32 c_num;
 
-	for (z_num = 1; z_num <= tipc_max_zones; z_num++)
-		tipc_zone_delete(tipc_net.zones[z_num]);
+	for (c_num = 1; c_num <= tipc_max_clusters; c_num++)
+		tipc_cltr_delete(tipc_net.clusters[c_num]);
 }
 
 static void net_route_named_msg(struct sk_buff *buf)

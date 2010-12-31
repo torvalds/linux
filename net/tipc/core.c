@@ -48,10 +48,6 @@
 #include "config.h"
 
 
-#ifndef CONFIG_TIPC_ZONES
-#define CONFIG_TIPC_ZONES 3
-#endif
-
 #ifndef CONFIG_TIPC_CLUSTERS
 #define CONFIG_TIPC_CLUSTERS 1
 #endif
@@ -84,7 +80,6 @@ const char tipc_alphabet[] =
 /* configurable TIPC parameters */
 
 u32 tipc_own_addr;
-int tipc_max_zones;
 int tipc_max_clusters;
 int tipc_max_nodes;
 int tipc_max_slaves;
@@ -209,7 +204,6 @@ static int __init tipc_init(void)
 	tipc_max_publications = 10000;
 	tipc_max_subscriptions = 2000;
 	tipc_max_ports = CONFIG_TIPC_PORTS;
-	tipc_max_zones = CONFIG_TIPC_ZONES;
 	tipc_max_clusters = CONFIG_TIPC_CLUSTERS;
 	tipc_max_nodes = CONFIG_TIPC_NODES;
 	tipc_max_slaves = CONFIG_TIPC_SLAVE_NODES;

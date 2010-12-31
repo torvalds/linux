@@ -257,7 +257,7 @@ struct tipc_node *tipc_node_attach_link(struct link *l_ptr)
 
 		if (!n_ptr->links[bearer_id]) {
 			n_ptr->links[bearer_id] = l_ptr;
-			tipc_net.zones[tipc_zone(l_ptr->addr)]->links++;
+			tipc_net.links++;
 			n_ptr->link_cnt++;
 			return n_ptr;
 		}
@@ -271,7 +271,7 @@ struct tipc_node *tipc_node_attach_link(struct link *l_ptr)
 void tipc_node_detach_link(struct tipc_node *n_ptr, struct link *l_ptr)
 {
 	n_ptr->links[l_ptr->b_ptr->identity] = NULL;
-	tipc_net.zones[tipc_zone(l_ptr->addr)]->links--;
+	tipc_net.links--;
 	n_ptr->link_cnt--;
 }
 
@@ -656,8 +656,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 
 	/* Get space for all unicast links + multicast link */
 
-	payload_size = TLV_SPACE(sizeof(link_info)) *
-		(tipc_net.zones[tipc_zone(tipc_own_addr)]->links + 1);
+	payload_size = TLV_SPACE(sizeof(link_info)) * (tipc_net.links + 1);
 	if (payload_size > 32768u) {
 		read_unlock_bh(&tipc_net_lock);
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED

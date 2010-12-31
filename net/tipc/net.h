@@ -37,15 +37,17 @@
 #ifndef _TIPC_NET_H
 #define _TIPC_NET_H
 
-struct _zone;
+struct cluster;
 
 /**
  * struct network - TIPC network structure
- * @zones: array of pointers to all zones within network
+ * @clusters: array of pointers to all clusters within zone
+ * @links: number of (unicast) links to cluster
  */
 
 struct network {
-	struct _zone **zones;
+	struct cluster *clusters[2]; /* currently limited to just 1 cluster */
+	u32 links;
 };
 
 

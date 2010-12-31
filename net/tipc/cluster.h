@@ -38,14 +38,13 @@
 #define _TIPC_CLUSTER_H
 
 #include "addr.h"
-#include "zone.h"
+#include "net.h"
 
 #define LOWEST_SLAVE  2048u
 
 /**
  * struct cluster - TIPC cluster structure
  * @addr: network address of cluster
- * @owner: pointer to zone that cluster belongs to
  * @nodes: array of pointers to all nodes within cluster
  * @highest_node: id of highest numbered node within cluster
  * @highest_slave: (used for secondary node support)
@@ -53,7 +52,6 @@
 
 struct cluster {
 	u32 addr;
-	struct _zone *owner;
 	struct tipc_node **nodes;
 	u32 highest_node;
 	u32 highest_slave;
@@ -82,11 +80,9 @@ void tipc_cltr_bcast_lost_route(struct cluster *c_ptr, u32 dest, u32 lo, u32 hi)
 
 static inline struct cluster *tipc_cltr_find(u32 addr)
 {
-	struct _zone *z_ptr = tipc_zone_find(addr);
-
-	if (z_ptr)
-		return z_ptr->clusters[1];
-	return NULL;
+	if (!in_own_cluster(addr))
+		return NULL;
+	return tipc_net.clusters[1];
 }
 
 #endif

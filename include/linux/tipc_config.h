@@ -94,7 +94,7 @@
 #define  TIPC_CMD_GET_MAX_PORTS     0x4004    /* tx none, rx unsigned */
 #define  TIPC_CMD_GET_MAX_PUBL      0x4005    /* tx none, rx unsigned */
 #define  TIPC_CMD_GET_MAX_SUBSCR    0x4006    /* tx none, rx unsigned */
-#define  TIPC_CMD_GET_MAX_ZONES     0x4007    /* tx none, rx unsigned */
+#define  TIPC_CMD_GET_MAX_ZONES     0x4007    /* obsoleted */
 #define  TIPC_CMD_GET_MAX_CLUSTERS  0x4008    /* tx none, rx unsigned */
 #define  TIPC_CMD_GET_MAX_NODES     0x4009    /* tx none, rx unsigned */
 #define  TIPC_CMD_GET_MAX_SLAVES    0x400A    /* tx none, rx unsigned */
@@ -130,7 +130,7 @@
 #define  TIPC_CMD_SET_MAX_PORTS     0x8004    /* tx unsigned, rx none */
 #define  TIPC_CMD_SET_MAX_PUBL      0x8005    /* tx unsigned, rx none */
 #define  TIPC_CMD_SET_MAX_SUBSCR    0x8006    /* tx unsigned, rx none */
-#define  TIPC_CMD_SET_MAX_ZONES     0x8007    /* tx unsigned, rx none */
+#define  TIPC_CMD_SET_MAX_ZONES     0x8007    /* obsoleted */
 #define  TIPC_CMD_SET_MAX_CLUSTERS  0x8008    /* tx unsigned, rx none */
 #define  TIPC_CMD_SET_MAX_NODES     0x8009    /* tx unsigned, rx none */
 #define  TIPC_CMD_SET_MAX_SLAVES    0x800A    /* tx unsigned, rx none */

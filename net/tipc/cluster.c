@@ -47,7 +47,6 @@ u32 tipc_highest_allowed_slave = 0;
 
 struct cluster *tipc_cltr_create(u32 addr)
 {
-	struct _zone *z_ptr;
 	struct cluster *c_ptr;
 	int max_nodes;
 
@@ -75,18 +74,7 @@ struct cluster *tipc_cltr_create(u32 addr)
 	c_ptr->highest_slave = LOWEST_SLAVE - 1;
 	c_ptr->highest_node = 0;
 
-	z_ptr = tipc_zone_find(tipc_zone(addr));
-	if (!z_ptr) {
-		z_ptr = tipc_zone_create(addr);
-	}
-	if (!z_ptr) {
-		kfree(c_ptr->nodes);
-		kfree(c_ptr);
-		return NULL;
-	}
-
-	tipc_zone_attach_cluster(z_ptr, c_ptr);
-	c_ptr->owner = z_ptr;
+	tipc_net.clusters[1] = c_ptr;
 	return c_ptr;
 }
 

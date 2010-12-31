@@ -35,8 +35,6 @@
  */
 
 #include "core.h"
-#include "addr.h"
-#include "zone.h"
 #include "cluster.h"
 
 /**
@@ -60,8 +58,6 @@ int tipc_addr_domain_valid(u32 addr)
 	if (n > max_nodes)
 		return 0;
 	if (c > tipc_max_clusters)
-		return 0;
-	if (z > tipc_max_zones)
 		return 0;
 
 	if (n && (!z || !c))

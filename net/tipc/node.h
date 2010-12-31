@@ -38,7 +38,6 @@
 #define _TIPC_NODE_H
 
 #include "node_subscr.h"
-#include "addr.h"
 #include "cluster.h"
 #include "bearer.h"
 
