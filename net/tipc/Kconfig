@@ -50,7 +50,7 @@ config TIPC_PORTS
 	  Specifies how many ports can be supported by a node.
 	  Can range from 127 to 65535 ports; default is 8191.
 
-	  Setting this to a smaller value saves some memory, 
+	  Setting this to a smaller value saves some memory,
 	  setting it to higher allows for more ports.
 
 config TIPC_LOG

@@ -229,8 +229,8 @@ struct sk_buff *tipc_link_cmd_reset_stats(const void *req_tlv_area, int req_tlv_
 void tipc_link_reset(struct link *l_ptr);
 int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector);
 int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf);
-u32 tipc_link_get_max_pkt(u32 dest,u32 selector);
-int tipc_link_send_sections_fast(struct port* sender,
+u32 tipc_link_get_max_pkt(u32 dest, u32 selector);
+int tipc_link_send_sections_fast(struct port *sender,
 				 struct iovec const *msg_sect,
 				 const u32 num_sect,
 				 u32 destnode);

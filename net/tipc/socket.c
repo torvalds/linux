@@ -375,7 +375,7 @@ static int bind(struct socket *sock, struct sockaddr *uaddr, int uaddr_len)
  *
  * NOTE: This routine doesn't need to take the socket lock since it only
  *       accesses socket information that is unchanging (or which changes in
- * 	 a completely predictable manner).
+ *       a completely predictable manner).
  */
 
 static int get_name(struct socket *sock, struct sockaddr *uaddr,
@@ -570,14 +570,12 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 					     dest->addr.name.domain,
 					     m->msg_iovlen,
 					     m->msg_iov);
-		}
-		else if (dest->addrtype == TIPC_ADDR_ID) {
+		} else if (dest->addrtype == TIPC_ADDR_ID) {
 			res = tipc_send2port(tport->ref,
 					     &dest->addr.id,
 					     m->msg_iovlen,
 					     m->msg_iov);
-		}
-		else if (dest->addrtype == TIPC_ADDR_MCAST) {
+		} else if (dest->addrtype == TIPC_ADDR_MCAST) {
 			if (needs_conn) {
 				res = -EOPNOTSUPP;
 				break;
@@ -812,8 +810,8 @@ static void set_orig_addr(struct msghdr *m, struct tipc_msg *msg)
 		addr->addrtype = TIPC_ADDR_ID;
 		addr->addr.id.ref = msg_origport(msg);
 		addr->addr.id.node = msg_orignode(msg);
-		addr->addr.name.domain = 0;   	/* could leave uninitialized */
-		addr->scope = 0;   		/* could leave uninitialized */
+		addr->addr.name.domain = 0;	/* could leave uninitialized */
+		addr->scope = 0;		/* could leave uninitialized */
 		m->msg_namelen = sizeof(struct sockaddr_tipc);
 	}
 }
@@ -1743,10 +1741,10 @@ static int getsockopt(struct socket *sock,
 		value = jiffies_to_msecs(tipc_sk(sk)->conn_timeout);
 		/* no need to set "res", since already 0 at this point */
 		break;
-	 case TIPC_NODE_RECVQ_DEPTH:
+	case TIPC_NODE_RECVQ_DEPTH:
 		value = (u32)atomic_read(&tipc_queue_size);
 		break;
-	 case TIPC_SOCK_RECVQ_DEPTH:
+	case TIPC_SOCK_RECVQ_DEPTH:
 		value = skb_queue_len(&sk->sk_receive_queue);
 		break;
 	default:
@@ -1772,7 +1770,7 @@ static int getsockopt(struct socket *sock,
  */
 
 static const struct proto_ops msg_ops = {
-	.owner 		= THIS_MODULE,
+	.owner		= THIS_MODULE,
 	.family		= AF_TIPC,
 	.release	= release,
 	.bind		= bind,
@@ -1793,7 +1791,7 @@ static const struct proto_ops msg_ops = {
 };
 
 static const struct proto_ops packet_ops = {
-	.owner 		= THIS_MODULE,
+	.owner		= THIS_MODULE,
 	.family		= AF_TIPC,
 	.release	= release,
 	.bind		= bind,
@@ -1814,7 +1812,7 @@ static const struct proto_ops packet_ops = {
 };
 
 static const struct proto_ops stream_ops = {
-	.owner 		= THIS_MODULE,
+	.owner		= THIS_MODULE,
 	.family		= AF_TIPC,
 	.release	= release,
 	.bind		= bind,
@@ -1835,7 +1833,7 @@ static const struct proto_ops stream_ops = {
 };
 
 static const struct net_proto_family tipc_family_ops = {
-	.owner 		= THIS_MODULE,
+	.owner		= THIS_MODULE,
 	.family		= AF_TIPC,
 	.create		= tipc_create
 };

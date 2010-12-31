@@ -174,7 +174,7 @@ static inline u32 msg_hdr_sz(struct tipc_msg *m)
 	return msg_bits(m, 0, 21, 0xf) << 2;
 }
 
-static inline void msg_set_hdr_sz(struct tipc_msg *m,u32 n)
+static inline void msg_set_hdr_sz(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 0, 21, 0xf, n>>2);
 }
@@ -425,7 +425,7 @@ static inline u32 msg_routed(struct tipc_msg *m)
 {
 	if (likely(msg_short(m)))
 		return 0;
-	return(msg_destnode(m) ^ msg_orignode(m)) >> 11;
+	return (msg_destnode(m) ^ msg_orignode(m)) >> 11;
 }
 
 static inline u32 msg_nametype(struct tipc_msg *m)
@@ -863,7 +863,7 @@ void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type,
 int tipc_msg_calc_data_size(struct iovec const *msg_sect, u32 num_sect);
 int tipc_msg_build(struct tipc_msg *hdr,
 			    struct iovec const *msg_sect, u32 num_sect,
-			    int max_size, int usrmem, struct sk_buff** buf);
+			    int max_size, int usrmem, struct sk_buff **buf);
 
 static inline void msg_set_media_addr(struct tipc_msg *m, struct tipc_media_addr *a)
 {
@@ -872,7 +872,7 @@ static inline void msg_set_media_addr(struct tipc_msg *m, struct tipc_media_addr
 
 static inline void msg_get_media_addr(struct tipc_msg *m, struct tipc_media_addr *a)
 {
-	memcpy(a, &((int*)m)[5], sizeof(*a));
+	memcpy(a, &((int *)m)[5], sizeof(*a));
 }
 
 #endif

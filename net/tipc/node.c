@@ -334,7 +334,7 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 	/* Clean up broadcast reception remains */
 	n_ptr->bclink.gap_after = n_ptr->bclink.gap_to = 0;
 	while (n_ptr->bclink.deferred_head) {
-		struct sk_buff* buf = n_ptr->bclink.deferred_head;
+		struct sk_buff *buf = n_ptr->bclink.deferred_head;
 		n_ptr->bclink.deferred_head = buf->next;
 		buf_discard(buf);
 	}

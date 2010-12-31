@@ -322,8 +322,7 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	} else if (!tipc_remote_management) {
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NO_REMOTE);
 		goto exit;
-	}
-	else if (cmd >= 0x4000) {
+	} else if (cmd >= 0x4000) {
 		u32 domain = 0;
 
 		if ((tipc_nametbl_translate(TIPC_ZM_SRV, 0, &domain) == 0) ||

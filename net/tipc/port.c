@@ -54,8 +54,8 @@ static DEFINE_SPINLOCK(queue_lock);
 
 static LIST_HEAD(ports);
 static void port_handle_node_down(unsigned long ref);
-static struct sk_buff* port_build_self_abort_msg(struct port *,u32 err);
-static struct sk_buff* port_build_peer_abort_msg(struct port *,u32 err);
+static struct sk_buff *port_build_self_abort_msg(struct port *, u32 err);
+static struct sk_buff *port_build_peer_abort_msg(struct port *, u32 err);
 static void port_timeout(unsigned long ref);
 
 
@@ -155,7 +155,7 @@ int tipc_multicast(u32 ref, struct tipc_name_seq const *seq,
 
 void tipc_port_recv_mcast(struct sk_buff *buf, struct port_list *dp)
 {
-	struct tipc_msg* msg;
+	struct tipc_msg *msg;
 	struct port_list dports = {0, NULL, };
 	struct port_list *item = dp;
 	int cnt = 0;
@@ -193,7 +193,7 @@ void tipc_port_recv_mcast(struct sk_buff *buf, struct port_list *dp)
 			if ((index == 0) && (cnt != 0)) {
 				item = item->next;
 			}
-			msg_set_destport(buf_msg(b),item->ports[index]);
+			msg_set_destport(buf_msg(b), item->ports[index]);
 			tipc_port_recv_msg(b);
 		}
 	}
@@ -484,7 +484,7 @@ static void port_timeout(unsigned long ref)
 static void port_handle_node_down(unsigned long ref)
 {
 	struct port *p_ptr = tipc_port_lock(ref);
-	struct sk_buff* buf = NULL;
+	struct sk_buff *buf = NULL;
 
 	if (!p_ptr)
 		return;
@@ -620,8 +620,7 @@ static void port_print(struct port *p_ptr, struct print_buf *buf, int full_id)
 			tipc_printf(buf, " via {%u,%u}",
 				    p_ptr->publ.conn_type,
 				    p_ptr->publ.conn_instance);
-	}
-	else if (p_ptr->publ.published) {
+	} else if (p_ptr->publ.published) {
 		tipc_printf(buf, " bound to");
 		list_for_each_entry(publ, &p_ptr->publications, pport_list) {
 			if (publ->lower == publ->upper)
@@ -1099,7 +1098,7 @@ int tipc_connect2port(u32 ref, struct tipc_portid const *peer)
 	p_ptr->publ.connected = 1;
 	k_start_timer(&p_ptr->timer, p_ptr->probing_interval);
 
-	tipc_nodesub_subscribe(&p_ptr->subscription,peer->node,
+	tipc_nodesub_subscribe(&p_ptr->subscription, peer->node,
 			  (void *)(unsigned long)ref,
 			  (net_ev_handler)port_handle_node_down);
 	res = 0;

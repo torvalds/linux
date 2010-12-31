@@ -428,7 +428,7 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 	static int rx_count = 0;
 #endif
 	struct tipc_msg *msg = buf_msg(buf);
-	struct tipc_node* node = tipc_node_find(msg_prevnode(msg));
+	struct tipc_node *node = tipc_node_find(msg_prevnode(msg));
 	u32 next_in;
 	u32 seqno;
 	struct sk_buff *deferred;

@@ -258,7 +258,7 @@ static inline void tipc_port_unlock(struct port *p_ptr)
 	spin_unlock_bh(p_ptr->publ.lock);
 }
 
-static inline struct port* tipc_port_deref(u32 ref)
+static inline struct port *tipc_port_deref(u32 ref)
 {
 	return (struct port *)tipc_ref_deref(ref);
 }

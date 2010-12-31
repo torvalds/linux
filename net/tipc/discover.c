@@ -130,7 +130,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 	u32 net_id = msg_bc_netid(msg);
 	u32 type = msg_type(msg);
 
-	msg_get_media_addr(msg,&media_addr);
+	msg_get_media_addr(msg, &media_addr);
 	buf_discard(buf);
 
 	if (net_id != tipc_net_id)

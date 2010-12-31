@@ -538,7 +538,7 @@ int tipc_subscr_start(void)
 	struct tipc_name_seq seq = {TIPC_TOP_SRV, TIPC_TOP_SRV, TIPC_TOP_SRV};
 	int res;
 
-	memset(&topsrv, 0, sizeof (topsrv));
+	memset(&topsrv, 0, sizeof(topsrv));
 	spin_lock_init(&topsrv.lock);
 	INIT_LIST_HEAD(&topsrv.subscriber_list);
 

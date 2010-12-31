@@ -977,8 +977,7 @@ static int link_send_buf_fast(struct link *l_ptr, struct sk_buff *buf,
 				l_ptr->next_out = buf;
 				return res;
 			}
-		}
-		else
+		} else
 			*used_max_pkt = l_ptr->max_pkt;
 	}
 	return tipc_link_send_buf(l_ptr, buf);  /* All other cases */
@@ -1132,10 +1131,10 @@ static int link_send_sections_long(struct port *sender,
 	struct tipc_node *node;
 	struct tipc_msg *hdr = &sender->publ.phdr;
 	u32 dsz = msg_data_sz(hdr);
-	u32 max_pkt,fragm_sz,rest;
+	u32 max_pkt, fragm_sz, rest;
 	struct tipc_msg fragm_hdr;
-	struct sk_buff *buf,*buf_chain,*prev;
-	u32 fragm_crs,fragm_rest,hsz,sect_rest;
+	struct sk_buff *buf, *buf_chain, *prev;
+	u32 fragm_crs, fragm_rest, hsz, sect_rest;
 	const unchar *sect_crs;
 	int curr_sect;
 	u32 fragm_no;
@@ -1212,7 +1211,7 @@ error:
 			/* Initiate new fragment: */
 			if (rest <= fragm_sz) {
 				fragm_sz = rest;
-				msg_set_type(&fragm_hdr,LAST_FRAGMENT);
+				msg_set_type(&fragm_hdr, LAST_FRAGMENT);
 			} else {
 				msg_set_type(&fragm_hdr, FRAGMENT);
 			}
@@ -1229,8 +1228,7 @@ error:
 			fragm_crs = INT_H_SIZE;
 			fragm_rest = fragm_sz;
 		}
-	}
-	while (rest > 0);
+	} while (rest > 0);
 
 	/*
 	 * Now we have a buffer chain. Select a link and check
@@ -1333,7 +1331,7 @@ u32 tipc_link_push_packet(struct link *l_ptr)
 	buf = l_ptr->proto_msg_queue;
 	if (buf) {
 		msg_set_ack(buf_msg(buf), mod(l_ptr->next_in_no - 1));
-		msg_set_bcast_ack(buf_msg(buf),l_ptr->owner->bclink.last_in);
+		msg_set_bcast_ack(buf_msg(buf), l_ptr->owner->bclink.last_in);
 		if (tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr)) {
 			l_ptr->unacked_window = 0;
 			buf_discard(buf);
@@ -1847,8 +1845,7 @@ u32 tipc_link_defer_pkt(struct sk_buff **head,
 		}
 		prev = crs;
 		crs = crs->next;
-	}
-	while (crs);
+	} while (crs);
 
 	/* Message is a duplicate of an existing message */
 
@@ -2215,11 +2212,11 @@ void tipc_link_changeover(struct link *l_ptr)
 
 		if ((msg_user(msg) == MSG_BUNDLER) && split_bundles) {
 			struct tipc_msg *m = msg_get_wrapped(msg);
-			unchar* pos = (unchar*)m;
+			unchar *pos = (unchar *)m;
 
 			msgcount = msg_msgcnt(msg);
 			while (msgcount--) {
-				msg_set_seqno(m,msg_seqno(msg));
+				msg_set_seqno(m, msg_seqno(msg));
 				tipc_link_tunnel(l_ptr, &tunnel_hdr, m,
 						 msg_link_selector(m));
 				pos += align(msg_size(m));
@@ -2321,7 +2318,7 @@ static int link_recv_changeover_msg(struct link **l_ptr,
 	if (msg_typ == DUPLICATE_MSG) {
 		if (less(msg_seqno(msg), mod(dest_link->next_in_no)))
 			goto exit;
-		*buf = buf_extract(tunnel_buf,INT_H_SIZE);
+		*buf = buf_extract(tunnel_buf, INT_H_SIZE);
 		if (*buf == NULL) {
 			warn("Link changeover error, duplicate msg dropped\n");
 			goto exit;
@@ -2552,8 +2549,8 @@ int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb,
 			/*  Prepare buffer for subsequent fragments. */
 
 			set_long_msg_seqno(pbuf, long_msg_seq_no);
-			set_fragm_size(pbuf,fragm_sz);
-			set_expected_frags(pbuf,exp_fragm_cnt - 1);
+			set_fragm_size(pbuf, fragm_sz);
+			set_expected_frags(pbuf, exp_fragm_cnt - 1);
 		} else {
 			warn("Link unable to reassemble fragmented message\n");
 		}
@@ -2580,7 +2577,7 @@ int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb,
 			*m = buf_msg(pbuf);
 			return 1;
 		}
-		set_expected_frags(pbuf,exp_frags);
+		set_expected_frags(pbuf, exp_frags);
 		return 0;
 	}
 	buf_discard(fbuf);
