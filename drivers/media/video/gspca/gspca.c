@@ -1634,6 +1634,8 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	gspca_dev->usb_err = 0;
 	gspca_stream_off(gspca_dev);
 	mutex_unlock(&gspca_dev->usb_lock);
+	/* In case another thread is waiting in dqbuf */
+	wake_up_interruptible(&gspca_dev->wq);
 
 	/* empty the transfer queues */
 	atomic_set(&gspca_dev->fr_q, 0);
