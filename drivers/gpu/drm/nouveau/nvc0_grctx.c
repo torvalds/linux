@@ -1557,7 +1557,7 @@ nvc0_grctx_generate_unk47xx(struct drm_device *dev)
 }
 
 static void
-nvc0_grctx_generate_unk58xx(struct drm_device *dev)
+nvc0_grctx_generate_shaders(struct drm_device *dev)
 {
 	nv_wr32(dev, 0x405800, 0x078000bf);
 	nv_wr32(dev, 0x405830, 0x02180000);
@@ -1593,7 +1593,7 @@ nvc0_grctx_generate_unk64xx(struct drm_device *dev)
 }
 
 static void
-nvc0_grctx_generate_unk78xx(struct drm_device *dev)
+nvc0_grctx_generate_tpbus(struct drm_device *dev)
 {
 	nv_wr32(dev, 0x407804, 0x00000023);
 	nv_wr32(dev, 0x40780c, 0x0a418820);
@@ -1606,7 +1606,7 @@ nvc0_grctx_generate_unk78xx(struct drm_device *dev)
 }
 
 static void
-nvc0_grctx_generate_unk80xx(struct drm_device *dev)
+nvc0_grctx_generate_ccache(struct drm_device *dev)
 {
 	nv_wr32(dev, 0x408000, 0x00000000);
 	nv_wr32(dev, 0x408004, 0x00000000);
@@ -1811,11 +1811,11 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 	nvc0_grctx_generate_macro(dev);
 	nvc0_grctx_generate_m2mf(dev);
 	nvc0_grctx_generate_unk47xx(dev);
-	nvc0_grctx_generate_unk58xx(dev);
+	nvc0_grctx_generate_shaders(dev);
 	nvc0_grctx_generate_unk60xx(dev);
 	nvc0_grctx_generate_unk64xx(dev);
-	nvc0_grctx_generate_unk78xx(dev);
-	nvc0_grctx_generate_unk80xx(dev);
+	nvc0_grctx_generate_tpbus(dev);
+	nvc0_grctx_generate_ccache(dev);
 	nvc0_grctx_generate_rop(dev);
 	nvc0_grctx_generate_gpc(dev);
 	nvc0_grctx_generate_tp(dev);
