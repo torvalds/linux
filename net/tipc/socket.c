@@ -590,9 +590,8 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 					     m->msg_iov);
 		}
 		if (likely(res != -ELINKCONG)) {
-			if (needs_conn && (res >= 0)) {
+			if (needs_conn && (res >= 0))
 				sock->state = SS_CONNECTING;
-			}
 			break;
 		}
 		if (m->msg_flags & MSG_DONTWAIT) {
@@ -651,9 +650,8 @@ static int send_packet(struct kiocb *iocb, struct socket *sock,
 		}
 
 		res = tipc_send(tport->ref, m->msg_iovlen, m->msg_iov);
-		if (likely(res != -ELINKCONG)) {
+		if (likely(res != -ELINKCONG))
 			break;
-		}
 		if (m->msg_flags & MSG_DONTWAIT) {
 			res = -EWOULDBLOCK;
 			break;
@@ -1418,9 +1416,8 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	m.msg_name = dest;
 	m.msg_namelen = destlen;
 	res = send_msg(NULL, sock, &m, 0);
-	if (res < 0) {
+	if (res < 0)
 		goto exit;
-	}
 
 	/* Wait until an 'ACK' or 'RST' arrives, or a timeout occurs */
 
@@ -1442,11 +1439,10 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 					advance_rx_queue(sk);
 			}
 		} else {
-			if (sock->state == SS_CONNECTED) {
+			if (sock->state == SS_CONNECTED)
 				res = -EISCONN;
-			} else {
+			else
 				res = -ECONNREFUSED;
-			}
 		}
 	} else {
 		if (res == 0)

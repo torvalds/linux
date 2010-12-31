@@ -196,9 +196,8 @@ static void bclink_retransmit_pkt(u32 after, u32 to)
 	struct sk_buff *buf;
 
 	buf = bcl->first_out;
-	while (buf && less_eq(buf_seqno(buf), after)) {
+	while (buf && less_eq(buf_seqno(buf), after))
 		buf = buf->next;
-	}
 	tipc_link_retransmit(bcl, buf, mod(to - after));
 }
 
@@ -224,9 +223,8 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 	/* Skip over packets that node has previously acknowledged */
 
 	crs = bcl->first_out;
-	while (crs && less_eq(buf_seqno(crs), n_ptr->bclink.acked)) {
+	while (crs && less_eq(buf_seqno(crs), n_ptr->bclink.acked))
 		crs = crs->next;
-	}
 
 	/* Update packets that node is now acknowledging */
 

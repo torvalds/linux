@@ -348,7 +348,8 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 			tipc_printf(buf, "UNKNOWN ERROR(%x):",
 				    msg_errcode(msg));
 		}
-	default:{}
+	default:
+		break;
 	}
 
 	tipc_printf(buf, "HZ(%u):", msg_hdr_sz(msg));
@@ -357,9 +358,8 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 
 	if (msg_non_seq(msg))
 		tipc_printf(buf, "NOSEQ:");
-	else {
+	else
 		tipc_printf(buf, "ACK(%u):", msg_ack(msg));
-	}
 	tipc_printf(buf, "BACK(%u):", msg_bcast_ack(msg));
 	tipc_printf(buf, "PRND(%x)", msg_prevnode(msg));
 
@@ -387,9 +387,8 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 	if (msg_user(msg) == NAME_DISTRIBUTOR) {
 		tipc_printf(buf, ":ONOD(%x):", msg_orignode(msg));
 		tipc_printf(buf, ":DNOD(%x):", msg_destnode(msg));
-		if (msg_routed(msg)) {
+		if (msg_routed(msg))
 			tipc_printf(buf, ":CSEQN(%u)", msg_transp_seqno(msg));
-		}
 	}
 
 	if (msg_user(msg) ==  LINK_CONFIG) {
@@ -405,12 +404,10 @@ void tipc_msg_dbg(struct print_buf *buf, struct tipc_msg *msg, const char *str)
 		tipc_printf(buf, "TO(%u):", msg_bcgap_to(msg));
 	}
 	tipc_printf(buf, "\n");
-	if ((usr == CHANGEOVER_PROTOCOL) && (msg_msgcnt(msg))) {
+	if ((usr == CHANGEOVER_PROTOCOL) && (msg_msgcnt(msg)))
 		tipc_msg_dbg(buf, msg_get_wrapped(msg), "      /");
-	}
-	if ((usr == MSG_FRAGMENTER) && (msg_type(msg) == FIRST_FRAGMENT)) {
+	if ((usr == MSG_FRAGMENTER) && (msg_type(msg) == FIRST_FRAGMENT))
 		tipc_msg_dbg(buf, msg_get_wrapped(msg), "      /");
-	}
 }
 
 #endif

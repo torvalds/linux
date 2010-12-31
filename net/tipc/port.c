@@ -131,9 +131,8 @@ int tipc_multicast(u32 ref, struct tipc_name_seq const *seq,
 			}
 		}
 		res = tipc_bclink_send_msg(buf);
-		if ((res < 0) && (dports.count != 0)) {
+		if ((res < 0) && (dports.count != 0))
 			buf_discard(ibuf);
-		}
 	} else {
 		ibuf = buf;
 	}
@@ -190,9 +189,8 @@ void tipc_port_recv_mcast(struct sk_buff *buf, struct port_list *dp)
 				warn("Unable to deliver multicast message(s)\n");
 				goto exit;
 			}
-			if ((index == 0) && (cnt != 0)) {
+			if ((index == 0) && (cnt != 0))
 				item = item->next;
-			}
 			msg_set_destport(buf_msg(b), item->ports[index]);
 			tipc_port_recv_msg(b);
 		}

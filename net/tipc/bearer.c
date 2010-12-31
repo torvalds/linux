@@ -194,9 +194,8 @@ void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a)
 		unchar *addr = (unchar *)&a->dev_addr;
 
 		tipc_printf(pb, "UNKNOWN(%u)", media_type);
-		for (i = 0; i < (sizeof(*a) - sizeof(a->type)); i++) {
+		for (i = 0; i < (sizeof(*a) - sizeof(a->type)); i++)
 			tipc_printf(pb, "-%02x", addr[i]);
-		}
 	}
 }
 

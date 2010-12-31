@@ -751,9 +751,8 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 	table.local_publ_count++;
 	publ = tipc_nametbl_insert_publ(type, lower, upper, scope,
 				   tipc_own_addr, port_ref, key);
-	if (publ && (scope != TIPC_NODE_SCOPE)) {
+	if (publ && (scope != TIPC_NODE_SCOPE))
 		tipc_named_publish(publ);
-	}
 	write_unlock_bh(&tipc_nametbl_lock);
 	return publ;
 }
@@ -795,9 +794,8 @@ void tipc_nametbl_subscribe(struct subscription *s)
 
 	write_lock_bh(&tipc_nametbl_lock);
 	seq = nametbl_find_seq(type);
-	if (!seq) {
+	if (!seq)
 		seq = tipc_nameseq_create(type, &table.types[hash(type)]);
-	}
 	if (seq) {
 		spin_lock_bh(&seq->lock);
 		tipc_nameseq_subscribe(seq, s);

@@ -615,9 +615,8 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 		return;		/* Not yet. */
 
 	if (link_blocked(l_ptr)) {
-		if (event == TIMEOUT_EVT) {
+		if (event == TIMEOUT_EVT)
 			link_set_timer(l_ptr, cont_intv);
-		}
 		return;	  /* Changeover going on */
 	}
 
@@ -940,11 +939,10 @@ int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector)
 	if (n_ptr) {
 		tipc_node_lock(n_ptr);
 		l_ptr = n_ptr->active_links[selector & 1];
-		if (l_ptr) {
+		if (l_ptr)
 			res = tipc_link_send_buf(l_ptr, buf);
-		} else {
+		else
 			buf_discard(buf);
-		}
 		tipc_node_unlock(n_ptr);
 	} else {
 		buf_discard(buf);
@@ -1626,9 +1624,8 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *tb_ptr)
 
 		/* Ensure message data is a single contiguous unit */
 
-		if (unlikely(buf_linearize(buf))) {
+		if (unlikely(buf_linearize(buf)))
 			goto cont;
-		}
 
 		/* Handle arrival of a non-unicast link message */
 
@@ -1843,9 +1840,8 @@ u32 tipc_link_defer_pkt(struct sk_buff **head,
 				*head = buf;
 			return 1;
 		}
-		if (seq_no == msg_seqno(msg)) {
+		if (seq_no == msg_seqno(msg))
 			break;
-		}
 		prev = crs;
 		crs = crs->next;
 	} while (crs);
@@ -1959,11 +1955,10 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 		msg_set_max_pkt(msg, l_ptr->max_pkt_target);
 	}
 
-	if (tipc_node_has_redundant_links(l_ptr->owner)) {
+	if (tipc_node_has_redundant_links(l_ptr->owner))
 		msg_set_redundant_link(msg);
-	} else {
+	else
 		msg_clear_redundant_link(msg);
-	}
 	msg_set_linkprio(msg, l_ptr->priority);
 
 	/* Ensure sequence number will not fit : */
@@ -2071,9 +2066,8 @@ static void link_recv_proto_msg(struct link *l_ptr, struct sk_buff *buf)
 		l_ptr->peer_bearer_id = msg_bearer_id(msg);
 
 		/* Synchronize broadcast sequence numbers */
-		if (!tipc_node_has_redundant_links(l_ptr->owner)) {
+		if (!tipc_node_has_redundant_links(l_ptr->owner))
 			l_ptr->owner->bclink.last_in = mod(msg_last_bcast(msg));
-		}
 		break;
 	case STATE_MSG:
 
@@ -2108,9 +2102,8 @@ static void link_recv_proto_msg(struct link *l_ptr, struct sk_buff *buf)
 		max_pkt_ack = 0;
 		if (msg_probe(msg)) {
 			l_ptr->stats.recv_probes++;
-			if (msg_size(msg) > sizeof(l_ptr->proto_msg)) {
+			if (msg_size(msg) > sizeof(l_ptr->proto_msg))
 				max_pkt_ack = msg_size(msg);
-			}
 		}
 
 		/* Protocol message before retransmits, reduce loss risk */
