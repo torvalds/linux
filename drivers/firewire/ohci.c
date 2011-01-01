@@ -1336,6 +1336,8 @@ static int at_context_queue_packet(struct context *ctx,
 	 * some controllers (like a JMicron JMB381 PCI-e) misbehave and wind
 	 * up stalling out.  So we just bail out in software and try again
 	 * later, and everyone is happy.
+	 * FIXME: Test of IntEvent.busReset may no longer be necessary since we
+	 *        flush AT queues in bus_reset_tasklet.
 	 * FIXME: Document how the locking works.
 	 */
 	if (ohci->generation != packet->generation ||
@@ -1750,6 +1752,11 @@ static void bus_reset_tasklet(unsigned long data)
 
 	spin_unlock_irqrestore(&ohci->lock, flags);
 
+	/*
+	 * Per OHCI 1.2 draft, clause 7.2.3.3, hardware may leave unsent
+	 * packets in the AT queues and software needs to drain them.
+	 * Some OHCI 1.1 controllers (JMicron) apparently require this too.
+	 */
 	at_context_flush(&ohci->at_request_ctx);
 	at_context_flush(&ohci->at_response_ctx);
 
