@@ -105,15 +105,6 @@ extern void prom_write(const char *buf, unsigned int len);
 extern int prom_startcpu(int cpunode, struct linux_prom_registers *context_table,
 			 int context, char *program_counter);
 
-/* Stop the CPU with the passed device tree node. */
-extern int prom_stopcpu(int cpunode);
-
-/* Idle the CPU with the passed device tree node. */
-extern int prom_idlecpu(int cpunode);
-
-/* Re-Start the CPU with the passed device tree node. */
-extern int prom_restartcpu(int cpunode);
-
 /* Sun4/sun4c specific memory-management startup hook. */
 
 /* Map the passed segment in the given context at the passed
