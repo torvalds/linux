@@ -156,7 +156,6 @@ struct context {
 	descriptor_callback_t callback;
 
 	struct tasklet_struct tasklet;
-	bool active;
 };
 
 #define IT_HEADER_SY(v)          ((v) <<  0)
@@ -1169,7 +1168,6 @@ static struct descriptor *context_get_descriptors(struct context *ctx,
 static void context_run(struct context *ctx, u32 extra)
 {
 	struct fw_ohci *ohci = ctx->ohci;
-	ctx->active = true;
 
 	reg_write(ohci, COMMAND_PTR(ctx->regs),
 		  le32_to_cpu(ctx->last->branch_address));
@@ -1202,7 +1200,6 @@ static void context_stop(struct context *ctx)
 	u32 reg;
 	int i;
 
-	ctx->active = false;
 	reg_write(ctx->ohci, CONTROL_CLEAR(ctx->regs), CONTEXT_RUN);
 	ctx->running = false;
 	flush_writes(ctx->ohci);
@@ -2797,13 +2794,13 @@ static void ohci_resume_iso_dma(struct fw_ohci *ohci)
 
 	for (i = 0 ; i < ohci->n_ir ; i++) {
 		ctx = &ohci->ir_context_list[i];
-		if (ctx->context.active)
+		if (ctx->context.running)
 			ohci_start_iso(&ctx->base, 0, ctx->sync, ctx->tags);
 	}
 
 	for (i = 0 ; i < ohci->n_it ; i++) {
 		ctx = &ohci->it_context_list[i];
-		if (ctx->context.active)
+		if (ctx->context.running)
 			ohci_start_iso(&ctx->base, 0, ctx->sync, ctx->tags);
 	}
 }
@@ -3363,11 +3360,11 @@ static int pci_resume(struct pci_dev *dev)
 	}
 
 	err = ohci_enable(&ohci->card, NULL, 0);
-
 	if (err)
 		return err;
 
 	ohci_resume_iso_dma(ohci);
+
 	return 0;
 }
 #endif
