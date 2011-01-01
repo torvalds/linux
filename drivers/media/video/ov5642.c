@@ -163,7 +163,7 @@
 #define StepFocus_Spec_Tag       0x10
 #endif
 
-/* init 640X480 SVGA */
+/* init 800X600 SVGA */
 static struct reginfo sensor_init_data[] =
 {
     {0x3103 , 0x93},
@@ -840,6 +840,7 @@ static struct reginfo sensor_init_data[] =
 
 static struct reginfo sensor_720p[]=
 {
+	{SEQUENCE_PROPERTY, SEQUENCE_INIT},
 	{0x3103, 0x93	},
 	{0x3008, 0x82	},
 	{0x3017, 0x7f	},
@@ -1357,6 +1358,7 @@ static struct reginfo sensor_720p[]=
 	{0x3002, 0x1c	},
 	{0x3819, 0x80	},
 	{0x5002, 0xe0	},
+
 	{0x0000 ,0x00}
 
 };
@@ -1365,6 +1367,7 @@ static struct reginfo sensor_720p[]=
 
 static struct reginfo sensor_1080p[]=
 {
+	{SEQUENCE_PROPERTY, SEQUENCE_INIT},
 	{ 0x3103, 0x93	},
 	{ 0x3008, 0x82	},
 	{ 0x3017, 0x7f	},
@@ -1377,7 +1380,7 @@ static struct reginfo sensor_1080p[]=
 	{ 0x3003, 0x00	},
 	{ 0x3004, 0xff	},
 	{ 0x3030, 0x2b	},
-	{ 0x3011, 0x08	},
+	{ 0x3011, 0x05	},   //0x08
 	{ 0x3010, 0x10	},
 	{ 0x3604, 0x60	},
 	{ 0x3622, 0x60	},
@@ -1825,7 +1828,7 @@ static struct reginfo sensor_1080p[]=
 	{ 0x5089, 0x00	},
 	{ 0x302b, 0x00	},
 	{ 0x3503, 0x07	},
-	{ 0x3011, 0x07	},
+	{ 0x3011, 0x05	},
 	{ 0x350c, 0x04	},
 	{ 0x350d, 0x58	},
 	{ 0x3801, 0x8a	},
@@ -1860,7 +1863,6 @@ static struct reginfo sensor_1080p[]=
 	{ 0x5687, 0x1c	},
 	{ 0x5001, 0x7f	},
 	{ 0x3503, 0x00	},
-
 	{ 0x3010, 0x10	},
 
 	{ 0x460c, 0x20	},
@@ -3079,7 +3081,7 @@ typedef struct sensor_info_priv_s
     int exposure;
     unsigned char mirror;                                        /* HFLIP */
     unsigned char flip;                                          /* VFLIP */
-    unsigned int winseqe_cur_addr;
+    struct reginfo *winseqe_cur_addr;
 	unsigned int pixfmt;
 	unsigned int funmodule_state;
 } sensor_info_priv_t;
@@ -3641,7 +3643,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 
     icd->user_width = SENSOR_INIT_WIDTH;
     icd->user_height = SENSOR_INIT_HEIGHT;
-    sensor->info_priv.winseqe_cur_addr  = (int)SENSOR_INIT_WINSEQADR;
+    sensor->info_priv.winseqe_cur_addr  = SENSOR_INIT_WINSEQADR;
 	sensor->info_priv.pixfmt = SENSOR_INIT_PIXFMT;
 
     /* sensor sensor information for initialization  */
@@ -3935,7 +3937,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 		SENSOR_TR("\n %s..%s Format is Invalidate. pix->width = %d.. pix->height = %d\n",SENSOR_NAME_STRING(),__FUNCTION__,pix->width,pix->height);
     }
 
-    if ((int)winseqe_set_addr  != sensor->info_priv.winseqe_cur_addr)
+    if (winseqe_set_addr  != sensor->info_priv.winseqe_cur_addr)
     {
 		if (sensor_fmt_capturechk(sd,f) == true) {					/* ddl@rock-chips.com : Capture */
 			sensor_parameter_record(client);
@@ -3946,13 +3948,21 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 		#endif
 		}
 
+		if ((sensor->info_priv.winseqe_cur_addr->reg == SEQUENCE_PROPERTY) && (sensor->info_priv.winseqe_cur_addr->val == SEQUENCE_INIT)) {
+			if (((winseqe_set_addr->reg == SEQUENCE_PROPERTY) && (winseqe_set_addr->val == SEQUENCE_NORMAL))
+				|| (winseqe_set_addr->reg != SEQUENCE_PROPERTY)) {
+				ret |= sensor_write_array(client,sensor_init_data);
+				SENSOR_DG("\n%s reinit ret:0x%x \n",SENSOR_NAME_STRING(), ret);
+			}
+		}
+
         ret |= sensor_write_array(client, winseqe_set_addr);
         if (ret != 0) {
             SENSOR_TR("%s set format capability failed\n", SENSOR_NAME_STRING());
             goto sensor_s_fmt_end;
         }
 
-        sensor->info_priv.winseqe_cur_addr  = (int)winseqe_set_addr;
+        sensor->info_priv.winseqe_cur_addr  = winseqe_set_addr;
 
 		if (sensor_fmt_capturechk(sd,f) == true) {				    /* ddl@rock-chips.com : Capture */
 			sensor_ae_transfer(client);
