@@ -182,6 +182,7 @@ static inline void __iomem *omap4_get_scu_base(void)
 
 extern void __init gic_init_irq(void);
 extern void omap_smc1(u32 fn, u32 arg);
+extern void __iomem *omap4_get_sar_ram_base(void);
 
 #ifdef CONFIG_SMP
 /* Needed for secondary core boot */
