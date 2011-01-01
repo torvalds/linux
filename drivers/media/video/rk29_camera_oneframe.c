@@ -760,10 +760,14 @@ static void rk29_camera_remove_device(struct soc_camera_device *icd)
 	rk29_camera_deactivate(pcdev);
 
 	/* ddl@rock-chips.com: Call videobuf_mmap_free here for free the struct video_buffer which malloc in videobuf_alloc */
+	#if 0
 	if (pcdev->vb_vidq_ptr) {
 		videobuf_mmap_free(pcdev->vb_vidq_ptr);
 		pcdev->vb_vidq_ptr = NULL;
 	}
+	#else
+	pcdev->vb_vidq_ptr = NULL;
+	#endif
 
 	if (pcdev->camera_work) {
 		kfree(pcdev->camera_work);
@@ -1436,6 +1440,10 @@ static int rk29_camera_probe(struct platform_device *pdev)
 
 exit_free_irq:
     free_irq(pcdev->irq, pcdev);
+	if (pcdev->camera_wq) {
+		destroy_workqueue(pcdev->camera_wq);
+		pcdev->camera_wq = NULL;
+	}
 exit_reqirq:
     iounmap(pcdev->base);
 exit_ioremap:
@@ -1490,6 +1498,11 @@ static int __devexit rk29_camera_remove(struct platform_device *pdev)
     struct resource *res;
 
     free_irq(pcdev->irq, pcdev);
+
+	if (pcdev->camera_wq) {
+		destroy_workqueue(pcdev->camera_wq);
+		pcdev->camera_wq = NULL;
+	}
 
     soc_camera_host_unregister(&pcdev->soc_host);
 
