@@ -34,8 +34,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _TIPC_DBG_H
-#define _TIPC_DBG_H
+#ifndef _TIPC_LOG_H
+#define _TIPC_LOG_H
 
 /**
  * struct print_buf - TIPC print buffer structure
