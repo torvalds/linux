@@ -9,7 +9,6 @@ lib-y                 += init_$(BITS).o
 lib-$(CONFIG_SPARC32) += memory.o
 lib-y                 += misc_$(BITS).o
 lib-$(CONFIG_SPARC32) += mp.o
-lib-$(CONFIG_SPARC32) += palloc.o
 lib-$(CONFIG_SPARC32) += ranges.o
 lib-$(CONFIG_SPARC32) += segment.o
 lib-y                 += console_$(BITS).o

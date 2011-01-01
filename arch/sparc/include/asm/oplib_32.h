@@ -114,16 +114,6 @@ extern int prom_idlecpu(int cpunode);
 /* Re-Start the CPU with the passed device tree node. */
 extern int prom_restartcpu(int cpunode);
 
-/* PROM memory allocation facilities... */
-
-/* Allocated at possibly the given virtual address a chunk of the
- * indicated size.
- */
-extern char *prom_alloc(char *virt_hint, unsigned int size);
-
-/* Free a previously allocated chunk. */
-extern void prom_free(char *virt_addr, unsigned int size);
-
 /* Sun4/sun4c specific memory-management startup hook. */
 
 /* Map the passed segment in the given context at the passed
