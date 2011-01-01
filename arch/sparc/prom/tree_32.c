@@ -20,7 +20,7 @@ extern void restore_current(void);
 static char promlib_buf[128];
 
 /* Internal version of prom_getchild that does not alter return values. */
-phandle __prom_getchild(phandle node)
+static phandle __prom_getchild(phandle node)
 {
 	unsigned long flags;
 	phandle cnode;
@@ -52,7 +52,7 @@ phandle prom_getchild(phandle node)
 EXPORT_SYMBOL(prom_getchild);
 
 /* Internal version of prom_getsibling that does not alter return values. */
-phandle __prom_getsibling(phandle node)
+static phandle __prom_getsibling(phandle node)
 {
 	unsigned long flags;
 	phandle cnode;
@@ -177,20 +177,6 @@ void prom_getstring(phandle node, char *prop, char *user_buf, int ubuf_size)
 EXPORT_SYMBOL(prom_getstring);
 
 
-/* Does the device at node 'node' have name 'name'?
- * YES = 1   NO = 0
- */
-int prom_nodematch(phandle node, char *name)
-{
-	int error;
-
-	static char namebuf[128];
-	error = prom_getproperty(node, "name", namebuf, sizeof(namebuf));
-	if (error == -1) return 0;
-	if(strcmp(namebuf, name) == 0) return 1;
-	return 0;
-}
-
 /* Search siblings at 'node_start' for a node with name
  * 'nodename'.  Return node if successful, zero if not.
  */
@@ -214,7 +200,7 @@ phandle prom_searchsiblings(phandle node_start, char *nodename)
 EXPORT_SYMBOL(prom_searchsiblings);
 
 /* Interal version of nextprop that does not alter return values. */
-char *__prom_nextprop(phandle node, char * oprop)
+static char *__prom_nextprop(phandle node, char * oprop)
 {
 	unsigned long flags;
 	char *prop;
@@ -226,17 +212,6 @@ char *__prom_nextprop(phandle node, char * oprop)
 
 	return prop;
 }
-
-/* Return the first property name for node 'node'. */
-/* buffer is unused argument, but as v9 uses it, we need to have the same interface */
-char *prom_firstprop(phandle node, char *bufer)
-{
-	if (node == 0 || node == -1)
-		return "";
-
-	return __prom_nextprop(node, "");
-}
-EXPORT_SYMBOL(prom_firstprop);
 
 /* Return the property type string after property type 'oprop'
  * at node 'node' .  Returns empty string if no more
@@ -298,19 +273,6 @@ phandle prom_finddevice(char *name)
 	return node;
 }
 EXPORT_SYMBOL(prom_finddevice);
-
-int prom_node_has_property(phandle node, char *prop)
-{
-	char *current_property = "";
-
-	do {
-		current_property = prom_nextprop(node, current_property, NULL);
-		if(!strcmp(current_property, prop))
-		   return 1;
-	} while (*current_property);
-	return 0;
-}
-EXPORT_SYMBOL(prom_node_has_property);
 
 /* Set property 'pname' at node 'node' to value 'value' which has a length
  * of 'size' bytes.  Return the number of bytes the prom accepted.

@@ -147,18 +147,10 @@ extern int prom_getbool(phandle node, char *prop);
 /* Acquire a string property, null string on error. */
 extern void prom_getstring(phandle node, char *prop, char *buf, int bufsize);
 
-/* Does the passed node have the given "name"? YES=1 NO=0 */
-extern int prom_nodematch(phandle thisnode, char *name);
-
 /* Search all siblings starting at the passed node for "name" matching
  * the given string.  Returns the node on success, zero on failure.
  */
 extern phandle prom_searchsiblings(phandle node_start, char *name);
-
-/* Return the first property type, as a string, for the given node.
- * Returns a null string on error.
- */
-extern char *prom_firstprop(phandle node, char *buffer);
 
 /* Returns the next property after the passed property for the given
  * node.  Returns null string on failure.
@@ -167,9 +159,6 @@ extern char *prom_nextprop(phandle node, char *prev_property, char *buffer);
 
 /* Returns phandle of the path specified */
 extern phandle prom_finddevice(char *name);
-
-/* Returns 1 if the specified node has given property. */
-extern int prom_node_has_property(phandle node, char *property);
 
 /* Set the indicated property at the given node with the passed value.
  * Returns the number of bytes of your value that the prom took.
