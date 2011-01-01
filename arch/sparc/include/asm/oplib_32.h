@@ -48,18 +48,6 @@ extern void prom_init(struct linux_romvec *rom_ptr);
 /* Boot argument acquisition, returns the boot command line string. */
 extern char *prom_getbootargs(void);
 
-/* Device utilities. */
-
-/* Map and unmap devices in IO space at virtual addresses. Note that the
- * virtual address you pass is a request and the prom may put your mappings
- * somewhere else, so check your return value as that is where your new
- * mappings really are!
- *
- * Another note, these are only available on V2 or higher proms!
- */
-extern char *prom_mapio(char *virt_hint, int io_space, unsigned int phys_addr, unsigned int num_bytes);
-extern void prom_unmapio(char *virt_addr, unsigned int num_bytes);
-
 /* Miscellaneous routines, don't really fit in any category per se. */
 
 /* Reboot the machine with the command line passed. */

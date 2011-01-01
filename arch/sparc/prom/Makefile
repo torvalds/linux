@@ -5,7 +5,6 @@ asflags := -ansi
 ccflags := -Werror
 
 lib-y                 := bootstr_$(BITS).o
-lib-$(CONFIG_SPARC32) += devmap.o
 lib-y                 += init_$(BITS).o
 lib-$(CONFIG_SPARC32) += memory.o
 lib-y                 += misc_$(BITS).o
