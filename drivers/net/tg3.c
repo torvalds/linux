@@ -15052,6 +15052,7 @@ static void __devexit tg3_remove_one(struct pci_dev *pdev)
 	}
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int tg3_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
@@ -15140,13 +15141,20 @@ out:
 }
 
 static SIMPLE_DEV_PM_OPS(tg3_pm_ops, tg3_suspend, tg3_resume);
+#define TG3_PM_OPS (&tg3_pm_ops)
+
+#else
+
+#define TG3_PM_OPS NULL
+
+#endif /* CONFIG_PM_SLEEP */
 
 static struct pci_driver tg3_driver = {
 	.name		= DRV_MODULE_NAME,
 	.id_table	= tg3_pci_tbl,
 	.probe		= tg3_init_one,
 	.remove		= __devexit_p(tg3_remove_one),
-	.driver.pm	= &tg3_pm_ops,
+	.driver.pm	= TG3_PM_OPS,
 };
 
 static int __init tg3_init(void)
