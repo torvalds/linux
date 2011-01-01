@@ -1801,7 +1801,7 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 	struct nvc0_graph_chan *grch = chan->pgraph_ctx;
 	struct drm_device *dev = chan->dev;
 	int i, gpc, tp, id;
-	u32 r000260;
+	u32 r000260, tmp;
 
 	r000260 = nv_rd32(dev, 0x000260);
 	nv_wr32(dev, 0x000260, r000260 & ~1);
@@ -1843,8 +1843,12 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 		}
 	}
 
-	nv_wr32(dev, 0x406028, 0x00000443);
-	nv_wr32(dev, 0x405870, 0x00000443);
+	tmp = 0;
+	for (i = 0; i < priv->gpc_nr; i++)
+		tmp |= priv->tp_nr[i] << (i * 4);
+	nv_wr32(dev, 0x406028, tmp);
+	nv_wr32(dev, 0x405870, tmp);
+
 	nv_wr32(dev, 0x40602c, 0x00000000);
 	nv_wr32(dev, 0x405874, 0x00000000);
 	nv_wr32(dev, 0x406030, 0x00000000);
