@@ -620,29 +620,29 @@ int netup_altera_fpga_rw(void *device, int flag, int data, int read)
 {
 	struct cx23885_dev *dev = (struct cx23885_dev *)device;
 	unsigned long timeout = jiffies + msecs_to_jiffies(1);
-	int mem = 0;
+	uint32_t mem = 0;
 
-	cx_set(MC417_RWD, ALT_RD | ALT_WR | ALT_CS);
+	mem = cx_read(MC417_RWD);
 	if (read)
 		cx_set(MC417_OEN, ALT_DATA);
 	else {
 		cx_clear(MC417_OEN, ALT_DATA);/* D0-D7 out */
-		mem = cx_read(MC417_RWD);
 		mem &= ~ALT_DATA;
 		mem |= (data & ALT_DATA);
-		cx_write(MC417_RWD, mem);
 	}
 
 	if (flag)
-		cx_set(MC417_RWD, ALT_AD_RG);/* ADDR */
+		mem |= ALT_AD_RG;
 	else
-		cx_clear(MC417_RWD, ALT_AD_RG);/* VAL */
+		mem &= ~ALT_AD_RG;
 
-	cx_clear(MC417_RWD, ALT_CS);/* ~CS */
+	mem &= ~ALT_CS;
 	if (read)
-		cx_clear(MC417_RWD, ALT_RD);
+		mem = (mem & ~ALT_RD) | ALT_WR;
 	else
-		cx_clear(MC417_RWD, ALT_WR);
+		mem = (mem & ~ALT_WR) | ALT_RD;
+
+	cx_write(MC417_RWD, mem);  /* start RW cycle */
 
 	for (;;) {
 		mem = cx_read(MC417_RWD);
