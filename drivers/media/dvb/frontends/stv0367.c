@@ -286,7 +286,7 @@ static struct st_register def0367ter[STV0367TER_NBREGS] = {
 	{R367TER_PLLMDIV,	0x01},/* for xc5000; was 0x0c */
 	{R367TER_PLLNDIV,	0x06},/* for xc5000; was 0x55 */
 	{R367TER_PLLSETUP,	0x18},
-	{R367TER_DUAL_AD12,	0x04},/* for xc5000; was 0x00 */
+	{R367TER_DUAL_AD12,	0x0C},/* for xc5000 AGC voltage 1.6V */
 	{R367TER_TSTBIST,	0x00},
 	{R367TER_PAD_COMP_CTRL,	0x00},
 	{R367TER_PAD_COMP_WR,	0x00},
@@ -599,7 +599,7 @@ static struct st_register def0367cab[STV0367CAB_NBREGS] = {
 	{R367CAB_PLLMDIV,	0x01},
 	{R367CAB_PLLNDIV,	0x08},
 	{R367CAB_PLLSETUP,	0x18},
-	{R367CAB_DUAL_AD12,	0x04},
+	{R367CAB_DUAL_AD12,	0x0C}, /* for xc5000 AGC voltage 1.6V */
 	{R367CAB_TSTBIST,	0x00},
 	{R367CAB_CTRL_1,	0x00},
 	{R367CAB_CTRL_2,	0x03},
