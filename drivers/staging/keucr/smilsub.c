@@ -1575,25 +1575,6 @@ char Bit_D_CountWord(WORD cdata)
     return((char)bitcount);
 }
 
-void StringCopy(char *stringA, char *stringB, int count)
-{
-    int i;
-
-    for(i=0; i<count; i++)
-        *stringA++ = *stringB++;
-}
-
-//-----
-int StringCmp(char *stringA, char *stringB, int count)
-{
-    int i;
-
-    for (i=0;i<count;i++)
-        if (*stringA++ != *stringB++)
-            return(ERROR);
-
-    return(SUCCESS);
-}
 /*
 //----- SM_ReadBlock() ---------------------------------------------
 int SM_ReadBlock(PFDO_DEVICE_EXTENSION fdoExt, BYTE *buf,BYTE *redundant)
