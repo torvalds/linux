@@ -151,6 +151,16 @@ config MMC_SDHCI_DOVE
 
 	  If unsure, say N.
 
+config MMC_SDHCI_TEGRA
+	tristate "SDHCI platform support for the Tegra SD/MMC Controller"
+	depends on MMC_SDHCI_PLTFM && ARCH_TEGRA
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Tegra SD/MMC controller. If you have a Tegra
+	  platform with SD or MMC devices, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_S3C
 	tristate "SDHCI support on Samsung S3C SoC"
 	depends on MMC_SDHCI && PLAT_SAMSUNG

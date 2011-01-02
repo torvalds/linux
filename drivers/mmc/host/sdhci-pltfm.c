@@ -173,6 +173,9 @@ static const struct platform_device_id sdhci_pltfm_ids[] = {
 #ifdef CONFIG_MMC_SDHCI_DOVE
 	{ "sdhci-dove", (kernel_ulong_t)&sdhci_dove_pdata },
 #endif
+#ifdef CONFIG_MMC_SDHCI_TEGRA
+	{ "sdhci-tegra", (kernel_ulong_t)&sdhci_tegra_pdata },
+#endif
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, sdhci_pltfm_ids);
