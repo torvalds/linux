@@ -1482,54 +1482,40 @@ BYTE _Check_D_DevCode(BYTE dcode)
 //----- Check_D_ReadError() ----------------------------------------------
 int Check_D_ReadError(BYTE *redundant)
 {
-    // Driver 不做 ECC Check
-    return(SUCCESS);
-    if (!StringCmp((char *)(redundant+0x0D),(char *)EccBuf,3))
-        if (!StringCmp((char *)(redundant+0x08),(char *)(EccBuf+0x03),3))
-            return(SUCCESS);
-
-    return(ERROR);
+	return SUCCESS;
 }
 
 //----- Check_D_Correct() ----------------------------------------------
 int Check_D_Correct(BYTE *buf,BYTE *redundant)
 {
-    // Driver 不做 ECC Check
-    return(SUCCESS);
-    if (StringCmp((char *)(redundant+0x0D),(char *)EccBuf,3))
-        if (_Correct_D_SwECC(buf,redundant+0x0D,EccBuf))
-            return(ERROR);
-
-    buf+=0x100;
-    if (StringCmp((char *)(redundant+0x08),(char *)(EccBuf+0x03),3))
-        if (_Correct_D_SwECC(buf,redundant+0x08,EccBuf+0x03))
-            return(ERROR);
-
-    return(SUCCESS);
+	return SUCCESS;
 }
 
 //----- Check_D_CISdata() ----------------------------------------------
 int Check_D_CISdata(BYTE *buf, BYTE *redundant)
 {
-    BYTE cis[]={0x01,0x03,0xD9,0x01,0xFF,0x18,0x02,0xDF,0x01,0x20};
+	BYTE cis[] = {0x01, 0x03, 0xD9, 0x01, 0xFF, 0x18, 0x02,
+		      0xDF, 0x01, 0x20};
 
-    if (!IsSSFDCCompliance && !IsXDCompliance)
-        return(SUCCESS);             // 目前為強制 SUCCESS [Arnold 02-08-23] SSFDC 測試, 不能強制 SUCCESS
+	int cis_len = sizeof(cis);
 
-    if (!StringCmp((char *)(redundant+0x0D),(char *)EccBuf,3))
-        return(StringCmp((char *)buf,(char *)cis,10));
+	if (!IsSSFDCCompliance && !IsXDCompliance)
+		return SUCCESS;
 
-    if (!_Correct_D_SwECC(buf,redundant+0x0D,EccBuf))
-        return(StringCmp((char *)buf,(char *)cis,10));
+	if (!memcmp(redundant + 0x0D, EccBuf, 3))
+		return memcmp(buf, cis, cis_len);
 
-    buf+=0x100;
-    if (!StringCmp((char *)(redundant+0x08),(char *)(EccBuf+0x03),3))
-        return(StringCmp((char *)buf,(char *)cis,10));
+	if (!_Correct_D_SwECC(buf, redundant + 0x0D, EccBuf))
+		return memcmp(buf, cis, cis_len);
 
-    if (!_Correct_D_SwECC(buf,redundant+0x08,EccBuf+0x03))
-        return(StringCmp((char *)buf,(char *)cis,10));
+	buf += 0x100;
+	if (!memcmp(redundant + 0x08, EccBuf + 0x03, 3))
+		return memcmp(buf, cis, cis_len);
 
-    return(ERROR);
+	if (!_Correct_D_SwECC(buf, redundant + 0x08, EccBuf + 0x03))
+		return memcmp(buf, cis, cis_len);
+
+	return ERROR;
 }
 
 //----- Set_D_RightECC() ----------------------------------------------
