@@ -1867,6 +1867,7 @@ static void picolcd_debug_out_report(struct picolcd_data *data,
 			report->id, raw_size);
 	hid_debug_event(hdev, buff);
 	if (raw_size + 5 > sizeof(raw_data)) {
+		kfree(buff);
 		hid_debug_event(hdev, " TOO BIG\n");
 		return;
 	} else {
