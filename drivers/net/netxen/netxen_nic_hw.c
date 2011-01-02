@@ -809,9 +809,6 @@ int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable)
 	u64 word;
 	int rv = 0;
 
-	if ((adapter->flags & NETXEN_NIC_LRO_ENABLED) == enable)
-		return 0;
-
 	memset(&req, 0, sizeof(nx_nic_req_t));
 
 	req.qhdr = cpu_to_le64(NX_HOST_REQUEST << 23);
@@ -826,8 +823,6 @@ int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable)
 		printk(KERN_ERR "ERROR. Could not send "
 			"configure hw lro request\n");
 	}
-
-	adapter->flags ^= NETXEN_NIC_LRO_ENABLED;
 
 	return rv;
 }

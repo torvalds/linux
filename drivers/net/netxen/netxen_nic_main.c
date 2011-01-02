@@ -762,8 +762,6 @@ netxen_check_options(struct netxen_adapter *adapter)
 	if (adapter->fw_version >= NETXEN_VERSION_CODE(4, 0, 222))
 		adapter->capabilities = NXRD32(adapter, CRB_FW_CAPABILITIES_1);
 
-	adapter->flags &= ~NETXEN_NIC_LRO_ENABLED;
-
 	if (adapter->ahw.port_type == NETXEN_NIC_XGBE) {
 		adapter->num_rxd = DEFAULT_RCV_DESCRIPTORS_10G;
 		adapter->num_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS_10G;
@@ -990,7 +988,7 @@ __netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
 		netxen_config_intr_coalesce(adapter);
 
-	if (adapter->capabilities & NX_FW_CAPABILITY_HW_LRO)
+	if (netdev->features & NETIF_F_LRO)
 		netxen_config_hw_lro(adapter, NETXEN_NIC_LRO_ENABLED);
 
 	netxen_napi_enable(adapter);
