@@ -52,8 +52,6 @@ static const char *wm8962_supply_names[WM8962_NUM_SUPPLIES] = {
 struct wm8962_priv {
 	struct snd_soc_codec *codec;
 
-	u16 reg_cache[WM8962_MAX_REGISTER + 1];
-
 	int sysclk;
 	int sysclk_rate;
 
@@ -1991,8 +1989,7 @@ static int wm8962_put_hp_sw(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
-	u16 *reg_cache = wm8962->reg_cache;
+	u16 *reg_cache = codec->reg_cache;
 	int ret;
 
 	/* Apply the update (if any) */
@@ -2020,8 +2017,7 @@ static int wm8962_put_spk_sw(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
-	u16 *reg_cache = wm8962->reg_cache;
+	u16 *reg_cache = codec->reg_cache;
 	int ret;
 
 	/* Apply the update (if any) */
@@ -2329,8 +2325,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
-	u16 *reg_cache = wm8962->reg_cache;
+	u16 *reg_cache = codec->reg_cache;
 	int reg;
 
 	switch (w->shift) {
@@ -2719,7 +2714,7 @@ static int wm8962_add_widgets(struct snd_soc_codec *codec)
 
 static void wm8962_sync_cache(struct snd_soc_codec *codec)
 {
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	u16 *reg_cache = codec->reg_cache;
 	int i;
 
 	if (!codec->cache_sync)
@@ -2732,13 +2727,13 @@ static void wm8962_sync_cache(struct snd_soc_codec *codec)
 	/* Sync back cached values if they're different from the
 	 * hardware default.
 	 */
-	for (i = 1; i < ARRAY_SIZE(wm8962->reg_cache); i++) {
+	for (i = 1; i < codec->driver->reg_cache_size; i++) {
 		if (i == WM8962_SOFTWARE_RESET)
 			continue;
-		if (wm8962->reg_cache[i] == wm8962_reg[i])
+		if (reg_cache[i] == wm8962_reg[i])
 			continue;
 
-		snd_soc_write(codec, i, wm8962->reg_cache[i]);
+		snd_soc_write(codec, i, reg_cache[i]);
 	}
 
 	codec->cache_sync = 0;
@@ -3406,12 +3401,11 @@ EXPORT_SYMBOL_GPL(wm8962_mic_detect);
 #ifdef CONFIG_PM
 static int wm8962_resume(struct snd_soc_codec *codec)
 {
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	u16 *reg_cache = codec->reg_cache;
 	int i;
 
 	/* Restore the registers */
-	for (i = 1; i < ARRAY_SIZE(wm8962->reg_cache); i++) {
+	for (i = 1; i < codec->driver->reg_cache_size; i++) {
 		switch (i) {
 		case WM8962_SOFTWARE_RESET:
 			continue;
@@ -3705,6 +3699,7 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	struct wm8962_pdata *pdata = dev_get_platdata(codec->dev);
 	struct i2c_client *i2c = container_of(codec->dev, struct i2c_client,
 					      dev);
+	u16 *reg_cache = codec->reg_cache;
 	int i, trigger, irq_pol;
 
 	wm8962->codec = codec;
@@ -3804,7 +3799,7 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 
 		/* Put the speakers into mono mode? */
 		if (pdata->spk_mono)
-			wm8962->reg_cache[WM8962_CLASS_D_CONTROL_2]
+			reg_cache[WM8962_CLASS_D_CONTROL_2]
 				|= WM8962_SPK_MONO;
 
 		/* Micbias setup, detection enable and detection
@@ -3819,16 +3814,16 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	}
 
 	/* Latch volume update bits */
-	wm8962->reg_cache[WM8962_LEFT_INPUT_VOLUME] |= WM8962_IN_VU;
-	wm8962->reg_cache[WM8962_RIGHT_INPUT_VOLUME] |= WM8962_IN_VU;
-	wm8962->reg_cache[WM8962_LEFT_ADC_VOLUME] |= WM8962_ADC_VU;
-	wm8962->reg_cache[WM8962_RIGHT_ADC_VOLUME] |= WM8962_ADC_VU;	
-	wm8962->reg_cache[WM8962_LEFT_DAC_VOLUME] |= WM8962_DAC_VU;
-	wm8962->reg_cache[WM8962_RIGHT_DAC_VOLUME] |= WM8962_DAC_VU;
-	wm8962->reg_cache[WM8962_SPKOUTL_VOLUME] |= WM8962_SPKOUT_VU;
-	wm8962->reg_cache[WM8962_SPKOUTR_VOLUME] |= WM8962_SPKOUT_VU;
-	wm8962->reg_cache[WM8962_HPOUTL_VOLUME] |= WM8962_HPOUT_VU;
-	wm8962->reg_cache[WM8962_HPOUTR_VOLUME] |= WM8962_HPOUT_VU;
+	reg_cache[WM8962_LEFT_INPUT_VOLUME] |= WM8962_IN_VU;
+	reg_cache[WM8962_RIGHT_INPUT_VOLUME] |= WM8962_IN_VU;
+	reg_cache[WM8962_LEFT_ADC_VOLUME] |= WM8962_ADC_VU;
+	reg_cache[WM8962_RIGHT_ADC_VOLUME] |= WM8962_ADC_VU;
+	reg_cache[WM8962_LEFT_DAC_VOLUME] |= WM8962_DAC_VU;
+	reg_cache[WM8962_RIGHT_DAC_VOLUME] |= WM8962_DAC_VU;
+	reg_cache[WM8962_SPKOUTL_VOLUME] |= WM8962_SPKOUT_VU;
+	reg_cache[WM8962_SPKOUTR_VOLUME] |= WM8962_SPKOUT_VU;
+	reg_cache[WM8962_HPOUTL_VOLUME] |= WM8962_HPOUT_VU;
+	reg_cache[WM8962_HPOUTR_VOLUME] |= WM8962_HPOUT_VU;
 
 	wm8962_add_widgets(codec);
 

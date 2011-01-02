@@ -41,7 +41,6 @@ static const char *wm8741_supply_names[WM8741_NUM_SUPPLIES] = {
 /* codec private data */
 struct wm8741_priv {
 	enum snd_soc_control_type control_type;
-	u16 reg_cache[WM8741_REGISTER_COUNT];
 	struct regulator_bulk_data supplies[WM8741_NUM_SUPPLIES];
 	unsigned int sysclk;
 	struct snd_pcm_hw_constraint_list *sysclk_constraints;
@@ -422,6 +421,7 @@ static int wm8741_resume(struct snd_soc_codec *codec)
 static int wm8741_probe(struct snd_soc_codec *codec)
 {
 	struct wm8741_priv *wm8741 = snd_soc_codec_get_drvdata(codec);
+	u16 *reg_cache = codec->reg_cache;
 	int ret = 0;
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8741->control_type);
@@ -437,10 +437,10 @@ static int wm8741_probe(struct snd_soc_codec *codec)
 	}
 
 	/* Change some default settings - latch VU */
-	wm8741->reg_cache[WM8741_DACLLSB_ATTENUATION] |= WM8741_UPDATELL;
-	wm8741->reg_cache[WM8741_DACLMSB_ATTENUATION] |= WM8741_UPDATELM;
-	wm8741->reg_cache[WM8741_DACRLSB_ATTENUATION] |= WM8741_UPDATERL;
-	wm8741->reg_cache[WM8741_DACRLSB_ATTENUATION] |= WM8741_UPDATERM;
+	reg_cache[WM8741_DACLLSB_ATTENUATION] |= WM8741_UPDATELL;
+	reg_cache[WM8741_DACLMSB_ATTENUATION] |= WM8741_UPDATELM;
+	reg_cache[WM8741_DACRLSB_ATTENUATION] |= WM8741_UPDATERL;
+	reg_cache[WM8741_DACRLSB_ATTENUATION] |= WM8741_UPDATERM;
 
 	snd_soc_add_controls(codec, wm8741_snd_controls,
 			     ARRAY_SIZE(wm8741_snd_controls));
