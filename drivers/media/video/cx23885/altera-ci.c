@@ -283,7 +283,7 @@ int altera_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot,
 	netup_fpga_op_rw(inter, NETUP_CI_ADDR1, ((addr >> 7) & 0x7f), 0);
 	store = netup_fpga_op_rw(inter, NETUP_CI_BUSCTRL, 0, NETUP_CI_FLG_RD);
 
-	store &= 0x3f;
+	store &= 0x0f;
 	store |= ((state->nr << 7) | (flag << 6));
 
 	netup_fpga_op_rw(inter, NETUP_CI_BUSCTRL, store, 0);
@@ -340,19 +340,25 @@ int altera_ci_slot_reset(struct dvb_ca_en50221 *en50221, int slot)
 
 	ret = netup_fpga_op_rw(inter, NETUP_CI_BUSCTRL, 0, NETUP_CI_FLG_RD);
 	netup_fpga_op_rw(inter, NETUP_CI_BUSCTRL,
-				ret | (1 << (5 - state->nr)), 0);
+				(ret & 0xcf) | (1 << (5 - state->nr)), 0);
+
+	mutex_unlock(&inter->fpga_mutex);
 
 	for (;;) {
 		mdelay(50);
+
+		mutex_lock(&inter->fpga_mutex);
+
 		ret = netup_fpga_op_rw(inter, NETUP_CI_BUSCTRL,
 						0, NETUP_CI_FLG_RD);
+		mutex_unlock(&inter->fpga_mutex);
+
 		if ((ret & (1 << (5 - state->nr))) == 0)
 			break;
 		if (time_after(jiffies, t_out))
 			break;
 	}
 
-	mutex_unlock(&inter->fpga_mutex);
 
 	ci_dbg_print("%s: %d msecs\n", __func__,
 		jiffies_to_msecs(jiffies + msecs_to_jiffies(9999) - t_out));
@@ -381,7 +387,7 @@ int altera_ci_slot_ts_ctl(struct dvb_ca_en50221 *en50221, int slot)
 
 	ret = netup_fpga_op_rw(inter, NETUP_CI_BUSCTRL, 0, NETUP_CI_FLG_RD);
 	netup_fpga_op_rw(inter, NETUP_CI_BUSCTRL,
-				ret | (1 << (3 - state->nr)), 0);
+				(ret & 0x0f) | (1 << (3 - state->nr)), 0);
 
 	mutex_unlock(&inter->fpga_mutex);
 
