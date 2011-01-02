@@ -1335,6 +1335,7 @@ static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm9081);
+	wm9081->control_type = SND_SOC_I2C;
 	wm9081->control_data = i2c;
 
 	ret = snd_soc_register_codec(&i2c->dev,
