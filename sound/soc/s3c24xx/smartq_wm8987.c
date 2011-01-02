@@ -39,8 +39,8 @@ static int smartq_hifi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct s3c_i2sv2_rate_calc div;
 	unsigned int clk = 0;
 	int ret;
@@ -156,8 +156,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"LINPUT2", NULL, "Mic Bias"},
 };
 
-static int smartq_wm8987_init(struct snd_soc_codec *codec)
+static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
 	int err = 0;
 
 	/* Add SmartQ specific widgets */
@@ -190,8 +191,8 @@ static int smartq_wm8987_init(struct snd_soc_codec *codec)
 		return err;
 
 	/* Headphone jack detection */
-	err = snd_soc_jack_new(&snd_soc_smartq, "Headphone Jack",
-			       SND_JACK_HEADPHONE, &smartq_jack);
+	err = snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
+			       &smartq_jack);
 	if (err)
 		return err;
 
