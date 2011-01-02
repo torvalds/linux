@@ -532,7 +532,6 @@ static struct nlm_host *next_host_state(struct hlist_head *cache,
 			host->h_state++;
 
 			nlm_get_host(host);
-			mutex_unlock(&nlm_host_mutex);
 			goto out;
 		}
 	}
