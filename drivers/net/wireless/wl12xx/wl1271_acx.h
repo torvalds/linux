@@ -47,9 +47,9 @@
 #define WL1271_ACX_INTR_HW_AVAILABLE       BIT(5)
 /* The MISC bit is used for aggregation of RX, TxComplete and TX rate update */
 #define WL1271_ACX_INTR_DATA               BIT(6)
-/* Trace meassge on MBOX #A */
+/* Trace message on MBOX #A */
 #define WL1271_ACX_INTR_TRACE_A            BIT(7)
-/* Trace meassge on MBOX #B */
+/* Trace message on MBOX #B */
 #define WL1271_ACX_INTR_TRACE_B            BIT(8)
 
 #define WL1271_ACX_INTR_ALL		   0xFFFFFFFF

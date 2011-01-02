@@ -506,7 +506,7 @@ int wl1271_plt_stop(struct wl1271 *wl);
 
 /* WL1271 needs a 200ms sleep after power on, and a 20ms sleep before power
    on in case is has been shut down shortly before */
-#define WL1271_PRE_POWER_ON_SLEEP 20 /* in miliseconds */
-#define WL1271_POWER_ON_SLEEP 200 /* in miliseconds */
+#define WL1271_PRE_POWER_ON_SLEEP 20 /* in milliseconds */
+#define WL1271_POWER_ON_SLEEP 200 /* in milliseconds */
 
 #endif
