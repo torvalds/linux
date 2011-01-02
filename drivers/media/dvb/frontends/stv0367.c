@@ -3367,6 +3367,24 @@ static int stv0367cab_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return 0;
 }
 
+static int stv0367cab_read_ucblcks(struct dvb_frontend *fe, u32 *ucblocks)
+{
+	struct stv0367_state *state = fe->demodulator_priv;
+	int corrected, tscount;
+
+	*ucblocks = (stv0367_readreg(state, R367CAB_RS_COUNTER_5) << 8)
+			| stv0367_readreg(state, R367CAB_RS_COUNTER_4);
+	corrected = (stv0367_readreg(state, R367CAB_RS_COUNTER_3) << 8)
+			| stv0367_readreg(state, R367CAB_RS_COUNTER_2);
+	tscount = (stv0367_readreg(state, R367CAB_RS_COUNTER_2) << 8)
+			| stv0367_readreg(state, R367CAB_RS_COUNTER_1);
+
+	dprintk("%s: uncorrected blocks=%d corrected blocks=%d tscount=%d\n",
+				__func__, *ucblocks, corrected, tscount);
+
+	return 0;
+};
+
 static struct dvb_frontend_ops stv0367cab_ops = {
 	.info = {
 		.name = "ST STV0367 DVB-C",
@@ -3391,7 +3409,7 @@ static struct dvb_frontend_ops stv0367cab_ops = {
 /*	.read_ber				= stv0367cab_read_ber, */
 	.read_signal_strength			= stv0367cab_read_strength,
 	.read_snr				= stv0367cab_read_snr,
-/*	.read_ucblocks				= stv0367cab_read_ucblcks,*/
+	.read_ucblocks				= stv0367cab_read_ucblcks,
 	.get_tune_settings			= stv0367_get_tune_settings,
 };
 
