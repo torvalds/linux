@@ -1071,12 +1071,15 @@ static int dvb_register(struct cx23885_tsport *port)
 		fe0->dvb.frontend = dvb_attach(stv0367ter_attach,
 					&netup_stv0367_config[port->nr - 1],
 					&i2c_bus->i2c_adap);
-		if (fe0->dvb.frontend != NULL)
+		if (fe0->dvb.frontend != NULL) {
 			if (NULL == dvb_attach(xc5000_attach,
 					fe0->dvb.frontend,
 					&i2c_bus->i2c_adap,
 					&netup_xc5000_config[port->nr - 1]))
 				goto frontend_detach;
+			/* load xc5000 firmware */
+			fe0->dvb.frontend->ops.tuner_ops.init(fe0->dvb.frontend);
+		}
 		/* MFE frontend 2 */
 		fe1 = videobuf_dvb_get_frontend(&port->frontends, 2);
 		if (fe1 == NULL)
