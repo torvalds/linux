@@ -54,7 +54,7 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
 
-#define CONFIG_SENSOR_I2C_SPEED     100000       /* Hz */
+#define CONFIG_SENSOR_I2C_SPEED     250000       /* Hz */
 
 #define CONFIG_SENSOR_TR      1
 #define CONFIG_SENSOR_DEBUG	  1
