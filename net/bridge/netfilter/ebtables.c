@@ -1147,7 +1147,7 @@ ebt_register_table(struct net *net, const struct ebt_table *input_table)
 	void *p;
 
 	if (input_table == NULL || (repl = input_table->table) == NULL ||
-	    repl->entries == 0 || repl->entries_size == 0 ||
+	    repl->entries == NULL || repl->entries_size == 0 ||
 	    repl->counters != NULL || input_table->private != NULL) {
 		BUGPRINT("Bad table data for ebt_register_table!!!\n");
 		return ERR_PTR(-EINVAL);
