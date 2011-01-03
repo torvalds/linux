@@ -1058,6 +1058,18 @@ static int prep_phy_channel(struct pl08x_dma_chan *plchan,
 	return 0;
 }
 
+static void release_phy_channel(struct pl08x_dma_chan *plchan)
+{
+	struct pl08x_driver_data *pl08x = plchan->host;
+
+	if ((plchan->phychan->signal >= 0) && pl08x->pd->put_signal) {
+		pl08x->pd->put_signal(plchan);
+		plchan->phychan->signal = -1;
+	}
+	pl08x_put_phy_channel(pl08x, plchan->phychan);
+	plchan->phychan = NULL;
+}
+
 static dma_cookie_t pl08x_tx_submit(struct dma_async_tx_descriptor *tx)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(tx->chan);
@@ -1522,13 +1534,7 @@ static int pl08x_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 			 * Mark physical channel as free and free any slave
 			 * signal
 			 */
-			if ((plchan->phychan->signal >= 0) &&
-			    pl08x->pd->put_signal) {
-				pl08x->pd->put_signal(plchan);
-				plchan->phychan->signal = -1;
-			}
-			pl08x_put_phy_channel(pl08x, plchan->phychan);
-			plchan->phychan = NULL;
+			release_phy_channel(plchan);
 		}
 		/* Dequeue jobs and free LLIs */
 		if (plchan->at) {
@@ -1590,7 +1596,6 @@ static void pl08x_ensure_on(struct pl08x_driver_data *pl08x)
 static void pl08x_tasklet(unsigned long data)
 {
 	struct pl08x_dma_chan *plchan = (struct pl08x_dma_chan *) data;
-	struct pl08x_phy_chan *phychan = plchan->phychan;
 	struct pl08x_driver_data *pl08x = plchan->host;
 	unsigned long flags;
 
@@ -1642,12 +1647,7 @@ static void pl08x_tasklet(unsigned long data)
 		 * No more jobs, so free up the physical channel
 		 * Free any allocated signal on slave transfers too
 		 */
-		if ((phychan->signal >= 0) && pl08x->pd->put_signal) {
-			pl08x->pd->put_signal(plchan);
-			phychan->signal = -1;
-		}
-		pl08x_put_phy_channel(pl08x, phychan);
-		plchan->phychan = NULL;
+		release_phy_channel(plchan);
 		plchan->state = PL08X_CHAN_IDLE;
 
 		/*
