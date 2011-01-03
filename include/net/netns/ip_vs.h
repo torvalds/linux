@@ -71,6 +71,7 @@ struct netns_ipvs {
 
 	int			num_services;    /* no of virtual services */
 	/* 1/rate drop and drop-entry variables */
+	struct delayed_work	defense_work;   /* Work handler */
 	int			drop_rate;
 	int			drop_counter;
 	atomic_t		dropentry;
@@ -129,6 +130,8 @@ struct netns_ipvs {
 	/* multicast interface name */
 	char			master_mcast_ifn[IP_VS_IFNAME_MAXLEN];
 	char			backup_mcast_ifn[IP_VS_IFNAME_MAXLEN];
+	/* net name space ptr */
+	struct net		*net;            /* Needed by timer routines */
 };
 
 #endif /* IP_VS_H_ */

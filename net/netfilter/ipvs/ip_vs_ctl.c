@@ -217,18 +217,16 @@ static void update_defense_level(struct netns_ipvs *ipvs)
  *	Timer for checking the defense
  */
 #define DEFENSE_TIMER_PERIOD	1*HZ
-static void defense_work_handler(struct work_struct *work);
-static DECLARE_DELAYED_WORK(defense_work, defense_work_handler);
 
 static void defense_work_handler(struct work_struct *work)
 {
-	struct netns_ipvs *ipvs = net_ipvs(&init_net);
+	struct netns_ipvs *ipvs =
+		container_of(work, struct netns_ipvs, defense_work.work);
 
 	update_defense_level(ipvs);
 	if (atomic_read(&ipvs->dropentry))
-		ip_vs_random_dropentry();
-
-	schedule_delayed_work(&defense_work, DEFENSE_TIMER_PERIOD);
+		ip_vs_random_dropentry(ipvs->net);
+	schedule_delayed_work(&ipvs->defense_work, DEFENSE_TIMER_PERIOD);
 }
 
 int
@@ -3564,6 +3562,9 @@ int __net_init __ip_vs_control_init(struct net *net)
 		goto err_reg;
 	ip_vs_new_estimator(net, ipvs->tot_stats);
 	ipvs->sysctl_tbl = tbl;
+	/* Schedule defense work */
+	INIT_DELAYED_WORK(&ipvs->defense_work, defense_work_handler);
+	schedule_delayed_work(&ipvs->defense_work, DEFENSE_TIMER_PERIOD);
 	return 0;
 
 err_reg:
@@ -3588,6 +3589,8 @@ static void __net_exit __ip_vs_control_cleanup(struct net *net)
 	proc_net_remove(net, "ip_vs_stats_percpu");
 	proc_net_remove(net, "ip_vs_stats");
 	proc_net_remove(net, "ip_vs");
+	cancel_delayed_work_sync(&ipvs->defense_work);
+	cancel_work_sync(&ipvs->defense_work.work);
 	free_percpu(ipvs->cpustats);
 	kfree(ipvs->tot_stats);
 }
@@ -3631,9 +3634,6 @@ int __init ip_vs_control_init(void)
 		goto err_net;
 	}
 
-	/* Hook the defense timer */
-	schedule_delayed_work(&defense_work, DEFENSE_TIMER_PERIOD);
-
 	LeaveFunction(2);
 	return 0;
 
@@ -3648,8 +3648,6 @@ void ip_vs_control_cleanup(void)
 {
 	EnterFunction(2);
 	ip_vs_trash_cleanup();
-	cancel_delayed_work_sync(&defense_work);
-	cancel_work_sync(&defense_work.work);
 	unregister_pernet_subsys(&ipvs_control_ops);
 	ip_vs_genl_unregister();
 	nf_unregister_sockopt(&ip_vs_sockopts);
