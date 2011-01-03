@@ -114,8 +114,8 @@ struct pl08x_txd {
 	struct dma_async_tx_descriptor tx;
 	struct list_head node;
 	enum dma_data_direction	direction;
-	struct pl08x_bus_data srcbus;
-	struct pl08x_bus_data dstbus;
+	dma_addr_t src_addr;
+	dma_addr_t dst_addr;
 	size_t len;
 	dma_addr_t llis_bus;
 	void *llis_va;

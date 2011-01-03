@@ -595,8 +595,8 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 
 	bd.txd = txd;
 	bd.pl08x = pl08x;
-	bd.srcbus.addr = txd->srcbus.addr;
-	bd.dstbus.addr = txd->dstbus.addr;
+	bd.srcbus.addr = txd->src_addr;
+	bd.dstbus.addr = txd->dst_addr;
 
 	/* Find maximum width of the source bus */
 	bd.srcbus.maxwidth =
@@ -1313,8 +1313,8 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 	}
 
 	txd->direction = DMA_NONE;
-	txd->srcbus.addr = src;
-	txd->dstbus.addr = dest;
+	txd->src_addr = src;
+	txd->dst_addr = dest;
 	txd->len = len;
 
 	/* Set platform data for m2m */
@@ -1393,21 +1393,21 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 	if (direction == DMA_TO_DEVICE) {
 		txd->ccfg |= PL080_FLOW_MEM2PER << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 		txd->cctl |= PL080_CONTROL_SRC_INCR;
-		txd->srcbus.addr = sgl->dma_address;
+		txd->src_addr = sgl->dma_address;
 		if (plchan->runtime_addr)
-			txd->dstbus.addr = plchan->runtime_addr;
+			txd->dst_addr = plchan->runtime_addr;
 		else
-			txd->dstbus.addr = plchan->cd->addr;
+			txd->dst_addr = plchan->cd->addr;
 		src_buses = pl08x->mem_buses;
 		dst_buses = plchan->cd->periph_buses;
 	} else if (direction == DMA_FROM_DEVICE) {
 		txd->ccfg |= PL080_FLOW_PER2MEM << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 		txd->cctl |= PL080_CONTROL_DST_INCR;
 		if (plchan->runtime_addr)
-			txd->srcbus.addr = plchan->runtime_addr;
+			txd->src_addr = plchan->runtime_addr;
 		else
-			txd->srcbus.addr = plchan->cd->addr;
-		txd->dstbus.addr = sgl->dma_address;
+			txd->src_addr = plchan->cd->addr;
+		txd->dst_addr = sgl->dma_address;
 		src_buses = plchan->cd->periph_buses;
 		dst_buses = pl08x->mem_buses;
 	} else {
