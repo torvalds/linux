@@ -2032,23 +2032,40 @@ static void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	vmcs_writel(GUEST_CR4, hw_cr4);
 }
 
-static u64 vmx_get_segment_base(struct kvm_vcpu *vcpu, int seg)
-{
-	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
-
-	return vmcs_readl(sf->base);
-}
-
 static void vmx_get_segment(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
+	struct kvm_save_segment *save;
 	u32 ar;
 
+	if (vmx->rmode.vm86_active
+	    && (seg == VCPU_SREG_TR || seg == VCPU_SREG_ES
+		|| seg == VCPU_SREG_DS || seg == VCPU_SREG_FS
+		|| seg == VCPU_SREG_GS)
+	    && !emulate_invalid_guest_state) {
+		switch (seg) {
+		case VCPU_SREG_TR: save = &vmx->rmode.tr; break;
+		case VCPU_SREG_ES: save = &vmx->rmode.es; break;
+		case VCPU_SREG_DS: save = &vmx->rmode.ds; break;
+		case VCPU_SREG_FS: save = &vmx->rmode.fs; break;
+		case VCPU_SREG_GS: save = &vmx->rmode.gs; break;
+		default: BUG();
+		}
+		var->selector = save->selector;
+		var->base = save->base;
+		var->limit = save->limit;
+		ar = save->ar;
+		if (seg == VCPU_SREG_TR
+		    || var->selector == vmcs_read16(sf->selector))
+			goto use_saved_rmode_seg;
+	}
 	var->base = vmcs_readl(sf->base);
 	var->limit = vmcs_read32(sf->limit);
 	var->selector = vmcs_read16(sf->selector);
 	ar = vmcs_read32(sf->ar_bytes);
+use_saved_rmode_seg:
 	if ((ar & AR_UNUSABLE_MASK) && !emulate_invalid_guest_state)
 		ar = 0;
 	var->type = ar & 15;
@@ -2060,6 +2077,18 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 	var->db = (ar >> 14) & 1;
 	var->g = (ar >> 15) & 1;
 	var->unusable = (ar >> 16) & 1;
+}
+
+static u64 vmx_get_segment_base(struct kvm_vcpu *vcpu, int seg)
+{
+	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
+	struct kvm_segment s;
+
+	if (to_vmx(vcpu)->rmode.vm86_active) {
+		vmx_get_segment(vcpu, &s, seg);
+		return s.base;
+	}
+	return vmcs_readl(sf->base);
 }
 
 static int vmx_get_cpl(struct kvm_vcpu *vcpu)
