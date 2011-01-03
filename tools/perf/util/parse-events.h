@@ -36,6 +36,7 @@ extern int parse_filter(const struct option *opt, const char *str, int unset);
 #define EVENTS_HELP_MAX (128*1024)
 
 extern void print_events(void);
+extern int is_valid_tracepoint(const char *event_string);
 
 extern char debugfs_path[];
 extern int valid_debugfs_mount(const char *debugfs);
