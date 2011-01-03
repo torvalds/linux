@@ -168,7 +168,6 @@ struct uea_softc {
 	union cmv_dsc cmv_dsc;
 
 	struct work_struct task;
-	struct workqueue_struct *work_q;
 	u16 pageno;
 	u16 ovl;
 
@@ -1879,7 +1878,7 @@ static int uea_start_reset(struct uea_softc *sc)
 	/* start loading DSP */
 	sc->pageno = 0;
 	sc->ovl = 0;
-	queue_work(sc->work_q, &sc->task);
+	schedule_work(&sc->task);
 
 	/* wait for modem ready CMV */
 	ret = wait_cmv_ack(sc);
@@ -2091,14 +2090,14 @@ static void uea_schedule_load_page_e1(struct uea_softc *sc,
 {
 	sc->pageno = intr->e1_bSwapPageNo;
 	sc->ovl = intr->e1_bOvl >> 4 | intr->e1_bOvl << 4;
-	queue_work(sc->work_q, &sc->task);
+	schedule_work(&sc->task);
 }
 
 static void uea_schedule_load_page_e4(struct uea_softc *sc,
 						struct intr_pkt *intr)
 {
 	sc->pageno = intr->e4_bSwapPageNo;
-	queue_work(sc->work_q, &sc->task);
+	schedule_work(&sc->task);
 }
 
 /*
@@ -2170,13 +2169,6 @@ static int uea_boot(struct uea_softc *sc)
 
 	init_waitqueue_head(&sc->sync_q);
 
-	sc->work_q = create_workqueue("ueagle-dsp");
-	if (!sc->work_q) {
-		uea_err(INS_TO_USBDEV(sc), "cannot allocate workqueue\n");
-		uea_leaves(INS_TO_USBDEV(sc));
-		return -ENOMEM;
-	}
-
 	if (UEA_CHIP_VERSION(sc) == ADI930)
 		load_XILINX_firmware(sc);
 
@@ -2225,7 +2217,6 @@ err1:
 	sc->urb_int = NULL;
 	kfree(intr);
 err0:
-	destroy_workqueue(sc->work_q);
 	uea_leaves(INS_TO_USBDEV(sc));
 	return -ENOMEM;
 }
@@ -2246,8 +2237,8 @@ static void uea_stop(struct uea_softc *sc)
 	kfree(sc->urb_int->transfer_buffer);
 	usb_free_urb(sc->urb_int);
 
-	/* stop any pending boot process, when no one can schedule work */
-	destroy_workqueue(sc->work_q);
+	/* flush the work item, when no one can schedule it */
+	flush_work_sync(&sc->task);
 
 	if (sc->dsp_firm)
 		release_firmware(sc->dsp_firm);
