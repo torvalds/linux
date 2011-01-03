@@ -42,6 +42,11 @@ int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus);
 void perf_evsel__free_fd(struct perf_evsel *evsel);
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 
+int perf_evsel__open_per_cpu(struct perf_evsel *evsel, int ncpus, int *cpu_map);
+int perf_evsel__open_per_thread(struct perf_evsel *evsel, int nthreads, int *thread_map);
+int perf_evsel__open(struct perf_evsel *evsel, int ncpus, int nthreads,
+		     int *cpu_map, int *thread_map);
+
 #define perf_evsel__match(evsel, t, c)		\
 	(evsel->attr.type == PERF_TYPE_##t &&	\
 	 evsel->attr.config == PERF_COUNT_##c)

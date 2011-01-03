@@ -53,8 +53,6 @@
 #include <math.h>
 #include <locale.h>
 
-#define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
-
 #define DEFAULT_SEPARATOR	" "
 
 static struct perf_event_attr default_attrs[] = {
@@ -160,56 +158,24 @@ struct stats			runtime_cycles_stats[MAX_NR_CPUS];
 struct stats			runtime_branches_stats[MAX_NR_CPUS];
 struct stats			walltime_nsecs_stats;
 
-#define ERR_PERF_OPEN \
-"counter %d, sys_perf_event_open() syscall returned with %d (%s).  /bin/dmesg may provide additional information."
-
-static int create_perf_stat_counter(struct perf_evsel *evsel, bool *perm_err)
+static int create_perf_stat_counter(struct perf_evsel *evsel)
 {
 	struct perf_event_attr *attr = &evsel->attr;
-	int thread;
-	int ncreated = 0;
 
 	if (scale)
 		attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
 				    PERF_FORMAT_TOTAL_TIME_RUNNING;
 
-	if (system_wide) {
-		int cpu;
+	if (system_wide)
+		return perf_evsel__open_per_cpu(evsel, nr_cpus, cpumap);
 
-		for (cpu = 0; cpu < nr_cpus; cpu++) {
-			FD(evsel, cpu, 0) = sys_perf_event_open(attr,
-					-1, cpumap[cpu], -1, 0);
-			if (FD(evsel, cpu, 0) < 0) {
-				if (errno == EPERM || errno == EACCES)
-					*perm_err = true;
-				error(ERR_PERF_OPEN, evsel->idx,
-					FD(evsel, cpu, 0), strerror(errno));
-			} else {
-				++ncreated;
-			}
-		}
-	} else {
-		attr->inherit = !no_inherit;
-		if (target_pid == -1 && target_tid == -1) {
-			attr->disabled = 1;
-			attr->enable_on_exec = 1;
-		}
-		for (thread = 0; thread < thread_num; thread++) {
-			FD(evsel, 0, thread) = sys_perf_event_open(attr,
-				all_tids[thread], -1, -1, 0);
-			if (FD(evsel, 0, thread) < 0) {
-				if (errno == EPERM || errno == EACCES)
-					*perm_err = true;
-				error(ERR_PERF_OPEN, evsel->idx,
-					FD(evsel, 0, thread),
-					 strerror(errno));
-			} else {
-				++ncreated;
-			}
-		}
+	attr->inherit = !no_inherit;
+	if (target_pid == -1 && target_tid == -1) {
+		attr->disabled = 1;
+		attr->enable_on_exec = 1;
 	}
 
-	return ncreated;
+	return perf_evsel__open_per_thread(evsel, thread_num, all_tids);
 }
 
 /*
@@ -289,9 +255,7 @@ static int run_perf_stat(int argc __used, const char **argv)
 	unsigned long long t0, t1;
 	struct perf_evsel *counter;
 	int status = 0;
-	int ncreated = 0;
 	int child_ready_pipe[2], go_pipe[2];
-	bool perm_err = false;
 	const bool forks = (argc > 0);
 	char buf;
 
@@ -349,19 +313,23 @@ static int run_perf_stat(int argc __used, const char **argv)
 		close(child_ready_pipe[0]);
 	}
 
-	list_for_each_entry(counter, &evsel_list, node)
-		ncreated += create_perf_stat_counter(counter, &perm_err);
-
-	if (ncreated < nr_counters) {
-		if (perm_err)
-			error("You may not have permission to collect %sstats.\n"
-			      "\t Consider tweaking"
-			      " /proc/sys/kernel/perf_event_paranoid or running as root.",
-			      system_wide ? "system-wide " : "");
-		die("Not all events could be opened.\n");
-		if (child_pid != -1)
-			kill(child_pid, SIGTERM);
-		return -1;
+	list_for_each_entry(counter, &evsel_list, node) {
+		if (create_perf_stat_counter(counter) < 0) {
+			if (errno == -EPERM || errno == -EACCES) {
+				error("You may not have permission to collect %sstats.\n"
+				      "\t Consider tweaking"
+				      " /proc/sys/kernel/perf_event_paranoid or running as root.",
+				      system_wide ? "system-wide " : "");
+			} else {
+				error("open_counter returned with %d (%s). "
+				      "/bin/dmesg may provide additional information.\n",
+				       errno, strerror(errno));
+			}
+			if (child_pid != -1)
+				kill(child_pid, SIGTERM);
+			die("Not all events could be opened.\n");
+			return -1;
+		}
 	}
 
 	/*
