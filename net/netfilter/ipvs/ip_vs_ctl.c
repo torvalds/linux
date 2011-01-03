@@ -1559,7 +1559,8 @@ proc_do_sync_mode(ctl_table *table, int write,
 			/* Restore the correct value */
 			*valp = val;
 		} else {
-			ip_vs_sync_switch_mode(val);
+			struct net *net = current->nsproxy->net_ns;
+			ip_vs_sync_switch_mode(net, val);
 		}
 	}
 	return rc;
@@ -2174,11 +2175,12 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 		goto out_unlock;
 	} else if (cmd == IP_VS_SO_SET_STARTDAEMON) {
 		struct ip_vs_daemon_user *dm = (struct ip_vs_daemon_user *)arg;
-		ret = start_sync_thread(dm->state, dm->mcast_ifn, dm->syncid);
+		ret = start_sync_thread(net, dm->state, dm->mcast_ifn,
+					dm->syncid);
 		goto out_unlock;
 	} else if (cmd == IP_VS_SO_SET_STOPDAEMON) {
 		struct ip_vs_daemon_user *dm = (struct ip_vs_daemon_user *)arg;
-		ret = stop_sync_thread(dm->state);
+		ret = stop_sync_thread(net, dm->state);
 		goto out_unlock;
 	}
 
@@ -2424,6 +2426,7 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	int ret = 0;
 	unsigned int copylen;
 	struct net *net = sock_net(sk);
+	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	BUG_ON(!net);
 	if (!capable(CAP_NET_ADMIN))
@@ -2546,15 +2549,17 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		struct ip_vs_daemon_user d[2];
 
 		memset(&d, 0, sizeof(d));
-		if (ip_vs_sync_state & IP_VS_STATE_MASTER) {
+		if (ipvs->sync_state & IP_VS_STATE_MASTER) {
 			d[0].state = IP_VS_STATE_MASTER;
-			strlcpy(d[0].mcast_ifn, ip_vs_master_mcast_ifn, sizeof(d[0].mcast_ifn));
-			d[0].syncid = ip_vs_master_syncid;
+			strlcpy(d[0].mcast_ifn, ipvs->master_mcast_ifn,
+				sizeof(d[0].mcast_ifn));
+			d[0].syncid = ipvs->master_syncid;
 		}
-		if (ip_vs_sync_state & IP_VS_STATE_BACKUP) {
+		if (ipvs->sync_state & IP_VS_STATE_BACKUP) {
 			d[1].state = IP_VS_STATE_BACKUP;
-			strlcpy(d[1].mcast_ifn, ip_vs_backup_mcast_ifn, sizeof(d[1].mcast_ifn));
-			d[1].syncid = ip_vs_backup_syncid;
+			strlcpy(d[1].mcast_ifn, ipvs->backup_mcast_ifn,
+				sizeof(d[1].mcast_ifn));
+			d[1].syncid = ipvs->backup_syncid;
 		}
 		if (copy_to_user(user, &d, sizeof(d)) != 0)
 			ret = -EFAULT;
@@ -3061,20 +3066,23 @@ nla_put_failure:
 static int ip_vs_genl_dump_daemons(struct sk_buff *skb,
 				   struct netlink_callback *cb)
 {
+	struct net *net = skb_net(skb);
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
 	mutex_lock(&__ip_vs_mutex);
-	if ((ip_vs_sync_state & IP_VS_STATE_MASTER) && !cb->args[0]) {
+	if ((ipvs->sync_state & IP_VS_STATE_MASTER) && !cb->args[0]) {
 		if (ip_vs_genl_dump_daemon(skb, IP_VS_STATE_MASTER,
-					   ip_vs_master_mcast_ifn,
-					   ip_vs_master_syncid, cb) < 0)
+					   ipvs->master_mcast_ifn,
+					   ipvs->master_syncid, cb) < 0)
 			goto nla_put_failure;
 
 		cb->args[0] = 1;
 	}
 
-	if ((ip_vs_sync_state & IP_VS_STATE_BACKUP) && !cb->args[1]) {
+	if ((ipvs->sync_state & IP_VS_STATE_BACKUP) && !cb->args[1]) {
 		if (ip_vs_genl_dump_daemon(skb, IP_VS_STATE_BACKUP,
-					   ip_vs_backup_mcast_ifn,
-					   ip_vs_backup_syncid, cb) < 0)
+					   ipvs->backup_mcast_ifn,
+					   ipvs->backup_syncid, cb) < 0)
 			goto nla_put_failure;
 
 		cb->args[1] = 1;
@@ -3086,24 +3094,26 @@ nla_put_failure:
 	return skb->len;
 }
 
-static int ip_vs_genl_new_daemon(struct nlattr **attrs)
+static int ip_vs_genl_new_daemon(struct net *net, struct nlattr **attrs)
 {
 	if (!(attrs[IPVS_DAEMON_ATTR_STATE] &&
 	      attrs[IPVS_DAEMON_ATTR_MCAST_IFN] &&
 	      attrs[IPVS_DAEMON_ATTR_SYNC_ID]))
 		return -EINVAL;
 
-	return start_sync_thread(nla_get_u32(attrs[IPVS_DAEMON_ATTR_STATE]),
+	return start_sync_thread(net,
+				 nla_get_u32(attrs[IPVS_DAEMON_ATTR_STATE]),
 				 nla_data(attrs[IPVS_DAEMON_ATTR_MCAST_IFN]),
 				 nla_get_u32(attrs[IPVS_DAEMON_ATTR_SYNC_ID]));
 }
 
-static int ip_vs_genl_del_daemon(struct nlattr **attrs)
+static int ip_vs_genl_del_daemon(struct net *net, struct nlattr **attrs)
 {
 	if (!attrs[IPVS_DAEMON_ATTR_STATE])
 		return -EINVAL;
 
-	return stop_sync_thread(nla_get_u32(attrs[IPVS_DAEMON_ATTR_STATE]));
+	return stop_sync_thread(net,
+				nla_get_u32(attrs[IPVS_DAEMON_ATTR_STATE]));
 }
 
 static int ip_vs_genl_set_config(struct net *net, struct nlattr **attrs)
@@ -3159,9 +3169,9 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 		}
 
 		if (cmd == IPVS_CMD_NEW_DAEMON)
-			ret = ip_vs_genl_new_daemon(daemon_attrs);
+			ret = ip_vs_genl_new_daemon(net, daemon_attrs);
 		else
-			ret = ip_vs_genl_del_daemon(daemon_attrs);
+			ret = ip_vs_genl_del_daemon(net, daemon_attrs);
 		goto out;
 	} else if (cmd == IPVS_CMD_ZERO &&
 		   !info->attrs[IPVS_CMD_ATTR_SERVICE]) {

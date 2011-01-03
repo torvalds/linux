@@ -1471,12 +1471,13 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 static unsigned int
 ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 {
-	struct net *net = NULL;
+	struct net *net;
 	struct ip_vs_iphdr iph;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_proto_data *pd;
 	struct ip_vs_conn *cp;
 	int ret, restart, pkts;
+	struct netns_ipvs *ipvs;
 
 	/* Already marked as IPVS request or reply? */
 	if (skb->ipvs_property)
@@ -1556,7 +1557,8 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 	}
 
 	IP_VS_DBG_PKT(11, af, pp, skb, 0, "Incoming packet");
-
+	net = skb_net(skb);
+	ipvs = net_ipvs(net);
 	/* Check the server status */
 	if (cp->dest && !(cp->dest->flags & IP_VS_DEST_F_AVAILABLE)) {
 		/* the destination server is not available */
@@ -1589,12 +1591,13 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 	 *
 	 * For ONE_PKT let ip_vs_sync_conn() do the filter work.
 	 */
+
 	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
 		pkts = sysctl_ip_vs_sync_threshold[0];
 	else
 		pkts = atomic_add_return(1, &cp->in_pkts);
 
-	if ((ip_vs_sync_state & IP_VS_STATE_MASTER) &&
+	if ((ipvs->sync_state & IP_VS_STATE_MASTER) &&
 	    cp->protocol == IPPROTO_SCTP) {
 		if ((cp->state == IP_VS_SCTP_S_ESTABLISHED &&
 			(pkts % sysctl_ip_vs_sync_threshold[1]
@@ -1603,13 +1606,13 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 				 ((cp->state == IP_VS_SCTP_S_CLOSED) ||
 				  (cp->state == IP_VS_SCTP_S_SHUT_ACK_CLI) ||
 				  (cp->state == IP_VS_SCTP_S_SHUT_ACK_SER)))) {
-			ip_vs_sync_conn(cp);
+			ip_vs_sync_conn(net, cp);
 			goto out;
 		}
 	}
 
 	/* Keep this block last: TCP and others with pp->num_states <= 1 */
-	else if ((ip_vs_sync_state & IP_VS_STATE_MASTER) &&
+	else if ((ipvs->sync_state & IP_VS_STATE_MASTER) &&
 	    (((cp->protocol != IPPROTO_TCP ||
 	       cp->state == IP_VS_TCP_S_ESTABLISHED) &&
 	      (pkts % sysctl_ip_vs_sync_threshold[1]
@@ -1619,7 +1622,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 	       (cp->state == IP_VS_TCP_S_CLOSE) ||
 	       (cp->state == IP_VS_TCP_S_CLOSE_WAIT) ||
 	       (cp->state == IP_VS_TCP_S_TIME_WAIT)))))
-		ip_vs_sync_conn(cp);
+		ip_vs_sync_conn(net, cp);
 out:
 	cp->old_state = cp->state;
 

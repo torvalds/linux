@@ -958,7 +958,7 @@ extern struct ip_vs_stats ip_vs_stats;
 extern const struct ctl_path net_vs_ctl_path[];
 extern int sysctl_ip_vs_sync_ver;
 
-extern void ip_vs_sync_switch_mode(int mode);
+extern void ip_vs_sync_switch_mode(struct net *net, int mode);
 extern struct ip_vs_service *
 ip_vs_service_get(struct net *net, int af, __u32 fwmark, __u16 protocol,
 		  const union nf_inet_addr *vaddr, __be16 vport);
@@ -987,14 +987,10 @@ extern struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp);
  *      IPVS sync daemon data and function prototypes
  *      (from ip_vs_sync.c)
  */
-extern volatile int ip_vs_sync_state;
-extern volatile int ip_vs_master_syncid;
-extern volatile int ip_vs_backup_syncid;
-extern char ip_vs_master_mcast_ifn[IP_VS_IFNAME_MAXLEN];
-extern char ip_vs_backup_mcast_ifn[IP_VS_IFNAME_MAXLEN];
-extern int start_sync_thread(int state, char *mcast_ifn, __u8 syncid);
-extern int stop_sync_thread(int state);
-extern void ip_vs_sync_conn(struct ip_vs_conn *cp);
+extern int start_sync_thread(struct net *net, int state, char *mcast_ifn,
+			     __u8 syncid);
+extern int stop_sync_thread(struct net *net, int state);
+extern void ip_vs_sync_conn(struct net *net, struct ip_vs_conn *cp);
 extern int ip_vs_sync_init(void);
 extern void ip_vs_sync_cleanup(void);
 

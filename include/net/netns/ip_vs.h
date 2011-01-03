@@ -74,6 +74,22 @@ struct netns_ipvs {
 	struct list_head	est_list;	/* estimator list */
 	spinlock_t		est_lock;
 	struct timer_list	est_timer;	/* Estimation timer */
+	/* ip_vs_sync */
+	struct list_head	sync_queue;
+	spinlock_t		sync_lock;
+	struct ip_vs_sync_buff  *sync_buff;
+	spinlock_t		sync_buff_lock;
+	struct sockaddr_in	sync_mcast_addr;
+	struct task_struct	*master_thread;
+	struct task_struct	*backup_thread;
+	int			send_mesg_maxlen;
+	int			recv_mesg_maxlen;
+	volatile int		sync_state;
+	volatile int		master_syncid;
+	volatile int		backup_syncid;
+	/* multicast interface name */
+	char			master_mcast_ifn[IP_VS_IFNAME_MAXLEN];
+	char			backup_mcast_ifn[IP_VS_IFNAME_MAXLEN];
 };
 
 #endif /* IP_VS_H_ */
