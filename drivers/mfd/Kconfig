@@ -218,12 +218,12 @@ config MFD_STMPE
 		Keypad: stmpe-keypad
 		Touchscreen: stmpe-ts
 
-config MFD_TC35892
-	bool "Support Toshiba TC35892"
+config MFD_TC3589X
+	bool "Support Toshiba TC35892 and variants"
 	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
 	help
-	  Support for the Toshiba TC35892 I/O Expander.
+	  Support for the Toshiba TC35892 and variants I/O Expander.
 
 	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the

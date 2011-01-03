@@ -13,25 +13,26 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl022.h>
 #include <linux/spi/spi.h>
 #include <linux/mfd/ab8500.h>
-#include <linux/input/matrix_keypad.h>
+#include <linux/mfd/tc3589x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 #include <plat/pincfg.h>
 #include <plat/i2c.h>
-#include <plat/ske.h>
 
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
 #include <mach/irqs.h>
 
+#include "devices-db8500.h"
 #include "pins-db8500.h"
 #include "board-mop500.h"
 
@@ -69,22 +70,12 @@ static pin_cfg_t mop500_pins[] = {
 	GPIO166_KP_O2,
 	GPIO167_KP_O1,
 	GPIO168_KP_O0,
-};
 
-static void ab4500_spi_cs_control(u32 command)
-{
-	/* set the FRM signal, which is CS  - TODO */
-}
+	/* GPIO_EXP_INT */
+	GPIO217_GPIO,
 
-struct pl022_config_chip ab4500_chip_info = {
-	.com_mode = INTERRUPT_TRANSFER,
-	.iface = SSP_INTERFACE_MOTOROLA_SPI,
-	/* we can act as master only */
-	.hierarchy = SSP_MASTER,
-	.slave_tx_disable = 0,
-	.rx_lev_trig = SSP_RX_1_OR_MORE_ELEM,
-	.tx_lev_trig = SSP_TX_1_OR_MORE_EMPTY_LOC,
-	.cs_control = ab4500_spi_cs_control,
+	/* STMPE1601 IRQ */
+	GPIO218_GPIO    | PIN_INPUT_PULLUP,
 };
 
 static struct ab8500_platform_data ab8500_platdata = {
@@ -93,9 +84,9 @@ static struct ab8500_platform_data ab8500_platdata = {
 
 static struct resource ab8500_resources[] = {
 	[0] = {
-		.start = IRQ_AB8500,
-		.end = IRQ_AB8500,
-		.flags = IORESOURCE_IRQ
+		.start	= IRQ_DB8500_AB8500,
+		.end	= IRQ_DB8500_AB8500,
+		.flags	= IORESOURCE_IRQ
 	}
 };
 
@@ -109,19 +100,6 @@ struct platform_device ab8500_device = {
 	.resource = ab8500_resources,
 };
 
-static struct spi_board_info ab8500_spi_devices[] = {
-	{
-		.modalias = "ab8500-spi",
-		.controller_data = &ab4500_chip_info,
-		.platform_data = &ab8500_platdata,
-		.max_speed_hz = 12000000,
-		.bus_num = 0,
-		.chip_select = 0,
-		.mode = SPI_MODE_3,
-		.irq = IRQ_DB8500_AB8500,
-	},
-};
-
 static struct pl022_ssp_controller ssp0_platform_data = {
 	.bus_id = 0,
 	/* pl022 not yet supports dma */
@@ -130,6 +108,34 @@ static struct pl022_ssp_controller ssp0_platform_data = {
 	 * 224 are connected as chip selects
 	 */
 	.num_chipselect = 5,
+};
+
+/*
+ * TC35892
+ */
+
+static void mop500_tc35892_init(struct tc3589x *tc3589x, unsigned int base)
+{
+	mop500_sdi_tc35892_init();
+}
+
+static struct tc3589x_gpio_platform_data mop500_tc35892_gpio_data = {
+	.gpio_base	= MOP500_EGPIO(0),
+	.setup		= mop500_tc35892_init,
+};
+
+static struct tc3589x_platform_data mop500_tc35892_data = {
+	.block		= TC3589x_BLOCK_GPIO,
+	.gpio		= &mop500_tc35892_gpio_data,
+	.irq_base	= MOP500_EGPIO_IRQ_BASE,
+};
+
+static struct i2c_board_info mop500_i2c0_devices[] = {
+	{
+		I2C_BOARD_INFO("tc3589x", 0x42),
+		.irq            = NOMADIK_GPIO_TO_IRQ(217),
+		.platform_data  = &mop500_tc35892_data,
+	},
 };
 
 #define U8500_I2C_CONTROLLER(id, _slsu, _tft, _rft, clk, _sm) \
@@ -161,159 +167,49 @@ U8500_I2C_CONTROLLER(1, 0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 U8500_I2C_CONTROLLER(2,	0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 U8500_I2C_CONTROLLER(3,	0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 
-static struct amba_device *amba_devs[] __initdata = {
-	&ux500_uart0_device,
-	&ux500_uart1_device,
-	&ux500_uart2_device,
-	&u8500_ssp0_device,
-};
-
-static const unsigned int ux500_keymap[] = {
-	KEY(2, 5, KEY_END),
-	KEY(4, 1, KEY_POWER),
-	KEY(3, 5, KEY_VOLUMEDOWN),
-	KEY(1, 3, KEY_3),
-	KEY(5, 2, KEY_RIGHT),
-	KEY(5, 0, KEY_9),
-
-	KEY(0, 5, KEY_MENU),
-	KEY(7, 6, KEY_ENTER),
-	KEY(4, 5, KEY_0),
-	KEY(6, 7, KEY_2),
-	KEY(3, 4, KEY_UP),
-	KEY(3, 3, KEY_DOWN),
-
-	KEY(6, 4, KEY_SEND),
-	KEY(6, 2, KEY_BACK),
-	KEY(4, 2, KEY_VOLUMEUP),
-	KEY(5, 5, KEY_1),
-	KEY(4, 3, KEY_LEFT),
-	KEY(3, 2, KEY_7),
-};
-
-static const struct matrix_keymap_data ux500_keymap_data = {
-	.keymap         = ux500_keymap,
-	.keymap_size    = ARRAY_SIZE(ux500_keymap),
-};
-
-/*
- * Nomadik SKE keypad
- */
-#define ROW_PIN_I0      164
-#define ROW_PIN_I1      163
-#define ROW_PIN_I2      162
-#define ROW_PIN_I3      161
-#define ROW_PIN_I4      156
-#define ROW_PIN_I5      155
-#define ROW_PIN_I6      154
-#define ROW_PIN_I7      153
-#define COL_PIN_O0      168
-#define COL_PIN_O1      167
-#define COL_PIN_O2      166
-#define COL_PIN_O3      165
-#define COL_PIN_O4      160
-#define COL_PIN_O5      159
-#define COL_PIN_O6      158
-#define COL_PIN_O7      157
-
-#define SKE_KPD_MAX_ROWS        8
-#define SKE_KPD_MAX_COLS        8
-
-static int ske_kp_rows[] = {
-	ROW_PIN_I0, ROW_PIN_I1, ROW_PIN_I2, ROW_PIN_I3,
-	ROW_PIN_I4, ROW_PIN_I5, ROW_PIN_I6, ROW_PIN_I7,
-};
-
-/*
- * ske_set_gpio_row: request and set gpio rows
- */
-static int ske_set_gpio_row(int gpio)
+static void __init mop500_i2c_init(void)
 {
-	int ret;
-
-	ret = gpio_request(gpio, "ske-kp");
-	if (ret < 0) {
-		pr_err("ske_set_gpio_row: gpio request failed\n");
-		return ret;
-	}
-
-	ret = gpio_direction_output(gpio, 1);
-	if (ret < 0) {
-		pr_err("ske_set_gpio_row: gpio direction failed\n");
-		gpio_free(gpio);
-	}
-
-	return ret;
+	db8500_add_i2c0(&u8500_i2c0_data);
+	db8500_add_i2c1(&u8500_i2c1_data);
+	db8500_add_i2c2(&u8500_i2c2_data);
+	db8500_add_i2c3(&u8500_i2c3_data);
 }
-
-/*
- * ske_kp_init - enable the gpio configuration
- */
-static int ske_kp_init(void)
-{
-	int ret, i;
-
-	for (i = 0; i < SKE_KPD_MAX_ROWS; i++) {
-		ret = ske_set_gpio_row(ske_kp_rows[i]);
-		if (ret < 0) {
-			pr_err("ske_kp_init: failed init\n");
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
-static struct ske_keypad_platform_data ske_keypad_board = {
-	.init           = ske_kp_init,
-	.keymap_data    = &ux500_keymap_data,
-	.no_autorepeat  = true,
-	.krow           = SKE_KPD_MAX_ROWS,     /* 8x8 matrix */
-	.kcol           = SKE_KPD_MAX_COLS,
-	.debounce_ms    = 40,                   /* in millsecs */
-};
-
-
 
 /* add any platform devices here - TODO */
 static struct platform_device *platform_devs[] __initdata = {
-	&u8500_i2c0_device,
-	&ux500_i2c1_device,
-	&ux500_i2c2_device,
-	&ux500_i2c3_device,
-	&ux500_ske_keypad_device,
 };
+
+static void __init mop500_spi_init(void)
+{
+	db8500_add_ssp0(&ssp0_platform_data);
+}
+
+static void __init mop500_uart_init(void)
+{
+	db8500_add_uart0();
+	db8500_add_uart1();
+	db8500_add_uart2();
+}
 
 static void __init u8500_init_machine(void)
 {
-	int i;
-
 	u8500_init_devices();
 
 	nmk_config_pins(mop500_pins, ARRAY_SIZE(mop500_pins));
 
-	u8500_i2c0_device.dev.platform_data = &u8500_i2c0_data;
-	ux500_i2c1_device.dev.platform_data = &u8500_i2c1_data;
-	ux500_i2c2_device.dev.platform_data = &u8500_i2c2_data;
-	ux500_i2c3_device.dev.platform_data = &u8500_i2c3_data;
-	ux500_ske_keypad_device.dev.platform_data = &ske_keypad_board;
-
-	u8500_ssp0_device.dev.platform_data = &ssp0_platform_data;
-
-	/* Register the active AMBA devices on this board */
-	for (i = 0; i < ARRAY_SIZE(amba_devs); i++)
-		amba_device_register(amba_devs[i], &iomem_resource);
-
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 
+	mop500_i2c_init();
 	mop500_sdi_init();
+	mop500_spi_init();
+	mop500_uart_init();
 
-	/* If HW is early drop (ED) or V1.0 then use SPI to access AB8500 */
-	if (cpu_is_u8500ed() || cpu_is_u8500v10())
-		spi_register_board_info(ab8500_spi_devices,
-			ARRAY_SIZE(ab8500_spi_devices));
-	else /* If HW is v.1.1 or later use I2C to access AB8500 */
-		platform_device_register(&ab8500_device);
+	mop500_keypad_init();
+
+	platform_device_register(&ab8500_device);
+
+	i2c_register_board_info(0, mop500_i2c0_devices,
+				ARRAY_SIZE(mop500_i2c0_devices));
 }
 
 MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
