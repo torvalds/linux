@@ -77,21 +77,16 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/dmapool.h>
-#include <linux/amba/bus.h>
 #include <linux/dmaengine.h>
+#include <linux/amba/bus.h>
 #include <linux/amba/pl08x.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
 #include <asm/hardware/pl080.h>
-#include <asm/dma.h>
-#include <asm/mach/dma.h>
-#include <asm/processor.h>
-#include <asm/cacheflush.h>
 
 #define DRIVER_NAME	"pl08xdmac"
 
