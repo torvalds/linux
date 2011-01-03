@@ -162,9 +162,6 @@ enum pl08x_dma_chan_state {
  * @lc: last completed transaction on this channel
  * @pend_list: queued transactions pending on this channel
  * @at: active transaction on this channel
- * @lockflags: sometimes we let a lock last between two function calls,
- * especially prep/submit, and then we need to store the IRQ flags
- * in the channel state, here
  * @lock: a lock for this channel data
  * @host: a pointer to the host (internal use)
  * @state: whether the channel is idle, paused, running etc
@@ -184,7 +181,6 @@ struct pl08x_dma_chan {
 	dma_cookie_t lc;
 	struct list_head pend_list;
 	struct pl08x_txd *at;
-	unsigned long lockflags;
 	spinlock_t lock;
 	struct pl08x_driver_data *host;
 	enum pl08x_dma_chan_state state;

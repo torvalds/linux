@@ -981,6 +981,9 @@ static dma_cookie_t pl08x_tx_submit(struct dma_async_tx_descriptor *tx)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(tx->chan);
 	struct pl08x_txd *txd = to_pl08x_txd(tx);
+	unsigned long flags;
+
+	spin_lock_irqsave(&plchan->lock, flags);
 
 	plchan->chan.cookie += 1;
 	if (plchan->chan.cookie < 0)
@@ -1003,8 +1006,7 @@ static dma_cookie_t pl08x_tx_submit(struct dma_async_tx_descriptor *tx)
 		plchan->phychan_hold--;
 	}
 
-	/* This unlock follows the lock in the prep() function */
-	spin_unlock_irqrestore(&plchan->lock, plchan->lockflags);
+	spin_unlock_irqrestore(&plchan->lock, flags);
 
 	return tx->cookie;
 }
@@ -1225,9 +1227,9 @@ static void pl08x_issue_pending(struct dma_chan *chan)
 static int pl08x_prep_channel_resources(struct pl08x_dma_chan *plchan,
 					struct pl08x_txd *txd)
 {
-	int num_llis;
 	struct pl08x_driver_data *pl08x = plchan->host;
-	int ret;
+	unsigned long flags;
+	int num_llis, ret;
 
 	num_llis = pl08x_fill_llis_for_desc(pl08x, txd);
 	if (!num_llis) {
@@ -1235,7 +1237,7 @@ static int pl08x_prep_channel_resources(struct pl08x_dma_chan *plchan,
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&plchan->lock, plchan->lockflags);
+	spin_lock_irqsave(&plchan->lock, flags);
 
 	/*
 	 * See if we already have a physical channel allocated,
@@ -1258,7 +1260,7 @@ static int pl08x_prep_channel_resources(struct pl08x_dma_chan *plchan,
 		if (plchan->slave) {
 			pl08x_free_txd_list(pl08x, plchan);
 			pl08x_free_txd(pl08x, txd);
-			spin_unlock_irqrestore(&plchan->lock, plchan->lockflags);
+			spin_unlock_irqrestore(&plchan->lock, flags);
 			return -EBUSY;
 		}
 	} else
@@ -1272,11 +1274,7 @@ static int pl08x_prep_channel_resources(struct pl08x_dma_chan *plchan,
 		if (plchan->state == PL08X_CHAN_IDLE)
 			plchan->state = PL08X_CHAN_PAUSED;
 
-	/*
-	 * Notice that we leave plchan->lock locked on purpose:
-	 * it will be unlocked in the subsequent tx_submit()
-	 * call. This is a consequence of the current API.
-	 */
+	spin_unlock_irqrestore(&plchan->lock, flags);
 
 	return 0;
 }
@@ -1355,10 +1353,6 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 	ret = pl08x_prep_channel_resources(plchan, txd);
 	if (ret)
 		return NULL;
-	/*
-	 * NB: the channel lock is held at this point so tx_submit()
-	 * must be called in direct succession.
-	 */
 
 	return &txd->tx;
 }
@@ -1444,10 +1438,6 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 	ret = pl08x_prep_channel_resources(plchan, txd);
 	if (ret)
 		return NULL;
-	/*
-	 * NB: the channel lock is held at this point so tx_submit()
-	 * must be called in direct succession.
-	 */
 
 	return &txd->tx;
 }
