@@ -1156,10 +1156,6 @@ encode_op:
 
 		nfsd4_increment_op_stats(op->opnum);
 	}
-	if (!rqstp->rq_usedeferral && status == nfserr_dropit) {
-		dprintk("%s Dropit - send NFS4ERR_DELAY\n", __func__);
-		status = nfserr_jukebox;
-	}
 
 	resp->cstate.status = status;
 	fh_put(&resp->cstate.current_fh);

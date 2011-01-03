@@ -2509,8 +2509,6 @@ static __be32 nfs4_get_vfs_file(struct svc_rqst *rqstp, struct nfs4_file
 	if (!fp->fi_fds[oflag]) {
 		status = nfsd_open(rqstp, cur_fh, S_IFREG, access,
 			&fp->fi_fds[oflag]);
-		if (status == nfserr_dropit)
-			status = nfserr_jukebox;
 		if (status)
 			return status;
 	}

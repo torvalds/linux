@@ -2328,8 +2328,6 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 	case nfserr_resource:
 		nfserr = nfserr_toosmall;
 		goto fail;
-	case nfserr_dropit:
-		goto fail;
 	case nfserr_noent:
 		goto skip_entry;
 	default:
