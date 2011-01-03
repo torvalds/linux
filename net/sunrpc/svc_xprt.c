@@ -1019,6 +1019,7 @@ static struct cache_deferred_req *svc_defer(struct cache_req *req)
 	}
 	svc_xprt_get(rqstp->rq_xprt);
 	dr->xprt = rqstp->rq_xprt;
+	rqstp->rq_dropme = true;
 
 	dr->handle.revisit = svc_revisit;
 	return &dr->handle;
