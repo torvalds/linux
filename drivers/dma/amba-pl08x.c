@@ -685,31 +685,25 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 			target_len = min(remainder, max_bytes_per_lli);
 
 			/*
-			 * Set bus lengths for incrementing buses
-			 * to number of bytes which fill to next memory
-			 * boundary
+			 * Set bus lengths for incrementing buses to the
+			 * number of bytes which fill to next memory boundary,
+			 * limiting on the target length calculated above.
 			 */
 			if (cctl & PL080_CONTROL_SRC_INCR)
 				txd->srcbus.fill_bytes =
-					pl08x_pre_boundary(
-						txd->srcbus.addr,
-						remainder);
+					pl08x_pre_boundary(txd->srcbus.addr,
+						target_len);
 			else
-				txd->srcbus.fill_bytes =
-					max_bytes_per_lli;
+				txd->srcbus.fill_bytes = target_len;
 
 			if (cctl & PL080_CONTROL_DST_INCR)
 				txd->dstbus.fill_bytes =
-					pl08x_pre_boundary(
-						txd->dstbus.addr,
-						remainder);
+					pl08x_pre_boundary(txd->dstbus.addr,
+						target_len);
 			else
-				txd->dstbus.fill_bytes =
-						max_bytes_per_lli;
+				txd->dstbus.fill_bytes = target_len;
 
-			/*
-			 *  Find the nearest
-			 */
+			/* Find the nearest */
 			lli_len	= min(txd->srcbus.fill_bytes,
 				txd->dstbus.fill_bytes);
 
