@@ -4826,12 +4826,8 @@ static void cnic_get_bnx2x_iscsi_info(struct cnic_dev *dev)
 		val = CNIC_RD(dev, addr);
 		val &= FUNC_MF_CFG_E1HOV_TAG_MASK;
 		if (val != FUNC_MF_CFG_E1HOV_TAG_DEFAULT) {
-			addr = BNX2X_MF_CFG_ADDR(mf_cfg_addr,
-				func_mf_config[func].config);
-			val = CNIC_RD(dev, addr);
-			val &= FUNC_MF_CFG_PROTOCOL_MASK;
-			if (val != FUNC_MF_CFG_PROTOCOL_ISCSI)
-				dev->max_iscsi_conn = 0;
+			dev->max_fcoe_conn = 0;
+			dev->max_iscsi_conn = 0;
 		}
 	}
 	if (!is_valid_ether_addr(dev->mac_addr))
