@@ -66,6 +66,8 @@ struct netns_ipvs {
 	struct ip_vs_cpu_stats __percpu *cpustats;   /* Stats per cpu */
 	seqcount_t			*ustats_seq; /* u64 read retry */
 
+	/* ip_vs_conn */
+	atomic_t		conn_count;         /*  connection counter */
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;
 	struct ctl_table_header	*lblc_ctl_header;

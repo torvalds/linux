@@ -205,7 +205,8 @@ ip_vs_conn_fill_param_persist(const struct ip_vs_service *svc,
 			      const union nf_inet_addr *vaddr, __be16 vport,
 			      struct ip_vs_conn_param *p)
 {
-	ip_vs_conn_fill_param(svc->af, protocol, caddr, cport, vaddr, vport, p);
+	ip_vs_conn_fill_param(svc->net, svc->af, protocol, caddr, cport, vaddr,
+			      vport, p);
 	p->pe = svc->pe;
 	if (p->pe && p->pe->fill_param)
 		return p->pe->fill_param(p, skb);
@@ -348,8 +349,8 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	/*
 	 *    Create a new connection according to the template
 	 */
-	ip_vs_conn_fill_param(svc->af, iph.protocol, &iph.saddr, src_port,
-			      &iph.daddr, dst_port, &param);
+	ip_vs_conn_fill_param(svc->net, svc->af, iph.protocol, &iph.saddr,
+			      src_port, &iph.daddr, dst_port, &param);
 
 	cp = ip_vs_conn_new(&param, &dest->addr, dport, flags, dest, skb->mark);
 	if (cp == NULL) {
@@ -464,8 +465,10 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 	 */
 	{
 		struct ip_vs_conn_param p;
-		ip_vs_conn_fill_param(svc->af, iph.protocol, &iph.saddr,
-				      pptr[0], &iph.daddr, pptr[1], &p);
+
+		ip_vs_conn_fill_param(svc->net, svc->af, iph.protocol,
+				      &iph.saddr, pptr[0], &iph.daddr, pptr[1],
+				      &p);
 		cp = ip_vs_conn_new(&p, &dest->addr,
 				    dest->port ? dest->port : pptr[1],
 				    flags, dest, skb->mark);
@@ -532,7 +535,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		IP_VS_DBG(6, "%s(): create a cache_bypass entry\n", __func__);
 		{
 			struct ip_vs_conn_param p;
-			ip_vs_conn_fill_param(svc->af, iph.protocol,
+			ip_vs_conn_fill_param(svc->net, svc->af, iph.protocol,
 					      &iph.saddr, pptr[0],
 					      &iph.daddr, pptr[1], &p);
 			cp = ip_vs_conn_new(&p, &daddr, 0,

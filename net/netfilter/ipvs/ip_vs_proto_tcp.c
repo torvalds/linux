@@ -620,7 +620,7 @@ tcp_unregister_app(struct net *net, struct ip_vs_app *inc)
 static int
 tcp_app_conn_bind(struct ip_vs_conn *cp)
 {
-	struct netns_ipvs *ipvs = net_ipvs(&init_net);
+	struct netns_ipvs *ipvs = net_ipvs(ip_vs_conn_net(cp));
 	int hash;
 	struct ip_vs_app *inc;
 	int result = 0;

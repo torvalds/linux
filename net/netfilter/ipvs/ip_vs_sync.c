@@ -660,21 +660,21 @@ control:
  *  fill_param used by version 1
  */
 static inline int
-ip_vs_conn_fill_param_sync(int af, union ip_vs_sync_conn *sc,
+ip_vs_conn_fill_param_sync(struct net *net, int af, union ip_vs_sync_conn *sc,
 			   struct ip_vs_conn_param *p,
 			   __u8 *pe_data, unsigned int pe_data_len,
 			   __u8 *pe_name, unsigned int pe_name_len)
 {
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6)
-		ip_vs_conn_fill_param(af, sc->v6.protocol,
+		ip_vs_conn_fill_param(net, af, sc->v6.protocol,
 				      (const union nf_inet_addr *)&sc->v6.caddr,
 				      sc->v6.cport,
 				      (const union nf_inet_addr *)&sc->v6.vaddr,
 				      sc->v6.vport, p);
 	else
 #endif
-		ip_vs_conn_fill_param(af, sc->v4.protocol,
+		ip_vs_conn_fill_param(net, af, sc->v4.protocol,
 				      (const union nf_inet_addr *)&sc->v4.caddr,
 				      sc->v4.cport,
 				      (const union nf_inet_addr *)&sc->v4.vaddr,
@@ -881,7 +881,7 @@ static void ip_vs_process_message_v0(struct net *net, const char *buffer,
 			}
 		}
 
-		ip_vs_conn_fill_param(AF_INET, s->protocol,
+		ip_vs_conn_fill_param(net, AF_INET, s->protocol,
 				      (const union nf_inet_addr *)&s->caddr,
 				      s->cport,
 				      (const union nf_inet_addr *)&s->vaddr,
@@ -1043,9 +1043,8 @@ static inline int ip_vs_proc_sync_conn(struct net *net, __u8 *p, __u8 *msg_end)
 			state = 0;
 		}
 	}
-	if (ip_vs_conn_fill_param_sync(af, s, &param,
-					pe_data, pe_data_len,
-					pe_name, pe_name_len)) {
+	if (ip_vs_conn_fill_param_sync(net, af, s, &param, pe_data,
+				       pe_data_len, pe_name, pe_name_len)) {
 		retc = 50;
 		goto out;
 	}

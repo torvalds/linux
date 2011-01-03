@@ -477,6 +477,7 @@ extern struct ip_vs_proto_data *ip_vs_proto_data_get(struct net *net,
 						     unsigned short proto);
 
 struct ip_vs_conn_param {
+	struct net			*net;
 	const union nf_inet_addr	*caddr;
 	const union nf_inet_addr	*vaddr;
 	__be16				cport;
@@ -494,17 +495,19 @@ struct ip_vs_conn_param {
  */
 struct ip_vs_conn {
 	struct list_head        c_list;         /* hashed list heads */
-
+#ifdef CONFIG_NET_NS
+	struct net              *net;           /* Name space */
+#endif
 	/* Protocol, addresses and port numbers */
-	u16                      af;		/* address family */
-	union nf_inet_addr       caddr;          /* client address */
-	union nf_inet_addr       vaddr;          /* virtual address */
-	union nf_inet_addr       daddr;          /* destination address */
-	volatile __u32           flags;          /* status flags */
-	__u32                    fwmark;         /* Fire wall mark from skb */
-	__be16                   cport;
-	__be16                   vport;
-	__be16                   dport;
+	u16                     af;             /* address family */
+	__be16                  cport;
+	__be16                  vport;
+	__be16                  dport;
+	__u32                   fwmark;         /* Fire wall mark from skb */
+	union nf_inet_addr      caddr;          /* client address */
+	union nf_inet_addr      vaddr;          /* virtual address */
+	union nf_inet_addr      daddr;          /* destination address */
+	volatile __u32          flags;          /* status flags */
 	__u16                   protocol;       /* Which protocol (TCP/UDP) */
 
 	/* counter and timer */
@@ -547,6 +550,33 @@ struct ip_vs_conn {
 	__u8			pe_data_len;
 };
 
+/*
+ *  To save some memory in conn table when name space is disabled.
+ */
+static inline struct net *ip_vs_conn_net(const struct ip_vs_conn *cp)
+{
+#ifdef CONFIG_NET_NS
+	return cp->net;
+#else
+	return &init_net;
+#endif
+}
+static inline void ip_vs_conn_net_set(struct ip_vs_conn *cp, struct net *net)
+{
+#ifdef CONFIG_NET_NS
+	cp->net = net;
+#endif
+}
+
+static inline int ip_vs_conn_net_eq(const struct ip_vs_conn *cp,
+				    struct net *net)
+{
+#ifdef CONFIG_NET_NS
+	return cp->net == net;
+#else
+	return 1;
+#endif
+}
 
 /*
  *	Extended internal versions of struct ip_vs_service_user and
@@ -796,13 +826,14 @@ enum {
 	IP_VS_DIR_LAST,
 };
 
-static inline void ip_vs_conn_fill_param(int af, int protocol,
+static inline void ip_vs_conn_fill_param(struct net *net, int af, int protocol,
 					 const union nf_inet_addr *caddr,
 					 __be16 cport,
 					 const union nf_inet_addr *vaddr,
 					 __be16 vport,
 					 struct ip_vs_conn_param *p)
 {
+	p->net = net;
 	p->af = af;
 	p->protocol = protocol;
 	p->caddr = caddr;
