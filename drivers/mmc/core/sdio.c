@@ -702,14 +702,18 @@ static const struct mmc_bus_ops mmc_sdio_ops = {
 /*
  * Starting point for SDIO card init.
  */
-int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
+int mmc_attach_sdio(struct mmc_host *host)
 {
-	int err;
-	int i, funcs;
+	int err, i, funcs;
+	u32 ocr;
 	struct mmc_card *card;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
+
+	err = mmc_send_io_op_cond(host, 0, &ocr);
+	if (err)
+		return err;
 
 	mmc_attach_bus(host, &mmc_sdio_ops);
 	if (host->ocr_avail_sdio)
@@ -783,12 +787,12 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 			pm_runtime_enable(&card->sdio_func[i]->dev);
 	}
 
-	mmc_release_host(host);
-
 	/*
 	 * First add the card to the driver model...
 	 */
+	mmc_release_host(host);
 	err = mmc_add_card(host->card);
+	mmc_claim_host(host);
 	if (err)
 		goto remove_added;
 
@@ -806,15 +810,17 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 
 remove_added:
 	/* Remove without lock if the device has been added. */
+	mmc_release_host(host);
 	mmc_sdio_remove(host);
 	mmc_claim_host(host);
 remove:
 	/* And with lock if it hasn't been added. */
+	mmc_release_host(host);
 	if (host->card)
 		mmc_sdio_remove(host);
+	mmc_claim_host(host);
 err:
 	mmc_detach_bus(host);
-	mmc_release_host(host);
 
 	printk(KERN_ERR "%s: error %d whilst initialising SDIO card\n",
 		mmc_hostname(host), err);

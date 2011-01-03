@@ -1485,25 +1485,41 @@ int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen)
 }
 EXPORT_SYMBOL(mmc_set_blocklen);
 
+static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
+{
+	host->f_init = freq;
+
+#ifdef CONFIG_MMC_DEBUG
+	pr_info("%s: %s: trying to init card at %u Hz\n",
+		mmc_hostname(host), __func__, host->f_init);
+#endif
+	mmc_power_up(host);
+	sdio_reset(host);
+	mmc_go_idle(host);
+
+	mmc_send_if_cond(host, host->ocr_avail);
+
+	/* Order's important: probe SDIO, then SD, then MMC */
+	if (!mmc_attach_sdio(host))
+		return 0;
+	if (!mmc_attach_sd(host))
+		return 0;
+	if (!mmc_attach_mmc(host))
+		return 0;
+
+	mmc_power_off(host);
+	return -EIO;
+}
+
 void mmc_rescan(struct work_struct *work)
 {
+	static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
 	struct mmc_host *host =
 		container_of(work, struct mmc_host, detect.work);
-	u32 ocr;
-	int err;
-	unsigned long flags;
 	int i;
-	const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
 
-	spin_lock_irqsave(&host->lock, flags);
-
-	if (host->rescan_disable) {
-		spin_unlock_irqrestore(&host->lock, flags);
+	if (host->rescan_disable)
 		return;
-	}
-
-	spin_unlock_irqrestore(&host->lock, flags);
-
 
 	mmc_bus_get(host);
 
@@ -1526,8 +1542,6 @@ void mmc_rescan(struct work_struct *work)
 		goto out;
 	}
 
-	/* detect a newly inserted card */
-
 	/*
 	 * Only we can add a new handler, so it's safe to
 	 * release the lock here.
@@ -1537,77 +1551,16 @@ void mmc_rescan(struct work_struct *work)
 	if (host->ops->get_cd && host->ops->get_cd(host) == 0)
 		goto out;
 
+	mmc_claim_host(host);
 	for (i = 0; i < ARRAY_SIZE(freqs); i++) {
-		mmc_claim_host(host);
-
-		if (freqs[i] >= host->f_min)
-			host->f_init = freqs[i];
-		else if (!i || freqs[i-1] > host->f_min)
-			host->f_init = host->f_min;
-		else {
-			mmc_release_host(host);
-			goto out;
-		}
-#ifdef CONFIG_MMC_DEBUG
-		pr_info("%s: %s: trying to init card at %u Hz\n",
-			mmc_hostname(host), __func__, host->f_init);
-#endif
-		mmc_power_up(host);
-		sdio_reset(host);
-		mmc_go_idle(host);
-
-		mmc_send_if_cond(host, host->ocr_avail);
-
-		/*
-		 * First we search for SDIO...
-		 */
-		err = mmc_send_io_op_cond(host, 0, &ocr);
-		if (!err) {
-			if (mmc_attach_sdio(host, ocr)) {
-				mmc_claim_host(host);
-				/*
-				 * Try SDMEM (but not MMC) even if SDIO
-				 * is broken.
-				 */
-				mmc_power_up(host);
-				sdio_reset(host);
-				mmc_go_idle(host);
-				mmc_send_if_cond(host, host->ocr_avail);
-
-				if (mmc_send_app_op_cond(host, 0, &ocr))
-					goto out_fail;
-
-				if (mmc_attach_sd(host, ocr))
-					mmc_power_off(host);
-			}
-			goto out;
-		}
-
-		/*
-		 * ...then normal SD...
-		 */
-		err = mmc_send_app_op_cond(host, 0, &ocr);
-		if (!err) {
-			if (mmc_attach_sd(host, ocr))
-				mmc_power_off(host);
-			goto out;
-		}
-
-		/*
-		 * ...and finally MMC.
-		 */
-		err = mmc_send_op_cond(host, 0, &ocr);
-		if (!err) {
-			if (mmc_attach_mmc(host, ocr))
-				mmc_power_off(host);
-			goto out;
-		}
-
-out_fail:
-		mmc_release_host(host);
-		mmc_power_off(host);
+		if (!mmc_rescan_try_freq(host, max(freqs[i], host->f_min)))
+			break;
+		if (freqs[i] < host->f_min)
+			break;
 	}
-out:
+	mmc_release_host(host);
+
+ out:
 	if (host->caps & MMC_CAP_NEEDS_POLL)
 		mmc_schedule_delayed_work(&host->detect, HZ);
 }

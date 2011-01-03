@@ -755,12 +755,17 @@ static void mmc_attach_bus_ops(struct mmc_host *host)
 /*
  * Starting point for MMC card init.
  */
-int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
+int mmc_attach_mmc(struct mmc_host *host)
 {
 	int err;
+	u32 ocr;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
+
+	err = mmc_send_op_cond(host, 0, &ocr);
+	if (err)
+		return err;
 
 	mmc_attach_bus_ops(host);
 	if (host->ocr_avail_mmc)
@@ -804,20 +809,20 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 		goto err;
 
 	mmc_release_host(host);
-
 	err = mmc_add_card(host->card);
+	mmc_claim_host(host);
 	if (err)
 		goto remove_card;
 
 	return 0;
 
 remove_card:
+	mmc_release_host(host);
 	mmc_remove_card(host->card);
-	host->card = NULL;
 	mmc_claim_host(host);
+	host->card = NULL;
 err:
 	mmc_detach_bus(host);
-	mmc_release_host(host);
 
 	printk(KERN_ERR "%s: error %d whilst initialising MMC card\n",
 		mmc_hostname(host), err);
