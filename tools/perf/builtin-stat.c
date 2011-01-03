@@ -93,12 +93,6 @@ static const char		*cpu_list;
 static const char		*csv_sep			= NULL;
 static bool			csv_output			= false;
 
-struct cpu_counts {
-	u64 val;
-	u64 ena;
-	u64 run;
-};
-
 static volatile int done = 0;
 
 struct stats
@@ -108,15 +102,11 @@ struct stats
 
 struct perf_stat {
 	struct stats	  res_stats[3];
-	int		  scaled;
-	struct cpu_counts cpu_counts[];
 };
 
-static int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel, int ncpus)
+static int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel)
 {
-	size_t priv_size = (sizeof(struct perf_stat) +
-			    (ncpus * sizeof(struct cpu_counts)));
-	evsel->priv = zalloc(priv_size);
+	evsel->priv = zalloc(sizeof(struct perf_stat));
 	return evsel->priv == NULL ? -ENOMEM : 0;
 }
 
@@ -238,52 +228,14 @@ static inline int nsec_counter(struct perf_evsel *evsel)
  * Read out the results of a single counter:
  * aggregate counts across CPUs in system-wide mode
  */
-static void read_counter_aggr(struct perf_evsel *counter)
+static int read_counter_aggr(struct perf_evsel *counter)
 {
 	struct perf_stat *ps = counter->priv;
-	u64 count[3], single_count[3];
-	int cpu;
-	size_t res, nv;
-	int scaled;
-	int i, thread;
+	u64 *count = counter->counts->aggr.values;
+	int i;
 
-	count[0] = count[1] = count[2] = 0;
-
-	nv = scale ? 3 : 1;
-	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		for (thread = 0; thread < thread_num; thread++) {
-			if (FD(counter, cpu, thread) < 0)
-				continue;
-
-			res = read(FD(counter, cpu, thread),
-					single_count, nv * sizeof(u64));
-			assert(res == nv * sizeof(u64));
-
-			close(FD(counter, cpu, thread));
-			FD(counter, cpu, thread) = -1;
-
-			count[0] += single_count[0];
-			if (scale) {
-				count[1] += single_count[1];
-				count[2] += single_count[2];
-			}
-		}
-	}
-
-	scaled = 0;
-	if (scale) {
-		if (count[2] == 0) {
-			ps->scaled = -1;
-			count[0] = 0;
-			return;
-		}
-
-		if (count[2] < count[1]) {
-			ps->scaled = 1;
-			count[0] = (unsigned long long)
-				((double)count[0] * count[1] / count[2] + 0.5);
-		}
-	}
+	if (__perf_evsel__read(counter, nr_cpus, thread_num, scale) < 0)
+		return -1;
 
 	for (i = 0; i < 3; i++)
 		update_stats(&ps->res_stats[i], count[i]);
@@ -302,46 +254,24 @@ static void read_counter_aggr(struct perf_evsel *counter)
 		update_stats(&runtime_cycles_stats[0], count[0]);
 	if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
 		update_stats(&runtime_branches_stats[0], count[0]);
+
+	return 0;
 }
 
 /*
  * Read out the results of a single counter:
  * do not aggregate counts across CPUs in system-wide mode
  */
-static void read_counter(struct perf_evsel *counter)
+static int read_counter(struct perf_evsel *counter)
 {
-	struct cpu_counts *cpu_counts = counter->priv;
-	u64 count[3];
+	u64 *count;
 	int cpu;
-	size_t res, nv;
-
-	count[0] = count[1] = count[2] = 0;
-
-	nv = scale ? 3 : 1;
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
+		if (__perf_evsel__read_on_cpu(counter, cpu, 0, scale) < 0)
+			return -1;
 
-		if (FD(counter, cpu, 0) < 0)
-			continue;
-
-		res = read(FD(counter, cpu, 0), count, nv * sizeof(u64));
-
-		assert(res == nv * sizeof(u64));
-
-		close(FD(counter, cpu, 0));
-		FD(counter, cpu, 0) = -1;
-
-		if (scale) {
-			if (count[2] == 0) {
-				count[0] = 0;
-			} else if (count[2] < count[1]) {
-				count[0] = (unsigned long long)
-				((double)count[0] * count[1] / count[2] + 0.5);
-			}
-		}
-		cpu_counts[cpu].val = count[0]; /* scaled count */
-		cpu_counts[cpu].ena = count[1];
-		cpu_counts[cpu].run = count[2];
+		count = counter->counts->cpu[cpu].values;
 
 		if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK))
 			update_stats(&runtime_nsecs_stats[cpu], count[0]);
@@ -350,6 +280,8 @@ static void read_counter(struct perf_evsel *counter)
 		if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
 			update_stats(&runtime_branches_stats[cpu], count[0]);
 	}
+
+	return 0;
 }
 
 static int run_perf_stat(int argc __used, const char **argv)
@@ -449,12 +381,17 @@ static int run_perf_stat(int argc __used, const char **argv)
 	update_stats(&walltime_nsecs_stats, t1 - t0);
 
 	if (no_aggr) {
-		list_for_each_entry(counter, &evsel_list, node)
+		list_for_each_entry(counter, &evsel_list, node) {
 			read_counter(counter);
+			perf_evsel__close_fd(counter, nr_cpus, 1);
+		}
 	} else {
-		list_for_each_entry(counter, &evsel_list, node)
+		list_for_each_entry(counter, &evsel_list, node) {
 			read_counter_aggr(counter);
+			perf_evsel__close_fd(counter, nr_cpus, thread_num);
+		}
 	}
+
 	return WEXITSTATUS(status);
 }
 
@@ -550,7 +487,7 @@ static void print_counter_aggr(struct perf_evsel *counter)
 {
 	struct perf_stat *ps = counter->priv;
 	double avg = avg_stats(&ps->res_stats[0]);
-	int scaled = ps->scaled;
+	int scaled = counter->counts->scaled;
 
 	if (scaled == -1) {
 		fprintf(stderr, "%*s%s%-24s\n",
@@ -590,14 +527,13 @@ static void print_counter_aggr(struct perf_evsel *counter)
  */
 static void print_counter(struct perf_evsel *counter)
 {
-	struct perf_stat *ps = counter->priv;
 	u64 ena, run, val;
 	int cpu;
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		val = ps->cpu_counts[cpu].val;
-		ena = ps->cpu_counts[cpu].ena;
-		run = ps->cpu_counts[cpu].run;
+		val = counter->counts->cpu[cpu].val;
+		ena = counter->counts->cpu[cpu].ena;
+		run = counter->counts->cpu[cpu].run;
 		if (run == 0 || ena == 0) {
 			fprintf(stderr, "CPU%*d%s%*s%s%-24s",
 				csv_output ? 0 : -4,
@@ -818,7 +754,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	}
 
 	list_for_each_entry(pos, &evsel_list, node) {
-		if (perf_evsel__alloc_stat_priv(pos, nr_cpus) < 0 ||
+		if (perf_evsel__alloc_stat_priv(pos) < 0 ||
+		    perf_evsel__alloc_counts(pos, nr_cpus) < 0 ||
 		    perf_evsel__alloc_fd(pos, nr_cpus, thread_num) < 0)
 			goto out_free_fd;
 	}
