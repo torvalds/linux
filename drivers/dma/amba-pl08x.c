@@ -1540,32 +1540,29 @@ static void pl08x_tasklet(unsigned long data)
 {
 	struct pl08x_dma_chan *plchan = (struct pl08x_dma_chan *) data;
 	struct pl08x_driver_data *pl08x = plchan->host;
+	struct pl08x_txd *txd;
+	dma_async_tx_callback callback = NULL;
+	void *callback_param = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&plchan->lock, flags);
 
-	if (plchan->at) {
-		dma_async_tx_callback callback =
-			plchan->at->tx.callback;
-		void *callback_param =
-			plchan->at->tx.callback_param;
+	txd = plchan->at;
+	plchan->at = NULL;
+
+	if (txd) {
+		callback = txd->tx.callback;
+		callback_param = txd->tx.callback_param;
 
 		/*
 		 * Update last completed
 		 */
-		plchan->lc = plchan->at->tx.cookie;
-
-		/*
-		 * Callback to signal completion
-		 */
-		if (callback)
-			callback(callback_param);
+		plchan->lc = txd->tx.cookie;
 
 		/*
 		 * Free the descriptor
 		 */
-		pl08x_free_txd(pl08x, plchan->at);
-		plchan->at = NULL;
+		pl08x_free_txd(pl08x, txd);
 	}
 	/*
 	 * If a new descriptor is queued, set it up
@@ -1616,6 +1613,10 @@ static void pl08x_tasklet(unsigned long data)
 	}
 
 	spin_unlock_irqrestore(&plchan->lock, flags);
+
+	/* Callback to signal completion */
+	if (callback)
+		callback(callback_param);
 }
 
 static irqreturn_t pl08x_irq(int irq, void *dev)
