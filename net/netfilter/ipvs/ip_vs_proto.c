@@ -310,6 +310,9 @@ static int __net_init __ip_vs_protocol_init(struct net *net)
 #ifdef CONFIG_IP_VS_PROTO_TCP
 	register_ip_vs_proto_netns(net, &ip_vs_protocol_tcp);
 #endif
+#ifdef CONFIG_IP_VS_PROTO_UDP
+	register_ip_vs_proto_netns(net, &ip_vs_protocol_udp);
+#endif
 	return 0;
 }
 

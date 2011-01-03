@@ -39,6 +39,14 @@ struct netns_ipvs {
 	struct list_head	tcp_apps[TCP_APP_TAB_SIZE];
 	spinlock_t		tcp_app_lock;
 #endif
+	/* ip_vs_proto_udp */
+#ifdef CONFIG_IP_VS_PROTO_UDP
+	#define	UDP_APP_TAB_BITS	4
+	#define	UDP_APP_TAB_SIZE	(1 << UDP_APP_TAB_BITS)
+	#define	UDP_APP_TAB_MASK	(UDP_APP_TAB_SIZE - 1)
+	struct list_head	udp_apps[UDP_APP_TAB_SIZE];
+	spinlock_t		udp_app_lock;
+#endif
 
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;
