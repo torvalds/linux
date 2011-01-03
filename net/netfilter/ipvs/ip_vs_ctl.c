@@ -58,42 +58,7 @@ static DEFINE_MUTEX(__ip_vs_mutex);
 /* lock for service table */
 static DEFINE_RWLOCK(__ip_vs_svc_lock);
 
-/* lock for table with the real services */
-static DEFINE_RWLOCK(__ip_vs_rs_lock);
-
-/* lock for state and timeout tables */
-static DEFINE_SPINLOCK(ip_vs_securetcp_lock);
-
-/* lock for drop entry handling */
-static DEFINE_SPINLOCK(__ip_vs_dropentry_lock);
-
-/* lock for drop packet handling */
-static DEFINE_SPINLOCK(__ip_vs_droppacket_lock);
-
-/* 1/rate drop and drop-entry variables */
-int ip_vs_drop_rate = 0;
-int ip_vs_drop_counter = 0;
-static atomic_t ip_vs_dropentry = ATOMIC_INIT(0);
-
-/* number of virtual services */
-static int ip_vs_num_services = 0;
-
 /* sysctl variables */
-static int sysctl_ip_vs_drop_entry = 0;
-static int sysctl_ip_vs_drop_packet = 0;
-static int sysctl_ip_vs_secure_tcp = 0;
-static int sysctl_ip_vs_amemthresh = 1024;
-static int sysctl_ip_vs_am_droprate = 10;
-int sysctl_ip_vs_cache_bypass = 0;
-int sysctl_ip_vs_expire_nodest_conn = 0;
-int sysctl_ip_vs_expire_quiescent_template = 0;
-int sysctl_ip_vs_sync_threshold[2] = { 3, 50 };
-int sysctl_ip_vs_nat_icmp_send = 0;
-#ifdef CONFIG_IP_VS_NFCT
-int sysctl_ip_vs_conntrack;
-#endif
-int sysctl_ip_vs_snat_reroute = 1;
-int sysctl_ip_vs_sync_ver = 1;		/* Default version of sync proto */
 
 #ifdef CONFIG_IP_VS_DEBUG
 static int sysctl_ip_vs_debug_level = 0;
@@ -142,73 +107,73 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 	/* si_swapinfo(&i); */
 	/* availmem = availmem - (i.totalswap - i.freeswap); */
 
-	nomem = (availmem < sysctl_ip_vs_amemthresh);
+	nomem = (availmem < ipvs->sysctl_amemthresh);
 
 	local_bh_disable();
 
 	/* drop_entry */
-	spin_lock(&__ip_vs_dropentry_lock);
-	switch (sysctl_ip_vs_drop_entry) {
+	spin_lock(&ipvs->dropentry_lock);
+	switch (ipvs->sysctl_drop_entry) {
 	case 0:
-		atomic_set(&ip_vs_dropentry, 0);
+		atomic_set(&ipvs->dropentry, 0);
 		break;
 	case 1:
 		if (nomem) {
-			atomic_set(&ip_vs_dropentry, 1);
-			sysctl_ip_vs_drop_entry = 2;
+			atomic_set(&ipvs->dropentry, 1);
+			ipvs->sysctl_drop_entry = 2;
 		} else {
-			atomic_set(&ip_vs_dropentry, 0);
+			atomic_set(&ipvs->dropentry, 0);
 		}
 		break;
 	case 2:
 		if (nomem) {
-			atomic_set(&ip_vs_dropentry, 1);
+			atomic_set(&ipvs->dropentry, 1);
 		} else {
-			atomic_set(&ip_vs_dropentry, 0);
-			sysctl_ip_vs_drop_entry = 1;
+			atomic_set(&ipvs->dropentry, 0);
+			ipvs->sysctl_drop_entry = 1;
 		};
 		break;
 	case 3:
-		atomic_set(&ip_vs_dropentry, 1);
+		atomic_set(&ipvs->dropentry, 1);
 		break;
 	}
-	spin_unlock(&__ip_vs_dropentry_lock);
+	spin_unlock(&ipvs->dropentry_lock);
 
 	/* drop_packet */
-	spin_lock(&__ip_vs_droppacket_lock);
-	switch (sysctl_ip_vs_drop_packet) {
+	spin_lock(&ipvs->droppacket_lock);
+	switch (ipvs->sysctl_drop_packet) {
 	case 0:
-		ip_vs_drop_rate = 0;
+		ipvs->drop_rate = 0;
 		break;
 	case 1:
 		if (nomem) {
-			ip_vs_drop_rate = ip_vs_drop_counter
-				= sysctl_ip_vs_amemthresh /
-				(sysctl_ip_vs_amemthresh-availmem);
-			sysctl_ip_vs_drop_packet = 2;
+			ipvs->drop_rate = ipvs->drop_counter
+				= ipvs->sysctl_amemthresh /
+				(ipvs->sysctl_amemthresh-availmem);
+			ipvs->sysctl_drop_packet = 2;
 		} else {
-			ip_vs_drop_rate = 0;
+			ipvs->drop_rate = 0;
 		}
 		break;
 	case 2:
 		if (nomem) {
-			ip_vs_drop_rate = ip_vs_drop_counter
-				= sysctl_ip_vs_amemthresh /
-				(sysctl_ip_vs_amemthresh-availmem);
+			ipvs->drop_rate = ipvs->drop_counter
+				= ipvs->sysctl_amemthresh /
+				(ipvs->sysctl_amemthresh-availmem);
 		} else {
-			ip_vs_drop_rate = 0;
-			sysctl_ip_vs_drop_packet = 1;
+			ipvs->drop_rate = 0;
+			ipvs->sysctl_drop_packet = 1;
 		}
 		break;
 	case 3:
-		ip_vs_drop_rate = sysctl_ip_vs_am_droprate;
+		ipvs->drop_rate = ipvs->sysctl_am_droprate;
 		break;
 	}
-	spin_unlock(&__ip_vs_droppacket_lock);
+	spin_unlock(&ipvs->droppacket_lock);
 
 	/* secure_tcp */
-	spin_lock(&ip_vs_securetcp_lock);
-	switch (sysctl_ip_vs_secure_tcp) {
+	spin_lock(&ipvs->securetcp_lock);
+	switch (ipvs->sysctl_secure_tcp) {
 	case 0:
 		if (old_secure_tcp >= 2)
 			to_change = 0;
@@ -217,7 +182,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 		if (nomem) {
 			if (old_secure_tcp < 2)
 				to_change = 1;
-			sysctl_ip_vs_secure_tcp = 2;
+			ipvs->sysctl_secure_tcp = 2;
 		} else {
 			if (old_secure_tcp >= 2)
 				to_change = 0;
@@ -230,7 +195,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 		} else {
 			if (old_secure_tcp >= 2)
 				to_change = 0;
-			sysctl_ip_vs_secure_tcp = 1;
+			ipvs->sysctl_secure_tcp = 1;
 		}
 		break;
 	case 3:
@@ -238,11 +203,11 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 			to_change = 1;
 		break;
 	}
-	old_secure_tcp = sysctl_ip_vs_secure_tcp;
+	old_secure_tcp = ipvs->sysctl_secure_tcp;
 	if (to_change >= 0)
 		ip_vs_protocol_timeout_change(ipvs,
-					     sysctl_ip_vs_secure_tcp > 1);
-	spin_unlock(&ip_vs_securetcp_lock);
+					      ipvs->sysctl_secure_tcp > 1);
+	spin_unlock(&ipvs->securetcp_lock);
 
 	local_bh_enable();
 }
@@ -260,7 +225,7 @@ static void defense_work_handler(struct work_struct *work)
 	struct netns_ipvs *ipvs = net_ipvs(&init_net);
 
 	update_defense_level(ipvs);
-	if (atomic_read(&ip_vs_dropentry))
+	if (atomic_read(&ipvs->dropentry))
 		ip_vs_random_dropentry();
 
 	schedule_delayed_work(&defense_work, DEFENSE_TIMER_PERIOD);
@@ -602,7 +567,7 @@ ip_vs_lookup_real_service(struct net *net, int af, __u16 protocol,
 	 */
 	hash = ip_vs_rs_hashkey(af, daddr, dport);
 
-	read_lock(&__ip_vs_rs_lock);
+	read_lock(&ipvs->rs_lock);
 	list_for_each_entry(dest, &ipvs->rs_table[hash], d_list) {
 		if ((dest->af == af)
 		    && ip_vs_addr_equal(af, &dest->addr, daddr)
@@ -610,11 +575,11 @@ ip_vs_lookup_real_service(struct net *net, int af, __u16 protocol,
 		    && ((dest->protocol == protocol) ||
 			dest->vfwmark)) {
 			/* HIT */
-			read_unlock(&__ip_vs_rs_lock);
+			read_unlock(&ipvs->rs_lock);
 			return dest;
 		}
 	}
-	read_unlock(&__ip_vs_rs_lock);
+	read_unlock(&ipvs->rs_lock);
 
 	return NULL;
 }
@@ -788,9 +753,9 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 		 *    Put the real service in rs_table if not present.
 		 *    For now only for NAT!
 		 */
-		write_lock_bh(&__ip_vs_rs_lock);
+		write_lock_bh(&ipvs->rs_lock);
 		ip_vs_rs_hash(ipvs, dest);
-		write_unlock_bh(&__ip_vs_rs_lock);
+		write_unlock_bh(&ipvs->rs_lock);
 	}
 	atomic_set(&dest->conn_flags, conn_flags);
 
@@ -1022,14 +987,16 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
  */
 static void __ip_vs_del_dest(struct net *net, struct ip_vs_dest *dest)
 {
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
 	ip_vs_kill_estimator(net, &dest->stats);
 
 	/*
 	 *  Remove it from the d-linked list with the real services.
 	 */
-	write_lock_bh(&__ip_vs_rs_lock);
+	write_lock_bh(&ipvs->rs_lock);
 	ip_vs_rs_unhash(dest);
-	write_unlock_bh(&__ip_vs_rs_lock);
+	write_unlock_bh(&ipvs->rs_lock);
 
 	/*
 	 *  Decrease the refcnt of the dest, and free the dest
@@ -1092,7 +1059,6 @@ static int
 ip_vs_del_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 {
 	struct ip_vs_dest *dest;
-	struct net *net = svc->net;
 	__be16 dport = udest->port;
 
 	EnterFunction(2);
@@ -1121,7 +1087,7 @@ ip_vs_del_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 	/*
 	 *	Delete the destination
 	 */
-	__ip_vs_del_dest(net, dest);
+	__ip_vs_del_dest(svc->net, dest);
 
 	LeaveFunction(2);
 
@@ -1140,6 +1106,7 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 	struct ip_vs_scheduler *sched = NULL;
 	struct ip_vs_pe *pe = NULL;
 	struct ip_vs_service *svc = NULL;
+	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	/* increase the module use count */
 	ip_vs_use_count_inc();
@@ -1219,7 +1186,7 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 
 	/* Count only IPv4 services for old get/setsockopt interface */
 	if (svc->af == AF_INET)
-		ip_vs_num_services++;
+		ipvs->num_services++;
 
 	/* Hash the service into the service table */
 	write_lock_bh(&__ip_vs_svc_lock);
@@ -1359,12 +1326,13 @@ static void __ip_vs_del_service(struct ip_vs_service *svc)
 	struct ip_vs_dest *dest, *nxt;
 	struct ip_vs_scheduler *old_sched;
 	struct ip_vs_pe *old_pe;
+	struct netns_ipvs *ipvs = net_ipvs(svc->net);
 
 	pr_info("%s: enter\n", __func__);
 
 	/* Count only IPv4 services for old get/setsockopt interface */
 	if (svc->af == AF_INET)
-		ip_vs_num_services--;
+		ipvs->num_services--;
 
 	ip_vs_kill_estimator(svc->net, &svc->stats);
 
@@ -1589,12 +1557,88 @@ proc_do_sync_mode(ctl_table *table, int write,
 
 /*
  *	IPVS sysctl table (under the /proc/sys/net/ipv4/vs/)
+ *	Do not change order or insert new entries without
+ *	align with netns init in __ip_vs_control_init()
  */
 
 static struct ctl_table vs_vars[] = {
 	{
 		.procname	= "amemthresh",
-		.data		= &sysctl_ip_vs_amemthresh,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "am_droprate",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "drop_entry",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_do_defense_mode,
+	},
+	{
+		.procname	= "drop_packet",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_do_defense_mode,
+	},
+#ifdef CONFIG_IP_VS_NFCT
+	{
+		.procname	= "conntrack",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
+	{
+		.procname	= "secure_tcp",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_do_defense_mode,
+	},
+	{
+		.procname	= "snat_reroute",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.procname	= "sync_version",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_do_sync_mode,
+	},
+	{
+		.procname	= "cache_bypass",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "expire_nodest_conn",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "expire_quiescent_template",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "sync_threshold",
+		.maxlen		=
+			sizeof(((struct netns_ipvs *)0)->sysctl_sync_threshold),
+		.mode		= 0644,
+		.proc_handler	= proc_do_sync_threshold,
+	},
+	{
+		.procname	= "nat_icmp_send",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -1608,57 +1652,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= proc_dointvec,
 	},
 #endif
-	{
-		.procname	= "am_droprate",
-		.data		= &sysctl_ip_vs_am_droprate,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "drop_entry",
-		.data		= &sysctl_ip_vs_drop_entry,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_do_defense_mode,
-	},
-	{
-		.procname	= "drop_packet",
-		.data		= &sysctl_ip_vs_drop_packet,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_do_defense_mode,
-	},
-#ifdef CONFIG_IP_VS_NFCT
-	{
-		.procname	= "conntrack",
-		.data		= &sysctl_ip_vs_conntrack,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-#endif
-	{
-		.procname	= "secure_tcp",
-		.data		= &sysctl_ip_vs_secure_tcp,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_do_defense_mode,
-	},
-	{
-		.procname	= "snat_reroute",
-		.data		= &sysctl_ip_vs_snat_reroute,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.procname	= "sync_version",
-		.data		= &sysctl_ip_vs_sync_ver,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_do_sync_mode,
-	},
 #if 0
 	{
 		.procname	= "timeout_established",
@@ -1745,41 +1738,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 #endif
-	{
-		.procname	= "cache_bypass",
-		.data		= &sysctl_ip_vs_cache_bypass,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "expire_nodest_conn",
-		.data		= &sysctl_ip_vs_expire_nodest_conn,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "expire_quiescent_template",
-		.data		= &sysctl_ip_vs_expire_quiescent_template,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "sync_threshold",
-		.data		= &sysctl_ip_vs_sync_threshold,
-		.maxlen		= sizeof(sysctl_ip_vs_sync_threshold),
-		.mode		= 0644,
-		.proc_handler	= proc_do_sync_threshold,
-	},
-	{
-		.procname	= "nat_icmp_send",
-		.data		= &sysctl_ip_vs_nat_icmp_send,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
 	{ }
 };
 
@@ -1790,8 +1748,6 @@ const struct ctl_path net_vs_ctl_path[] = {
 	{ }
 };
 EXPORT_SYMBOL_GPL(net_vs_ctl_path);
-
-static struct ctl_table_header * sysctl_header;
 
 #ifdef CONFIG_PROC_FS
 
@@ -2543,7 +2499,7 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		struct ip_vs_getinfo info;
 		info.version = IP_VS_VERSION_CODE;
 		info.size = ip_vs_conn_tab_size;
-		info.num_services = ip_vs_num_services;
+		info.num_services = ipvs->num_services;
 		if (copy_to_user(user, &info, sizeof(info)) != 0)
 			ret = -EFAULT;
 	}
@@ -3014,7 +2970,7 @@ static int ip_vs_genl_dump_dests(struct sk_buff *skb,
 	struct ip_vs_service *svc;
 	struct ip_vs_dest *dest;
 	struct nlattr *attrs[IPVS_CMD_ATTR_MAX + 1];
-	struct net *net;
+	struct net *net = skb_sknet(skb);
 
 	mutex_lock(&__ip_vs_mutex);
 
@@ -3023,7 +2979,7 @@ static int ip_vs_genl_dump_dests(struct sk_buff *skb,
 			IPVS_CMD_ATTR_MAX, ip_vs_cmd_policy))
 		goto out_err;
 
-	net = skb_sknet(skb);
+
 	svc = ip_vs_genl_find_service(net, attrs[IPVS_CMD_ATTR_SERVICE]);
 	if (IS_ERR(svc) || svc == NULL)
 		goto out_err;
@@ -3215,8 +3171,10 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 	int ret = 0, cmd;
 	int need_full_svc = 0, need_full_dest = 0;
 	struct net *net;
+	struct netns_ipvs *ipvs;
 
 	net = skb_sknet(skb);
+	ipvs = net_ipvs(net);
 	cmd = info->genlhdr->cmd;
 
 	mutex_lock(&__ip_vs_mutex);
@@ -3326,8 +3284,10 @@ static int ip_vs_genl_get_cmd(struct sk_buff *skb, struct genl_info *info)
 	void *reply;
 	int ret, cmd, reply_cmd;
 	struct net *net;
+	struct netns_ipvs *ipvs;
 
 	net = skb_sknet(skb);
+	ipvs = net_ipvs(net);
 	cmd = info->genlhdr->cmd;
 
 	if (cmd == IPVS_CMD_GET_SERVICE)
@@ -3530,9 +3490,21 @@ int __net_init __ip_vs_control_init(struct net *net)
 {
 	int idx;
 	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct ctl_table *tbl;
 
 	if (!net_eq(net, &init_net))	/* netns not enabled yet */
 		return -EPERM;
+
+	atomic_set(&ipvs->dropentry, 0);
+	spin_lock_init(&ipvs->dropentry_lock);
+	spin_lock_init(&ipvs->droppacket_lock);
+	spin_lock_init(&ipvs->securetcp_lock);
+	ipvs->rs_lock = __RW_LOCK_UNLOCKED(ipvs->rs_lock);
+
+	/* Initialize rs_table */
+	for (idx = 0; idx < IP_VS_RTAB_SIZE; idx++)
+		INIT_LIST_HEAD(&ipvs->rs_table[idx]);
+
 	/* procfs stats */
 	ipvs->tot_stats = kzalloc(sizeof(struct ip_vs_stats), GFP_KERNEL);
 	if (ipvs->tot_stats == NULL) {
@@ -3553,14 +3525,51 @@ int __net_init __ip_vs_control_init(struct net *net)
 	proc_net_fops_create(net, "ip_vs_stats", 0, &ip_vs_stats_fops);
 	proc_net_fops_create(net, "ip_vs_stats_percpu", 0,
 			     &ip_vs_stats_percpu_fops);
-	sysctl_header = register_net_sysctl_table(net, net_vs_ctl_path,
+
+	if (!net_eq(net, &init_net)) {
+		tbl = kmemdup(vs_vars, sizeof(vs_vars), GFP_KERNEL);
+		if (tbl == NULL)
+			goto err_dup;
+	} else
+		tbl = vs_vars;
+	/* Initialize sysctl defaults */
+	idx = 0;
+	ipvs->sysctl_amemthresh = 1024;
+	tbl[idx++].data = &ipvs->sysctl_amemthresh;
+	ipvs->sysctl_am_droprate = 10;
+	tbl[idx++].data = &ipvs->sysctl_am_droprate;
+	tbl[idx++].data = &ipvs->sysctl_drop_entry;
+	tbl[idx++].data = &ipvs->sysctl_drop_packet;
+#ifdef CONFIG_IP_VS_NFCT
+	tbl[idx++].data = &ipvs->sysctl_conntrack;
+#endif
+	tbl[idx++].data = &ipvs->sysctl_secure_tcp;
+	ipvs->sysctl_snat_reroute = 1;
+	tbl[idx++].data = &ipvs->sysctl_snat_reroute;
+	ipvs->sysctl_sync_ver = 1;
+	tbl[idx++].data = &ipvs->sysctl_sync_ver;
+	tbl[idx++].data = &ipvs->sysctl_cache_bypass;
+	tbl[idx++].data = &ipvs->sysctl_expire_nodest_conn;
+	tbl[idx++].data = &ipvs->sysctl_expire_quiescent_template;
+	ipvs->sysctl_sync_threshold[0] = 3;
+	ipvs->sysctl_sync_threshold[1] = 50;
+	tbl[idx].data = &ipvs->sysctl_sync_threshold;
+	tbl[idx++].maxlen = sizeof(ipvs->sysctl_sync_threshold);
+	tbl[idx++].data = &ipvs->sysctl_nat_icmp_send;
+
+
+	ipvs->sysctl_hdr = register_net_sysctl_table(net, net_vs_ctl_path,
 						  vs_vars);
-	if (sysctl_header == NULL)
+	if (ipvs->sysctl_hdr == NULL)
 		goto err_reg;
 	ip_vs_new_estimator(net, ipvs->tot_stats);
+	ipvs->sysctl_tbl = tbl;
 	return 0;
 
 err_reg:
+	if (!net_eq(net, &init_net))
+		kfree(tbl);
+err_dup:
 	free_percpu(ipvs->cpustats);
 err_alloc:
 	kfree(ipvs->tot_stats);
@@ -3575,7 +3584,7 @@ static void __net_exit __ip_vs_control_cleanup(struct net *net)
 		return;
 
 	ip_vs_kill_estimator(net, ipvs->tot_stats);
-	unregister_net_sysctl_table(sysctl_header);
+	unregister_net_sysctl_table(ipvs->sysctl_hdr);
 	proc_net_remove(net, "ip_vs_stats_percpu");
 	proc_net_remove(net, "ip_vs_stats");
 	proc_net_remove(net, "ip_vs");

@@ -54,7 +54,7 @@ tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 				     &iph.daddr, th->dest))) {
 		int ignored;
 
-		if (ip_vs_todrop()) {
+		if (ip_vs_todrop(net_ipvs(net))) {
 			/*
 			 * It seems that we are very loaded.
 			 * We have to drop this packet :(

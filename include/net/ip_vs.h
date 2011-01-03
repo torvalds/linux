@@ -41,7 +41,7 @@ static inline struct netns_ipvs *net_ipvs(struct net* net)
  * Get net ptr from skb in traffic cases
  * use skb_sknet when call is from userland (ioctl or netlink)
  */
-static inline struct net *skb_net(struct sk_buff *skb)
+static inline struct net *skb_net(const struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_NS
 #ifdef CONFIG_IP_VS_DEBUG
@@ -69,7 +69,7 @@ static inline struct net *skb_net(struct sk_buff *skb)
 #endif
 }
 
-static inline struct net *skb_sknet(struct sk_buff *skb)
+static inline struct net *skb_sknet(const struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_NS
 #ifdef CONFIG_IP_VS_DEBUG
@@ -1023,13 +1023,6 @@ extern int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 /*
  *      IPVS control data and functions (from ip_vs_ctl.c)
  */
-extern int sysctl_ip_vs_cache_bypass;
-extern int sysctl_ip_vs_expire_nodest_conn;
-extern int sysctl_ip_vs_expire_quiescent_template;
-extern int sysctl_ip_vs_sync_threshold[2];
-extern int sysctl_ip_vs_nat_icmp_send;
-extern int sysctl_ip_vs_conntrack;
-extern int sysctl_ip_vs_snat_reroute;
 extern struct ip_vs_stats ip_vs_stats;
 extern const struct ctl_path net_vs_ctl_path[];
 extern int sysctl_ip_vs_sync_ver;
@@ -1119,11 +1112,13 @@ extern int ip_vs_icmp_xmit_v6
 extern int ip_vs_drop_rate;
 extern int ip_vs_drop_counter;
 
-static __inline__ int ip_vs_todrop(void)
+static inline int ip_vs_todrop(struct netns_ipvs *ipvs)
 {
-	if (!ip_vs_drop_rate) return 0;
-	if (--ip_vs_drop_counter > 0) return 0;
-	ip_vs_drop_counter = ip_vs_drop_rate;
+	if (!ipvs->drop_rate)
+		return 0;
+	if (--ipvs->drop_counter > 0)
+		return 0;
+	ipvs->drop_counter = ipvs->drop_rate;
 	return 1;
 }
 
@@ -1211,9 +1206,9 @@ static inline void ip_vs_notrack(struct sk_buff *skb)
  *      Netfilter connection tracking
  *      (from ip_vs_nfct.c)
  */
-static inline int ip_vs_conntrack_enabled(void)
+static inline int ip_vs_conntrack_enabled(struct netns_ipvs *ipvs)
 {
-	return sysctl_ip_vs_conntrack;
+	return ipvs->sysctl_conntrack;
 }
 
 extern void ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp,
@@ -1226,7 +1221,7 @@ extern void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp);
 
 #else
 
-static inline int ip_vs_conntrack_enabled(void)
+static inline int ip_vs_conntrack_enabled(struct netns_ipvs *ipvs)
 {
 	return 0;
 }

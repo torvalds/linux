@@ -394,7 +394,7 @@ void ip_vs_sync_switch_mode(struct net *net, int mode)
 
 	if (!ipvs->sync_state & IP_VS_STATE_MASTER)
 		return;
-	if (mode == sysctl_ip_vs_sync_ver || !ipvs->sync_buff)
+	if (mode == ipvs->sysctl_sync_ver || !ipvs->sync_buff)
 		return;
 
 	spin_lock_bh(&ipvs->sync_buff_lock);
@@ -521,7 +521,7 @@ void ip_vs_sync_conn(struct net *net, struct ip_vs_conn *cp)
 	unsigned int len, pe_name_len, pad;
 
 	/* Handle old version of the protocol */
-	if (sysctl_ip_vs_sync_ver == 0) {
+	if (ipvs->sysctl_sync_ver == 0) {
 		ip_vs_sync_conn_v0(net, cp);
 		return;
 	}
@@ -650,7 +650,7 @@ control:
 	if (cp->flags & IP_VS_CONN_F_TEMPLATE) {
 		int pkts = atomic_add_return(1, &cp->in_pkts);
 
-		if (pkts % sysctl_ip_vs_sync_threshold[1] != 1)
+		if (pkts % ipvs->sysctl_sync_threshold[1] != 1)
 			return;
 	}
 	goto sloop;
@@ -724,6 +724,7 @@ static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
 {
 	struct ip_vs_dest *dest;
 	struct ip_vs_conn *cp;
+	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	if (!(flags & IP_VS_CONN_F_TEMPLATE))
 		cp = ip_vs_conn_in_get(param);
@@ -794,7 +795,7 @@ static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
 
 	if (opt)
 		memcpy(&cp->in_seq, opt, sizeof(*opt));
-	atomic_set(&cp->in_pkts, sysctl_ip_vs_sync_threshold[0]);
+	atomic_set(&cp->in_pkts, ipvs->sysctl_sync_threshold[0]);
 	cp->state = state;
 	cp->old_state = cp->state;
 	/*

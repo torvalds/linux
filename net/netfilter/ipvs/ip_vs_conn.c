@@ -686,13 +686,14 @@ static inline void ip_vs_unbind_dest(struct ip_vs_conn *cp)
 int ip_vs_check_template(struct ip_vs_conn *ct)
 {
 	struct ip_vs_dest *dest = ct->dest;
+	struct netns_ipvs *ipvs = net_ipvs(ip_vs_conn_net(ct));
 
 	/*
 	 * Checking the dest server status.
 	 */
 	if ((dest == NULL) ||
 	    !(dest->flags & IP_VS_DEST_F_AVAILABLE) ||
-	    (sysctl_ip_vs_expire_quiescent_template &&
+	    (ipvs->sysctl_expire_quiescent_template &&
 	     (atomic_read(&dest->weight) == 0))) {
 		IP_VS_DBG_BUF(9, "check_template: dest not available for "
 			      "protocol %s s:%s:%d v:%s:%d "
@@ -879,7 +880,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p,
 	 * IP_VS_CONN_F_ONE_PACKET too.
 	 */
 
-	if (ip_vs_conntrack_enabled())
+	if (ip_vs_conntrack_enabled(ipvs))
 		cp->flags |= IP_VS_CONN_F_NFCT;
 
 	/* Hash it in the ip_vs_conn_tab finally */
@@ -1198,7 +1199,7 @@ static void ip_vs_conn_flush(struct net *net)
 	struct ip_vs_conn *cp;
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-  flush_again:
+flush_again:
 	for (idx = 0; idx < ip_vs_conn_tab_size; idx++) {
 		/*
 		 *  Lock is actually needed in this loop.

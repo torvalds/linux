@@ -61,13 +61,46 @@ struct netns_ipvs {
 	struct list_head	sctp_apps[SCTP_APP_TAB_SIZE];
 	spinlock_t		sctp_app_lock;
 #endif
+	/* ip_vs_conn */
+	atomic_t		conn_count;      /*  connection counter */
+
 	/* ip_vs_ctl */
 	struct ip_vs_stats		*tot_stats;  /* Statistics & est. */
 	struct ip_vs_cpu_stats __percpu *cpustats;   /* Stats per cpu */
 	seqcount_t			*ustats_seq; /* u64 read retry */
 
-	/* ip_vs_conn */
-	atomic_t		conn_count;         /*  connection counter */
+	int			num_services;    /* no of virtual services */
+	/* 1/rate drop and drop-entry variables */
+	int			drop_rate;
+	int			drop_counter;
+	atomic_t		dropentry;
+	/* locks in ctl.c */
+	spinlock_t		dropentry_lock;  /* drop entry handling */
+	spinlock_t		droppacket_lock; /* drop packet handling */
+	spinlock_t		securetcp_lock;  /* state and timeout tables */
+	rwlock_t		rs_lock;         /* real services table */
+	/* semaphore for IPVS sockopts. And, [gs]etsockopt may sleep. */
+	struct lock_class_key	ctl_key;	/* ctl_mutex debuging */
+	/* sys-ctl struct */
+	struct ctl_table_header	*sysctl_hdr;
+	struct ctl_table	*sysctl_tbl;
+	/* sysctl variables */
+	int			sysctl_amemthresh;
+	int			sysctl_am_droprate;
+	int			sysctl_drop_entry;
+	int			sysctl_drop_packet;
+	int			sysctl_secure_tcp;
+#ifdef CONFIG_IP_VS_NFCT
+	int			sysctl_conntrack;
+#endif
+	int			sysctl_snat_reroute;
+	int			sysctl_sync_ver;
+	int			sysctl_cache_bypass;
+	int			sysctl_expire_nodest_conn;
+	int			sysctl_expire_quiescent_template;
+	int			sysctl_sync_threshold[2];
+	int			sysctl_nat_icmp_send;
+
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;
 	struct ctl_table_header	*lblc_ctl_header;
