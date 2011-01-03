@@ -1294,15 +1294,11 @@ static void pl08x_issue_pending(struct dma_chan *chan)
 	unsigned long flags;
 
 	spin_lock_irqsave(&plchan->lock, flags);
-	/* Something is already active */
-	if (plchan->at) {
-			spin_unlock_irqrestore(&plchan->lock, flags);
-			return;
-	}
-
-	/* Didn't get a physical channel so waiting for it ... */
-	if (plchan->state == PL08X_CHAN_WAITING)
+	/* Something is already active, or we're waiting for a channel... */
+	if (plchan->at || plchan->state == PL08X_CHAN_WAITING) {
+		spin_unlock_irqrestore(&plchan->lock, flags);
 		return;
+	}
 
 	/* Take the first element in the queue and execute it */
 	if (!list_empty(&plchan->desc_list)) {
