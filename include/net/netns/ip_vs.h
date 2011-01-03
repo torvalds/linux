@@ -29,6 +29,10 @@ struct netns_ipvs {
 
 	struct list_head	rs_table[IP_VS_RTAB_SIZE];
 
+	/* ip_vs_lblc */
+	int			sysctl_lblc_expiration;
+	struct ctl_table_header	*lblc_ctl_header;
+	struct ctl_table	*lblc_ctl_table;
 	/* ip_vs_lblcr */
 	int			sysctl_lblcr_expiration;
 	struct ctl_table_header	*lblcr_ctl_header;
