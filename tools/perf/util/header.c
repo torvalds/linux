@@ -604,7 +604,7 @@ int perf_header__write(struct perf_header *self, int fd, bool at_exit)
 static int perf_header__getbuffer64(struct perf_header *self,
 				    int fd, void *buf, size_t size)
 {
-	if (do_read(fd, buf, size) <= 0)
+	if (readn(fd, buf, size) <= 0)
 		return -1;
 
 	if (self->needs_swap)
@@ -660,7 +660,7 @@ int perf_file_header__read(struct perf_file_header *self,
 {
 	lseek(fd, 0, SEEK_SET);
 
-	if (do_read(fd, self, sizeof(*self)) <= 0 ||
+	if (readn(fd, self, sizeof(*self)) <= 0 ||
 	    memcmp(&self->magic, __perf_magic, sizeof(self->magic)))
 		return -1;
 
@@ -821,7 +821,7 @@ static int perf_file_header__read_pipe(struct perf_pipe_file_header *self,
 				       struct perf_header *ph, int fd,
 				       bool repipe)
 {
-	if (do_read(fd, self, sizeof(*self)) <= 0 ||
+	if (readn(fd, self, sizeof(*self)) <= 0 ||
 	    memcmp(&self->magic, __perf_magic, sizeof(self->magic)))
 		return -1;
 

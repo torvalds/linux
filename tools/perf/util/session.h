@@ -109,7 +109,6 @@ void mem_bswap_64(void *src, int byte_size);
 
 int perf_session__create_kernel_maps(struct perf_session *self);
 
-int do_read(int fd, void *buf, size_t size);
 void perf_session__update_sample_type(struct perf_session *self);
 void perf_session__set_sample_id_all(struct perf_session *session, bool value);
 void perf_session__set_sample_type(struct perf_session *session, u64 type);
