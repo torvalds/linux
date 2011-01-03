@@ -550,7 +550,7 @@ static int __devinit mc13892_regulator_probe(struct platform_device *pdev)
 		if (ret)
 			goto err_free;
 
-		mc13xxx_reg_rmw(mc13892, MC13892_SWITCHERS5,
+		ret = mc13xxx_reg_rmw(mc13892, MC13892_SWITCHERS5,
 			MC13892_SWITCHERS5_SW3MODE_M |
 			MC13892_SWITCHERS5_SW4MODE_M,
 			MC13892_SWITCHERS5_SW3MODE_AUTO |
