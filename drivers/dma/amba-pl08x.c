@@ -191,7 +191,7 @@ static void pl08x_set_cregs(struct pl08x_driver_data *pl08x,
 {
 	/* Wait for channel inactive */
 	while (pl08x_phy_channel_busy(ch))
-		;
+		cpu_relax();
 
 	dev_vdbg(&pl08x->adev->dev,
 		"WRITE channel %d: csrc=0x%08x, cdst=0x%08x, "
@@ -255,7 +255,7 @@ static void pl08x_enable_phy_chan(struct pl08x_driver_data *pl08x,
 	 * Do not access config register until channel shows as disabled
 	 */
 	while (readl(pl08x->base + PL080_EN_CHAN) & (1 << ch->id))
-		;
+		cpu_relax();
 
 	/*
 	 * Do not access config register until channel shows as inactive
@@ -288,7 +288,7 @@ static void pl08x_pause_phy_chan(struct pl08x_phy_chan *ch)
 
 	/* Wait for channel inactive */
 	while (pl08x_phy_channel_busy(ch))
-		;
+		cpu_relax();
 }
 
 static void pl08x_resume_phy_chan(struct pl08x_phy_chan *ch)
