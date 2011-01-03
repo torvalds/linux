@@ -547,19 +547,15 @@ static void pl08x_fill_lli_for_desc(struct pl08x_driver_data *pl08x,
 }
 
 /*
- * Return number of bytes to fill to boundary, or len
+ * Return number of bytes to fill to boundary, or len.
+ * This calculation works for any value of addr.
  */
 static inline size_t pl08x_pre_boundary(u32 addr, size_t len)
 {
-	u32 boundary;
+	size_t boundary_len = PL08X_BOUNDARY_SIZE -
+			(addr & (PL08X_BOUNDARY_SIZE - 1));
 
-	boundary = ((addr >> PL08X_BOUNDARY_SHIFT) + 1)
-		<< PL08X_BOUNDARY_SHIFT;
-
-	if (boundary < addr + len)
-		return boundary - addr;
-	else
-		return len;
+	return min(boundary_len, len);
 }
 
 /*
