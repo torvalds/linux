@@ -1627,11 +1627,12 @@ static void pl08x_tasklet(unsigned long data)
 	struct pl08x_dma_chan *plchan = (struct pl08x_dma_chan *) data;
 	struct pl08x_phy_chan *phychan = plchan->phychan;
 	struct pl08x_driver_data *pl08x = plchan->host;
+	unsigned long flags;
 
 	if (!plchan)
 		BUG();
 
-	spin_lock(&plchan->lock);
+	spin_lock_irqsave(&plchan->lock, flags);
 
 	if (plchan->at) {
 		dma_async_tx_callback callback =
@@ -1728,7 +1729,7 @@ static void pl08x_tasklet(unsigned long data)
 		}
 	}
 
-	spin_unlock(&plchan->lock);
+	spin_unlock_irqrestore(&plchan->lock, flags);
 }
 
 static irqreturn_t pl08x_irq(int irq, void *dev)
