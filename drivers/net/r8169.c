@@ -277,6 +277,20 @@ enum rtl8168_8101_registers {
 #define	EFUSEAR_DATA_MASK		0xff
 };
 
+enum rtl8168_registers {
+	EPHY_RXER_NUM		= 0x7c,
+	OCPDR			= 0xb0,	/* OCP GPHY access */
+#define OCPDR_WRITE_CMD			0x80000000
+#define OCPDR_READ_CMD			0x00000000
+#define OCPDR_REG_MASK			0x7f
+#define OCPDR_GPHY_REG_SHIFT		16
+#define OCPDR_DATA_MASK			0xffff
+	OCPAR			= 0xb4,
+#define OCPAR_FLAG			0x80000000
+#define OCPAR_GPHY_WRITE_CMD		0x8000f060
+#define OCPAR_GPHY_READ_CMD		0x0000f060
+};
+
 enum rtl_register_content {
 	/* InterruptStatusBits */
 	SYSErr		= 0x8000,
@@ -500,6 +514,12 @@ struct rtl8169_private {
 #ifdef CONFIG_R8169_VLAN
 	struct vlan_group *vlgrp;
 #endif
+
+	struct mdio_ops {
+		void (*write)(void __iomem *, int, int);
+		int (*read)(void __iomem *, int);
+	} mdio_ops;
+
 	int (*set_speed)(struct net_device *, u8 autoneg, u16 speed, u8 duplex);
 	int (*get_settings)(struct net_device *, struct ethtool_cmd *);
 	void (*phy_reset_enable)(struct rtl8169_private *tp);
@@ -595,14 +615,55 @@ static int r8169_mdio_read(void __iomem *ioaddr, int reg_addr)
 	return value;
 }
 
+static void r8168dp_1_mdio_access(void __iomem *ioaddr, int reg_addr, u32 data)
+{
+	int i;
+
+	RTL_W32(OCPDR, data |
+		((reg_addr & OCPDR_REG_MASK) << OCPDR_GPHY_REG_SHIFT));
+	RTL_W32(OCPAR, OCPAR_GPHY_WRITE_CMD);
+	RTL_W32(EPHY_RXER_NUM, 0);
+
+	for (i = 0; i < 100; i++) {
+		mdelay(1);
+		if (!(RTL_R32(OCPAR) & OCPAR_FLAG))
+			break;
+	}
+}
+
+static void r8168dp_1_mdio_write(void __iomem *ioaddr, int reg_addr, int value)
+{
+	r8168dp_1_mdio_access(ioaddr, reg_addr, OCPDR_WRITE_CMD |
+		(value & OCPDR_DATA_MASK));
+}
+
+static int r8168dp_1_mdio_read(void __iomem *ioaddr, int reg_addr)
+{
+	int i;
+
+	r8168dp_1_mdio_access(ioaddr, reg_addr, OCPDR_READ_CMD);
+
+	mdelay(1);
+	RTL_W32(OCPAR, OCPAR_GPHY_READ_CMD);
+	RTL_W32(EPHY_RXER_NUM, 0);
+
+	for (i = 0; i < 100; i++) {
+		mdelay(1);
+		if (RTL_R32(OCPAR) & OCPAR_FLAG)
+			break;
+	}
+
+	return RTL_R32(OCPDR) & OCPDR_DATA_MASK;
+}
+
 static void rtl_writephy(struct rtl8169_private *tp, int location, u32 val)
 {
-	r8169_mdio_write(tp->mmio_addr, location, val);
+	tp->mdio_ops.write(tp->mmio_addr, location, val);
 }
 
 static int rtl_readphy(struct rtl8169_private *tp, int location)
 {
-	return r8169_mdio_read(tp->mmio_addr, location);
+	return tp->mdio_ops.read(tp->mmio_addr, location);
 }
 
 static void rtl_patchphy(struct rtl8169_private *tp, int reg_addr, int value)
@@ -2474,6 +2535,22 @@ static const struct net_device_ops rtl8169_netdev_ops = {
 
 };
 
+static void __devinit rtl_init_mdio_ops(struct rtl8169_private *tp)
+{
+	struct mdio_ops *ops = &tp->mdio_ops;
+
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_27:
+		ops->write	= r8168dp_1_mdio_write;
+		ops->read	= r8168dp_1_mdio_read;
+		break;
+	default:
+		ops->write	= r8169_mdio_write;
+		ops->read	= r8169_mdio_read;
+		break;
+	}
+}
+
 static int __devinit
 rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -2591,6 +2668,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Identify chip attached to board */
 	rtl8169_get_mac_version(tp, ioaddr);
+
+	rtl_init_mdio_ops(tp);
 
 	/* Use appropriate default if unknown */
 	if (tp->mac_version == RTL_GIGA_MAC_NONE) {
