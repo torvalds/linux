@@ -235,15 +235,37 @@ err:
 	return ret;
 }
 
-static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
+static void __ath9k_htc_remove_monitor_interface(struct ath9k_htc_priv *priv)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath9k_htc_target_vif hvif;
 	int ret = 0;
 	u8 cmd_rsp;
 
+	memset(&hvif, 0, sizeof(struct ath9k_htc_target_vif));
+	memcpy(&hvif.myaddr, common->macaddr, ETH_ALEN);
+	hvif.index = 0; /* Should do for now */
+	WMI_CMD_BUF(WMI_VAP_REMOVE_CMDID, &hvif);
+	priv->nvifs--;
+}
+
+static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_target_vif hvif;
+	struct ath9k_htc_target_sta tsta;
+	int ret = 0;
+	u8 cmd_rsp;
+
 	if (priv->nvifs > 0)
 		return -ENOBUFS;
+
+	if (priv->nstations >= ATH9K_HTC_MAX_STA)
+		return -ENOBUFS;
+
+	/*
+	 * Add an interface.
+	 */
 
 	memset(&hvif, 0, sizeof(struct ath9k_htc_target_vif));
 	memcpy(&hvif.myaddr, common->macaddr, ETH_ALEN);
@@ -257,23 +279,57 @@ static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
 		return ret;
 
 	priv->nvifs++;
+
+	/*
+	 * Associate a station with the interface for packet injection.
+	 */
+
+	memset(&tsta, 0, sizeof(struct ath9k_htc_target_sta));
+
+	memcpy(&tsta.macaddr, common->macaddr, ETH_ALEN);
+
+	tsta.is_vif_sta = 1;
+	tsta.sta_index = priv->nstations;
+	tsta.vif_index = hvif.index;
+	tsta.maxampdu = 0xffff;
+
+	WMI_CMD_BUF(WMI_NODE_CREATE_CMDID, &tsta);
+	if (ret) {
+		ath_err(common, "Unable to add station entry for monitor mode\n");
+		goto err_vif;
+	}
+
+	priv->nstations++;
+
 	return 0;
+
+err_vif:
+	/*
+	 * Remove the interface from the target.
+	 */
+	__ath9k_htc_remove_monitor_interface(priv);
+	return ret;
 }
 
 static int ath9k_htc_remove_monitor_interface(struct ath9k_htc_priv *priv)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
-	struct ath9k_htc_target_vif hvif;
 	int ret = 0;
-	u8 cmd_rsp;
+	u8 cmd_rsp, sta_idx;
 
-	memset(&hvif, 0, sizeof(struct ath9k_htc_target_vif));
-	memcpy(&hvif.myaddr, common->macaddr, ETH_ALEN);
-	hvif.index = 0; /* Should do for now */
-	WMI_CMD_BUF(WMI_VAP_REMOVE_CMDID, &hvif);
-	priv->nvifs--;
+	__ath9k_htc_remove_monitor_interface(priv);
 
-	return ret;
+	sta_idx = 0; /* Only single interface, for now */
+
+	WMI_CMD_BUF(WMI_NODE_REMOVE_CMDID, &sta_idx);
+	if (ret) {
+		ath_err(common, "Unable to remove station entry for monitor mode\n");
+		return ret;
+	}
+
+	priv->nstations--;
+
+	return 0;
 }
 
 static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
