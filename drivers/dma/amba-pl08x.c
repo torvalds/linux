@@ -682,9 +682,7 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 			 * If enough left try to send max possible,
 			 * otherwise try to send the remainder
 			 */
-			target_len = remainder;
-			if (remainder > max_bytes_per_lli)
-				target_len = max_bytes_per_lli;
+			target_len = min(remainder, max_bytes_per_lli);
 
 			/*
 			 * Set bus lengths for incrementing buses
