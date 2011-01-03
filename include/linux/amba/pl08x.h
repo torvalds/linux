@@ -158,7 +158,7 @@ enum pl08x_dma_chan_state {
  * @runtime_direction: current direction of this channel according to
  * runtime config
  * @lc: last completed transaction on this channel
- * @desc_list: queued transactions pending on this channel
+ * @pend_list: queued transactions pending on this channel
  * @at: active transaction on this channel
  * @lockflags: sometimes we let a lock last between two function calls,
  * especially prep/submit, and then we need to store the IRQ flags
@@ -179,7 +179,7 @@ struct pl08x_dma_chan {
 	dma_addr_t runtime_addr;
 	enum dma_data_direction	runtime_direction;
 	dma_cookie_t lc;
-	struct list_head desc_list;
+	struct list_head pend_list;
 	struct pl08x_txd *at;
 	unsigned long lockflags;
 	spinlock_t lock;
