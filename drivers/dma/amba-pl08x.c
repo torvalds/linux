@@ -1277,12 +1277,14 @@ static u32 pl08x_select_bus(struct pl08x_driver_data *pl08x, u8 src, u8 dst)
 	return cctl;
 }
 
-static struct pl08x_txd *pl08x_get_txd(struct pl08x_dma_chan *plchan)
+static struct pl08x_txd *pl08x_get_txd(struct pl08x_dma_chan *plchan,
+	unsigned long flags)
 {
 	struct pl08x_txd *txd = kzalloc(sizeof(struct pl08x_txd), GFP_NOWAIT);
 
 	if (txd) {
 		dma_async_tx_descriptor_init(&txd->tx, &plchan->chan);
+		txd->tx.flags = flags;
 		txd->tx.tx_submit = pl08x_tx_submit;
 		INIT_LIST_HEAD(&txd->node);
 
@@ -1305,7 +1307,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 	struct pl08x_txd *txd;
 	int ret;
 
-	txd = pl08x_get_txd(plchan);
+	txd = pl08x_get_txd(plchan, flags);
 	if (!txd) {
 		dev_err(&pl08x->adev->dev,
 			"%s no memory for descriptor\n", __func__);
@@ -1363,7 +1365,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 	dev_dbg(&pl08x->adev->dev, "%s prepare transaction of %d bytes from %s\n",
 		__func__, sgl->length, plchan->name);
 
-	txd = pl08x_get_txd(plchan);
+	txd = pl08x_get_txd(plchan, flags);
 	if (!txd) {
 		dev_err(&pl08x->adev->dev, "%s no txd\n", __func__);
 		return NULL;
