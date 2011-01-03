@@ -177,11 +177,11 @@ ip_vs_conn_stats(struct ip_vs_conn *cp, struct ip_vs_service *svc)
 static inline int
 ip_vs_set_state(struct ip_vs_conn *cp, int direction,
 		const struct sk_buff *skb,
-		struct ip_vs_protocol *pp)
+		struct ip_vs_proto_data *pd)
 {
-	if (unlikely(!pp->state_transition))
+	if (unlikely(!pd->pp->state_transition))
 		return 0;
-	return pp->state_transition(cp, direction, skb, pp);
+	return pd->pp->state_transition(cp, direction, skb, pd);
 }
 
 static inline int
@@ -378,8 +378,9 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
  */
 struct ip_vs_conn *
 ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
-	       struct ip_vs_protocol *pp, int *ignored)
+	       struct ip_vs_proto_data *pd, int *ignored)
 {
+	struct ip_vs_protocol *pp = pd->pp;
 	struct ip_vs_conn *cp = NULL;
 	struct ip_vs_iphdr iph;
 	struct ip_vs_dest *dest;
@@ -408,7 +409,7 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 	 *    Do not schedule replies from local real server.
 	 */
 	if ((!skb->dev || skb->dev->flags & IFF_LOOPBACK) &&
-	    (cp = pp->conn_in_get(svc->af, skb, pp, &iph, iph.len, 1))) {
+	    (cp = pp->conn_in_get(svc->af, skb, &iph, iph.len, 1))) {
 		IP_VS_DBG_PKT(12, svc->af, pp, skb, 0,
 			      "Not scheduling reply for existing connection");
 		__ip_vs_conn_put(cp);
@@ -479,11 +480,12 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
  *  no destination is available for a new connection.
  */
 int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
-		struct ip_vs_protocol *pp)
+		struct ip_vs_proto_data *pd)
 {
 	__be16 _ports[2], *pptr;
 	struct ip_vs_iphdr iph;
 	int unicast;
+
 	ip_vs_fill_iphdr(svc->af, skb_network_header(skb), &iph);
 
 	pptr = skb_header_pointer(skb, iph.len, sizeof(_ports), _ports);
@@ -530,10 +532,10 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		ip_vs_in_stats(cp, skb);
 
 		/* set state */
-		cs = ip_vs_set_state(cp, IP_VS_DIR_INPUT, skb, pp);
+		cs = ip_vs_set_state(cp, IP_VS_DIR_INPUT, skb, pd);
 
 		/* transmit the first SYN packet */
-		ret = cp->packet_xmit(skb, cp, pp);
+		ret = cp->packet_xmit(skb, cp, pd->pp);
 		/* do not touch skb anymore */
 
 		atomic_inc(&cp->in_pkts);
@@ -840,7 +842,7 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related,
 
 	ip_vs_fill_iphdr(AF_INET, cih, &ciph);
 	/* The embedded headers contain source and dest in reverse order */
-	cp = pp->conn_out_get(AF_INET, skb, pp, &ciph, offset, 1);
+	cp = pp->conn_out_get(AF_INET, skb, &ciph, offset, 1);
 	if (!cp)
 		return NF_ACCEPT;
 
@@ -917,7 +919,7 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related,
 
 	ip_vs_fill_iphdr(AF_INET6, cih, &ciph);
 	/* The embedded headers contain source and dest in reverse order */
-	cp = pp->conn_out_get(AF_INET6, skb, pp, &ciph, offset, 1);
+	cp = pp->conn_out_get(AF_INET6, skb, &ciph, offset, 1);
 	if (!cp)
 		return NF_ACCEPT;
 
@@ -956,9 +958,11 @@ static inline int is_tcp_reset(const struct sk_buff *skb, int nh_len)
  * Used for NAT and local client.
  */
 static unsigned int
-handle_response(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
+handle_response(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 		struct ip_vs_conn *cp, int ihl)
 {
+	struct ip_vs_protocol *pp = pd->pp;
+
 	IP_VS_DBG_PKT(11, af, pp, skb, 0, "Outgoing packet");
 
 	if (!skb_make_writable(skb, ihl))
@@ -1007,7 +1011,7 @@ handle_response(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 	IP_VS_DBG_PKT(10, af, pp, skb, 0, "After SNAT");
 
 	ip_vs_out_stats(cp, skb);
-	ip_vs_set_state(cp, IP_VS_DIR_OUTPUT, skb, pp);
+	ip_vs_set_state(cp, IP_VS_DIR_OUTPUT, skb, pd);
 	skb->ipvs_property = 1;
 	if (!(cp->flags & IP_VS_CONN_F_NFCT))
 		ip_vs_notrack(skb);
@@ -1034,6 +1038,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 	struct net *net = NULL;
 	struct ip_vs_iphdr iph;
 	struct ip_vs_protocol *pp;
+	struct ip_vs_proto_data *pd;
 	struct ip_vs_conn *cp;
 
 	EnterFunction(11);
@@ -1079,9 +1084,10 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 			ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 		}
 
-	pp = ip_vs_proto_get(iph.protocol);
-	if (unlikely(!pp))
+	pd = ip_vs_proto_data_get(net, iph.protocol);
+	if (unlikely(!pd))
 		return NF_ACCEPT;
+	pp = pd->pp;
 
 	/* reassemble IP fragments */
 #ifdef CONFIG_IP_VS_IPV6
@@ -1107,10 +1113,10 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 	/*
 	 * Check if the packet belongs to an existing entry
 	 */
-	cp = pp->conn_out_get(af, skb, pp, &iph, iph.len, 0);
+	cp = pp->conn_out_get(af, skb, &iph, iph.len, 0);
 
 	if (likely(cp))
-		return handle_response(af, skb, pp, cp, iph.len);
+		return handle_response(af, skb, pd, cp, iph.len);
 	if (sysctl_ip_vs_nat_icmp_send &&
 	    (pp->protocol == IPPROTO_TCP ||
 	     pp->protocol == IPPROTO_UDP ||
@@ -1236,12 +1242,14 @@ ip_vs_local_reply6(unsigned int hooknum, struct sk_buff *skb,
 static int
 ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 {
+	struct net *net = NULL;
 	struct iphdr *iph;
 	struct icmphdr	_icmph, *ic;
 	struct iphdr	_ciph, *cih;	/* The ip header contained within the ICMP */
 	struct ip_vs_iphdr ciph;
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
+	struct ip_vs_proto_data *pd;
 	unsigned int offset, ihl, verdict;
 	union nf_inet_addr snet;
 
@@ -1283,9 +1291,11 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 	if (cih == NULL)
 		return NF_ACCEPT; /* The packet looks wrong, ignore */
 
-	pp = ip_vs_proto_get(cih->protocol);
-	if (!pp)
+	net = skb_net(skb);
+	pd = ip_vs_proto_data_get(net, cih->protocol);
+	if (!pd)
 		return NF_ACCEPT;
+	pp = pd->pp;
 
 	/* Is the embedded protocol header present? */
 	if (unlikely(cih->frag_off & htons(IP_OFFSET) &&
@@ -1299,10 +1309,10 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 
 	ip_vs_fill_iphdr(AF_INET, cih, &ciph);
 	/* The embedded headers contain source and dest in reverse order */
-	cp = pp->conn_in_get(AF_INET, skb, pp, &ciph, offset, 1);
+	cp = pp->conn_in_get(AF_INET, skb, &ciph, offset, 1);
 	if (!cp) {
 		/* The packet could also belong to a local client */
-		cp = pp->conn_out_get(AF_INET, skb, pp, &ciph, offset, 1);
+		cp = pp->conn_out_get(AF_INET, skb, &ciph, offset, 1);
 		if (cp) {
 			snet.ip = iph->saddr;
 			return handle_response_icmp(AF_INET, skb, &snet,
@@ -1346,6 +1356,7 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 static int
 ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 {
+	struct net *net = NULL;
 	struct ipv6hdr *iph;
 	struct icmp6hdr	_icmph, *ic;
 	struct ipv6hdr	_ciph, *cih;	/* The ip header contained
@@ -1353,6 +1364,7 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 	struct ip_vs_iphdr ciph;
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
+	struct ip_vs_proto_data *pd;
 	unsigned int offset, verdict;
 	union nf_inet_addr snet;
 	struct rt6_info *rt;
@@ -1395,9 +1407,11 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 	if (cih == NULL)
 		return NF_ACCEPT; /* The packet looks wrong, ignore */
 
-	pp = ip_vs_proto_get(cih->nexthdr);
-	if (!pp)
+	net = skb_net(skb);
+	pd = ip_vs_proto_data_get(net, cih->nexthdr);
+	if (!pd)
 		return NF_ACCEPT;
+	pp = pd->pp;
 
 	/* Is the embedded protocol header present? */
 	/* TODO: we don't support fragmentation at the moment anyways */
@@ -1411,10 +1425,10 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 
 	ip_vs_fill_iphdr(AF_INET6, cih, &ciph);
 	/* The embedded headers contain source and dest in reverse order */
-	cp = pp->conn_in_get(AF_INET6, skb, pp, &ciph, offset, 1);
+	cp = pp->conn_in_get(AF_INET6, skb, &ciph, offset, 1);
 	if (!cp) {
 		/* The packet could also belong to a local client */
-		cp = pp->conn_out_get(AF_INET6, skb, pp, &ciph, offset, 1);
+		cp = pp->conn_out_get(AF_INET6, skb, &ciph, offset, 1);
 		if (cp) {
 			ipv6_addr_copy(&snet.in6, &iph->saddr);
 			return handle_response_icmp(AF_INET6, skb, &snet,
@@ -1457,8 +1471,10 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 static unsigned int
 ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 {
+	struct net *net = NULL;
 	struct ip_vs_iphdr iph;
 	struct ip_vs_protocol *pp;
+	struct ip_vs_proto_data *pd;
 	struct ip_vs_conn *cp;
 	int ret, restart, pkts;
 
@@ -1514,20 +1530,21 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 			ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 		}
 
+	net = skb_net(skb);
 	/* Protocol supported? */
-	pp = ip_vs_proto_get(iph.protocol);
-	if (unlikely(!pp))
+	pd = ip_vs_proto_data_get(net, iph.protocol);
+	if (unlikely(!pd))
 		return NF_ACCEPT;
-
+	pp = pd->pp;
 	/*
 	 * Check if the packet belongs to an existing connection entry
 	 */
-	cp = pp->conn_in_get(af, skb, pp, &iph, iph.len, 0);
+	cp = pp->conn_in_get(af, skb, &iph, iph.len, 0);
 
 	if (unlikely(!cp)) {
 		int v;
 
-		if (!pp->conn_schedule(af, skb, pp, &v, &cp))
+		if (!pp->conn_schedule(af, skb, pd, &v, &cp))
 			return v;
 	}
 
@@ -1555,7 +1572,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb, int af)
 	}
 
 	ip_vs_in_stats(cp, skb);
-	restart = ip_vs_set_state(cp, IP_VS_DIR_INPUT, skb, pp);
+	restart = ip_vs_set_state(cp, IP_VS_DIR_INPUT, skb, pd);
 	if (cp->packet_xmit)
 		ret = cp->packet_xmit(skb, cp, pp);
 		/* do not touch skb anymore */

@@ -55,7 +55,7 @@ ah_esp_conn_fill_param_proto(int af, const struct ip_vs_iphdr *iph,
 }
 
 static struct ip_vs_conn *
-ah_esp_conn_in_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
+ah_esp_conn_in_get(int af, const struct sk_buff *skb,
 		   const struct ip_vs_iphdr *iph, unsigned int proto_off,
 		   int inverse)
 {
@@ -72,7 +72,7 @@ ah_esp_conn_in_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
 		IP_VS_DBG_BUF(12, "Unknown ISAKMP entry for outin packet "
 			      "%s%s %s->%s\n",
 			      inverse ? "ICMP+" : "",
-			      pp->name,
+			      ip_vs_proto_get(iph->protocol)->name,
 			      IP_VS_DBG_ADDR(af, &iph->saddr),
 			      IP_VS_DBG_ADDR(af, &iph->daddr));
 	}
@@ -83,7 +83,6 @@ ah_esp_conn_in_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
 
 static struct ip_vs_conn *
 ah_esp_conn_out_get(int af, const struct sk_buff *skb,
-		    struct ip_vs_protocol *pp,
 		    const struct ip_vs_iphdr *iph,
 		    unsigned int proto_off,
 		    int inverse)
@@ -97,7 +96,7 @@ ah_esp_conn_out_get(int af, const struct sk_buff *skb,
 		IP_VS_DBG_BUF(12, "Unknown ISAKMP entry for inout packet "
 			      "%s%s %s->%s\n",
 			      inverse ? "ICMP+" : "",
-			      pp->name,
+			      ip_vs_proto_get(iph->protocol)->name,
 			      IP_VS_DBG_ADDR(af, &iph->saddr),
 			      IP_VS_DBG_ADDR(af, &iph->daddr));
 	}
@@ -107,7 +106,7 @@ ah_esp_conn_out_get(int af, const struct sk_buff *skb,
 
 
 static int
-ah_esp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
+ah_esp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 		     int *verdict, struct ip_vs_conn **cpp)
 {
 	/*
@@ -137,7 +136,6 @@ struct ip_vs_protocol ip_vs_protocol_ah = {
 	.app_conn_bind =	NULL,
 	.debug_packet =		ip_vs_tcpudp_debug_packet,
 	.timeout_change =	NULL,		/* ISAKMP */
-	.set_state_timeout =	NULL,
 };
 #endif
 

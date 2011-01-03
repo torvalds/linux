@@ -329,7 +329,6 @@ ip_vs_conn_fill_param_proto(int af, const struct sk_buff *skb,
 
 struct ip_vs_conn *
 ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
-			struct ip_vs_protocol *pp,
 			const struct ip_vs_iphdr *iph,
 			unsigned int proto_off, int inverse)
 {
@@ -428,7 +427,6 @@ struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p)
 
 struct ip_vs_conn *
 ip_vs_conn_out_get_proto(int af, const struct sk_buff *skb,
-			 struct ip_vs_protocol *pp,
 			 const struct ip_vs_iphdr *iph,
 			 unsigned int proto_off, int inverse)
 {

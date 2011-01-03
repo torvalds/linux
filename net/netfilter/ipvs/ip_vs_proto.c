@@ -152,9 +152,8 @@ EXPORT_SYMBOL(ip_vs_proto_get);
  *	get ip_vs_protocol object data by netns and proto
  */
 struct ip_vs_proto_data *
-ip_vs_proto_data_get(struct net *net, unsigned short proto)
+__ipvs_proto_data_get(struct netns_ipvs *ipvs, unsigned short proto)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_proto_data *pd;
 	unsigned hash = IP_VS_PROTO_HASH(proto);
 
@@ -165,20 +164,28 @@ ip_vs_proto_data_get(struct net *net, unsigned short proto)
 
 	return NULL;
 }
+
+struct ip_vs_proto_data *
+ip_vs_proto_data_get(struct net *net, unsigned short proto)
+{
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
+	return __ipvs_proto_data_get(ipvs, proto);
+}
 EXPORT_SYMBOL(ip_vs_proto_data_get);
 
 /*
  *	Propagate event for state change to all protocols
  */
-void ip_vs_protocol_timeout_change(int flags)
+void ip_vs_protocol_timeout_change(struct netns_ipvs *ipvs, int flags)
 {
-	struct ip_vs_protocol *pp;
+	struct ip_vs_proto_data *pd;
 	int i;
 
 	for (i = 0; i < IP_VS_PROTO_TAB_SIZE; i++) {
-		for (pp = ip_vs_proto_table[i]; pp; pp = pp->next) {
-			if (pp->timeout_change)
-				pp->timeout_change(pp, flags);
+		for (pd = ipvs->proto_data_table[i]; pd; pd = pd->next) {
+			if (pd->pp->timeout_change)
+				pd->pp->timeout_change(pd, flags);
 		}
 	}
 }

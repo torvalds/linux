@@ -372,13 +372,12 @@ struct ip_vs_protocol {
 	void (*exit_netns)(struct net *net, struct ip_vs_proto_data *pd);
 
 	int (*conn_schedule)(int af, struct sk_buff *skb,
-			     struct ip_vs_protocol *pp,
+			     struct ip_vs_proto_data *pd,
 			     int *verdict, struct ip_vs_conn **cpp);
 
 	struct ip_vs_conn *
 	(*conn_in_get)(int af,
 		       const struct sk_buff *skb,
-		       struct ip_vs_protocol *pp,
 		       const struct ip_vs_iphdr *iph,
 		       unsigned int proto_off,
 		       int inverse);
@@ -386,7 +385,6 @@ struct ip_vs_protocol {
 	struct ip_vs_conn *
 	(*conn_out_get)(int af,
 			const struct sk_buff *skb,
-			struct ip_vs_protocol *pp,
 			const struct ip_vs_iphdr *iph,
 			unsigned int proto_off,
 			int inverse);
@@ -404,7 +402,7 @@ struct ip_vs_protocol {
 
 	int (*state_transition)(struct ip_vs_conn *cp, int direction,
 				const struct sk_buff *skb,
-				struct ip_vs_protocol *pp);
+				struct ip_vs_proto_data *pd);
 
 	int (*register_app)(struct ip_vs_app *inc);
 
@@ -417,9 +415,7 @@ struct ip_vs_protocol {
 			     int offset,
 			     const char *msg);
 
-	void (*timeout_change)(struct ip_vs_protocol *pp, int flags);
-
-	int (*set_state_timeout)(struct ip_vs_protocol *pp, char *sname, int to);
+	void (*timeout_change)(struct ip_vs_proto_data *pd, int flags);
 };
 
 /*
@@ -778,7 +774,6 @@ struct ip_vs_conn *ip_vs_conn_in_get(const struct ip_vs_conn_param *p);
 struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p);
 
 struct ip_vs_conn * ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
-					    struct ip_vs_protocol *pp,
 					    const struct ip_vs_iphdr *iph,
 					    unsigned int proto_off,
 					    int inverse);
@@ -786,7 +781,6 @@ struct ip_vs_conn * ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
 struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p);
 
 struct ip_vs_conn * ip_vs_conn_out_get_proto(int af, const struct sk_buff *skb,
-					     struct ip_vs_protocol *pp,
 					     const struct ip_vs_iphdr *iph,
 					     unsigned int proto_off,
 					     int inverse);
@@ -917,7 +911,7 @@ static inline void ip_vs_pe_put(const struct ip_vs_pe *pe)
  */
 extern int ip_vs_protocol_init(void);
 extern void ip_vs_protocol_cleanup(void);
-extern void ip_vs_protocol_timeout_change(int flags);
+extern void ip_vs_protocol_timeout_change(struct netns_ipvs *ipvs, int flags);
 extern int *ip_vs_create_timeout_table(int *table, int size);
 extern int
 ip_vs_set_state_timeout(int *table, int num, const char *const *names,
@@ -947,9 +941,9 @@ extern struct ip_vs_scheduler *ip_vs_scheduler_get(const char *sched_name);
 extern void ip_vs_scheduler_put(struct ip_vs_scheduler *scheduler);
 extern struct ip_vs_conn *
 ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
-	       struct ip_vs_protocol *pp, int *ignored);
+	       struct ip_vs_proto_data *pd, int *ignored);
 extern int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
-			struct ip_vs_protocol *pp);
+			struct ip_vs_proto_data *pd);
 
 
 /*

@@ -29,7 +29,7 @@
 #include <net/ip6_checksum.h>
 
 static int
-udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
+udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 		  int *verdict, struct ip_vs_conn **cpp)
 {
 	struct net *net;
@@ -64,10 +64,10 @@ udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 * Let the virtual server select a real server for the
 		 * incoming connection, and create a connection entry.
 		 */
-		*cpp = ip_vs_schedule(svc, skb, pp, &ignored);
+		*cpp = ip_vs_schedule(svc, skb, pd, &ignored);
 		if (!*cpp && ignored <= 0) {
 			if (!ignored)
-				*verdict = ip_vs_leave(svc, skb, pp);
+				*verdict = ip_vs_leave(svc, skb, pd);
 			else {
 				ip_vs_service_put(svc);
 				*verdict = NF_DROP;
@@ -457,11 +457,8 @@ static const char * udp_state_name(int state)
 static int
 udp_state_transition(struct ip_vs_conn *cp, int direction,
 		     const struct sk_buff *skb,
-		     struct ip_vs_protocol *pp)
+		     struct ip_vs_proto_data *pd)
 {
-	struct ip_vs_proto_data *pd;   /* Temp fix, pp will be replaced by pd */
-
-	pd = ip_vs_proto_data_get(&init_net, IPPROTO_UDP);
 	if (unlikely(!pd)) {
 		pr_err("UDP no ns data\n");
 		return 0;

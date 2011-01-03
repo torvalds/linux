@@ -9,7 +9,7 @@
 #include <net/ip_vs.h>
 
 static int
-sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
+sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 		   int *verdict, struct ip_vs_conn **cpp)
 {
 	struct net *net;
@@ -47,10 +47,10 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 * Let the virtual server select a real server for the
 		 * incoming connection, and create a connection entry.
 		 */
-		*cpp = ip_vs_schedule(svc, skb, pp, &ignored);
+		*cpp = ip_vs_schedule(svc, skb, pd, &ignored);
 		if (!*cpp && ignored <= 0) {
 			if (!ignored)
-				*verdict = ip_vs_leave(svc, skb, pp);
+				*verdict = ip_vs_leave(svc, skb, pd);
 			else {
 				ip_vs_service_put(svc);
 				*verdict = NF_DROP;
@@ -907,14 +907,13 @@ static const char *sctp_state_name(int state)
 }
 
 static inline int
-set_sctp_state(struct ip_vs_protocol *pp, struct ip_vs_conn *cp,
+set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 		int direction, const struct sk_buff *skb)
 {
 	sctp_chunkhdr_t _sctpch, *sch;
 	unsigned char chunk_type;
 	int event, next_state;
 	int ihl;
-	struct ip_vs_proto_data *pd;
 
 #ifdef CONFIG_IP_VS_IPV6
 	ihl = cp->af == AF_INET ? ip_hdrlen(skb) : sizeof(struct ipv6hdr);
@@ -966,7 +965,7 @@ set_sctp_state(struct ip_vs_protocol *pp, struct ip_vs_conn *cp,
 
 		IP_VS_DBG_BUF(8, "%s %s  %s:%d->"
 				"%s:%d state: %s->%s conn->refcnt:%d\n",
-				pp->name,
+				pd->pp->name,
 				((direction == IP_VS_DIR_OUTPUT) ?
 				 "output " : "input "),
 				IP_VS_DBG_ADDR(cp->af, &cp->daddr),
@@ -990,7 +989,6 @@ set_sctp_state(struct ip_vs_protocol *pp, struct ip_vs_conn *cp,
 			}
 		}
 	}
-	pd = ip_vs_proto_data_get(&init_net, pp->protocol); /* tmp fix */
 	if (likely(pd))
 		cp->timeout = pd->timeout_table[cp->state = next_state];
 	else	/* What to do ? */
@@ -1001,12 +999,12 @@ set_sctp_state(struct ip_vs_protocol *pp, struct ip_vs_conn *cp,
 
 static int
 sctp_state_transition(struct ip_vs_conn *cp, int direction,
-		const struct sk_buff *skb, struct ip_vs_protocol *pp)
+		const struct sk_buff *skb, struct ip_vs_proto_data *pd)
 {
 	int ret = 0;
 
 	spin_lock(&cp->lock);
-	ret = set_sctp_state(pp, cp, direction, skb);
+	ret = set_sctp_state(pd, cp, direction, skb);
 	spin_unlock(&cp->lock);
 
 	return ret;

@@ -38,6 +38,7 @@
 #include <linux/mutex.h>
 
 #include <net/net_namespace.h>
+#include <linux/nsproxy.h>
 #include <net/ip.h>
 #ifdef CONFIG_IP_VS_IPV6
 #include <net/ipv6.h>
@@ -125,7 +126,7 @@ static int __ip_vs_addr_is_local_v6(const struct in6_addr *addr)
  *	update_defense_level is called from keventd and from sysctl,
  *	so it needs to protect itself from softirqs
  */
-static void update_defense_level(void)
+static void update_defense_level(struct netns_ipvs *ipvs)
 {
 	struct sysinfo i;
 	static int old_secure_tcp = 0;
@@ -239,7 +240,8 @@ static void update_defense_level(void)
 	}
 	old_secure_tcp = sysctl_ip_vs_secure_tcp;
 	if (to_change >= 0)
-		ip_vs_protocol_timeout_change(sysctl_ip_vs_secure_tcp>1);
+		ip_vs_protocol_timeout_change(ipvs,
+					     sysctl_ip_vs_secure_tcp > 1);
 	spin_unlock(&ip_vs_securetcp_lock);
 
 	local_bh_enable();
@@ -255,7 +257,10 @@ static DECLARE_DELAYED_WORK(defense_work, defense_work_handler);
 
 static void defense_work_handler(struct work_struct *work)
 {
-	update_defense_level();
+	struct net *net = &init_net;
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
+	update_defense_level(ipvs);
 	if (atomic_read(&ip_vs_dropentry))
 		ip_vs_random_dropentry();
 
@@ -1502,6 +1507,7 @@ static int
 proc_do_defense_mode(ctl_table *table, int write,
 		     void __user *buffer, size_t *lenp, loff_t *ppos)
 {
+	struct net *net = current->nsproxy->net_ns;
 	int *valp = table->data;
 	int val = *valp;
 	int rc;
@@ -1512,7 +1518,7 @@ proc_do_defense_mode(ctl_table *table, int write,
 			/* Restore the correct value */
 			*valp = val;
 		} else {
-			update_defense_level();
+			update_defense_level(net_ipvs(net));
 		}
 	}
 	return rc;
@@ -2033,8 +2039,10 @@ static const struct file_operations ip_vs_stats_fops = {
 /*
  *	Set timeout values for tcp tcpfin udp in the timeout_table.
  */
-static int ip_vs_set_timeout(struct ip_vs_timeout_user *u)
+static int ip_vs_set_timeout(struct net *net, struct ip_vs_timeout_user *u)
 {
+	struct ip_vs_proto_data *pd;
+
 	IP_VS_DBG(2, "Setting timeout tcp:%d tcpfin:%d udp:%d\n",
 		  u->tcp_timeout,
 		  u->tcp_fin_timeout,
@@ -2042,19 +2050,22 @@ static int ip_vs_set_timeout(struct ip_vs_timeout_user *u)
 
 #ifdef CONFIG_IP_VS_PROTO_TCP
 	if (u->tcp_timeout) {
-		ip_vs_protocol_tcp.timeout_table[IP_VS_TCP_S_ESTABLISHED]
+		pd = ip_vs_proto_data_get(net, IPPROTO_TCP);
+		pd->timeout_table[IP_VS_TCP_S_ESTABLISHED]
 			= u->tcp_timeout * HZ;
 	}
 
 	if (u->tcp_fin_timeout) {
-		ip_vs_protocol_tcp.timeout_table[IP_VS_TCP_S_FIN_WAIT]
+		pd = ip_vs_proto_data_get(net, IPPROTO_TCP);
+		pd->timeout_table[IP_VS_TCP_S_FIN_WAIT]
 			= u->tcp_fin_timeout * HZ;
 	}
 #endif
 
 #ifdef CONFIG_IP_VS_PROTO_UDP
 	if (u->udp_timeout) {
-		ip_vs_protocol_udp.timeout_table[IP_VS_UDP_S_NORMAL]
+		pd = ip_vs_proto_data_get(net, IPPROTO_UDP);
+		pd->timeout_table[IP_VS_UDP_S_NORMAL]
 			= u->udp_timeout * HZ;
 	}
 #endif
@@ -2158,7 +2169,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 		goto out_unlock;
 	} else if (cmd == IP_VS_SO_SET_TIMEOUT) {
 		/* Set timeout values for (tcp tcpfin udp) */
-		ret = ip_vs_set_timeout((struct ip_vs_timeout_user *)arg);
+		ret = ip_vs_set_timeout(net, (struct ip_vs_timeout_user *)arg);
 		goto out_unlock;
 	} else if (cmd == IP_VS_SO_SET_STARTDAEMON) {
 		struct ip_vs_daemon_user *dm = (struct ip_vs_daemon_user *)arg;
@@ -2370,17 +2381,19 @@ __ip_vs_get_dest_entries(struct net *net, const struct ip_vs_get_dests *get,
 }
 
 static inline void
-__ip_vs_get_timeouts(struct ip_vs_timeout_user *u)
+__ip_vs_get_timeouts(struct net *net, struct ip_vs_timeout_user *u)
 {
+	struct ip_vs_proto_data *pd;
+
 #ifdef CONFIG_IP_VS_PROTO_TCP
-	u->tcp_timeout =
-		ip_vs_protocol_tcp.timeout_table[IP_VS_TCP_S_ESTABLISHED] / HZ;
-	u->tcp_fin_timeout =
-		ip_vs_protocol_tcp.timeout_table[IP_VS_TCP_S_FIN_WAIT] / HZ;
+	pd = ip_vs_proto_data_get(net, IPPROTO_TCP);
+	u->tcp_timeout = pd->timeout_table[IP_VS_TCP_S_ESTABLISHED] / HZ;
+	u->tcp_fin_timeout = pd->timeout_table[IP_VS_TCP_S_FIN_WAIT] / HZ;
 #endif
 #ifdef CONFIG_IP_VS_PROTO_UDP
+	pd = ip_vs_proto_data_get(net, IPPROTO_UDP);
 	u->udp_timeout =
-		ip_vs_protocol_udp.timeout_table[IP_VS_UDP_S_NORMAL] / HZ;
+			pd->timeout_table[IP_VS_UDP_S_NORMAL] / HZ;
 #endif
 }
 
@@ -2521,7 +2534,7 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	{
 		struct ip_vs_timeout_user t;
 
-		__ip_vs_get_timeouts(&t);
+		__ip_vs_get_timeouts(net, &t);
 		if (copy_to_user(user, &t, sizeof(t)) != 0)
 			ret = -EFAULT;
 	}
@@ -3092,11 +3105,11 @@ static int ip_vs_genl_del_daemon(struct nlattr **attrs)
 	return stop_sync_thread(nla_get_u32(attrs[IPVS_DAEMON_ATTR_STATE]));
 }
 
-static int ip_vs_genl_set_config(struct nlattr **attrs)
+static int ip_vs_genl_set_config(struct net *net, struct nlattr **attrs)
 {
 	struct ip_vs_timeout_user t;
 
-	__ip_vs_get_timeouts(&t);
+	__ip_vs_get_timeouts(net, &t);
 
 	if (attrs[IPVS_CMD_ATTR_TIMEOUT_TCP])
 		t.tcp_timeout = nla_get_u32(attrs[IPVS_CMD_ATTR_TIMEOUT_TCP]);
@@ -3108,7 +3121,7 @@ static int ip_vs_genl_set_config(struct nlattr **attrs)
 	if (attrs[IPVS_CMD_ATTR_TIMEOUT_UDP])
 		t.udp_timeout = nla_get_u32(attrs[IPVS_CMD_ATTR_TIMEOUT_UDP]);
 
-	return ip_vs_set_timeout(&t);
+	return ip_vs_set_timeout(net, &t);
 }
 
 static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
@@ -3129,7 +3142,7 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 		ret = ip_vs_flush(net);
 		goto out;
 	} else if (cmd == IPVS_CMD_SET_CONFIG) {
-		ret = ip_vs_genl_set_config(info->attrs);
+		ret = ip_vs_genl_set_config(net, info->attrs);
 		goto out;
 	} else if (cmd == IPVS_CMD_NEW_DAEMON ||
 		   cmd == IPVS_CMD_DEL_DAEMON) {
@@ -3281,7 +3294,7 @@ static int ip_vs_genl_get_cmd(struct sk_buff *skb, struct genl_info *info)
 	{
 		struct ip_vs_timeout_user t;
 
-		__ip_vs_get_timeouts(&t);
+		__ip_vs_get_timeouts(net, &t);
 #ifdef CONFIG_IP_VS_PROTO_TCP
 		NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP, t.tcp_timeout);
 		NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP_FIN,

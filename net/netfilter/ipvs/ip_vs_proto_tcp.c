@@ -32,7 +32,7 @@
 #include <net/ip_vs.h>
 
 static int
-tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
+tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 		  int *verdict, struct ip_vs_conn **cpp)
 {
 	struct net *net;
@@ -68,10 +68,10 @@ tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 * Let the virtual server select a real server for the
 		 * incoming connection, and create a connection entry.
 		 */
-		*cpp = ip_vs_schedule(svc, skb, pp, &ignored);
+		*cpp = ip_vs_schedule(svc, skb, pd, &ignored);
 		if (!*cpp && ignored <= 0) {
 			if (!ignored)
-				*verdict = ip_vs_leave(svc, skb, pp);
+				*verdict = ip_vs_leave(svc, skb, pd);
 			else {
 				ip_vs_service_put(svc);
 				*verdict = NF_DROP;
@@ -448,10 +448,7 @@ static struct tcp_states_t tcp_states_dos [] = {
 /*rst*/ {{sCL, sCL, sCL, sSR, sCL, sCL, sCL, sCL, sLA, sLI, sCL }},
 };
 
-static struct tcp_states_t *tcp_state_table = tcp_states;
-
-
-static void tcp_timeout_change(struct ip_vs_protocol *pp, int flags)
+static void tcp_timeout_change(struct ip_vs_proto_data *pd, int flags)
 {
 	int on = (flags & 1);		/* secure_tcp */
 
@@ -461,7 +458,7 @@ static void tcp_timeout_change(struct ip_vs_protocol *pp, int flags)
 	** for most if not for all of the applications. Something
 	** like "capabilities" (flags) for each object.
 	*/
-	tcp_state_table = (on? tcp_states_dos : tcp_states);
+	pd->tcp_state_table = (on ? tcp_states_dos : tcp_states);
 }
 
 static inline int tcp_state_idx(struct tcphdr *th)
@@ -478,13 +475,12 @@ static inline int tcp_state_idx(struct tcphdr *th)
 }
 
 static inline void
-set_tcp_state(struct ip_vs_protocol *pp, struct ip_vs_conn *cp,
+set_tcp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 	      int direction, struct tcphdr *th)
 {
 	int state_idx;
 	int new_state = IP_VS_TCP_S_CLOSE;
 	int state_off = tcp_state_off[direction];
-	struct ip_vs_proto_data *pd;  /* Temp fix */
 
 	/*
 	 *    Update state offset to INPUT_ONLY if necessary
@@ -502,7 +498,8 @@ set_tcp_state(struct ip_vs_protocol *pp, struct ip_vs_conn *cp,
 		goto tcp_state_out;
 	}
 
-	new_state = tcp_state_table[state_off+state_idx].next_state[cp->state];
+	new_state =
+		pd->tcp_state_table[state_off+state_idx].next_state[cp->state];
 
   tcp_state_out:
 	if (new_state != cp->state) {
@@ -510,7 +507,7 @@ set_tcp_state(struct ip_vs_protocol *pp, struct ip_vs_conn *cp,
 
 		IP_VS_DBG_BUF(8, "%s %s [%c%c%c%c] %s:%d->"
 			      "%s:%d state: %s->%s conn->refcnt:%d\n",
-			      pp->name,
+			      pd->pp->name,
 			      ((state_off == TCP_DIR_OUTPUT) ?
 			       "output " : "input "),
 			      th->syn ? 'S' : '.',
@@ -540,7 +537,6 @@ set_tcp_state(struct ip_vs_protocol *pp, struct ip_vs_conn *cp,
 		}
 	}
 
-	pd = ip_vs_proto_data_get(&init_net, pp->protocol);
 	if (likely(pd))
 		cp->timeout = pd->timeout_table[cp->state = new_state];
 	else	/* What to do ? */
@@ -553,7 +549,7 @@ set_tcp_state(struct ip_vs_protocol *pp, struct ip_vs_conn *cp,
 static int
 tcp_state_transition(struct ip_vs_conn *cp, int direction,
 		     const struct sk_buff *skb,
-		     struct ip_vs_protocol *pp)
+		     struct ip_vs_proto_data *pd)
 {
 	struct tcphdr _tcph, *th;
 
@@ -568,7 +564,7 @@ tcp_state_transition(struct ip_vs_conn *cp, int direction,
 		return 0;
 
 	spin_lock(&cp->lock);
-	set_tcp_state(pp, cp, direction, th);
+	set_tcp_state(pd, cp, direction, th);
 	spin_unlock(&cp->lock);
 
 	return 1;
@@ -691,6 +687,7 @@ static void __ip_vs_tcp_init(struct net *net, struct ip_vs_proto_data *pd)
 	spin_lock_init(&ipvs->tcp_app_lock);
 	pd->timeout_table = ip_vs_create_timeout_table((int *)tcp_timeouts,
 							sizeof(tcp_timeouts));
+	pd->tcp_state_table =  tcp_states;
 }
 
 static void __ip_vs_tcp_exit(struct net *net, struct ip_vs_proto_data *pd)
