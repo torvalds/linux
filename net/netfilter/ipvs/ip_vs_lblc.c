@@ -543,23 +543,54 @@ static struct ip_vs_scheduler ip_vs_lblc_scheduler =
 	.schedule =		ip_vs_lblc_schedule,
 };
 
+/*
+ *  per netns init.
+ */
+static int __net_init __ip_vs_lblc_init(struct net *net)
+{
+	if (!net_eq(net, &init_net))	/* netns not enabled yet */
+		return -EPERM;
+
+	sysctl_header = register_net_sysctl_table(net, net_vs_ctl_path,
+						  vs_vars_table);
+	if (!sysctl_header)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void __net_exit __ip_vs_lblc_exit(struct net *net)
+{
+	if (!net_eq(net, &init_net))	/* netns not enabled yet */
+		return;
+
+	unregister_net_sysctl_table(sysctl_header);
+}
+
+static struct pernet_operations ip_vs_lblc_ops = {
+	.init = __ip_vs_lblc_init,
+	.exit = __ip_vs_lblc_exit,
+};
 
 static int __init ip_vs_lblc_init(void)
 {
 	int ret;
 
-	sysctl_header = register_sysctl_paths(net_vs_ctl_path, vs_vars_table);
+	ret = register_pernet_subsys(&ip_vs_lblc_ops);
+	if (ret)
+		return ret;
+
 	ret = register_ip_vs_scheduler(&ip_vs_lblc_scheduler);
 	if (ret)
-		unregister_sysctl_table(sysctl_header);
+		unregister_pernet_subsys(&ip_vs_lblc_ops);
 	return ret;
 }
 
 
 static void __exit ip_vs_lblc_cleanup(void)
 {
-	unregister_sysctl_table(sysctl_header);
 	unregister_ip_vs_scheduler(&ip_vs_lblc_scheduler);
+	unregister_pernet_subsys(&ip_vs_lblc_ops);
 }
 
 

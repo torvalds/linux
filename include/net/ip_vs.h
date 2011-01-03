@@ -28,6 +28,15 @@
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 #include <net/netfilter/nf_conntrack.h>
 #endif
+#include <net/net_namespace.h>		/* Netw namespace */
+
+/*
+ * Generic access of ipvs struct
+ */
+static inline struct netns_ipvs *net_ipvs(struct net* net)
+{
+	return net->ipvs;
+}
 
 /* Connections' size value needed by ip_vs_ctl.c */
 extern int ip_vs_conn_tab_size;
@@ -922,6 +931,8 @@ extern char ip_vs_backup_mcast_ifn[IP_VS_IFNAME_MAXLEN];
 extern int start_sync_thread(int state, char *mcast_ifn, __u8 syncid);
 extern int stop_sync_thread(int state);
 extern void ip_vs_sync_conn(struct ip_vs_conn *cp);
+extern int ip_vs_sync_init(void);
+extern void ip_vs_sync_cleanup(void);
 
 
 /*

@@ -399,14 +399,16 @@ static struct ip_vs_app ip_vs_ftp = {
 	.pkt_in =	ip_vs_ftp_in,
 };
 
-
 /*
- *	ip_vs_ftp initialization
+ *	per netns ip_vs_ftp initialization
  */
-static int __init ip_vs_ftp_init(void)
+static int __net_init __ip_vs_ftp_init(struct net *net)
 {
 	int i, ret;
 	struct ip_vs_app *app = &ip_vs_ftp;
+
+	if (!net_eq(net, &init_net))	/* netns not enabled yet */
+		return -EPERM;
 
 	ret = register_ip_vs_app(app);
 	if (ret)
@@ -427,14 +429,38 @@ static int __init ip_vs_ftp_init(void)
 
 	return ret;
 }
+/*
+ *	netns exit
+ */
+static void __ip_vs_ftp_exit(struct net *net)
+{
+	struct ip_vs_app *app = &ip_vs_ftp;
 
+	if (!net_eq(net, &init_net))	/* netns not enabled yet */
+		return;
+
+	unregister_ip_vs_app(app);
+}
+
+static struct pernet_operations ip_vs_ftp_ops = {
+	.init = __ip_vs_ftp_init,
+	.exit = __ip_vs_ftp_exit,
+};
+
+int __init ip_vs_ftp_init(void)
+{
+	int rv;
+
+	rv = register_pernet_subsys(&ip_vs_ftp_ops);
+	return rv;
+}
 
 /*
  *	ip_vs_ftp finish.
  */
 static void __exit ip_vs_ftp_exit(void)
 {
-	unregister_ip_vs_app(&ip_vs_ftp);
+	unregister_pernet_subsys(&ip_vs_ftp_ops);
 }
 
 

@@ -569,15 +569,35 @@ static const struct file_operations ip_vs_app_fops = {
 };
 #endif
 
+static int __net_init __ip_vs_app_init(struct net *net)
+{
+	if (!net_eq(net, &init_net))	/* netns not enabled yet */
+		return -EPERM;
+
+	proc_net_fops_create(net, "ip_vs_app", 0, &ip_vs_app_fops);
+	return 0;
+}
+
+static void __net_exit __ip_vs_app_cleanup(struct net *net)
+{
+	proc_net_remove(net, "ip_vs_app");
+}
+
+static struct pernet_operations ip_vs_app_ops = {
+	.init = __ip_vs_app_init,
+	.exit = __ip_vs_app_cleanup,
+};
+
 int __init ip_vs_app_init(void)
 {
-	/* we will replace it with proc_net_ipvs_create() soon */
-	proc_net_fops_create(&init_net, "ip_vs_app", 0, &ip_vs_app_fops);
-	return 0;
+	int rv;
+
+	rv = register_pernet_subsys(&ip_vs_app_ops);
+	return rv;
 }
 
 
 void ip_vs_app_cleanup(void)
 {
-	proc_net_remove(&init_net, "ip_vs_app");
+	unregister_pernet_subsys(&ip_vs_app_ops);
 }

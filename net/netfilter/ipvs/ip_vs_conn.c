@@ -1201,11 +1201,36 @@ static void ip_vs_conn_flush(void)
 		goto flush_again;
 	}
 }
+/*
+ * per netns init and exit
+ */
+int __net_init __ip_vs_conn_init(struct net *net)
+{
+	if (!net_eq(net, &init_net))	/* netns not enabled yet */
+		return -EPERM;
 
+	proc_net_fops_create(net, "ip_vs_conn", 0, &ip_vs_conn_fops);
+	proc_net_fops_create(net, "ip_vs_conn_sync", 0, &ip_vs_conn_sync_fops);
+	return 0;
+}
+
+static void __net_exit __ip_vs_conn_cleanup(struct net *net)
+{
+	if (!net_eq(net, &init_net))	/* netns not enabled yet */
+		return;
+
+	proc_net_remove(net, "ip_vs_conn");
+	proc_net_remove(net, "ip_vs_conn_sync");
+}
+static struct pernet_operations ipvs_conn_ops = {
+	.init = __ip_vs_conn_init,
+	.exit = __ip_vs_conn_cleanup,
+};
 
 int __init ip_vs_conn_init(void)
 {
 	int idx;
+	int retc;
 
 	/* Compute size and mask */
 	ip_vs_conn_tab_size = 1 << ip_vs_conn_tab_bits;
@@ -1243,24 +1268,21 @@ int __init ip_vs_conn_init(void)
 		rwlock_init(&__ip_vs_conntbl_lock_array[idx].l);
 	}
 
-	proc_net_fops_create(&init_net, "ip_vs_conn", 0, &ip_vs_conn_fops);
-	proc_net_fops_create(&init_net, "ip_vs_conn_sync", 0, &ip_vs_conn_sync_fops);
+	retc = register_pernet_subsys(&ipvs_conn_ops);
 
 	/* calculate the random value for connection hash */
 	get_random_bytes(&ip_vs_conn_rnd, sizeof(ip_vs_conn_rnd));
 
-	return 0;
+	return retc;
 }
-
 
 void ip_vs_conn_cleanup(void)
 {
+	unregister_pernet_subsys(&ipvs_conn_ops);
 	/* flush all the connection entries first */
 	ip_vs_conn_flush();
 
 	/* Release the empty cache */
 	kmem_cache_destroy(ip_vs_conn_cachep);
-	proc_net_remove(&init_net, "ip_vs_conn");
-	proc_net_remove(&init_net, "ip_vs_conn_sync");
 	vfree(ip_vs_conn_tab);
 }

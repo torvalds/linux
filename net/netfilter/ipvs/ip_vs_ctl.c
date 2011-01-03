@@ -3406,6 +3406,42 @@ static void ip_vs_genl_unregister(void)
 
 /* End of Generic Netlink interface definitions */
 
+/*
+ * per netns intit/exit func.
+ */
+int __net_init __ip_vs_control_init(struct net *net)
+{
+	if (!net_eq(net, &init_net))	/* netns not enabled yet */
+		return -EPERM;
+
+	proc_net_fops_create(net, "ip_vs", 0, &ip_vs_info_fops);
+	proc_net_fops_create(net, "ip_vs_stats", 0, &ip_vs_stats_fops);
+	sysctl_header = register_net_sysctl_table(net, net_vs_ctl_path,
+						  vs_vars);
+	if (sysctl_header == NULL)
+		goto err_reg;
+	ip_vs_new_estimator(&ip_vs_stats);
+	return 0;
+
+err_reg:
+	return -ENOMEM;
+}
+
+static void __net_exit __ip_vs_control_cleanup(struct net *net)
+{
+	if (!net_eq(net, &init_net))	/* netns not enabled yet */
+		return;
+
+	ip_vs_kill_estimator(&ip_vs_stats);
+	unregister_net_sysctl_table(sysctl_header);
+	proc_net_remove(net, "ip_vs_stats");
+	proc_net_remove(net, "ip_vs");
+}
+
+static struct pernet_operations ipvs_control_ops = {
+	.init = __ip_vs_control_init,
+	.exit = __ip_vs_control_cleanup,
+};
 
 int __init ip_vs_control_init(void)
 {
@@ -3437,12 +3473,9 @@ int __init ip_vs_control_init(void)
 		return ret;
 	}
 
-	proc_net_fops_create(&init_net, "ip_vs", 0, &ip_vs_info_fops);
-	proc_net_fops_create(&init_net, "ip_vs_stats",0, &ip_vs_stats_fops);
-
-	sysctl_header = register_sysctl_paths(net_vs_ctl_path, vs_vars);
-
-	ip_vs_new_estimator(&ip_vs_stats);
+	ret = register_pernet_subsys(&ipvs_control_ops);
+	if (ret)
+		return ret;
 
 	/* Hook the defense timer */
 	schedule_delayed_work(&defense_work, DEFENSE_TIMER_PERIOD);
@@ -3459,9 +3492,7 @@ void ip_vs_control_cleanup(void)
 	cancel_delayed_work_sync(&defense_work);
 	cancel_work_sync(&defense_work.work);
 	ip_vs_kill_estimator(&ip_vs_stats);
-	unregister_sysctl_table(sysctl_header);
-	proc_net_remove(&init_net, "ip_vs_stats");
-	proc_net_remove(&init_net, "ip_vs");
+	unregister_pernet_subsys(&ipvs_control_ops);
 	ip_vs_genl_unregister();
 	nf_unregister_sockopt(&ip_vs_sockopts);
 	LeaveFunction(2);

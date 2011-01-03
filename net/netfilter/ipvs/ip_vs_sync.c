@@ -1639,3 +1639,30 @@ int stop_sync_thread(int state)
 
 	return 0;
 }
+
+/*
+ * Initialize data struct for each netns
+ */
+static int __net_init __ip_vs_sync_init(struct net *net)
+{
+	return 0;
+}
+
+static void __ip_vs_sync_cleanup(struct net *net)
+{
+}
+static struct pernet_operations ipvs_sync_ops = {
+	.init = __ip_vs_sync_init,
+	.exit = __ip_vs_sync_cleanup,
+};
+
+
+int __init ip_vs_sync_init(void)
+{
+	return register_pernet_subsys(&ipvs_sync_ops);
+}
+
+void __exit ip_vs_sync_cleanup(void)
+{
+	unregister_pernet_subsys(&ipvs_sync_ops);
+}

@@ -157,13 +157,31 @@ void ip_vs_zero_estimator(struct ip_vs_stats *stats)
 	est->outbps = 0;
 }
 
+static int __net_init __ip_vs_estimator_init(struct net *net)
+{
+	if (!net_eq(net, &init_net))	/* netns not enabled yet */
+		return -EPERM;
+
+	return 0;
+}
+
+static struct pernet_operations ip_vs_app_ops = {
+	.init = __ip_vs_estimator_init,
+};
+
 int __init ip_vs_estimator_init(void)
 {
+	int rv;
+
+	rv = register_pernet_subsys(&ip_vs_app_ops);
+	if (rv < 0)
+		return rv;
 	mod_timer(&est_timer, jiffies + 2 * HZ);
-	return 0;
+	return rv;
 }
 
 void ip_vs_estimator_cleanup(void)
 {
 	del_timer_sync(&est_timer);
+	unregister_pernet_subsys(&ip_vs_app_ops);
 }

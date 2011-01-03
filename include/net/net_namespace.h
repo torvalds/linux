@@ -20,6 +20,7 @@
 #include <net/netns/conntrack.h>
 #endif
 #include <net/netns/xfrm.h>
+#include <net/netns/ip_vs.h>
 
 struct proc_dir_entry;
 struct net_device;
@@ -94,6 +95,7 @@ struct net {
 #ifdef CONFIG_XFRM
 	struct netns_xfrm	xfrm;
 #endif
+	struct netns_ipvs	*ipvs;
 };
 
 

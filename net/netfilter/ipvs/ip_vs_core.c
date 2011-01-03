@@ -41,6 +41,7 @@
 #include <net/icmp.h>                   /* for icmp_send */
 #include <net/route.h>
 #include <net/ip6_checksum.h>
+#include <net/netns/generic.h>		/* net_generic() */
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
@@ -68,6 +69,12 @@ EXPORT_SYMBOL(ip_vs_conn_put);
 EXPORT_SYMBOL(ip_vs_get_debug_level);
 #endif
 
+int ip_vs_net_id __read_mostly;
+#ifdef IP_VS_GENERIC_NETNS
+EXPORT_SYMBOL(ip_vs_net_id);
+#endif
+/* netns cnt used for uniqueness */
+static atomic_t ipvs_netns_cnt = ATOMIC_INIT(0);
 
 /* ID used in ICMP lookups */
 #define icmp_id(icmph)          (((icmph)->un).echo.id)
@@ -1813,6 +1820,44 @@ static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
 #endif
 };
 
+/*
+ *	Initialize IP Virtual Server netns mem.
+ */
+static int __net_init __ip_vs_init(struct net *net)
+{
+	struct netns_ipvs *ipvs;
+
+	if (!net_eq(net, &init_net)) {
+		pr_err("The final patch for enabling netns is missing\n");
+		return -EPERM;
+	}
+	ipvs = net_generic(net, ip_vs_net_id);
+	if (ipvs == NULL) {
+		pr_err("%s(): no memory.\n", __func__);
+		return -ENOMEM;
+	}
+	/* Counters used for creating unique names */
+	ipvs->gen = atomic_read(&ipvs_netns_cnt);
+	atomic_inc(&ipvs_netns_cnt);
+	net->ipvs = ipvs;
+	printk(KERN_INFO "IPVS: Creating netns size=%lu id=%d\n",
+			 sizeof(struct netns_ipvs), ipvs->gen);
+	return 0;
+}
+
+static void __net_exit __ip_vs_cleanup(struct net *net)
+{
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
+	IP_VS_DBG(10, "ipvs netns %d released\n", ipvs->gen);
+}
+
+static struct pernet_operations ipvs_core_ops = {
+	.init = __ip_vs_init,
+	.exit = __ip_vs_cleanup,
+	.id   = &ip_vs_net_id,
+	.size = sizeof(struct netns_ipvs),
+};
 
 /*
  *	Initialize IP Virtual Server
@@ -1821,8 +1866,11 @@ static int __init ip_vs_init(void)
 {
 	int ret;
 
-	ip_vs_estimator_init();
+	ret = register_pernet_subsys(&ipvs_core_ops);	/* Alloc ip_vs struct */
+	if (ret < 0)
+		return ret;
 
+	ip_vs_estimator_init();
 	ret = ip_vs_control_init();
 	if (ret < 0) {
 		pr_err("can't setup control.\n");
@@ -1843,15 +1891,23 @@ static int __init ip_vs_init(void)
 		goto cleanup_app;
 	}
 
+	ret = ip_vs_sync_init();
+	if (ret < 0) {
+		pr_err("can't setup sync data.\n");
+		goto cleanup_conn;
+	}
+
 	ret = nf_register_hooks(ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
 	if (ret < 0) {
 		pr_err("can't register hooks.\n");
-		goto cleanup_conn;
+		goto cleanup_sync;
 	}
 
 	pr_info("ipvs loaded.\n");
 	return ret;
 
+cleanup_sync:
+	ip_vs_sync_cleanup();
   cleanup_conn:
 	ip_vs_conn_cleanup();
   cleanup_app:
@@ -1861,17 +1917,20 @@ static int __init ip_vs_init(void)
 	ip_vs_control_cleanup();
   cleanup_estimator:
 	ip_vs_estimator_cleanup();
+	unregister_pernet_subsys(&ipvs_core_ops);	/* free ip_vs struct */
 	return ret;
 }
 
 static void __exit ip_vs_cleanup(void)
 {
 	nf_unregister_hooks(ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
+	ip_vs_sync_cleanup();
 	ip_vs_conn_cleanup();
 	ip_vs_app_cleanup();
 	ip_vs_protocol_cleanup();
 	ip_vs_control_cleanup();
 	ip_vs_estimator_cleanup();
+	unregister_pernet_subsys(&ipvs_core_ops);	/* free ip_vs struct */
 	pr_info("ipvs unloaded.\n");
 }
 
