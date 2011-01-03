@@ -816,7 +816,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	spin_unlock(&dest->dst_lock);
 
 	if (add)
-		ip_vs_new_estimator(&dest->stats);
+		ip_vs_new_estimator(svc->net, &dest->stats);
 
 	write_lock_bh(&__ip_vs_svc_lock);
 
@@ -1009,9 +1009,9 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 /*
  *	Delete a destination (must be already unlinked from the service)
  */
-static void __ip_vs_del_dest(struct ip_vs_dest *dest)
+static void __ip_vs_del_dest(struct net *net, struct ip_vs_dest *dest)
 {
-	ip_vs_kill_estimator(&dest->stats);
+	ip_vs_kill_estimator(net, &dest->stats);
 
 	/*
 	 *  Remove it from the d-linked list with the real services.
@@ -1080,6 +1080,7 @@ static int
 ip_vs_del_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 {
 	struct ip_vs_dest *dest;
+	struct net *net = svc->net;
 	__be16 dport = udest->port;
 
 	EnterFunction(2);
@@ -1108,7 +1109,7 @@ ip_vs_del_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 	/*
 	 *	Delete the destination
 	 */
-	__ip_vs_del_dest(dest);
+	__ip_vs_del_dest(net, dest);
 
 	LeaveFunction(2);
 
@@ -1197,7 +1198,7 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 	else if (svc->port == 0)
 		atomic_inc(&ip_vs_nullsvc_counter);
 
-	ip_vs_new_estimator(&svc->stats);
+	ip_vs_new_estimator(net, &svc->stats);
 
 	/* Count only IPv4 services for old get/setsockopt interface */
 	if (svc->af == AF_INET)
@@ -1345,7 +1346,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc)
 	if (svc->af == AF_INET)
 		ip_vs_num_services--;
 
-	ip_vs_kill_estimator(&svc->stats);
+	ip_vs_kill_estimator(svc->net, &svc->stats);
 
 	/* Unbind scheduler */
 	old_sched = svc->scheduler;
@@ -1368,7 +1369,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc)
 	 */
 	list_for_each_entry_safe(dest, nxt, &svc->destinations, n_list) {
 		__ip_vs_unlink_dest(svc, dest, 0);
-		__ip_vs_del_dest(dest);
+		__ip_vs_del_dest(svc->net, dest);
 	}
 
 	/*
@@ -3460,7 +3461,7 @@ int __net_init __ip_vs_control_init(struct net *net)
 						  vs_vars);
 	if (sysctl_header == NULL)
 		goto err_reg;
-	ip_vs_new_estimator(&ip_vs_stats);
+	ip_vs_new_estimator(net, &ip_vs_stats);
 	return 0;
 
 err_reg:
@@ -3472,7 +3473,7 @@ static void __net_exit __ip_vs_control_cleanup(struct net *net)
 	if (!net_eq(net, &init_net))	/* netns not enabled yet */
 		return;
 
-	ip_vs_kill_estimator(&ip_vs_stats);
+	ip_vs_kill_estimator(net, &ip_vs_stats);
 	unregister_net_sysctl_table(sysctl_header);
 	proc_net_remove(net, "ip_vs_stats");
 	proc_net_remove(net, "ip_vs");
@@ -3536,7 +3537,6 @@ void ip_vs_control_cleanup(void)
 	ip_vs_trash_cleanup();
 	cancel_delayed_work_sync(&defense_work);
 	cancel_work_sync(&defense_work.work);
-	ip_vs_kill_estimator(&ip_vs_stats);
 	unregister_pernet_subsys(&ipvs_control_ops);
 	ip_vs_genl_unregister();
 	nf_unregister_sockopt(&ip_vs_sockopts);
