@@ -60,17 +60,17 @@ static u8 smps_offset;
 
 #define REG_SMPS_OFFSET         0xE0
 
-unsigned long twl4030_vsel_to_uv(const u8 vsel)
+static unsigned long twl4030_vsel_to_uv(const u8 vsel)
 {
 	return (((vsel * 125) + 6000)) * 100;
 }
 
-u8 twl4030_uv_to_vsel(unsigned long uv)
+static u8 twl4030_uv_to_vsel(unsigned long uv)
 {
 	return DIV_ROUND_UP(uv - 600000, 12500);
 }
 
-unsigned long twl6030_vsel_to_uv(const u8 vsel)
+static unsigned long twl6030_vsel_to_uv(const u8 vsel)
 {
 	/*
 	 * In TWL6030 depending on the value of SMPS_OFFSET
@@ -102,7 +102,7 @@ unsigned long twl6030_vsel_to_uv(const u8 vsel)
 		return ((((vsel - 1) * 125) + 6000)) * 100;
 }
 
-u8 twl6030_uv_to_vsel(unsigned long uv)
+static u8 twl6030_uv_to_vsel(unsigned long uv)
 {
 	/*
 	 * In TWL6030 depending on the value of SMPS_OFFSET
