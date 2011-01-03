@@ -4,7 +4,8 @@
 enum dibx000_i2c_interface {
 	DIBX000_I2C_INTERFACE_TUNER = 0,
 	DIBX000_I2C_INTERFACE_GPIO_1_2 = 1,
-	DIBX000_I2C_INTERFACE_GPIO_3_4 = 2
+	DIBX000_I2C_INTERFACE_GPIO_3_4 = 2,
+	DIBX000_I2C_INTERFACE_GPIO_6_7 = 3
 };
 
 struct dibx000_i2c_master {
@@ -17,8 +18,11 @@ struct dibx000_i2c_master {
 
 	enum dibx000_i2c_interface selected_interface;
 
-//      struct i2c_adapter  tuner_i2c_adap;
+//	struct i2c_adapter  tuner_i2c_adap;
 	struct i2c_adapter gated_tuner_i2c_adap;
+	struct i2c_adapter master_i2c_adap_gpio12;
+	struct i2c_adapter master_i2c_adap_gpio34;
+	struct i2c_adapter master_i2c_adap_gpio67;
 
 	struct i2c_adapter *i2c_adap;
 	u8 i2c_addr;
@@ -27,14 +31,15 @@ struct dibx000_i2c_master {
 };
 
 extern int dibx000_init_i2c_master(struct dibx000_i2c_master *mst,
-				   u16 device_rev, struct i2c_adapter *i2c_adap,
-				   u8 i2c_addr);
+					u16 device_rev, struct i2c_adapter *i2c_adap,
+					u8 i2c_addr);
 extern struct i2c_adapter *dibx000_get_i2c_adapter(struct dibx000_i2c_master
-						   *mst,
-						   enum dibx000_i2c_interface
-						   intf, int gating);
+							*mst,
+							enum dibx000_i2c_interface
+							intf, int gating);
 extern void dibx000_exit_i2c_master(struct dibx000_i2c_master *mst);
 extern void dibx000_reset_i2c_master(struct dibx000_i2c_master *mst);
+extern int dibx000_i2c_set_speed(struct i2c_adapter *i2c_adap, u16 speed);
 
 extern u32 systime(void);
 
@@ -42,10 +47,10 @@ extern u32 systime(void);
 #define BAND_UHF   0x02
 #define BAND_VHF   0x04
 #define BAND_SBAND 0x08
-#define BAND_FM    0x10
+#define BAND_FM	   0x10
 #define BAND_CBAND 0x20
 
-#define BAND_OF_FREQUENCY(freq_kHz) ((freq_kHz) <= 170000 ? BAND_CBAND : \
+#define BAND_OF_FREQUENCY(freq_kHz) ( (freq_kHz) <= 170000 ? BAND_CBAND : \
 									(freq_kHz) <= 115000 ? BAND_FM : \
 									(freq_kHz) <= 250000 ? BAND_VHF : \
 									(freq_kHz) <= 863000 ? BAND_UHF : \
