@@ -151,6 +151,8 @@ enum pl08x_dma_chan_state {
  * struct pl08x_dma_chan - this structure wraps a DMA ENGINE channel
  * @chan: wrappped abstract channel
  * @phychan: the physical channel utilized by this channel, if there is one
+ * @phychan_hold: if non-zero, hold on to the physical channel even if we
+ *  have no pending entries
  * @tasklet: tasklet scheduled by the IRQ to handle actual work etc
  * @name: name of channel
  * @cd: channel platform data
@@ -173,6 +175,7 @@ enum pl08x_dma_chan_state {
 struct pl08x_dma_chan {
 	struct dma_chan chan;
 	struct pl08x_phy_chan *phychan;
+	int phychan_hold;
 	struct tasklet_struct tasklet;
 	char *name;
 	struct pl08x_channel_data *cd;

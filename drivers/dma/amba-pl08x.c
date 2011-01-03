@@ -959,6 +959,7 @@ static int prep_phy_channel(struct pl08x_dma_chan *plchan,
 		 ch->signal,
 		 plchan->name);
 
+	plchan->phychan_hold++;
 	plchan->phychan = ch;
 
 	return 0;
@@ -998,6 +999,8 @@ static dma_cookie_t pl08x_tx_submit(struct dma_async_tx_descriptor *tx)
 		/* Do this memcpy whenever there is a channel ready */
 		plchan->state = PL08X_CHAN_WAITING;
 		plchan->waiting = txd;
+	} else {
+		plchan->phychan_hold--;
 	}
 
 	/* This unlock follows the lock in the prep() function */
@@ -1585,6 +1588,7 @@ static void pl08x_tasklet(unsigned long data)
 		 */
 		plchan->lc = txd->tx.cookie;
 	}
+
 	/*
 	 * If a new descriptor is queued, set it up
 	 * plchan->at is NULL here
@@ -1598,6 +1602,12 @@ static void pl08x_tasklet(unsigned long data)
 		list_del(&next->node);
 
 		pl08x_start_txd(plchan, next);
+	} else if (plchan->phychan_hold) {
+		/*
+		 * This channel is still in use - we have a new txd being
+		 * prepared and will soon be queued.  Don't give up the
+		 * physical channel.
+		 */
 	} else {
 		struct pl08x_dma_chan *waiting = NULL;
 
@@ -1625,6 +1635,7 @@ static void pl08x_tasklet(unsigned long data)
 				ret = prep_phy_channel(waiting,
 						       waiting->waiting);
 				BUG_ON(ret);
+				waiting->phychan_hold--;
 				waiting->state = PL08X_CHAN_RUNNING;
 				waiting->waiting = NULL;
 				pl08x_issue_pending(&waiting->chan);
