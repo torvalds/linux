@@ -521,9 +521,8 @@ static void pl08x_choose_master_bus(struct pl08x_bus_data *src_bus,
  * Fills in one LLI for a certain transfer descriptor
  * and advance the counter
  */
-static int pl08x_fill_lli_for_desc(struct pl08x_driver_data *pl08x,
-			    struct pl08x_txd *txd, int num_llis, int len,
-			    u32 cctl, u32 *remainder)
+static void pl08x_fill_lli_for_desc(struct pl08x_driver_data *pl08x,
+	struct pl08x_txd *txd, int num_llis, int len, u32 cctl, u32 *remainder)
 {
 	struct pl08x_lli *llis_va = txd->llis_va;
 	dma_addr_t llis_bus = txd->llis_bus;
@@ -545,8 +544,6 @@ static int pl08x_fill_lli_for_desc(struct pl08x_driver_data *pl08x,
 	BUG_ON(*remainder < len);
 
 	*remainder -= len;
-
-	return num_llis + 1;
 }
 
 /*
@@ -646,8 +643,7 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 				 "less than a bus width (remain 0x%08x)\n",
 				 __func__, remainder);
 			cctl = pl08x_cctl_bits(cctl, 1, 1, 1);
-			num_llis =
-				pl08x_fill_lli_for_desc(pl08x, txd, num_llis, 1,
+			pl08x_fill_lli_for_desc(pl08x, txd, num_llis++, 1,
 					cctl, &remainder);
 			total_bytes++;
 		}
@@ -662,8 +658,8 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 				 "(remain 0x%08x)\n",
 				 __func__, remainder);
 			cctl = pl08x_cctl_bits(cctl, 1, 1, 1);
-			num_llis = pl08x_fill_lli_for_desc
-				(pl08x, txd, num_llis, 1, cctl, &remainder);
+			pl08x_fill_lli_for_desc(pl08x, txd, num_llis++, 1,
+					cctl, &remainder);
 			total_bytes++;
 		}
 
@@ -787,9 +783,8 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 				dev_vdbg(&pl08x->adev->dev,
 					"%s fill lli with single lli chunk of size 0x%08zx (remainder 0x%08zx)\n",
 					__func__, lli_len, remainder);
-				num_llis = pl08x_fill_lli_for_desc(pl08x, txd,
-						num_llis, lli_len, cctl,
-						&remainder);
+				pl08x_fill_lli_for_desc(pl08x, txd, num_llis++,
+						lli_len, cctl, &remainder);
 				total_bytes += lli_len;
 			}
 
@@ -806,10 +801,9 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 					dev_vdbg(&pl08x->adev->dev,
 						"%s align with boundary, single byte (remain 0x%08zx)\n",
 						__func__, remainder);
-					num_llis =
-						pl08x_fill_lli_for_desc(pl08x,
-							txd, num_llis, 1,
-							cctl, &remainder);
+					pl08x_fill_lli_for_desc(pl08x, txd,
+							num_llis++, 1, cctl,
+							&remainder);
 					total_bytes++;
 				}
 			}
@@ -823,8 +817,8 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 			dev_vdbg(&pl08x->adev->dev,
 				"%s align with boundary, single odd byte (remain %zu)\n",
 				__func__, remainder);
-			num_llis = pl08x_fill_lli_for_desc(pl08x, txd, num_llis,
-					1, cctl, &remainder);
+			pl08x_fill_lli_for_desc(pl08x, txd, num_llis++, 1,
+					cctl, &remainder);
 			total_bytes++;
 		}
 	}
