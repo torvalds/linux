@@ -2254,7 +2254,7 @@ static struct reginfo sensor_sxga[] =
 /* 800X600 SVGA*/
 static struct reginfo sensor_svga[] =
 {
-#if 0
+#if 1
 	{0x3000,0xf8},
 	{0x3001,0x48},
 	{0x3002,0x5c},
@@ -3240,9 +3240,10 @@ static int sensor_read(struct i2c_client *client, u16 reg, u8 *val)
 /* write a array of registers  */
 static int sensor_write_array(struct i2c_client *client, struct reginfo *regarray)
 {
-    int err, cnt;
+    int err = 0, cnt;
     int i = 0;
 	struct sensor *sensor = to_sensor(client);
+	char val00;
 
 	cnt = 0;
     while (regarray[i].reg != 0)
@@ -3267,7 +3268,13 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
                 err = -EPERM;
 				goto sensor_af_init_end;
             }
+        } else {
+			sensor_read(client, regarray[i].reg, &val00);
+			if (val00 != regarray[i].val)
+				SENSOR_TR("%s Reg:0x%x write(0x%x, 0x%x) fail\n",SENSOR_NAME_STRING(), regarray[i].reg, regarray[i].val, val00);
+
         }
+
         i++;
     }
 
@@ -3821,8 +3828,11 @@ static int sensor_deactivate(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = sd->priv;
 	struct sensor *sensor = to_sensor(client);
+	int ret;
 
-	SENSOR_DG("\n%s..%s enter \n",SENSOR_NAME_STRING(),__FUNCTION__);
+	ret = sensor_write(client, 0x3008, 0x80);
+	SENSOR_DG("\n%s..%s enter, reset ret:0x%x \n",SENSOR_NAME_STRING(),__FUNCTION__,ret);
+	msleep(5);
 
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
     sensor_write(client, 0x3017, 0x00);  // FREX,VSYNC,HREF,PCLK,D9-D6
