@@ -710,11 +710,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	init_waitqueue_head(&rdev->irq.vblank_queue);
 	init_waitqueue_head(&rdev->irq.idle_queue);
 
-	/* setup workqueue */
-	rdev->wq = create_workqueue("radeon");
-	if (rdev->wq == NULL)
-		return -ENOMEM;
-
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
 	if (r)
@@ -813,7 +808,6 @@ void radeon_device_fini(struct radeon_device *rdev)
 	/* evict vram memory */
 	radeon_bo_evict_vram(rdev);
 	radeon_fini(rdev);
-	destroy_workqueue(rdev->wq);
 	vga_switcheroo_unregister_client(rdev->pdev);
 	vga_client_register(rdev->pdev, NULL, NULL, NULL);
 	if (rdev->rio_mem)

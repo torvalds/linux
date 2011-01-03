@@ -2756,7 +2756,7 @@ restart_ih:
 	if (wptr != rdev->ih.wptr)
 		goto restart_ih;
 	if (queue_hotplug)
-		queue_work(rdev->wq, &rdev->hotplug_work);
+		schedule_work(&rdev->hotplug_work);
 	rdev->ih.rptr = rptr;
 	WREG32(IH_RB_RPTR, rdev->ih.rptr);
 	spin_unlock_irqrestore(&rdev->ih.lock, flags);

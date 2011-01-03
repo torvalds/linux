@@ -1152,7 +1152,6 @@ struct radeon_device {
 	struct r700_vram_scratch vram_scratch;
 	int msi_enabled; /* msi enabled */
 	struct r600_ih ih; /* r6/700 interrupt ring */
-	struct workqueue_struct *wq;
 	struct work_struct hotplug_work;
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */

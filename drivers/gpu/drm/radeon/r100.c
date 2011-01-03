@@ -682,7 +682,7 @@ int r100_irq_process(struct radeon_device *rdev)
 	/* reset gui idle ack.  the status bit is broken */
 	rdev->irq.gui_idle_acked = false;
 	if (queue_hotplug)
-		queue_work(rdev->wq, &rdev->hotplug_work);
+		schedule_work(&rdev->hotplug_work);
 	if (rdev->msi_enabled) {
 		switch (rdev->family) {
 		case CHIP_RS400:
