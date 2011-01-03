@@ -1916,7 +1916,8 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 	struct ieee80211_channel *channel = ah->ah_current_channel;
 	bool use_def_for_tx, update_def_on_tx, use_def_for_rts, fast_div;
 	bool use_def_for_sg;
-	u8 def_ant, tx_ant, ee_mode;
+	int ee_mode;
+	u8 def_ant, tx_ant;
 	u32 sta_id1 = 0;
 
 	/* if channel is not initialized yet we can't set the antennas
@@ -3081,7 +3082,8 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 {
 	struct ath5k_rate_pcal_info rate_info;
 	struct ieee80211_channel *curr_channel = ah->ah_current_channel;
-	u8 type, ee_mode;
+	int ee_mode;
+	u8 type;
 	int ret;
 
 	if (txpower > AR5K_TUNE_MAX_TXPOWER) {
