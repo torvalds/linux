@@ -749,7 +749,7 @@ static void ip_vs_proc_conn(struct ip_vs_conn_param *param,  unsigned flags,
 		 * If it is not found the connection will remain unbound
 		 * but still handled.
 		 */
-		dest = ip_vs_find_dest(type, daddr, dport, param->vaddr,
+		dest = ip_vs_find_dest(&init_net, type, daddr, dport, param->vaddr,
 				       param->vport, protocol, fwmark);
 
 		/*  Set the approprite ativity flag */

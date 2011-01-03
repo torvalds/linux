@@ -31,6 +31,7 @@ static int
 tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		  int *verdict, struct ip_vs_conn **cpp)
 {
+	struct net *net;
 	struct ip_vs_service *svc;
 	struct tcphdr _tcph, *th;
 	struct ip_vs_iphdr iph;
@@ -42,11 +43,11 @@ tcp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		*verdict = NF_DROP;
 		return 0;
 	}
-
+	net = skb_net(skb);
 	/* No !th->ack check to allow scheduling on SYN+ACK for Active FTP */
 	if (th->syn &&
-	    (svc = ip_vs_service_get(af, skb->mark, iph.protocol, &iph.daddr,
-				     th->dest))) {
+	    (svc = ip_vs_service_get(net, af, skb->mark, iph.protocol,
+				     &iph.daddr, th->dest))) {
 		int ignored;
 
 		if (ip_vs_todrop()) {

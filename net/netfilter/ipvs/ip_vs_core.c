@@ -1031,6 +1031,7 @@ drop:
 static unsigned int
 ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 {
+	struct net *net = NULL;
 	struct ip_vs_iphdr iph;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_conn *cp;
@@ -1054,6 +1055,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 	if (unlikely(!skb_dst(skb)))
 		return NF_ACCEPT;
 
+	net = skb_net(skb);
 	ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6) {
@@ -1119,7 +1121,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 					  sizeof(_ports), _ports);
 		if (pptr == NULL)
 			return NF_ACCEPT;	/* Not for me */
-		if (ip_vs_lookup_real_service(af, iph.protocol,
+		if (ip_vs_lookup_real_service(net, af, iph.protocol,
 					      &iph.saddr,
 					      pptr[0])) {
 			/*

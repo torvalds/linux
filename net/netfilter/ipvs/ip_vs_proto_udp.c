@@ -31,6 +31,7 @@ static int
 udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		  int *verdict, struct ip_vs_conn **cpp)
 {
+	struct net *net;
 	struct ip_vs_service *svc;
 	struct udphdr _udph, *uh;
 	struct ip_vs_iphdr iph;
@@ -42,8 +43,8 @@ udp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		*verdict = NF_DROP;
 		return 0;
 	}
-
-	svc = ip_vs_service_get(af, skb->mark, iph.protocol,
+	net = skb_net(skb);
+	svc = ip_vs_service_get(net, af, skb->mark, iph.protocol,
 				&iph.daddr, uh->dest);
 	if (svc) {
 		int ignored;

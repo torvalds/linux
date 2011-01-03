@@ -37,6 +37,59 @@ static inline struct netns_ipvs *net_ipvs(struct net* net)
 {
 	return net->ipvs;
 }
+/*
+ * Get net ptr from skb in traffic cases
+ * use skb_sknet when call is from userland (ioctl or netlink)
+ */
+static inline struct net *skb_net(struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_NS
+#ifdef CONFIG_IP_VS_DEBUG
+	/*
+	 * This is used for debug only.
+	 * Start with the most likely hit
+	 * End with BUG
+	 */
+	if (likely(skb->dev && skb->dev->nd_net))
+		return dev_net(skb->dev);
+	if (skb_dst(skb)->dev)
+		return dev_net(skb_dst(skb)->dev);
+	WARN(skb->sk, "Maybe skb_sknet should be used in %s() at line:%d\n",
+		      __func__, __LINE__);
+	if (likely(skb->sk && skb->sk->sk_net))
+		return sock_net(skb->sk);
+	pr_err("There is no net ptr to find in the skb in %s() line:%d\n",
+		__func__, __LINE__);
+	BUG();
+#else
+	return dev_net(skb->dev ? : skb_dst(skb)->dev);
+#endif
+#else
+	return &init_net;
+#endif
+}
+
+static inline struct net *skb_sknet(struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_NS
+#ifdef CONFIG_IP_VS_DEBUG
+	/* Start with the most likely hit */
+	if (likely(skb->sk && skb->sk->sk_net))
+		return sock_net(skb->sk);
+	WARN(skb->dev, "Maybe skb_net should be used instead in %s() line:%d\n",
+		       __func__, __LINE__);
+	if (likely(skb->dev && skb->dev->nd_net))
+		return dev_net(skb->dev);
+	pr_err("There is no net ptr to find in the skb in %s() line:%d\n",
+		__func__, __LINE__);
+	BUG();
+#else
+	return sock_net(skb->sk);
+#endif
+#else
+	return &init_net;
+#endif
+}
 
 /* Connections' size value needed by ip_vs_ctl.c */
 extern int ip_vs_conn_tab_size;
@@ -496,6 +549,7 @@ struct ip_vs_service {
 	unsigned		flags;	  /* service status flags */
 	unsigned		timeout;  /* persistent timeout in ticks */
 	__be32			netmask;  /* grouping granularity */
+	struct net		*net;
 
 	struct list_head	destinations;  /* real server d-linked list */
 	__u32			num_dests;     /* number of servers */
@@ -896,7 +950,7 @@ extern int sysctl_ip_vs_sync_ver;
 
 extern void ip_vs_sync_switch_mode(int mode);
 extern struct ip_vs_service *
-ip_vs_service_get(int af, __u32 fwmark, __u16 protocol,
+ip_vs_service_get(struct net *net, int af, __u32 fwmark, __u16 protocol,
 		  const union nf_inet_addr *vaddr, __be16 vport);
 
 static inline void ip_vs_service_put(struct ip_vs_service *svc)
@@ -905,7 +959,7 @@ static inline void ip_vs_service_put(struct ip_vs_service *svc)
 }
 
 extern struct ip_vs_dest *
-ip_vs_lookup_real_service(int af, __u16 protocol,
+ip_vs_lookup_real_service(struct net *net, int af, __u16 protocol,
 			  const union nf_inet_addr *daddr, __be16 dport);
 
 extern int ip_vs_use_count_inc(void);
@@ -913,9 +967,9 @@ extern void ip_vs_use_count_dec(void);
 extern int ip_vs_control_init(void);
 extern void ip_vs_control_cleanup(void);
 extern struct ip_vs_dest *
-ip_vs_find_dest(int af, const union nf_inet_addr *daddr, __be16 dport,
-		const union nf_inet_addr *vaddr, __be16 vport, __u16 protocol,
-		__u32 fwmark);
+ip_vs_find_dest(struct net *net, int af, const union nf_inet_addr *daddr,
+		__be16 dport, const union nf_inet_addr *vaddr, __be16 vport,
+		__u16 protocol, __u32 fwmark);
 extern struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp);
 
 

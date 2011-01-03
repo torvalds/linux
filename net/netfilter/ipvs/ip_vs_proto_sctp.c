@@ -12,6 +12,7 @@ static int
 sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		   int *verdict, struct ip_vs_conn **cpp)
 {
+	struct net *net;
 	struct ip_vs_service *svc;
 	sctp_chunkhdr_t _schunkh, *sch;
 	sctp_sctphdr_t *sh, _sctph;
@@ -27,9 +28,9 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 				 sizeof(_schunkh), &_schunkh);
 	if (sch == NULL)
 		return 0;
-
+	net = skb_net(skb);
 	if ((sch->type == SCTP_CID_INIT) &&
-	    (svc = ip_vs_service_get(af, skb->mark, iph.protocol,
+	    (svc = ip_vs_service_get(net, af, skb->mark, iph.protocol,
 				     &iph.daddr, sh->dest))) {
 		int ignored;
 

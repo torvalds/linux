@@ -20,6 +20,14 @@ struct ctl_table_header;
 
 struct netns_ipvs {
 	int			gen;		/* Generation */
+	/*
+	 *	Hash table: for real service lookups
+	 */
+	#define IP_VS_RTAB_BITS 4
+	#define IP_VS_RTAB_SIZE (1 << IP_VS_RTAB_BITS)
+	#define IP_VS_RTAB_MASK (IP_VS_RTAB_SIZE - 1)
+
+	struct list_head	rs_table[IP_VS_RTAB_SIZE];
 };
 
 #endif /* IP_VS_H_ */
