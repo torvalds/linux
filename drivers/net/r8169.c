@@ -502,9 +502,9 @@ struct rtl8169_private {
 #endif
 	int (*set_speed)(struct net_device *, u8 autoneg, u16 speed, u8 duplex);
 	int (*get_settings)(struct net_device *, struct ethtool_cmd *);
-	void (*phy_reset_enable)(void __iomem *);
+	void (*phy_reset_enable)(struct rtl8169_private *tp);
 	void (*hw_start)(struct net_device *);
-	unsigned int (*phy_reset_pending)(void __iomem *);
+	unsigned int (*phy_reset_pending)(struct rtl8169_private *tp);
 	unsigned int (*link_ok)(void __iomem *);
 	int (*do_ioctl)(struct rtl8169_private *tp, struct mii_ioctl_data *data, int cmd);
 	int pcie_cap;
@@ -547,7 +547,7 @@ static int rtl8169_poll(struct napi_struct *napi, int budget);
 static const unsigned int rtl8169_rx_config =
 	(RX_FIFO_THRESH << RxCfgFIFOShift) | (RX_DMA_BURST << RxCfgDMAShift);
 
-static void mdio_write(void __iomem *ioaddr, int reg_addr, int value)
+static void r8169_mdio_write(void __iomem *ioaddr, int reg_addr, int value)
 {
 	int i;
 
@@ -569,7 +569,7 @@ static void mdio_write(void __iomem *ioaddr, int reg_addr, int value)
 	udelay(20);
 }
 
-static int mdio_read(void __iomem *ioaddr, int reg_addr)
+static int r8169_mdio_read(void __iomem *ioaddr, int reg_addr)
 {
 	int i, value = -1;
 
@@ -595,34 +595,42 @@ static int mdio_read(void __iomem *ioaddr, int reg_addr)
 	return value;
 }
 
-static void mdio_patch(void __iomem *ioaddr, int reg_addr, int value)
+static void rtl_writephy(struct rtl8169_private *tp, int location, u32 val)
 {
-	mdio_write(ioaddr, reg_addr, mdio_read(ioaddr, reg_addr) | value);
+	r8169_mdio_write(tp->mmio_addr, location, val);
 }
 
-static void mdio_plus_minus(void __iomem *ioaddr, int reg_addr, int p, int m)
+static int rtl_readphy(struct rtl8169_private *tp, int location)
+{
+	return r8169_mdio_read(tp->mmio_addr, location);
+}
+
+static void rtl_patchphy(struct rtl8169_private *tp, int reg_addr, int value)
+{
+	rtl_writephy(tp, reg_addr, rtl_readphy(tp, reg_addr) | value);
+}
+
+static void rtl_w1w0_phy(struct rtl8169_private *tp, int reg_addr, int p, int m)
 {
 	int val;
 
-	val = mdio_read(ioaddr, reg_addr);
-	mdio_write(ioaddr, reg_addr, (val | p) & ~m);
+	val = rtl_readphy(tp, reg_addr);
+	rtl_writephy(tp, reg_addr, (val | p) & ~m);
 }
 
 static void rtl_mdio_write(struct net_device *dev, int phy_id, int location,
 			   int val)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	void __iomem *ioaddr = tp->mmio_addr;
 
-	mdio_write(ioaddr, location, val);
+	rtl_writephy(tp, location, val);
 }
 
 static int rtl_mdio_read(struct net_device *dev, int phy_id, int location)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	void __iomem *ioaddr = tp->mmio_addr;
 
-	return mdio_read(ioaddr, location);
+	return rtl_readphy(tp, location);
 }
 
 static void rtl_ephy_write(void __iomem *ioaddr, int reg_addr, int value)
@@ -723,14 +731,16 @@ static void rtl8169_asic_down(void __iomem *ioaddr)
 	RTL_R16(CPlusCmd);
 }
 
-static unsigned int rtl8169_tbi_reset_pending(void __iomem *ioaddr)
+static unsigned int rtl8169_tbi_reset_pending(struct rtl8169_private *tp)
 {
+	void __iomem *ioaddr = tp->mmio_addr;
+
 	return RTL_R32(TBICSR) & TBIReset;
 }
 
-static unsigned int rtl8169_xmii_reset_pending(void __iomem *ioaddr)
+static unsigned int rtl8169_xmii_reset_pending(struct rtl8169_private *tp)
 {
-	return mdio_read(ioaddr, MII_BMCR) & BMCR_RESET;
+	return rtl_readphy(tp, MII_BMCR) & BMCR_RESET;
 }
 
 static unsigned int rtl8169_tbi_link_ok(void __iomem *ioaddr)
@@ -743,17 +753,19 @@ static unsigned int rtl8169_xmii_link_ok(void __iomem *ioaddr)
 	return RTL_R8(PHYstatus) & LinkStatus;
 }
 
-static void rtl8169_tbi_reset_enable(void __iomem *ioaddr)
+static void rtl8169_tbi_reset_enable(struct rtl8169_private *tp)
 {
+	void __iomem *ioaddr = tp->mmio_addr;
+
 	RTL_W32(TBICSR, RTL_R32(TBICSR) | TBIReset);
 }
 
-static void rtl8169_xmii_reset_enable(void __iomem *ioaddr)
+static void rtl8169_xmii_reset_enable(struct rtl8169_private *tp)
 {
 	unsigned int val;
 
-	val = mdio_read(ioaddr, MII_BMCR) | BMCR_RESET;
-	mdio_write(ioaddr, MII_BMCR, val & 0xffff);
+	val = rtl_readphy(tp, MII_BMCR) | BMCR_RESET;
+	rtl_writephy(tp, MII_BMCR, val & 0xffff);
 }
 
 static void __rtl8169_check_link_status(struct net_device *dev,
@@ -917,18 +929,17 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 				  u8 autoneg, u16 speed, u8 duplex)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	void __iomem *ioaddr = tp->mmio_addr;
 	int giga_ctrl, bmcr;
 
 	if (autoneg == AUTONEG_ENABLE) {
 		int auto_nego;
 
-		auto_nego = mdio_read(ioaddr, MII_ADVERTISE);
+		auto_nego = rtl_readphy(tp, MII_ADVERTISE);
 		auto_nego |= (ADVERTISE_10HALF | ADVERTISE_10FULL |
 			      ADVERTISE_100HALF | ADVERTISE_100FULL);
 		auto_nego |= ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
 
-		giga_ctrl = mdio_read(ioaddr, MII_CTRL1000);
+		giga_ctrl = rtl_readphy(tp, MII_CTRL1000);
 		giga_ctrl &= ~(ADVERTISE_1000FULL | ADVERTISE_1000HALF);
 
 		/* The 8100e/8101e/8102e do Fast Ethernet only. */
@@ -956,12 +967,12 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 			 * Vendor specific (0x1f) and reserved (0x0e) MII
 			 * registers.
 			 */
-			mdio_write(ioaddr, 0x1f, 0x0000);
-			mdio_write(ioaddr, 0x0e, 0x0000);
+			rtl_writephy(tp, 0x1f, 0x0000);
+			rtl_writephy(tp, 0x0e, 0x0000);
 		}
 
-		mdio_write(ioaddr, MII_ADVERTISE, auto_nego);
-		mdio_write(ioaddr, MII_CTRL1000, giga_ctrl);
+		rtl_writephy(tp, MII_ADVERTISE, auto_nego);
+		rtl_writephy(tp, MII_CTRL1000, giga_ctrl);
 	} else {
 		giga_ctrl = 0;
 
@@ -975,21 +986,21 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 		if (duplex == DUPLEX_FULL)
 			bmcr |= BMCR_FULLDPLX;
 
-		mdio_write(ioaddr, 0x1f, 0x0000);
+		rtl_writephy(tp, 0x1f, 0x0000);
 	}
 
 	tp->phy_1000_ctrl_reg = giga_ctrl;
 
-	mdio_write(ioaddr, MII_BMCR, bmcr);
+	rtl_writephy(tp, MII_BMCR, bmcr);
 
 	if ((tp->mac_version == RTL_GIGA_MAC_VER_02) ||
 	    (tp->mac_version == RTL_GIGA_MAC_VER_03)) {
 		if ((speed == SPEED_100) && (autoneg != AUTONEG_ENABLE)) {
-			mdio_write(ioaddr, 0x17, 0x2138);
-			mdio_write(ioaddr, 0x0e, 0x0260);
+			rtl_writephy(tp, 0x17, 0x2138);
+			rtl_writephy(tp, 0x0e, 0x0260);
 		} else {
-			mdio_write(ioaddr, 0x17, 0x2108);
-			mdio_write(ioaddr, 0x0e, 0x0000);
+			rtl_writephy(tp, 0x17, 0x2108);
+			rtl_writephy(tp, 0x0e, 0x0000);
 		}
 	}
 
@@ -1397,10 +1408,11 @@ struct phy_reg {
 	u16 val;
 };
 
-static void rtl_phy_write(void __iomem *ioaddr, const struct phy_reg *regs, int len)
+static void rtl_writephy_batch(struct rtl8169_private *tp,
+			       const struct phy_reg *regs, int len)
 {
 	while (len-- > 0) {
-		mdio_write(ioaddr, regs->reg, regs->val);
+		rtl_writephy(tp, regs->reg, regs->val);
 		regs++;
 	}
 }
@@ -1425,7 +1437,6 @@ static void rtl_phy_write(void __iomem *ioaddr, const struct phy_reg *regs, int 
 static void
 rtl_phy_write_fw(struct rtl8169_private *tp, const struct firmware *fw)
 {
-	void __iomem *ioaddr = tp->mmio_addr;
 	__le32 *phytable = (__le32 *)fw->data;
 	struct net_device *dev = tp->dev;
 	size_t i;
@@ -1455,7 +1466,7 @@ rtl_phy_write_fw(struct rtl8169_private *tp, const struct firmware *fw)
 
 		switch(action & 0xf0000000) {
 		case PHY_WRITE:
-			mdio_write(ioaddr, reg, data);
+			rtl_writephy(tp, reg, data);
 			phytable++;
 			break;
 		default:
@@ -1464,7 +1475,7 @@ rtl_phy_write_fw(struct rtl8169_private *tp, const struct firmware *fw)
 	}
 }
 
-static void rtl8169s_hw_phy_config(void __iomem *ioaddr)
+static void rtl8169s_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
 		{ 0x1f, 0x0001 },
@@ -1528,10 +1539,10 @@ static void rtl8169s_hw_phy_config(void __iomem *ioaddr)
 		{ 0x00, 0x9200 }
 	};
 
-	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
 
-static void rtl8169sb_hw_phy_config(void __iomem *ioaddr)
+static void rtl8169sb_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
 		{ 0x1f, 0x0002 },
@@ -1539,11 +1550,10 @@ static void rtl8169sb_hw_phy_config(void __iomem *ioaddr)
 		{ 0x1f, 0x0000 }
 	};
 
-	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
 
-static void rtl8169scd_hw_phy_config_quirk(struct rtl8169_private *tp,
-					   void __iomem *ioaddr)
+static void rtl8169scd_hw_phy_config_quirk(struct rtl8169_private *tp)
 {
 	struct pci_dev *pdev = tp->pci_dev;
 	u16 vendor_id, device_id;
@@ -1554,13 +1564,12 @@ static void rtl8169scd_hw_phy_config_quirk(struct rtl8169_private *tp,
 	if ((vendor_id != PCI_VENDOR_ID_GIGABYTE) || (device_id != 0xe000))
 		return;
 
-	mdio_write(ioaddr, 0x1f, 0x0001);
-	mdio_write(ioaddr, 0x10, 0xf01b);
-	mdio_write(ioaddr, 0x1f, 0x0000);
+	rtl_writephy(tp, 0x1f, 0x0001);
+	rtl_writephy(tp, 0x10, 0xf01b);
+	rtl_writephy(tp, 0x1f, 0x0000);
 }
 
-static void rtl8169scd_hw_phy_config(struct rtl8169_private *tp,
-				     void __iomem *ioaddr)
+static void rtl8169scd_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
 		{ 0x1f, 0x0001 },
@@ -1602,12 +1611,12 @@ static void rtl8169scd_hw_phy_config(struct rtl8169_private *tp,
 		{ 0x1f, 0x0000 }
 	};
 
-	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 
-	rtl8169scd_hw_phy_config_quirk(tp, ioaddr);
+	rtl8169scd_hw_phy_config_quirk(tp);
 }
 
-static void rtl8169sce_hw_phy_config(void __iomem *ioaddr)
+static void rtl8169sce_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
 		{ 0x1f, 0x0001 },
@@ -1657,23 +1666,23 @@ static void rtl8169sce_hw_phy_config(void __iomem *ioaddr)
 		{ 0x1f, 0x0000 }
 	};
 
-	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
 
-static void rtl8168bb_hw_phy_config(void __iomem *ioaddr)
+static void rtl8168bb_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
 		{ 0x10, 0xf41b },
 		{ 0x1f, 0x0000 }
 	};
 
-	mdio_write(ioaddr, 0x1f, 0x0001);
-	mdio_patch(ioaddr, 0x16, 1 << 0);
+	rtl_writephy(tp, 0x1f, 0x0001);
+	rtl_patchphy(tp, 0x16, 1 << 0);
 
-	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
 
-static void rtl8168bef_hw_phy_config(void __iomem *ioaddr)
+static void rtl8168bef_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
 		{ 0x1f, 0x0001 },
@@ -1681,10 +1690,10 @@ static void rtl8168bef_hw_phy_config(void __iomem *ioaddr)
 		{ 0x1f, 0x0000 }
 	};
 
-	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
 
-static void rtl8168cp_1_hw_phy_config(void __iomem *ioaddr)
+static void rtl8168cp_1_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
 		{ 0x1f, 0x0000 },
@@ -1694,10 +1703,10 @@ static void rtl8168cp_1_hw_phy_config(void __iomem *ioaddr)
 		{ 0x1f, 0x0000 }
 	};
 
-	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
 
-static void rtl8168cp_2_hw_phy_config(void __iomem *ioaddr)
+static void rtl8168cp_2_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
 		{ 0x1f, 0x0001 },
@@ -1705,14 +1714,14 @@ static void rtl8168cp_2_hw_phy_config(void __iomem *ioaddr)
 		{ 0x1f, 0x0000 }
 	};
 
-	mdio_write(ioaddr, 0x1f, 0x0000);
-	mdio_patch(ioaddr, 0x14, 1 << 5);
-	mdio_patch(ioaddr, 0x0d, 1 << 5);
+	rtl_writephy(tp, 0x1f, 0x0000);
+	rtl_patchphy(tp, 0x14, 1 << 5);
+	rtl_patchphy(tp, 0x0d, 1 << 5);
 
-	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
 
-static void rtl8168c_1_hw_phy_config(void __iomem *ioaddr)
+static void rtl8168c_1_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
 		{ 0x1f, 0x0001 },
@@ -1734,14 +1743,14 @@ static void rtl8168c_1_hw_phy_config(void __iomem *ioaddr)
 		{ 0x09, 0x0000 }
 	};
 
-	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 
-	mdio_patch(ioaddr, 0x14, 1 << 5);
-	mdio_patch(ioaddr, 0x0d, 1 << 5);
-	mdio_write(ioaddr, 0x1f, 0x0000);
+	rtl_patchphy(tp, 0x14, 1 << 5);
+	rtl_patchphy(tp, 0x0d, 1 << 5);
+	rtl_writephy(tp, 0x1f, 0x0000);
 }
 
-static void rtl8168c_2_hw_phy_config(void __iomem *ioaddr)
+static void rtl8168c_2_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
 		{ 0x1f, 0x0001 },
@@ -1761,15 +1770,15 @@ static void rtl8168c_2_hw_phy_config(void __iomem *ioaddr)
 		{ 0x1f, 0x0000 }
 	};
 
-	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 
-	mdio_patch(ioaddr, 0x16, 1 << 0);
-	mdio_patch(ioaddr, 0x14, 1 << 5);
-	mdio_patch(ioaddr, 0x0d, 1 << 5);
-	mdio_write(ioaddr, 0x1f, 0x0000);
+	rtl_patchphy(tp, 0x16, 1 << 0);
+	rtl_patchphy(tp, 0x14, 1 << 5);
+	rtl_patchphy(tp, 0x0d, 1 << 5);
+	rtl_writephy(tp, 0x1f, 0x0000);
 }
 
-static void rtl8168c_3_hw_phy_config(void __iomem *ioaddr)
+static void rtl8168c_3_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
 		{ 0x1f, 0x0001 },
@@ -1783,17 +1792,17 @@ static void rtl8168c_3_hw_phy_config(void __iomem *ioaddr)
 		{ 0x1f, 0x0000 }
 	};
 
-	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 
-	mdio_patch(ioaddr, 0x16, 1 << 0);
-	mdio_patch(ioaddr, 0x14, 1 << 5);
-	mdio_patch(ioaddr, 0x0d, 1 << 5);
-	mdio_write(ioaddr, 0x1f, 0x0000);
+	rtl_patchphy(tp, 0x16, 1 << 0);
+	rtl_patchphy(tp, 0x14, 1 << 5);
+	rtl_patchphy(tp, 0x0d, 1 << 5);
+	rtl_writephy(tp, 0x1f, 0x0000);
 }
 
-static void rtl8168c_4_hw_phy_config(void __iomem *ioaddr)
+static void rtl8168c_4_hw_phy_config(struct rtl8169_private *tp)
 {
-	rtl8168c_3_hw_phy_config(ioaddr);
+	rtl8168c_3_hw_phy_config(tp);
 }
 
 static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp)
@@ -1841,15 +1850,15 @@ static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp)
 	void __iomem *ioaddr = tp->mmio_addr;
 	const struct firmware *fw;
 
-	rtl_phy_write(ioaddr, phy_reg_init_0, ARRAY_SIZE(phy_reg_init_0));
+	rtl_writephy_batch(tp, phy_reg_init_0, ARRAY_SIZE(phy_reg_init_0));
 
 	/*
 	 * Rx Error Issue
 	 * Fine Tune Switching regulator parameter
 	 */
-	mdio_write(ioaddr, 0x1f, 0x0002);
-	mdio_plus_minus(ioaddr, 0x0b, 0x0010, 0x00ef);
-	mdio_plus_minus(ioaddr, 0x0c, 0xa200, 0x5d00);
+	rtl_writephy(tp, 0x1f, 0x0002);
+	rtl_w1w0_phy(tp, 0x0b, 0x0010, 0x00ef);
+	rtl_w1w0_phy(tp, 0x0c, 0xa200, 0x5d00);
 
 	if (rtl8168d_efuse_read(ioaddr, 0x01) == 0xb1) {
 		static const struct phy_reg phy_reg_init[] = {
@@ -1862,9 +1871,9 @@ static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp)
 		};
 		int val;
 
-		rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+		rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 
-		val = mdio_read(ioaddr, 0x0d);
+		val = rtl_readphy(tp, 0x0d);
 
 		if ((val & 0x00ff) != 0x006c) {
 			static const u32 set[] = {
@@ -1873,11 +1882,11 @@ static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp)
 			};
 			int i;
 
-			mdio_write(ioaddr, 0x1f, 0x0002);
+			rtl_writephy(tp, 0x1f, 0x0002);
 
 			val &= 0xff00;
 			for (i = 0; i < ARRAY_SIZE(set); i++)
-				mdio_write(ioaddr, 0x0d, val | set[i]);
+				rtl_writephy(tp, 0x0d, val | set[i]);
 		}
 	} else {
 		static const struct phy_reg phy_reg_init[] = {
@@ -1888,22 +1897,22 @@ static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp)
 			{ 0x06, 0x6662 }
 		};
 
-		rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+		rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 	}
 
 	/* RSET couple improve */
-	mdio_write(ioaddr, 0x1f, 0x0002);
-	mdio_patch(ioaddr, 0x0d, 0x0300);
-	mdio_patch(ioaddr, 0x0f, 0x0010);
+	rtl_writephy(tp, 0x1f, 0x0002);
+	rtl_patchphy(tp, 0x0d, 0x0300);
+	rtl_patchphy(tp, 0x0f, 0x0010);
 
 	/* Fine tune PLL performance */
-	mdio_write(ioaddr, 0x1f, 0x0002);
-	mdio_plus_minus(ioaddr, 0x02, 0x0100, 0x0600);
-	mdio_plus_minus(ioaddr, 0x03, 0x0000, 0xe000);
+	rtl_writephy(tp, 0x1f, 0x0002);
+	rtl_w1w0_phy(tp, 0x02, 0x0100, 0x0600);
+	rtl_w1w0_phy(tp, 0x03, 0x0000, 0xe000);
 
-	mdio_write(ioaddr, 0x1f, 0x0005);
-	mdio_write(ioaddr, 0x05, 0x001b);
-	if (mdio_read(ioaddr, 0x06) == 0xbf00 &&
+	rtl_writephy(tp, 0x1f, 0x0005);
+	rtl_writephy(tp, 0x05, 0x001b);
+	if (rtl_readphy(tp, 0x06) == 0xbf00 &&
 	    request_firmware(&fw, FIRMWARE_8168D_1, &tp->pci_dev->dev) == 0) {
 		rtl_phy_write_fw(tp, fw);
 		release_firmware(fw);
@@ -1911,7 +1920,7 @@ static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp)
 		netif_warn(tp, probe, tp->dev, "unable to apply firmware patch\n");
 	}
 
-	mdio_write(ioaddr, 0x1f, 0x0000);
+	rtl_writephy(tp, 0x1f, 0x0000);
 }
 
 static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp)
@@ -1959,7 +1968,7 @@ static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp)
 	void __iomem *ioaddr = tp->mmio_addr;
 	const struct firmware *fw;
 
-	rtl_phy_write(ioaddr, phy_reg_init_0, ARRAY_SIZE(phy_reg_init_0));
+	rtl_writephy_batch(tp, phy_reg_init_0, ARRAY_SIZE(phy_reg_init_0));
 
 	if (rtl8168d_efuse_read(ioaddr, 0x01) == 0xb1) {
 		static const struct phy_reg phy_reg_init[] = {
@@ -1973,9 +1982,9 @@ static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp)
 		};
 		int val;
 
-		rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+		rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 
-		val = mdio_read(ioaddr, 0x0d);
+		val = rtl_readphy(tp, 0x0d);
 		if ((val & 0x00ff) != 0x006c) {
 			static const u32 set[] = {
 				0x0065, 0x0066, 0x0067, 0x0068,
@@ -1983,11 +1992,11 @@ static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp)
 			};
 			int i;
 
-			mdio_write(ioaddr, 0x1f, 0x0002);
+			rtl_writephy(tp, 0x1f, 0x0002);
 
 			val &= 0xff00;
 			for (i = 0; i < ARRAY_SIZE(set); i++)
-				mdio_write(ioaddr, 0x0d, val | set[i]);
+				rtl_writephy(tp, 0x0d, val | set[i]);
 		}
 	} else {
 		static const struct phy_reg phy_reg_init[] = {
@@ -1998,21 +2007,21 @@ static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp)
 			{ 0x06, 0x2642 }
 		};
 
-		rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+		rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 	}
 
 	/* Fine tune PLL performance */
-	mdio_write(ioaddr, 0x1f, 0x0002);
-	mdio_plus_minus(ioaddr, 0x02, 0x0100, 0x0600);
-	mdio_plus_minus(ioaddr, 0x03, 0x0000, 0xe000);
+	rtl_writephy(tp, 0x1f, 0x0002);
+	rtl_w1w0_phy(tp, 0x02, 0x0100, 0x0600);
+	rtl_w1w0_phy(tp, 0x03, 0x0000, 0xe000);
 
 	/* Switching regulator Slew rate */
-	mdio_write(ioaddr, 0x1f, 0x0002);
-	mdio_patch(ioaddr, 0x0f, 0x0017);
+	rtl_writephy(tp, 0x1f, 0x0002);
+	rtl_patchphy(tp, 0x0f, 0x0017);
 
-	mdio_write(ioaddr, 0x1f, 0x0005);
-	mdio_write(ioaddr, 0x05, 0x001b);
-	if (mdio_read(ioaddr, 0x06) == 0xb300 &&
+	rtl_writephy(tp, 0x1f, 0x0005);
+	rtl_writephy(tp, 0x05, 0x001b);
+	if (rtl_readphy(tp, 0x06) == 0xb300 &&
 	    request_firmware(&fw, FIRMWARE_8168D_2, &tp->pci_dev->dev) == 0) {
 		rtl_phy_write_fw(tp, fw);
 		release_firmware(fw);
@@ -2020,10 +2029,10 @@ static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp)
 		netif_warn(tp, probe, tp->dev, "unable to apply firmware patch\n");
 	}
 
-	mdio_write(ioaddr, 0x1f, 0x0000);
+	rtl_writephy(tp, 0x1f, 0x0000);
 }
 
-static void rtl8168d_3_hw_phy_config(void __iomem *ioaddr)
+static void rtl8168d_3_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
 		{ 0x1f, 0x0002 },
@@ -2081,10 +2090,10 @@ static void rtl8168d_3_hw_phy_config(void __iomem *ioaddr)
 		{ 0x1f, 0x0000 }
 	};
 
-	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
 
-static void rtl8102e_hw_phy_config(void __iomem *ioaddr)
+static void rtl8102e_hw_phy_config(struct rtl8169_private *tp)
 {
 	static const struct phy_reg phy_reg_init[] = {
 		{ 0x1f, 0x0003 },
@@ -2093,18 +2102,17 @@ static void rtl8102e_hw_phy_config(void __iomem *ioaddr)
 		{ 0x1f, 0x0000 }
 	};
 
-	mdio_write(ioaddr, 0x1f, 0x0000);
-	mdio_patch(ioaddr, 0x11, 1 << 12);
-	mdio_patch(ioaddr, 0x19, 1 << 13);
-	mdio_patch(ioaddr, 0x10, 1 << 15);
+	rtl_writephy(tp, 0x1f, 0x0000);
+	rtl_patchphy(tp, 0x11, 1 << 12);
+	rtl_patchphy(tp, 0x19, 1 << 13);
+	rtl_patchphy(tp, 0x10, 1 << 15);
 
-	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
+	rtl_writephy_batch(tp, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
 
 static void rtl_hw_phy_config(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	void __iomem *ioaddr = tp->mmio_addr;
 
 	rtl8169_print_mac_version(tp);
 
@@ -2113,49 +2121,49 @@ static void rtl_hw_phy_config(struct net_device *dev)
 		break;
 	case RTL_GIGA_MAC_VER_02:
 	case RTL_GIGA_MAC_VER_03:
-		rtl8169s_hw_phy_config(ioaddr);
+		rtl8169s_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_04:
-		rtl8169sb_hw_phy_config(ioaddr);
+		rtl8169sb_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_05:
-		rtl8169scd_hw_phy_config(tp, ioaddr);
+		rtl8169scd_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_06:
-		rtl8169sce_hw_phy_config(ioaddr);
+		rtl8169sce_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_07:
 	case RTL_GIGA_MAC_VER_08:
 	case RTL_GIGA_MAC_VER_09:
-		rtl8102e_hw_phy_config(ioaddr);
+		rtl8102e_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_11:
-		rtl8168bb_hw_phy_config(ioaddr);
+		rtl8168bb_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_12:
-		rtl8168bef_hw_phy_config(ioaddr);
+		rtl8168bef_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_17:
-		rtl8168bef_hw_phy_config(ioaddr);
+		rtl8168bef_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_18:
-		rtl8168cp_1_hw_phy_config(ioaddr);
+		rtl8168cp_1_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_19:
-		rtl8168c_1_hw_phy_config(ioaddr);
+		rtl8168c_1_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_20:
-		rtl8168c_2_hw_phy_config(ioaddr);
+		rtl8168c_2_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_21:
-		rtl8168c_3_hw_phy_config(ioaddr);
+		rtl8168c_3_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_22:
-		rtl8168c_4_hw_phy_config(ioaddr);
+		rtl8168c_4_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_23:
 	case RTL_GIGA_MAC_VER_24:
-		rtl8168cp_2_hw_phy_config(ioaddr);
+		rtl8168cp_2_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_25:
 		rtl8168d_1_hw_phy_config(tp);
@@ -2164,7 +2172,7 @@ static void rtl_hw_phy_config(struct net_device *dev)
 		rtl8168d_2_hw_phy_config(tp);
 		break;
 	case RTL_GIGA_MAC_VER_27:
-		rtl8168d_3_hw_phy_config(ioaddr);
+		rtl8168d_3_hw_phy_config(tp);
 		break;
 
 	default:
@@ -2187,7 +2195,7 @@ static void rtl8169_phy_timer(unsigned long __opaque)
 
 	spin_lock_irq(&tp->lock);
 
-	if (tp->phy_reset_pending(ioaddr)) {
+	if (tp->phy_reset_pending(tp)) {
 		/*
 		 * A busy loop could burn quite a few cycles on nowadays CPU.
 		 * Let's delay the execution of the timer for a few ticks.
@@ -2201,7 +2209,7 @@ static void rtl8169_phy_timer(unsigned long __opaque)
 
 	netif_warn(tp, link, dev, "PHY reset until link up\n");
 
-	tp->phy_reset_enable(ioaddr);
+	tp->phy_reset_enable(tp);
 
 out_mod_timer:
 	mod_timer(timer, jiffies + timeout);
@@ -2261,12 +2269,11 @@ static void rtl8169_release_board(struct pci_dev *pdev, struct net_device *dev,
 static void rtl8169_phy_reset(struct net_device *dev,
 			      struct rtl8169_private *tp)
 {
-	void __iomem *ioaddr = tp->mmio_addr;
 	unsigned int i;
 
-	tp->phy_reset_enable(ioaddr);
+	tp->phy_reset_enable(tp);
 	for (i = 0; i < 100; i++) {
-		if (!tp->phy_reset_pending(ioaddr))
+		if (!tp->phy_reset_pending(tp))
 			return;
 		msleep(1);
 	}
@@ -2293,7 +2300,7 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 		dprintk("Set MAC Reg C+CR Offset 0x82h = 0x01h\n");
 		RTL_W8(0x82, 0x01);
 		dprintk("Set PHY Reg 0x0bh = 0x00h\n");
-		mdio_write(ioaddr, 0x0b, 0x0000); //w 0x0b 15 0 0
+		rtl_writephy(tp, 0x0b, 0x0000); //w 0x0b 15 0 0
 	}
 
 	rtl8169_phy_reset(dev, tp);
@@ -2363,11 +2370,11 @@ static int rtl_xmii_ioctl(struct rtl8169_private *tp, struct mii_ioctl_data *dat
 		return 0;
 
 	case SIOCGMIIREG:
-		data->val_out = mdio_read(tp->mmio_addr, data->reg_num & 0x1f);
+		data->val_out = rtl_readphy(tp, data->reg_num & 0x1f);
 		return 0;
 
 	case SIOCSMIIREG:
-		mdio_write(tp->mmio_addr, data->reg_num & 0x1f, data->val_in);
+		rtl_writephy(tp, data->reg_num & 0x1f, data->val_in);
 		return 0;
 	}
 	return -EOPNOTSUPP;
