@@ -374,7 +374,7 @@ int tm6000_ir_init(struct tm6000_core *dev)
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	rc = rc_allocate_device();
-	if (!ir | !rc)
+	if (!ir || !rc)
 		goto out;
 
 	/* record handles to ourself */
