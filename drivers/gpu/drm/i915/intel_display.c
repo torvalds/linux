@@ -1081,6 +1081,84 @@ static void assert_pll(struct drm_i915_private *dev_priv,
 #define assert_pll_enabled(d, p) assert_pll(d, p, true)
 #define assert_pll_disabled(d, p) assert_pll(d, p, false)
 
+/* For ILK+ */
+static void assert_pch_pll(struct drm_i915_private *dev_priv,
+			   enum pipe pipe, bool state)
+{
+	int reg;
+	u32 val;
+	bool cur_state;
+
+	reg = PCH_DPLL(pipe);
+	val = I915_READ(reg);
+	cur_state = !!(val & DPLL_VCO_ENABLE);
+	WARN(cur_state != state,
+	     "PCH PLL state assertion failure (expected %s, current %s)\n",
+	     state_string(state), state_string(cur_state));
+}
+#define assert_pch_pll_enabled(d, p) assert_pch_pll(d, p, true)
+#define assert_pch_pll_disabled(d, p) assert_pch_pll(d, p, false)
+
+static void assert_fdi_tx(struct drm_i915_private *dev_priv,
+			  enum pipe pipe, bool state)
+{
+	int reg;
+	u32 val;
+	bool cur_state;
+
+	reg = FDI_TX_CTL(pipe);
+	val = I915_READ(reg);
+	cur_state = !!(val & FDI_TX_ENABLE);
+	WARN(cur_state != state,
+	     "FDI TX state assertion failure (expected %s, current %s)\n",
+	     state_string(state), state_string(cur_state));
+}
+#define assert_fdi_tx_enabled(d, p) assert_fdi_tx(d, p, true)
+#define assert_fdi_tx_disabled(d, p) assert_fdi_tx(d, p, false)
+
+static void assert_fdi_rx(struct drm_i915_private *dev_priv,
+			  enum pipe pipe, bool state)
+{
+	int reg;
+	u32 val;
+	bool cur_state;
+
+	reg = FDI_RX_CTL(pipe);
+	val = I915_READ(reg);
+	cur_state = !!(val & FDI_RX_ENABLE);
+	WARN(cur_state != state,
+	     "FDI RX state assertion failure (expected %s, current %s)\n",
+	     state_string(state), state_string(cur_state));
+}
+#define assert_fdi_rx_enabled(d, p) assert_fdi_rx(d, p, true)
+#define assert_fdi_rx_disabled(d, p) assert_fdi_rx(d, p, false)
+
+static void assert_fdi_tx_pll_enabled(struct drm_i915_private *dev_priv,
+				      enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	/* ILK FDI PLL is always enabled */
+	if (dev_priv->info->gen == 5)
+		return;
+
+	reg = FDI_TX_CTL(pipe);
+	val = I915_READ(reg);
+	WARN(!(val & FDI_TX_PLL_ENABLE), "FDI TX PLL assertion failure, should be active but is disabled\n");
+}
+
+static void assert_fdi_rx_pll_enabled(struct drm_i915_private *dev_priv,
+				      enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	reg = FDI_RX_CTL(pipe);
+	val = I915_READ(reg);
+	WARN(!(val & FDI_RX_PLL_ENABLE), "FDI RX PLL assertion failure, should be active but is disabled\n");
+}
+
 static void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 				  enum pipe pipe)
 {
@@ -1298,10 +1376,59 @@ static void intel_disable_pch_pll(struct drm_i915_private *dev_priv,
 	udelay(200);
 }
 
+static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
+				    enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	/* PCH only available on ILK+ */
+	BUG_ON(dev_priv->info->gen < 5);
+
+	/* Make sure PCH DPLL is enabled */
+	assert_pch_pll_enabled(dev_priv, pipe);
+
+	/* FDI must be feeding us bits for PCH ports */
+	assert_fdi_tx_enabled(dev_priv, pipe);
+	assert_fdi_rx_enabled(dev_priv, pipe);
+
+	reg = TRANSCONF(pipe);
+	val = I915_READ(reg);
+	/*
+	 * make the BPC in transcoder be consistent with
+	 * that in pipeconf reg.
+	 */
+	val &= ~PIPE_BPC_MASK;
+	val |= I915_READ(PIPECONF(pipe)) & PIPE_BPC_MASK;
+	I915_WRITE(reg, val | TRANS_ENABLE);
+	if (wait_for(I915_READ(reg) & TRANS_STATE_ENABLE, 100))
+		DRM_ERROR("failed to enable transcoder %d\n", pipe);
+}
+
+static void intel_disable_transcoder(struct drm_i915_private *dev_priv,
+				     enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	/* FDI relies on the transcoder */
+	assert_fdi_tx_disabled(dev_priv, pipe);
+	assert_fdi_rx_disabled(dev_priv, pipe);
+
+	reg = TRANSCONF(pipe);
+	val = I915_READ(reg);
+	val &= ~TRANS_ENABLE;
+	I915_WRITE(reg, val);
+	/* wait for PCH transcoder off, transcoder state */
+	if (wait_for((I915_READ(reg) & TRANS_STATE_ENABLE) == 0, 50))
+		DRM_ERROR("failed to disable transcoder\n");
+}
+
 /**
  * intel_enable_pipe - enable a pipe, assertiing requirements
  * @dev_priv: i915 private structure
  * @pipe: pipe to enable
+ * @pch_port: on ILK+, is this pipe driving a PCH port or not
  *
  * Enable @pipe, making sure that various hardware specific requirements
  * are met, if applicable, e.g. PLL enabled, LVDS pairs enabled, etc.
@@ -1311,7 +1438,8 @@ static void intel_disable_pch_pll(struct drm_i915_private *dev_priv,
  * Will wait until the pipe is actually running (i.e. first vblank) before
  * returning.
  */
-static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
+static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
+			      bool pch_port)
 {
 	int reg;
 	u32 val;
@@ -1323,6 +1451,14 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 	 */
 	if (!HAS_PCH_SPLIT(dev_priv->dev))
 		assert_pll_enabled(dev_priv, pipe);
+	else {
+		if (pch_port) {
+			/* if driving the PCH, we need FDI enabled */
+			assert_fdi_rx_pll_enabled(dev_priv, pipe);
+			assert_fdi_tx_pll_enabled(dev_priv, pipe);
+		}
+		/* FIXME: assert CPU port conditions for SNB+ */
+	}
 
 	reg = PIPECONF(pipe);
 	val = I915_READ(reg);
@@ -2385,6 +2521,31 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 		   atomic_read(&obj->pending_flip) == 0);
 }
 
+static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct intel_encoder *encoder;
+
+	/*
+	 * If there's a non-PCH eDP on this crtc, it must be DP_A, and that
+	 * must be driven by its own crtc; no sharing is possible.
+	 */
+	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
+		if (encoder->base.crtc != crtc)
+			continue;
+
+		switch (encoder->type) {
+		case INTEL_OUTPUT_EDP:
+			if (!intel_encoder_is_pch_edp(&encoder->base))
+				return false;
+			continue;
+		}
+	}
+
+	return true;
+}
+
 static void ironlake_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -2393,6 +2554,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 	u32 reg, temp;
+	bool is_pch_port;
 
 	if (intel_crtc->active)
 		return;
@@ -2423,7 +2585,9 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 			   dev_priv->pch_pf_size);
 	}
 
-	intel_enable_pipe(dev_priv, pipe);
+	is_pch_port = intel_crtc_driving_pch(crtc);
+
+	intel_enable_pipe(dev_priv, pipe, is_pch_port);
 	intel_enable_plane(dev_priv, plane, pipe);
 
 	/* For PCH output, training FDI link */
@@ -2492,18 +2656,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		I915_WRITE(reg, temp);
 	}
 
-	/* enable PCH transcoder */
-	reg = TRANSCONF(pipe);
-	temp = I915_READ(reg);
-	/*
-	 * make the BPC in transcoder be consistent with
-	 * that in pipeconf reg.
-	 */
-	temp &= ~PIPE_BPC_MASK;
-	temp |= I915_READ(PIPECONF(pipe)) & PIPE_BPC_MASK;
-	I915_WRITE(reg, temp | TRANS_ENABLE);
-	if (wait_for(I915_READ(reg) & TRANS_STATE_ENABLE, 100))
-		DRM_ERROR("failed to enable transcoder %d\n", pipe);
+	intel_enable_transcoder(dev_priv, pipe);
 
 	intel_crtc_load_lut(crtc);
 	intel_update_fbc(dev);
@@ -2592,15 +2745,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 		}
 	}
 
-	/* disable PCH transcoder */
-	reg = TRANSCONF(plane);
-	temp = I915_READ(reg);
-	if (temp & TRANS_ENABLE) {
-		I915_WRITE(reg, temp & ~TRANS_ENABLE);
-		/* wait for PCH transcoder off, transcoder state */
-		if (wait_for((I915_READ(reg) & TRANS_STATE_ENABLE) == 0, 50))
-			DRM_ERROR("failed to disable transcoder\n");
-	}
+	intel_disable_transcoder(dev_priv, pipe);
 
 	if (HAS_PCH_CPT(dev)) {
 		/* disable TRANS_DP_CTL */
@@ -2702,7 +2847,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	intel_update_watermarks(dev);
 
 	intel_enable_pll(dev_priv, pipe);
-	intel_enable_pipe(dev_priv, pipe);
+	intel_enable_pipe(dev_priv, pipe, false);
 	intel_enable_plane(dev_priv, plane, pipe);
 
 	intel_crtc_load_lut(crtc);
@@ -4688,7 +4833,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	I915_WRITE(PIPECONF(pipe), pipeconf);
 	POSTING_READ(PIPECONF(pipe));
 	if (!HAS_PCH_SPLIT(dev))
-		intel_enable_pipe(dev_priv, pipe);
+		intel_enable_pipe(dev_priv, pipe, false);
 
 	intel_wait_for_vblank(dev, pipe);
 
