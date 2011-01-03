@@ -1,6 +1,7 @@
 #include "../../../include/linux/hw_breakpoint.h"
 #include "util.h"
 #include "../perf.h"
+#include "evsel.h"
 #include "parse-options.h"
 #include "parse-events.h"
 #include "exec_cmd.h"
@@ -12,8 +13,7 @@
 
 int				nr_counters;
 
-struct perf_event_attr		attrs[MAX_COUNTERS];
-char				*filters[MAX_COUNTERS];
+LIST_HEAD(evsel_list);
 
 struct event_symbol {
 	u8		type;
@@ -266,10 +266,10 @@ static char *event_cache_name(u8 cache_type, u8 cache_op, u8 cache_result)
 	return name;
 }
 
-const char *event_name(int counter)
+const char *event_name(struct perf_evsel *evsel)
 {
-	u64 config = attrs[counter].config;
-	int type = attrs[counter].type;
+	u64 config = evsel->attr.config;
+	int type = evsel->attr.type;
 
 	return __event_name(type, config);
 }
@@ -814,9 +814,6 @@ int parse_events(const struct option *opt __used, const char *str, int unset __u
 			return -1;
 
 	for (;;) {
-		if (nr_counters == MAX_COUNTERS)
-			return -1;
-
 		memset(&attr, 0, sizeof(attr));
 		ret = parse_event_symbols(&str, &attr);
 		if (ret == EVT_FAILED)
@@ -826,8 +823,13 @@ int parse_events(const struct option *opt __used, const char *str, int unset __u
 			return -1;
 
 		if (ret != EVT_HANDLED_ALL) {
-			attrs[nr_counters] = attr;
-			nr_counters++;
+			struct perf_evsel *evsel;
+			evsel = perf_evsel__new(attr.type, attr.config,
+						nr_counters);
+			if (evsel == NULL)
+				return -1;
+			list_add_tail(&evsel->node, &evsel_list);
+			++nr_counters;
 		}
 
 		if (*str == 0)
@@ -844,21 +846,22 @@ int parse_events(const struct option *opt __used, const char *str, int unset __u
 int parse_filter(const struct option *opt __used, const char *str,
 		 int unset __used)
 {
-	int i = nr_counters - 1;
-	int len = strlen(str);
+	struct perf_evsel *last = NULL;
 
-	if (i < 0 || attrs[i].type != PERF_TYPE_TRACEPOINT) {
+	if (!list_empty(&evsel_list))
+		last = list_entry(evsel_list.prev, struct perf_evsel, node);
+
+	if (last == NULL || last->attr.type != PERF_TYPE_TRACEPOINT) {
 		fprintf(stderr,
 			"-F option should follow a -e tracepoint option\n");
 		return -1;
 	}
 
-	filters[i] = malloc(len + 1);
-	if (!filters[i]) {
+	last->filter = strdup(str);
+	if (last->filter == NULL) {
 		fprintf(stderr, "not enough memory to hold filter string\n");
 		return -1;
 	}
-	strcpy(filters[i], str);
 
 	return 0;
 }
@@ -966,4 +969,16 @@ void print_events(void)
 	print_tracepoint_events();
 
 	exit(129);
+}
+
+int perf_evsel_list__create_default(void)
+{
+	struct perf_evsel *evsel = perf_evsel__new(PERF_TYPE_HARDWARE,
+						   PERF_COUNT_HW_CPU_CYCLES, 0);
+	if (evsel == NULL)
+		return -ENOMEM;
+
+	list_add(&evsel->node, &evsel_list);
+	++nr_counters;
+	return 0;
 }

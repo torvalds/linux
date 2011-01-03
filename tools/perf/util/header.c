@@ -461,7 +461,7 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 
 		/* Write trace info */
 		trace_sec->offset = lseek(fd, 0, SEEK_CUR);
-		read_tracing_data(fd, attrs, nr_counters);
+		read_tracing_data(fd, &evsel_list);
 		trace_sec->size = lseek(fd, 0, SEEK_CUR) - trace_sec->offset;
 	}
 
@@ -1131,8 +1131,7 @@ int event__process_event_type(event_t *self,
 	return 0;
 }
 
-int event__synthesize_tracing_data(int fd, struct perf_event_attr *pattrs,
-				   int nb_events,
+int event__synthesize_tracing_data(int fd, struct list_head *pattrs,
 				   event__handler_t process,
 				   struct perf_session *session __unused)
 {
@@ -1143,7 +1142,7 @@ int event__synthesize_tracing_data(int fd, struct perf_event_attr *pattrs,
 	memset(&ev, 0, sizeof(ev));
 
 	ev.tracing_data.header.type = PERF_RECORD_HEADER_TRACING_DATA;
-	size = read_tracing_data_size(fd, pattrs, nb_events);
+	size = read_tracing_data_size(fd, pattrs);
 	if (size <= 0)
 		return size;
 	aligned_size = ALIGN(size, sizeof(u64));
@@ -1153,7 +1152,7 @@ int event__synthesize_tracing_data(int fd, struct perf_event_attr *pattrs,
 
 	process(&ev, NULL, session);
 
-	err = read_tracing_data(fd, pattrs, nb_events);
+	err = read_tracing_data(fd, pattrs);
 	write_padded(fd, NULL, 0, padding);
 
 	return aligned_size;

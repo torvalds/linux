@@ -43,6 +43,7 @@
 #include "util/parse-options.h"
 #include "util/parse-events.h"
 #include "util/event.h"
+#include "util/evsel.h"
 #include "util/debug.h"
 #include "util/header.h"
 #include "util/cpumap.h"
@@ -51,6 +52,8 @@
 #include <sys/prctl.h>
 #include <math.h>
 #include <locale.h>
+
+#define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 
 #define DEFAULT_SEPARATOR	" "
 
@@ -90,16 +93,11 @@ static const char		*cpu_list;
 static const char		*csv_sep			= NULL;
 static bool			csv_output			= false;
 
-
-static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
-
-static int			event_scaled[MAX_COUNTERS];
-
-static struct {
+struct cpu_counts {
 	u64 val;
 	u64 ena;
 	u64 run;
-} cpu_counts[MAX_NR_CPUS][MAX_COUNTERS];
+};
 
 static volatile int done = 0;
 
@@ -107,6 +105,26 @@ struct stats
 {
 	double n, mean, M2;
 };
+
+struct perf_stat {
+	struct stats	  res_stats[3];
+	int		  scaled;
+	struct cpu_counts cpu_counts[];
+};
+
+static int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel, int ncpus)
+{
+	size_t priv_size = (sizeof(struct perf_stat) +
+			    (ncpus * sizeof(struct cpu_counts)));
+	evsel->priv = zalloc(priv_size);
+	return evsel->priv == NULL ? -ENOMEM : 0;
+}
+
+static void perf_evsel__free_stat_priv(struct perf_evsel *evsel)
+{
+	free(evsel->priv);
+	evsel->priv = NULL;
+}
 
 static void update_stats(struct stats *stats, u64 val)
 {
@@ -147,22 +165,21 @@ static double stddev_stats(struct stats *stats)
 	return sqrt(variance_mean);
 }
 
-struct stats			event_res_stats[MAX_COUNTERS][3];
 struct stats			runtime_nsecs_stats[MAX_NR_CPUS];
 struct stats			runtime_cycles_stats[MAX_NR_CPUS];
 struct stats			runtime_branches_stats[MAX_NR_CPUS];
 struct stats			walltime_nsecs_stats;
 
-#define MATCH_EVENT(t, c, counter)			\
-	(attrs[counter].type == PERF_TYPE_##t &&	\
-	 attrs[counter].config == PERF_COUNT_##c)
+#define MATCH_EVENT(t, c, evsel)			\
+	(evsel->attr.type == PERF_TYPE_##t &&	\
+	 evsel->attr.config == PERF_COUNT_##c)
 
 #define ERR_PERF_OPEN \
 "counter %d, sys_perf_event_open() syscall returned with %d (%s).  /bin/dmesg may provide additional information."
 
-static int create_perf_stat_counter(int counter, bool *perm_err)
+static int create_perf_stat_counter(struct perf_evsel *evsel, bool *perm_err)
 {
-	struct perf_event_attr *attr = attrs + counter;
+	struct perf_event_attr *attr = &evsel->attr;
 	int thread;
 	int ncreated = 0;
 
@@ -174,13 +191,13 @@ static int create_perf_stat_counter(int counter, bool *perm_err)
 		int cpu;
 
 		for (cpu = 0; cpu < nr_cpus; cpu++) {
-			fd[cpu][counter][0] = sys_perf_event_open(attr,
+			FD(evsel, cpu, 0) = sys_perf_event_open(attr,
 					-1, cpumap[cpu], -1, 0);
-			if (fd[cpu][counter][0] < 0) {
+			if (FD(evsel, cpu, 0) < 0) {
 				if (errno == EPERM || errno == EACCES)
 					*perm_err = true;
-				error(ERR_PERF_OPEN, counter,
-					 fd[cpu][counter][0], strerror(errno));
+				error(ERR_PERF_OPEN, evsel->idx,
+					FD(evsel, cpu, 0), strerror(errno));
 			} else {
 				++ncreated;
 			}
@@ -192,13 +209,13 @@ static int create_perf_stat_counter(int counter, bool *perm_err)
 			attr->enable_on_exec = 1;
 		}
 		for (thread = 0; thread < thread_num; thread++) {
-			fd[0][counter][thread] = sys_perf_event_open(attr,
+			FD(evsel, 0, thread) = sys_perf_event_open(attr,
 				all_tids[thread], -1, -1, 0);
-			if (fd[0][counter][thread] < 0) {
+			if (FD(evsel, 0, thread) < 0) {
 				if (errno == EPERM || errno == EACCES)
 					*perm_err = true;
-				error(ERR_PERF_OPEN, counter,
-					 fd[0][counter][thread],
+				error(ERR_PERF_OPEN, evsel->idx,
+					FD(evsel, 0, thread),
 					 strerror(errno));
 			} else {
 				++ncreated;
@@ -212,7 +229,7 @@ static int create_perf_stat_counter(int counter, bool *perm_err)
 /*
  * Does the counter have nsecs as a unit?
  */
-static inline int nsec_counter(int counter)
+static inline int nsec_counter(struct perf_evsel *counter)
 {
 	if (MATCH_EVENT(SOFTWARE, SW_CPU_CLOCK, counter) ||
 	    MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter))
@@ -225,8 +242,9 @@ static inline int nsec_counter(int counter)
  * Read out the results of a single counter:
  * aggregate counts across CPUs in system-wide mode
  */
-static void read_counter_aggr(int counter)
+static void read_counter_aggr(struct perf_evsel *counter)
 {
+	struct perf_stat *ps = counter->priv;
 	u64 count[3], single_count[3];
 	int cpu;
 	size_t res, nv;
@@ -238,15 +256,15 @@ static void read_counter_aggr(int counter)
 	nv = scale ? 3 : 1;
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
 		for (thread = 0; thread < thread_num; thread++) {
-			if (fd[cpu][counter][thread] < 0)
+			if (FD(counter, cpu, thread) < 0)
 				continue;
 
-			res = read(fd[cpu][counter][thread],
+			res = read(FD(counter, cpu, thread),
 					single_count, nv * sizeof(u64));
 			assert(res == nv * sizeof(u64));
 
-			close(fd[cpu][counter][thread]);
-			fd[cpu][counter][thread] = -1;
+			close(FD(counter, cpu, thread));
+			FD(counter, cpu, thread) = -1;
 
 			count[0] += single_count[0];
 			if (scale) {
@@ -259,20 +277,20 @@ static void read_counter_aggr(int counter)
 	scaled = 0;
 	if (scale) {
 		if (count[2] == 0) {
-			event_scaled[counter] = -1;
+			ps->scaled = -1;
 			count[0] = 0;
 			return;
 		}
 
 		if (count[2] < count[1]) {
-			event_scaled[counter] = 1;
+			ps->scaled = 1;
 			count[0] = (unsigned long long)
 				((double)count[0] * count[1] / count[2] + 0.5);
 		}
 	}
 
 	for (i = 0; i < 3; i++)
-		update_stats(&event_res_stats[counter][i], count[i]);
+		update_stats(&ps->res_stats[i], count[i]);
 
 	if (verbose) {
 		fprintf(stderr, "%s: %Ld %Ld %Ld\n", event_name(counter),
@@ -294,8 +312,9 @@ static void read_counter_aggr(int counter)
  * Read out the results of a single counter:
  * do not aggregate counts across CPUs in system-wide mode
  */
-static void read_counter(int counter)
+static void read_counter(struct perf_evsel *counter)
 {
+	struct cpu_counts *cpu_counts = counter->priv;
 	u64 count[3];
 	int cpu;
 	size_t res, nv;
@@ -306,15 +325,15 @@ static void read_counter(int counter)
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
 
-		if (fd[cpu][counter][0] < 0)
+		if (FD(counter, cpu, 0) < 0)
 			continue;
 
-		res = read(fd[cpu][counter][0], count, nv * sizeof(u64));
+		res = read(FD(counter, cpu, 0), count, nv * sizeof(u64));
 
 		assert(res == nv * sizeof(u64));
 
-		close(fd[cpu][counter][0]);
-		fd[cpu][counter][0] = -1;
+		close(FD(counter, cpu, 0));
+		FD(counter, cpu, 0) = -1;
 
 		if (scale) {
 			if (count[2] == 0) {
@@ -324,9 +343,9 @@ static void read_counter(int counter)
 				((double)count[0] * count[1] / count[2] + 0.5);
 			}
 		}
-		cpu_counts[cpu][counter].val = count[0]; /* scaled count */
-		cpu_counts[cpu][counter].ena = count[1];
-		cpu_counts[cpu][counter].run = count[2];
+		cpu_counts[cpu].val = count[0]; /* scaled count */
+		cpu_counts[cpu].ena = count[1];
+		cpu_counts[cpu].run = count[2];
 
 		if (MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter))
 			update_stats(&runtime_nsecs_stats[cpu], count[0]);
@@ -340,8 +359,9 @@ static void read_counter(int counter)
 static int run_perf_stat(int argc __used, const char **argv)
 {
 	unsigned long long t0, t1;
+	struct perf_evsel *counter;
 	int status = 0;
-	int counter, ncreated = 0;
+	int ncreated = 0;
 	int child_ready_pipe[2], go_pipe[2];
 	bool perm_err = false;
 	const bool forks = (argc > 0);
@@ -401,7 +421,7 @@ static int run_perf_stat(int argc __used, const char **argv)
 		close(child_ready_pipe[0]);
 	}
 
-	for (counter = 0; counter < nr_counters; counter++)
+	list_for_each_entry(counter, &evsel_list, node)
 		ncreated += create_perf_stat_counter(counter, &perm_err);
 
 	if (ncreated < nr_counters) {
@@ -433,25 +453,28 @@ static int run_perf_stat(int argc __used, const char **argv)
 	update_stats(&walltime_nsecs_stats, t1 - t0);
 
 	if (no_aggr) {
-		for (counter = 0; counter < nr_counters; counter++)
+		list_for_each_entry(counter, &evsel_list, node)
 			read_counter(counter);
 	} else {
-		for (counter = 0; counter < nr_counters; counter++)
+		list_for_each_entry(counter, &evsel_list, node)
 			read_counter_aggr(counter);
 	}
 	return WEXITSTATUS(status);
 }
 
-static void print_noise(int counter, double avg)
+static void print_noise(struct perf_evsel *evsel, double avg)
 {
+	struct perf_stat *ps;
+
 	if (run_count == 1)
 		return;
 
+	ps = evsel->priv;
 	fprintf(stderr, "   ( +- %7.3f%% )",
-			100 * stddev_stats(&event_res_stats[counter][0]) / avg);
+			100 * stddev_stats(&ps->res_stats[0]) / avg);
 }
 
-static void nsec_printout(int cpu, int counter, double avg)
+static void nsec_printout(int cpu, struct perf_evsel *counter, double avg)
 {
 	double msecs = avg / 1e6;
 	char cpustr[16] = { '\0', };
@@ -473,7 +496,7 @@ static void nsec_printout(int cpu, int counter, double avg)
 	}
 }
 
-static void abs_printout(int cpu, int counter, double avg)
+static void abs_printout(int cpu, struct perf_evsel *counter, double avg)
 {
 	double total, ratio = 0.0;
 	char cpustr[16] = { '\0', };
@@ -528,10 +551,11 @@ static void abs_printout(int cpu, int counter, double avg)
  * Print out the results of a single counter:
  * aggregated counts in system-wide mode
  */
-static void print_counter_aggr(int counter)
+static void print_counter_aggr(struct perf_evsel *counter)
 {
-	double avg = avg_stats(&event_res_stats[counter][0]);
-	int scaled = event_scaled[counter];
+	struct perf_stat *ps = counter->priv;
+	double avg = avg_stats(&ps->res_stats[0]);
+	int scaled = ps->scaled;
 
 	if (scaled == -1) {
 		fprintf(stderr, "%*s%s%-24s\n",
@@ -555,8 +579,8 @@ static void print_counter_aggr(int counter)
 	if (scaled) {
 		double avg_enabled, avg_running;
 
-		avg_enabled = avg_stats(&event_res_stats[counter][1]);
-		avg_running = avg_stats(&event_res_stats[counter][2]);
+		avg_enabled = avg_stats(&ps->res_stats[1]);
+		avg_running = avg_stats(&ps->res_stats[2]);
 
 		fprintf(stderr, "  (scaled from %.2f%%)",
 				100 * avg_running / avg_enabled);
@@ -569,15 +593,16 @@ static void print_counter_aggr(int counter)
  * Print out the results of a single counter:
  * does not use aggregated count in system-wide
  */
-static void print_counter(int counter)
+static void print_counter(struct perf_evsel *counter)
 {
+	struct perf_stat *ps = counter->priv;
 	u64 ena, run, val;
 	int cpu;
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
-		val = cpu_counts[cpu][counter].val;
-		ena = cpu_counts[cpu][counter].ena;
-		run = cpu_counts[cpu][counter].run;
+		val = ps->cpu_counts[cpu].val;
+		ena = ps->cpu_counts[cpu].ena;
+		run = ps->cpu_counts[cpu].run;
 		if (run == 0 || ena == 0) {
 			fprintf(stderr, "CPU%*d%s%*s%s%-24s",
 				csv_output ? 0 : -4,
@@ -609,7 +634,8 @@ static void print_counter(int counter)
 
 static void print_stat(int argc, const char **argv)
 {
-	int i, counter;
+	struct perf_evsel *counter;
+	int i;
 
 	fflush(stdout);
 
@@ -632,10 +658,10 @@ static void print_stat(int argc, const char **argv)
 	}
 
 	if (no_aggr) {
-		for (counter = 0; counter < nr_counters; counter++)
+		list_for_each_entry(counter, &evsel_list, node)
 			print_counter(counter);
 	} else {
-		for (counter = 0; counter < nr_counters; counter++)
+		list_for_each_entry(counter, &evsel_list, node)
 			print_counter_aggr(counter);
 	}
 
@@ -720,8 +746,8 @@ static const struct option options[] = {
 
 int cmd_stat(int argc, const char **argv, const char *prefix __used)
 {
-	int status;
-	int i,j;
+	struct perf_evsel *pos;
+	int status = -ENOMEM;
 
 	setlocale(LC_ALL, "");
 
@@ -757,8 +783,18 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 
 	/* Set attrs and nr_counters if no event is selected and !null_run */
 	if (!null_run && !nr_counters) {
-		memcpy(attrs, default_attrs, sizeof(default_attrs));
+		size_t c;
+
 		nr_counters = ARRAY_SIZE(default_attrs);
+
+		for (c = 0; c < ARRAY_SIZE(default_attrs); ++c) {
+			pos = perf_evsel__new(default_attrs[c].type,
+					      default_attrs[c].config,
+					      nr_counters);
+			if (pos == NULL)
+				goto out;
+			list_add(&pos->node, &evsel_list);
+		}
 	}
 
 	if (system_wide)
@@ -786,12 +822,10 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		thread_num = 1;
 	}
 
-	for (i = 0; i < MAX_NR_CPUS; i++) {
-		for (j = 0; j < MAX_COUNTERS; j++) {
-			fd[i][j] = malloc(sizeof(int)*thread_num);
-			if (!fd[i][j])
-				return -ENOMEM;
-		}
+	list_for_each_entry(pos, &evsel_list, node) {
+		if (perf_evsel__alloc_stat_priv(pos, nr_cpus) < 0 ||
+		    perf_evsel__alloc_fd(pos, nr_cpus, thread_num) < 0)
+			goto out_free_fd;
 	}
 
 	/*
@@ -814,6 +848,11 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 
 	if (status != -1)
 		print_stat(argc, argv);
-
+out_free_fd:
+	list_for_each_entry(pos, &evsel_list, node) {
+		perf_evsel__free_fd(pos);
+		perf_evsel__free_stat_priv(pos);
+	}
+out:
 	return status;
 }

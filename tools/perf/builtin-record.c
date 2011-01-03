@@ -18,6 +18,7 @@
 
 #include "util/header.h"
 #include "util/event.h"
+#include "util/evsel.h"
 #include "util/debug.h"
 #include "util/session.h"
 #include "util/symbol.h"
@@ -27,12 +28,12 @@
 #include <sched.h>
 #include <sys/mman.h>
 
+#define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
+
 enum write_mode_t {
 	WRITE_FORCE,
 	WRITE_APPEND
 };
-
-static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
 
 static u64			user_interval			= ULLONG_MAX;
 static u64			default_interval		=      0;
@@ -81,7 +82,6 @@ static struct perf_session	*session;
 static const char		*cpu_list;
 
 struct mmap_data {
-	int			counter;
 	void			*base;
 	unsigned int		mask;
 	unsigned int		prev;
@@ -229,12 +229,12 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 	return h_attr;
 }
 
-static void create_counter(int counter, int cpu)
+static void create_counter(struct perf_evsel *evsel, int cpu)
 {
-	char *filter = filters[counter];
-	struct perf_event_attr *attr = attrs + counter;
+	char *filter = evsel->filter;
+	struct perf_event_attr *attr = &evsel->attr;
 	struct perf_header_attr *h_attr;
-	int track = !counter; /* only the first counter needs these */
+	int track = !evsel->idx; /* only the first counter needs these */
 	int thread_index;
 	int ret;
 	struct {
@@ -320,10 +320,9 @@ retry_sample_id:
 
 	for (thread_index = 0; thread_index < thread_num; thread_index++) {
 try_again:
-		fd[nr_cpu][counter][thread_index] = sys_perf_event_open(attr,
-				all_tids[thread_index], cpu, group_fd, 0);
+		FD(evsel, nr_cpu, thread_index) = sys_perf_event_open(attr, all_tids[thread_index], cpu, group_fd, 0);
 
-		if (fd[nr_cpu][counter][thread_index] < 0) {
+		if (FD(evsel, nr_cpu, thread_index) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES)
@@ -360,7 +359,7 @@ try_again:
 			}
 			printf("\n");
 			error("sys_perf_event_open() syscall returned with %d (%s).  /bin/dmesg may provide additional information.\n",
-					fd[nr_cpu][counter][thread_index], strerror(err));
+			      FD(evsel, nr_cpu, thread_index), strerror(err));
 
 #if defined(__i386__) || defined(__x86_64__)
 			if (attr->type == PERF_TYPE_HARDWARE && err == EOPNOTSUPP)
@@ -374,7 +373,7 @@ try_again:
 			exit(-1);
 		}
 
-		h_attr = get_header_attr(attr, counter);
+		h_attr = get_header_attr(attr, evsel->idx);
 		if (h_attr == NULL)
 			die("nomem\n");
 
@@ -385,7 +384,7 @@ try_again:
 			}
 		}
 
-		if (read(fd[nr_cpu][counter][thread_index], &read_data, sizeof(read_data)) == -1) {
+		if (read(FD(evsel, nr_cpu, thread_index), &read_data, sizeof(read_data)) == -1) {
 			perror("Unable to read perf file descriptor");
 			exit(-1);
 		}
@@ -395,43 +394,44 @@ try_again:
 			exit(-1);
 		}
 
-		assert(fd[nr_cpu][counter][thread_index] >= 0);
-		fcntl(fd[nr_cpu][counter][thread_index], F_SETFL, O_NONBLOCK);
+		assert(FD(evsel, nr_cpu, thread_index) >= 0);
+		fcntl(FD(evsel, nr_cpu, thread_index), F_SETFL, O_NONBLOCK);
 
 		/*
 		 * First counter acts as the group leader:
 		 */
 		if (group && group_fd == -1)
-			group_fd = fd[nr_cpu][counter][thread_index];
+			group_fd = FD(evsel, nr_cpu, thread_index);
 
-		if (counter || thread_index) {
-			ret = ioctl(fd[nr_cpu][counter][thread_index],
-					PERF_EVENT_IOC_SET_OUTPUT,
-					fd[nr_cpu][0][0]);
+		if (evsel->idx || thread_index) {
+			struct perf_evsel *first;
+			first = list_entry(evsel_list.next, struct perf_evsel, node);
+			ret = ioctl(FD(evsel, nr_cpu, thread_index),
+				    PERF_EVENT_IOC_SET_OUTPUT,
+				    FD(first, nr_cpu, 0));
 			if (ret) {
 				error("failed to set output: %d (%s)\n", errno,
 						strerror(errno));
 				exit(-1);
 			}
 		} else {
-			mmap_array[nr_cpu].counter = counter;
 			mmap_array[nr_cpu].prev = 0;
 			mmap_array[nr_cpu].mask = mmap_pages*page_size - 1;
 			mmap_array[nr_cpu].base = mmap(NULL, (mmap_pages+1)*page_size,
-				PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter][thread_index], 0);
+				PROT_READ | PROT_WRITE, MAP_SHARED, FD(evsel, nr_cpu, thread_index), 0);
 			if (mmap_array[nr_cpu].base == MAP_FAILED) {
 				error("failed to mmap with %d (%s)\n", errno, strerror(errno));
 				exit(-1);
 			}
 
-			event_array[nr_poll].fd = fd[nr_cpu][counter][thread_index];
+			event_array[nr_poll].fd = FD(evsel, nr_cpu, thread_index);
 			event_array[nr_poll].events = POLLIN;
 			nr_poll++;
 		}
 
 		if (filter != NULL) {
-			ret = ioctl(fd[nr_cpu][counter][thread_index],
-					PERF_EVENT_IOC_SET_FILTER, filter);
+			ret = ioctl(FD(evsel, nr_cpu, thread_index),
+				    PERF_EVENT_IOC_SET_FILTER, filter);
 			if (ret) {
 				error("failed to set filter with %d (%s)\n", errno,
 						strerror(errno));
@@ -446,11 +446,12 @@ try_again:
 
 static void open_counters(int cpu)
 {
-	int counter;
+	struct perf_evsel *pos;
 
 	group_fd = -1;
-	for (counter = 0; counter < nr_counters; counter++)
-		create_counter(counter, cpu);
+
+	list_for_each_entry(pos, &evsel_list, node)
+		create_counter(pos, cpu);
 
 	nr_cpu++;
 }
@@ -537,7 +538,7 @@ static void mmap_read_all(void)
 
 static int __cmd_record(int argc, const char **argv)
 {
-	int i, counter;
+	int i;
 	struct stat st;
 	int flags;
 	int err;
@@ -604,7 +605,7 @@ static int __cmd_record(int argc, const char **argv)
 			goto out_delete_session;
 	}
 
-	if (have_tracepoints(attrs, nr_counters))
+	if (have_tracepoints(&evsel_list))
 		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
 
 	/*
@@ -666,12 +667,6 @@ static int __cmd_record(int argc, const char **argv)
 		close(child_ready_pipe[0]);
 	}
 
-	nr_cpus = read_cpu_map(cpu_list);
-	if (nr_cpus < 1) {
-		perror("failed to collect number of CPUs");
-		return -1;
-	}
-
 	if (!system_wide && no_inherit && !cpu_list) {
 		open_counters(-1);
 	} else {
@@ -711,7 +706,7 @@ static int __cmd_record(int argc, const char **argv)
 			return err;
 		}
 
-		if (have_tracepoints(attrs, nr_counters)) {
+		if (have_tracepoints(&evsel_list)) {
 			/*
 			 * FIXME err <= 0 here actually means that
 			 * there were no tracepoints so its not really
@@ -720,8 +715,7 @@ static int __cmd_record(int argc, const char **argv)
 			 * return this more properly and also
 			 * propagate errors that now are calling die()
 			 */
-			err = event__synthesize_tracing_data(output, attrs,
-							     nr_counters,
+			err = event__synthesize_tracing_data(output, &evsel_list,
 							     process_synthesized_event,
 							     session);
 			if (err <= 0) {
@@ -795,13 +789,13 @@ static int __cmd_record(int argc, const char **argv)
 
 		if (done) {
 			for (i = 0; i < nr_cpu; i++) {
-				for (counter = 0;
-					counter < nr_counters;
-					counter++) {
+				struct perf_evsel *pos;
+
+				list_for_each_entry(pos, &evsel_list, node) {
 					for (thread = 0;
 						thread < thread_num;
 						thread++)
-						ioctl(fd[i][counter][thread],
+						ioctl(FD(pos, i, thread),
 							PERF_EVENT_IOC_DISABLE);
 				}
 			}
@@ -887,7 +881,8 @@ const struct option record_options[] = {
 
 int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
-	int i, j, err = -ENOMEM;
+	int err = -ENOMEM;
+	struct perf_evsel *pos;
 
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
@@ -910,10 +905,9 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	if (no_buildid_cache || no_buildid)
 		disable_buildid_cache();
 
-	if (!nr_counters) {
-		nr_counters	= 1;
-		attrs[0].type	= PERF_TYPE_HARDWARE;
-		attrs[0].config = PERF_COUNT_HW_CPU_CYCLES;
+	if (list_empty(&evsel_list) && perf_evsel_list__create_default() < 0) {
+		pr_err("Not enough memory for event selector list\n");
+		goto out_symbol_exit;
 	}
 
 	if (target_pid != -1) {
@@ -933,12 +927,15 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		thread_num = 1;
 	}
 
-	for (i = 0; i < MAX_NR_CPUS; i++) {
-		for (j = 0; j < MAX_COUNTERS; j++) {
-			fd[i][j] = malloc(sizeof(int)*thread_num);
-			if (!fd[i][j])
-				goto out_free_fd;
-		}
+	nr_cpus = read_cpu_map(cpu_list);
+	if (nr_cpus < 1) {
+		perror("failed to collect number of CPUs");
+		return -1;
+	}
+
+	list_for_each_entry(pos, &evsel_list, node) {
+		if (perf_evsel__alloc_fd(pos, nr_cpus, thread_num) < 0)
+			goto out_free_fd;
 	}
 	event_array = malloc(
 		sizeof(struct pollfd)*MAX_NR_CPUS*MAX_COUNTERS*thread_num);
@@ -968,10 +965,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 out_free_event_array:
 	free(event_array);
 out_free_fd:
-	for (i = 0; i < MAX_NR_CPUS; i++) {
-		for (j = 0; j < MAX_COUNTERS; j++)
-			free(fd[i][j]);
-	}
+	list_for_each_entry(pos, &evsel_list, node)
+		perf_evsel__free_fd(pos);
 	free(all_tids);
 	all_tids = NULL;
 out_symbol_exit:
