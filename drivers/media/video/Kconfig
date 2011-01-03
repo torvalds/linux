@@ -141,15 +141,6 @@ config VIDEO_TDA9840
 	  To compile this driver as a module, choose M here: the
 	  module will be called tda9840.
 
-config VIDEO_TDA9875
-	tristate "Philips TDA9875 audio processor"
-	depends on VIDEO_V4L2 && I2C
-	---help---
-	  Support for tda9875 audio decoder chip found on some bt8xx boards.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called tda9875.
-
 config VIDEO_TEA6415C
 	tristate "Philips TEA6415C audio processor"
 	depends on I2C
