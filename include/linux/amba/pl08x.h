@@ -110,8 +110,9 @@ struct pl08x_txd {
 	size_t len;
 	dma_addr_t llis_bus;
 	void *llis_va;
-	struct pl08x_channel_data *cd;
 	bool active;
+	/* Default cctl value for LLIs */
+	u32 cctl;
 	/*
 	 * Settings to be put into the physical channel when we
 	 * trigger this txd.  Other registers are in llis_va[0].

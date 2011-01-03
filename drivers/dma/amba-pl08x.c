@@ -577,7 +577,6 @@ static inline size_t pl08x_pre_boundary(u32 addr, size_t len)
 static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 			      struct pl08x_txd *txd)
 {
-	struct pl08x_channel_data *cd = txd->cd;
 	struct pl08x_bus_data *mbus, *sbus;
 	size_t remainder;
 	int num_llis = 0;
@@ -595,17 +594,8 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 
 	pl08x->pool_ctr++;
 
-	/*
-	 * Initialize bus values for this transfer
-	 * from the passed optimal values
-	 */
-	if (!cd) {
-		dev_err(&pl08x->adev->dev, "%s no channel data\n", __func__);
-		return 0;
-	}
-
-	/* Get the default CCTL from the platform data */
-	cctl = cd->cctl;
+	/* Get the default CCTL */
+	cctl = txd->cctl;
 
 	/*
 	 * On the PL080 we have two bus masters and we
@@ -1358,11 +1348,11 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 	txd->dstbus.addr = dest;
 
 	/* Set platform data for m2m */
-	txd->cd = &pl08x->pd->memcpy_channel;
 	txd->ccfg |= PL080_FLOW_MEM2MEM << PL080_CONFIG_FLOW_CONTROL_SHIFT;
+	txd->cctl = pl08x->pd->memcpy_channel.cctl;
 
 	/* Both to be incremented or the code will break */
-	txd->cd->cctl |= PL080_CONTROL_SRC_INCR | PL080_CONTROL_DST_INCR;
+	txd->cctl |= PL080_CONTROL_SRC_INCR | PL080_CONTROL_DST_INCR;
 	txd->len = len;
 
 	ret = pl08x_prep_channel_resources(plchan, txd);
@@ -1415,6 +1405,8 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 	 * channel target address dynamically at runtime.
 	 */
 	txd->direction = direction;
+	txd->cctl = plchan->cd->cctl;
+
 	if (direction == DMA_TO_DEVICE) {
 		txd->ccfg |= PL080_FLOW_MEM2PER << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 		txd->srcbus.addr = sgl->dma_address;
@@ -1434,7 +1426,6 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 			"%s direction unsupported\n", __func__);
 		return NULL;
 	}
-	txd->cd = plchan->cd;
 	txd->len = sgl->length;
 
 	ret = pl08x_prep_channel_resources(plchan, txd);
