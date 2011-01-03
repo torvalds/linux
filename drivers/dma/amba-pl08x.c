@@ -53,7 +53,23 @@
  *
  * ASSUMES default (little) endianness for DMA transfers
  *
- * Only DMAC flow control is implemented
+ * The PL08x has two flow control settings:
+ *  - DMAC flow control: the transfer size defines the number of transfers
+ *    which occur for the current LLI entry, and the DMAC raises TC at the
+ *    end of every LLI entry.  Observed behaviour shows the DMAC listening
+ *    to both the BREQ and SREQ signals (contrary to documented),
+ *    transferring data if either is active.  The LBREQ and LSREQ signals
+ *    are ignored.
+ *
+ *  - Peripheral flow control: the transfer size is ignored (and should be
+ *    zero).  The data is transferred from the current LLI entry, until
+ *    after the final transfer signalled by LBREQ or LSREQ.  The DMAC
+ *    will then move to the next LLI entry.
+ *
+ * Only the former works sanely with scatter lists, so we only implement
+ * the DMAC flow control method.  However, peripherals which use the LBREQ
+ * and LSREQ signals (eg, MMCI) are unable to use this mode, which through
+ * these hardware restrictions prevents them from using scatter DMA.
  *
  * Global TODO:
  * - Break out common code from arch/arm/mach-s3c64xx and share
