@@ -1481,11 +1481,11 @@ find_request(struct drbd_conf *mdev,
 	hlist_for_each_entry(req, n, slot, collision) {
 		if ((unsigned long)req != (unsigned long)id)
 			continue;
-		if (req->sector != sector) {
+		if (req->i.sector != sector) {
 			dev_err(DEV, "%s: found request %lu but it has "
 				"wrong sector (%llus versus %llus)\n",
 				func, (unsigned long)req,
-				(unsigned long long)req->sector,
+				(unsigned long long)req->i.sector,
 				(unsigned long long)sector);
 			return NULL;
 		}
@@ -1783,7 +1783,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 
 		hlist_add_head(&e->collision, ee_hash_slot(mdev, sector));
 
-#define OVERLAPS overlaps(i->sector, i->size, sector, size)
+#define OVERLAPS overlaps(i->i.sector, i->i.size, sector, size)
 		slot = tl_hash_slot(mdev, sector);
 		first = 1;
 		for (;;) {
@@ -1800,7 +1800,7 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 						      "	new: %llus +%u; pending: %llus +%u\n",
 						      current->comm, current->pid,
 						      (unsigned long long)sector, size,
-						      (unsigned long long)i->sector, i->size);
+						      (unsigned long long)i->i.sector, i->i.size);
 					if (i->rq_state & RQ_NET_PENDING)
 						++have_unacked;
 					++have_conflict;

@@ -682,6 +682,8 @@ struct drbd_work {
 	drbd_work_cb cb;
 };
 
+#include "drbd_interval.h"
+
 struct drbd_request {
 	struct drbd_work w;
 	struct drbd_conf *mdev;
@@ -693,8 +695,7 @@ struct drbd_request {
 	struct bio *private_bio;
 
 	struct hlist_node collision;
-	sector_t sector;
-	unsigned int size;
+	struct drbd_interval i;
 	unsigned int epoch; /* barrier_nr */
 
 	/* barrier_nr: used to check on "completion" whether this req was in

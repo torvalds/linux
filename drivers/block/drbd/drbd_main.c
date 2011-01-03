@@ -2711,19 +2711,19 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	dgs = (mdev->agreed_pro_version >= 87 && mdev->integrity_w_tfm) ?
 		crypto_hash_digestsize(mdev->integrity_w_tfm) : 0;
 
-	if (req->size <= DRBD_MAX_SIZE_H80_PACKET) {
+	if (req->i.size <= DRBD_MAX_SIZE_H80_PACKET) {
 		p.head.h80.magic   = cpu_to_be32(DRBD_MAGIC);
 		p.head.h80.command = cpu_to_be16(P_DATA);
 		p.head.h80.length  =
-			cpu_to_be16(sizeof(p) - sizeof(union p_header) + dgs + req->size);
+			cpu_to_be16(sizeof(p) - sizeof(union p_header) + dgs + req->i.size);
 	} else {
 		p.head.h95.magic   = cpu_to_be16(DRBD_MAGIC_BIG);
 		p.head.h95.command = cpu_to_be16(P_DATA);
 		p.head.h95.length  =
-			cpu_to_be32(sizeof(p) - sizeof(union p_header) + dgs + req->size);
+			cpu_to_be32(sizeof(p) - sizeof(union p_header) + dgs + req->i.size);
 	}
 
-	p.sector   = cpu_to_be64(req->sector);
+	p.sector   = cpu_to_be64(req->i.sector);
 	p.block_id = (unsigned long)req;
 	p.seq_num  = cpu_to_be32(req->seq_num =
 				 atomic_add_return(1, &mdev->packet_seq));
@@ -2769,7 +2769,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 			if (memcmp(mdev->int_dig_out, digest, dgs)) {
 				dev_warn(DEV,
 					"Digest mismatch, buffer modified by upper layers during write: %llus +%u\n",
-					(unsigned long long)req->sector, req->size);
+					(unsigned long long)req->i.sector, req->i.size);
 			}
 		} /* else if (dgs > 64) {
 		     ... Be noisy about digest too large ...
@@ -2837,8 +2837,8 @@ int drbd_send_oos(struct drbd_conf *mdev, struct drbd_request *req)
 {
 	struct p_block_desc p;
 
-	p.sector  = cpu_to_be64(req->sector);
-	p.blksize = cpu_to_be32(req->size);
+	p.sector  = cpu_to_be64(req->i.sector);
+	p.blksize = cpu_to_be32(req->i.size);
 
 	return drbd_send_cmd(mdev, USE_DATA_SOCKET, P_OUT_OF_SYNC, &p.head, sizeof(p));
 }

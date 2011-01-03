@@ -77,10 +77,10 @@ static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const
 		 * Other places where we set out-of-sync:
 		 * READ with local io-error */
 		if (!(s & RQ_NET_OK) || !(s & RQ_LOCAL_OK))
-			drbd_set_out_of_sync(mdev, req->sector, req->size);
+			drbd_set_out_of_sync(mdev, req->i.sector, req->i.size);
 
 		if ((s & RQ_NET_OK) && (s & RQ_LOCAL_OK) && (s & RQ_NET_SIS))
-			drbd_set_in_sync(mdev, req->sector, req->size);
+			drbd_set_in_sync(mdev, req->i.sector, req->i.size);
 
 		/* one might be tempted to move the drbd_al_complete_io
 		 * to the local io completion callback drbd_endio_pri.
@@ -95,12 +95,12 @@ static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const
 		if (s & RQ_LOCAL_MASK) {
 			if (get_ldev_if_state(mdev, D_FAILED)) {
 				if (s & RQ_IN_ACT_LOG)
-					drbd_al_complete_io(mdev, req->sector);
+					drbd_al_complete_io(mdev, req->i.sector);
 				put_ldev(mdev);
 			} else if (__ratelimit(&drbd_ratelimit_state)) {
 				dev_warn(DEV, "Should have called drbd_al_complete_io(, %llu), "
 				     "but my Disk seems to have failed :(\n",
-				     (unsigned long long) req->sector);
+				     (unsigned long long) req->i.sector);
 			}
 		}
 	}
@@ -155,20 +155,20 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 	 * if we have the ee_hash (two_primaries) and
 	 * this has been on the network */
 	if ((s & RQ_NET_DONE) && mdev->ee_hash != NULL) {
-		const sector_t sector = req->sector;
-		const int size = req->size;
+		const sector_t sector = req->i.sector;
+		const int size = req->i.size;
 
 		/* ASSERT:
 		 * there must be no conflicting requests, since
 		 * they must have been failed on the spot */
-#define OVERLAPS overlaps(sector, size, i->sector, i->size)
+#define OVERLAPS overlaps(sector, size, i->i.sector, i->i.size)
 		slot = tl_hash_slot(mdev, sector);
 		hlist_for_each_entry(i, n, slot, collision) {
 			if (OVERLAPS) {
 				dev_alert(DEV, "LOGIC BUG: completed: %p %llus +%u; "
 				      "other: %p %llus +%u\n",
 				      req, (unsigned long long)sector, size,
-				      i, (unsigned long long)i->sector, i->size);
+				      i, (unsigned long long)i->i.sector, i->i.size);
 			}
 		}
 
@@ -186,7 +186,7 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 		 * we just have to do a wake_up.  */
 #undef OVERLAPS
 #define OVERLAPS overlaps(sector, size, e->sector, e->size)
-		slot = ee_hash_slot(mdev, req->sector);
+		slot = ee_hash_slot(mdev, req->i.sector);
 		hlist_for_each_entry(e, n, slot, collision) {
 			if (OVERLAPS) {
 				wake_up(&mdev->misc_wait);
@@ -322,8 +322,8 @@ static void _req_may_be_done_not_susp(struct drbd_request *req, struct bio_and_e
 static int _req_conflicts(struct drbd_request *req)
 {
 	struct drbd_conf *mdev = req->mdev;
-	const sector_t sector = req->sector;
-	const int size = req->size;
+	const sector_t sector = req->i.sector;
+	const int size = req->i.size;
 	struct drbd_request *i;
 	struct drbd_epoch_entry *e;
 	struct hlist_node *n;
@@ -339,7 +339,7 @@ static int _req_conflicts(struct drbd_request *req)
 		goto out_no_conflict;
 	BUG_ON(mdev->tl_hash == NULL);
 
-#define OVERLAPS overlaps(i->sector, i->size, sector, size)
+#define OVERLAPS overlaps(i->i.sector, i->i.size, sector, size)
 	slot = tl_hash_slot(mdev, sector);
 	hlist_for_each_entry(i, n, slot, collision) {
 		if (OVERLAPS) {
@@ -348,7 +348,7 @@ static int _req_conflicts(struct drbd_request *req)
 			      "pending: %llus +%u\n",
 			      current->comm, current->pid,
 			      (unsigned long long)sector, size,
-			      (unsigned long long)i->sector, i->size);
+			      (unsigned long long)i->i.sector, i->i.size);
 			goto out_conflict;
 		}
 	}
@@ -430,9 +430,9 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 	case completed_ok:
 		if (bio_data_dir(req->master_bio) == WRITE)
-			mdev->writ_cnt += req->size>>9;
+			mdev->writ_cnt += req->i.size >> 9;
 		else
-			mdev->read_cnt += req->size>>9;
+			mdev->read_cnt += req->i.size >> 9;
 
 		req->rq_state |= (RQ_LOCAL_COMPLETED|RQ_LOCAL_OK);
 		req->rq_state &= ~RQ_LOCAL_PENDING;
@@ -459,7 +459,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		break;
 
 	case read_completed_with_error:
-		drbd_set_out_of_sync(mdev, req->sector, req->size);
+		drbd_set_out_of_sync(mdev, req->i.sector, req->i.size);
 
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
@@ -491,7 +491,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		/* so we can verify the handle in the answer packet
 		 * corresponding hlist_del is in _req_may_be_done() */
-		hlist_add_head(&req->collision, ar_hash_slot(mdev, req->sector));
+		hlist_add_head(&req->collision, ar_hash_slot(mdev, req->i.sector));
 
 		set_bit(UNPLUG_REMOTE, &mdev->flags);
 
@@ -507,7 +507,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		/* assert something? */
 		/* from drbd_make_request_common only */
 
-		hlist_add_head(&req->collision, tl_hash_slot(mdev, req->sector));
+		hlist_add_head(&req->collision, tl_hash_slot(mdev, req->i.sector));
 		/* corresponding hlist_del is in _req_may_be_done() */
 
 		/* NOTE
@@ -572,7 +572,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 	case handed_over_to_network:
 		/* assert something? */
 		if (bio_data_dir(req->master_bio) == WRITE)
-			atomic_add(req->size>>9, &mdev->ap_in_flight);
+			atomic_add(req->i.size >> 9, &mdev->ap_in_flight);
 
 		if (bio_data_dir(req->master_bio) == WRITE &&
 		    mdev->net_conf->wire_protocol == DRBD_PROT_A) {
@@ -608,7 +608,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state &= ~(RQ_NET_OK|RQ_NET_PENDING);
 		req->rq_state |= RQ_NET_DONE;
 		if (req->rq_state & RQ_NET_SENT && req->rq_state & RQ_WRITE)
-			atomic_sub(req->size>>9, &mdev->ap_in_flight);
+			atomic_sub(req->i.size >> 9, &mdev->ap_in_flight);
 
 		/* if it is still queued, we may not complete it here.
 		 * it will be canceled soon. */
@@ -625,7 +625,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		if (what == conflict_discarded_by_peer)
 			dev_alert(DEV, "Got DiscardAck packet %llus +%u!"
 			      " DRBD is not a random data generator!\n",
-			      (unsigned long long)req->sector, req->size);
+			      (unsigned long long)req->i.sector, req->i.size);
 		req->rq_state |= RQ_NET_DONE;
 		/* fall through */
 	case write_acked_by_peer:
@@ -647,7 +647,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_NET_OK;
 		D_ASSERT(req->rq_state & RQ_NET_PENDING);
 		dec_ap_pending(mdev);
-		atomic_sub(req->size>>9, &mdev->ap_in_flight);
+		atomic_sub(req->i.size >> 9, &mdev->ap_in_flight);
 		req->rq_state &= ~RQ_NET_PENDING;
 		_req_may_be_done_not_susp(req, m);
 		break;
@@ -656,7 +656,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		/* assert something? */
 		if (req->rq_state & RQ_NET_PENDING) {
 			dec_ap_pending(mdev);
-			atomic_sub(req->size>>9, &mdev->ap_in_flight);
+			atomic_sub(req->i.size >> 9, &mdev->ap_in_flight);
 		}
 		req->rq_state &= ~(RQ_NET_OK|RQ_NET_PENDING);
 
@@ -715,7 +715,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		if ((req->rq_state & RQ_NET_MASK) != 0) {
 			req->rq_state |= RQ_NET_DONE;
 			if (mdev->net_conf->wire_protocol == DRBD_PROT_A)
-				atomic_sub(req->size>>9, &mdev->ap_in_flight);
+				atomic_sub(req->i.size >> 9, &mdev->ap_in_flight);
 		}
 		_req_may_be_done(req, m); /* Allowed while state.susp */
 		break;
