@@ -255,11 +255,6 @@ static struct list_head ip_vs_svc_table[IP_VS_SVC_TAB_SIZE];
 static struct list_head ip_vs_svc_fwm_table[IP_VS_SVC_TAB_SIZE];
 
 /*
- *	Trash for destinations
- */
-static LIST_HEAD(ip_vs_dest_trash);
-
-/*
  *	FTP & NULL virtual service counters
  */
 static atomic_t ip_vs_ftpsvc_counter = ATOMIC_INIT(0);
@@ -650,11 +645,12 @@ ip_vs_trash_get_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
 		     __be16 dport)
 {
 	struct ip_vs_dest *dest, *nxt;
+	struct netns_ipvs *ipvs = net_ipvs(svc->net);
 
 	/*
 	 * Find the destination in trash
 	 */
-	list_for_each_entry_safe(dest, nxt, &ip_vs_dest_trash, n_list) {
+	list_for_each_entry_safe(dest, nxt, &ipvs->dest_trash, n_list) {
 		IP_VS_DBG_BUF(3, "Destination %u/%s:%u still in trash, "
 			      "dest->refcnt=%d\n",
 			      dest->vfwmark,
@@ -703,11 +699,12 @@ ip_vs_trash_get_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
  *  are expired, and the refcnt of each destination in the trash must
  *  be 1, so we simply release them here.
  */
-static void ip_vs_trash_cleanup(void)
+static void ip_vs_trash_cleanup(struct net *net)
 {
 	struct ip_vs_dest *dest, *nxt;
+	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	list_for_each_entry_safe(dest, nxt, &ip_vs_dest_trash, n_list) {
+	list_for_each_entry_safe(dest, nxt, &ipvs->dest_trash, n_list) {
 		list_del(&dest->n_list);
 		ip_vs_dst_reset(dest);
 		__ip_vs_unbind_svc(dest);
@@ -1021,7 +1018,7 @@ static void __ip_vs_del_dest(struct net *net, struct ip_vs_dest *dest)
 			      IP_VS_DBG_ADDR(dest->af, &dest->addr),
 			      ntohs(dest->port),
 			      atomic_read(&dest->refcnt));
-		list_add(&dest->n_list, &ip_vs_dest_trash);
+		list_add(&dest->n_list, &ipvs->dest_trash);
 		atomic_inc(&dest->refcnt);
 	}
 }
@@ -3503,6 +3500,8 @@ int __net_init __ip_vs_control_init(struct net *net)
 	for (idx = 0; idx < IP_VS_RTAB_SIZE; idx++)
 		INIT_LIST_HEAD(&ipvs->rs_table[idx]);
 
+	INIT_LIST_HEAD(&ipvs->dest_trash);
+
 	/* procfs stats */
 	ipvs->tot_stats = kzalloc(sizeof(struct ip_vs_stats), GFP_KERNEL);
 	if (ipvs->tot_stats == NULL) {
@@ -3584,13 +3583,14 @@ static void __net_exit __ip_vs_control_cleanup(struct net *net)
 	if (!net_eq(net, &init_net))	/* netns not enabled yet */
 		return;
 
+	ip_vs_trash_cleanup(net);
 	ip_vs_kill_estimator(net, ipvs->tot_stats);
+	cancel_delayed_work_sync(&ipvs->defense_work);
+	cancel_work_sync(&ipvs->defense_work.work);
 	unregister_net_sysctl_table(ipvs->sysctl_hdr);
 	proc_net_remove(net, "ip_vs_stats_percpu");
 	proc_net_remove(net, "ip_vs_stats");
 	proc_net_remove(net, "ip_vs");
-	cancel_delayed_work_sync(&ipvs->defense_work);
-	cancel_work_sync(&ipvs->defense_work.work);
 	free_percpu(ipvs->cpustats);
 	kfree(ipvs->tot_stats);
 }
@@ -3647,7 +3647,6 @@ err:
 void ip_vs_control_cleanup(void)
 {
 	EnterFunction(2);
-	ip_vs_trash_cleanup();
 	unregister_pernet_subsys(&ipvs_control_ops);
 	ip_vs_genl_unregister();
 	nf_unregister_sockopt(&ip_vs_sockopts);

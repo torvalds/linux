@@ -82,6 +82,9 @@ struct netns_ipvs {
 	rwlock_t		rs_lock;         /* real services table */
 	/* semaphore for IPVS sockopts. And, [gs]etsockopt may sleep. */
 	struct lock_class_key	ctl_key;	/* ctl_mutex debuging */
+	/* Trash for destinations */
+	struct list_head	dest_trash;
+
 	/* sys-ctl struct */
 	struct ctl_table_header	*sysctl_hdr;
 	struct ctl_table	*sysctl_tbl;
