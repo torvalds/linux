@@ -282,8 +282,10 @@ int prom_setprop(phandle node, const char *pname, char *value, int size)
 	unsigned long flags;
 	int ret;
 
-	if(size == 0) return 0;
-	if((pname == 0) || (value == 0)) return 0;
+	if (size == 0)
+		return 0;
+	if ((pname == NULL) || (value == NULL))
+		return 0;
 	spin_lock_irqsave(&prom_lock, flags);
 	ret = prom_nodeops->no_setprop(node, pname, value, size);
 	restore_current();

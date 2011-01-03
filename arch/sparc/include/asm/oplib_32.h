@@ -64,7 +64,7 @@ extern void prom_cmdline(void);
 /* Enter the prom, with no chance of continuation for the stand-alone
  * which calls this.
  */
-extern void prom_halt(void) __attribute__ ((noreturn));
+extern void __noreturn prom_halt(void);
 
 /* Set the PROM 'sync' callback function to the passed function pointer.
  * When the user gives the 'sync' command at the prom prompt while the
@@ -113,6 +113,8 @@ extern int prom_startcpu(int cpunode, struct linux_prom_registers *context_table
 extern void prom_putsegment(int context, unsigned long virt_addr,
 			    int physical_segment);
 
+/* Initialize the memory lists based upon the prom version. */
+void prom_meminit(void);
 
 /* PROM device tree traversal functions... */
 
@@ -176,6 +178,8 @@ extern void prom_apply_obio_ranges(struct linux_prom_registers *obioregs, int nr
 /* Apply ranges of any prom node (and optionally parent node as well) to registers. */
 extern void prom_apply_generic_ranges(phandle node, phandle parent,
 				      struct linux_prom_registers *sbusregs, int nregs);
+
+void prom_ranges_init(void);
 
 /* CPU probing helpers.  */
 int cpu_find_by_instance(int instance, phandle *prom_node, int *mid);
