@@ -259,7 +259,10 @@ static int initialize_otg_port(struct platform_device *pdev)
 	v |= MX51_USB_PLL_DIV_19_2_MHZ;
 	__raw_writel(v, usbother_base + MXC_USB_PHY_CTR_FUNC2_OFFSET);
 	iounmap(usb_base);
-	return 0;
+
+	mdelay(10);
+
+	return mx51_initialize_usb_hw(0, MXC_EHCI_INTERNAL_PHY);
 }
 
 static int initialize_usbh1_port(struct platform_device *pdev)
@@ -277,13 +280,16 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 	v = __raw_readl(usbother_base + MX51_USB_CTRL_1_OFFSET);
 	__raw_writel(v | MX51_USB_CTRL_UH1_EXT_CLK_EN, usbother_base + MX51_USB_CTRL_1_OFFSET);
 	iounmap(usb_base);
-	return 0;
+
+	mdelay(10);
+
+	return mx51_initialize_usb_hw(1, MXC_EHCI_POWER_PINS_ENABLED |
+			MXC_EHCI_ITC_NO_THRESHOLD);
 }
 
 static struct mxc_usbh_platform_data dr_utmi_config = {
 	.init		= initialize_otg_port,
 	.portsc	= MXC_EHCI_UTMI_16BIT,
-	.flags	= MXC_EHCI_INTERNAL_PHY,
 };
 
 static struct fsl_usb2_platform_data usb_pdata = {
@@ -294,7 +300,6 @@ static struct fsl_usb2_platform_data usb_pdata = {
 static struct mxc_usbh_platform_data usbh1_config = {
 	.init		= initialize_usbh1_port,
 	.portsc	= MXC_EHCI_MODE_ULPI,
-	.flags	= (MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_ITC_NO_THRESHOLD),
 };
 
 static int otg_mode_host;

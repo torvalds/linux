@@ -401,10 +401,14 @@ static void usb_xcvr_reset(void)
 }
 
 #if defined(CONFIG_USB_ULPI)
+static int moboard_usbh2_init_hw(struct platform_device *pdev)
+{
+	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED);
+}
 
 static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
+	.init	= moboard_usbh2_init_hw,
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
 };
 
 static int __init moboard_usbh2_init(void)

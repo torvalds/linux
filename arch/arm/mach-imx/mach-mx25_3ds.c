@@ -185,9 +185,14 @@ static const struct matrix_keymap_data mx25pdk_keymap_data __initconst = {
 	.keymap_size	= ARRAY_SIZE(mx25pdk_keymap),
 };
 
+static int mx25pdk_usbh2_init(struct platform_device *pdev)
+{
+	return mx25_initialize_usb_hw(pdev->id, MXC_EHCI_INTERNAL_PHY);
+}
+
 static const struct mxc_usbh_platform_data usbh2_pdata __initconst = {
+	.init	= mx25pdk_usbh2_init,
 	.portsc	= MXC_EHCI_MODE_SERIAL,
-	.flags	= MXC_EHCI_INTERNAL_PHY,
 };
 
 static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {

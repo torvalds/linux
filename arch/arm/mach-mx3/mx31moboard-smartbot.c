@@ -123,9 +123,14 @@ static const struct fsl_usb2_platform_data usb_pdata __initconst = {
 
 #if defined(CONFIG_USB_ULPI)
 
+static int smartbot_otg_init(struct platform_device *pdev)
+{
+	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED);
+}
+
 static struct mxc_usbh_platform_data otg_host_pdata __initdata = {
+	.init	= smartbot_otg_init,
 	.portsc = MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
 };
 
 static int __init smartbot_otg_host_init(void)

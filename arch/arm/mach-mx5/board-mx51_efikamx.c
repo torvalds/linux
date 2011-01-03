@@ -145,13 +145,15 @@ static int initialize_otg_port(struct platform_device *pdev)
 	v |= MX51_USB_PLL_DIV_24_MHZ;
 	__raw_writel(v, usbother_base + MXC_USB_PHY_CTR_FUNC2_OFFSET);
 	iounmap(usb_base);
-	return 0;
+
+	mdelay(10);
+
+	return mx51_initialize_usb_hw(0, MXC_EHCI_INTERNAL_PHY);
 }
 
 static struct mxc_usbh_platform_data dr_utmi_config = {
 	.init   = initialize_otg_port,
 	.portsc = MXC_EHCI_UTMI_16BIT,
-	.flags  = MXC_EHCI_INTERNAL_PHY,
 };
 
 /*   PCBID2  PCBID1 PCBID0  STATE

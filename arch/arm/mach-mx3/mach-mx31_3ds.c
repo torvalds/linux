@@ -245,7 +245,13 @@ usbotg_free_reset:
 	return err;
 }
 
-static int __maybe_unused mx31_3ds_host2_init(struct platform_device *pdev)
+#if defined(CONFIG_USB_ULPI)
+static int mx31_3ds_otg_init(struct platform_device *pdev)
+{
+	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED);
+}
+
+static int mx31_3ds_host2_init(struct platform_device *pdev)
 {
 	int err;
 
@@ -276,23 +282,24 @@ static int __maybe_unused mx31_3ds_host2_init(struct platform_device *pdev)
 
 	mdelay(1);
 	gpio_set_value(USBH2_RST_B, 1);
-	return 0;
+
+	mdelay(10);
+
+	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED);
 
 usbotg_free_reset:
 	gpio_free(USBH2_RST_B);
 	return err;
 }
 
-#if defined(CONFIG_USB_ULPI)
 static struct mxc_usbh_platform_data otg_pdata __initdata = {
+	.init	= mx31_3ds_otg_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
 };
 
 static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.init = mx31_3ds_host2_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
 };
 #endif
 

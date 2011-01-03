@@ -306,16 +306,26 @@ pcm037_nand_board_info __initconst = {
 };
 
 #if defined(CONFIG_USB_ULPI)
+static int pcm043_otg_init(struct platform_device *pdev)
+{
+	return mx35_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_DIFF_UNI);
+}
+
 static struct mxc_usbh_platform_data otg_pdata __initdata = {
+	.init	= pcm043_otg_init,
 	.portsc	= MXC_EHCI_MODE_UTMI,
-	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 #endif
 
+static int pcm043_usbh1_init(struct platform_device *pdev)
+{
+	return mx35_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_SINGLE_UNI |
+			MXC_EHCI_INTERNAL_PHY | MXC_EHCI_IPPUE_DOWN);
+}
+
 static const struct mxc_usbh_platform_data usbh1_pdata __initconst = {
+	.init	= pcm043_usbh1_init,
 	.portsc	= MXC_EHCI_MODE_SERIAL,
-	.flags	= MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY |
-		  MXC_EHCI_IPPUE_DOWN,
 };
 
 static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {

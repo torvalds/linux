@@ -281,9 +281,15 @@ static struct spi_board_info pcm038_spi_board_info[] __initdata = {
 	}
 };
 
+static int pcm038_usbh2_init(struct platform_device *pdev)
+{
+	return mx27_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED |
+			MXC_EHCI_INTERFACE_DIFF_UNI);
+}
+
 static const struct mxc_usbh_platform_data usbh2_pdata __initconst = {
+	.init	= pcm038_usbh2_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
 static void __init pcm038_init(void)

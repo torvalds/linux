@@ -534,14 +534,24 @@ static struct platform_device pcm970_sja1000 = {
 };
 
 #if defined(CONFIG_USB_ULPI)
+static int pcm037_otg_init(struct platform_device *pdev)
+{
+	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_DIFF_UNI);
+}
+
 static struct mxc_usbh_platform_data otg_pdata __initdata = {
+	.init	= pcm037_otg_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
-	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
+static int pcm037_usbh2_init(struct platform_device *pdev)
+{
+	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_DIFF_UNI);
+}
+
 static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
+	.init	= pcm037_usbh2_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
-	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 #endif
 

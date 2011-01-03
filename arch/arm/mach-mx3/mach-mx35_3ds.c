@@ -120,6 +120,11 @@ static iomux_v3_cfg_t mx35pdk_pads[] = {
 	MX35_PAD_SD1_DATA3__ESDHC1_DAT3,
 };
 
+static int mx35_3ds_otg_init(struct platform_device *pdev)
+{
+	return mx35_initialize_usb_hw(pdev->id, MXC_EHCI_INTERNAL_PHY);
+}
+
 /* OTG config */
 static const struct fsl_usb2_platform_data usb_otg_pdata __initconst = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
@@ -127,15 +132,20 @@ static const struct fsl_usb2_platform_data usb_otg_pdata __initconst = {
 };
 
 static struct mxc_usbh_platform_data otg_pdata __initdata = {
+	.init	= mx35_3ds_otg_init,
 	.portsc	= MXC_EHCI_MODE_UTMI,
-	.flags	= MXC_EHCI_INTERNAL_PHY,
 };
+
+static int mx35_3ds_usbh_init(struct platform_device *pdev)
+{
+	return mx35_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_SINGLE_UNI |
+			  MXC_EHCI_INTERNAL_PHY);
+}
 
 /* USB HOST config */
 static const struct mxc_usbh_platform_data usb_host_pdata __initconst = {
+	.init		= mx35_3ds_usbh_init,
 	.portsc		= MXC_EHCI_MODE_SERIAL,
-	.flags		= MXC_EHCI_INTERFACE_SINGLE_UNI |
-			  MXC_EHCI_INTERNAL_PHY,
 };
 
 static int otg_mode_host;

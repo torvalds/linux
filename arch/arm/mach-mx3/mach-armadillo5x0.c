@@ -176,8 +176,10 @@ static int usbotg_init(struct platform_device *pdev)
 	gpio_set_value(OTG_RESET, 0/*LOW*/);
 	mdelay(5);
 	gpio_set_value(OTG_RESET, 1/*HIGH*/);
+	mdelay(10);
 
-	return 0;
+	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED |
+			MXC_EHCI_INTERFACE_DIFF_UNI);
 
 otg_free_reset:
 	gpio_free(OTG_RESET);
@@ -233,8 +235,10 @@ static int usbh2_init(struct platform_device *pdev)
 	gpio_set_value(USBH2_RESET, 0/*LOW*/);
 	mdelay(5);
 	gpio_set_value(USBH2_RESET, 1/*HIGH*/);
+	mdelay(10);
 
-	return 0;
+	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED |
+			MXC_EHCI_INTERFACE_DIFF_UNI);
 
 h2_free_reset:
 	gpio_free(USBH2_RESET);
@@ -246,13 +250,11 @@ h2_free_cs:
 static struct mxc_usbh_platform_data usbotg_pdata __initdata = {
 	.init	= usbotg_init,
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
 static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.init	= usbh2_init,
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 #endif /* CONFIG_USB_ULPI */
 
