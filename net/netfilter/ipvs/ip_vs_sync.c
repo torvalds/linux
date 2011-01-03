@@ -725,16 +725,15 @@ ip_vs_conn_fill_param_sync(int af, union ip_vs_sync_conn *sc,
  *  Param: ...
  *         timeout is in sec.
  */
-static void ip_vs_proc_conn(struct ip_vs_conn_param *param,  unsigned flags,
-			    unsigned state, unsigned protocol, unsigned type,
+static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
+			    unsigned int flags, unsigned int state,
+			    unsigned int protocol, unsigned int type,
 			    const union nf_inet_addr *daddr, __be16 dport,
 			    unsigned long timeout, __u32 fwmark,
-			    struct ip_vs_sync_conn_options *opt,
-			    struct ip_vs_protocol *pp)
+			    struct ip_vs_sync_conn_options *opt)
 {
 	struct ip_vs_dest *dest;
 	struct ip_vs_conn *cp;
-
 
 	if (!(flags & IP_VS_CONN_F_TEMPLATE))
 		cp = ip_vs_conn_in_get(param);
@@ -821,17 +820,23 @@ static void ip_vs_proc_conn(struct ip_vs_conn_param *param,  unsigned flags,
 		if (timeout > MAX_SCHEDULE_TIMEOUT / HZ)
 			timeout = MAX_SCHEDULE_TIMEOUT / HZ;
 		cp->timeout = timeout*HZ;
-	} else if (!(flags & IP_VS_CONN_F_TEMPLATE) && pp->timeout_table)
-		cp->timeout = pp->timeout_table[state];
-	else
-		cp->timeout = (3*60*HZ);
+	} else {
+		struct ip_vs_proto_data *pd;
+
+		pd = ip_vs_proto_data_get(net, protocol);
+		if (!(flags & IP_VS_CONN_F_TEMPLATE) && pd && pd->timeout_table)
+			cp->timeout = pd->timeout_table[state];
+		else
+			cp->timeout = (3*60*HZ);
+	}
 	ip_vs_conn_put(cp);
 }
 
 /*
  *  Process received multicast message for Version 0
  */
-static void ip_vs_process_message_v0(const char *buffer, const size_t buflen)
+static void ip_vs_process_message_v0(struct net *net, const char *buffer,
+				     const size_t buflen)
 {
 	struct ip_vs_sync_mesg_v0 *m = (struct ip_vs_sync_mesg_v0 *)buffer;
 	struct ip_vs_sync_conn_v0 *s;
@@ -879,7 +884,6 @@ static void ip_vs_process_message_v0(const char *buffer, const size_t buflen)
 			}
 		} else {
 			/* protocol in templates is not used for state/timeout */
-			pp = NULL;
 			if (state > 0) {
 				IP_VS_DBG(2, "BACKUP v0, Invalid template state %u\n",
 					state);
@@ -894,9 +898,9 @@ static void ip_vs_process_message_v0(const char *buffer, const size_t buflen)
 				      s->vport, &param);
 
 		/* Send timeout as Zero */
-		ip_vs_proc_conn(&param, flags, state, s->protocol, AF_INET,
+		ip_vs_proc_conn(net, &param, flags, state, s->protocol, AF_INET,
 				(union nf_inet_addr *)&s->daddr, s->dport,
-				0, 0, opt, pp);
+				0, 0, opt);
 	}
 }
 
@@ -945,7 +949,7 @@ static int ip_vs_proc_str(__u8 *p, unsigned int plen, unsigned int *data_len,
 /*
  *   Process a Version 1 sync. connection
  */
-static inline int ip_vs_proc_sync_conn(__u8 *p, __u8 *msg_end)
+static inline int ip_vs_proc_sync_conn(struct net *net, __u8 *p, __u8 *msg_end)
 {
 	struct ip_vs_sync_conn_options opt;
 	union  ip_vs_sync_conn *s;
@@ -1043,7 +1047,6 @@ static inline int ip_vs_proc_sync_conn(__u8 *p, __u8 *msg_end)
 		}
 	} else {
 		/* protocol in templates is not used for state/timeout */
-		pp = NULL;
 		if (state > 0) {
 			IP_VS_DBG(3, "BACKUP, Invalid template state %u\n",
 				state);
@@ -1058,18 +1061,18 @@ static inline int ip_vs_proc_sync_conn(__u8 *p, __u8 *msg_end)
 	}
 	/* If only IPv4, just silent skip IPv6 */
 	if (af == AF_INET)
-		ip_vs_proc_conn(&param, flags, state, s->v4.protocol, af,
+		ip_vs_proc_conn(net, &param, flags, state, s->v4.protocol, af,
 				(union nf_inet_addr *)&s->v4.daddr, s->v4.dport,
 				ntohl(s->v4.timeout), ntohl(s->v4.fwmark),
-				(opt_flags & IPVS_OPT_F_SEQ_DATA ? &opt : NULL),
-				pp);
+				(opt_flags & IPVS_OPT_F_SEQ_DATA ? &opt : NULL)
+				);
 #ifdef CONFIG_IP_VS_IPV6
 	else
-		ip_vs_proc_conn(&param, flags, state, s->v6.protocol, af,
+		ip_vs_proc_conn(net, &param, flags, state, s->v6.protocol, af,
 				(union nf_inet_addr *)&s->v6.daddr, s->v6.dport,
 				ntohl(s->v6.timeout), ntohl(s->v6.fwmark),
-				(opt_flags & IPVS_OPT_F_SEQ_DATA ? &opt : NULL),
-				pp);
+				(opt_flags & IPVS_OPT_F_SEQ_DATA ? &opt : NULL)
+				);
 #endif
 	return 0;
 	/* Error exit */
@@ -1083,7 +1086,8 @@ out:
  *      ip_vs_conn entries.
  *      Handles Version 0 & 1
  */
-static void ip_vs_process_message(__u8 *buffer, const size_t buflen)
+static void ip_vs_process_message(struct net *net, __u8 *buffer,
+				  const size_t buflen)
 {
 	struct ip_vs_sync_mesg *m2 = (struct ip_vs_sync_mesg *)buffer;
 	__u8 *p, *msg_end;
@@ -1136,7 +1140,8 @@ static void ip_vs_process_message(__u8 *buffer, const size_t buflen)
 				return;
 			}
 			/* Process a single sync_conn */
-			if ((retc=ip_vs_proc_sync_conn(p, msg_end)) < 0) {
+			retc = ip_vs_proc_sync_conn(net, p, msg_end);
+			if (retc < 0) {
 				IP_VS_ERR_RL("BACKUP, Dropping buffer, Err: %d in decoding\n",
 					     retc);
 				return;
@@ -1146,7 +1151,7 @@ static void ip_vs_process_message(__u8 *buffer, const size_t buflen)
 		}
 	} else {
 		/* Old type of message */
-		ip_vs_process_message_v0(buffer, buflen);
+		ip_vs_process_message_v0(net, buffer, buflen);
 		return;
 	}
 }
@@ -1500,7 +1505,7 @@ static int sync_thread_backup(void *data)
 			/* disable bottom half, because it accesses the data
 			   shared by softirq while getting/creating conns */
 			local_bh_disable();
-			ip_vs_process_message(tinfo->buf, len);
+			ip_vs_process_message(&init_net, tinfo->buf, len);
 			local_bh_enable();
 		}
 	}

@@ -596,7 +596,7 @@ static int tcp_register_app(struct ip_vs_app *inc)
 		}
 	}
 	list_add(&inc->p_list, &ipvs->tcp_apps[hash]);
-	atomic_inc(&pd->pp->appcnt);
+	atomic_inc(&pd->appcnt);
 
   out:
 	spin_unlock_bh(&ipvs->tcp_app_lock);
@@ -611,7 +611,7 @@ tcp_unregister_app(struct ip_vs_app *inc)
 	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(&init_net, IPPROTO_TCP);
 
 	spin_lock_bh(&ipvs->tcp_app_lock);
-	atomic_dec(&pd->pp->appcnt);
+	atomic_dec(&pd->appcnt);
 	list_del(&inc->p_list);
 	spin_unlock_bh(&ipvs->tcp_app_lock);
 }
@@ -701,7 +701,6 @@ struct ip_vs_protocol ip_vs_protocol_tcp = {
 	.protocol =		IPPROTO_TCP,
 	.num_states =		IP_VS_TCP_S_LAST,
 	.dont_defrag =		0,
-	.appcnt =		ATOMIC_INIT(0),
 	.init =			NULL,
 	.exit =			NULL,
 	.init_netns =		__ip_vs_tcp_init,

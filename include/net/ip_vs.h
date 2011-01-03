@@ -360,8 +360,6 @@ struct ip_vs_protocol {
 	u16			protocol;
 	u16			num_states;
 	int			dont_defrag;
-	atomic_t		appcnt;		/* counter of proto app incs */
-	int			*timeout_table;	/* protocol timeout table */
 
 	void (*init)(struct ip_vs_protocol *pp);
 

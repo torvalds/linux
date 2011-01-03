@@ -1035,7 +1035,7 @@ static int sctp_register_app(struct ip_vs_app *inc)
 		}
 	}
 	list_add(&inc->p_list, &ipvs->sctp_apps[hash]);
-	atomic_inc(&pd->pp->appcnt);
+	atomic_inc(&pd->appcnt);
 out:
 	spin_unlock_bh(&ipvs->sctp_app_lock);
 
@@ -1048,7 +1048,7 @@ static void sctp_unregister_app(struct ip_vs_app *inc)
 	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(&init_net, IPPROTO_SCTP);
 
 	spin_lock_bh(&ipvs->sctp_app_lock);
-	atomic_dec(&pd->pp->appcnt);
+	atomic_dec(&pd->appcnt);
 	list_del(&inc->p_list);
 	spin_unlock_bh(&ipvs->sctp_app_lock);
 }

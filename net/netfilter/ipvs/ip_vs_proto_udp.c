@@ -373,7 +373,7 @@ static int udp_register_app(struct ip_vs_app *inc)
 		}
 	}
 	list_add(&inc->p_list, &ipvs->udp_apps[hash]);
-	atomic_inc(&pd->pp->appcnt);
+	atomic_inc(&pd->appcnt);
 
   out:
 	spin_unlock_bh(&ipvs->udp_app_lock);
@@ -388,7 +388,7 @@ udp_unregister_app(struct ip_vs_app *inc)
 	struct netns_ipvs *ipvs = net_ipvs(&init_net);
 
 	spin_lock_bh(&ipvs->udp_app_lock);
-	atomic_dec(&pd->pp->appcnt);
+	atomic_dec(&pd->appcnt);
 	list_del(&inc->p_list);
 	spin_unlock_bh(&ipvs->udp_app_lock);
 }

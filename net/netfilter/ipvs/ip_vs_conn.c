@@ -804,7 +804,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p,
 	       struct ip_vs_dest *dest, __u32 fwmark)
 {
 	struct ip_vs_conn *cp;
-	struct ip_vs_protocol *pp = ip_vs_proto_get(p->protocol);
+	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(&init_net, p->protocol);
 
 	cp = kmem_cache_zalloc(ip_vs_conn_cachep, GFP_ATOMIC);
 	if (cp == NULL) {
@@ -863,8 +863,8 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p,
 #endif
 		ip_vs_bind_xmit(cp);
 
-	if (unlikely(pp && atomic_read(&pp->appcnt)))
-		ip_vs_bind_app(cp, pp);
+	if (unlikely(pd && atomic_read(&pd->appcnt)))
+		ip_vs_bind_app(cp, pd->pp);
 
 	/*
 	 * Allow conntrack to be preserved. By default, conntrack
