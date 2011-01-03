@@ -203,9 +203,6 @@ static int __net_init __ip_vs_estimator_init(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	if (!net_eq(net, &init_net))	/* netns not enabled yet */
-		return -EPERM;
-
 	INIT_LIST_HEAD(&ipvs->est_list);
 	spin_lock_init(&ipvs->est_lock);
 	setup_timer(&ipvs->est_timer, estimation_timer, (unsigned long)net);

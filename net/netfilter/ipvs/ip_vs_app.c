@@ -582,9 +582,6 @@ static int __net_init __ip_vs_app_init(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	if (!net_eq(net, &init_net))	/* netns not enabled yet */
-		return -EPERM;
-
 	INIT_LIST_HEAD(&ipvs->app_list);
 	__mutex_init(&ipvs->app_mutex, "ipvs->app_mutex", &ipvs->app_key);
 	proc_net_fops_create(net, "ip_vs_app", 0, &ip_vs_app_fops);

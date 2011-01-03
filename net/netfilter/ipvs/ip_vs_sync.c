@@ -1659,9 +1659,6 @@ static int __net_init __ip_vs_sync_init(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	if (!net_eq(net, &init_net))	/* netns not enabled yet */
-		return -EPERM;
-
 	INIT_LIST_HEAD(&ipvs->sync_queue);
 	spin_lock_init(&ipvs->sync_lock);
 	spin_lock_init(&ipvs->sync_buff_lock);
@@ -1674,8 +1671,6 @@ static int __net_init __ip_vs_sync_init(struct net *net)
 
 static void __ip_vs_sync_cleanup(struct net *net)
 {
-	if (!net_eq(net, &init_net))	/* netns not enabled yet */
-		return;
 	stop_sync_thread(net, IP_VS_STATE_MASTER);
 	stop_sync_thread(net, IP_VS_STATE_BACKUP);
 }

@@ -2617,6 +2617,7 @@ static struct genl_family ip_vs_genl_family = {
 	.name		= IPVS_GENL_NAME,
 	.version	= IPVS_GENL_VERSION,
 	.maxattr	= IPVS_CMD_MAX,
+	.netnsok        = true,         /* Make ipvsadm to work on netns */
 };
 
 /* Policy used for first-level command attributes */
@@ -3483,9 +3484,6 @@ int __net_init __ip_vs_control_init(struct net *net)
 	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ctl_table *tbl;
 
-	if (!net_eq(net, &init_net))	/* netns not enabled yet */
-		return -EPERM;
-
 	atomic_set(&ipvs->dropentry, 0);
 	spin_lock_init(&ipvs->dropentry_lock);
 	spin_lock_init(&ipvs->droppacket_lock);
@@ -3577,9 +3575,6 @@ err_alloc:
 static void __net_exit __ip_vs_control_cleanup(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
-
-	if (!net_eq(net, &init_net))	/* netns not enabled yet */
-		return;
 
 	ip_vs_trash_cleanup(net);
 	ip_vs_kill_estimator(net, ipvs->tot_stats);

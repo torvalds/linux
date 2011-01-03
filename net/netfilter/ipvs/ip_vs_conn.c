@@ -1234,8 +1234,6 @@ int __net_init __ip_vs_conn_init(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	if (!net_eq(net, &init_net))	/* netns not enabled yet */
-		return -EPERM;
 	atomic_set(&ipvs->conn_count, 0);
 
 	proc_net_fops_create(net, "ip_vs_conn", 0, &ip_vs_conn_fops);
@@ -1245,9 +1243,6 @@ int __net_init __ip_vs_conn_init(struct net *net)
 
 static void __net_exit __ip_vs_conn_cleanup(struct net *net)
 {
-	if (!net_eq(net, &init_net))	/* netns not enabled yet */
-		return;
-
 	/* flush all the connection entries first */
 	ip_vs_conn_flush(net);
 	proc_net_remove(net, "ip_vs_conn");

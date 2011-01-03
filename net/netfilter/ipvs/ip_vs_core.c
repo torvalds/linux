@@ -1877,10 +1877,6 @@ static int __net_init __ip_vs_init(struct net *net)
 {
 	struct netns_ipvs *ipvs;
 
-	if (!net_eq(net, &init_net)) {
-		pr_err("The final patch for enabling netns is missing\n");
-		return -EPERM;
-	}
 	ipvs = net_generic(net, ip_vs_net_id);
 	if (ipvs == NULL) {
 		pr_err("%s(): no memory.\n", __func__);
