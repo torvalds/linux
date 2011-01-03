@@ -22,6 +22,9 @@
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
 
+struct pl08x_lli;
+struct pl08x_driver_data;
+
 /**
  * struct pl08x_channel_data - data structure to pass info between
  * platform and PL08x driver regarding channel configuration
@@ -179,7 +182,7 @@ struct pl08x_dma_chan {
 	struct pl08x_txd *at;
 	unsigned long lockflags;
 	spinlock_t lock;
-	void *host;
+	struct pl08x_driver_data *host;
 	enum pl08x_dma_chan_state state;
 	bool slave;
 	struct pl08x_txd *waiting;

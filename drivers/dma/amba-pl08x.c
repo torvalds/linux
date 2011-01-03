@@ -107,7 +107,7 @@ struct vendor_data {
  * An LLI struct - see PL08x TRM.  Note that next uses bit[0] as a bus bit,
  * start & end do not - their bus bit info is in cctl.
  */
-struct lli {
+struct pl08x_lli {
 	dma_addr_t src;
 	dma_addr_t dst;
 	dma_addr_t next;
@@ -160,7 +160,7 @@ struct pl08x_driver_data {
 
 /* Maximum times we call dma_pool_alloc on this pool without freeing */
 #define PL08X_MAX_ALLOCS	0x40
-#define MAX_NUM_TSFR_LLIS	(PL08X_LLI_TSFR_SIZE/sizeof(struct lli))
+#define MAX_NUM_TSFR_LLIS	(PL08X_LLI_TSFR_SIZE/sizeof(struct pl08x_lli))
 #define PL08X_ALIGN		8
 
 static inline struct pl08x_dma_chan *to_pl08x_chan(struct dma_chan *chan)
@@ -354,8 +354,8 @@ static u32 pl08x_getbytes_chan(struct pl08x_dma_chan *plchan)
 	 * currently active transaction.
 	 */
 	if (ch && txd) {
-		struct lli *llis_va = txd->llis_va;
-		struct lli *llis_bus = (struct lli *) txd->llis_bus;
+		struct pl08x_lli *llis_va = txd->llis_va;
+		struct pl08x_lli *llis_bus = (struct pl08x_lli *) txd->llis_bus;
 		u32 clli = readl(ch->base + PL080_CH_LLI);
 
 		/* First get the bytes in the current active LLI */
@@ -558,8 +558,8 @@ static int pl08x_fill_lli_for_desc(struct pl08x_driver_data *pl08x,
 			    struct pl08x_txd *txd, int num_llis, int len,
 			    u32 cctl, u32 *remainder)
 {
-	struct lli *llis_va = txd->llis_va;
-	struct lli *llis_bus = (struct lli *) txd->llis_bus;
+	struct pl08x_lli *llis_va = txd->llis_va;
+	struct pl08x_lli *llis_bus = (struct pl08x_lli *) txd->llis_bus;
 
 	BUG_ON(num_llis >= MAX_NUM_TSFR_LLIS);
 
@@ -620,8 +620,8 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 	u32 cctl;
 	int max_bytes_per_lli;
 	int total_bytes = 0;
-	struct lli *llis_va;
-	struct lli *llis_bus;
+	struct pl08x_lli *llis_va;
+	struct pl08x_lli *llis_bus;
 
 	txd->llis_va = dma_pool_alloc(pl08x->pool, GFP_NOWAIT,
 				      &txd->llis_bus);
