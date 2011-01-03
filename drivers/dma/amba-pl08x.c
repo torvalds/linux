@@ -1129,6 +1129,9 @@ static int dma_set_runtime_config(struct dma_chan *chan,
 	u32 cctl = 0;
 	int i;
 
+	if (!plchan->slave)
+		return -EINVAL;
+
 	/* Transfer direction */
 	plchan->runtime_direction = config->direction;
 	if (config->direction == DMA_TO_DEVICE) {
