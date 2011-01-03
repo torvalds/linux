@@ -602,7 +602,7 @@ static int nmk_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 
 #ifdef CONFIG_ARCH_U8500
 	if (cpu_is_u8500v2()) {
-		__nmk_gpio_set_slpm(nmk_chip, gpio,
+		__nmk_gpio_set_slpm(nmk_chip, gpio - nmk_chip->chip.base,
 				    on ? NMK_GPIO_SLPM_WAKEUP_ENABLE
 				       : NMK_GPIO_SLPM_WAKEUP_DISABLE);
 	}
