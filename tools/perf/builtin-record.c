@@ -54,8 +54,7 @@ static bool			sample_id_all_avail		=   true;
 static bool			system_wide			=  false;
 static pid_t			target_pid			=     -1;
 static pid_t			target_tid			=     -1;
-static pid_t			*all_tids			=      NULL;
-static int			thread_num			=      0;
+static struct thread_map	*threads;
 static pid_t			child_pid			=     -1;
 static bool			no_inherit			=  false;
 static enum write_mode_t	write_mode			= WRITE_FORCE;
@@ -318,9 +317,9 @@ static void create_counter(struct perf_evsel *evsel, int cpu)
 retry_sample_id:
 	attr->sample_id_all = sample_id_all_avail ? 1 : 0;
 
-	for (thread_index = 0; thread_index < thread_num; thread_index++) {
+	for (thread_index = 0; thread_index < threads->nr; thread_index++) {
 try_again:
-		FD(evsel, nr_cpu, thread_index) = sys_perf_event_open(attr, all_tids[thread_index], cpu, group_fd, 0);
+		FD(evsel, nr_cpu, thread_index) = sys_perf_event_open(attr, threads->map[thread_index], cpu, group_fd, 0);
 
 		if (FD(evsel, nr_cpu, thread_index) < 0) {
 			int err = errno;
@@ -653,7 +652,7 @@ static int __cmd_record(int argc, const char **argv)
 		}
 
 		if (!system_wide && target_tid == -1 && target_pid == -1)
-			all_tids[0] = child_pid;
+			threads->map[0] = child_pid;
 
 		close(child_ready_pipe[1]);
 		close(go_pipe[0]);
@@ -793,7 +792,7 @@ static int __cmd_record(int argc, const char **argv)
 
 				list_for_each_entry(pos, &evsel_list, node) {
 					for (thread = 0;
-						thread < thread_num;
+						thread < threads->nr;
 						thread++)
 						ioctl(FD(pos, i, thread),
 							PERF_EVENT_IOC_DISABLE);
@@ -910,21 +909,13 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		goto out_symbol_exit;
 	}
 
-	if (target_pid != -1) {
+	if (target_pid != -1)
 		target_tid = target_pid;
-		thread_num = find_all_tid(target_pid, &all_tids);
-		if (thread_num <= 0) {
-			fprintf(stderr, "Can't find all threads of pid %d\n",
-					target_pid);
-			usage_with_options(record_usage, record_options);
-		}
-	} else {
-		all_tids=malloc(sizeof(pid_t));
-		if (!all_tids)
-			goto out_symbol_exit;
 
-		all_tids[0] = target_tid;
-		thread_num = 1;
+	threads = thread_map__new(target_pid, target_tid);
+	if (threads == NULL) {
+		pr_err("Problems finding threads of monitor\n");
+		usage_with_options(record_usage, record_options);
 	}
 
 	cpus = cpu_map__new(cpu_list);
@@ -934,11 +925,11 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	}
 
 	list_for_each_entry(pos, &evsel_list, node) {
-		if (perf_evsel__alloc_fd(pos, cpus->nr, thread_num) < 0)
+		if (perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
 			goto out_free_fd;
 	}
-	event_array = malloc(
-		sizeof(struct pollfd)*MAX_NR_CPUS*MAX_COUNTERS*thread_num);
+	event_array = malloc((sizeof(struct pollfd) * MAX_NR_CPUS *
+			      MAX_COUNTERS * threads->nr));
 	if (!event_array)
 		goto out_free_fd;
 
@@ -965,8 +956,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 out_free_event_array:
 	free(event_array);
 out_free_fd:
-	free(all_tids);
-	all_tids = NULL;
+	thread_map__delete(threads);
+	threads = NULL;
 out_symbol_exit:
 	symbol__exit();
 	return err;

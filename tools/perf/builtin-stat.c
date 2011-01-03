@@ -81,8 +81,7 @@ static bool			scale				=  true;
 static bool			no_aggr				= false;
 static pid_t			target_pid			= -1;
 static pid_t			target_tid			= -1;
-static pid_t			*all_tids			=  NULL;
-static int			thread_num			=  0;
+static struct thread_map	*threads;
 static pid_t			child_pid			= -1;
 static bool			null_run			=  false;
 static bool			big_num				=  true;
@@ -175,7 +174,7 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 		attr->enable_on_exec = 1;
 	}
 
-	return perf_evsel__open_per_thread(evsel, thread_num, all_tids);
+	return perf_evsel__open_per_thread(evsel, threads->nr, threads->map);
 }
 
 /*
@@ -200,7 +199,7 @@ static int read_counter_aggr(struct perf_evsel *counter)
 	u64 *count = counter->counts->aggr.values;
 	int i;
 
-	if (__perf_evsel__read(counter, cpus->nr, thread_num, scale) < 0)
+	if (__perf_evsel__read(counter, cpus->nr, threads->nr, scale) < 0)
 		return -1;
 
 	for (i = 0; i < 3; i++)
@@ -298,7 +297,7 @@ static int run_perf_stat(int argc __used, const char **argv)
 		}
 
 		if (target_tid == -1 && target_pid == -1 && !system_wide)
-			all_tids[0] = child_pid;
+			threads->map[0] = child_pid;
 
 		/*
 		 * Wait for the child to be ready to exec.
@@ -353,7 +352,7 @@ static int run_perf_stat(int argc __used, const char **argv)
 	} else {
 		list_for_each_entry(counter, &evsel_list, node) {
 			read_counter_aggr(counter);
-			perf_evsel__close_fd(counter, cpus->nr, thread_num);
+			perf_evsel__close_fd(counter, cpus->nr, threads->nr);
 		}
 	}
 
@@ -693,6 +692,15 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		}
 	}
 
+	if (target_pid != -1)
+		target_tid = target_pid;
+
+	threads = thread_map__new(target_pid, target_tid);
+	if (threads == NULL) {
+		pr_err("Problems finding threads of monitor\n");
+		usage_with_options(stat_usage, options);
+	}
+
 	if (system_wide)
 		cpus = cpu_map__new(cpu_list);
 	else
@@ -704,27 +712,10 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		return -1;
 	}
 
-	if (target_pid != -1) {
-		target_tid = target_pid;
-		thread_num = find_all_tid(target_pid, &all_tids);
-		if (thread_num <= 0) {
-			fprintf(stderr, "Can't find all threads of pid %d\n",
-					target_pid);
-			usage_with_options(stat_usage, options);
-		}
-	} else {
-		all_tids=malloc(sizeof(pid_t));
-		if (!all_tids)
-			return -ENOMEM;
-
-		all_tids[0] = target_tid;
-		thread_num = 1;
-	}
-
 	list_for_each_entry(pos, &evsel_list, node) {
 		if (perf_evsel__alloc_stat_priv(pos) < 0 ||
 		    perf_evsel__alloc_counts(pos, cpus->nr) < 0 ||
-		    perf_evsel__alloc_fd(pos, cpus->nr, thread_num) < 0)
+		    perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
 			goto out_free_fd;
 	}
 
@@ -752,5 +743,7 @@ out_free_fd:
 	list_for_each_entry(pos, &evsel_list, node)
 		perf_evsel__free_stat_priv(pos);
 out:
+	thread_map__delete(threads);
+	threads = NULL;
 	return status;
 }

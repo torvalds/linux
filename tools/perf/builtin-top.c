@@ -68,8 +68,7 @@ static int			print_entries;
 
 static int			target_pid			=     -1;
 static int			target_tid			=     -1;
-static pid_t			*all_tids			=      NULL;
-static int			thread_num			=      0;
+static struct thread_map	*threads;
 static bool			inherit				=  false;
 static struct cpu_map		*cpus;
 static int			realtime_prio			=      0;
@@ -1200,7 +1199,7 @@ static void perf_session__mmap_read(struct perf_session *self)
 	for (i = 0; i < cpus->nr; i++) {
 		list_for_each_entry(counter, &evsel_list, node) {
 			for (thread_index = 0;
-				thread_index < thread_num;
+				thread_index < threads->nr;
 				thread_index++) {
 				perf_session__mmap_read_counter(self,
 					counter, i, thread_index);
@@ -1236,10 +1235,10 @@ static void start_counter(int i, struct perf_evsel *evsel)
 	attr->inherit		= (cpu < 0) && inherit;
 	attr->mmap		= 1;
 
-	for (thread_index = 0; thread_index < thread_num; thread_index++) {
+	for (thread_index = 0; thread_index < threads->nr; thread_index++) {
 try_again:
 		FD(evsel, i, thread_index) = sys_perf_event_open(attr,
-				all_tids[thread_index], cpu, group_fd, 0);
+				threads->map[thread_index], cpu, group_fd, 0);
 
 		if (FD(evsel, i, thread_index) < 0) {
 			int err = errno;
@@ -1410,25 +1409,17 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	if (argc)
 		usage_with_options(top_usage, options);
 
-	if (target_pid != -1) {
+	if (target_pid != -1)
 		target_tid = target_pid;
-		thread_num = find_all_tid(target_pid, &all_tids);
-		if (thread_num <= 0) {
-			fprintf(stderr, "Can't find all threads of pid %d\n",
-				target_pid);
-			usage_with_options(top_usage, options);
-		}
-	} else {
-		all_tids=malloc(sizeof(pid_t));
-		if (!all_tids)
-			return -ENOMEM;
 
-		all_tids[0] = target_tid;
-		thread_num = 1;
+	threads = thread_map__new(target_pid, target_tid);
+	if (threads == NULL) {
+		pr_err("Problems finding threads of monitor\n");
+		usage_with_options(top_usage, options);
 	}
 
-	event_array = malloc(
-		sizeof(struct pollfd)*MAX_NR_CPUS*MAX_COUNTERS*thread_num);
+	event_array = malloc((sizeof(struct pollfd) *
+			      MAX_NR_CPUS * MAX_COUNTERS * threads->nr));
 	if (!event_array)
 		return -ENOMEM;
 
@@ -1468,8 +1459,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(top_usage, options);
 
 	list_for_each_entry(pos, &evsel_list, node) {
-		if (perf_evsel__alloc_mmap_per_thread(pos, cpus->nr, thread_num) < 0 ||
-		    perf_evsel__alloc_fd(pos, cpus->nr, thread_num) < 0)
+		if (perf_evsel__alloc_mmap_per_thread(pos, cpus->nr, threads->nr) < 0 ||
+		    perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
 			goto out_free_fd;
 		/*
 		 * Fill in the ones not specifically initialized via -c:
