@@ -623,11 +623,6 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 	struct lli *llis_va;
 	struct lli *llis_bus;
 
-	if (!txd) {
-		dev_err(&pl08x->adev->dev, "%s no descriptor\n", __func__);
-		return 0;
-	}
-
 	txd->llis_va = dma_pool_alloc(pl08x->pool, GFP_NOWAIT,
 				      &txd->llis_bus);
 	if (!txd->llis_va) {
@@ -993,11 +988,6 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 static void pl08x_free_txd(struct pl08x_driver_data *pl08x,
 			   struct pl08x_txd *txd)
 {
-	if (!txd)
-		dev_err(&pl08x->adev->dev,
-			"%s no descriptor to free\n",
-			__func__);
-
 	/* Free the LLI */
 	dma_pool_free(pl08x->pool, txd->llis_va,
 		      txd->llis_bus);
@@ -1633,9 +1623,6 @@ static void pl08x_tasklet(unsigned long data)
 	struct pl08x_driver_data *pl08x = plchan->host;
 	unsigned long flags;
 
-	if (!plchan)
-		BUG();
-
 	spin_lock_irqsave(&plchan->lock, flags);
 
 	if (plchan->at) {
@@ -1654,14 +1641,6 @@ static void pl08x_tasklet(unsigned long data)
 		 */
 		if (callback)
 			callback(callback_param);
-
-		/*
-		 * Device callbacks should NOT clear
-		 * the current transaction on the channel
-		 * Linus: sometimes they should?
-		 */
-		if (!plchan->at)
-			BUG();
 
 		/*
 		 * Free the descriptor if it's not for a device
