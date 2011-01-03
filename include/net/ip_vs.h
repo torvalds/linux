@@ -352,6 +352,7 @@ struct iphdr;
 struct ip_vs_conn;
 struct ip_vs_app;
 struct sk_buff;
+struct ip_vs_proto_data;
 
 struct ip_vs_protocol {
 	struct ip_vs_protocol	*next;
@@ -365,6 +366,10 @@ struct ip_vs_protocol {
 	void (*init)(struct ip_vs_protocol *pp);
 
 	void (*exit)(struct ip_vs_protocol *pp);
+
+	void (*init_netns)(struct net *net, struct ip_vs_proto_data *pd);
+
+	void (*exit_netns)(struct net *net, struct ip_vs_proto_data *pd);
 
 	int (*conn_schedule)(int af, struct sk_buff *skb,
 			     struct ip_vs_protocol *pp,
@@ -417,7 +422,20 @@ struct ip_vs_protocol {
 	int (*set_state_timeout)(struct ip_vs_protocol *pp, char *sname, int to);
 };
 
-extern struct ip_vs_protocol * ip_vs_proto_get(unsigned short proto);
+/*
+ * protocol data per netns
+ */
+struct ip_vs_proto_data {
+	struct ip_vs_proto_data	*next;
+	struct ip_vs_protocol	*pp;
+	int			*timeout_table;	/* protocol timeout table */
+	atomic_t		appcnt;		/* counter of proto app incs. */
+	struct tcp_states_t	*tcp_state_table;
+};
+
+extern struct ip_vs_protocol   *ip_vs_proto_get(unsigned short proto);
+extern struct ip_vs_proto_data *ip_vs_proto_data_get(struct net *net,
+						     unsigned short proto);
 
 struct ip_vs_conn_param {
 	const union nf_inet_addr	*caddr;

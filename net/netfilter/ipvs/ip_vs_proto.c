@@ -60,6 +60,31 @@ static int __used __init register_ip_vs_protocol(struct ip_vs_protocol *pp)
 	return 0;
 }
 
+/*
+ *	register an ipvs protocols netns related data
+ */
+static int
+register_ip_vs_proto_netns(struct net *net, struct ip_vs_protocol *pp)
+{
+	struct netns_ipvs *ipvs = net_ipvs(net);
+	unsigned hash = IP_VS_PROTO_HASH(pp->protocol);
+	struct ip_vs_proto_data *pd =
+			kzalloc(sizeof(struct ip_vs_proto_data), GFP_ATOMIC);
+
+	if (!pd) {
+		pr_err("%s(): no memory.\n", __func__);
+		return -ENOMEM;
+	}
+	pd->pp = pp;	/* For speed issues */
+	pd->next = ipvs->proto_data_table[hash];
+	ipvs->proto_data_table[hash] = pd;
+	atomic_set(&pd->appcnt, 0);	/* Init app counter */
+
+	if (pp->init_netns != NULL)
+		pp->init_netns(net, pd);
+
+	return 0;
+}
 
 /*
  *	unregister an ipvs protocol
@@ -82,6 +107,29 @@ static int unregister_ip_vs_protocol(struct ip_vs_protocol *pp)
 	return -ESRCH;
 }
 
+/*
+ *	unregister an ipvs protocols netns data
+ */
+static int
+unregister_ip_vs_proto_netns(struct net *net, struct ip_vs_proto_data *pd)
+{
+	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct ip_vs_proto_data **pd_p;
+	unsigned hash = IP_VS_PROTO_HASH(pd->pp->protocol);
+
+	pd_p = &ipvs->proto_data_table[hash];
+	for (; *pd_p; pd_p = &(*pd_p)->next) {
+		if (*pd_p == pd) {
+			*pd_p = pd->next;
+			if (pd->pp->exit_netns != NULL)
+				pd->pp->exit_netns(net, pd);
+			kfree(pd);
+			return 0;
+		}
+	}
+
+	return -ESRCH;
+}
 
 /*
  *	get ip_vs_protocol object by its proto.
@@ -100,6 +148,24 @@ struct ip_vs_protocol * ip_vs_proto_get(unsigned short proto)
 }
 EXPORT_SYMBOL(ip_vs_proto_get);
 
+/*
+ *	get ip_vs_protocol object data by netns and proto
+ */
+struct ip_vs_proto_data *
+ip_vs_proto_data_get(struct net *net, unsigned short proto)
+{
+	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct ip_vs_proto_data *pd;
+	unsigned hash = IP_VS_PROTO_HASH(proto);
+
+	for (pd = ipvs->proto_data_table[hash]; pd; pd = pd->next) {
+		if (pd->pp->protocol == proto)
+			return pd;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(ip_vs_proto_data_get);
 
 /*
  *	Propagate event for state change to all protocols
