@@ -1207,7 +1207,7 @@ static void dma_set_runtime_config(struct dma_chan *chan,
 	u32 cctl = 0;
 	/* Mask out all except src and dst channel */
 	u32 ccfg = cd->ccfg & 0x000003DEU;
-	int i = 0;
+	int i;
 
 	/* Transfer direction */
 	plchan->runtime_direction = config->direction;
@@ -1250,18 +1250,17 @@ static void dma_set_runtime_config(struct dma_chan *chan,
 
 	/*
 	 * Now decide on a maxburst:
-	 * If this channel will only request single transfers, set
-	 * this down to ONE element.
+	 * If this channel will only request single transfers, set this
+	 * down to ONE element.  Also select one element if no maxburst
+	 * is specified.
 	 */
-	if (plchan->cd->single) {
+	if (plchan->cd->single || maxburst == 0) {
 		cctl |= (PL080_BSIZE_1 << PL080_CONTROL_SB_SIZE_SHIFT) |
 			(PL080_BSIZE_1 << PL080_CONTROL_DB_SIZE_SHIFT);
 	} else {
-		while (i < ARRAY_SIZE(burst_sizes)) {
+		for (i = 0; i < ARRAY_SIZE(burst_sizes); i++)
 			if (burst_sizes[i].burstwords <= maxburst)
 				break;
-			i++;
-		}
 		cctl |= burst_sizes[i].reg;
 	}
 
