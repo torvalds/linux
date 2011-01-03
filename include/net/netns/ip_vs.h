@@ -28,6 +28,11 @@ struct netns_ipvs {
 	#define IP_VS_RTAB_MASK (IP_VS_RTAB_SIZE - 1)
 
 	struct list_head	rs_table[IP_VS_RTAB_SIZE];
+	/* ip_vs_app */
+	struct list_head	app_list;
+	struct mutex		app_mutex;
+	struct lock_class_key	app_key;	/* mutex debuging */
+
 	/* ip_vs_proto */
 	#define IP_VS_PROTO_TAB_SIZE	32	/* must be power of 2 */
 	struct ip_vs_proto_data *proto_data_table[IP_VS_PROTO_TAB_SIZE];

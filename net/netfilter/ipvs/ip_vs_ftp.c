@@ -414,14 +414,14 @@ static int __net_init __ip_vs_ftp_init(struct net *net)
 	if (!net_eq(net, &init_net))	/* netns not enabled yet */
 		return -EPERM;
 
-	ret = register_ip_vs_app(app);
+	ret = register_ip_vs_app(net, app);
 	if (ret)
 		return ret;
 
 	for (i=0; i<IP_VS_APP_MAX_PORTS; i++) {
 		if (!ports[i])
 			continue;
-		ret = register_ip_vs_app_inc(app, app->protocol, ports[i]);
+		ret = register_ip_vs_app_inc(net, app, app->protocol, ports[i]);
 		if (ret)
 			break;
 		pr_info("%s: loaded support on port[%d] = %d\n",
@@ -429,7 +429,7 @@ static int __net_init __ip_vs_ftp_init(struct net *net)
 	}
 
 	if (ret)
-		unregister_ip_vs_app(app);
+		unregister_ip_vs_app(net, app);
 
 	return ret;
 }
@@ -443,7 +443,7 @@ static void __ip_vs_ftp_exit(struct net *net)
 	if (!net_eq(net, &init_net))	/* netns not enabled yet */
 		return;
 
-	unregister_ip_vs_app(app);
+	unregister_ip_vs_app(net, app);
 }
 
 static struct pernet_operations ip_vs_ftp_ops = {
