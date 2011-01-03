@@ -426,19 +426,6 @@ static int cnic_abort_prep(struct cnic_sock *csk)
 	return 0;
 }
 
-static void cnic_uio_stop(void)
-{
-	struct cnic_dev *dev;
-
-	read_lock(&cnic_dev_lock);
-	list_for_each_entry(dev, &cnic_dev_list, list) {
-		struct cnic_local *cp = dev->cnic_priv;
-
-		cnic_send_nlmsg(cp, ISCSI_KEVENT_IF_DOWN, NULL);
-	}
-	read_unlock(&cnic_dev_lock);
-}
-
 int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops)
 {
 	struct cnic_dev *dev;
@@ -509,9 +496,6 @@ int cnic_unregister_driver(int ulp_type)
 		}
 	}
 	read_unlock(&cnic_dev_lock);
-
-	if (ulp_type == CNIC_ULP_ISCSI)
-		cnic_uio_stop();
 
 	rcu_assign_pointer(cnic_ulp_tbl[ulp_type], NULL);
 
@@ -595,6 +579,9 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 		return -EINVAL;
 	}
 	mutex_unlock(&cnic_lock);
+
+	if (ulp_type == CNIC_ULP_ISCSI)
+		cnic_send_nlmsg(cp, ISCSI_KEVENT_IF_DOWN, NULL);
 
 	synchronize_rcu();
 
