@@ -2,6 +2,7 @@ config ARM
 	bool
 	default y
 	select HAVE_AOUT
+	select HAVE_DMA_API_DEBUG
 	select HAVE_IDE
 	select HAVE_MEMBLOCK
 	select RTC_LIB
