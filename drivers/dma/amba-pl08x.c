@@ -1148,12 +1148,10 @@ static void dma_set_runtime_config(struct dma_chan *chan,
 	plchan->runtime_direction = config->direction;
 	if (config->direction == DMA_TO_DEVICE) {
 		plchan->runtime_addr = config->dst_addr;
-		cctl |= PL080_CONTROL_SRC_INCR;
 		addr_width = config->dst_addr_width;
 		maxburst = config->dst_maxburst;
 	} else if (config->direction == DMA_FROM_DEVICE) {
 		plchan->runtime_addr = config->src_addr;
-		cctl |= PL080_CONTROL_DST_INCR;
 		addr_width = config->src_addr_width;
 		maxburst = config->src_maxburst;
 	} else {
@@ -1196,10 +1194,6 @@ static void dma_set_runtime_config(struct dma_chan *chan,
 				break;
 		cctl |= burst_sizes[i].reg;
 	}
-
-	/* Access the cell in privileged mode, non-bufferable, non-cacheable */
-	cctl &= ~PL080_CONTROL_PROT_MASK;
-	cctl |= PL080_CONTROL_PROT_SYS;
 
 	/* Modify the default channel data to fit PrimeCell request */
 	cd->cctl = cctl;
@@ -1405,10 +1399,16 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 	 * channel target address dynamically at runtime.
 	 */
 	txd->direction = direction;
-	txd->cctl = plchan->cd->cctl;
+	txd->cctl = plchan->cd->cctl &
+			~(PL080_CONTROL_SRC_INCR | PL080_CONTROL_DST_INCR |
+			  PL080_CONTROL_PROT_MASK);
+
+	/* Access the cell in privileged mode, non-bufferable, non-cacheable */
+	txd->cctl |= PL080_CONTROL_PROT_SYS;
 
 	if (direction == DMA_TO_DEVICE) {
 		txd->ccfg |= PL080_FLOW_MEM2PER << PL080_CONFIG_FLOW_CONTROL_SHIFT;
+		txd->cctl |= PL080_CONTROL_SRC_INCR;
 		txd->srcbus.addr = sgl->dma_address;
 		if (plchan->runtime_addr)
 			txd->dstbus.addr = plchan->runtime_addr;
@@ -1416,6 +1416,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 			txd->dstbus.addr = plchan->cd->addr;
 	} else if (direction == DMA_FROM_DEVICE) {
 		txd->ccfg |= PL080_FLOW_PER2MEM << PL080_CONFIG_FLOW_CONTROL_SHIFT;
+		txd->cctl |= PL080_CONTROL_DST_INCR;
 		if (plchan->runtime_addr)
 			txd->srcbus.addr = plchan->runtime_addr;
 		else
