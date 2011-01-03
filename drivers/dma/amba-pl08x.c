@@ -132,7 +132,7 @@ struct pl08x_driver_data {
 	struct dma_device memcpy;
 	void __iomem *base;
 	struct amba_device *adev;
-	struct vendor_data *vd;
+	const struct vendor_data *vd;
 	struct pl08x_platform_data *pd;
 	struct pl08x_phy_chan *phy_chans;
 	struct dma_pool *pool;
@@ -1891,7 +1891,7 @@ static inline void init_pl08x_debugfs(struct pl08x_driver_data *pl08x)
 static int pl08x_probe(struct amba_device *adev, struct amba_id *id)
 {
 	struct pl08x_driver_data *pl08x;
-	struct vendor_data *vd = id->data;
+	const struct vendor_data *vd = id->data;
 	int ret = 0;
 	int i;
 
