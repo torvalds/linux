@@ -510,7 +510,7 @@ static inline u32 pl08x_cctl_bits(u32 cctl, u8 srcwidth, u8 dstwidth,
  * this prefers the destination bus if both available
  * if fixed address on one bus the other will be chosen
  */
-void pl08x_choose_master_bus(struct pl08x_bus_data *src_bus,
+static void pl08x_choose_master_bus(struct pl08x_bus_data *src_bus,
 	struct pl08x_bus_data *dst_bus, struct pl08x_bus_data **mbus,
 	struct pl08x_bus_data **sbus, u32 cctl)
 {
@@ -545,7 +545,7 @@ void pl08x_choose_master_bus(struct pl08x_bus_data *src_bus,
  * Fills in one LLI for a certain transfer descriptor
  * and advance the counter
  */
-int pl08x_fill_lli_for_desc(struct pl08x_driver_data *pl08x,
+static int pl08x_fill_lli_for_desc(struct pl08x_driver_data *pl08x,
 			    struct pl08x_txd *txd, int num_llis, int len,
 			    u32 cctl, u32 *remainder)
 {
@@ -1439,7 +1439,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 	return &txd->tx;
 }
 
-struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
+static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 		struct dma_chan *chan, struct scatterlist *sgl,
 		unsigned int sg_len, enum dma_data_direction direction,
 		unsigned long flags)
@@ -1890,7 +1890,7 @@ static int pl08x_debugfs_show(struct seq_file *s, void *data)
 	seq_printf(s, "CHANNEL:\tSTATE:\n");
 	seq_printf(s, "--------\t------\n");
 	list_for_each_entry(chan, &pl08x->memcpy.channels, chan.device_node) {
-		seq_printf(s, "%s\t\t\%s\n", chan->name,
+		seq_printf(s, "%s\t\t%s\n", chan->name,
 			   pl08x_state_str(chan->state));
 	}
 
@@ -1898,7 +1898,7 @@ static int pl08x_debugfs_show(struct seq_file *s, void *data)
 	seq_printf(s, "CHANNEL:\tSTATE:\n");
 	seq_printf(s, "--------\t------\n");
 	list_for_each_entry(chan, &pl08x->slave.channels, chan.device_node) {
-		seq_printf(s, "%s\t\t\%s\n", chan->name,
+		seq_printf(s, "%s\t\t%s\n", chan->name,
 			   pl08x_state_str(chan->state));
 	}
 
