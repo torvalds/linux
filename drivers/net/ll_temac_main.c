@@ -952,7 +952,7 @@ static const struct attribute_group temac_attr_group = {
 	.attrs = temac_device_attrs,
 };
 
-static int __init
+static int __devinit
 temac_of_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct device_node *np;
