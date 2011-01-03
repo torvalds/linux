@@ -25,6 +25,12 @@
 struct pl08x_lli;
 struct pl08x_driver_data;
 
+/* Bitmasks for selecting AHB ports for DMA transfers */
+enum {
+	PL08X_AHB1 = (1 << 0),
+	PL08X_AHB2 = (1 << 1)
+};
+
 /**
  * struct pl08x_channel_data - data structure to pass info between
  * platform and PL08x driver regarding channel configuration
@@ -51,6 +57,8 @@ struct pl08x_driver_data;
  * round round round)
  * @single: the device connected to this channel will request single
  * DMA transfers, not bursts. (Bursts are default.)
+ * @periph_buses: the device connected to this channel is accessible via
+ * these buses (use PL08X_AHB1 | PL08X_AHB2).
  */
 struct pl08x_channel_data {
 	char *bus_id;
@@ -61,6 +69,7 @@ struct pl08x_channel_data {
 	dma_addr_t addr;
 	bool circular_buffer;
 	bool single;
+	u8 periph_buses;
 };
 
 /**
@@ -193,8 +202,8 @@ struct pl08x_dma_chan {
  * less than zero, else it returns the allocated signal number
  * @put_signal: indicate to the platform that this physical signal is not
  * running any DMA transfer and multiplexing can be recycled
- * @bus_bit_lli: Bit[0] of the address indicated which AHB bus master the
- * LLI addresses are on 0/1 Master 1/2.
+ * @lli_buses: buses which LLIs can be fetched from: PL08X_AHB1 | PL08X_AHB2
+ * @mem_buses: buses which memory can be accessed from: PL08X_AHB1 | PL08X_AHB2
  */
 struct pl08x_platform_data {
 	struct pl08x_channel_data *slave_channels;
@@ -202,6 +211,8 @@ struct pl08x_platform_data {
 	struct pl08x_channel_data memcpy_channel;
 	int (*get_signal)(struct pl08x_dma_chan *);
 	void (*put_signal)(struct pl08x_dma_chan *);
+	u8 lli_buses;
+	u8 mem_buses;
 };
 
 #ifdef CONFIG_AMBA_PL08X
