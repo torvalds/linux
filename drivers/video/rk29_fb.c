@@ -1659,12 +1659,14 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
             LcdWrReg(inf, REG_CFG_DONE, 0x01);
             if(par->par_seted) {
                 unsigned long flags;
+#if 0
                 if (par->mirror.c_offset) {
                     ret = wait_event_interruptible_timeout(par->wait,
                         (0 == par->mirror.c_offset), HZ/20);
                     if (ret <= 0)
                         break;
                 }
+#endif
 
                 local_irq_save(flags);
                 par->mirror.y_offset = yuv_phy[0];
