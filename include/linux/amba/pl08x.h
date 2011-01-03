@@ -95,11 +95,6 @@ struct pl08x_phy_chan {
 	spinlock_t lock;
 	int signal;
 	struct pl08x_dma_chan *serving;
-	u32 csrc;
-	u32 cdst;
-	u32 clli;
-	u32 cctl;
-	u32 ccfg;
 };
 
 /**
@@ -118,14 +113,6 @@ struct pl08x_txd {
 	void *llis_va;
 	struct pl08x_channel_data *cd;
 	bool active;
-	/*
-	 * Settings to be put into the physical channel when we
-	 * trigger this txd
-	 */
-	u32 csrc;
-	u32 cdst;
-	u32 clli;
-	u32 cctl;
 };
 
 /**
