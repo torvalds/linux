@@ -30,7 +30,7 @@
 
 static inline void __iomem *s3c_irq_uart_base(struct irq_data *data)
 {
-	struct s3c_uart_irq *uirq = data->chip_data;
+	struct s3c_uart_irq *uirq = irq_data_get_irq_chip_data(data);
 	return uirq->regs;
 }
 
@@ -83,7 +83,7 @@ static void s3c_irq_uart_ack(struct irq_data *data)
 
 static void s3c_irq_demux_uart(unsigned int irq, struct irq_desc *desc)
 {
-	struct s3c_uart_irq *uirq = desc->handler_data;
+	struct s3c_uart_irq *uirq = desc->irq_data.handler_data;
 	u32 pend = __raw_readl(uirq->regs + S3C64XX_UINTP);
 	int base = uirq->base_irq;
 
@@ -124,7 +124,7 @@ static void __init s3c_init_uart_irq(struct s3c_uart_irq *uirq)
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
-	desc->handler_data = uirq;
+	desc->irq_data.handler_data = uirq;
 	set_irq_chained_handler(uirq->parent_irq, s3c_irq_demux_uart);
 }
 
