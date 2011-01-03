@@ -680,13 +680,6 @@ static inline enum drbd_thread_state get_t_state(struct drbd_thread *thi)
 	return thi->t_state;
 }
 
-
-/*
- * Having this as the first member of a struct provides sort of "inheritance".
- * "derived" structs can be "drbd_queue_work()"ed.
- * The callback should know and cast back to the descendant struct.
- * drbd_request and drbd_epoch_entry are descendants of drbd_work.
- */
 struct drbd_work;
 typedef int (*drbd_work_cb)(struct drbd_conf *, struct drbd_work *, int cancel);
 struct drbd_work {
@@ -714,9 +707,6 @@ struct drbd_request {
 	 * the current epoch, and we therefore have to close it,
 	 * starting a new epoch...
 	 */
-
-	/* up to here, the struct layout is identical to drbd_epoch_entry;
-	 * we might be able to use that to our advantage...  */
 
 	struct list_head tl_requests; /* ring list in the transfer log */
 	struct bio *master_bio;       /* master bio pointer */
