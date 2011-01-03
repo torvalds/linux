@@ -37,7 +37,7 @@
 
 #define	 RPCDBG_FACILITY RPCDBG_CACHE
 
-static void cache_defer_req(struct cache_req *req, struct cache_head *item);
+static bool cache_defer_req(struct cache_req *req, struct cache_head *item);
 static void cache_revisit_request(struct cache_head *item);
 
 static void cache_init(struct cache_head *h)
@@ -268,9 +268,11 @@ int cache_check(struct cache_detail *detail,
 	}
 
 	if (rv == -EAGAIN) {
-		cache_defer_req(rqstp, h);
-		if (!test_bit(CACHE_PENDING, &h->flags)) {
-			/* Request is not deferred */
+		if (!cache_defer_req(rqstp, h)) {
+			/*
+			 * Request was not deferred; handle it as best
+			 * we can ourselves:
+			 */
 			rv = cache_is_valid(detail, h);
 			if (rv == -EAGAIN)
 				rv = -ETIMEDOUT;
@@ -618,18 +620,19 @@ static void cache_limit_defers(void)
 		discard->revisit(discard, 1);
 }
 
-static void cache_defer_req(struct cache_req *req, struct cache_head *item)
+/* Return true if and only if a deferred request is queued. */
+static bool cache_defer_req(struct cache_req *req, struct cache_head *item)
 {
 	struct cache_deferred_req *dreq;
 
 	if (req->thread_wait) {
 		cache_wait_req(req, item);
 		if (!test_bit(CACHE_PENDING, &item->flags))
-			return;
+			return false;
 	}
 	dreq = req->defer(req);
 	if (dreq == NULL)
-		return;
+		return false;
 	setup_deferral(dreq, item, 1);
 	if (!test_bit(CACHE_PENDING, &item->flags))
 		/* Bit could have been cleared before we managed to
@@ -638,6 +641,7 @@ static void cache_defer_req(struct cache_req *req, struct cache_head *item)
 		cache_revisit_request(item);
 
 	cache_limit_defers();
+	return true;
 }
 
 static void cache_revisit_request(struct cache_head *item)
