@@ -1332,9 +1332,10 @@ static int pl08x_prep_channel_resources(struct pl08x_dma_chan *plchan,
 	int ret;
 
 	num_llis = pl08x_fill_llis_for_desc(pl08x, txd);
-
-	if (!num_llis)
+	if (!num_llis) {
+		kfree(txd);
 		return -EINVAL;
+	}
 
 	spin_lock_irqsave(&plchan->lock, plchan->lockflags);
 
