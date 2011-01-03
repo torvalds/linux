@@ -418,15 +418,18 @@ static int GPIOPullUpDown(struct gpio_chip *chip, unsigned int offset, unsigned 
 		return -1;
 	}
 	
-	if(offset >= 8)
+	if(offset >= 32)
 	{
 		return -1;
 	}
-
-	if(rk29_gpio->bank->id%2 == 1)
-	{
-		temp = 16;
-	}
+	temp = __raw_readl(pGrfRegBase + 0x78 +(rk29_gpio->bank->id)*4);
+	if(!enable)
+		temp |= 1<<offset;
+	else
+		temp &= ~(1<<offset);
+	//temp = (temp & (~(1 << offset)))| ((~enable) << offset);	
+	__raw_writel(temp,pGrfRegBase + 0x78 +(rk29_gpio->bank->id)*4);
+	
 	return 0;
 }
 

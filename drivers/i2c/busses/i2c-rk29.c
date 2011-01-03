@@ -31,15 +31,21 @@
 
 #include "i2c-rk29.h"
 #define DRV_NAME	"rk29_i2c"
+#define RETRY_NUM	3
 
-#define RK2818_I2C_TIMEOUT		(msecs_to_jiffies(500))
+#define RK2818_I2C_TIMEOUT		(msecs_to_jiffies(100))
 #define RK2818_DELAY_TIME		2
 
 #if 0
 #define i2c_dbg(dev, format, arg...)		\
 	dev_printk(KERN_INFO , dev , format , ## arg)
+#define i2c_err(dev, format, arg...)		\
+		dev_printk(KERN_ERR , dev , format , ## arg)
+
 #else
-#define i2c_dbg(dev, format, arg...)	
+#define i2c_dbg(dev, format, arg...)
+#define i2c_err(dev, format, arg...)
+
 #endif
 
 enum rk29_error {
@@ -73,6 +79,7 @@ struct rk29_i2c_data {
 	struct clk				*clk;
 
 	unsigned int			mode;
+	int 					retry;
 
 	unsigned int			irq;
 
@@ -83,12 +90,31 @@ struct rk29_i2c_data {
 
 	unsigned int			msg_idx;
 	unsigned int			msg_num;
+	int (*io_init)(void);
 #ifdef CONFIG_CPU_FREQ
 		struct notifier_block	freq_transition;
 #endif	
 };
 
 static void rk29_i2c_init_hw(struct rk29_i2c_data *i2c);
+
+static void rk29_set_ack(struct rk29_i2c_data *i2c)
+{
+	unsigned long conr = readl(i2c->regs + I2C_CONR);
+
+	conr &= I2C_CONR_ACK;
+	writel(conr,i2c->regs + I2C_CONR);
+	return;
+}
+static void rk29_set_nak(struct rk29_i2c_data *i2c)
+{
+	unsigned long conr = readl(i2c->regs + I2C_CONR);
+
+	conr |= I2C_CONR_NAK;
+	writel(conr,i2c->regs + I2C_CONR);
+	return;
+}
+
 
 static inline void rk29_i2c_disable_irqs(struct rk29_i2c_data *i2c)
 {
@@ -170,7 +196,7 @@ static int rk29_event_occurred(struct rk29_i2c_data *i2c)
 		isr &= ~I2C_ISR_ARBITR_LOSE;
 		writel(isr, i2c->regs + I2C_ISR);
 		i2c->cmd_err = RK2818_ERROR_ARBITR_LOSE;
-		dev_err(i2c->dev, "<error>arbitration loss\n");
+		i2c_err(i2c->dev, "<error>arbitration loss\n");
 		return 1;
 	}
 
@@ -239,7 +265,7 @@ static int rk29_wait_event(struct rk29_i2c_data *i2c,
 	{
 		if(unlikely(irqs_disabled()))
 		{
-			dev_err(i2c->dev, "irqs are disabled on this system!\n");
+			i2c_err(i2c->dev, "irqs are disabled on this system!\n");
 			return -EIO;
 		}
 	}
@@ -260,7 +286,7 @@ static int rk29_wait_event(struct rk29_i2c_data *i2c,
 	
 	if(ret < 0)
 	{
-		dev_err(i2c->dev, "i2c wait for event %04x, retrun %d \n", mr_event, ret);
+		i2c_err(i2c->dev, "i2c wait for event %04x, retrun %d \n", mr_event, ret);
 		return ret;
 	}
 	if(ret == 0)
@@ -272,7 +298,7 @@ static int rk29_wait_event(struct rk29_i2c_data *i2c,
 
 static int rk29_wait_while_busy(struct rk29_i2c_data *i2c)
 {
-	unsigned long timeout = jiffies + RK2818_I2C_TIMEOUT;
+	unsigned long timeout = jiffies + RK2818_I2C_TIMEOUT/1000;
 	unsigned long lsr;
 	unsigned int time = RK2818_DELAY_TIME;
 
@@ -284,11 +310,11 @@ static int rk29_wait_while_busy(struct rk29_i2c_data *i2c)
 		udelay(time);
 		time *= 2;
 	}
-	return -ETIMEDOUT;
+	return 0;
 }
 static int rk29_i2c_stop(struct rk29_i2c_data *i2c)
 {
-	unsigned long timeout = jiffies + RK2818_I2C_TIMEOUT;
+	unsigned long timeout = jiffies + RK2818_I2C_TIMEOUT/1000;
 	unsigned int time = RK2818_DELAY_TIME;
 
 	writel(I2C_LCMR_STOP|I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
@@ -296,14 +322,13 @@ static int rk29_i2c_stop(struct rk29_i2c_data *i2c)
 	{
 		if(!(readl(i2c->regs + I2C_LCMR) & I2C_LCMR_STOP))
 		{
-			i2c_dbg(i2c->dev, "i2c stop successfully\n");
+			udelay(100);
 			return 0;
 		}
 		udelay(time);
 		time *= 2;
 	}
-	return -ETIMEDOUT;
-    
+	return 0;
 }
 static int rk29_send_2nd_addr(struct rk29_i2c_data *i2c,
 						struct i2c_msg *msg, int start)
@@ -321,7 +346,7 @@ static int rk29_send_2nd_addr(struct rk29_i2c_data *i2c,
 	writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
 	if((ret = rk29_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK)) != 0)
 	{
-		dev_err(i2c->dev, "after sent addr_2nd, i2c wait for ACK timeout\n");
+		i2c_err(i2c->dev, "after sent addr_2nd, i2c wait for ACK timeout\n");
 		return ret;
 	}
 	return ret;
@@ -342,10 +367,10 @@ static int rk29_send_address(struct rk29_i2c_data *i2c,
 		addr_1st |= 0x01;
 	else
 		addr_1st &= (~0x01);
-
+	rk29_set_ack(i2c);
 	conr |= I2C_CONR_MTX_MODE;
-	//conr &= I2C_CONR_ACK;
 	writel(conr, i2c->regs + I2C_CONR);
+	
 	i2c_dbg(i2c->dev, "i2c send addr_1st: %lx\n", addr_1st);
 	
 	writel(addr_1st, i2c->regs + I2C_MTXR);
@@ -354,7 +379,7 @@ static int rk29_send_address(struct rk29_i2c_data *i2c,
 	{
 		if((ret = rk29_wait_while_busy(i2c)) != 0)
 		{
-			dev_err(i2c->dev, "i2c is busy, when send address\n");
+			i2c_err(i2c->dev, "i2c is busy, when send address\n");
 			return ret;
 		}
 		writel(I2C_LCMR_START, i2c->regs + I2C_LCMR);
@@ -364,7 +389,7 @@ static int rk29_send_address(struct rk29_i2c_data *i2c,
 
 	if((ret = rk29_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK)) != 0)
 	{
-		dev_err(i2c->dev, "after sent addr_1st, i2c wait for ACK timeout\n");
+		i2c_err(i2c->dev, "after sent addr_1st, i2c wait for ACK timeout\n");
 		return ret;
 	}
 	if(start && (msg->flags & I2C_M_TEN))
@@ -380,40 +405,39 @@ static int rk29_i2c_send_msg(struct rk29_i2c_data *i2c, struct i2c_msg *msg)
 	conr = readl(i2c->regs + I2C_CONR);
 	conr |= I2C_CONR_MTX_MODE;
 	writel(conr, i2c->regs + I2C_CONR);
+
+	rk29_set_ack(i2c);
 	for(i = 0; i < msg->len; i++)
 	{
 		i2c_dbg(i2c->dev, "i2c send buf[%d]: %x\n", i, msg->buf[i]);
 		writel(msg->buf[i], i2c->regs + I2C_MTXR);
-		/*
-		conr = readl(i2c->regs + I2C_CONR);
-		conr &= I2C_CONR_ACK;
-		writel(conr, i2c->regs + I2C_CONR);
-		*/
 		writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
 
 		if((ret = rk29_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK)) != 0)
 			return ret;
+		if(readl(i2c->regs + I2C_LSR) & I2C_LSR_RCV_NAK)
+			rk29_set_nak(i2c);
 	}
 	return ret;
 }
 static int rk29_i2c_recv_msg(struct rk29_i2c_data *i2c, struct i2c_msg *msg)
 {
 	int i, ret = 0;
-	unsigned long conr = readl(i2c->regs + I2C_CONR);
+	unsigned long conr;
 
+	rk29_set_ack(i2c);
 	conr = readl(i2c->regs + I2C_CONR);
 	conr &= I2C_CONR_MRX_MODE;
 	writel(conr, i2c->regs + I2C_CONR);
-
 	for(i = 0; i < msg->len; i++)
 	{
 		writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
 		if((ret = rk29_wait_event(i2c, RK2818_EVENT_MRX_NEED_ACK)) != 0)
 			return ret;
-		conr = readl(i2c->regs + I2C_CONR);
-		conr &= I2C_CONR_ACK;
-		writel(conr, i2c->regs + I2C_CONR);
 		msg->buf[i] = (uint8_t)readl(i2c->regs + I2C_MRXR);
+
+		if( i == msg->len - 1)
+			rk29_set_nak(i2c);
 		i2c_dbg(i2c->dev, "i2c recv >>>>>>>>>>>> buf[%d]: %x\n", i, msg->buf[i]);
 	}
 	return ret;
@@ -422,7 +446,6 @@ static int rk29_xfer_msg(struct i2c_adapter *adap,
 						 struct i2c_msg *msg, int start, int stop)
 {
 	struct rk29_i2c_data *i2c = (struct rk29_i2c_data *)adap->algo_data;
-	unsigned long conr = readl(i2c->regs + I2C_CONR);
 	int ret = 0;
 	
 	#if defined (CONFIG_IOEXTEND_TCA6424)
@@ -432,20 +455,20 @@ static int rk29_xfer_msg(struct i2c_adapter *adap,
 	if(msg->len == 0)
 	{
 		ret = -EINVAL;
-		dev_err(i2c->dev, "<error>msg->len = %d\n", msg->len);
+		i2c_err(i2c->dev, "<error>msg->len = %d\n", msg->len);
 		goto exit;
 	}
 
 	if((ret = rk29_send_address(i2c, msg, start))!= 0)
 	{
-		dev_err(i2c->dev, "<error>rk29_send_address timeout\n");
+		i2c_err(i2c->dev, "<error>rk29_send_address timeout\n");
 		goto exit;
 	}
 	if(msg->flags & I2C_M_RD)
 	{	
 		if((ret = rk29_i2c_recv_msg(i2c, msg)) != 0)
 		{
-			dev_err(i2c->dev, "<error>rk29_i2c_recv_msg timeout\n");
+			i2c_err(i2c->dev, "<error>rk29_i2c_recv_msg timeout\n");
 			goto exit;
 		}
 	}
@@ -453,20 +476,19 @@ static int rk29_xfer_msg(struct i2c_adapter *adap,
 	{
 		if((ret = rk29_i2c_send_msg(i2c, msg)) != 0)
 		{
-			dev_err(i2c->dev, "<error>rk29_i2c_send_msg timeout\n");
+			i2c_err(i2c->dev, "<error>rk29_i2c_send_msg timeout\n");
 			goto exit;
 		}
 	}
 	
 exit:	
-	if(stop)
+	if(stop || ret < 0)
 	{
-		conr = readl(i2c->regs + I2C_CONR);
-		conr |= I2C_CONR_NAK;
-		writel(conr, i2c->regs + I2C_CONR);
+		if(ret < 0)
+			rk29_set_nak(i2c);
 		if((ret = rk29_i2c_stop(i2c)) != 0)
 		{
-			dev_err(i2c->dev, "<error>rk29_i2c_stop timeout\n");
+			i2c_err(i2c->dev, "<error>rk29_i2c_stop timeout\n");
 		}
 #if 0
 		//not I2C code,add by sxj,used for extend gpio intrrupt,set SCL and SDA pin.
@@ -490,11 +512,13 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
 	int ret = -1;
 	int i;
 	struct rk29_i2c_data *i2c = (struct rk29_i2c_data *)adap->algo_data;
+	int retry = i2c->retry;
 	unsigned long conr = readl(i2c->regs + I2C_CONR);
 	/*
 	if(i2c->suspended ==1)
 		return -EIO;
 	*/
+retry:
 	if(msgs[0].scl_rate <= 400000 && msgs[0].scl_rate > 0)
 		i2c->scl_rate = msgs[0].scl_rate;
 	else
@@ -515,13 +539,20 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
 		if (ret != 0)
 		{
 			num = ret;
-			dev_err(i2c->dev, "rk29_xfer_msg error, ret = %d\n", ret);
+			i2c_err(i2c->dev, "rk29_xfer_msg error, ret = %d\n", ret);
 			break;
 		}
 	}
 	conr = readl(i2c->regs + I2C_CONR);
 	conr &= I2C_CONR_MPORT_DISABLE;
 	writel(conr, i2c->regs + I2C_CONR);
+	if( --retry && num < 0)
+	{
+		mdelay(1);
+		goto retry;
+	}
+	if(num < 0)
+		dev_err(i2c->dev, "i2c transfer err, client address is 0x%x", msgs[0].addr);
 	return num;
 }
 
@@ -559,7 +590,7 @@ static void rk29_i2c_init_hw(struct rk29_i2c_data *i2c)
 	rk29_i2c_disable_irqs(i2c);
 
 	rk29_i2c_clockrate(i2c); 
-
+	i2c->io_init();
 	opr = readl(i2c->regs + I2C_OPR);
 	opr |= I2C_OPR_CORE_ENABLE;
 	writel(opr, i2c->regs + I2C_OPR);
@@ -629,15 +660,16 @@ static int rk29_i2c_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 	if (!pdata) 
 	{
-		dev_err(&pdev->dev, "<error>no platform data\n");
+		i2c_err(&pdev->dev, "<error>no platform data\n");
 		return -EINVAL;
 	}
 	i2c = kzalloc(sizeof(struct rk29_i2c_data), GFP_KERNEL);
 	if (!i2c) 
 	{
-		dev_err(&pdev->dev, "<error>no memory for state\n");
+		i2c_err(&pdev->dev, "<error>no memory for state\n");
 		return -ENOMEM;
 	}
+	i2c->retry = RETRY_NUM;
 	i2c->mode = pdata->mode;
 	i2c->scl_rate = (pdata->scl_rate) ? pdata->scl_rate : 100000;
 
@@ -651,7 +683,7 @@ static int rk29_i2c_probe(struct platform_device *pdev)
 	
 	i2c->clk = clk_get(&pdev->dev, "i2c");
 	if (IS_ERR(i2c->clk)) {
-		dev_err(&pdev->dev, "<error>cannot get clock\n");
+		i2c_err(&pdev->dev, "<error>cannot get clock\n");
 		ret = -ENOENT;
 		goto err_noclk;
 	}
@@ -660,7 +692,7 @@ static int rk29_i2c_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "<error>cannot find IO resource\n");
+		i2c_err(&pdev->dev, "<error>cannot find IO resource\n");
 		ret = -ENOENT;
 		goto err_clk;
 	}
@@ -669,7 +701,7 @@ static int rk29_i2c_probe(struct platform_device *pdev)
 					 pdev->name);
 
 	if (i2c->ioarea == NULL) {
-		dev_err(&pdev->dev, "<error>cannot request IO\n");
+		i2c_err(&pdev->dev, "<error>cannot request IO\n");
 		ret = -ENXIO;
 		goto err_clk;
 	}
@@ -677,7 +709,7 @@ static int rk29_i2c_probe(struct platform_device *pdev)
 	i2c->regs = ioremap(res->start, res->end - res->start + 1);
 
 	if (i2c->regs == NULL) {
-		dev_err(&pdev->dev, "<error>annot map IO\n");
+		i2c_err(&pdev->dev, "<error>annot map IO\n");
 		ret = -ENXIO;
 		goto err_ioarea;
 	}
@@ -685,13 +717,15 @@ static int rk29_i2c_probe(struct platform_device *pdev)
 	i2c->adap.dev.parent = &pdev->dev;
 
 	if(pdata->io_init)
+	{
+		i2c->io_init = pdata->io_init;
 		pdata->io_init();
-	 
+	} 
 	rk29_i2c_init_hw(i2c);
 
 	i2c->irq = ret = platform_get_irq(pdev, 0);
 	if (ret <= 0) {
-		dev_err(&pdev->dev, "cannot find IRQ\n");
+		i2c_err(&pdev->dev, "cannot find IRQ\n");
 		goto err_iomap;
 	}
 	if(i2c->mode == I2C_MODE_IRQ)
@@ -700,20 +734,20 @@ static int rk29_i2c_probe(struct platform_device *pdev)
 			  	dev_name(&pdev->dev), i2c);
 
 		if (ret != 0) {
-			dev_err(&pdev->dev, "cannot claim IRQ %d\n", i2c->irq);
+			i2c_err(&pdev->dev, "cannot claim IRQ %d\n", i2c->irq);
 			goto err_iomap;
 		}
 	}
 	ret = rk29_i2c_register_cpufreq(i2c);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to register cpufreq notifier\n");
+		i2c_err(&pdev->dev, "failed to register cpufreq notifier\n");
 		goto err_irq;
 	}
 
 	i2c->adap.nr = pdata->bus_num;
 	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to add bus to i2c core\n");
+		i2c_err(&pdev->dev, "failed to add bus to i2c core\n");
 		goto err_cpufreq;
 	}
 

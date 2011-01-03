@@ -29,10 +29,12 @@ typedef enum eGPIOPinDirection
 }eGPIOPinDirection_t;
 
 typedef enum GPIOPullType {
-	GPIONormal,
-	GPIOPullUp,
-	GPIOPullDown,
-	GPIONOInit
+	PullDisable = 0,
+	PullEnable,
+	GPIONormal,  //PullEnable, please do not use it
+	GPIOPullUp,	//PullEnable, please do not use it
+	GPIOPullDown,//PullEnable, please do not use it
+	GPIONOInit,//PullEnable, please do not use it
 }eGPIOPullType_t;
 
 typedef enum GPIOIntType {
