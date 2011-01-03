@@ -105,12 +105,13 @@ struct vendor_data {
 /*
  * PL08X private data structures
  * An LLI struct - see PL08x TRM.  Note that next uses bit[0] as a bus bit,
- * start & end do not - their bus bit info is in cctl.
+ * start & end do not - their bus bit info is in cctl.  Also note that these
+ * are fixed 32-bit quantities.
  */
 struct pl08x_lli {
-	dma_addr_t src;
-	dma_addr_t dst;
-	dma_addr_t next;
+	u32 src;
+	u32 dst;
+	u32 next;
 	u32 cctl;
 };
 
