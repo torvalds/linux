@@ -27,6 +27,7 @@
 #include <plat/voltage.h>
 
 #include "control.h"
+#include "pm.h"
 
 static bool sr_enable_on_init;
 
