@@ -71,7 +71,8 @@ int ip_vs_get_debug_level(void)
 
 #ifdef CONFIG_IP_VS_IPV6
 /* Taken from rt6_fill_node() in net/ipv6/route.c, is there a better way? */
-static int __ip_vs_addr_is_local_v6(const struct in6_addr *addr)
+static int __ip_vs_addr_is_local_v6(struct net *net,
+				    const struct in6_addr *addr)
 {
 	struct rt6_info *rt;
 	struct flowi fl = {
@@ -80,7 +81,7 @@ static int __ip_vs_addr_is_local_v6(const struct in6_addr *addr)
 		.fl6_src = { .s6_addr32 = {0, 0, 0, 0} },
 	};
 
-	rt = (struct rt6_info *)ip6_route_output(&init_net, NULL, &fl);
+	rt = (struct rt6_info *)ip6_route_output(net, NULL, &fl);
 	if (rt && rt->rt6i_dev && (rt->rt6i_dev->flags & IFF_LOOPBACK))
 			return 1;
 
@@ -810,12 +811,12 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 		atype = ipv6_addr_type(&udest->addr.in6);
 		if ((!(atype & IPV6_ADDR_UNICAST) ||
 			atype & IPV6_ADDR_LINKLOCAL) &&
-			!__ip_vs_addr_is_local_v6(&udest->addr.in6))
+			!__ip_vs_addr_is_local_v6(svc->net, &udest->addr.in6))
 			return -EINVAL;
 	} else
 #endif
 	{
-		atype = inet_addr_type(&init_net, udest->addr.ip);
+		atype = inet_addr_type(svc->net, udest->addr.ip);
 		if (atype != RTN_LOCAL && atype != RTN_UNICAST)
 			return -EINVAL;
 	}
