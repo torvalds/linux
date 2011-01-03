@@ -38,6 +38,12 @@
 
 #include <asm/irq_regs.h>
 
+enum event_type_t {
+	EVENT_FLEXIBLE = 0x1,
+	EVENT_PINNED = 0x2,
+	EVENT_ALL = EVENT_FLEXIBLE | EVENT_PINNED,
+};
+
 atomic_t perf_task_events __read_mostly;
 static atomic_t nr_mmap_events __read_mostly;
 static atomic_t nr_comm_events __read_mostly;
@@ -65,11 +71,22 @@ int sysctl_perf_event_sample_rate __read_mostly = 100000;
 
 static atomic64_t perf_event_id;
 
+static void cpu_ctx_sched_out(struct perf_cpu_context *cpuctx,
+			      enum event_type_t event_type);
+
+static void cpu_ctx_sched_in(struct perf_cpu_context *cpuctx,
+			     enum event_type_t event_type);
+
 void __weak perf_event_print_debug(void)	{ }
 
 extern __weak const char *perf_pmu_name(void)
 {
 	return "pmu";
+}
+
+static inline u64 perf_clock(void)
+{
+	return local_clock();
 }
 
 void perf_pmu_disable(struct pmu *pmu)
@@ -238,11 +255,6 @@ static void perf_unpin_context(struct perf_event_context *ctx)
 	--ctx->pin_count;
 	raw_spin_unlock_irqrestore(&ctx->lock, flags);
 	put_ctx(ctx);
-}
-
-static inline u64 perf_clock(void)
-{
-	return local_clock();
 }
 
 /*
@@ -1192,12 +1204,6 @@ static int perf_event_refresh(struct perf_event *event, int refresh)
 
 	return 0;
 }
-
-enum event_type_t {
-	EVENT_FLEXIBLE = 0x1,
-	EVENT_PINNED = 0x2,
-	EVENT_ALL = EVENT_FLEXIBLE | EVENT_PINNED,
-};
 
 static void ctx_sched_out(struct perf_event_context *ctx,
 			  struct perf_cpu_context *cpuctx,
