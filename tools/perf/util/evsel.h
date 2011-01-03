@@ -21,4 +21,8 @@ void perf_evsel__delete(struct perf_evsel *evsel);
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 void perf_evsel__free_fd(struct perf_evsel *evsel);
 
+#define perf_evsel__match(evsel, t, c)		\
+	(evsel->attr.type == PERF_TYPE_##t &&	\
+	 evsel->attr.config == PERF_COUNT_##c)
+
 #endif /* __PERF_EVSEL_H */

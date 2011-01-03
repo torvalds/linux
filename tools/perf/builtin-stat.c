@@ -170,10 +170,6 @@ struct stats			runtime_cycles_stats[MAX_NR_CPUS];
 struct stats			runtime_branches_stats[MAX_NR_CPUS];
 struct stats			walltime_nsecs_stats;
 
-#define MATCH_EVENT(t, c, evsel)			\
-	(evsel->attr.type == PERF_TYPE_##t &&	\
-	 evsel->attr.config == PERF_COUNT_##c)
-
 #define ERR_PERF_OPEN \
 "counter %d, sys_perf_event_open() syscall returned with %d (%s).  /bin/dmesg may provide additional information."
 
@@ -229,10 +225,10 @@ static int create_perf_stat_counter(struct perf_evsel *evsel, bool *perm_err)
 /*
  * Does the counter have nsecs as a unit?
  */
-static inline int nsec_counter(struct perf_evsel *counter)
+static inline int nsec_counter(struct perf_evsel *evsel)
 {
-	if (MATCH_EVENT(SOFTWARE, SW_CPU_CLOCK, counter) ||
-	    MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter))
+	if (perf_evsel__match(evsel, SOFTWARE, SW_CPU_CLOCK) ||
+	    perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK))
 		return 1;
 
 	return 0;
@@ -300,11 +296,11 @@ static void read_counter_aggr(struct perf_evsel *counter)
 	/*
 	 * Save the full runtime - to allow normalization during printout:
 	 */
-	if (MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter))
+	if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK))
 		update_stats(&runtime_nsecs_stats[0], count[0]);
-	if (MATCH_EVENT(HARDWARE, HW_CPU_CYCLES, counter))
+	if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
 		update_stats(&runtime_cycles_stats[0], count[0]);
-	if (MATCH_EVENT(HARDWARE, HW_BRANCH_INSTRUCTIONS, counter))
+	if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
 		update_stats(&runtime_branches_stats[0], count[0]);
 }
 
@@ -347,11 +343,11 @@ static void read_counter(struct perf_evsel *counter)
 		cpu_counts[cpu].ena = count[1];
 		cpu_counts[cpu].run = count[2];
 
-		if (MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter))
+		if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK))
 			update_stats(&runtime_nsecs_stats[cpu], count[0]);
-		if (MATCH_EVENT(HARDWARE, HW_CPU_CYCLES, counter))
+		if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
 			update_stats(&runtime_cycles_stats[cpu], count[0]);
-		if (MATCH_EVENT(HARDWARE, HW_BRANCH_INSTRUCTIONS, counter))
+		if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
 			update_stats(&runtime_branches_stats[cpu], count[0]);
 	}
 }
@@ -474,7 +470,7 @@ static void print_noise(struct perf_evsel *evsel, double avg)
 			100 * stddev_stats(&ps->res_stats[0]) / avg);
 }
 
-static void nsec_printout(int cpu, struct perf_evsel *counter, double avg)
+static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 {
 	double msecs = avg / 1e6;
 	char cpustr[16] = { '\0', };
@@ -485,18 +481,17 @@ static void nsec_printout(int cpu, struct perf_evsel *counter, double avg)
 			csv_output ? 0 : -4,
 			cpumap[cpu], csv_sep);
 
-	fprintf(stderr, fmt, cpustr, msecs, csv_sep, event_name(counter));
+	fprintf(stderr, fmt, cpustr, msecs, csv_sep, event_name(evsel));
 
 	if (csv_output)
 		return;
 
-	if (MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter)) {
+	if (perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK))
 		fprintf(stderr, " # %10.3f CPUs ",
 				avg / avg_stats(&walltime_nsecs_stats));
-	}
 }
 
-static void abs_printout(int cpu, struct perf_evsel *counter, double avg)
+static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 {
 	double total, ratio = 0.0;
 	char cpustr[16] = { '\0', };
@@ -516,19 +511,19 @@ static void abs_printout(int cpu, struct perf_evsel *counter, double avg)
 	else
 		cpu = 0;
 
-	fprintf(stderr, fmt, cpustr, avg, csv_sep, event_name(counter));
+	fprintf(stderr, fmt, cpustr, avg, csv_sep, event_name(evsel));
 
 	if (csv_output)
 		return;
 
-	if (MATCH_EVENT(HARDWARE, HW_INSTRUCTIONS, counter)) {
+	if (perf_evsel__match(evsel, HARDWARE, HW_INSTRUCTIONS)) {
 		total = avg_stats(&runtime_cycles_stats[cpu]);
 
 		if (total)
 			ratio = avg / total;
 
 		fprintf(stderr, " # %10.3f IPC  ", ratio);
-	} else if (MATCH_EVENT(HARDWARE, HW_BRANCH_MISSES, counter) &&
+	} else if (perf_evsel__match(evsel, HARDWARE, HW_BRANCH_MISSES) &&
 			runtime_branches_stats[cpu].n != 0) {
 		total = avg_stats(&runtime_branches_stats[cpu]);
 
