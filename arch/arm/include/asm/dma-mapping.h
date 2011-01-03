@@ -9,20 +9,24 @@
 #include <asm-generic/dma-coherent.h>
 #include <asm/memory.h>
 
+#ifdef __arch_page_to_dma
+#error Please update to __arch_pfn_to_dma
+#endif
+
 /*
- * page_to_dma/dma_to_virt/virt_to_dma are architecture private functions
- * used internally by the DMA-mapping API to provide DMA addresses. They
- * must not be used by drivers.
+ * dma_to_pfn/pfn_to_dma/dma_to_virt/virt_to_dma are architecture private
+ * functions used internally by the DMA-mapping API to provide DMA
+ * addresses. They must not be used by drivers.
  */
-#ifndef __arch_page_to_dma
-static inline dma_addr_t page_to_dma(struct device *dev, struct page *page)
+#ifndef __arch_pfn_to_dma
+static inline dma_addr_t pfn_to_dma(struct device *dev, unsigned long pfn)
 {
-	return (dma_addr_t)__pfn_to_bus(page_to_pfn(page));
+	return (dma_addr_t)__pfn_to_bus(pfn);
 }
 
-static inline struct page *dma_to_page(struct device *dev, dma_addr_t addr)
+static inline unsigned long dma_to_pfn(struct device *dev, dma_addr_t addr)
 {
-	return pfn_to_page(__bus_to_pfn(addr));
+	return __bus_to_pfn(addr);
 }
 
 static inline void *dma_to_virt(struct device *dev, dma_addr_t addr)
@@ -35,14 +39,14 @@ static inline dma_addr_t virt_to_dma(struct device *dev, void *addr)
 	return (dma_addr_t)__virt_to_bus((unsigned long)(addr));
 }
 #else
-static inline dma_addr_t page_to_dma(struct device *dev, struct page *page)
+static inline dma_addr_t pfn_to_dma(struct device *dev, unsigned long pfn)
 {
-	return __arch_page_to_dma(dev, page);
+	return __arch_pfn_to_dma(dev, pfn);
 }
 
-static inline struct page *dma_to_page(struct device *dev, dma_addr_t addr)
+static inline unsigned long dma_to_pfn(struct device *dev, dma_addr_t addr)
 {
-	return __arch_dma_to_page(dev, addr);
+	return __arch_dma_to_pfn(dev, addr);
 }
 
 static inline void *dma_to_virt(struct device *dev, dma_addr_t addr)
@@ -368,7 +372,7 @@ static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
 
 	__dma_page_cpu_to_dev(page, offset, size, dir);
 
-	return page_to_dma(dev, page) + offset;
+	return pfn_to_dma(dev, page_to_pfn(page)) + offset;
 }
 
 /**
@@ -408,8 +412,8 @@ static inline void dma_unmap_single(struct device *dev, dma_addr_t handle,
 static inline void dma_unmap_page(struct device *dev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir)
 {
-	__dma_page_dev_to_cpu(dma_to_page(dev, handle), handle & ~PAGE_MASK,
-		size, dir);
+	__dma_page_dev_to_cpu(pfn_to_page(dma_to_pfn(dev, handle)),
+		handle & ~PAGE_MASK, size, dir);
 }
 #endif /* CONFIG_DMABOUNCE */
 
