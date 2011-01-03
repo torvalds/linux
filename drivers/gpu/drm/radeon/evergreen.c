@@ -748,6 +748,8 @@ void evergreen_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	unsigned i;
 	u32 tmp;
 
+	WREG32(HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
+
 	WREG32(VM_CONTEXT0_REQUEST_RESPONSE, REQUEST_TYPE(1));
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		/* read MC_STATUS */
@@ -1922,7 +1924,6 @@ bool evergreen_gpu_is_lockup(struct radeon_device *rdev)
 static int evergreen_gpu_soft_reset(struct radeon_device *rdev)
 {
 	struct evergreen_mc_save save;
-	u32 srbm_reset = 0;
 	u32 grbm_reset = 0;
 
 	dev_info(rdev->dev, "GPU softreset \n");
@@ -1961,16 +1962,6 @@ static int evergreen_gpu_soft_reset(struct radeon_device *rdev)
 	udelay(50);
 	WREG32(GRBM_SOFT_RESET, 0);
 	(void)RREG32(GRBM_SOFT_RESET);
-
-	/* reset all the system blocks */
-	srbm_reset = SRBM_SOFT_RESET_ALL_MASK;
-
-	dev_info(rdev->dev, "  SRBM_SOFT_RESET=0x%08X\n", srbm_reset);
-	WREG32(SRBM_SOFT_RESET, srbm_reset);
-	(void)RREG32(SRBM_SOFT_RESET);
-	udelay(50);
-	WREG32(SRBM_SOFT_RESET, 0);
-	(void)RREG32(SRBM_SOFT_RESET);
 	/* Wait a little for things to settle down */
 	udelay(50);
 	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
@@ -1981,10 +1972,6 @@ static int evergreen_gpu_soft_reset(struct radeon_device *rdev)
 		RREG32(GRBM_STATUS_SE1));
 	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
 		RREG32(SRBM_STATUS));
-	/* After reset we need to reinit the asic as GPU often endup in an
-	 * incoherent state.
-	 */
-	atom_asic_init(rdev->mode_info.atom_context);
 	evergreen_mc_resume(rdev, &save);
 	return 0;
 }
@@ -2596,6 +2583,11 @@ int evergreen_resume(struct radeon_device *rdev)
 {
 	int r;
 
+	/* reset the asic, the gfx blocks are often in a bad state
+	 * after the driver is unloaded or after a resume
+	 */
+	if (radeon_asic_reset(rdev))
+		dev_warn(rdev->dev, "GPU reset failed !\n");
 	/* Do not reset GPU before posting, on rv770 hw unlike on r500 hw,
 	 * posting will perform necessary task to bring back GPU into good
 	 * shape.
@@ -2712,6 +2704,11 @@ int evergreen_init(struct radeon_device *rdev)
 	r = radeon_atombios_init(rdev);
 	if (r)
 		return r;
+	/* reset the asic, the gfx blocks are often in a bad state
+	 * after the driver is unloaded or after a resume
+	 */
+	if (radeon_asic_reset(rdev))
+		dev_warn(rdev->dev, "GPU reset failed !\n");
 	/* Post card if necessary */
 	if (!evergreen_card_posted(rdev)) {
 		if (!rdev->bios) {

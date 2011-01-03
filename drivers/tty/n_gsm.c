@@ -716,8 +716,8 @@ static void __gsm_data_queue(struct gsm_dlci *dlci, struct gsm_msg *msg)
 		if (msg->len < 128)
 			*--dp = (msg->len << 1) | EA;
 		else {
-			*--dp = ((msg->len & 127) << 1) | EA;
-			*--dp = (msg->len >> 6) & 0xfe;
+			*--dp = (msg->len >> 7);	/* bits 7 - 15 */
+			*--dp = (msg->len & 127) << 1;	/* bits 0 - 6 */
 		}
 	}
 
@@ -968,6 +968,8 @@ static void gsm_control_reply(struct gsm_mux *gsm, int cmd, u8 *data,
 {
 	struct gsm_msg *msg;
 	msg = gsm_data_alloc(gsm, 0, dlen + 2, gsm->ftype);
+	if (msg == NULL)
+		return;
 	msg->data[0] = (cmd & 0xFE) << 1 | EA;	/* Clear C/R */
 	msg->data[1] = (dlen << 1) | EA;
 	memcpy(msg->data + 2, data, dlen);

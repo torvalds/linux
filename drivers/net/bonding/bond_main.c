@@ -418,36 +418,11 @@ struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr)
  * @bond: bond device that got this skb for tx.
  * @skb: hw accel VLAN tagged skb to transmit
  * @slave_dev: slave that is supposed to xmit this skbuff
- *
- * When the bond gets an skb to transmit that is
- * already hardware accelerated VLAN tagged, and it
- * needs to relay this skb to a slave that is not
- * hw accel capable, the skb needs to be "unaccelerated",
- * i.e. strip the hwaccel tag and re-insert it as part
- * of the payload.
  */
 int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 			struct net_device *slave_dev)
 {
-	unsigned short uninitialized_var(vlan_id);
-
-	/* Test vlan_list not vlgrp to catch and handle 802.1p tags */
-	if (!list_empty(&bond->vlan_list) &&
-	    !(slave_dev->features & NETIF_F_HW_VLAN_TX) &&
-	    vlan_get_tag(skb, &vlan_id) == 0) {
-		skb->dev = slave_dev;
-		skb = vlan_put_tag(skb, vlan_id);
-		if (!skb) {
-			/* vlan_put_tag() frees the skb in case of error,
-			 * so return success here so the calling functions
-			 * won't attempt to free is again.
-			 */
-			return 0;
-		}
-	} else {
-		skb->dev = slave_dev;
-	}
-
+	skb->dev = slave_dev;
 	skb->priority = 1;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	if (unlikely(bond->dev->priv_flags & IFF_IN_NETPOLL)) {
@@ -1203,11 +1178,13 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 				bond_do_fail_over_mac(bond, new_active,
 						      old_active);
 
-			bond->send_grat_arp = bond->params.num_grat_arp;
-			bond_send_gratuitous_arp(bond);
+			if (netif_running(bond->dev)) {
+				bond->send_grat_arp = bond->params.num_grat_arp;
+				bond_send_gratuitous_arp(bond);
 
-			bond->send_unsol_na = bond->params.num_unsol_na;
-			bond_send_unsolicited_na(bond);
+				bond->send_unsol_na = bond->params.num_unsol_na;
+				bond_send_unsolicited_na(bond);
+			}
 
 			write_unlock_bh(&bond->curr_slave_lock);
 			read_unlock(&bond->lock);
@@ -1221,8 +1198,9 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 
 	/* resend IGMP joins since active slave has changed or
 	 * all were sent on curr_active_slave */
-	if ((USES_PRIMARY(bond->params.mode) && new_active) ||
-	    bond->params.mode == BOND_MODE_ROUNDROBIN) {
+	if (((USES_PRIMARY(bond->params.mode) && new_active) ||
+	     bond->params.mode == BOND_MODE_ROUNDROBIN) &&
+	    netif_running(bond->dev)) {
 		bond->igmp_retrans = bond->params.resend_igmp;
 		queue_delayed_work(bond->wq, &bond->mcast_work, 0);
 	}
