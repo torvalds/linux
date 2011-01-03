@@ -278,6 +278,18 @@ enum rtl8168_8101_registers {
 };
 
 enum rtl8168_registers {
+	ERIDR			= 0x70,
+	ERIAR			= 0x74,
+#define ERIAR_FLAG			0x80000000
+#define ERIAR_WRITE_CMD			0x80000000
+#define ERIAR_READ_CMD			0x00000000
+#define ERIAR_ADDR_BYTE_ALIGN		4
+#define ERIAR_EXGMAC			0
+#define ERIAR_MSIX			1
+#define ERIAR_ASF			2
+#define ERIAR_TYPE_SHIFT		16
+#define ERIAR_BYTEEN			0x0f
+#define ERIAR_BYTEEN_SHIFT		12
 	EPHY_RXER_NUM		= 0x7c,
 	OCPDR			= 0xb0,	/* OCP GPHY access */
 #define OCPDR_WRITE_CMD			0x80000000
@@ -571,6 +583,81 @@ static int rtl8169_poll(struct napi_struct *napi, int budget);
 
 static const unsigned int rtl8169_rx_config =
 	(RX_FIFO_THRESH << RxCfgFIFOShift) | (RX_DMA_BURST << RxCfgDMAShift);
+
+static u32 ocp_read(struct rtl8169_private *tp, u8 mask, u16 reg)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+	int i;
+
+	RTL_W32(OCPAR, ((u32)mask & 0x0f) << 12 | (reg & 0x0fff));
+	for (i = 0; i < 20; i++) {
+		udelay(100);
+		if (RTL_R32(OCPAR) & OCPAR_FLAG)
+			break;
+	}
+	return RTL_R32(OCPDR);
+}
+
+static void ocp_write(struct rtl8169_private *tp, u8 mask, u16 reg, u32 data)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+	int i;
+
+	RTL_W32(OCPDR, data);
+	RTL_W32(OCPAR, OCPAR_FLAG | ((u32)mask & 0x0f) << 12 | (reg & 0x0fff));
+	for (i = 0; i < 20; i++) {
+		udelay(100);
+		if ((RTL_R32(OCPAR) & OCPAR_FLAG) == 0)
+			break;
+	}
+}
+
+static void rtl8168_oob_notify(void __iomem *ioaddr, u8 cmd)
+{
+	int i;
+
+	RTL_W8(ERIDR, cmd);
+	RTL_W32(ERIAR, 0x800010e8);
+	msleep(2);
+	for (i = 0; i < 5; i++) {
+		udelay(100);
+		if (!(RTL_R32(ERIDR) & ERIAR_FLAG))
+			break;
+	}
+
+	ocp_write(ioaddr, 0x1, 0x30, 0x00000001);
+}
+
+#define OOB_CMD_RESET		0x00
+#define OOB_CMD_DRIVER_START	0x05
+#define OOB_CMD_DRIVER_STOP	0x06
+
+static void rtl8168_driver_start(struct rtl8169_private *tp)
+{
+	int i;
+
+	rtl8168_oob_notify(tp, OOB_CMD_DRIVER_START);
+
+	for (i = 0; i < 10; i++) {
+		msleep(10);
+		if (ocp_read(tp, 0x0f, 0x0010) & 0x00000800)
+			break;
+	}
+}
+
+static void rtl8168_driver_stop(struct rtl8169_private *tp)
+{
+	int i;
+
+	rtl8168_oob_notify(tp, OOB_CMD_DRIVER_STOP);
+
+	for (i = 0; i < 10; i++) {
+		msleep(10);
+		if ((ocp_read(tp, 0x0f, 0x0010) & 0x00000800) == 0)
+			break;
+	}
+}
+
 
 static void r8169_mdio_write(void __iomem *ioaddr, int reg_addr, int value)
 {
@@ -2913,6 +3000,9 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		   dev->base_addr, dev->dev_addr,
 		   (u32)(RTL_R32(TxConfig) & 0x9cf0f8ff), dev->irq);
 
+	if (tp->mac_version == RTL_GIGA_MAC_VER_27)
+		rtl8168_driver_start(tp);
+
 	rtl8169_init_phy(dev, tp);
 
 	/*
@@ -2947,6 +3037,9 @@ static void __devexit rtl8169_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rtl8169_private *tp = netdev_priv(dev);
+
+	if (tp->mac_version == RTL_GIGA_MAC_VER_27)
+		rtl8168_driver_stop(tp);
 
 	cancel_delayed_work_sync(&tp->task);
 
