@@ -356,7 +356,7 @@ static u32 pl08x_getbytes_chan(struct pl08x_dma_chan *plchan)
 	if (ch && txd) {
 		struct pl08x_lli *llis_va = txd->llis_va;
 		struct pl08x_lli *llis_bus = (struct pl08x_lli *) txd->llis_bus;
-		u32 clli = readl(ch->base + PL080_CH_LLI);
+		u32 clli = readl(ch->base + PL080_CH_LLI) & ~PL080_LLI_LM_AHB2;
 
 		/* First get the bytes in the current active LLI */
 		bytes = get_bytes_in_cctl(readl(ch->base + PL080_CH_CONTROL));
