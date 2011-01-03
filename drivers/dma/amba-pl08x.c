@@ -1560,8 +1560,6 @@ static int pl08x_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 			pl08x_put_phy_channel(pl08x, plchan->phychan);
 			plchan->phychan = NULL;
 		}
-		/* Stop any pending tasklet */
-		tasklet_disable(&plchan->tasklet);
 		/* Dequeue jobs and free LLIs */
 		if (plchan->at) {
 			pl08x_free_txd(pl08x, plchan->at);
