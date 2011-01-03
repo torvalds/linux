@@ -965,8 +965,6 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 out_free_event_array:
 	free(event_array);
 out_free_fd:
-	list_for_each_entry(pos, &evsel_list, node)
-		perf_evsel__free_fd(pos);
 	free(all_tids);
 	all_tids = NULL;
 out_symbol_exit:

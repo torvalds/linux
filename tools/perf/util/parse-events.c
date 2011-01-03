@@ -982,3 +982,14 @@ int perf_evsel_list__create_default(void)
 	++nr_counters;
 	return 0;
 }
+
+void perf_evsel_list__delete(void)
+{
+	struct perf_evsel *pos, *n;
+
+	list_for_each_entry_safe(pos, n, &evsel_list, node) {
+		list_del_init(&pos->node);
+		perf_evsel__delete(pos);
+	}
+	nr_counters = 0;
+}

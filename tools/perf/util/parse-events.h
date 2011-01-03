@@ -12,6 +12,7 @@ struct perf_evsel;
 extern struct list_head evsel_list;
 
 int perf_evsel_list__create_default(void);
+void perf_evsel_list__delete(void);
 
 struct option;
 

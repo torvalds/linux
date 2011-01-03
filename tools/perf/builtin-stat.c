@@ -844,10 +844,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	if (status != -1)
 		print_stat(argc, argv);
 out_free_fd:
-	list_for_each_entry(pos, &evsel_list, node) {
-		perf_evsel__free_fd(pos);
+	list_for_each_entry(pos, &evsel_list, node)
 		perf_evsel__free_stat_priv(pos);
-	}
 out:
 	return status;
 }
