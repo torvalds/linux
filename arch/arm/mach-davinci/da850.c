@@ -784,6 +784,13 @@ static struct davinci_id da850_ids[] = {
 		.cpu_id		= DAVINCI_CPU_ID_DA850,
 		.name		= "da850/omap-l138",
 	},
+	{
+		.variant	= 0x1,
+		.part_no	= 0xb7d1,
+		.manufacturer	= 0x017,	/* 0x02f >> 1 */
+		.cpu_id		= DAVINCI_CPU_ID_DA850,
+		.name		= "da850/omap-l138/am18x",
+	},
 };
 
 static struct davinci_timer_instance da850_timer_instance[4] = {
