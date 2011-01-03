@@ -90,6 +90,18 @@ static inline struct net *skb_sknet(struct sk_buff *skb)
 	return &init_net;
 #endif
 }
+/*
+ * This one needed for single_open_net since net is stored directly in
+ * private not as a struct i.e. seq_file_net cant be used.
+ */
+static inline struct net *seq_file_single_net(struct seq_file *seq)
+{
+#ifdef CONFIG_NET_NS
+	return (struct net *)seq->private;
+#else
+	return &init_net;
+#endif
+}
 
 /* Connections' size value needed by ip_vs_ctl.c */
 extern int ip_vs_conn_tab_size;
@@ -320,6 +332,23 @@ struct ip_vs_seq {
 						   before last resized pkt */
 };
 
+/*
+ * counters per cpu
+ */
+struct ip_vs_counters {
+	__u32		conns;		/* connections scheduled */
+	__u32		inpkts;		/* incoming packets */
+	__u32		outpkts;	/* outgoing packets */
+	__u64		inbytes;	/* incoming bytes */
+	__u64		outbytes;	/* outgoing bytes */
+};
+/*
+ * Stats per cpu
+ */
+struct ip_vs_cpu_stats {
+	struct ip_vs_counters   ustats;
+	struct u64_stats_sync   syncp;
+};
 
 /*
  *	IPVS statistics objects
@@ -341,11 +370,27 @@ struct ip_vs_estimator {
 };
 
 struct ip_vs_stats {
-	struct ip_vs_stats_user	ustats;         /* statistics */
+	struct ip_vs_stats_user	ustats;		/* statistics */
 	struct ip_vs_estimator	est;		/* estimator */
-
-	spinlock_t              lock;           /* spin lock */
+	struct ip_vs_cpu_stats	*cpustats;	/* per cpu counters */
+	spinlock_t		lock;		/* spin lock */
 };
+
+/*
+ * Helper Macros for per cpu
+ * ipvs->tot_stats->ustats.count
+ */
+#define IPVS_STAT_INC(ipvs, count)	\
+	__this_cpu_inc((ipvs)->ustats->count)
+
+#define IPVS_STAT_ADD(ipvs, count, value) \
+	do {\
+		write_seqcount_begin(per_cpu_ptr((ipvs)->ustats_seq, \
+				     raw_smp_processor_id())); \
+		__this_cpu_add((ipvs)->ustats->count, value); \
+		write_seqcount_end(per_cpu_ptr((ipvs)->ustats_seq, \
+				   raw_smp_processor_id())); \
+	} while (0)
 
 struct dst_entry;
 struct iphdr;

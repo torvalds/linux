@@ -61,6 +61,10 @@ struct netns_ipvs {
 	struct list_head	sctp_apps[SCTP_APP_TAB_SIZE];
 	spinlock_t		sctp_app_lock;
 #endif
+	/* ip_vs_ctl */
+	struct ip_vs_stats		*tot_stats;  /* Statistics & est. */
+	struct ip_vs_cpu_stats __percpu *cpustats;   /* Stats per cpu */
+	seqcount_t			*ustats_seq; /* u64 read retry */
 
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;

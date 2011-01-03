@@ -257,8 +257,7 @@ static DECLARE_DELAYED_WORK(defense_work, defense_work_handler);
 
 static void defense_work_handler(struct work_struct *work)
 {
-	struct net *net = &init_net;
-	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct netns_ipvs *ipvs = net_ipvs(&init_net);
 
 	update_defense_level(ipvs);
 	if (atomic_read(&ip_vs_dropentry))
@@ -519,6 +518,7 @@ __ip_vs_unbind_svc(struct ip_vs_dest *dest)
 			      svc->fwmark,
 			      IP_VS_DBG_ADDR(svc->af, &svc->addr),
 			      ntohs(svc->port), atomic_read(&svc->usecnt));
+		free_percpu(svc->stats.cpustats);
 		kfree(svc);
 	}
 }
@@ -722,6 +722,7 @@ ip_vs_trash_get_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
 			list_del(&dest->n_list);
 			ip_vs_dst_reset(dest);
 			__ip_vs_unbind_svc(dest);
+			free_percpu(dest->stats.cpustats);
 			kfree(dest);
 		}
 	}
@@ -747,6 +748,7 @@ static void ip_vs_trash_cleanup(void)
 		list_del(&dest->n_list);
 		ip_vs_dst_reset(dest);
 		__ip_vs_unbind_svc(dest);
+		free_percpu(dest->stats.cpustats);
 		kfree(dest);
 	}
 }
@@ -868,6 +870,11 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 		pr_err("%s(): no memory.\n", __func__);
 		return -ENOMEM;
 	}
+	dest->stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
+	if (!dest->stats.cpustats) {
+		pr_err("%s() alloc_percpu failed\n", __func__);
+		goto err_alloc;
+	}
 
 	dest->af = svc->af;
 	dest->protocol = svc->protocol;
@@ -891,6 +898,10 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 
 	LeaveFunction(2);
 	return 0;
+
+err_alloc:
+	kfree(dest);
+	return -ENOMEM;
 }
 
 
@@ -1037,6 +1048,7 @@ static void __ip_vs_del_dest(struct net *net, struct ip_vs_dest *dest)
 		   and only one user context can update virtual service at a
 		   time, so the operation here is OK */
 		atomic_dec(&dest->svc->refcnt);
+		free_percpu(dest->stats.cpustats);
 		kfree(dest);
 	} else {
 		IP_VS_DBG_BUF(3, "Moving dest %s:%u into trash, "
@@ -1163,6 +1175,11 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 		ret = -ENOMEM;
 		goto out_err;
 	}
+	svc->stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
+	if (!svc->stats.cpustats) {
+		pr_err("%s() alloc_percpu failed\n", __func__);
+		goto out_err;
+	}
 
 	/* I'm the first user of the service */
 	atomic_set(&svc->usecnt, 0);
@@ -1212,6 +1229,7 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 	*svc_p = svc;
 	return 0;
 
+
  out_err:
 	if (svc != NULL) {
 		ip_vs_unbind_scheduler(svc);
@@ -1220,6 +1238,8 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 			ip_vs_app_inc_put(svc->inc);
 			local_bh_enable();
 		}
+		if (svc->stats.cpustats)
+			free_percpu(svc->stats.cpustats);
 		kfree(svc);
 	}
 	ip_vs_scheduler_put(sched);
@@ -1388,6 +1408,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc)
 			      svc->fwmark,
 			      IP_VS_DBG_ADDR(svc->af, &svc->addr),
 			      ntohs(svc->port), atomic_read(&svc->usecnt));
+		free_percpu(svc->stats.cpustats);
 		kfree(svc);
 	}
 
@@ -1499,7 +1520,7 @@ static int ip_vs_zero_all(struct net *net)
 		}
 	}
 
-	ip_vs_zero_stats(&ip_vs_stats);
+	ip_vs_zero_stats(net_ipvs(net)->tot_stats);
 	return 0;
 }
 
@@ -1989,13 +2010,11 @@ static const struct file_operations ip_vs_info_fops = {
 
 #endif
 
-struct ip_vs_stats ip_vs_stats = {
-	.lock = __SPIN_LOCK_UNLOCKED(ip_vs_stats.lock),
-};
-
 #ifdef CONFIG_PROC_FS
 static int ip_vs_stats_show(struct seq_file *seq, void *v)
 {
+	struct net *net = seq_file_single_net(seq);
+	struct ip_vs_stats *tot_stats = net_ipvs(net)->tot_stats;
 
 /*               01234567 01234567 01234567 0123456701234567 0123456701234567 */
 	seq_puts(seq,
@@ -2003,22 +2022,22 @@ static int ip_vs_stats_show(struct seq_file *seq, void *v)
 	seq_printf(seq,
 		   "   Conns  Packets  Packets            Bytes            Bytes\n");
 
-	spin_lock_bh(&ip_vs_stats.lock);
-	seq_printf(seq, "%8X %8X %8X %16LX %16LX\n\n", ip_vs_stats.ustats.conns,
-		   ip_vs_stats.ustats.inpkts, ip_vs_stats.ustats.outpkts,
-		   (unsigned long long) ip_vs_stats.ustats.inbytes,
-		   (unsigned long long) ip_vs_stats.ustats.outbytes);
+	spin_lock_bh(&tot_stats->lock);
+	seq_printf(seq, "%8X %8X %8X %16LX %16LX\n\n", tot_stats->ustats.conns,
+		   tot_stats->ustats.inpkts, tot_stats->ustats.outpkts,
+		   (unsigned long long) tot_stats->ustats.inbytes,
+		   (unsigned long long) tot_stats->ustats.outbytes);
 
 /*                 01234567 01234567 01234567 0123456701234567 0123456701234567 */
 	seq_puts(seq,
 		   " Conns/s   Pkts/s   Pkts/s          Bytes/s          Bytes/s\n");
 	seq_printf(seq,"%8X %8X %8X %16X %16X\n",
-			ip_vs_stats.ustats.cps,
-			ip_vs_stats.ustats.inpps,
-			ip_vs_stats.ustats.outpps,
-			ip_vs_stats.ustats.inbps,
-			ip_vs_stats.ustats.outbps);
-	spin_unlock_bh(&ip_vs_stats.lock);
+			tot_stats->ustats.cps,
+			tot_stats->ustats.inpps,
+			tot_stats->ustats.outpps,
+			tot_stats->ustats.inbps,
+			tot_stats->ustats.outbps);
+	spin_unlock_bh(&tot_stats->lock);
 
 	return 0;
 }
@@ -2036,6 +2055,59 @@ static const struct file_operations ip_vs_stats_fops = {
 	.release = single_release,
 };
 
+static int ip_vs_stats_percpu_show(struct seq_file *seq, void *v)
+{
+	struct net *net = seq_file_single_net(seq);
+	struct ip_vs_stats *tot_stats = net_ipvs(net)->tot_stats;
+	int i;
+
+/*               01234567 01234567 01234567 0123456701234567 0123456701234567 */
+	seq_puts(seq,
+		 "       Total Incoming Outgoing         Incoming         Outgoing\n");
+	seq_printf(seq,
+		   "CPU    Conns  Packets  Packets            Bytes            Bytes\n");
+
+	for_each_possible_cpu(i) {
+		struct ip_vs_cpu_stats *u = per_cpu_ptr(net->ipvs->cpustats, i);
+		seq_printf(seq, "%3X %8X %8X %8X %16LX %16LX\n",
+			    i, u->ustats.conns, u->ustats.inpkts,
+			    u->ustats.outpkts, (__u64)u->ustats.inbytes,
+			    (__u64)u->ustats.outbytes);
+	}
+
+	spin_lock_bh(&tot_stats->lock);
+	seq_printf(seq, "  ~ %8X %8X %8X %16LX %16LX\n\n",
+		   tot_stats->ustats.conns, tot_stats->ustats.inpkts,
+		   tot_stats->ustats.outpkts,
+		   (unsigned long long) tot_stats->ustats.inbytes,
+		   (unsigned long long) tot_stats->ustats.outbytes);
+
+/*                 01234567 01234567 01234567 0123456701234567 0123456701234567 */
+	seq_puts(seq,
+		   "     Conns/s   Pkts/s   Pkts/s          Bytes/s          Bytes/s\n");
+	seq_printf(seq, "    %8X %8X %8X %16X %16X\n",
+			tot_stats->ustats.cps,
+			tot_stats->ustats.inpps,
+			tot_stats->ustats.outpps,
+			tot_stats->ustats.inbps,
+			tot_stats->ustats.outbps);
+	spin_unlock_bh(&tot_stats->lock);
+
+	return 0;
+}
+
+static int ip_vs_stats_percpu_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open_net(inode, file, ip_vs_stats_percpu_show);
+}
+
+static const struct file_operations ip_vs_stats_percpu_fops = {
+	.owner = THIS_MODULE,
+	.open = ip_vs_stats_percpu_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
 #endif
 
 /*
@@ -3461,32 +3533,54 @@ int __net_init __ip_vs_control_init(struct net *net)
 
 	if (!net_eq(net, &init_net))	/* netns not enabled yet */
 		return -EPERM;
+	/* procfs stats */
+	ipvs->tot_stats = kzalloc(sizeof(struct ip_vs_stats), GFP_KERNEL);
+	if (ipvs->tot_stats == NULL) {
+		pr_err("%s(): no memory.\n", __func__);
+		return -ENOMEM;
+	}
+	ipvs->cpustats = alloc_percpu(struct ip_vs_cpu_stats);
+	if (!ipvs->cpustats) {
+		pr_err("%s() alloc_percpu failed\n", __func__);
+		goto err_alloc;
+	}
+	spin_lock_init(&ipvs->tot_stats->lock);
 
 	for (idx = 0; idx < IP_VS_RTAB_SIZE; idx++)
 		INIT_LIST_HEAD(&ipvs->rs_table[idx]);
 
 	proc_net_fops_create(net, "ip_vs", 0, &ip_vs_info_fops);
 	proc_net_fops_create(net, "ip_vs_stats", 0, &ip_vs_stats_fops);
+	proc_net_fops_create(net, "ip_vs_stats_percpu", 0,
+			     &ip_vs_stats_percpu_fops);
 	sysctl_header = register_net_sysctl_table(net, net_vs_ctl_path,
 						  vs_vars);
 	if (sysctl_header == NULL)
 		goto err_reg;
-	ip_vs_new_estimator(net, &ip_vs_stats);
+	ip_vs_new_estimator(net, ipvs->tot_stats);
 	return 0;
 
 err_reg:
+	free_percpu(ipvs->cpustats);
+err_alloc:
+	kfree(ipvs->tot_stats);
 	return -ENOMEM;
 }
 
 static void __net_exit __ip_vs_control_cleanup(struct net *net)
 {
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
 	if (!net_eq(net, &init_net))	/* netns not enabled yet */
 		return;
 
-	ip_vs_kill_estimator(net, &ip_vs_stats);
+	ip_vs_kill_estimator(net, ipvs->tot_stats);
 	unregister_net_sysctl_table(sysctl_header);
+	proc_net_remove(net, "ip_vs_stats_percpu");
 	proc_net_remove(net, "ip_vs_stats");
 	proc_net_remove(net, "ip_vs");
+	free_percpu(ipvs->cpustats);
+	kfree(ipvs->tot_stats);
 }
 
 static struct pernet_operations ipvs_control_ops = {

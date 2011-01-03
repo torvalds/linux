@@ -115,21 +115,28 @@ static inline void
 ip_vs_in_stats(struct ip_vs_conn *cp, struct sk_buff *skb)
 {
 	struct ip_vs_dest *dest = cp->dest;
+	struct netns_ipvs *ipvs = net_ipvs(skb_net(skb));
+
 	if (dest && (dest->flags & IP_VS_DEST_F_AVAILABLE)) {
-		spin_lock(&dest->stats.lock);
-		dest->stats.ustats.inpkts++;
-		dest->stats.ustats.inbytes += skb->len;
-		spin_unlock(&dest->stats.lock);
+		struct ip_vs_cpu_stats *s;
 
-		spin_lock(&dest->svc->stats.lock);
-		dest->svc->stats.ustats.inpkts++;
-		dest->svc->stats.ustats.inbytes += skb->len;
-		spin_unlock(&dest->svc->stats.lock);
+		s = this_cpu_ptr(dest->stats.cpustats);
+		s->ustats.inpkts++;
+		u64_stats_update_begin(&s->syncp);
+		s->ustats.inbytes += skb->len;
+		u64_stats_update_end(&s->syncp);
 
-		spin_lock(&ip_vs_stats.lock);
-		ip_vs_stats.ustats.inpkts++;
-		ip_vs_stats.ustats.inbytes += skb->len;
-		spin_unlock(&ip_vs_stats.lock);
+		s = this_cpu_ptr(dest->svc->stats.cpustats);
+		s->ustats.inpkts++;
+		u64_stats_update_begin(&s->syncp);
+		s->ustats.inbytes += skb->len;
+		u64_stats_update_end(&s->syncp);
+
+		s = this_cpu_ptr(ipvs->cpustats);
+		s->ustats.inpkts++;
+		u64_stats_update_begin(&s->syncp);
+		s->ustats.inbytes += skb->len;
+		u64_stats_update_end(&s->syncp);
 	}
 }
 
@@ -138,21 +145,28 @@ static inline void
 ip_vs_out_stats(struct ip_vs_conn *cp, struct sk_buff *skb)
 {
 	struct ip_vs_dest *dest = cp->dest;
+	struct netns_ipvs *ipvs = net_ipvs(skb_net(skb));
+
 	if (dest && (dest->flags & IP_VS_DEST_F_AVAILABLE)) {
-		spin_lock(&dest->stats.lock);
-		dest->stats.ustats.outpkts++;
-		dest->stats.ustats.outbytes += skb->len;
-		spin_unlock(&dest->stats.lock);
+		struct ip_vs_cpu_stats *s;
 
-		spin_lock(&dest->svc->stats.lock);
-		dest->svc->stats.ustats.outpkts++;
-		dest->svc->stats.ustats.outbytes += skb->len;
-		spin_unlock(&dest->svc->stats.lock);
+		s = this_cpu_ptr(dest->stats.cpustats);
+		s->ustats.outpkts++;
+		u64_stats_update_begin(&s->syncp);
+		s->ustats.outbytes += skb->len;
+		u64_stats_update_end(&s->syncp);
 
-		spin_lock(&ip_vs_stats.lock);
-		ip_vs_stats.ustats.outpkts++;
-		ip_vs_stats.ustats.outbytes += skb->len;
-		spin_unlock(&ip_vs_stats.lock);
+		s = this_cpu_ptr(dest->svc->stats.cpustats);
+		s->ustats.outpkts++;
+		u64_stats_update_begin(&s->syncp);
+		s->ustats.outbytes += skb->len;
+		u64_stats_update_end(&s->syncp);
+
+		s = this_cpu_ptr(ipvs->cpustats);
+		s->ustats.outpkts++;
+		u64_stats_update_begin(&s->syncp);
+		s->ustats.outbytes += skb->len;
+		u64_stats_update_end(&s->syncp);
 	}
 }
 
@@ -160,17 +174,17 @@ ip_vs_out_stats(struct ip_vs_conn *cp, struct sk_buff *skb)
 static inline void
 ip_vs_conn_stats(struct ip_vs_conn *cp, struct ip_vs_service *svc)
 {
-	spin_lock(&cp->dest->stats.lock);
-	cp->dest->stats.ustats.conns++;
-	spin_unlock(&cp->dest->stats.lock);
+	struct netns_ipvs *ipvs = net_ipvs(svc->net);
+	struct ip_vs_cpu_stats *s;
 
-	spin_lock(&svc->stats.lock);
-	svc->stats.ustats.conns++;
-	spin_unlock(&svc->stats.lock);
+	s = this_cpu_ptr(cp->dest->stats.cpustats);
+	s->ustats.conns++;
 
-	spin_lock(&ip_vs_stats.lock);
-	ip_vs_stats.ustats.conns++;
-	spin_unlock(&ip_vs_stats.lock);
+	s = this_cpu_ptr(svc->stats.cpustats);
+	s->ustats.conns++;
+
+	s = this_cpu_ptr(ipvs->cpustats);
+	s->ustats.conns++;
 }
 
 
@@ -1841,7 +1855,6 @@ static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
 	},
 #endif
 };
-
 /*
  *	Initialize IP Virtual Server netns mem.
  */

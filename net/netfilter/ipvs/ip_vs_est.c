@@ -52,6 +52,43 @@
  */
 
 
+/*
+ * Make a summary from each cpu
+ */
+static void ip_vs_read_cpu_stats(struct ip_vs_stats_user *sum,
+				 struct ip_vs_cpu_stats *stats)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct ip_vs_cpu_stats *s = per_cpu_ptr(stats, i);
+		unsigned int start;
+		__u64 inbytes, outbytes;
+		if (i) {
+			sum->conns += s->ustats.conns;
+			sum->inpkts += s->ustats.inpkts;
+			sum->outpkts += s->ustats.outpkts;
+			do {
+				start = u64_stats_fetch_begin_bh(&s->syncp);
+				inbytes = s->ustats.inbytes;
+				outbytes = s->ustats.outbytes;
+			} while (u64_stats_fetch_retry_bh(&s->syncp, start));
+			sum->inbytes += inbytes;
+			sum->outbytes += outbytes;
+		} else {
+			sum->conns = s->ustats.conns;
+			sum->inpkts = s->ustats.inpkts;
+			sum->outpkts = s->ustats.outpkts;
+			do {
+				start = u64_stats_fetch_begin_bh(&s->syncp);
+				sum->inbytes = s->ustats.inbytes;
+				sum->outbytes = s->ustats.outbytes;
+			} while (u64_stats_fetch_retry_bh(&s->syncp, start));
+		}
+	}
+}
+
+
 static void estimation_timer(unsigned long arg)
 {
 	struct ip_vs_estimator *e;
@@ -64,10 +101,12 @@ static void estimation_timer(unsigned long arg)
 	struct netns_ipvs *ipvs;
 
 	ipvs = net_ipvs(net);
+	ip_vs_read_cpu_stats(&ipvs->tot_stats->ustats, ipvs->cpustats);
 	spin_lock(&ipvs->est_lock);
 	list_for_each_entry(e, &ipvs->est_list, list) {
 		s = container_of(e, struct ip_vs_stats, est);
 
+		ip_vs_read_cpu_stats(&s->ustats, s->cpustats);
 		spin_lock(&s->lock);
 		n_conns = s->ustats.conns;
 		n_inpkts = s->ustats.inpkts;
