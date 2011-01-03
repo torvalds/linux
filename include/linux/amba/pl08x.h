@@ -77,7 +77,7 @@ struct pl08x_bus_data {
 	dma_addr_t addr;
 	u8 maxwidth;
 	u8 buswidth;
-	u32 fill_bytes;
+	size_t fill_bytes;
 };
 
 /**
@@ -113,7 +113,7 @@ struct pl08x_txd {
 	enum dma_data_direction	direction;
 	struct pl08x_bus_data srcbus;
 	struct pl08x_bus_data dstbus;
-	int len;
+	size_t len;
 	dma_addr_t llis_bus;
 	void *llis_va;
 	struct pl08x_channel_data *cd;
