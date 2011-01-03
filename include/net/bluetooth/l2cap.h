@@ -327,6 +327,7 @@ struct l2cap_pinfo {
 	__u8		sec_level;
 	__u8		role_switch;
 	__u8		force_reliable;
+	__u8		flushable;
 
 	__u8		conf_req[64];
 	__u8		conf_len;

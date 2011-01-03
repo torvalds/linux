@@ -150,6 +150,7 @@ enum {
 #define EDR_ESCO_MASK  (ESCO_2EV3 | ESCO_3EV3 | ESCO_2EV5 | ESCO_3EV5)
 
 /* ACL flags */
+#define ACL_START_NO_FLUSH	0x00
 #define ACL_CONT		0x01
 #define ACL_START		0x02
 #define ACL_ACTIVE_BCAST	0x04
@@ -194,6 +195,7 @@ enum {
 #define LMP_EDR_3S_ESCO	0x80
 
 #define LMP_SIMPLE_PAIR	0x08
+#define LMP_NO_FLUSH	0x40
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000

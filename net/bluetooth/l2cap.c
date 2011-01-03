@@ -373,13 +373,19 @@ static inline u8 l2cap_get_ident(struct l2cap_conn *conn)
 static inline void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len, void *data)
 {
 	struct sk_buff *skb = l2cap_build_cmd(conn, code, ident, len, data);
+	u8 flags;
 
 	BT_DBG("code 0x%2.2x", code);
 
 	if (!skb)
 		return;
 
-	hci_send_acl(conn->hcon, skb, 0);
+	if (lmp_no_flush_capable(conn->hcon->hdev))
+		flags = ACL_START_NO_FLUSH;
+	else
+		flags = ACL_START;
+
+	hci_send_acl(conn->hcon, skb, flags);
 }
 
 static inline void l2cap_send_sframe(struct l2cap_pinfo *pi, u16 control)
@@ -389,6 +395,7 @@ static inline void l2cap_send_sframe(struct l2cap_pinfo *pi, u16 control)
 	struct l2cap_conn *conn = pi->conn;
 	struct sock *sk = (struct sock *)pi;
 	int count, hlen = L2CAP_HDR_SIZE + 2;
+	u8 flags;
 
 	if (sk->sk_state != BT_CONNECTED)
 		return;
@@ -425,7 +432,12 @@ static inline void l2cap_send_sframe(struct l2cap_pinfo *pi, u16 control)
 		put_unaligned_le16(fcs, skb_put(skb, 2));
 	}
 
-	hci_send_acl(pi->conn->hcon, skb, 0);
+	if (lmp_no_flush_capable(conn->hcon->hdev))
+		flags = ACL_START_NO_FLUSH;
+	else
+		flags = ACL_START;
+
+	hci_send_acl(pi->conn->hcon, skb, flags);
 }
 
 static inline void l2cap_send_rr_or_rnr(struct l2cap_pinfo *pi, u16 control)
@@ -912,6 +924,7 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		pi->sec_level = l2cap_pi(parent)->sec_level;
 		pi->role_switch = l2cap_pi(parent)->role_switch;
 		pi->force_reliable = l2cap_pi(parent)->force_reliable;
+		pi->flushable = l2cap_pi(parent)->flushable;
 	} else {
 		pi->imtu = L2CAP_DEFAULT_MTU;
 		pi->omtu = 0;
@@ -927,6 +940,7 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		pi->sec_level = BT_SECURITY_LOW;
 		pi->role_switch = 0;
 		pi->force_reliable = 0;
+		pi->flushable = BT_FLUSHABLE_OFF;
 	}
 
 	/* Default config options */
@@ -1431,10 +1445,17 @@ static void l2cap_drop_acked_frames(struct sock *sk)
 static inline void l2cap_do_send(struct sock *sk, struct sk_buff *skb)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	struct hci_conn *hcon = pi->conn->hcon;
+	u16 flags;
 
 	BT_DBG("sk %p, skb %p len %d", sk, skb, skb->len);
 
-	hci_send_acl(pi->conn->hcon, skb, 0);
+	if (!pi->flushable && lmp_no_flush_capable(hcon->hdev))
+		flags = ACL_START_NO_FLUSH;
+	else
+		flags = ACL_START;
+
+	hci_send_acl(hcon, skb, flags);
 }
 
 static void l2cap_streaming_send(struct sock *sk)
@@ -2079,6 +2100,30 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 		bt_sk(sk)->defer_setup = opt;
 		break;
 
+	case BT_FLUSHABLE:
+		if (get_user(opt, (u32 __user *) optval)) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (opt > BT_FLUSHABLE_ON) {
+			err = -EINVAL;
+			break;
+		}
+
+		if (opt == BT_FLUSHABLE_OFF) {
+			struct l2cap_conn *conn = l2cap_pi(sk)->conn;
+			/* proceed futher only when we have l2cap_conn and
+			   No Flush support in the LM */
+			if (!conn || !lmp_no_flush_capable(conn->hcon->hdev)) {
+				err = -EINVAL;
+				break;
+			}
+		}
+
+		l2cap_pi(sk)->flushable = opt;
+		break;
+
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -2214,6 +2259,12 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 		}
 
 		if (put_user(bt_sk(sk)->defer_setup, (u32 __user *) optval))
+			err = -EFAULT;
+
+		break;
+
+	case BT_FLUSHABLE:
+		if (put_user(l2cap_pi(sk)->flushable, (u32 __user *) optval))
 			err = -EFAULT;
 
 		break;
@@ -4678,7 +4729,7 @@ static int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 fl
 
 	BT_DBG("conn %p len %d flags 0x%x", conn, skb->len, flags);
 
-	if (flags & ACL_START) {
+	if (!(flags & ACL_CONT)) {
 		struct l2cap_hdr *hdr;
 		struct sock *sk;
 		u16 cid;
