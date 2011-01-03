@@ -194,24 +194,17 @@ static void pl08x_start_txd(struct pl08x_dma_chan *plchan,
 	struct pl08x_driver_data *pl08x = plchan->host;
 	struct pl08x_phy_chan *phychan = plchan->phychan;
 	struct pl08x_lli *lli = &txd->llis_va[0];
-	u32 val, ccfg;
+	u32 val, ccfg = txd->ccfg;
 
 	plchan->at = txd;
 
-	/* Assign the signal to the proper control registers */
-	ccfg = plchan->cd->ccfg;
-	ccfg &= ~(PL080_CONFIG_SRC_SEL_MASK | PL080_CONFIG_DST_SEL_MASK);
-
-	/* If it wasn't set from AMBA, ignore it */
+	/* Assign the flow control signal to this channel */
 	if (txd->direction == DMA_TO_DEVICE)
 		/* Select signal as destination */
 		ccfg |= phychan->signal << PL080_CONFIG_DST_SEL_SHIFT;
 	else if (txd->direction == DMA_FROM_DEVICE)
 		/* Select signal as source */
 		ccfg |= phychan->signal << PL080_CONFIG_SRC_SEL_SHIFT;
-
-	/* Always enable error and terminal interrupts */
-	ccfg |= PL080_CONFIG_ERR_IRQ_MASK | PL080_CONFIG_TC_IRQ_MASK;
 
 	/* Wait for channel inactive */
 	while (pl08x_phy_channel_busy(phychan))
@@ -1161,8 +1154,6 @@ static void dma_set_runtime_config(struct dma_chan *chan,
 	enum dma_slave_buswidth addr_width;
 	u32 maxburst;
 	u32 cctl = 0;
-	/* Mask out all except src and dst channel */
-	u32 ccfg = cd->ccfg & 0x000003DEU;
 	int i;
 
 	/* Transfer direction */
@@ -1170,13 +1161,11 @@ static void dma_set_runtime_config(struct dma_chan *chan,
 	if (config->direction == DMA_TO_DEVICE) {
 		plchan->runtime_addr = config->dst_addr;
 		cctl |= PL080_CONTROL_SRC_INCR;
-		ccfg |= PL080_FLOW_MEM2PER << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 		addr_width = config->dst_addr_width;
 		maxburst = config->dst_maxburst;
 	} else if (config->direction == DMA_FROM_DEVICE) {
 		plchan->runtime_addr = config->src_addr;
 		cctl |= PL080_CONTROL_DST_INCR;
-		ccfg |= PL080_FLOW_PER2MEM << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 		addr_width = config->src_addr_width;
 		maxburst = config->src_maxburst;
 	} else {
@@ -1226,16 +1215,15 @@ static void dma_set_runtime_config(struct dma_chan *chan,
 
 	/* Modify the default channel data to fit PrimeCell request */
 	cd->cctl = cctl;
-	cd->ccfg = ccfg;
 
 	dev_dbg(&pl08x->adev->dev,
 		"configured channel %s (%s) for %s, data width %d, "
-		"maxburst %d words, LE, CCTL=0x%08x, CCFG=0x%08x\n",
+		"maxburst %d words, LE, CCTL=0x%08x\n",
 		dma_chan_name(chan), plchan->name,
 		(config->direction == DMA_FROM_DEVICE) ? "RX" : "TX",
 		addr_width,
 		maxburst,
-		cctl, ccfg);
+		cctl);
 }
 
 /*
@@ -1340,6 +1328,10 @@ static struct pl08x_txd *pl08x_get_txd(struct pl08x_dma_chan *plchan)
 		dma_async_tx_descriptor_init(&txd->tx, &plchan->chan);
 		txd->tx.tx_submit = pl08x_tx_submit;
 		INIT_LIST_HEAD(&txd->node);
+
+		/* Always enable error and terminal interrupts */
+		txd->ccfg = PL080_CONFIG_ERR_IRQ_MASK |
+			    PL080_CONFIG_TC_IRQ_MASK;
 	}
 	return txd;
 }
@@ -1369,6 +1361,8 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 
 	/* Set platform data for m2m */
 	txd->cd = &pl08x->pd->memcpy_channel;
+	txd->ccfg |= PL080_FLOW_MEM2MEM << PL080_CONFIG_FLOW_CONTROL_SHIFT;
+
 	/* Both to be incremented or the code will break */
 	txd->cd->cctl |= PL080_CONTROL_SRC_INCR | PL080_CONTROL_DST_INCR;
 	txd->len = len;
@@ -1424,12 +1418,14 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 	 */
 	txd->direction = direction;
 	if (direction == DMA_TO_DEVICE) {
+		txd->ccfg |= PL080_FLOW_MEM2PER << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 		txd->srcbus.addr = sgl->dma_address;
 		if (plchan->runtime_addr)
 			txd->dstbus.addr = plchan->runtime_addr;
 		else
 			txd->dstbus.addr = plchan->cd->addr;
 	} else if (direction == DMA_FROM_DEVICE) {
+		txd->ccfg |= PL080_FLOW_PER2MEM << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 		if (plchan->runtime_addr)
 			txd->srcbus.addr = plchan->runtime_addr;
 		else

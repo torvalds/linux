@@ -58,7 +58,6 @@ struct pl08x_channel_data {
 	int max_signal;
 	u32 muxval;
 	u32 cctl;
-	u32 ccfg;
 	dma_addr_t addr;
 	bool circular_buffer;
 	bool single;
@@ -113,6 +112,11 @@ struct pl08x_txd {
 	void *llis_va;
 	struct pl08x_channel_data *cd;
 	bool active;
+	/*
+	 * Settings to be put into the physical channel when we
+	 * trigger this txd.  Other registers are in llis_va[0].
+	 */
+	u32 ccfg;
 };
 
 /**
