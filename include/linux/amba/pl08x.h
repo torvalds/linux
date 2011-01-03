@@ -174,7 +174,6 @@ struct pl08x_dma_chan {
 	struct pl08x_channel_data *cd;
 	dma_addr_t runtime_addr;
 	enum dma_data_direction	runtime_direction;
-	atomic_t last_issued;
 	dma_cookie_t lc;
 	struct list_head desc_list;
 	struct pl08x_txd *at;

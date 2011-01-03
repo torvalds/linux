@@ -74,7 +74,6 @@
 #include <asm/hardware/pl080.h>
 #include <asm/dma.h>
 #include <asm/mach/dma.h>
-#include <asm/atomic.h>
 #include <asm/processor.h>
 #include <asm/cacheflush.h>
 
@@ -1082,8 +1081,10 @@ static dma_cookie_t pl08x_tx_submit(struct dma_async_tx_descriptor *tx)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(tx->chan);
 
-	atomic_inc(&plchan->last_issued);
-	tx->cookie = atomic_read(&plchan->last_issued);
+	plchan->chan.cookie += 1;
+	if (plchan->chan.cookie < 0)
+		plchan->chan.cookie = 1;
+	tx->cookie = plchan->chan.cookie;
 	/* This unlock follows the lock in the prep() function */
 	spin_unlock_irqrestore(&plchan->lock, plchan->lockflags);
 
@@ -1115,7 +1116,7 @@ pl08x_dma_tx_status(struct dma_chan *chan,
 	enum dma_status ret;
 	u32 bytesleft = 0;
 
-	last_used = atomic_read(&plchan->last_issued);
+	last_used = plchan->chan.cookie;
 	last_complete = plchan->lc;
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
@@ -1131,7 +1132,7 @@ pl08x_dma_tx_status(struct dma_chan *chan,
 	/*
 	 * This cookie not complete yet
 	 */
-	last_used = atomic_read(&plchan->last_issued);
+	last_used = plchan->chan.cookie;
 	last_complete = plchan->lc;
 
 	/* Get number of bytes left in the active transactions and queue */
@@ -1641,8 +1642,7 @@ static void pl08x_tasklet(unsigned long data)
 		/*
 		 * Update last completed
 		 */
-		plchan->lc =
-			(plchan->at->tx.cookie);
+		plchan->lc = plchan->at->tx.cookie;
 
 		/*
 		 * Callback to signal completion
@@ -1820,8 +1820,8 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 			 chan->name);
 
 		chan->chan.device = dmadev;
-		atomic_set(&chan->last_issued, 0);
-		chan->lc = atomic_read(&chan->last_issued);
+		chan->chan.cookie = 0;
+		chan->lc = 0;
 
 		spin_lock_init(&chan->lock);
 		INIT_LIST_HEAD(&chan->desc_list);
