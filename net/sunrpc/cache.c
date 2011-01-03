@@ -213,6 +213,23 @@ static inline int cache_is_valid(struct cache_detail *detail, struct cache_head 
 	}
 }
 
+static int try_to_negate_entry(struct cache_detail *detail, struct cache_head *h)
+{
+	int rv;
+
+	write_lock(&detail->hash_lock);
+	rv = cache_is_valid(detail, h);
+	if (rv != -EAGAIN) {
+		write_unlock(&detail->hash_lock);
+		return rv;
+	}
+	set_bit(CACHE_NEGATIVE, &h->flags);
+	cache_fresh_locked(h, seconds_since_boot()+CACHE_NEW_EXPIRY);
+	write_unlock(&detail->hash_lock);
+	cache_fresh_unlocked(h, detail);
+	return -ENOENT;
+}
+
 /*
  * This is the generic cache management routine for all
  * the authentication caches.
@@ -251,14 +268,8 @@ int cache_check(struct cache_detail *detail,
 			case -EINVAL:
 				clear_bit(CACHE_PENDING, &h->flags);
 				cache_revisit_request(h);
-				if (rv == -EAGAIN) {
-					set_bit(CACHE_NEGATIVE, &h->flags);
-					cache_fresh_locked(h, seconds_since_boot()+CACHE_NEW_EXPIRY);
-					cache_fresh_unlocked(h, detail);
-					rv = -ENOENT;
-				}
+				rv = try_to_negate_entry(detail, h);
 				break;
-
 			case -EAGAIN:
 				clear_bit(CACHE_PENDING, &h->flags);
 				cache_revisit_request(h);
