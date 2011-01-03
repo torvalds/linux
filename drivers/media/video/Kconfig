@@ -740,6 +740,12 @@ config VIDEO_VIA_CAMERA
 	   Chrome9 chipsets.  Currently only tested on OLPC xo-1.5 systems
 	   with ov7670 sensors.
 
+config VIDEO_NOON010PC30
+	tristate "NOON010PC30 CIF camera sensor support"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This driver supports NOON010PC30 CIF camera from Siliconfile
+
 config SOC_CAMERA
 	tristate "SoC camera support"
 	depends on VIDEO_V4L2 && HAS_DMA && I2C
