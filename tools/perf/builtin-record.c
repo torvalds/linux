@@ -39,7 +39,7 @@ static u64			user_interval			= ULLONG_MAX;
 static u64			default_interval		=      0;
 static u64			sample_type;
 
-static int			nr_cpus				=      0;
+static struct cpu_map		*cpus;
 static unsigned int		page_size;
 static unsigned int		mmap_pages			=    128;
 static unsigned int		user_freq 			= UINT_MAX;
@@ -670,8 +670,8 @@ static int __cmd_record(int argc, const char **argv)
 	if (!system_wide && no_inherit && !cpu_list) {
 		open_counters(-1);
 	} else {
-		for (i = 0; i < nr_cpus; i++)
-			open_counters(cpumap[i]);
+		for (i = 0; i < cpus->nr; i++)
+			open_counters(cpus->map[i]);
 	}
 
 	perf_session__set_sample_type(session, sample_type);
@@ -927,14 +927,14 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		thread_num = 1;
 	}
 
-	nr_cpus = read_cpu_map(cpu_list);
-	if (nr_cpus < 1) {
-		perror("failed to collect number of CPUs");
+	cpus = cpu_map__new(cpu_list);
+	if (cpus == NULL) {
+		perror("failed to parse CPUs map");
 		return -1;
 	}
 
 	list_for_each_entry(pos, &evsel_list, node) {
-		if (perf_evsel__alloc_fd(pos, nr_cpus, thread_num) < 0)
+		if (perf_evsel__alloc_fd(pos, cpus->nr, thread_num) < 0)
 			goto out_free_fd;
 	}
 	event_array = malloc(

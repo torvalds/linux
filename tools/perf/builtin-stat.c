@@ -72,7 +72,7 @@ static struct perf_event_attr default_attrs[] = {
 };
 
 static bool			system_wide			=  false;
-static int			nr_cpus				=  0;
+static struct cpu_map		*cpus;
 static int			run_idx				=  0;
 
 static int			run_count			=  1;
@@ -167,7 +167,7 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 				    PERF_FORMAT_TOTAL_TIME_RUNNING;
 
 	if (system_wide)
-		return perf_evsel__open_per_cpu(evsel, nr_cpus, cpumap);
+		return perf_evsel__open_per_cpu(evsel, cpus->nr, cpus->map);
 
 	attr->inherit = !no_inherit;
 	if (target_pid == -1 && target_tid == -1) {
@@ -200,7 +200,7 @@ static int read_counter_aggr(struct perf_evsel *counter)
 	u64 *count = counter->counts->aggr.values;
 	int i;
 
-	if (__perf_evsel__read(counter, nr_cpus, thread_num, scale) < 0)
+	if (__perf_evsel__read(counter, cpus->nr, thread_num, scale) < 0)
 		return -1;
 
 	for (i = 0; i < 3; i++)
@@ -233,7 +233,7 @@ static int read_counter(struct perf_evsel *counter)
 	u64 *count;
 	int cpu;
 
-	for (cpu = 0; cpu < nr_cpus; cpu++) {
+	for (cpu = 0; cpu < cpus->nr; cpu++) {
 		if (__perf_evsel__read_on_cpu(counter, cpu, 0, scale) < 0)
 			return -1;
 
@@ -258,9 +258,6 @@ static int run_perf_stat(int argc __used, const char **argv)
 	int child_ready_pipe[2], go_pipe[2];
 	const bool forks = (argc > 0);
 	char buf;
-
-	if (!system_wide)
-		nr_cpus = 1;
 
 	if (forks && (pipe(child_ready_pipe) < 0 || pipe(go_pipe) < 0)) {
 		perror("failed to create pipes");
@@ -351,12 +348,12 @@ static int run_perf_stat(int argc __used, const char **argv)
 	if (no_aggr) {
 		list_for_each_entry(counter, &evsel_list, node) {
 			read_counter(counter);
-			perf_evsel__close_fd(counter, nr_cpus, 1);
+			perf_evsel__close_fd(counter, cpus->nr, 1);
 		}
 	} else {
 		list_for_each_entry(counter, &evsel_list, node) {
 			read_counter_aggr(counter);
-			perf_evsel__close_fd(counter, nr_cpus, thread_num);
+			perf_evsel__close_fd(counter, cpus->nr, thread_num);
 		}
 	}
 
@@ -384,7 +381,7 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 	if (no_aggr)
 		sprintf(cpustr, "CPU%*d%s",
 			csv_output ? 0 : -4,
-			cpumap[cpu], csv_sep);
+			cpus->map[cpu], csv_sep);
 
 	fprintf(stderr, fmt, cpustr, msecs, csv_sep, event_name(evsel));
 
@@ -412,7 +409,7 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 	if (no_aggr)
 		sprintf(cpustr, "CPU%*d%s",
 			csv_output ? 0 : -4,
-			cpumap[cpu], csv_sep);
+			cpus->map[cpu], csv_sep);
 	else
 		cpu = 0;
 
@@ -498,14 +495,14 @@ static void print_counter(struct perf_evsel *counter)
 	u64 ena, run, val;
 	int cpu;
 
-	for (cpu = 0; cpu < nr_cpus; cpu++) {
+	for (cpu = 0; cpu < cpus->nr; cpu++) {
 		val = counter->counts->cpu[cpu].val;
 		ena = counter->counts->cpu[cpu].ena;
 		run = counter->counts->cpu[cpu].run;
 		if (run == 0 || ena == 0) {
 			fprintf(stderr, "CPU%*d%s%*s%s%-24s",
 				csv_output ? 0 : -4,
-				cpumap[cpu], csv_sep,
+				cpus->map[cpu], csv_sep,
 				csv_output ? 0 : 18,
 				"<not counted>", csv_sep,
 				event_name(counter));
@@ -697,12 +694,15 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	}
 
 	if (system_wide)
-		nr_cpus = read_cpu_map(cpu_list);
+		cpus = cpu_map__new(cpu_list);
 	else
-		nr_cpus = 1;
+		cpus = cpu_map__dummy_new();
 
-	if (nr_cpus < 1)
+	if (cpus == NULL) {
+		perror("failed to parse CPUs map");
 		usage_with_options(stat_usage, options);
+		return -1;
+	}
 
 	if (target_pid != -1) {
 		target_tid = target_pid;
@@ -723,8 +723,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 
 	list_for_each_entry(pos, &evsel_list, node) {
 		if (perf_evsel__alloc_stat_priv(pos) < 0 ||
-		    perf_evsel__alloc_counts(pos, nr_cpus) < 0 ||
-		    perf_evsel__alloc_fd(pos, nr_cpus, thread_num) < 0)
+		    perf_evsel__alloc_counts(pos, cpus->nr) < 0 ||
+		    perf_evsel__alloc_fd(pos, cpus->nr, thread_num) < 0)
 			goto out_free_fd;
 	}
 

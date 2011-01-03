@@ -71,7 +71,7 @@ static int			target_tid			=     -1;
 static pid_t			*all_tids			=      NULL;
 static int			thread_num			=      0;
 static bool			inherit				=  false;
-static int			nr_cpus				=      0;
+static struct cpu_map		*cpus;
 static int			realtime_prio			=      0;
 static bool			group				=  false;
 static unsigned int		page_size;
@@ -564,12 +564,12 @@ static void print_sym_table(void)
 		printf(" (all");
 
 	if (cpu_list)
-		printf(", CPU%s: %s)\n", nr_cpus > 1 ? "s" : "", cpu_list);
+		printf(", CPU%s: %s)\n", cpus->nr > 1 ? "s" : "", cpu_list);
 	else {
 		if (target_tid != -1)
 			printf(")\n");
 		else
-			printf(", %d CPU%s)\n", nr_cpus, nr_cpus > 1 ? "s" : "");
+			printf(", %d CPU%s)\n", cpus->nr, cpus->nr > 1 ? "s" : "");
 	}
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
@@ -1197,7 +1197,7 @@ static void perf_session__mmap_read(struct perf_session *self)
 	struct perf_evsel *counter;
 	int i, thread_index;
 
-	for (i = 0; i < nr_cpus; i++) {
+	for (i = 0; i < cpus->nr; i++) {
 		list_for_each_entry(counter, &evsel_list, node) {
 			for (thread_index = 0;
 				thread_index < thread_num;
@@ -1221,7 +1221,7 @@ static void start_counter(int i, struct perf_evsel *evsel)
 	int thread_index;
 
 	if (target_tid == -1)
-		cpu = cpumap[i];
+		cpu = cpus->map[i];
 
 	attr = &evsel->attr;
 
@@ -1310,7 +1310,7 @@ static int __cmd_top(void)
 	else
 		event__synthesize_threads(event__process, session);
 
-	for (i = 0; i < nr_cpus; i++) {
+	for (i = 0; i < cpus->nr; i++) {
 		group_fd = -1;
 		list_for_each_entry(counter, &evsel_list, node)
 			start_counter(i, counter);
@@ -1460,16 +1460,16 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	}
 
 	if (target_tid != -1)
-		nr_cpus = 1;
+		cpus = cpu_map__dummy_new();
 	else
-		nr_cpus = read_cpu_map(cpu_list);
+		cpus = cpu_map__new(cpu_list);
 
-	if (nr_cpus < 1)
+	if (cpus == NULL)
 		usage_with_options(top_usage, options);
 
 	list_for_each_entry(pos, &evsel_list, node) {
-		if (perf_evsel__alloc_mmap_per_thread(pos, nr_cpus, thread_num) < 0 ||
-		    perf_evsel__alloc_fd(pos, nr_cpus, thread_num) < 0)
+		if (perf_evsel__alloc_mmap_per_thread(pos, cpus->nr, thread_num) < 0 ||
+		    perf_evsel__alloc_fd(pos, cpus->nr, thread_num) < 0)
 			goto out_free_fd;
 		/*
 		 * Fill in the ones not specifically initialized via -c:
