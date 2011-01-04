@@ -42,6 +42,14 @@ static struct mfd_cell max8998_devs[] = {
 	},
 };
 
+static struct mfd_cell lp3974_devs[] = {
+	{
+		.name = "lp3974-pmic",
+	}, {
+		.name = "lp3974-rtc",
+	},
+};
+
 int max8998_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
 {
 	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
@@ -146,10 +154,22 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 
 	max8998_irq_init(max8998);
 
-	ret = mfd_add_devices(max8998->dev, -1,
-			      max8998_devs, ARRAY_SIZE(max8998_devs),
-			      NULL, 0);
 	pm_runtime_set_active(max8998->dev);
+
+	switch (id->driver_data) {
+	case TYPE_LP3974:
+		ret = mfd_add_devices(max8998->dev, -1,
+				lp3974_devs, ARRAY_SIZE(lp3974_devs),
+				NULL, 0);
+		break;
+	case TYPE_MAX8998:
+		ret = mfd_add_devices(max8998->dev, -1,
+				max8998_devs, ARRAY_SIZE(max8998_devs),
+				NULL, 0);
+		break;
+	default:
+		ret = -EINVAL;
+	}
 
 	if (ret < 0)
 		goto err;

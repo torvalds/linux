@@ -76,6 +76,9 @@ struct max8998_regulator_data {
  * @buck1_set1: BUCK1 gpio pin 1 to set output voltage
  * @buck1_set2: BUCK1 gpio pin 2 to set output voltage
  * @buck2_set3: BUCK2 gpio pin to set output voltage
+ * @wakeup: Allow to wake up from suspend
+ * @rtc_delay: LP3974 RTC chip bug that requires delay after a register
+ * write before reading it.
  */
 struct max8998_platform_data {
 	struct max8998_regulator_data	*regulators;
@@ -89,6 +92,7 @@ struct max8998_platform_data {
 	int				buck1_set2;
 	int				buck2_set3;
 	bool				wakeup;
+	bool				rtc_delay;
 };
 
 #endif /*  __LINUX_MFD_MAX8998_H */

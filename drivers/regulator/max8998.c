@@ -835,6 +835,12 @@ static int __devexit max8998_pmic_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id max8998_pmic_id[] = {
+	{ "max8998-pmic", TYPE_MAX8998 },
+	{ "lp3974-pmic", TYPE_LP3974 },
+	{ }
+};
+
 static struct platform_driver max8998_pmic_driver = {
 	.driver = {
 		.name = "max8998-pmic",
@@ -842,6 +848,7 @@ static struct platform_driver max8998_pmic_driver = {
 	},
 	.probe = max8998_pmic_probe,
 	.remove = __devexit_p(max8998_pmic_remove),
+	.id_table = max8998_pmic_id,
 };
 
 static int __init max8998_pmic_init(void)
