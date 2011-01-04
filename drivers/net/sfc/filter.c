@@ -27,6 +27,10 @@
  */
 #define FILTER_CTL_SRCH_MAX 200
 
+/* Don't try very hard to find space for performance hints, as this is
+ * counter-productive. */
+#define FILTER_CTL_SRCH_HINT_MAX 5
+
 enum efx_filter_table_id {
 	EFX_FILTER_TABLE_RX_IP = 0,
 	EFX_FILTER_TABLE_RX_MAC,
@@ -325,15 +329,16 @@ static int efx_filter_search(struct efx_filter_table *table,
 			     struct efx_filter_spec *spec, u32 key,
 			     bool for_insert, int *depth_required)
 {
-	unsigned hash, incr, filter_idx, depth;
+	unsigned hash, incr, filter_idx, depth, depth_max;
 	struct efx_filter_spec *cmp;
 
 	hash = efx_filter_hash(key);
 	incr = efx_filter_increment(key);
+	depth_max = (spec->priority <= EFX_FILTER_PRI_HINT ?
+		     FILTER_CTL_SRCH_HINT_MAX : FILTER_CTL_SRCH_MAX);
 
 	for (depth = 1, filter_idx = hash & (table->size - 1);
-	     depth <= FILTER_CTL_SRCH_MAX &&
-		     test_bit(filter_idx, table->used_bitmap);
+	     depth <= depth_max && test_bit(filter_idx, table->used_bitmap);
 	     ++depth) {
 		cmp = &table->spec[filter_idx];
 		if (efx_filter_equal(spec, cmp))
@@ -342,7 +347,7 @@ static int efx_filter_search(struct efx_filter_table *table,
 	}
 	if (!for_insert)
 		return -ENOENT;
-	if (depth > FILTER_CTL_SRCH_MAX)
+	if (depth > depth_max)
 		return -EBUSY;
 found:
 	*depth_required = depth;
