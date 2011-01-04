@@ -3951,7 +3951,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		int lane = 0, link_bw, bpp;
 		/* CPU eDP doesn't require FDI link, so just set DP M/N
 		   according to current link config */
-		if (has_edp_encoder && !intel_encoder_is_pch_edp(&encoder->base)) {
+		if (has_edp_encoder && !intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
 			target_clock = mode->clock;
 			intel_edp_link_config(has_edp_encoder,
 					      &lane, &link_bw);
