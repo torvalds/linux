@@ -39,7 +39,7 @@ struct dib7000p_config {
 	u16 diversity_delay;
 
 	u8 default_i2c_addr;
-	u8 enMpegOutput : 1;
+	u8 enMpegOutput:1;
 };
 
 #define DEFAULT_DIB7000P_I2C_ADDRESS 18

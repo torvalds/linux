@@ -261,7 +261,8 @@ static int dib8000_set_output_mode(struct dvb_frontend *fe, int mode)
 	fifo_threshold = 1792;
 	smo_mode = (dib8000_read_word(state, 299) & 0x0050) | (1 << 1);
 
-	dprintk("-I-	Setting output mode for demod %p to %d", &state->fe[0], mode);
+	dprintk("-I-	Setting output mode for demod %p to %d",
+			&state->fe[0], mode);
 
 	switch (mode) {
 	case OUTMODE_MPEG2_PAR_GATED_CLK:	// STBs with parallel gated clock
@@ -295,7 +296,8 @@ static int dib8000_set_output_mode(struct dvb_frontend *fe, int mode)
 		break;
 
 	default:
-		dprintk("Unhandled output_mode passed to be set for demod %p", &state->fe[0]);
+		dprintk("Unhandled output_mode passed to be set for demod %p",
+				&state->fe[0]);
 		return -EINVAL;
 	}
 
@@ -345,7 +347,8 @@ static void dib8000_set_power_mode(struct dib8000_state *state, enum dib8000_pow
 {
 	/* by default everything is going to be powered off */
 	u16 reg_774 = 0x3fff, reg_775 = 0xffff, reg_776 = 0xffff,
-		reg_900 = (dib8000_read_word(state, 900) & 0xfffc) | 0x3, reg_1280 = (dib8000_read_word(state, 1280) & 0x00ff) | 0xff00;
+		reg_900 = (dib8000_read_word(state, 900) & 0xfffc) | 0x3,
+		reg_1280 = (dib8000_read_word(state, 1280) & 0x00ff) | 0xff00;
 
 	/* now, depending on the requested mode, we power on */
 	switch (mode) {
@@ -482,7 +485,8 @@ static void dib8000_reset_pll(struct dib8000_state *state)
 
 	// clk_cfg1
 	clk_cfg1 = (1 << 10) | (0 << 9) | (pll->IO_CLK_en_core << 8) |
-		(pll->bypclk_div << 5) | (pll->enable_refdiv << 4) | (1 << 3) | (pll->pll_range << 1) | (pll->pll_reset << 0);
+		(pll->bypclk_div << 5) | (pll->enable_refdiv << 4) | (1 << 3) |
+		(pll->pll_range << 1) | (pll->pll_reset << 0);
 
 	dib8000_write_word(state, 902, clk_cfg1);
 	clk_cfg1 = (clk_cfg1 & 0xfff7) | (pll->pll_bypass << 3);
@@ -492,11 +496,12 @@ static void dib8000_reset_pll(struct dib8000_state *state)
 
 	/* smpl_cfg: P_refclksel=2, P_ensmplsel=1 nodivsmpl=1 */
 	if (state->cfg.pll->ADClkSrc == 0)
-		dib8000_write_word(state, 904, (0 << 15) | (0 << 12) | (0 << 10) | (pll->modulo << 8) | (pll->ADClkSrc << 7) | (0 << 1));
+		dib8000_write_word(state, 904, (0 << 15) | (0 << 12) | (0 << 10) |
+				(pll->modulo << 8) | (pll->ADClkSrc << 7) | (0 << 1));
 	else if (state->cfg.refclksel != 0)
-		dib8000_write_word(state, 904,
-					(0 << 15) | (1 << 12) | ((state->cfg.refclksel & 0x3) << 10) | (pll->modulo << 8) | (pll->
-															ADClkSrc << 7) | (0 << 1));
+		dib8000_write_word(state, 904, (0 << 15) | (1 << 12) |
+				((state->cfg.refclksel & 0x3) << 10) | (pll->modulo << 8) |
+				(pll->ADClkSrc << 7) | (0 << 1));
 	else
 		dib8000_write_word(state, 904, (0 << 15) | (1 << 12) | (3 << 10) | (pll->modulo << 8) | (pll->ADClkSrc << 7) | (0 << 1));
 
@@ -627,14 +632,14 @@ static const u16 dib8000_defaults[] = {
 	1, 285,
 	0x0020,			//p_fec_
 	1, 299,
-	0x0062,			// P_smo_mode, P_smo_rs_discard, P_smo_fifo_flush, P_smo_pid_parse, P_smo_error_discard
+	0x0062,			/* P_smo_mode, P_smo_rs_discard, P_smo_fifo_flush, P_smo_pid_parse, P_smo_error_discard */
 
 	1, 338,
 	(1 << 12) |		// P_ctrl_corm_thres4pre_freq_inh=1
-		(1 << 10) |		// P_ctrl_pre_freq_mode_sat=1
-		(0 << 9) |		// P_ctrl_pre_freq_inh=0
-		(3 << 5) |		// P_ctrl_pre_freq_step=3
-		(1 << 0),		// P_pre_freq_win_len=1
+		(1 << 10) |
+		(0 << 9) |		/* P_ctrl_pre_freq_inh=0 */
+		(3 << 5) |		/* P_ctrl_pre_freq_step=3 */
+		(1 << 0),		/* P_pre_freq_win_len=1 */
 
 	1, 903,
 	(0 << 4) | 2,		// P_divclksel=0 P_divbitsel=2 (was clk=3,bit=1 for MPW)
@@ -782,7 +787,7 @@ static int dib8000_update_lna(struct dib8000_state *state)
 		// read dyn_gain here (because it is demod-dependent and not tuner)
 		dyn_gain = dib8000_read_word(state, 390);
 
-		if (state->cfg.update_lna(state->fe[0], dyn_gain)) {	// LNA has changed
+		if (state->cfg.update_lna(state->fe[0], dyn_gain)) {
 			dib8000_restart_agc(state);
 			return 1;
 		}
@@ -869,7 +874,8 @@ static int dib8000_agc_soft_split(struct dib8000_state *state)
 		split_offset = state->current_agc->split.max;
 	else
 		split_offset = state->current_agc->split.max *
-			(agc - state->current_agc->split.min_thres) / (state->current_agc->split.max_thres - state->current_agc->split.min_thres);
+			(agc - state->current_agc->split.min_thres) /
+			(state->current_agc->split.max_thres - state->current_agc->split.min_thres);
 
 	dprintk("AGC split_offset: %d", split_offset);
 
@@ -952,14 +958,13 @@ s32 dib8000_get_adc_power(struct dvb_frontend *fe, u8 mode)
 	s32 val;
 
 	val = dib8000_read32(state, 384);
-	/* mode = 1 : ln_agcpower calc using mant-exp conversion and mantis look up table */
 	if (mode) {
 		tmp_val = val;
 		while (tmp_val >>= 1)
 			exp++;
 		mant = (val * 1000 / (1<<exp));
 		ix = (u8)((mant-1000)/100); /* index of the LUT */
-		val = (lut_1000ln_mant[ix] + 693*(exp-20) - 6908); /* 1000 * ln(adcpower_real) ; 693 = 1000ln(2) ; 6908 = 1000*ln(1000) ; 20 comes from adc_real = adc_pow_int / 2**20 */
+		val = (lut_1000ln_mant[ix] + 693*(exp-20) - 6908);
 		val = (val*256)/1000;
 	}
 	return val;
@@ -1006,18 +1011,19 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 		dib8000_write_word(state, 285, dib8000_read_word(state, 285) & 0x60);
 
 	i = dib8000_read_word(state, 26) & 1;	// P_dds_invspec
-	dib8000_write_word(state, 26, state->fe[0]->dtv_property_cache.inversion ^ i);
+	dib8000_write_word(state, 26, state->fe[0]->dtv_property_cache.inversion^i);
 
 	if (state->fe[0]->dtv_property_cache.isdbt_sb_mode) {
 		//compute new dds_freq for the seg and adjust prbs
 		int seg_offset =
-			state->fe[0]->dtv_property_cache.isdbt_sb_segment_idx - (state->fe[0]->dtv_property_cache.isdbt_sb_segment_count / 2) -
+			state->fe[0]->dtv_property_cache.isdbt_sb_segment_idx -
+			(state->fe[0]->dtv_property_cache.isdbt_sb_segment_count / 2) -
 			(state->fe[0]->dtv_property_cache.isdbt_sb_segment_count % 2);
 		int clk = state->cfg.pll->internal;
 		u32 segtodds = ((u32) (430 << 23) / clk) << 3;	// segtodds = SegBW / Fclk * pow(2,26)
 		int dds_offset = seg_offset * segtodds;
 		int new_dds, sub_channel;
-		if ((state->fe[0]->dtv_property_cache.isdbt_sb_segment_count % 2) == 0)	// if even
+		if ((state->fe[0]->dtv_property_cache.isdbt_sb_segment_count % 2) == 0)
 			dds_offset -= (int)(segtodds / 2);
 
 		if (state->cfg.pll->ifreq == 0) {
@@ -1031,7 +1037,8 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 			//  - the segment of center frequency with an odd total number of segments
 			//  - the segment to the left of center frequency with an even total number of segments
 			//  - the segment to the right of center frequency with an even total number of segments
-			if ((state->fe[0]->dtv_property_cache.delivery_system == SYS_ISDBT) && (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1)
+			if ((state->fe[0]->dtv_property_cache.delivery_system == SYS_ISDBT)
+				&& (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1)
 					&& (((state->fe[0]->dtv_property_cache.isdbt_sb_segment_count % 2)
 					  && (state->fe[0]->dtv_property_cache.isdbt_sb_segment_idx ==
 				  ((state->fe[0]->dtv_property_cache.isdbt_sb_segment_count / 2) + 1)))
@@ -1051,9 +1058,9 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 		}
 		dib8000_write_word(state, 27, (u16) ((new_dds >> 16) & 0x01ff));
 		dib8000_write_word(state, 28, (u16) (new_dds & 0xffff));
-		if (state->fe[0]->dtv_property_cache.isdbt_sb_segment_count % 2)	// if odd
+		if (state->fe[0]->dtv_property_cache.isdbt_sb_segment_count % 2)
 			sub_channel = ((state->fe[0]->dtv_property_cache.isdbt_sb_subchannel + (3 * seg_offset) + 1) % 41) / 3;
-		else		// if even
+		else
 			sub_channel = ((state->fe[0]->dtv_property_cache.isdbt_sb_subchannel + (3 * seg_offset)) % 41) / 3;
 		sub_channel -= 6;
 
@@ -1212,7 +1219,7 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 			}
 			break;
 		}
-	} else {		// if not state->fe[0]->dtv_property_cache.isdbt_sb_mode
+	} else {
 		dib8000_write_word(state, 27, (u16) ((state->cfg.pll->ifreq >> 16) & 0x01ff));
 		dib8000_write_word(state, 28, (u16) (state->cfg.pll->ifreq & 0xffff));
 		dib8000_write_word(state, 26, (u16) ((state->cfg.pll->ifreq >> 25) & 0x0003));
@@ -1332,8 +1339,8 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 	state->differential_constellation = (seg_diff_mask != 0);
 	dib8000_set_diversity_in(state->fe[0], state->diversity_onoff);
 
-	if (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1) {	// ISDB-Tsb
-		if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 1)	// 3-segments
+	if (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1) {
+		if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 1)
 			seg_mask13 = 0x00E0;
 		else		// 1-segment
 			seg_mask13 = 0x0040;
@@ -1355,25 +1362,24 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 	dib8000_write_word(state, 353, seg_mask13);	// ADDR 353
 
 /*	// P_small_narrow_band=0, P_small_last_seg=13, P_small_offset_num_car=5 */
-	// dib8000_write_word(state, 351, (state->fe[0]->dtv_property_cache.isdbt_sb_mode << 8) | (13 << 4) | 5 );
 
 	// ---- SMALL ----
 	if (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1) {
 		switch (state->fe[0]->dtv_property_cache.transmission_mode) {
 		case TRANSMISSION_MODE_2K:
-			if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0) {	// 1-seg
-				if (state->fe[0]->dtv_property_cache.layer[0].modulation == DQPSK)	// DQPSK
+			if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0) {
+				if (state->fe[0]->dtv_property_cache.layer[0].modulation == DQPSK)
 					ncoeff = coeff_2k_sb_1seg_dqpsk;
 				else	// QPSK or QAM
 					ncoeff = coeff_2k_sb_1seg;
 			} else {	// 3-segments
-				if (state->fe[0]->dtv_property_cache.layer[0].modulation == DQPSK) {	// DQPSK on central segment
-					if (state->fe[0]->dtv_property_cache.layer[1].modulation == DQPSK)	// DQPSK on external segments
+				if (state->fe[0]->dtv_property_cache.layer[0].modulation == DQPSK) {
+					if (state->fe[0]->dtv_property_cache.layer[1].modulation == DQPSK)
 						ncoeff = coeff_2k_sb_3seg_0dqpsk_1dqpsk;
 					else	// QPSK or QAM on external segments
 						ncoeff = coeff_2k_sb_3seg_0dqpsk;
 				} else {	// QPSK or QAM on central segment
-					if (state->fe[0]->dtv_property_cache.layer[1].modulation == DQPSK)	// DQPSK on external segments
+					if (state->fe[0]->dtv_property_cache.layer[1].modulation == DQPSK)
 						ncoeff = coeff_2k_sb_3seg_1dqpsk;
 					else	// QPSK or QAM on external segments
 						ncoeff = coeff_2k_sb_3seg;
@@ -1382,20 +1388,20 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 			break;
 
 		case TRANSMISSION_MODE_4K:
-			if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0) {	// 1-seg
-				if (state->fe[0]->dtv_property_cache.layer[0].modulation == DQPSK)	// DQPSK
+			if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0) {
+				if (state->fe[0]->dtv_property_cache.layer[0].modulation == DQPSK)
 					ncoeff = coeff_4k_sb_1seg_dqpsk;
 				else	// QPSK or QAM
 					ncoeff = coeff_4k_sb_1seg;
 			} else {	// 3-segments
-				if (state->fe[0]->dtv_property_cache.layer[0].modulation == DQPSK) {	// DQPSK on central segment
-					if (state->fe[0]->dtv_property_cache.layer[1].modulation == DQPSK) {	// DQPSK on external segments
+				if (state->fe[0]->dtv_property_cache.layer[0].modulation == DQPSK) {
+					if (state->fe[0]->dtv_property_cache.layer[1].modulation == DQPSK) {
 						ncoeff = coeff_4k_sb_3seg_0dqpsk_1dqpsk;
 					} else {	// QPSK or QAM on external segments
 						ncoeff = coeff_4k_sb_3seg_0dqpsk;
 					}
 				} else {	// QPSK or QAM on central segment
-					if (state->fe[0]->dtv_property_cache.layer[1].modulation == DQPSK) {	// DQPSK on external segments
+					if (state->fe[0]->dtv_property_cache.layer[1].modulation == DQPSK) {
 						ncoeff = coeff_4k_sb_3seg_1dqpsk;
 					} else	// QPSK or QAM on external segments
 						ncoeff = coeff_4k_sb_3seg;
@@ -1406,20 +1412,20 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 		case TRANSMISSION_MODE_AUTO:
 		case TRANSMISSION_MODE_8K:
 		default:
-			if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0) {	// 1-seg
-				if (state->fe[0]->dtv_property_cache.layer[0].modulation == DQPSK)	// DQPSK
+			if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0) {
+				if (state->fe[0]->dtv_property_cache.layer[0].modulation == DQPSK)
 					ncoeff = coeff_8k_sb_1seg_dqpsk;
 				else	// QPSK or QAM
 					ncoeff = coeff_8k_sb_1seg;
 			} else {	// 3-segments
-				if (state->fe[0]->dtv_property_cache.layer[0].modulation == DQPSK) {	// DQPSK on central segment
-					if (state->fe[0]->dtv_property_cache.layer[1].modulation == DQPSK) {	// DQPSK on external segments
+				if (state->fe[0]->dtv_property_cache.layer[0].modulation == DQPSK) {
+					if (state->fe[0]->dtv_property_cache.layer[1].modulation == DQPSK) {
 						ncoeff = coeff_8k_sb_3seg_0dqpsk_1dqpsk;
 					} else {	// QPSK or QAM on external segments
 						ncoeff = coeff_8k_sb_3seg_0dqpsk;
 					}
 				} else {	// QPSK or QAM on central segment
-					if (state->fe[0]->dtv_property_cache.layer[1].modulation == DQPSK) {	// DQPSK on external segments
+					if (state->fe[0]->dtv_property_cache.layer[1].modulation == DQPSK) {
 						ncoeff = coeff_8k_sb_3seg_1dqpsk;
 					} else	// QPSK or QAM on external segments
 						ncoeff = coeff_8k_sb_3seg;
@@ -1437,7 +1443,7 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 
 	// ---- COFF ----
 	// Carloff, the most robust
-	if (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1) {	// Sound Broadcasting mode - use both TMCC and AC pilots
+	if (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1) {
 
 		// P_coff_cpil_alpha=4, P_coff_inh=0, P_coff_cpil_winlen=64
 		// P_coff_narrow_band=1, P_coff_square_val=1, P_coff_one_seg=~partial_rcpt, P_coff_use_tmcc=1, P_coff_use_ac=1
@@ -1448,7 +1454,7 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 /*		// P_small_coef_ext_enable = 1 */
 /*		dib8000_write_word(state, 351, dib8000_read_word(state, 351) | 0x200); */
 
-		if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0) {	// Sound Broadcasting mode 1 seg
+		if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0) {
 
 			// P_coff_winlen=63, P_coff_thres_lock=15, P_coff_one_seg_width= (P_mode == 3) , P_coff_one_seg_sym= (P_mode-1)
 			if (mode == 3)
@@ -1512,7 +1518,7 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 		dib8000_write_word(state, 341, (4 << 3) | (1 << 2) | (1 << 1) | (1 << 0));
 	}
 	// ---- FFT ----
-	if (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1 && state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0)	// 1-seg
+	if (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1 && state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0)
 		dib8000_write_word(state, 178, 64);	// P_fft_powrange=64
 	else
 		dib8000_write_word(state, 178, 32);	// P_fft_powrange=32
@@ -1542,7 +1548,7 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 
 	/* offset loop parameters */
 	if (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1) {
-		if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0)	// Sound Broadcasting mode 1 seg
+		if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0)
 			/* P_timf_alpha = (11-P_mode), P_corm_alpha=6, P_corm_thres=0x80 */
 			dib8000_write_word(state, 32, ((11 - mode) << 12) | (6 << 8) | 0x40);
 
@@ -1555,7 +1561,7 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 		dib8000_write_word(state, 32, ((9 - mode) << 12) | (6 << 8) | 0x80);
 
 	if (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1) {
-		if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0)	// Sound Broadcasting mode 1 seg
+		if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0)
 			/* P_ctrl_pha_off_max=3   P_ctrl_sfreq_inh =0  P_ctrl_sfreq_step = (11-P_mode)  */
 			dib8000_write_word(state, 37, (3 << 5) | (0 << 4) | (10 - mode));
 
@@ -1628,7 +1634,7 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 
 	// ---- ANA_FE ----
 	if (state->fe[0]->dtv_property_cache.isdbt_sb_mode) {
-		if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 1)	// 3-segments
+		if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 1)
 			ana_fe = ana_fe_coeff_3seg;
 		else		// 1-segment
 			ana_fe = ana_fe_coeff_1seg;
@@ -1651,10 +1657,10 @@ static void dib8000_set_channel(struct dib8000_state *state, u8 seq, u8 autosear
 	// "P_cspu_left_edge"  not used => do not care
 	// "P_cspu_right_edge" not used => do not care
 
-	if (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1) {	// ISDB-Tsb
+	if (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1) {
 		dib8000_write_word(state, 228, 1);	// P_2d_mode_byp=1
 		dib8000_write_word(state, 205, dib8000_read_word(state, 205) & 0xfff0);	// P_cspu_win_cut = 0
-		if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0	// 1-segment
+		if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0
 			&& state->fe[0]->dtv_property_cache.transmission_mode == TRANSMISSION_MODE_2K) {
 			//dib8000_write_word(state, 219, dib8000_read_word(state, 219) & 0xfffe); // P_adp_pass = 0
 			dib8000_write_word(state, 265, 15);	// P_equal_noise_sel = 15
@@ -1803,7 +1809,7 @@ static int dib8000_tune(struct dvb_frontend *fe)
 	// never achieved a lock before - wait for timfreq to update
 	if (state->timf == 0) {
 		if (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1) {
-			if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0)	// Sound Broadcasting mode 1 seg
+			if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0)
 				msleep(300);
 			else	// Sound Broadcasting mode 3 seg
 				msleep(500);
@@ -1811,7 +1817,7 @@ static int dib8000_tune(struct dvb_frontend *fe)
 			msleep(200);
 	}
 	if (state->fe[0]->dtv_property_cache.isdbt_sb_mode == 1) {
-		if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0) {	// Sound Broadcasting mode 1 seg
+		if (state->fe[0]->dtv_property_cache.isdbt_partial_reception == 0) {
 
 			/* P_timf_alpha = (13-P_mode) , P_corm_alpha=6, P_corm_thres=0x40  alpha to check on board */
 			dib8000_write_word(state, 32, ((13 - mode) << 12) | (6 << 8) | 0x40);
@@ -1864,9 +1870,9 @@ static int dib8000_wakeup(struct dvb_frontend *fe)
 	if (dib8000_set_adc_state(state, DIBX000_SLOW_ADC_ON) != 0)
 		dprintk("could not start Slow ADC");
 
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		ret = state->fe[index_frontend]->ops.init(state->fe[index_frontend]);
-		if (ret<0)
+		if (ret < 0)
 			return ret;
 	}
 
@@ -1879,7 +1885,7 @@ static int dib8000_sleep(struct dvb_frontend *fe)
 	u8 index_frontend;
 	int ret;
 
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		ret = state->fe[index_frontend]->ops.sleep(state->fe[index_frontend]);
 		if (ret < 0)
 			return ret;
@@ -1914,13 +1920,13 @@ static int dib8000_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 
 	fe->dtv_property_cache.bandwidth_hz = 6000000;
 
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		state->fe[index_frontend]->ops.read_status(state->fe[index_frontend], &stat);
 		if (stat&FE_HAS_SYNC) {
 			dprintk("TMCC lock on the slave%i", index_frontend);
 			/* synchronize the cache with the other frontends */
 			state->fe[index_frontend]->ops.get_frontend(state->fe[index_frontend], fep);
-			for (sub_index_frontend=0; (sub_index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[sub_index_frontend] != NULL); sub_index_frontend++) {
+			for (sub_index_frontend = 0; (sub_index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[sub_index_frontend] != NULL); sub_index_frontend++) {
 				if (sub_index_frontend != index_frontend) {
 					state->fe[sub_index_frontend]->dtv_property_cache.isdbt_sb_mode = state->fe[index_frontend]->dtv_property_cache.isdbt_sb_mode;
 					state->fe[sub_index_frontend]->dtv_property_cache.inversion = state->fe[index_frontend]->dtv_property_cache.inversion;
@@ -2032,7 +2038,7 @@ static int dib8000_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	}
 
 	/* synchronize the cache with the other frontends */
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		state->fe[index_frontend]->dtv_property_cache.isdbt_sb_mode = fe->dtv_property_cache.isdbt_sb_mode;
 		state->fe[index_frontend]->dtv_property_cache.inversion = fe->dtv_property_cache.inversion;
 		state->fe[index_frontend]->dtv_property_cache.transmission_mode = fe->dtv_property_cache.transmission_mode;
@@ -2066,7 +2072,7 @@ static int dib8000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 		state->fe[0]->dtv_property_cache.bandwidth_hz = 6000000;
 	}
 
-	for (index_frontend=0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+	for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		/* synchronization of the cache */
 		state->fe[index_frontend]->dtv_property_cache.delivery_system = SYS_ISDBT;
 		memcpy(&state->fe[index_frontend]->dtv_property_cache, &fe->dtv_property_cache, sizeof(struct dtv_frontend_properties));
@@ -2081,7 +2087,7 @@ static int dib8000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	/* start up the AGC */
 	do {
 		time = dib8000_agc_startup(state->fe[0]);
-		for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+		for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 			time_slave = dib8000_agc_startup(state->fe[index_frontend]);
 			if (time == FE_CALLBACK_TIME_NEVER)
 				time = time_slave;
@@ -2093,7 +2099,7 @@ static int dib8000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 		else
 			break;
 		exit_condition = 1;
-		for (index_frontend=0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+		for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 			if (dib8000_get_tune_state(state->fe[index_frontend]) != CT_AGC_STOP) {
 				exit_condition = 0;
 				break;
@@ -2101,7 +2107,7 @@ static int dib8000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 		}
 	} while (exit_condition == 0);
 
-	for (index_frontend=0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
+	for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
 		dib8000_set_tune_state(state->fe[index_frontend], CT_DEMOD_START);
 
 	if ((state->fe[0]->dtv_property_cache.delivery_system != SYS_ISDBT) ||
@@ -2132,31 +2138,30 @@ static int dib8000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 				 u8 found = 0;
 				 u8 tune_failed = 0;
 
-				 for (index_frontend=0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+				 for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 					 dib8000_set_bandwidth(state->fe[index_frontend], fe->dtv_property_cache.bandwidth_hz / 1000);
 					 dib8000_autosearch_start(state->fe[index_frontend]);
 				 }
 
 				 do {
-					 msleep(10);
+					 msleep(20);
 					 nbr_pending = 0;
 					 exit_condition = 0; /* 0: tune pending; 1: tune failed; 2:tune success */
-					 for (index_frontend=0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+					 for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 						 if (((tune_failed >> index_frontend) & 0x1) == 0) {
 							 found = dib8000_autosearch_irq(state->fe[index_frontend]);
 							 switch (found) {
-								 case 0: /* tune pending */
+							 case 0: /* tune pending */
 									 nbr_pending++;
 									 break;
-								 case 2:
+							 case 2:
 									 dprintk("autosearch succeed on the frontend%i", index_frontend);
 									 exit_condition = 2;
 									 index_frontend_success = index_frontend;
 									 break;
-								 default:
+							 default:
 									 dprintk("unhandled autosearch result");
-								 case 1:
-									 tune_failed |= (1 << index_frontend);
+							 case 1:
 									 dprintk("autosearch failed for the frontend%i", index_frontend);
 									 break;
 							 }
@@ -2178,13 +2183,12 @@ static int dib8000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 				 dib8000_get_frontend(fe, fep);
 			 }
 
-	for (index_frontend=0, ret=0; (ret >= 0) && (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+	for (index_frontend = 0, ret = 0; (ret >= 0) && (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
 		ret = dib8000_tune(state->fe[index_frontend]);
-	}
 
 	/* set output mode and diversity input */
 	dib8000_set_output_mode(state->fe[0], state->cfg.output_mode);
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		dib8000_set_output_mode(state->fe[index_frontend], OUTMODE_DIVERSITY);
 		dib8000_set_diversity_in(state->fe[index_frontend-1], 1);
 	}
@@ -2195,7 +2199,8 @@ static int dib8000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	return ret;
 }
 
-static u16 dib8000_read_lock(struct dvb_frontend *fe) {
+static u16 dib8000_read_lock(struct dvb_frontend *fe)
+{
 	struct dib8000_state *state = fe->demodulator_priv;
 
 	return dib8000_read_word(state, 568);
@@ -2207,7 +2212,7 @@ static int dib8000_read_status(struct dvb_frontend *fe, fe_status_t * stat)
 	u16 lock_slave = 0, lock = dib8000_read_word(state, 568);
 	u8 index_frontend;
 
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
 		lock_slave |= dib8000_read_lock(state->fe[index_frontend]);
 
 	*stat = 0;
@@ -2262,7 +2267,7 @@ static int dib8000_read_signal_strength(struct dvb_frontend *fe, u16 * strength)
 	u16 val;
 
 	*strength = 0;
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		state->fe[index_frontend]->ops.read_signal_strength(state->fe[index_frontend], &val);
 		if (val > 65535 - *strength)
 			*strength = 65535;
@@ -2312,7 +2317,7 @@ static int dib8000_read_snr(struct dvb_frontend *fe, u16 * snr)
 	u32 snr_master;
 
 	snr_master = dib8000_get_snr(fe);
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
 		snr_master += dib8000_get_snr(state->fe[index_frontend]);
 
 	if (snr_master != 0) {
@@ -2361,7 +2366,7 @@ int dib8000_remove_slave_frontend(struct dvb_frontend *fe)
 }
 EXPORT_SYMBOL(dib8000_remove_slave_frontend);
 
-struct dvb_frontend * dib8000_get_slave_frontend(struct dvb_frontend *fe, int slave_index)
+struct dvb_frontend *dib8000_get_slave_frontend(struct dvb_frontend *fe, int slave_index)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 
@@ -2432,7 +2437,7 @@ static void dib8000_release(struct dvb_frontend *fe)
 	struct dib8000_state *st = fe->demodulator_priv;
 	u8 index_frontend;
 
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (st->fe[index_frontend] != NULL); index_frontend++)
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (st->fe[index_frontend] != NULL); index_frontend++)
 		dvb_frontend_detach(st->fe[index_frontend]);
 
 	dibx000_exit_i2c_master(&st->i2c_master);

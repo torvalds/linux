@@ -204,8 +204,8 @@ static u16 dib0090_read_reg(struct dib0090_state *state, u8 reg)
 {
 	u8 b[2];
 	struct i2c_msg msg[2] = {
-		{.addr = state->config->i2c_address,.flags = 0,.buf = &reg,.len = 1},
-		{.addr = state->config->i2c_address,.flags = I2C_M_RD,.buf = b,.len = 2},
+		{.addr = state->config->i2c_address, .flags = 0, .buf = &reg, .len = 1},
+		{.addr = state->config->i2c_address, .flags = I2C_M_RD, .buf = b, .len = 2},
 	};
 	if (i2c_transfer(state->i2c, msg, 2) != 2) {
 		printk(KERN_WARNING "DiB0090 I2C read failed\n");
@@ -217,7 +217,7 @@ static u16 dib0090_read_reg(struct dib0090_state *state, u8 reg)
 static int dib0090_write_reg(struct dib0090_state *state, u32 reg, u16 val)
 {
 	u8 b[3] = { reg & 0xff, val >> 8, val & 0xff };
-	struct i2c_msg msg = {.addr = state->config->i2c_address,.flags = 0,.buf = b,.len = 3 };
+	struct i2c_msg msg = {.addr = state->config->i2c_address, .flags = 0, .buf = b, .len = 3 };
 	if (i2c_transfer(state->i2c, &msg, 1) != 1) {
 		printk(KERN_WARNING "DiB0090 I2C write failed\n");
 		return -EREMOTEIO;
@@ -228,7 +228,7 @@ static int dib0090_write_reg(struct dib0090_state *state, u32 reg, u16 val)
 static u16 dib0090_fw_read_reg(struct dib0090_fw_state *state, u8 reg)
 {
 	u8 b[2];
-	struct i2c_msg msg = {.addr = reg,.flags = I2C_M_RD,.buf = b,.len = 2 };
+	struct i2c_msg msg = {.addr = reg, .flags = I2C_M_RD, .buf = b, .len = 2 };
 	if (i2c_transfer(state->i2c, &msg, 1) != 1) {
 		printk(KERN_WARNING "DiB0090 I2C read failed\n");
 		return 0;
@@ -239,7 +239,7 @@ static u16 dib0090_fw_read_reg(struct dib0090_fw_state *state, u8 reg)
 static int dib0090_fw_write_reg(struct dib0090_fw_state *state, u8 reg, u16 val)
 {
 	u8 b[2] = { val >> 8, val & 0xff };
-	struct i2c_msg msg = {.addr = reg,.flags = 0,.buf = b,.len = 2 };
+	struct i2c_msg msg = {.addr = reg, .flags = 0, .buf = b, .len = 2 };
 	if (i2c_transfer(state->i2c, &msg, 1) != 1) {
 		printk(KERN_WARNING "DiB0090 I2C write failed\n");
 		return -EREMOTEIO;
@@ -347,7 +347,7 @@ static int dib0090_identify(struct dvb_frontend *fe)
 
 	return 0;
 
- identification_error:
+identification_error:
 	return -EIO;
 }
 
@@ -370,8 +370,6 @@ static int dib0090_fw_identify(struct dvb_frontend *fe)
 
 	if (identity->product != KROSUS)
 		goto identification_error;
-
-	//From the SOC the version definition has changed
 
 	if ((identity->version & 0x3) == SOC) {
 		identity->in_soc = 1;
@@ -439,7 +437,7 @@ static int dib0090_fw_identify(struct dvb_frontend *fe)
 
 	return 0;
 
- identification_error:
+identification_error:
 	return -EIO;;
 }
 
@@ -1009,7 +1007,6 @@ void dib0090_pwm_gain_reset(struct dvb_frontend *fe)
 		if (state->current_band == BAND_VHF) {
 			if (state->identity.in_soc) {
 				dib0090_set_bbramp_pwm(state, bb_ramp_pwm_normal_socs);
-				//dib0090_set_rframp_pwm(state, rf_ramp_pwm_vhf_socs); /* TODO */
 			} else {
 				dib0090_set_rframp_pwm(state, rf_ramp_pwm_vhf);
 				dib0090_set_bbramp_pwm(state, bb_ramp_pwm_normal);
@@ -1044,9 +1041,8 @@ EXPORT_SYMBOL(dib0090_pwm_gain_reset);
 static u32 dib0090_get_slow_adc_val(struct dib0090_state *state)
 {
 	u16 adc_val = dib0090_read_reg(state, 0x1d);
-	if (state->identity.in_soc) {
+	if (state->identity.in_soc)
 		adc_val >>= 2;
-	}
 	return adc_val;
 }
 
@@ -1200,7 +1196,7 @@ int dib0090_gain_control(struct dvb_frontend *fe)
 #ifdef DEBUG_AGC
 		dprintk
 			("tune state %d, ADC = %3ddB (ADC err %3d) WBD %3ddB (WBD err %3d, WBD val SADC: %4d), RFGainLimit (TOP): %3d, signal: %3ddBm",
-			 (u32) * tune_state, (u32) adc, (u32) adc_error, (u32) wbd, (u32) wbd_error, (u32) wbd_val,
+			 (u32) *tune_state, (u32) adc, (u32) adc_error, (u32) wbd, (u32) wbd_error, (u32) wbd_val,
 			 (u32) state->rf_gain_limit >> WBD_ALPHA, (s32) 200 + adc - (state->current_gain >> GAIN_ALPHA));
 #endif
 	}
@@ -1246,26 +1242,20 @@ u16 dib0090_get_wbd_offset(struct dvb_frontend *fe)
 	if (current_temp > 128)
 		current_temp = 128;
 
-	//What Wbd gain to apply for this range of frequency
 	state->wbdmux &= ~(7 << 13);
 	if (wbd->wbd_gain != 0)
 		state->wbdmux |= (wbd->wbd_gain << 13);
 	else
-		state->wbdmux |= (4 << 13);	// 4 is the default WBD gain
+		state->wbdmux |= (4 << 13);
 
 	dib0090_write_reg(state, 0x10, state->wbdmux);
 
-	//All the curves are linear with slope*f/64+offset
 	wbd_thot = wbd->offset_hot - (((u32) wbd->slope_hot * f_MHz) >> 6);
 	wbd_tcold = wbd->offset_cold - (((u32) wbd->slope_cold * f_MHz) >> 6);
 
-	// Iet assumes that thot-tcold = 130 equiv 128, current temperature ref is -30deg
-
 	wbd_tcold += ((wbd_thot - wbd_tcold) * current_temp) >> 7;
 
-	//for (offset = 0; offset < 1000; offset += 4)
-	//	dbgp("offset = %d -> %d\n", offset, dib0090_wbd_to_db(state, offset));
-	state->wbd_target = dib0090_wbd_to_db(state, state->wbd_offset + wbd_tcold);	// get the value in dBm from the offset
+	state->wbd_target = dib0090_wbd_to_db(state, state->wbd_offset + wbd_tcold);
 	dprintk("wbd-target: %d dB", (u32) state->wbd_target);
 	dprintk("wbd offset applied is %d", wbd_tcold);
 
@@ -1323,7 +1313,6 @@ static const u16 dib0090_defaults[] = {
 };
 
 static const u16 dib0090_p1g_additionnal_defaults[] = {
-	// additionnal INITIALISATION for p1g to be written after dib0090_defaults
 	1, 0x05,
 	0xabcd,
 
@@ -1362,45 +1351,44 @@ static void dib0090_set_default_config(struct dib0090_state *state, const u16 * 
 
 void dib0090_set_EFUSE(struct dib0090_state *state)
 {
-    u8 c,h,n;
-    u16 e2,e4;
-    u16 cal;
+	u8 c, h, n;
+	u16 e2, e4;
+	u16 cal;
 
-    e2=dib0090_read_reg(state,0x26);
-    e4=dib0090_read_reg(state,0x28);
+	e2 = dib0090_read_reg(state, 0x26);
+	e4 = dib0090_read_reg(state, 0x28);
 
-    if ((state->identity.version == P1D_E_F) || // All P1F uses the internal calibration
-        (state->identity.version == P1G) || (e2 == 0xffff)) {	//W0090G11R1 and W0090G11R1-D  : We will find the calibration Value of the Baseband
+	if ((state->identity.version == P1D_E_F) ||
+			(state->identity.version == P1G) || (e2 == 0xffff)) {
 
-        dib0090_write_reg(state,0x22,0x10); //Start the Calib
-        cal = (dib0090_read_reg(state,0x22)>>6) & 0x3ff;
+		dib0090_write_reg(state, 0x22, 0x10);
+		cal = (dib0090_read_reg(state, 0x22) >> 6) & 0x3ff;
 
-        if ((cal<670) || (cal==1023)) //Cal at 800 would give too high value for the n
-            cal=850; //Recenter the n to 32
-        n = 165 - ((cal * 10)>>6) ;
-        e2 = e4 = (3<<12) | (34<<6) | (n);
-    }
+		if ((cal < 670) || (cal == 1023))
+			cal = 850;
+		n = 165 - ((cal * 10)>>6) ;
+		e2 = e4 = (3<<12) | (34<<6) | (n);
+	}
 
-    if (e2!=e4) {
-        e2 &= e4; /* Remove the redundancy  */
-    }
+	if (e2 != e4)
+		e2 &= e4; /* Remove the redundancy  */
 
-    if (e2 != 0xffff) {
-        c = e2 & 0x3f;
-        n = (e2 >> 12) & 0xf;
-        h= (e2 >> 6) & 0x3f;
+	if (e2 != 0xffff) {
+		c = e2 & 0x3f;
+		n = (e2 >> 12) & 0xf;
+		h = (e2 >> 6) & 0x3f;
 
-        if ((c >= CAP_VALUE_MAX) || (c <= CAP_VALUE_MIN))
-            c=32;
-        if ((h >= HR_MAX) || (h <= HR_MIN))
-            h=34;
-        if ((n >= POLY_MAX) || (n <= POLY_MIN))
-            n=3;
+		if ((c >= CAP_VALUE_MAX) || (c <= CAP_VALUE_MIN))
+			c = 32;
+		if ((h >= HR_MAX) || (h <= HR_MIN))
+			h = 34;
+		if ((n >= POLY_MAX) || (n <= POLY_MIN))
+			n = 3;
 
-        dib0090_write_reg(state,0x13, (h << 10)) ;
-        e2 = (n<<11) | ((h>>2)<<6) | (c);
-        dib0090_write_reg(state,0x2, e2) ; /* Load the BB_2 */
-    }
+		dib0090_write_reg(state, 0x13, (h << 10)) ;
+		e2 = (n<<11) | ((h>>2)<<6) | (c);
+		dib0090_write_reg(state, 0x2, e2) ; /* Load the BB_2 */
+	}
 }
 
 static int dib0090_reset(struct dvb_frontend *fe)
@@ -1425,14 +1413,15 @@ static int dib0090_reset(struct dvb_frontend *fe)
 
 	dib0090_set_default_config(state, dib0090_defaults);
 
-    if (state->identity.in_soc)
-        dib0090_write_reg(state, 0x18, 0x2910);  /* charge pump current = 0 */
+	if (state->identity.in_soc)
+		dib0090_write_reg(state, 0x18, 0x2910);  /* charge pump current = 0 */
 
 	if (state->identity.p1g)
 		dib0090_set_default_config(state, dib0090_p1g_additionnal_defaults);
 
-    if (((state->identity.version & 0x1f) >= P1D_E_F) || (state->identity.in_soc)) /* Update the efuse : Only available for KROSUS > P1C  and SOC as well*/
-        dib0090_set_EFUSE(state);
+	/* Update the efuse : Only available for KROSUS > P1C  and SOC as well*/
+	if (((state->identity.version & 0x1f) >= P1D_E_F) || (state->identity.in_soc))
+		dib0090_set_EFUSE(state);
 
 	/* Congigure in function of the crystal */
 	if (state->config->io.clock_khz >= 24000)
@@ -1501,11 +1490,11 @@ static const struct dc_calibration dc_table[] = {
 static const struct dc_calibration dc_p1g_table[] = {
 	/* Step1 BB gain1= 26 with boost 1, gain 2 = 0 */
 	/* addr ; trim reg offset ; pga ; CTRL_BB1 value ; i or q */
-	{0x06, 5, 1, (1 << 13) | (0 << 8) | (15 << 3), 1},	// offset_trim2_i_chann  0   0   5    0    0    1    6     9    5
-	{0x07, 11, 1, (1 << 13) | (0 << 8) | (15 << 3), 0},	// offset_trim2_q_chann  0   0   5    0    0    1    7     15   11
+	{0x06, 5, 1, (1 << 13) | (0 << 8) | (15 << 3), 1},
+	{0x07, 11, 1, (1 << 13) | (0 << 8) | (15 << 3), 0},
 	/* Step 2 BB gain 1 = 26 with boost = 1 & gain 2 = 29 */
-	{0x06, 0, 0, (1 << 13) | (29 << 8) | (15 << 3), 1},	// offset_trim1_i_chann  0   0   5    0    0    1    6     4    0
-	{0x06, 10, 0, (1 << 13) | (29 << 8) | (15 << 3), 0},	// offset_trim1_q_chann  0   0   5    0    0    1    6     14   10
+	{0x06, 0, 0, (1 << 13) | (29 << 8) | (15 << 3), 1},
+	{0x06, 10, 0, (1 << 13) | (29 << 8) | (15 << 3), 0},
 	{0},
 };
 
@@ -1542,8 +1531,8 @@ static int dib0090_dc_offset_calibration(struct dib0090_state *state, enum front
 		dib0090_write_reg(state, 0x24, reg);
 
 		state->wbdmux = dib0090_read_reg(state, 0x10);
-		dib0090_write_reg(state, 0x10, (state->wbdmux & ~(0xff << 3)) | (0x7 << 3) | 0x3);	// connect BB, disable WDB enable*
-		dib0090_write_reg(state, 0x23, dib0090_read_reg(state, 0x23) & ~(1 << 14));	//Discard the DataTX
+		dib0090_write_reg(state, 0x10, (state->wbdmux & ~(0xff << 3)) | (0x7 << 3) | 0x3);
+		dib0090_write_reg(state, 0x23, dib0090_read_reg(state, 0x23) & ~(1 << 14));
 
 		state->dc = dc_table;
 
@@ -1596,11 +1585,11 @@ static int dib0090_dc_offset_calibration(struct dib0090_state *state, enum front
 		if ((state->adc_diff & 0x8000) == (state->min_adc_diff & 0x8000) && steps(state->step) < 15) {
 			/* stop search when the delta the sign is changing and Steps =15 and Step=0 is force for continuance */
 			state->step++;
-			state->min_adc_diff = state->adc_diff;	//min is used as N-1
+			state->min_adc_diff = state->adc_diff;
 			*tune_state = CT_TUNER_STEP_1;
 		} else {
 			/* the minimum was what we have seen in the step before */
-			if (ABS(state->adc_diff) > ABS(state->min_adc_diff)) {	//Come back to the previous state since the delta was better
+			if (ABS(state->adc_diff) > ABS(state->min_adc_diff)) {
 				dprintk("Since adc_diff N = %d  > adc_diff step N-1 = %d, Come back one step", state->adc_diff, state->min_adc_diff);
 				state->step--;
 			}
@@ -1618,7 +1607,7 @@ static int dib0090_dc_offset_calibration(struct dib0090_state *state, enum front
 		break;
 
 	case CT_TUNER_STEP_6:
-		dib0090_write_reg(state, 0x07, state->bb7 & ~0x0008);	//Force the test bus to be off
+		dib0090_write_reg(state, 0x07, state->bb7 & ~0x0008);
 		dib0090_write_reg(state, 0x1f, 0x7);
 		*tune_state = CT_TUNER_START;	/* reset done -> real tuning can now begin */
 		state->calibrate &= ~DC_CAL;
@@ -1653,9 +1642,9 @@ static int dib0090_wbd_calibration(struct dib0090_state *state, enum frontend_tu
 			return 0;
 		}
 
-		dib0090_write_reg(state, 0x10, 0x1b81 | (1 << 10) | (wbd_gain << 13) | (1 << 3));	// Force: WBD enable,gain to 4, mux to WBD
+		dib0090_write_reg(state, 0x10, 0x1b81 | (1 << 10) | (wbd_gain << 13) | (1 << 3));
 
-		dib0090_write_reg(state, 0x24, ((EN_UHF & 0x0fff) | (1 << 1)));	//Discard all LNA but crystal !!!
+		dib0090_write_reg(state, 0x24, ((EN_UHF & 0x0fff) | (1 << 1)));
 		*tune_state = CT_TUNER_STEP_0;
 		state->wbd_calibration_gain = wbd_gain;
 		return 90;	/* wait for the WBDMUX to switch and for the ADC to sample */
@@ -1788,98 +1777,94 @@ static const struct dib0090_tuning dib0090_tuning_table[] = {
 };
 
 static const struct dib0090_tuning dib0090_p1g_tuning_table[] = {
-	//max_freq, switch_trim, lna_tune, lna_bias, v2i, mix, load, tuner_enable;
 #ifdef CONFIG_BAND_CBAND
-	{170000, 4, 1, 0x820f, 0x300, 0x2d22, 0x82cb, EN_CAB},	// FM EN_CAB
+	{170000, 4, 1, 0x820f, 0x300, 0x2d22, 0x82cb, EN_CAB},
 #endif
 #ifdef CONFIG_BAND_VHF
-	{184000, 1, 1, 15, 0x300, 0x4d12, 0xb94e, EN_VHF},	// VHF EN_VHF
-	{227000, 1, 3, 15, 0x300, 0x4d12, 0xb94e, EN_VHF},	// VHF EN_VHF
-	{380000, 1, 7, 15, 0x300, 0x4d12, 0xb94e, EN_VHF},	// VHF EN_VHF
+	{184000, 1, 1, 15, 0x300, 0x4d12, 0xb94e, EN_VHF},
+	{227000, 1, 3, 15, 0x300, 0x4d12, 0xb94e, EN_VHF},
+	{380000, 1, 7, 15, 0x300, 0x4d12, 0xb94e, EN_VHF},
 #endif
 #ifdef CONFIG_BAND_UHF
-	{510000, 2, 0, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},	// UHF
-	{540000, 2, 1, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},	// UHF
-	{600000, 2, 3, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},	// UHF
-	{630000, 2, 4, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},	// UHF
-	{680000, 2, 5, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},	// UHF
-	{720000, 2, 6, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},	// UHF
-	{900000, 2, 7, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},	// UHF
+	{510000, 2, 0, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},
+	{540000, 2, 1, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},
+	{600000, 2, 3, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},
+	{630000, 2, 4, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},
+	{680000, 2, 5, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},
+	{720000, 2, 6, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},
+	{900000, 2, 7, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},
 #endif
 #ifdef CONFIG_BAND_LBAND
-	{1500000, 4, 0, 20, 0x300, 0x1912, 0x82c9, EN_LBD},	// LBD EN_LBD
-	{1600000, 4, 1, 20, 0x300, 0x1912, 0x82c9, EN_LBD},	// LBD EN_LBD
-	{1800000, 4, 3, 20, 0x300, 0x1912, 0x82c9, EN_LBD},	// LBD EN_LBD
+	{1500000, 4, 0, 20, 0x300, 0x1912, 0x82c9, EN_LBD},
+	{1600000, 4, 1, 20, 0x300, 0x1912, 0x82c9, EN_LBD},
+	{1800000, 4, 3, 20, 0x300, 0x1912, 0x82c9, EN_LBD},
 #endif
 #ifdef CONFIG_BAND_SBAND
-	{2300000, 1, 4, 20, 0x300, 0x2d2A, 0x82c7, EN_SBD},	// SBD EN_SBD
-	{2900000, 1, 7, 20, 0x280, 0x2deb, 0x8347, EN_SBD},	// SBD EN_SBD
+	{2300000, 1, 4, 20, 0x300, 0x2d2A, 0x82c7, EN_SBD},
+	{2900000, 1, 7, 20, 0x280, 0x2deb, 0x8347, EN_SBD},
 #endif
 };
 
 static const struct dib0090_pll dib0090_p1g_pll_table[] = {
 #ifdef CONFIG_BAND_CBAND
-	{57000, 0, 11, 48, 6},	// CAB
-	{70000, 1, 11, 48, 6},	// CAB
-	{86000, 0, 10, 32, 4},	// CAB
-	{105000, 1, 10, 32, 4},	// FM
-	{115000, 0, 9, 24, 6},	// FM
-	{140000, 1, 9, 24, 6},	// MID FM VHF
-	{170000, 0, 8, 16, 4},	// MID FM VHF
+	{57000, 0, 11, 48, 6},
+	{70000, 1, 11, 48, 6},
+	{86000, 0, 10, 32, 4},
+	{105000, 1, 10, 32, 4},
+	{115000, 0, 9, 24, 6},
+	{140000, 1, 9, 24, 6},
+	{170000, 0, 8, 16, 4},
 #endif
 #ifdef CONFIG_BAND_VHF
-	{200000, 1, 8, 16, 4},	// VHF
-	{230000, 0, 7, 12, 6},	// VHF
-	{280000, 1, 7, 12, 6},	// MID VHF UHF
-	{340000, 0, 6, 8, 4},	// MID VHF UHF
-	{380000, 1, 6, 8, 4},	// MID VHF UHF
-	{455000, 0, 5, 6, 6},	// MID VHF UHF
+	{200000, 1, 8, 16, 4},
+	{230000, 0, 7, 12, 6},
+	{280000, 1, 7, 12, 6},
+	{340000, 0, 6, 8, 4},
+	{380000, 1, 6, 8, 4},
+	{455000, 0, 5, 6, 6},
 #endif
 #ifdef CONFIG_BAND_UHF
-	{580000, 1, 5, 6, 6},	// UHF
-	{680000, 0, 4, 4, 4},	// UHF
-	{860000, 1, 4, 4, 4},	// UHF
+	{580000, 1, 5, 6, 6},
+	{680000, 0, 4, 4, 4},
+	{860000, 1, 4, 4, 4},
 #endif
 #ifdef CONFIG_BAND_LBAND
-	{1800000, 1, 2, 2, 4},	// LBD
+	{1800000, 1, 2, 2, 4},
 #endif
 #ifdef CONFIG_BAND_SBAND
-	{2900000, 0, 1, 1, 6},	// SBD
+	{2900000, 0, 1, 1, 6},
 #endif
 };
 
 static const struct dib0090_tuning dib0090_p1g_tuning_table_fm_vhf_on_cband[] = {
-	//max_freq, switch_trim, lna_tune, lna_bias, v2i, mix, load, tuner_enable;
 #ifdef CONFIG_BAND_CBAND
-	{184000, 4, 3, 0x4187, 0x2c0, 0x2d22, 0x81cb, EN_CAB},	// FM EN_CAB      // 0x8190 Good perf but higher current //0x4187 Low current
-	{227000, 4, 3, 0x4187, 0x2c0, 0x2d22, 0x81cb, EN_CAB},	// FM EN_CAB
-	{380000, 4, 3, 0x4187, 0x2c0, 0x2d22, 0x81cb, EN_CAB},	// FM EN_CAB
+	{184000, 4, 3, 0x4187, 0x2c0, 0x2d22, 0x81cb, EN_CAB},
+	{227000, 4, 3, 0x4187, 0x2c0, 0x2d22, 0x81cb, EN_CAB},
+	{380000, 4, 3, 0x4187, 0x2c0, 0x2d22, 0x81cb, EN_CAB},
 #endif
 #ifdef CONFIG_BAND_UHF
-	{520000, 2, 0, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},	// UHF
-	{550000, 2, 2, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},	// UHF
-	{650000, 2, 3, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},	// UHF
-	{750000, 2, 5, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},	// UHF
-	{850000, 2, 6, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},	// UHF
-	{900000, 2, 7, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},	// UHF
+	{520000, 2, 0, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},
+	{550000, 2, 2, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},
+	{650000, 2, 3, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},
+	{750000, 2, 5, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},
+	{850000, 2, 6, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},
+	{900000, 2, 7, 15, 0x300, 0x1d12, 0xb9ce, EN_UHF},
 #endif
 #ifdef CONFIG_BAND_LBAND
-	{1500000, 4, 0, 20, 0x300, 0x1912, 0x82c9, EN_LBD},	// LBD EN_LBD
-	{1600000, 4, 1, 20, 0x300, 0x1912, 0x82c9, EN_LBD},	// LBD EN_LBD
-	{1800000, 4, 3, 20, 0x300, 0x1912, 0x82c9, EN_LBD},	// LBD EN_LBD
+	{1500000, 4, 0, 20, 0x300, 0x1912, 0x82c9, EN_LBD},
+	{1600000, 4, 1, 20, 0x300, 0x1912, 0x82c9, EN_LBD},
+	{1800000, 4, 3, 20, 0x300, 0x1912, 0x82c9, EN_LBD},
 #endif
 #ifdef CONFIG_BAND_SBAND
-	{2300000, 1, 4, 20, 0x300, 0x2d2A, 0x82c7, EN_SBD},	// SBD EN_SBD
-	{2900000, 1, 7, 20, 0x280, 0x2deb, 0x8347, EN_SBD},	// SBD EN_SBD
+	{2300000, 1, 4, 20, 0x300, 0x2d2A, 0x82c7, EN_SBD},
+	{2900000, 1, 7, 20, 0x280, 0x2deb, 0x8347, EN_SBD},
 #endif
 };
 
 static const struct dib0090_tuning dib0090_tuning_table_cband_7090[] = {
-	//max_freq, switch_trim, lna_tune, lna_bias, v2i, mix, load, tuner_enable;
 #ifdef CONFIG_BAND_CBAND
-	//{ 184000,  4,  3, 0x018F, 0x2c0, 0x2d22, 0xb9ce, EN_CAB }, // 0x81ce 0x8190 Good perf but higher current //0x4187 Low current
 	{300000, 4, 3, 0x018F, 0x2c0, 0x2d22, 0xb9ce, EN_CAB},
-	{380000, 4, 10, 0x018F, 0x2c0, 0x2d22, 0xb9ce, EN_CAB},	//0x4187
+	{380000, 4, 10, 0x018F, 0x2c0, 0x2d22, 0xb9ce, EN_CAB},
 	{570000, 4, 10, 0x8190, 0x2c0, 0x2d22, 0xb9ce, EN_CAB},
 	{858000, 4, 5, 0x8190, 0x2c0, 0x2d22, 0xb9ce, EN_CAB},
 #endif
@@ -1916,17 +1901,15 @@ static int dib0090_captrim_search(struct dib0090_state *state, enum frontend_tun
 				state->captrim = state->fcaptrim = dib0090_read_reg(state, 0x18) & 0x7f;
 			}
 		}
-		state->adc_diff = 3000;	// start with a unreachable high number : only set for KROSUS < P1G */
+		state->adc_diff = 3000;
 		*tune_state = CT_TUNER_STEP_0;
 
 	} else if (*tune_state == CT_TUNER_STEP_0) {
 		if (state->identity.p1g && !force_soft_search) {
-			// 30MHz => Code 15 for the ration => 128us to lock. Giving approximately
-			u8 ratio = 31;	// (state->config->io.clock_khz / 1024 + 1) & 0x1f;
+			u8 ratio = 31;
 
 			dib0090_write_reg(state, 0x40, (3 << 7) | (ratio << 2) | (1 << 1) | 1);
 			dib0090_read_reg(state, 0x40);
-			//dib0090_write_reg(state, 0x40, (3<<7) | ((((state->config->io.clock_khz >> 11)+1) & 0x1f)<<2) | (1<<1) | 1);
 			ret = 50;
 		} else {
 			state->step /= 2;
@@ -1968,9 +1951,6 @@ static int dib0090_captrim_search(struct dib0090_state *state, enum frontend_tun
 				dprintk("CAPTRIM=%d is closer to target (%d/%d)", (u32) state->captrim, (u32) adc, (u32) state->adc_diff);
 				state->adc_diff = adc;
 				state->fcaptrim = state->captrim;
-				//we could break here, to save time, if we reached a close-enough value
-				//e.g.: if (state->adc_diff < 20)
-				//break;
 			}
 
 			state->captrim += step_sign * state->step;
@@ -1979,7 +1959,7 @@ static int dib0090_captrim_search(struct dib0090_state *state, enum frontend_tun
 			else
 				*tune_state = CT_TUNER_STEP_2;
 
-			ret = 25;	//LOLO changed from 15
+			ret = 25;
 		}
 	} else if (*tune_state == CT_TUNER_STEP_2) {	/* this step is only used by krosus < P1G */
 		/*write the final cptrim config */
@@ -2000,28 +1980,27 @@ static int dib0090_get_temperature(struct dib0090_state *state, enum frontend_tu
 	int ret = 15;
 	s16 val;
 
-	//The assumption is that the AGC is not active
 	switch (*tune_state) {
 	case CT_TUNER_START:
 		state->wbdmux = dib0090_read_reg(state, 0x10);
-		dib0090_write_reg(state, 0x10, (state->wbdmux & ~(0xff << 3)) | (0x8 << 3));	//Move to the bias and clear the wbd enable
+		dib0090_write_reg(state, 0x10, (state->wbdmux & ~(0xff << 3)) | (0x8 << 3));
 
 		state->bias = dib0090_read_reg(state, 0x13);
-		dib0090_write_reg(state, 0x13, state->bias | (0x3 << 8));	//Move to the Ref
+		dib0090_write_reg(state, 0x13, state->bias | (0x3 << 8));
 
 		*tune_state = CT_TUNER_STEP_0;
 		/* wait for the WBDMUX to switch and for the ADC to sample */
 		break;
 
 	case CT_TUNER_STEP_0:
-		state->adc_diff = dib0090_get_slow_adc_val(state);	// Get the value for the Ref
-		dib0090_write_reg(state, 0x13, (state->bias & ~(0x3 << 8)) | (0x2 << 8));	//Move to the Ptat
+		state->adc_diff = dib0090_get_slow_adc_val(state);
+		dib0090_write_reg(state, 0x13, (state->bias & ~(0x3 << 8)) | (0x2 << 8));
 		*tune_state = CT_TUNER_STEP_1;
 		break;
 
 	case CT_TUNER_STEP_1:
-		val = dib0090_get_slow_adc_val(state);	// Get the value for the Ptat
-		state->temperature = ((s16) ((val - state->adc_diff) * 180) >> 8) + 55;	// +55 is defined as = -30deg
+		val = dib0090_get_slow_adc_val(state);
+		state->temperature = ((s16) ((val - state->adc_diff) * 180) >> 8) + 55;
 
 		dprintk("temperature: %d C", state->temperature - 30);
 
@@ -2029,14 +2008,13 @@ static int dib0090_get_temperature(struct dib0090_state *state, enum frontend_tu
 		break;
 
 	case CT_TUNER_STEP_2:
-		//Reload the start values.
 		dib0090_write_reg(state, 0x13, state->bias);
 		dib0090_write_reg(state, 0x10, state->wbdmux);	/* write back original WBDMUX */
 
 		*tune_state = CT_TUNER_START;
 		state->calibrate &= ~TEMP_CAL;
 		if (state->config->analog_output == 0)
-			dib0090_write_reg(state, 0x23, dib0090_read_reg(state, 0x23) | (1 << 14));	//Set the DataTX
+			dib0090_write_reg(state, 0x23, dib0090_read_reg(state, 0x23) | (1 << 14));
 
 		break;
 
@@ -2070,16 +2048,17 @@ static int dib0090_tune(struct dvb_frontend *fe)
 		/* deactivate DataTX before some calibrations */
 		if (state->calibrate & (DC_CAL | TEMP_CAL | WBD_CAL))
 			dib0090_write_reg(state, 0x23, dib0090_read_reg(state, 0x23) & ~(1 << 14));
-		else /* Activate DataTX in case a calibration has been done before */ if (state->config->analog_output == 0)
-			dib0090_write_reg(state, 0x23, dib0090_read_reg(state, 0x23) | (1 << 14));
+		else
+			/* Activate DataTX in case a calibration has been done before */
+			if (state->config->analog_output == 0)
+				dib0090_write_reg(state, 0x23, dib0090_read_reg(state, 0x23) | (1 << 14));
 	}
 
 	if (state->calibrate & DC_CAL)
 		return dib0090_dc_offset_calibration(state, tune_state);
 	else if (state->calibrate & WBD_CAL) {
-		if (state->current_rf == 0) {
+		if (state->current_rf == 0)
 			state->current_rf = state->fe->dtv_property_cache.frequency / 1000;
-		}
 		return dib0090_wbd_calibration(state, tune_state);
 	} else if (state->calibrate & TEMP_CAL)
 		return dib0090_get_temperature(state, tune_state);
@@ -2091,7 +2070,7 @@ static int dib0090_tune(struct dvb_frontend *fe)
 		if (state->config->use_pwm_agc && state->identity.in_soc) {
 			tmp = dib0090_read_reg(state, 0x39);
 			if ((tmp >> 10) & 0x1)
-				dib0090_write_reg(state, 0x39, tmp & ~(1 << 10));	// disengage mux : en_mux_bb1 = 0
+				dib0090_write_reg(state, 0x39, tmp & ~(1 << 10));
 		}
 
 		state->current_band = (u8) BAND_OF_FREQUENCY(state->fe->dtv_property_cache.frequency / 1000);
@@ -2172,22 +2151,17 @@ static int dib0090_tune(struct dvb_frontend *fe)
 			state->current_tune_table_index = tune;
 			state->current_pll_table_index = pll;
 
-			// select internal switch
 			dib0090_write_reg(state, 0x0b, 0xb800 | (tune->switch_trim));
 
-			// Find the VCO frequency in MHz
 			VCOF_kHz = (pll->hfdiv * state->rf_request) * 2;
 
-			FREF = state->config->io.clock_khz;	// REFDIV is 1FREF Has to be as Close as possible to 10MHz
+			FREF = state->config->io.clock_khz;
 			if (state->config->fref_clock_ratio != 0)
 				FREF /= state->config->fref_clock_ratio;
 
-			// Determine the FB divider
-			// The reference is 10MHz, Therefore the FBdivider is on the first digits
 			FBDiv = (VCOF_kHz / pll->topresc / FREF);
-			Rest = (VCOF_kHz / pll->topresc) - FBDiv * FREF;	//in kHz
+			Rest = (VCOF_kHz / pll->topresc) - FBDiv * FREF;
 
-			// Avoid Spurs in the loopfilter bandwidth
 			if (Rest < LPF)
 				Rest = 0;
 			else if (Rest < 2 * LPF)
@@ -2195,8 +2169,7 @@ static int dib0090_tune(struct dvb_frontend *fe)
 			else if (Rest > (FREF - LPF)) {
 				Rest = 0;
 				FBDiv += 1;
-			}	//Go to the next FB
-			else if (Rest > (FREF - 2 * LPF))
+			} else if (Rest > (FREF - 2 * LPF))
 				Rest = FREF - 2 * LPF;
 			Rest = (Rest * 6528) / (FREF / 10);
 			state->rest = Rest;
@@ -2208,8 +2181,6 @@ static int dib0090_tune(struct dvb_frontend *fe)
 			if (Rest == 0) {
 				if (pll->vco_band)
 					lo5 = 0x049f;
-				//else if (state->config->analog_output)
-				//	lo5 = 0x041f;
 				else
 					lo5 = 0x041f;
 			} else {
@@ -2228,12 +2199,11 @@ static int dib0090_tune(struct dvb_frontend *fe)
 					else
 						lo5 = 0x42f;
 				} else
-					lo5 = 0x42c;	//BIAS Lo set to 4 by default in case of the Captrim search does not take care of the VCO Bias
+					lo5 = 0x42c;
 			}
 
 			lo5 |= (pll->hfdiv_code << 11) | (pll->vco_band << 7);	/* bit 15 is the split to the slave, we do not do it here */
 
-			//Internal loop filter set...
 			if (!state->config->io.pll_int_loop_filt) {
 				if (state->identity.in_soc)
 					lo6 = 0xff98;
@@ -2242,40 +2212,30 @@ static int dib0090_tune(struct dvb_frontend *fe)
 				else
 					lo6 = 0xff28;
 			} else
-				lo6 = (state->config->io.pll_int_loop_filt << 3);	// take the loop filter value given by the layout
-			//dprintk("lo6 = 0x%04x", (u32)lo6);
+				lo6 = (state->config->io.pll_int_loop_filt << 3);
 
 			Den = 1;
 
 			if (Rest > 0) {
 				if (state->config->analog_output)
-					lo6 |= (1 << 2) | 2;	//SigmaDelta and Dither
+					lo6 |= (1 << 2) | 2;
 				else {
 					if (state->identity.in_soc)
-						lo6 |= (1 << 2) | 2;	//SigmaDelta and Dither
+						lo6 |= (1 << 2) | 2;
 					else
-						lo6 |= (1 << 2) | 2;	//SigmaDelta and Dither
+						lo6 |= (1 << 2) | 2;
 				}
 				Den = 255;
 			}
-			// Now we have to define the Num and Denum
-			// LO1 gets the FBdiv
 			dib0090_write_reg(state, 0x15, (u16) FBDiv);
-			// LO2 gets the REFDiv
 			if (state->config->fref_clock_ratio != 0)
 				dib0090_write_reg(state, 0x16, (Den << 8) | state->config->fref_clock_ratio);
 			else
 				dib0090_write_reg(state, 0x16, (Den << 8) | 1);
-			// LO3 for the Numerator
 			dib0090_write_reg(state, 0x17, (u16) Rest);
-			// VCO and HF DIV
 			dib0090_write_reg(state, 0x19, lo5);
-			// SIGMA Delta
 			dib0090_write_reg(state, 0x1c, lo6);
 
-			// Check if the 0090 is analogged configured
-			//Disable ADC and DigPLL =0xFF9F, 0xffbf for test purposes.
-			//Enable The Outputs of the BB on DATA_Tx
 			lo6 = tune->tuner_enable;
 			if (state->config->analog_output)
 				lo6 = (lo6 & 0xff9f) | 0x2;
@@ -2294,10 +2254,8 @@ static int dib0090_tune(struct dvb_frontend *fe)
 	else if (*tune_state == CT_TUNER_STEP_0) {	/* Warning : because of captrim cal, if you change this step, change it also in _cal.c file because it is the step following captrim cal state machine */
 		const struct dib0090_wbd_slope *wbd = state->current_wbd_table;
 
-//	if(!state->identity.p1g) {
 		while (state->current_rf / 1000 > wbd->max_freq)
 			wbd++;
-//	}
 
 		dib0090_write_reg(state, 0x1e, 0x07ff);
 		dprintk("Final Captrim: %d", (u32) state->fcaptrim);
@@ -2311,12 +2269,11 @@ static int dib0090_tune(struct dvb_frontend *fe)
 
 #define WBD     0x781		/* 1 1 1 1 0000 0 0 1 */
 		c = 4;
-		i = 3;		//wbdmux_bias
+		i = 3;
 
-		if (wbd->wbd_gain != 0)	//&& !state->identity.p1g)
+		if (wbd->wbd_gain != 0)
 			c = wbd->wbd_gain;
 
-		//Store wideband mux register.
 		state->wbdmux = (c << 13) | (i << 11) | (WBD | (state->config->use_pwm_agc << 1));
 		dib0090_write_reg(state, 0x10, state->wbdmux);
 
@@ -2335,15 +2292,12 @@ static int dib0090_tune(struct dvb_frontend *fe)
 	} else if (*tune_state == CT_TUNER_STEP_1) {
 		/* initialize the lt gain register */
 		state->rf_lt_def = 0x7c00;
-		// dib0090_write_reg(state, 0x0f, state->rf_lt_def);
 
 		dib0090_set_bandwidth(state);
 		state->tuner_is_tuned = 1;
 
-//	if(!state->identity.p1g)
-		state->calibrate |= WBD_CAL;	// TODO: only do the WBD calibration for new tune
-//
-		state->calibrate |= TEMP_CAL;	// Force the Temperature to be remesured at next TUNE.
+		state->calibrate |= WBD_CAL;
+		state->calibrate |= TEMP_CAL;
 		*tune_state = CT_TUNER_STOP;
 	} else
 		ret = FE_CALLBACK_TIME_NEVER;
@@ -2435,8 +2389,8 @@ static const struct dvb_tuner_ops dib0090_fw_ops = {
 static const struct dib0090_wbd_slope dib0090_wbd_table_default[] = {
 	{470, 0, 250, 0, 100, 4},
 	{860, 51, 866, 21, 375, 4},
-	{1700, 0, 800, 0, 850, 4},	//LBAND Predefinition , to calibrate
-	{2900, 0, 250, 0, 100, 6},	//SBAND Predefinition , NOT tested Yet
+	{1700, 0, 800, 0, 850, 4},
+	{2900, 0, 250, 0, 100, 6},
 	{0xFFFF, 0, 0, 0, 0, 0},
 };
 
@@ -2489,12 +2443,11 @@ struct dvb_frontend *dib0090_fw_register(struct dvb_frontend *fe, struct i2c_ada
 	memcpy(&fe->ops.tuner_ops, &dib0090_fw_ops, sizeof(struct dvb_tuner_ops));
 
 	return fe;
- free_mem:
+free_mem:
 	kfree(st);
 	fe->tuner_priv = NULL;
 	return NULL;
 }
-
 EXPORT_SYMBOL(dib0090_fw_register);
 
 MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");

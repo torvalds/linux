@@ -18,7 +18,7 @@ struct dibx000_i2c_master {
 
 	enum dibx000_i2c_interface selected_interface;
 
-//	struct i2c_adapter  tuner_i2c_adap;
+/*	struct i2c_adapter  tuner_i2c_adap; */
 	struct i2c_adapter gated_tuner_i2c_adap;
 	struct i2c_adapter master_i2c_adap_gpio12;
 	struct i2c_adapter master_i2c_adap_gpio34;
@@ -50,7 +50,7 @@ extern u32 systime(void);
 #define BAND_FM	   0x10
 #define BAND_CBAND 0x20
 
-#define BAND_OF_FREQUENCY(freq_kHz) ( (freq_kHz) <= 170000 ? BAND_CBAND : \
+#define BAND_OF_FREQUENCY(freq_kHz) ((freq_kHz) <= 170000 ? BAND_CBAND : \
 									(freq_kHz) <= 115000 ? BAND_FM : \
 									(freq_kHz) <= 250000 ? BAND_VHF : \
 									(freq_kHz) <= 863000 ? BAND_UHF : \
@@ -140,9 +140,9 @@ enum dibx000_adc_states {
 	DIBX000_VBG_DISABLE,
 };
 
-#define BANDWIDTH_TO_KHZ(v) ( (v) == BANDWIDTH_8_MHZ  ? 8000 : \
+#define BANDWIDTH_TO_KHZ(v) ((v) == BANDWIDTH_8_MHZ  ? 8000 : \
 				(v) == BANDWIDTH_7_MHZ  ? 7000 : \
-				(v) == BANDWIDTH_6_MHZ  ? 6000 : 8000 )
+				(v) == BANDWIDTH_6_MHZ  ? 6000 : 8000)
 
 #define BANDWIDTH_TO_INDEX(v) ( \
 	(v) == 8000 ? BANDWIDTH_8_MHZ : \
@@ -223,7 +223,7 @@ struct dvb_frontend_parametersContext {
 
 #define FE_CALLBACK_TIME_NEVER 0xffffffff
 
-#define ABS(x) ((x<0)?(-x):(x))
+#define ABS(x) ((x < 0) ? (-x) : (x))
 
 #define DATA_BUS_ACCESS_MODE_8BIT                 0x01
 #define DATA_BUS_ACCESS_MODE_16BIT                0x02

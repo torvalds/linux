@@ -1444,7 +1444,7 @@ static struct dib8000_config dib809x_dib8000_config[2] = {
 	.drives = 0x2d98,
 	.diversity_delay = 48,
 	.refclksel = 3,
-	},{
+	}, {
 	.output_mpeg2_in_188_bytes = 1,
 
 	.agc_config_count = 2,
@@ -1517,27 +1517,26 @@ static int dib8096_set_param_override(struct dvb_frontend *fe,
 
 
 	if (band == BAND_CBAND) {
-	deb_info("tuning in CBAND - soft-AGC startup\n");
-	/* TODO specific wbd target for dib0090 - needed for startup ? */
-	dib0090_set_tune_state(fe, CT_AGC_START);
-	do {
-		ret = dib0090_gain_control(fe);
-		msleep(ret);
-		tune_state = dib0090_get_tune_state(fe);
-		if (tune_state == CT_AGC_STEP_0)
-			dib8000_set_gpio(fe, 6, 0, 1);
-		else if (tune_state == CT_AGC_STEP_1) {
-			dib0090_get_current_gain(fe, NULL, NULL, &rf_gain_limit, &ltgain);
-			if (rf_gain_limit == 0)
-				dib8000_set_gpio(fe, 6, 0, 0);
-		}
-	} while (tune_state < CT_AGC_STOP);
-	dib0090_pwm_gain_reset(fe);
-	dib8000_pwm_agc_reset(fe);
-	dib8000_set_tune_state(fe, CT_DEMOD_START);
+		deb_info("tuning in CBAND - soft-AGC startup\n");
+		dib0090_set_tune_state(fe, CT_AGC_START);
+		do {
+			ret = dib0090_gain_control(fe);
+			msleep(ret);
+			tune_state = dib0090_get_tune_state(fe);
+			if (tune_state == CT_AGC_STEP_0)
+				dib8000_set_gpio(fe, 6, 0, 1);
+			else if (tune_state == CT_AGC_STEP_1) {
+				dib0090_get_current_gain(fe, NULL, NULL, &rf_gain_limit, &ltgain);
+				if (rf_gain_limit == 0)
+					dib8000_set_gpio(fe, 6, 0, 0);
+			}
+		} while (tune_state < CT_AGC_STOP);
+		dib0090_pwm_gain_reset(fe);
+		dib8000_pwm_agc_reset(fe);
+		dib8000_set_tune_state(fe, CT_DEMOD_START);
 	} else {
-	deb_info("not tuning in CBAND - standard AGC startup\n");
-	dib0090_pwm_gain_reset(fe);
+		deb_info("not tuning in CBAND - standard AGC startup\n");
+		dib0090_pwm_gain_reset(fe);
 	}
 
 	return 0;
@@ -1608,7 +1607,7 @@ static int nim8096md_frontend_attach(struct dvb_usb_adapter *adap)
 	struct dvb_frontend *fe_slave;
 
 	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 0);
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
 	msleep(1000);
 	dib0700_set_gpio(adap->dev, GPIO9, GPIO_OUT, 1);
@@ -1619,9 +1618,9 @@ static int nim8096md_frontend_attach(struct dvb_usb_adapter *adap)
 
 	dib0700_ctrl_clock(adap->dev, 72, 1);
 
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
 
 	dib8000_i2c_enumeration(&adap->dev->i2c_adap, 2, 18, 0x80);
@@ -1662,8 +1661,8 @@ static int dib01x0_pmu_update(struct i2c_adapter *i2c, u16 *data, u8 len)
 	u8 wb[4] = { 0xc >> 8, 0xc & 0xff, 0, 0 };
 	u8 rb[2];
 	struct i2c_msg msg[2] = {
-		{.addr = 0x1e >> 1,.flags = 0,.buf = wb,.len = 2},
-		{.addr = 0x1e >> 1,.flags = I2C_M_RD,.buf = rb,.len = 2},
+		{.addr = 0x1e >> 1, .flags = 0, .buf = wb, .len = 2},
+		{.addr = 0x1e >> 1, .flags = I2C_M_RD, .buf = rb, .len = 2},
 	};
 	u8 index_data;
 
@@ -1673,19 +1672,19 @@ static int dib01x0_pmu_update(struct i2c_adapter *i2c, u16 *data, u8 len)
 		return -EIO;
 
 	switch (rb[0] << 8 | rb[1]) {
-		case 0:
+	case 0:
 			deb_info("Found DiB0170 rev1: This version of DiB0170 is not supported any longer.\n");
 			return -EIO;
-		case 1:
+	case 1:
 			deb_info("Found DiB0170 rev2");
 			break;
-		case 2:
+	case 2:
 			deb_info("Found DiB0190 rev2");
 			break;
-		default:
+	default:
 			deb_info("DiB01x0 not found");
 			return -EIO;
-		}
+	}
 
 	for (index_data = 0; index_data < len; index_data += 2) {
 		wb[2] = (data[index_data + 1] >> 8) & 0xff;
@@ -1701,8 +1700,8 @@ static int dib01x0_pmu_update(struct i2c_adapter *i2c, u16 *data, u8 len)
 			wb[3] |= rb[1] & ~(3 << 4);
 		}
 
-		wb[0] = (data[index_data  ] >> 8)&0xff;
-		wb[1] = (data[index_data  ]     )&0xff;
+		wb[0] = (data[index_data] >> 8)&0xff;
+		wb[1] = (data[index_data])&0xff;
 		msg[0].len = 4;
 		if (i2c_transfer(i2c, &msg[0], 1) != 1)
 			return -EIO;
@@ -1799,7 +1798,7 @@ static struct dib0090_config nim9090md_dib0090_config[2] = {
 		.clkoutdrive = 0,
 		.freq_offset_khz_uhf = 0,
 		.freq_offset_khz_vhf = 0,
-	},{
+	}, {
 		.io.pll_bypass = 0,
 		.io.pll_range = 1,
 		.io.pll_prediv = 1,
@@ -1832,7 +1831,7 @@ static int stk9090m_frontend_attach(struct dvb_usb_adapter *adap)
 	dib0700_set_i2c_speed(adap->dev, 340);
 
 	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO9, GPIO_OUT, 1);
 	dib0700_set_gpio(adap->dev, GPIO4, GPIO_OUT, 1);
 	dib0700_set_gpio(adap->dev, GPIO7, GPIO_OUT, 1);
@@ -1840,9 +1839,9 @@ static int stk9090m_frontend_attach(struct dvb_usb_adapter *adap)
 
 	dib0700_ctrl_clock(adap->dev, 72, 1);
 
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
 
 	dib9000_i2c_enumeration(&adap->dev->i2c_adap, 1, 0x10, 0x80);
@@ -1881,7 +1880,7 @@ static int dib9090_tuner_attach(struct dvb_usb_adapter *adap)
 	dib0700_set_i2c_speed(adap->dev, 2000);
 	if (dib9000_firmware_post_pll_init(adap->fe) < 0)
 		return -ENODEV;
-    release_firmware(state->frontend_firmware);
+	release_firmware(state->frontend_firmware);
 	return 0;
 }
 
@@ -1900,7 +1899,7 @@ static int nim9090md_frontend_attach(struct dvb_usb_adapter *adap)
 	dib0700_set_i2c_speed(adap->dev, 340);
 
 	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO9, GPIO_OUT, 1);
 	dib0700_set_gpio(adap->dev, GPIO4, GPIO_OUT, 1);
 	dib0700_set_gpio(adap->dev, GPIO7, GPIO_OUT, 1);
@@ -1908,9 +1907,9 @@ static int nim9090md_frontend_attach(struct dvb_usb_adapter *adap)
 
 	dib0700_ctrl_clock(adap->dev, 72, 1);
 
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
 
 	if (request_firmware(&state->frontend_firmware, "dib9090.fw", &adap->dev->udev->dev)) {
@@ -1974,7 +1973,7 @@ static int nim9090md_tuner_attach(struct dvb_usb_adapter *adap)
 		if (dib9000_firmware_post_pll_init(fe_slave) < 0)
 			return -ENODEV;
 	}
-    release_firmware(state->frontend_firmware);
+	release_firmware(state->frontend_firmware);
 
 	return 0;
 }
@@ -2005,43 +2004,43 @@ static int dib7090p_get_best_sampling(struct dvb_frontend *fe , struct dib7090p_
 	deb_info("bandwidth = %d fdem_min =%d", fe->dtv_property_cache.bandwidth_hz, fdem_min);
 
 	/* Find Min and Max prediv */
-	while((xtal/max_prediv) >= fcp_min)
+	while ((xtal/max_prediv) >= fcp_min)
 		max_prediv++;
 
 	max_prediv--;
 	min_prediv = max_prediv;
-	while((xtal/min_prediv) <= fcp_max) {
+	while ((xtal/min_prediv) <= fcp_max) {
 		min_prediv--;
-		if(min_prediv == 1)
+		if (min_prediv == 1)
 			break;
 	}
 	deb_info("MIN prediv = %d : MAX prediv = %d", min_prediv, max_prediv);
 
 	min_prediv = 2;
 
-	for(prediv = min_prediv ; prediv < max_prediv; prediv ++) {
+	for (prediv = min_prediv ; prediv < max_prediv; prediv++) {
 		fcp = xtal / prediv;
-		if(fcp > fcp_min && fcp < fcp_max) {
-			for(loopdiv = 1 ; loopdiv < 64 ; loopdiv++) {
+		if (fcp > fcp_min && fcp < fcp_max) {
+			for (loopdiv = 1 ; loopdiv < 64 ; loopdiv++) {
 				fdem = ((xtal/prediv) * loopdiv);
 				fs   = fdem / 4;
 				/* test min/max system restrictions */
 
-				if((fdem >= fdem_min) && (fdem <= fdem_max) && (fs >= fe->dtv_property_cache.bandwidth_hz/1000)) {
+				if ((fdem >= fdem_min) && (fdem <= fdem_max) && (fs >= fe->dtv_property_cache.bandwidth_hz/1000)) {
 					spur = 0;
 					/* test fs harmonics positions */
-					for(harmonic_id = (fe->dtv_property_cache.frequency / (1000*fs)) ;  harmonic_id <= ((fe->dtv_property_cache.frequency / (1000*fs))+1) ; harmonic_id++) {
-						if(((fs*harmonic_id) >= ((fe->dtv_property_cache.frequency/1000) - (fe->dtv_property_cache.bandwidth_hz/2000))) &&  ((fs*harmonic_id) <= ((fe->dtv_property_cache.frequency/1000) + (fe->dtv_property_cache.bandwidth_hz/2000)))) {
+					for (harmonic_id = (fe->dtv_property_cache.frequency / (1000*fs)) ;  harmonic_id <= ((fe->dtv_property_cache.frequency / (1000*fs))+1) ; harmonic_id++) {
+						if (((fs*harmonic_id) >= ((fe->dtv_property_cache.frequency/1000) - (fe->dtv_property_cache.bandwidth_hz/2000))) &&  ((fs*harmonic_id) <= ((fe->dtv_property_cache.frequency/1000) + (fe->dtv_property_cache.bandwidth_hz/2000)))) {
 							spur = 1;
 							break;
 						}
 					}
 
-					if(!spur) {
+					if (!spur) {
 						adc->pll_loopdiv = loopdiv;
 						adc->pll_prediv = prediv;
-						adc->timf = 2396745143UL/fdem*(1<<9);
-						adc->timf+= ((2396745143UL%fdem)<< 9)/fdem;
+						adc->timf = 2396745143UL/fdem*(1 << 9);
+						adc->timf += ((2396745143UL%fdem) << 9)/fdem;
 						deb_info("loopdiv=%i prediv=%i timf=%i", loopdiv, prediv, adc->timf);
 						break;
 					}
@@ -2053,9 +2052,9 @@ static int dib7090p_get_best_sampling(struct dvb_frontend *fe , struct dib7090p_
 	}
 
 
-	if(adc->pll_loopdiv == 0 && adc->pll_prediv == 0) {
+	if (adc->pll_loopdiv == 0 && adc->pll_prediv == 0)
 		return -EINVAL;
-	} else
+	else
 		return 0;
 }
 
@@ -2077,7 +2076,7 @@ static int dib7090_agc_startup(struct dvb_frontend *fe, struct dvb_frontend_para
 	target = (dib0090_get_wbd_offset(fe) * 8 + 1) / 2;
 	dib7000p_set_wbd_ref(fe, target);
 
-	if(dib7090p_get_best_sampling(fe, &adc) == 0) {
+	if (dib7090p_get_best_sampling(fe, &adc) == 0) {
 		pll.pll_ratio  = adc.pll_loopdiv;
 		pll.pll_prediv = adc.pll_prediv;
 
@@ -2088,11 +2087,11 @@ static int dib7090_agc_startup(struct dvb_frontend *fe, struct dvb_frontend_para
 }
 
 static struct dib0090_wbd_slope dib7090_wbd_table[] = {
-	{ 380,   81, 850, 64, 540 ,4},
-	{ 860,   51, 866, 21,  375 ,4},
-	{1700,    0, 250, 0,   100, 6}, //LBAND Predefinition , NOT tested Yet
-	{2600,    0, 250, 0,   100, 6}, //SBAND Predefinition , NOT tested Yet
-	{ 0xFFFF, 0,   0, 0,   0   ,0},
+	{ 380,   81, 850, 64, 540,  4},
+	{ 860,   51, 866, 21,  375, 4},
+	{1700,    0, 250, 0,   100, 6},
+	{2600,    0, 250, 0,   100, 6},
+	{ 0xFFFF, 0,   0, 0,   0,   0},
 };
 
 struct dibx000_agc_config dib7090_agc_config[2] = {
@@ -2100,91 +2099,91 @@ struct dibx000_agc_config dib7090_agc_config[2] = {
 		.band_caps      = BAND_UHF,
 		/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=1, P_agc_inv_pwm1=0, P_agc_inv_pwm2=0,
 		* P_agc_inh_dc_rv_est=0, P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=5, P_agc_write=0 */
-		.setup          = (0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8) | (3 << 5) | (0 << 4) | (5 << 1) | (0 << 0), // setup
+		.setup          = (0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8) | (3 << 5) | (0 << 4) | (5 << 1) | (0 << 0),
 
-		.inv_gain       = 687,// inv_gain = 1/ 95.4dB // no boost, lower gain due to ramp quantification
-		.time_stabiliz  = 10,  // time_stabiliz
+		.inv_gain       = 687,
+		.time_stabiliz  = 10,
 
-		.alpha_level    = 0,  // alpha_level
-		.thlock         = 118,  // thlock
+		.alpha_level    = 0,
+		.thlock         = 118,
 
-		.wbd_inv        = 0,     // wbd_inv
-		.wbd_ref        = 1200,  // wbd_ref
-		.wbd_sel        = 3,     // wbd_sel
-		.wbd_alpha      = 5,     // wbd_alpha
+		.wbd_inv        = 0,
+		.wbd_ref        = 1200,
+		.wbd_sel        = 3,
+		.wbd_alpha      = 5,
 
-		.agc1_max       = 65535,  // agc1_max
-		.agc1_min       = 0,  // agc1_min
+		.agc1_max       = 65535,
+		.agc1_min       = 0,
 
-		.agc2_max       = 65535,  // agc2_max
-		.agc2_min       = 0,      // agc2_min
+		.agc2_max       = 65535,
+		.agc2_min       = 0,
 
-		.agc1_pt1       = 0,      // agc1_pt1
-		.agc1_pt2       = 32,     // agc1_pt2
-		.agc1_pt3       = 114,    // agc1_pt3  // 40.4dB
-		.agc1_slope1    = 143,    // agc1_slope1
-		.agc1_slope2    = 144,    // agc1_slope2
-		.agc2_pt1       = 114,    // agc2_pt1
-		.agc2_pt2       = 227,    // agc2_pt2
-		.agc2_slope1    = 116,    // agc2_slope1
-		.agc2_slope2    = 117,    // agc2_slope2
+		.agc1_pt1       = 0,
+		.agc1_pt2       = 32,
+		.agc1_pt3       = 114,
+		.agc1_slope1    = 143,
+		.agc1_slope2    = 144,
+		.agc2_pt1       = 114,
+		.agc2_pt2       = 227,
+		.agc2_slope1    = 116,
+		.agc2_slope2    = 117,
 
-		.alpha_mant     = 18,  // alpha_mant // 5Hz with 95.4dB
-		.alpha_exp      = 0,   // alpha_exp
-		.beta_mant      = 20,  // beta_mant
-		.beta_exp       = 59,  // beta_exp
+		.alpha_mant     = 18,
+		.alpha_exp      = 0,
+		.beta_mant      = 20,
+		.beta_exp       = 59,
 
-		.perform_agc_softsplit = 0,  // perform_agc_softsplit
+		.perform_agc_softsplit = 0,
 	} , {
 		.band_caps      = BAND_FM | BAND_VHF | BAND_CBAND,
 		/* P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=1, P_agc_inv_pwm1=0, P_agc_inv_pwm2=0,
 		* P_agc_inh_dc_rv_est=0, P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=5, P_agc_write=0 */
-		.setup          = (0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8) | (3 << 5) | (0 << 4) | (5 << 1) | (0 << 0), // setup
+		.setup          = (0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) | (0 << 8) | (3 << 5) | (0 << 4) | (5 << 1) | (0 << 0),
 
-		.inv_gain       = 732,// inv_gain = 1/ 89.5dB // no boost, lower gain due to ramp quantification
-		.time_stabiliz  = 10,  // time_stabiliz
+		.inv_gain       = 732,
+		.time_stabiliz  = 10,
 
-		.alpha_level    = 0,  // alpha_level
-		.thlock         = 118,  // thlock
+		.alpha_level    = 0,
+		.thlock         = 118,
 
-		.wbd_inv        = 0,     // wbd_inv
-		.wbd_ref        = 1200,  // wbd_ref
-		.wbd_sel        = 3,     // wbd_sel
-		.wbd_alpha      = 5,     // wbd_alpha
+		.wbd_inv        = 0,
+		.wbd_ref        = 1200,
+		.wbd_sel        = 3,
+		.wbd_alpha      = 5,
 
-		.agc1_max       = 65535,  // agc1_max : 1
-		.agc1_min       = 0,      // agc1_min
+		.agc1_max       = 65535,
+		.agc1_min       = 0,
 
-		.agc2_max       = 65535,  // agc2_max
-		.agc2_min       = 0,      // agc2_min
+		.agc2_max       = 65535,
+		.agc2_min       = 0,
 
-		.agc1_pt1       = 0,      // agc1_pt1
-		.agc1_pt2       = 0,      // agc1_pt2
-		.agc1_pt3       = 98,     // agc1_pt3  // 34.5dB CBAND P1G + 55dB BB boost = 89.5dB
-		.agc1_slope1    = 0,      // agc1_slope1
-		.agc1_slope2    = 167,    // agc1_slope2 = Dy/Dx * 2**6 * 2**8 = 1/98 * 2**6 *2**8 : Dy = 1
-		.agc1_pt1       = 98,     // agc2_pt1
-		.agc2_pt2       = 255,    // agc2_pt2
-		.agc2_slope1    = 104,    // agc2_slope1 = Dy/Dx * 2**6 * 2**8 = 1/(255-98) * 2**6 *2**8
-		.agc2_slope2    = 0,      // agc2_slope2
+		.agc1_pt1       = 0,
+		.agc1_pt2       = 0,
+		.agc1_pt3       = 98,
+		.agc1_slope1    = 0,
+		.agc1_slope2    = 167,
+		.agc1_pt1       = 98,
+		.agc2_pt2       = 255,
+		.agc2_slope1    = 104,
+		.agc2_slope2    = 0,
 
-		.alpha_mant     = 18,  // alpha_mant // 5Hz with 95.4dB
-		.alpha_exp      = 0,   // alpha_exp
-		.beta_mant      = 20,  // beta_mant
-		.beta_exp       = 59,  // beta_exp
+		.alpha_mant     = 18,
+		.alpha_exp      = 0,
+		.beta_mant      = 20,
+		.beta_exp       = 59,
 
-		.perform_agc_softsplit = 0,  // perform_agc_softsplit
+		.perform_agc_softsplit = 0,
 	}
 };
 
 static struct dibx000_bandwidth_config dib7090_clock_config_12_mhz = {
-	60000, 15000, // internal, sampling
-	1, 5, 0, 0, 0, // pll_cfg: prediv, ratio, range, reset, bypass
-	0, 0, 1, 1, 2, // misc: refdiv, bypclk_div, IO_CLK_en_core, ADClkSrc, modulo
-	(3 << 14) | (1 << 12) | (524 << 0), // sad_cfg: refsel, sel, freq_15k
-	(0 << 25) | 0, // ifreq = 0.000000 MHz
-	20452225, // timf
-	15000000, // xtal_hz
+	60000, 15000,
+	1, 5, 0, 0, 0,
+	0, 0, 1, 1, 2,
+	(3 << 14) | (1 << 12) | (524 << 0),
+	(0 << 25) | 0,
+	20452225,
+	15000000,
 };
 
 static struct dib7000p_config nim7090_dib7000p_config = {
@@ -2243,7 +2242,7 @@ static struct dib7000p_config tfe7090pvr_dib7000p_config[2] = {
 		.output_mode				= OUTMODE_MPEG2_PAR_GATED_CLK,
 		.default_i2c_addr			= 0x90,
 		.enMpegOutput				= 1,
-	},{
+	}, {
 		.output_mpeg2_in_188_bytes  = 1,
 		.hostbus_diversity			= 1,
 		.tuner_is_baseband			= 1,
@@ -2340,7 +2339,7 @@ static const struct dib0090_config tfe7090pvr_dib0090_config[2] = {
 		.data_tx_drv = 0,
 		.low_if = NULL,
 		.in_soc = 1,
-	},{
+	}, {
 		.io.clock_khz = 12000,
 		.io.pll_bypass = 0,
 		.io.pll_range = 0,
@@ -2378,15 +2377,15 @@ static const struct dib0090_config tfe7090pvr_dib0090_config[2] = {
 static int nim7090_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO9, GPIO_OUT, 1);
 	dib0700_set_gpio(adap->dev, GPIO4, GPIO_OUT, 1);
 	dib0700_set_gpio(adap->dev, GPIO7, GPIO_OUT, 1);
 	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0);
 
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
 
 	if (dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 1, 0x10, &nim7090_dib7000p_config) != 0) {
@@ -2421,15 +2420,15 @@ static int tfe7090pvr_frontend0_attach(struct dvb_usb_adapter *adap)
 	st->disable_streaming_master_mode = 1;
 
 	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO9, GPIO_OUT, 1);
 	dib0700_set_gpio(adap->dev, GPIO4, GPIO_OUT, 1);
 	dib0700_set_gpio(adap->dev, GPIO7, GPIO_OUT, 1);
 	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0);
 
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
-	msleep(10);
+	msleep(20);
 	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
 
 	/* initialize IC 0 */
@@ -2441,7 +2440,7 @@ static int tfe7090pvr_frontend0_attach(struct dvb_usb_adapter *adap)
 	dib0700_set_i2c_speed(adap->dev, 340);
 	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x90, &tfe7090pvr_dib7000p_config[0]);
 
-    dib7090_slave_reset(adap->fe);
+	dib7090_slave_reset(adap->fe);
 
 	if (adap->fe == NULL)
 		return -ENODEV;

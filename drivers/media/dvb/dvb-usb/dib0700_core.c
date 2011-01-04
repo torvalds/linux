@@ -347,7 +347,8 @@ int dib0700_set_i2c_speed(struct dvb_usb_device *d, u16 scl_kHz)
 	b[6] = (u8) (divider >> 8);
 	b[7] = (u8) (divider & 0xff);
 
-	deb_info("setting I2C speed: %04x %04x %04x (%d kHz).", (b[2] << 8) | (b[3]), (b[4] << 8) | b[5], (b[6] << 8) | b[7], scl_kHz);
+	deb_info("setting I2C speed: %04x %04x %04x (%d kHz).",
+		(b[2] << 8) | (b[3]), (b[4] << 8) | b[5], (b[6] << 8) | b[7], scl_kHz);
 	return dib0700_ctrl_wr(d, b, 8);
 }
 
@@ -484,14 +485,14 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	deb_info("modifying (%d) streaming state for %d\n", onoff, adap->id);
 
 	st->channel_state &= ~0x3;
-	if ((adap->stream.props.endpoint != 2) && (adap->stream.props.endpoint != 3)) {
+	if ((adap->stream.props.endpoint != 2)
+			&& (adap->stream.props.endpoint != 3)) {
 		deb_info("the endpoint number (%i) is not correct, use the adapter id instead", adap->stream.props.endpoint);
 		if (onoff)
 			st->channel_state |=	1 << (adap->id);
 		else
 			st->channel_state |=	1 << ~(adap->id);
-	}
-	else {
+	} else {
 		if (onoff)
 			st->channel_state |=	1 << (adap->stream.props.endpoint-2);
 		else

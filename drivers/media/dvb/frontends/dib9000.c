@@ -31,7 +31,7 @@ struct i2c_device {
 
 /* lock */
 #define DIB_LOCK struct mutex
-#define DibAcquireLock(lock) do { if (mutex_lock_interruptible(lock)<0) dprintk("could not get the lock"); } while (0)
+#define DibAcquireLock(lock) do { if (mutex_lock_interruptible(lock) < 0) dprintk("could not get the lock"); } while (0)
 #define DibReleaseLock(lock) mutex_unlock(lock)
 #define DibInitLock(lock) mutex_init(lock)
 #define DibFreeLock(lock)
@@ -187,8 +187,7 @@ enum dib9000_in_messages {
 
 #define FE_MM_W_COMPONENT_ACCESS         16
 #define FE_MM_RW_COMPONENT_ACCESS_BUFFER 17
-static int dib9000_risc_apb_access_read(struct dib9000_state *state, u32 address, u16 attribute, const u8 * tx, u32 txlen,
-					u8 * b, u32 len);
+static int dib9000_risc_apb_access_read(struct dib9000_state *state, u32 address, u16 attribute, const u8 * tx, u32 txlen, u8 * b, u32 len);
 static int dib9000_risc_apb_access_write(struct dib9000_state *state, u32 address, u16 attribute, const u8 * b, u32 len);
 
 static u16 to_fw_output_mode(u16 mode)
@@ -220,8 +219,8 @@ static u16 dib9000_read16_attr(struct dib9000_state *state, u16 reg, u8 * b, u32
 	int ret;
 	u8 wb[2] = { reg >> 8, reg & 0xff };
 	struct i2c_msg msg[2] = {
-		{.addr = state->i2c.i2c_addr >> 1,.flags = 0,.buf = wb,.len = 2},
-		{.addr = state->i2c.i2c_addr >> 1,.flags = I2C_M_RD,.buf = b,.len = len},
+		{.addr = state->i2c.i2c_addr >> 1, .flags = 0, .buf = wb, .len = 2},
+		{.addr = state->i2c.i2c_addr >> 1, .flags = I2C_M_RD, .buf = b, .len = len},
 	};
 
 	if (state->platform.risc.fw_is_running && (reg < 1024))
@@ -257,8 +256,8 @@ static u16 dib9000_i2c_read16(struct i2c_device *i2c, u16 reg)
 	u8 b[2];
 	u8 wb[2] = { reg >> 8, reg & 0xff };
 	struct i2c_msg msg[2] = {
-		{.addr = i2c->i2c_addr >> 1,.flags = 0,.buf = wb,.len = 2},
-		{.addr = i2c->i2c_addr >> 1,.flags = I2C_M_RD,.buf = b,.len = 2},
+		{.addr = i2c->i2c_addr >> 1, .flags = 0, .buf = wb, .len = 2},
+		{.addr = i2c->i2c_addr >> 1, .flags = I2C_M_RD, .buf = b, .len = 2},
 	};
 
 	if (i2c_transfer(i2c->i2c_adap, msg, 2) != 2) {
@@ -295,12 +294,12 @@ static u16 dib9000_write16_attr(struct dib9000_state *state, u16 reg, const u8 *
 	int ret;
 
 	struct i2c_msg msg = {
-		.addr = state->i2c.i2c_addr >> 1,.flags = 0,.buf = b,.len = len + 2
+		.addr = state->i2c.i2c_addr >> 1, .flags = 0, .buf = b, .len = len + 2
 	};
 
 	if (state->platform.risc.fw_is_running && (reg < 1024)) {
 		if (dib9000_risc_apb_access_write
-				(state, reg, DATA_BUS_ACCESS_MODE_16BIT | DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT | attribute, buf, len) != 0)
+		    (state, reg, DATA_BUS_ACCESS_MODE_16BIT | DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT | attribute, buf, len) != 0)
 			return -EINVAL;
 		return 0;
 	}
@@ -334,7 +333,7 @@ static int dib9000_i2c_write16(struct i2c_device *i2c, u16 reg, u16 val)
 {
 	u8 b[4] = { (reg >> 8) & 0xff, reg & 0xff, (val >> 8) & 0xff, val & 0xff };
 	struct i2c_msg msg = {
-		.addr = i2c->i2c_addr >> 1,.flags = 0,.buf = b,.len = 4
+		.addr = i2c->i2c_addr >> 1, .flags = 0, .buf = b, .len = 4
 	};
 
 	return i2c_transfer(i2c->i2c_adap, &msg, 1) != 1 ? -EREMOTEIO : 0;
@@ -369,24 +368,24 @@ static void dib9000_risc_mem_setup_cmd(struct dib9000_state *state, u32 addr, u3
 {
 	u8 b[14] = { 0 };
 
-//	dprintk("%d memcmd: %d %d %d\n", state->fe_id, addr, addr+len, len);
-//	b[0] = 0 << 7;
+/*      dprintk("%d memcmd: %d %d %d\n", state->fe_id, addr, addr+len, len); */
+/*      b[0] = 0 << 7; */
 	b[1] = 1;
 
-//	b[2] = 0; // 1057
-//	b[3] = 0;
-	b[4] = (u8) (addr >> 8);	// 1058
+/*      b[2] = 0; */
+/*      b[3] = 0; */
+	b[4] = (u8) (addr >> 8);
 	b[5] = (u8) (addr & 0xff);
 
-//	b[10] = 0;        // 1061
-//	b[11] = 0;
-	b[12] = (u8) (addr >> 8);	// 1062
+/*      b[10] = 0; */
+/*      b[11] = 0; */
+	b[12] = (u8) (addr >> 8);
 	b[13] = (u8) (addr & 0xff);
 
 	addr += len;
-//	b[6] = 0;      // 1059
-//	b[7] = 0;
-	b[8] = (u8) (addr >> 8);	// 1060
+/*      b[6] = 0; */
+/*      b[7] = 0; */
+	b[8] = (u8) (addr >> 8);
 	b[9] = (u8) (addr & 0xff);
 
 	dib9000_write(state, 1056, b, 14);
@@ -400,7 +399,7 @@ static void dib9000_risc_mem_setup(struct dib9000_state *state, u8 cmd)
 	struct dib9000_fe_memory_map *m = &state->platform.risc.fe_mm[cmd & 0x7f];
 	/* decide whether we need to "refresh" the memory controller */
 	if (state->platform.risc.memcmd == cmd &&	/* same command */
-			!(cmd & 0x80 && m->size < 67))	/* and we do not want to read something with less than 67 bytes looping - working around a bug in the memory controller */
+	    !(cmd & 0x80 && m->size < 67))	/* and we do not want to read something with less than 67 bytes looping - working around a bug in the memory controller */
 		return;
 	dib9000_risc_mem_setup_cmd(state, m->addr, m->size, cmd & 0x80);
 	state->platform.risc.memcmd = cmd;
@@ -506,7 +505,7 @@ static int dib9000_mbx_send_attr(struct dib9000_state *state, u8 id, u16 * data,
 			break;
 	} while (1);
 
-	//dprintk( "MBX: size: %d", size);
+	/*dprintk( "MBX: size: %d", size); */
 
 	if (tmp == 0) {
 		ret = -EINVAL;
@@ -538,7 +537,7 @@ static int dib9000_mbx_send_attr(struct dib9000_state *state, u8 id, u16 * data,
 	/* update register nb_mes_in_RX */
 	ret = (u8) dib9000_write_word_attr(state, 1043, 1 << 14, attr);
 
- out:
+out:
 	DibReleaseLock(&state->platform.risc.mbx_if_lock);
 
 	return ret;
@@ -625,7 +624,7 @@ static int dib9000_mbx_fetch_to_cache(struct dib9000_state *state, u16 attr)
 		if (*block == 0) {
 			size = dib9000_mbx_read(state, block, 1, attr);
 
-//			dprintk( "MBX: fetched %04x message to cache", *block);
+/*                      dprintk( "MBX: fetched %04x message to cache", *block); */
 
 			switch (*block >> 8) {
 			case IN_MSG_DEBUG_BUF:
@@ -671,8 +670,8 @@ static int dib9000_mbx_process(struct dib9000_state *state, u16 attr)
 		ret = dib9000_mbx_fetch_to_cache(state, attr);
 
 	tmp = dib9000_read_word_attr(state, 1229, attr);	/* Clear the IRQ */
-//	if (tmp)
-//		dprintk( "cleared IRQ: %x", tmp);
+/*      if (tmp) */
+/*              dprintk( "cleared IRQ: %x", tmp); */
 	DibReleaseLock(&state->platform.risc.mbx_lock);
 
 	return ret;
@@ -805,7 +804,8 @@ static u16 dib9000_identify(struct i2c_device *client)
 {
 	u16 value;
 
-	if ((value = dib9000_i2c_read16(client, 896)) != 0x01b3) {
+	value = dib9000_i2c_read16(client, 896);
+	if (value != 0x01b3) {
 		dprintk("wrong Vendor ID (0x%x)", value);
 		return 0;
 	}
@@ -916,7 +916,7 @@ static int dib9000_fw_reset(struct dvb_frontend *fe)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 
-	dib9000_write_word(state, 1817, 0x0003);	// SRAM read lead in + P_host_rdy_cmos=1
+	dib9000_write_word(state, 1817, 0x0003);
 
 	dib9000_write_word(state, 1227, 1);
 	dib9000_write_word(state, 1227, 0);
@@ -961,8 +961,7 @@ static int dib9000_fw_reset(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int dib9000_risc_apb_access_read(struct dib9000_state *state, u32 address, u16 attribute, const u8 * tx, u32 txlen,
-					u8 * b, u32 len)
+static int dib9000_risc_apb_access_read(struct dib9000_state *state, u32 address, u16 attribute, const u8 * tx, u32 txlen, u8 * b, u32 len)
 {
 	u16 mb[10];
 	u8 i, s;
@@ -970,14 +969,14 @@ static int dib9000_risc_apb_access_read(struct dib9000_state *state, u32 address
 	if (address >= 1024 || !state->platform.risc.fw_is_running)
 		return -EINVAL;
 
-	//dprintk( "APB access thru rd fw %d %x", address, attribute);
+	/* dprintk( "APB access thru rd fw %d %x", address, attribute); */
 
 	mb[0] = (u16) address;
 	mb[1] = len / 2;
 	dib9000_mbx_send_attr(state, OUT_MSG_BRIDGE_APB_R, mb, 2, attribute);
 	switch (dib9000_mbx_get_message_attr(state, IN_MSG_END_BRIDGE_APB_RW, mb, &s, attribute)) {
 	case 1:
-		s--;		// address
+		s--;
 		for (i = 0; i < s; i++) {
 			b[i * 2] = (mb[i + 1] >> 8) & 0xff;
 			b[i * 2 + 1] = (mb[i + 1]) & 0xff;
@@ -997,10 +996,10 @@ static int dib9000_risc_apb_access_write(struct dib9000_state *state, u32 addres
 	if (address >= 1024 || !state->platform.risc.fw_is_running)
 		return -EINVAL;
 
-	//dprintk( "APB access thru wr fw %d %x", address, attribute);
+	/* dprintk( "APB access thru wr fw %d %x", address, attribute); */
 
 	mb[0] = (unsigned short)address;
-	for (i = 0; i < len && i < 20; i += 2)	// 20 bytes max
+	for (i = 0; i < len && i < 20; i += 2)
 		mb[1 + (i / 2)] = (b[i] << 8 | b[i + 1]);
 
 	dib9000_mbx_send_attr(state, OUT_MSG_BRIDGE_APB_W, mb, 1 + len / 2, attribute);
@@ -1031,7 +1030,6 @@ static int dib9000_fw_init(struct dib9000_state *state)
 	u8 size;
 
 	if (dib9000_fw_boot(state, NULL, 0, state->chip.d9.cfg.microcode_B_fe_buffer, state->chip.d9.cfg.microcode_B_fe_size) != 0)
-		//if (dib9000_fw_boot(state, microcode_A_buffer, microcode_A_size, microcode_B_buffer, microcode_B_size) != 0)
 		return -EIO;
 
 	/* initialize the firmware */
@@ -1062,7 +1060,6 @@ static int dib9000_fw_init(struct dib9000_state *state)
 		b[2 + i * 4] = (u16) state->chip.d9.cfg.subband.subband[i].gpio.mask;
 		b[3 + i * 4] = (u16) state->chip.d9.cfg.subband.subband[i].gpio.direction;
 		b[4 + i * 4] = (u16) state->chip.d9.cfg.subband.subband[i].gpio.value;
-		//dprintk( "SBS: %d %d %x %x %x\n", i, b[1 + i*4], b[2 + i*4], b[3 + i*4], b[4 + i*4]);
 	}
 	b[1 + i * 4] = 0;	/* fe_id */
 	if (dib9000_mbx_send(state, OUT_MSG_SUBBAND_SEL, b, 2 + 4 * i) != 0)
@@ -1071,7 +1068,7 @@ static int dib9000_fw_init(struct dib9000_state *state)
 	/* 0 - id, 1 - no_of_frontends */
 	b[0] = (0 << 8) | 1;
 	/* 0 = i2c-address demod, 0 = tuner */
-	b[1] = (0 << 8) | (0);	//st->i2c_addr ) );
+	b[1] = (0 << 8) | (0);
 	b[2] = (u16) (((state->chip.d9.cfg.xtal_clock_khz * 1000) >> 16) & 0xffff);
 	b[3] = (u16) (((state->chip.d9.cfg.xtal_clock_khz * 1000)) & 0xffff);
 	b[4] = (u16) ((state->chip.d9.cfg.vcxo_timer >> 16) & 0xffff);
@@ -1089,14 +1086,14 @@ static int dib9000_fw_init(struct dib9000_state *state)
 		return -EIO;
 
 	if (size > ARRAY_SIZE(b)) {
-		dprintk("error : firmware returned %dbytes needed but the used buffer has only %dbytes\n Firmware init ABORTED", size, (int)ARRAY_SIZE(b));
+		dprintk("error : firmware returned %dbytes needed but the used buffer has only %dbytes\n Firmware init ABORTED", size,
+			(int)ARRAY_SIZE(b));
 		return -EINVAL;
 	}
 
 	for (i = 0; i < size; i += 2) {
 		state->platform.risc.fe_mm[i / 2].addr = b[i + 0];
 		state->platform.risc.fe_mm[i / 2].size = b[i + 1];
-		//dprintk( "MM: %d %d %d", state->platform.risc.fe_mm[i/2].addr, state->platform.risc.fe_mm[i/2].size, ARRAY_SIZE(state->platform.risc.fe_mm));
 	}
 
 	return 0;
@@ -1150,9 +1147,9 @@ static int dib9000_fw_get_channel(struct dvb_frontend *fe, struct dvb_frontend_p
 		ret = -EIO;
 	}
 
-	dib9000_risc_mem_read(state, FE_MM_R_CHANNEL_UNION, (u8 *) & ch, sizeof(struct dibDVBTChannel));
+	dib9000_risc_mem_read(state, FE_MM_R_CHANNEL_UNION, (u8 *) &ch, sizeof(struct dibDVBTChannel));
 
-	switch (ch.spectrum_inversion&0x7) {
+	switch (ch.spectrum_inversion & 0x7) {
 	case 1:
 		state->fe[0]->dtv_property_cache.inversion = INVERSION_ON;
 		break;
@@ -1267,7 +1264,7 @@ static int dib9000_fw_get_channel(struct dvb_frontend *fe, struct dvb_frontend_p
 		break;
 	}
 
- error:
+error:
 	DibReleaseLock(&state->platform.risc.mem_mbx_lock);
 	return ret;
 }
@@ -1412,7 +1409,7 @@ static int dib9000_fw_set_channel_union(struct dvb_frontend *fe, struct dvb_fron
 	ch.select_hp = 1;
 	ch.intlv_native = 1;
 
-	dib9000_risc_mem_write(state, FE_MM_W_CHANNEL_UNION, (u8 *) & ch);
+	dib9000_risc_mem_write(state, FE_MM_W_CHANNEL_UNION, (u8 *) &ch);
 
 	return 0;
 }
@@ -1441,9 +1438,9 @@ static int dib9000_fw_tune(struct dvb_frontend *fe, struct dvb_frontend_paramete
 		break;
 	case CT_DEMOD_STEP_1:
 		if (search)
-			dib9000_risc_mem_read(state, FE_MM_R_CHANNEL_SEARCH_STATE, (u8 *) & i, 1);
+			dib9000_risc_mem_read(state, FE_MM_R_CHANNEL_SEARCH_STATE, (u8 *) &i, 1);
 		else
-			dib9000_risc_mem_read(state, FE_MM_R_CHANNEL_TUNE_STATE, (u8 *) & i, 1);
+			dib9000_risc_mem_read(state, FE_MM_R_CHANNEL_TUNE_STATE, (u8 *) &i, 1);
 		switch (i) {	/* something happened */
 		case 0:
 			break;
@@ -1484,22 +1481,22 @@ static int dib9000_fw_set_output_mode(struct dvb_frontend *fe, int mode)
 	dprintk("setting output mode for demod %p to %d", fe, mode);
 
 	switch (mode) {
-	case OUTMODE_MPEG2_PAR_GATED_CLK:	// STBs with parallel gated clock
+	case OUTMODE_MPEG2_PAR_GATED_CLK:
 		outreg = (1 << 10);	/* 0x0400 */
 		break;
-	case OUTMODE_MPEG2_PAR_CONT_CLK:	// STBs with parallel continues clock
+	case OUTMODE_MPEG2_PAR_CONT_CLK:
 		outreg = (1 << 10) | (1 << 6);	/* 0x0440 */
 		break;
-	case OUTMODE_MPEG2_SERIAL:	// STBs with serial input
+	case OUTMODE_MPEG2_SERIAL:
 		outreg = (1 << 10) | (2 << 6) | (0 << 1);	/* 0x0482 */
 		break;
 	case OUTMODE_DIVERSITY:
 		outreg = (1 << 10) | (4 << 6);	/* 0x0500 */
 		break;
-	case OUTMODE_MPEG2_FIFO:	// e.g. USB feeding
+	case OUTMODE_MPEG2_FIFO:
 		outreg = (1 << 10) | (5 << 6);
 		break;
-	case OUTMODE_HIGH_Z:	// disable
+	case OUTMODE_HIGH_Z:
 		outreg = 0;
 		break;
 	default:
@@ -1507,7 +1504,7 @@ static int dib9000_fw_set_output_mode(struct dvb_frontend *fe, int mode)
 		return -EINVAL;
 	}
 
-	dib9000_write_word(state, 1795, outreg);	// has to be written from outside
+	dib9000_write_word(state, 1795, outreg);
 
 	switch (mode) {
 	case OUTMODE_MPEG2_PAR_GATED_CLK:
@@ -1596,10 +1593,9 @@ EXPORT_SYMBOL(dib9000_fw_set_component_bus_speed);
 static int dib9000_fw_component_bus_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msg[], int num)
 {
 	struct dib9000_state *state = i2c_get_adapdata(i2c_adap);
-	u8 type = 0;	/* I2C */
+	u8 type = 0;		/* I2C */
 	u8 port = DIBX000_I2C_INTERFACE_GPIO_3_4;
-	u16 scl = state->component_bus_speed; /* SCL frequency */
-	//u16 scl = 208; /* SCL frequency */
+	u16 scl = state->component_bus_speed;	/* SCL frequency */
 	struct dib9000_fe_memory_map *m = &state->platform.risc.fe_mm[FE_MM_RW_COMPONENT_ACCESS_BUFFER];
 	u8 p[13] = { 0 };
 
@@ -1610,11 +1606,6 @@ static int dib9000_fw_component_bus_xfer(struct i2c_adapter *i2c_adap, struct i2
 	p[3] = (u8) scl & 0xff;	/* scl */
 	p[4] = (u8) (scl >> 8);
 
-//	p[5] = 0; /* attr */
-//	p[6] = 0;
-
-//	p[7] = (u8) (msg[0].addr << 1 );
-//	p[8] = (u8) (msg[0].addr >> 7 );
 	p[7] = 0;
 	p[8] = 0;
 
@@ -1672,7 +1663,6 @@ struct i2c_adapter *dib9000_get_tuner_interface(struct dvb_frontend *fe)
 	struct dib9000_state *st = fe->demodulator_priv;
 	return &st->tuner_adap;
 }
-
 EXPORT_SYMBOL(dib9000_get_tuner_interface);
 
 struct i2c_adapter *dib9000_get_component_bus_interface(struct dvb_frontend *fe)
@@ -1680,7 +1670,6 @@ struct i2c_adapter *dib9000_get_component_bus_interface(struct dvb_frontend *fe)
 	struct dib9000_state *st = fe->demodulator_priv;
 	return &st->component_bus;
 }
-
 EXPORT_SYMBOL(dib9000_get_component_bus_interface);
 
 struct i2c_adapter *dib9000_get_i2c_master(struct dvb_frontend *fe, enum dibx000_i2c_interface intf, int gating)
@@ -1688,7 +1677,6 @@ struct i2c_adapter *dib9000_get_i2c_master(struct dvb_frontend *fe, enum dibx000
 	struct dib9000_state *st = fe->demodulator_priv;
 	return dibx000_get_i2c_adapter(&st->i2c_master, intf, gating);
 }
-
 EXPORT_SYMBOL(dib9000_get_i2c_master);
 
 int dib9000_set_i2c_adapter(struct dvb_frontend *fe, struct i2c_adapter *i2c)
@@ -1698,7 +1686,6 @@ int dib9000_set_i2c_adapter(struct dvb_frontend *fe, struct i2c_adapter *i2c)
 	st->i2c.i2c_adap = i2c;
 	return 0;
 }
-
 EXPORT_SYMBOL(dib9000_set_i2c_adapter);
 
 static int dib9000_cfg_gpio(struct dib9000_state *st, u8 num, u8 dir, u8 val)
@@ -1723,8 +1710,8 @@ int dib9000_set_gpio(struct dvb_frontend *fe, u8 num, u8 dir, u8 val)
 	struct dib9000_state *state = fe->demodulator_priv;
 	return dib9000_cfg_gpio(state, num, dir, val);
 }
-
 EXPORT_SYMBOL(dib9000_set_gpio);
+
 int dib9000_fw_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
@@ -1734,15 +1721,14 @@ int dib9000_fw_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
 	dprintk("PID filter enabled %d", onoff);
 	return dib9000_write_word(state, 294 + 1, val);
 }
-
 EXPORT_SYMBOL(dib9000_fw_pid_filter_ctrl);
+
 int dib9000_fw_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	dprintk("Index %x, PID %d, OnOff %d", id, pid, onoff);
 	return dib9000_write_word(state, 300 + 1 + id, onoff ? (1 << 13) | pid : 0);
 }
-
 EXPORT_SYMBOL(dib9000_fw_pid_filter);
 
 int dib9000_firmware_post_pll_init(struct dvb_frontend *fe)
@@ -1750,7 +1736,6 @@ int dib9000_firmware_post_pll_init(struct dvb_frontend *fe)
 	struct dib9000_state *state = fe->demodulator_priv;
 	return dib9000_fw_init(state);
 }
-
 EXPORT_SYMBOL(dib9000_firmware_post_pll_init);
 
 static void dib9000_release(struct dvb_frontend *demod)
@@ -1758,7 +1743,7 @@ static void dib9000_release(struct dvb_frontend *demod)
 	struct dib9000_state *st = demod->demodulator_priv;
 	u8 index_frontend;
 
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (st->fe[index_frontend] != NULL); index_frontend++)
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (st->fe[index_frontend] != NULL); index_frontend++)
 		dvb_frontend_detach(st->fe[index_frontend]);
 
 	DibFreeLock(&state->platform.risc.mbx_if_lock);
@@ -1784,7 +1769,7 @@ static int dib9000_sleep(struct dvb_frontend *fe)
 	u8 index_frontend;
 	int ret;
 
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		ret = state->fe[index_frontend]->ops.sleep(state->fe[index_frontend]);
 		if (ret < 0)
 			return ret;
@@ -1805,23 +1790,32 @@ static int dib9000_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	fe_status_t stat;
 	int ret;
 
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		state->fe[index_frontend]->ops.read_status(state->fe[index_frontend], &stat);
 		if (stat & FE_HAS_SYNC) {
 			dprintk("TPS lock on the slave%i", index_frontend);
 
 			/* synchronize the cache with the other frontends */
 			state->fe[index_frontend]->ops.get_frontend(state->fe[index_frontend], fep);
-			for (sub_index_frontend=0; (sub_index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[sub_index_frontend] != NULL); sub_index_frontend++) {
+			for (sub_index_frontend = 0; (sub_index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[sub_index_frontend] != NULL);
+			     sub_index_frontend++) {
 				if (sub_index_frontend != index_frontend) {
-					state->fe[sub_index_frontend]->dtv_property_cache.modulation = state->fe[index_frontend]->dtv_property_cache.modulation;
-					state->fe[sub_index_frontend]->dtv_property_cache.inversion = state->fe[index_frontend]->dtv_property_cache.inversion;
-					state->fe[sub_index_frontend]->dtv_property_cache.transmission_mode = state->fe[index_frontend]->dtv_property_cache.transmission_mode;
-					state->fe[sub_index_frontend]->dtv_property_cache.guard_interval = state->fe[index_frontend]->dtv_property_cache.guard_interval;
-					state->fe[sub_index_frontend]->dtv_property_cache.hierarchy = state->fe[index_frontend]->dtv_property_cache.hierarchy;
-					state->fe[sub_index_frontend]->dtv_property_cache.code_rate_HP = state->fe[index_frontend]->dtv_property_cache.code_rate_HP;
-					state->fe[sub_index_frontend]->dtv_property_cache.code_rate_LP = state->fe[index_frontend]->dtv_property_cache.code_rate_LP;
-					state->fe[sub_index_frontend]->dtv_property_cache.rolloff = state->fe[index_frontend]->dtv_property_cache.rolloff;
+					state->fe[sub_index_frontend]->dtv_property_cache.modulation =
+					    state->fe[index_frontend]->dtv_property_cache.modulation;
+					state->fe[sub_index_frontend]->dtv_property_cache.inversion =
+					    state->fe[index_frontend]->dtv_property_cache.inversion;
+					state->fe[sub_index_frontend]->dtv_property_cache.transmission_mode =
+					    state->fe[index_frontend]->dtv_property_cache.transmission_mode;
+					state->fe[sub_index_frontend]->dtv_property_cache.guard_interval =
+					    state->fe[index_frontend]->dtv_property_cache.guard_interval;
+					state->fe[sub_index_frontend]->dtv_property_cache.hierarchy =
+					    state->fe[index_frontend]->dtv_property_cache.hierarchy;
+					state->fe[sub_index_frontend]->dtv_property_cache.code_rate_HP =
+					    state->fe[index_frontend]->dtv_property_cache.code_rate_HP;
+					state->fe[sub_index_frontend]->dtv_property_cache.code_rate_LP =
+					    state->fe[index_frontend]->dtv_property_cache.code_rate_LP;
+					state->fe[sub_index_frontend]->dtv_property_cache.rolloff =
+					    state->fe[index_frontend]->dtv_property_cache.rolloff;
 				}
 			}
 			return 0;
@@ -1834,7 +1828,7 @@ static int dib9000_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 		return ret;
 
 	/* synchronize the cache with the other frontends */
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		state->fe[index_frontend]->dtv_property_cache.inversion = fe->dtv_property_cache.inversion;
 		state->fe[index_frontend]->dtv_property_cache.transmission_mode = fe->dtv_property_cache.transmission_mode;
 		state->fe[index_frontend]->dtv_property_cache.guard_interval = fe->dtv_property_cache.guard_interval;
@@ -1894,14 +1888,14 @@ static int dib9000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 
 	/* set the master status */
 	if (fep->u.ofdm.transmission_mode == TRANSMISSION_MODE_AUTO ||
-		fep->u.ofdm.guard_interval == GUARD_INTERVAL_AUTO || fep->u.ofdm.constellation == QAM_AUTO || fep->u.ofdm.code_rate_HP == FEC_AUTO) {
+	    fep->u.ofdm.guard_interval == GUARD_INTERVAL_AUTO || fep->u.ofdm.constellation == QAM_AUTO || fep->u.ofdm.code_rate_HP == FEC_AUTO) {
 		/* no channel specified, autosearch the channel */
 		state->channel_status.status = CHANNEL_STATUS_PARAMETERS_UNKNOWN;
 	} else
 		state->channel_status.status = CHANNEL_STATUS_PARAMETERS_SET;
 
 	/* set mode and status for the different frontends */
-	for (index_frontend=0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+	for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		dib9000_fw_set_diversity_in(state->fe[index_frontend], 1);
 
 		/* synchronization of the cache */
@@ -1915,11 +1909,11 @@ static int dib9000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	}
 
 	/* actual tune */
-	exit_condition = 0; /* 0: tune pending; 1: tune failed; 2:tune success */
+	exit_condition = 0;	/* 0: tune pending; 1: tune failed; 2:tune success */
 	index_frontend_success = 0;
 	do {
 		sleep_time = dib9000_fw_tune(state->fe[0], NULL);
-		for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+		for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 			sleep_time_slave = dib9000_fw_tune(state->fe[index_frontend], NULL);
 			if (sleep_time == FE_CALLBACK_TIME_NEVER)
 				sleep_time = sleep_time_slave;
@@ -1934,23 +1928,23 @@ static int dib9000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 		nbr_pending = 0;
 		exit_condition = 0;
 		index_frontend_success = 0;
-		for (index_frontend=0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+		for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 			frontend_status = -dib9000_get_status(state->fe[index_frontend]);
 			if (frontend_status > -FE_STATUS_TUNE_PENDING) {
-				exit_condition = 2; /* tune success */
+				exit_condition = 2;	/* tune success */
 				index_frontend_success = index_frontend;
 				break;
 			}
 			if (frontend_status == -FE_STATUS_TUNE_PENDING)
-				nbr_pending++; /* some frontends are still tuning */
+				nbr_pending++;	/* some frontends are still tuning */
 		}
 		if ((exit_condition != 2) && (nbr_pending == 0))
-			exit_condition = 1; /* if all tune are done and no success, exit: tune failed */
+			exit_condition = 1;	/* if all tune are done and no success, exit: tune failed */
 
 	} while (exit_condition == 0);
 
 	/* check the tune result */
-	if (exit_condition == 1) { /* tune failed */
+	if (exit_condition == 1) {	/* tune failed */
 		dprintk("tune failed");
 		return 0;
 	}
@@ -1962,7 +1956,7 @@ static int dib9000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 
 	/* retune the other frontends with the found channel */
 	channel_status.status = CHANNEL_STATUS_PARAMETERS_SET;
-	for (index_frontend=0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+	for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		/* only retune the frontends which was not tuned success */
 		if (index_frontend != index_frontend_success) {
 			dib9000_set_channel_status(state->fe[index_frontend], &channel_status);
@@ -1971,7 +1965,7 @@ static int dib9000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	}
 	do {
 		sleep_time = FE_CALLBACK_TIME_NEVER;
-		for (index_frontend=0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+		for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 			if (index_frontend != index_frontend_success) {
 				sleep_time_slave = dib9000_fw_tune(state->fe[index_frontend], NULL);
 				if (sleep_time == FE_CALLBACK_TIME_NEVER)
@@ -1986,22 +1980,22 @@ static int dib9000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 			break;
 
 		nbr_pending = 0;
-		for (index_frontend=0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+		for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 			if (index_frontend != index_frontend_success) {
 				frontend_status = -dib9000_get_status(state->fe[index_frontend]);
 				if ((index_frontend != index_frontend_success) && (frontend_status == -FE_STATUS_TUNE_PENDING))
-					nbr_pending++; /* some frontends are still tuning */
+					nbr_pending++;	/* some frontends are still tuning */
 			}
 		}
 	} while (nbr_pending != 0);
 
 	/* set the output mode */
 	dib9000_fw_set_output_mode(state->fe[0], state->chip.d9.cfg.output_mode);
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
 		dib9000_fw_set_output_mode(state->fe[index_frontend], OUTMODE_DIVERSITY);
 
 	/* turn off the diversity for the last frontend */
-	dib9000_fw_set_diversity_in(state->fe[index_frontend-1], 0);
+	dib9000_fw_set_diversity_in(state->fe[index_frontend - 1], 0);
 
 	return 0;
 }
@@ -2019,7 +2013,7 @@ static int dib9000_read_status(struct dvb_frontend *fe, fe_status_t * stat)
 	u8 index_frontend;
 	u16 lock = 0, lock_slave = 0;
 
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
 		lock_slave |= dib9000_read_lock(state->fe[index_frontend]);
 
 	lock = dib9000_read_word(state, 535);
@@ -2063,7 +2057,7 @@ static int dib9000_read_signal_strength(struct dvb_frontend *fe, u16 * strength)
 	u16 val;
 
 	*strength = 0;
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		state->fe[index_frontend]->ops.read_signal_strength(state->fe[index_frontend], &val);
 		if (val > 65535 - *strength)
 			*strength = 65535;
@@ -2127,7 +2121,7 @@ static int dib9000_read_snr(struct dvb_frontend *fe, u16 * snr)
 	u32 snr_master;
 
 	snr_master = dib9000_get_snr(fe);
-	for (index_frontend=1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
+	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
 		snr_master += dib9000_get_snr(state->fe[index_frontend]);
 
 	if ((snr_master >> 16) != 0) {
@@ -2161,7 +2155,7 @@ int dib9000_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defaul
 	struct i2c_device client = {.i2c_adap = i2c };
 
 	client.i2c_addr = default_addr + 16;
-	dib9000_i2c_write16(&client, 1796, 0x0);	// select DVB-T output
+	dib9000_i2c_write16(&client, 1796, 0x0);
 
 	for (k = no_of_demods - 1; k >= 0; k--) {
 		/* designated i2c address */
@@ -2203,7 +2197,6 @@ int dib9000_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defaul
 
 	return 0;
 }
-
 EXPORT_SYMBOL(dib9000_i2c_enumeration);
 
 int dib9000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_frontend *fe_slave)
@@ -2232,7 +2225,7 @@ int dib9000_remove_slave_frontend(struct dvb_frontend *fe)
 	while ((index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL))
 		index_frontend++;
 	if (index_frontend != 1) {
-		dprintk("remove slave fe %p (index %i)", state->fe[index_frontend-1], index_frontend-1);
+		dprintk("remove slave fe %p (index %i)", state->fe[index_frontend - 1], index_frontend - 1);
 		state->fe[index_frontend] = NULL;
 		return 0;
 	}
@@ -2242,7 +2235,7 @@ int dib9000_remove_slave_frontend(struct dvb_frontend *fe)
 }
 EXPORT_SYMBOL(dib9000_remove_slave_frontend);
 
-struct dvb_frontend * dib9000_get_slave_frontend(struct dvb_frontend *fe, int slave_index)
+struct dvb_frontend *dib9000_get_slave_frontend(struct dvb_frontend *fe, int slave_index)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 
@@ -2313,13 +2306,12 @@ struct dvb_frontend *dib9000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, c
 
 	return fe;
 
- component_bus_add_error:
+component_bus_add_error:
 	i2c_del_adapter(&st->tuner_adap);
- error:
+error:
 	kfree(st);
 	return NULL;
 }
-
 EXPORT_SYMBOL(dib9000_attach);
 
 static struct dvb_frontend_ops dib9000_ops = {

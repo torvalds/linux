@@ -26,8 +26,8 @@ static u16 dibx000_read_word(struct dibx000_i2c_master *mst, u16 reg)
 	u8 wb[2] = { reg >> 8, reg & 0xff };
 	u8 rb[2];
 	struct i2c_msg msg[2] = {
-		{.addr = mst->i2c_addr,.flags = 0,.buf = wb,.len = 2},
-		{.addr = mst->i2c_addr,.flags = I2C_M_RD,.buf = rb,.len = 2},
+		{.addr = mst->i2c_addr, .flags = 0, .buf = wb, .len = 2},
+		{.addr = mst->i2c_addr, .flags = I2C_M_RD, .buf = rb, .len = 2},
 	};
 
 	if (i2c_transfer(mst->i2c_adap, msg, 2) != 2)
@@ -38,10 +38,11 @@ static u16 dibx000_read_word(struct dibx000_i2c_master *mst, u16 reg)
 
 static int dibx000_is_i2c_done(struct dibx000_i2c_master *mst)
 {
-	int i = 100; // max_i2c_polls;
+	int i = 100;
 	u16 status;
 
-	while (((status = dibx000_read_word(mst, mst->base_reg + 2)) & 0x0100) == 0 && --i > 0);
+	while (((status = dibx000_read_word(mst, mst->base_reg + 2)) & 0x0100) == 0 && --i > 0)
+		;
 
 	/* i2c timed out */
 	if (i == 0)
@@ -63,7 +64,7 @@ static int dibx000_master_i2c_write(struct dibx000_i2c_master *mst, struct i2c_m
 	const u8 *b = msg->buf;
 
 	while (txlen) {
-		dibx000_read_word(mst, mst->base_reg + 2);   // reset fifo ptr
+		dibx000_read_word(mst, mst->base_reg + 2);
 
 		len = txlen > 8 ? 8 : txlen;
 		for (i = 0; i < len; i += 2) {
@@ -72,14 +73,14 @@ static int dibx000_master_i2c_write(struct dibx000_i2c_master *mst, struct i2c_m
 				data |= *b++;
 			dibx000_write_word(mst, mst->base_reg, data);
 		}
-		da = (((u8) (msg->addr))  << 9) | // addr
-			(1           << 8) | // master
-			(1           << 7) | // rq
-			(0           << 6) | // stop
-			(0           << 5) | // start
-			((len & 0x7) << 2) | // nb 8 bytes == 0 here
-			(0           << 1) | // rw
-			(0           << 0);  // irqen
+		da = (((u8) (msg->addr))  << 9) |
+			(1           << 8) |
+			(1           << 7) |
+			(0           << 6) |
+			(0           << 5) |
+			((len & 0x7) << 2) |
+			(0           << 1) |
+			(0           << 0);
 
 		if (txlen == msg->len)
 			da |= 1 << 5; /* start */
@@ -105,14 +106,14 @@ static int dibx000_master_i2c_read(struct dibx000_i2c_master *mst, struct i2c_ms
 
 	while (rxlen) {
 		len = rxlen > 8 ? 8 : rxlen;
-		da = (((u8) (msg->addr)) << 9) | // addr
-			(1           << 8) | // master
-			(1           << 7) | // rq
-			(0           << 6) | // stop
-			(0           << 5) | // start
-			((len & 0x7) << 2) | // nb
-			(1           << 1) | // rw
-			(0           << 0);  // irqen
+		da = (((u8) (msg->addr)) << 9) |
+			(1           << 8) |
+			(1           << 7) |
+			(0           << 6) |
+			(0           << 5) |
+			((len & 0x7) << 2) |
+			(1           << 1) |
+			(0           << 0);
 
 		if (rxlen == msg->len)
 			da |= 1 << 5; /* start */
@@ -174,15 +175,12 @@ static int dibx000_i2c_master_xfer_gpio12(struct i2c_adapter *i2c_adap, struct i
 	int ret = 0;
 
 	dibx000_i2c_select_interface(mst, DIBX000_I2C_INTERFACE_GPIO_1_2);
-	for (msg_index = 0; msg_index<num; msg_index++) {
-		if (msg[msg_index].flags & I2C_M_RD)
-		{
+	for (msg_index = 0; msg_index < num; msg_index++) {
+		if (msg[msg_index].flags & I2C_M_RD) {
 			ret = dibx000_master_i2c_read(mst, &msg[msg_index]);
 			if (ret != 0)
 				return 0;
-		}
-		else
-		{
+		} else {
 			ret = dibx000_master_i2c_write(mst, &msg[msg_index], 1);
 			if (ret != 0)
 				return 0;
@@ -199,15 +197,12 @@ static int dibx000_i2c_master_xfer_gpio34(struct i2c_adapter *i2c_adap, struct i
 	int ret = 0;
 
 	dibx000_i2c_select_interface(mst, DIBX000_I2C_INTERFACE_GPIO_3_4);
-	for (msg_index = 0; msg_index<num; msg_index++) {
-		if (msg[msg_index].flags & I2C_M_RD)
-		{
+	for (msg_index = 0; msg_index < num; msg_index++) {
+		if (msg[msg_index].flags & I2C_M_RD) {
 			ret = dibx000_master_i2c_read(mst, &msg[msg_index]);
 			if (ret != 0)
 				return 0;
-		}
-		else
-		{
+		} else {
 			ret = dibx000_master_i2c_write(mst, &msg[msg_index], 1);
 			if (ret != 0)
 				return 0;
