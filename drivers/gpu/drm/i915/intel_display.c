@@ -1081,6 +1081,35 @@ static void assert_pll(struct drm_i915_private *dev_priv,
 #define assert_pll_enabled(d, p) assert_pll(d, p, true)
 #define assert_pll_disabled(d, p) assert_pll(d, p, false)
 
+static void assert_panel_unlocked(struct drm_i915_private *dev_priv,
+				  enum pipe pipe)
+{
+	int pp_reg, lvds_reg;
+	u32 val;
+	enum pipe panel_pipe = PIPE_A;
+	bool locked = locked;
+
+	if (HAS_PCH_SPLIT(dev_priv->dev)) {
+		pp_reg = PCH_PP_CONTROL;
+		lvds_reg = PCH_LVDS;
+	} else {
+		pp_reg = PP_CONTROL;
+		lvds_reg = LVDS;
+	}
+
+	val = I915_READ(pp_reg);
+	if (!(val & PANEL_POWER_ON) ||
+	    ((val & PANEL_UNLOCK_REGS) == PANEL_UNLOCK_REGS))
+		locked = false;
+
+	if (I915_READ(lvds_reg) & LVDS_PIPEB_SELECT)
+		panel_pipe = PIPE_B;
+
+	WARN(panel_pipe == pipe && locked,
+	     "panel assertion failure, pipe %c regs locked\n",
+	     pipe ? 'B' : 'A');
+}
+
 static void assert_pipe_enabled(struct drm_i915_private *dev_priv,
 				enum pipe pipe)
 {
