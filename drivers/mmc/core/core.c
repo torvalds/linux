@@ -1531,9 +1531,11 @@ void mmc_rescan(struct work_struct *work)
 	    && mmc_card_is_removable(host))
 		host->bus_ops->detect(host);
 
+	/*
+	 * Let mmc_bus_put() free the bus/bus_ops if we've found that
+	 * the card is no longer present.
+	 */
 	mmc_bus_put(host);
-
-
 	mmc_bus_get(host);
 
 	/* if there still is a card present, stop here */
