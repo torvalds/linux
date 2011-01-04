@@ -402,7 +402,7 @@ bfa_ioc_sm_op_entry(struct bfa_ioc_s *ioc)
 
 	ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_OK);
 	bfa_ioc_hb_monitor(ioc);
-	BFA_LOG(KERN_INFO, bfad, log_level, "IOC enabled\n");
+	BFA_LOG(KERN_INFO, bfad, bfa_log_level, "IOC enabled\n");
 }
 
 static void
@@ -444,7 +444,7 @@ bfa_ioc_sm_disabling_entry(struct bfa_ioc_s *ioc)
 {
 	struct bfad_s *bfad = (struct bfad_s *)ioc->bfa->bfad;
 	bfa_iocpf_disable(ioc);
-	BFA_LOG(KERN_INFO, bfad, log_level, "IOC disabled\n");
+	BFA_LOG(KERN_INFO, bfad, bfa_log_level, "IOC disabled\n");
 }
 
 /*
@@ -565,7 +565,7 @@ bfa_ioc_sm_fail_entry(struct bfa_ioc_s *ioc)
 		notify->cbfn(notify->cbarg);
 	}
 
-	BFA_LOG(KERN_CRIT, bfad, log_level,
+	BFA_LOG(KERN_CRIT, bfad, bfa_log_level,
 		"Heart Beat of IOC has failed\n");
 }
 
@@ -1812,7 +1812,7 @@ bfa_ioc_pf_fwmismatch(struct bfa_ioc_s *ioc)
 	 * Provide enable completion callback.
 	 */
 	ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
-	BFA_LOG(KERN_WARNING, bfad, log_level,
+	BFA_LOG(KERN_WARNING, bfad, bfa_log_level,
 		"Running firmware version is incompatible "
 		"with the driver version\n");
 }

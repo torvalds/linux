@@ -50,7 +50,7 @@ int		reqq_size, rspq_size, num_sgpgs;
 int		rport_del_timeout = BFA_FCS_RPORT_DEF_DEL_TIMEOUT;
 int		bfa_lun_queue_depth = BFAD_LUN_QUEUE_DEPTH;
 int		bfa_io_max_sge = BFAD_IO_MAX_SGE;
-int		log_level = 3; /* WARNING log level */
+int		bfa_log_level = 3; /* WARNING log level */
 int		ioc_auto_recover = BFA_TRUE;
 int		bfa_linkup_delay = -1;
 int		fdmi_enable = BFA_TRUE;
@@ -108,8 +108,8 @@ module_param(bfa_lun_queue_depth, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(bfa_lun_queue_depth, "Lun queue depth, default=32, Range[>0]");
 module_param(bfa_io_max_sge, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(bfa_io_max_sge, "Max io scatter/gather elements, default=255");
-module_param(log_level, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(log_level, "Driver log level, default=3, "
+module_param(bfa_log_level, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bfa_log_level, "Driver log level, default=3, "
 				"Range[Critical:1|Error:2|Warning:3|Info:4]");
 module_param(ioc_auto_recover, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ioc_auto_recover, "IOC auto recovery, default=1, "
@@ -1112,7 +1112,7 @@ bfad_start_ops(struct bfad_s *bfad) {
 	} else
 		bfad_os_rport_online_wait(bfad);
 
-	BFA_LOG(KERN_INFO, bfad, log_level, "bfa device claimed\n");
+	BFA_LOG(KERN_INFO, bfad, bfa_log_level, "bfa device claimed\n");
 
 	return BFA_STATUS_OK;
 }

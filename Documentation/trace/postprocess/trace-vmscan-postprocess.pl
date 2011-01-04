@@ -373,9 +373,18 @@ EVENT_PROCESS:
 				print "         $regex_lru_isolate/o\n";
 				next;
 			}
+			my $isolate_mode = $1;
 			my $nr_scanned = $4;
 			my $nr_contig_dirty = $7;
-			$perprocesspid{$process_pid}->{HIGH_NR_SCANNED} += $nr_scanned;
+
+			# To closer match vmstat scanning statistics, only count isolate_both
+			# and isolate_inactive as scanning. isolate_active is rotation
+			# isolate_inactive == 0
+			# isolate_active   == 1
+			# isolate_both     == 2
+			if ($isolate_mode != 1) {
+				$perprocesspid{$process_pid}->{HIGH_NR_SCANNED} += $nr_scanned;
+			}
 			$perprocesspid{$process_pid}->{HIGH_NR_CONTIG_DIRTY} += $nr_contig_dirty;
 		} elsif ($tracepoint eq "mm_vmscan_lru_shrink_inactive") {
 			$details = $5;
