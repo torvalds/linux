@@ -2444,7 +2444,8 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		I915_WRITE(PCH_DPLL_SEL, temp);
 	}
 
-	/* set transcoder timing */
+	/* set transcoder timing, panel must allow it */
+	assert_panel_unlocked(dev_priv, pipe);
 	I915_WRITE(TRANS_HTOTAL(pipe), I915_READ(HTOTAL(pipe)));
 	I915_WRITE(TRANS_HBLANK(pipe), I915_READ(HBLANK(pipe)));
 	I915_WRITE(TRANS_HSYNC(pipe),  I915_READ(HSYNC(pipe)));
