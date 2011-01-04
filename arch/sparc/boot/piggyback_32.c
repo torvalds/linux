@@ -36,6 +36,8 @@
  * as PROM looks for a.out image only.
  */
 
+#define AOUT_TEXT_OFFSET   32
+
 /* read two bytes as big endian */
 static unsigned short ld2(char *p)
 {
@@ -154,12 +156,20 @@ int main(int argc,char **argv)
 			die(argv[1]);
 		j = 0;
 	} else if (memcmp(buffer, aout_magic, 4) == 0) {
-		i = j = 32;
+		i = j = AOUT_TEXT_OFFSET;
 	} else {
 		fprintf (stderr, "Not ELF nor a.out. Don't blame me.\n");
 		exit(1);
 	}
 	k = i;
+	/*
+	 * We need to fill in values for sparc_ramdisk_image + sparc_ramdisk_size
+	 * To locate these symbols search for the "HdrS" text which appear
+	 * in the image a little before the gokernel symbol.
+	 * See definition of these in init_32.S
+	 */
+
+	/*  Find the gokernel label */
 	i += (ld2(buffer + j + 2) << 2) - 512;
 	if (lseek(image, i, 0) < 0)
 		die("lseek");
@@ -177,6 +187,13 @@ int main(int argc,char **argv)
 	if (lseek(image, offset, 0) < 0)
 		die("lseek");
 
+	/*
+	 * root_flags = 0
+	 * root_dev = 1 (RAMDISK_MAJOR)
+	 * ram_flags = 0
+	 * sparc_ramdisk_image = "PAGE aligned address after _end")
+	 * sparc_ramdisk_size = size of image
+	 */
 	st4(buffer, 0);
 	st4(buffer + 4, 0x01000000);
 	st4(buffer + 8, (end + 32 + 4095) & ~4095);
@@ -184,11 +201,13 @@ int main(int argc,char **argv)
 
 	if (write(image, buffer + 2, 14) != 14)
 		die(argv[1]);
+
+	/* seek page aligned boundary in the image file and add boot image */
 	if (lseek(image, k - start + ((end + 32 + 4095) & ~4095), 0) < 0)
 		die("lseek");
 	if ((tail = open(argv[3],O_RDONLY)) < 0)
 		die(argv[3]);
-	while ((i = read (tail, buffer, 1024)) > 0)
+	while ((i = read(tail, buffer, 1024)) > 0)
 		if (write(image, buffer, i) != i)
 			die(argv[1]);
 	if (close(image) < 0)
