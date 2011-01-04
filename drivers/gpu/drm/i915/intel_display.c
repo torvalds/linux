@@ -4222,9 +4222,11 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			pipeconf &= ~PIPECONF_DOUBLE_WIDE;
 	}
 
-	dspcntr |= DISPLAY_PLANE_ENABLE;
-	pipeconf |= PIPECONF_ENABLE;
-	dpll |= DPLL_VCO_ENABLE;
+	if (!HAS_PCH_SPLIT(dev)) {
+		dspcntr |= DISPLAY_PLANE_ENABLE;
+		pipeconf |= PIPECONF_ENABLE;
+		dpll |= DPLL_VCO_ENABLE;
+	}
 
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
