@@ -195,7 +195,6 @@ config ARM_PATCH_PHYS_VIRT
 	bool "Patch physical to virtual translations at runtime (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
 	depends on !XIP_KERNEL && !THUMB2_KERNEL && MMU
-	depends on !ARCH_MSM
 	depends on !ARCH_REALVIEW || !SPARSEMEM
 	help
 	  Patch phys-to-virt translation functions at runtime according to
@@ -203,6 +202,10 @@ config ARM_PATCH_PHYS_VIRT
 
 	  This can only be used with non-XIP, non-Thumb2, MMU kernels where
 	  the base of physical memory is at a 16MB boundary.
+
+config ARM_PATCH_PHYS_VIRT_16BIT
+	def_bool y
+	depends on ARM_PATCH_PHYS_VIRT && ARCH_MSM
 
 source "init/Kconfig"
 

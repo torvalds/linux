@@ -154,29 +154,42 @@
 #ifndef __virt_to_phys
 #ifdef CONFIG_ARM_PATCH_PHYS_VIRT
 
+/*
+ * Constants used to force the right instruction encodings and shifts
+ * so that all we need to do is modify the 8-bit constant field.
+ */
+#define __PV_BITS_31_24	0x81000000
+#define __PV_BITS_23_16	0x00810000
+
 extern unsigned long __pv_phys_offset;
 #define PHYS_OFFSET __pv_phys_offset
 
-#define __pv_stub(from,to,instr)			\
+#define __pv_stub(from,to,instr,type)			\
 	__asm__("@ __pv_stub\n"				\
 	"1:	" instr "	%0, %1, %2\n"		\
 	"	.pushsection .pv_table,\"a\"\n"		\
 	"	.long	1b\n"				\
 	"	.popsection\n"				\
 	: "=r" (to)					\
-	: "r" (from), "I" (0x81000000))
+	: "r" (from), "I" (type))
 
 static inline unsigned long __virt_to_phys(unsigned long x)
 {
 	unsigned long t;
-	__pv_stub(x, t, "add");
+	__pv_stub(x, t, "add", __PV_BITS_31_24);
+#ifdef CONFIG_ARM_PATCH_PHYS_VIRT_16BIT
+	__pv_stub(t, t, "add", __PV_BITS_23_16);
+#endif
 	return t;
 }
 
 static inline unsigned long __phys_to_virt(unsigned long x)
 {
 	unsigned long t;
-	__pv_stub(x, t, "sub");
+	__pv_stub(x, t, "sub", __PV_BITS_31_24);
+#ifdef CONFIG_ARM_PATCH_PHYS_VIRT_16BIT
+	__pv_stub(t, t, "sub", __PV_BITS_23_16);
+#endif
 	return t;
 }
 #else
