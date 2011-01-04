@@ -975,6 +975,24 @@ xfs_set_rw_sizes(xfs_mount_t *mp)
 }
 
 /*
+ * precalculate the low space thresholds for dynamic speculative preallocation.
+ */
+void
+xfs_set_low_space_thresholds(
+	struct xfs_mount	*mp)
+{
+	int i;
+
+	for (i = 0; i < XFS_LOWSP_MAX; i++) {
+		__uint64_t space = mp->m_sb.sb_dblocks;
+
+		do_div(space, 100);
+		mp->m_low_space[i] = space * (i + 1);
+	}
+}
+
+
+/*
  * Set whether we're using inode alignment.
  */
 STATIC void
@@ -1195,6 +1213,9 @@ xfs_mountfs(
 	 * Set the minimum read and write sizes
 	 */
 	xfs_set_rw_sizes(mp);
+
+	/* set the low space thresholds for dynamic preallocation */
+	xfs_set_low_space_thresholds(mp);
 
 	/*
 	 * Set the inode cluster size.

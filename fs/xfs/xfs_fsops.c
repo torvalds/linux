@@ -374,6 +374,7 @@ xfs_growfs_data_private(
 		mp->m_maxicount = icount << mp->m_sb.sb_inopblog;
 	} else
 		mp->m_maxicount = 0;
+	xfs_set_low_space_thresholds(mp);
 
 	/* update secondary superblocks. */
 	for (agno = 1; agno < nagcount; agno++) {
