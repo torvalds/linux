@@ -20,7 +20,7 @@
 #include <plat/omap-pm.h>
 
 #ifdef CONFIG_PM_RUNTIME
-int omap_pm_runtime_suspend(struct device *dev)
+static int omap_pm_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	int r, ret = 0;
@@ -37,7 +37,7 @@ int omap_pm_runtime_suspend(struct device *dev)
 	return ret;
 };
 
-int omap_pm_runtime_resume(struct device *dev)
+static int omap_pm_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	int r;
