@@ -70,6 +70,9 @@
 #define REG_READ(_ah, _reg) \
 	ath9k_hw_common(_ah)->ops->read((_ah), (_reg))
 
+#define REG_READ_MULTI(_ah, _addr, _val, _cnt)		\
+	ath9k_hw_common(_ah)->ops->multi_read((_ah), (_addr), (_val), (_cnt))
+
 #define ENABLE_REGWRITE_BUFFER(_ah)					\
 	do {								\
 		if (ath9k_hw_common(_ah)->ops->enable_write_buffer)	\
