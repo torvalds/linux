@@ -140,6 +140,20 @@ struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *e
 		}
 		if (current_entry->prompt && current_entry != &rootmenu)
 			prop_warn(prop, "prompt redefined");
+
+		/* Apply all upper menus' visibilities to actual prompts. */
+		if(type == P_PROMPT) {
+			struct menu *menu = current_entry;
+
+			while ((menu = menu->parent) != NULL) {
+				if (!menu->visibility)
+					continue;
+				prop->visible.expr
+					= expr_alloc_and(prop->visible.expr,
+							 menu->visibility);
+			}
+		}
+
 		current_entry->prompt = prop;
 	}
 	prop->text = prompt;

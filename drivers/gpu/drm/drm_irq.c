@@ -1091,7 +1091,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 		e->event.sequence = seq;
 		e->event.tv_sec = now.tv_sec;
 		e->event.tv_usec = now.tv_usec;
-		drm_vblank_put(dev, e->pipe);
+		drm_vblank_put(dev, pipe);
 		list_add_tail(&e->base.link, &e->base.file_priv->event_list);
 		wake_up_interruptible(&e->base.file_priv->event_wait);
 		vblwait->reply.sequence = seq;
@@ -1110,7 +1110,7 @@ err_unlock:
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 	kfree(e);
 err_put:
-	drm_vblank_put(dev, e->pipe);
+	drm_vblank_put(dev, pipe);
 	return ret;
 }
 

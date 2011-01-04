@@ -696,6 +696,7 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 				   __btree_submit_bio_done);
 }
 
+#ifdef CONFIG_MIGRATION
 static int btree_migratepage(struct address_space *mapping,
 			struct page *newpage, struct page *page)
 {
@@ -712,12 +713,9 @@ static int btree_migratepage(struct address_space *mapping,
 	if (page_has_private(page) &&
 	    !try_to_release_page(page, GFP_KERNEL))
 		return -EAGAIN;
-#ifdef CONFIG_MIGRATION
 	return migrate_page(mapping, newpage, page);
-#else
-	return -ENOSYS;
-#endif
 }
+#endif
 
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
 {
@@ -1009,7 +1007,10 @@ static int find_and_setup_root(struct btrfs_root *tree_root,
 	blocksize = btrfs_level_size(root, btrfs_root_level(&root->root_item));
 	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
 				     blocksize, generation);
-	BUG_ON(!root->node);
+	if (!root->node || !btrfs_buffer_uptodate(root->node, generation)) {
+		free_extent_buffer(root->node);
+		return -EIO;
+	}
 	root->commit_root = btrfs_root_node(root);
 	return 0;
 }

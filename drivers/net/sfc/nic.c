@@ -1418,6 +1418,12 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 	u32 queues;
 	int syserr;
 
+	/* Could this be ours?  If interrupts are disabled then the
+	 * channel state may not be valid.
+	 */
+	if (!efx->legacy_irq_enabled)
+		return result;
+
 	/* Read the ISR which also ACKs the interrupts */
 	efx_readd(efx, &reg, FR_BZ_INT_ISR0);
 	queues = EFX_EXTRACT_DWORD(reg, 0, 31);

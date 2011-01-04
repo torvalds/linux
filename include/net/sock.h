@@ -754,6 +754,7 @@ struct proto {
 	void			(*unhash)(struct sock *sk);
 	void			(*rehash)(struct sock *sk);
 	int			(*get_port)(struct sock *sk, unsigned short snum);
+	void			(*clear_sk)(struct sock *sk, int size);
 
 	/* Keeping track of sockets in use */
 #ifdef CONFIG_PROC_FS
@@ -851,6 +852,8 @@ static inline void __sk_prot_rehash(struct sock *sk)
 	sk->sk_prot->unhash(sk);
 	sk->sk_prot->hash(sk);
 }
+
+void sk_prot_clear_portaddr_nulls(struct sock *sk, int size);
 
 /* About 10 seconds */
 #define SOCK_DESTROY_TIME (10*HZ)
@@ -1155,6 +1158,8 @@ extern void sk_common_release(struct sock *sk);
 /* Initialise core socket variables */
 extern void sock_init_data(struct socket *sock, struct sock *sk);
 
+extern void sk_filter_release_rcu(struct rcu_head *rcu);
+
 /**
  *	sk_filter_release - release a socket filter
  *	@fp: filter to remove
@@ -1165,7 +1170,7 @@ extern void sock_init_data(struct socket *sock, struct sock *sk);
 static inline void sk_filter_release(struct sk_filter *fp)
 {
 	if (atomic_dec_and_test(&fp->refcnt))
-		kfree(fp);
+		call_rcu_bh(&fp->rcu, sk_filter_release_rcu);
 }
 
 static inline void sk_filter_uncharge(struct sock *sk, struct sk_filter *fp)

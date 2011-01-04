@@ -81,8 +81,7 @@ static void shoc_clk_init(struct clk *clk)
 	for (i = 0; i < ARRAY_SIZE(frqcr3_divisors); i++) {
 		int divisor = frqcr3_divisors[i];
 
-		if (clk->ops->set_rate(clk, clk->parent->rate /
-						divisor, 0) == 0)
+		if (clk->ops->set_rate(clk, clk->parent->rate / divisor) == 0)
 			break;
 	}
 

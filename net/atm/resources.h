@@ -42,6 +42,6 @@ static inline void atm_proc_dev_deregister(struct atm_dev *dev)
 
 #endif /* CONFIG_PROC_FS */
 
-int atm_register_sysfs(struct atm_dev *adev);
+int atm_register_sysfs(struct atm_dev *adev, struct device *parent);
 void atm_unregister_sysfs(struct atm_dev *adev);
 #endif

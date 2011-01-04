@@ -151,19 +151,19 @@ orinoco_cs_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	ret = pcmcia_request_irq(link, orinoco_interrupt);
-	if (ret)
-		goto failed;
-
-	/* We initialize the hermes structure before completing PCMCIA
-	 * configuration just in case the interrupt handler gets
-	 * called. */
 	mem = ioport_map(link->resource[0]->start,
 			resource_size(link->resource[0]));
 	if (!mem)
 		goto failed;
 
+	/* We initialize the hermes structure before completing PCMCIA
+	 * configuration just in case the interrupt handler gets
+	 * called. */
 	hermes_struct_init(hw, mem, HERMES_16BIT_REGSPACING);
+
+	ret = pcmcia_request_irq(link, orinoco_interrupt);
+	if (ret)
+		goto failed;
 
 	ret = pcmcia_enable_device(link);
 	if (ret)

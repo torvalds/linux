@@ -119,26 +119,22 @@
 
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-extern cpumask_var_t netpoll_block_tx;
+extern atomic_t netpoll_block_tx;
 
 static inline void block_netpoll_tx(void)
 {
-	preempt_disable();
-	BUG_ON(cpumask_test_and_set_cpu(smp_processor_id(),
-					netpoll_block_tx));
+	atomic_inc(&netpoll_block_tx);
 }
 
 static inline void unblock_netpoll_tx(void)
 {
-	BUG_ON(!cpumask_test_and_clear_cpu(smp_processor_id(),
-					   netpoll_block_tx));
-	preempt_enable();
+	atomic_dec(&netpoll_block_tx);
 }
 
 static inline int is_netpoll_tx_blocked(struct net_device *dev)
 {
 	if (unlikely(dev->priv_flags & IFF_IN_NETPOLL))
-		return cpumask_test_cpu(smp_processor_id(), netpoll_block_tx);
+		return atomic_read(&netpoll_block_tx);
 	return 0;
 }
 #else
@@ -273,11 +269,11 @@ static inline struct slave *bond_get_slave_by_dev(struct bonding *bond, struct n
 
 	bond_for_each_slave(bond, slave, i) {
 		if (slave->dev == slave_dev) {
-			break;
+			return slave;
 		}
 	}
 
-	return slave;
+	return 0;
 }
 
 static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)

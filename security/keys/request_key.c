@@ -403,7 +403,6 @@ link_check_failed:
 	return ret;
 
 link_prealloc_failed:
-	up_write(&dest_keyring->sem);
 	mutex_unlock(&user->cons_lock);
 	kleave(" = %d [prelink]", ret);
 	return ret;
