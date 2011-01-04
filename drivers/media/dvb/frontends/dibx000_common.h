@@ -219,6 +219,51 @@ struct dvb_frontend_parametersContext {
 
 #define FE_CALLBACK_TIME_NEVER 0xffffffff
 
-#define ABS(x) ((x < 0) ? (-x) : (x))
+#define ABS(x) ((x<0)?(-x):(x))
+
+#define DATA_BUS_ACCESS_MODE_8BIT                 0x01
+#define DATA_BUS_ACCESS_MODE_16BIT                0x02
+#define DATA_BUS_ACCESS_MODE_NO_ADDRESS_INCREMENT 0x10
+
+struct dibGPIOFunction {
+#define BOARD_GPIO_COMPONENT_BUS_ADAPTER 1
+#define BOARD_GPIO_COMPONENT_DEMOD       2
+	u8 component;
+
+#define BOARD_GPIO_FUNCTION_BOARD_ON      1
+#define BOARD_GPIO_FUNCTION_BOARD_OFF     2
+#define BOARD_GPIO_FUNCTION_COMPONENT_ON  3
+#define BOARD_GPIO_FUNCTION_COMPONENT_OFF 4
+#define BOARD_GPIO_FUNCTION_SUBBAND_PWM   5
+#define BOARD_GPIO_FUNCTION_SUBBAND_GPIO   6
+	u8 function;
+
+/* mask, direction and value are used specify which GPIO to change GPIO0
+ * is LSB and possible GPIO31 is MSB.  The same bit-position as in the
+ * mask is used for the direction and the value. Direction == 1 is OUT,
+ * 0 == IN. For direction "OUT" value is either 1 or 0, for direction IN
+ * value has no meaning.
+ *
+ * In case of BOARD_GPIO_FUNCTION_PWM mask is giving the GPIO to be
+ * used to do the PWM. Direction gives the PWModulator to be used.
+ * Value gives the PWM value in device-dependent scale.
+ */
+	u32 mask;
+	u32 direction;
+	u32 value;
+};
+
+#define MAX_NB_SUBBANDS   8
+struct dibSubbandSelection {
+	u8  size; /* Actual number of subbands. */
+	struct {
+		u16 f_mhz;
+		struct dibGPIOFunction gpio;
+	} subband[MAX_NB_SUBBANDS];
+};
+
+#define DEMOD_TIMF_SET    0x00
+#define DEMOD_TIMF_GET    0x01
+#define DEMOD_TIMF_UPDATE 0x02
 
 #endif
