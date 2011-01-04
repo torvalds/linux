@@ -15,14 +15,20 @@
 #include <linux/i2c/pcf857x.h>
 
 #include "machtypes.h"
+#include "dev-gpio-buttons.h"
 #include "dev-leds-gpio.h"
 
 #define PB44_GPIO_I2C_SCL	0
 #define PB44_GPIO_I2C_SDA	1
 
 #define PB44_GPIO_EXP_BASE	16
+#define PB44_GPIO_SW_RESET	(PB44_GPIO_EXP_BASE + 6)
+#define PB44_GPIO_SW_JUMP	(PB44_GPIO_EXP_BASE + 8)
 #define PB44_GPIO_LED_JUMP1	(PB44_GPIO_EXP_BASE + 9)
 #define PB44_GPIO_LED_JUMP2	(PB44_GPIO_EXP_BASE + 10)
+
+#define PB44_KEYS_POLL_INTERVAL		20	/* msecs */
+#define PB44_KEYS_DEBOUNCE_INTERVAL	(3 * PB44_KEYS_POLL_INTERVAL)
 
 static struct i2c_gpio_platform_data pb44_i2c_gpio_data = {
 	.sda_pin        = PB44_GPIO_I2C_SDA,
@@ -60,6 +66,24 @@ static struct gpio_led pb44_leds_gpio[] __initdata = {
 	},
 };
 
+static struct gpio_keys_button pb44_gpio_keys[] __initdata = {
+	{
+		.desc		= "soft_reset",
+		.type		= EV_KEY,
+		.code		= KEY_RESTART,
+		.debounce_interval = PB44_KEYS_DEBOUNCE_INTERVAL,
+		.gpio		= PB44_GPIO_SW_RESET,
+		.active_low	= 1,
+	} , {
+		.desc		= "jumpstart",
+		.type		= EV_KEY,
+		.code		= KEY_WPS_BUTTON,
+		.debounce_interval = PB44_KEYS_DEBOUNCE_INTERVAL,
+		.gpio		= PB44_GPIO_SW_JUMP,
+		.active_low	= 1,
+	}
+};
+
 static void __init pb44_init(void)
 {
 	i2c_register_board_info(0, pb44_i2c_board_info,
@@ -68,6 +92,9 @@ static void __init pb44_init(void)
 
 	ath79_register_leds_gpio(-1, ARRAY_SIZE(pb44_leds_gpio),
 				 pb44_leds_gpio);
+	ath79_register_gpio_keys_polled(-1, PB44_KEYS_POLL_INTERVAL,
+					ARRAY_SIZE(pb44_gpio_keys),
+					pb44_gpio_keys);
 }
 
 MIPS_MACHINE(ATH79_MACH_PB44, "PB44", "Atheros PB44 reference board",

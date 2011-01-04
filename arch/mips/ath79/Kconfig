@@ -5,6 +5,7 @@ menu "Atheros AR71XX/AR724X/AR913X machine selection"
 config ATH79_MACH_PB44
 	bool "Atheros PB44 reference board"
 	select SOC_AR71XX
+	select ATH79_DEV_GPIO_BUTTONS
 	select ATH79_DEV_LEDS_GPIO
 	help
 	  Say 'Y' here if you want your kernel to support the
@@ -19,6 +20,9 @@ config SOC_AR724X
 	def_bool n
 
 config SOC_AR913X
+	def_bool n
+
+config ATH79_DEV_GPIO_BUTTONS
 	def_bool n
 
 config ATH79_DEV_LEDS_GPIO
