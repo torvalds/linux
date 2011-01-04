@@ -6,16 +6,16 @@
 ROOT_IMG	:= /usr/src/root.img
 ELFTOAOUT	:= elftoaout
 
-hostprogs-y	:= piggyback_32 btfixupprep
+hostprogs-y	:= piggyback btfixupprep
 targets		:= tftpboot.img btfix.o btfix.S image zImage vmlinux.aout
 clean-files	:= System.map
 
 quiet_cmd_elftoaout	= ELFTOAOUT $@
       cmd_elftoaout	= $(ELFTOAOUT) $(obj)/image -o $@
+quiet_cmd_piggy		= PIGGY   $@
+      cmd_piggy		= $(obj)/piggyback $(BITS) $@ System.map $(ROOT_IMG)
 
 ifeq ($(CONFIG_SPARC32),y)
-quiet_cmd_piggy		= PIGGY   $@
-      cmd_piggy		= $(obj)/piggyback_32 $(BITS) $@ System.map $(ROOT_IMG)
 quiet_cmd_btfix		= BTFIX   $@
       cmd_btfix		= $(OBJDUMP) -x vmlinux | $(obj)/btfixupprep > $@
 quiet_cmd_sysmap        = SYSMAP  $(obj)/System.map
@@ -58,18 +58,12 @@ $(obj)/image: $(obj)/btfix.o FORCE
 $(obj)/zImage: $(obj)/image
 	$(call if_changed,strip)
 
-$(obj)/tftpboot.img: $(obj)/image $(obj)/piggyback_32 System.map $(ROOT_IMG) FORCE
-	$(call if_changed,elftoaout)
-	$(call if_changed,piggy)
-
 $(obj)/btfix.S: $(obj)/btfixupprep vmlinux FORCE
 	$(call if_changed,btfix)
 
 endif
 
 ifeq ($(CONFIG_SPARC64),y)
-quiet_cmd_piggy     = PIGGY   $@
-      cmd_piggy     = $(obj)/piggyback_32 $(BITS) $@ System.map $(ROOT_IMG)
 quiet_cmd_strip     = STRIP   $@
       cmd_strip     = $(STRIP) -R .comment -R .note -K sun4u_init -K _end -K _start vmlinux -o $@
 
@@ -82,13 +76,11 @@ $(obj)/image: vmlinux FORCE
 $(obj)/zImage: $(obj)/image
 	$(call if_changed,gzip)
 
-$(obj)/tftpboot.img: $(obj)/image $(obj)/piggyback_32 System.map $(ROOT_IMG) FORCE
-	$(call if_changed,elftoaout)
-	$(call if_changed,piggy)
-	@echo '  kernel: $@ is ready'
-
 $(obj)/vmlinux.aout: vmlinux FORCE
 	$(call if_changed,elftoaout)
 	@echo '  kernel: $@ is ready'
 endif
 
+$(obj)/tftpboot.img: $(obj)/image $(obj)/piggyback System.map $(ROOT_IMG) FORCE
+	$(call if_changed,elftoaout)
+	$(call if_changed,piggy)
