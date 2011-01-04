@@ -26,14 +26,6 @@
 #include <mach/debug-macro.S>
 #endif
 
-#if (PHYS_OFFSET & 0x001fffff)
-#error "PHYS_OFFSET must be at an even 2MiB boundary!"
-#endif
-
-#define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
-#define KERNEL_RAM_PADDR	(PHYS_OFFSET + TEXT_OFFSET)
-
-
 /*
  * swapper_pg_dir is the virtual address of the initial page table.
  * We place the page tables 16K below KERNEL_RAM_VADDR.  Therefore, we must
@@ -41,6 +33,7 @@
  * the least significant 16 bits to be 0x8000, but we could probably
  * relax this restriction to KERNEL_RAM_VADDR >= PAGE_OFFSET + 0x4000.
  */
+#define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
 #if (KERNEL_RAM_VADDR & 0xffff) != 0x8000
 #error KERNEL_RAM_VADDR must start at 0xXXXX8000
 #endif
@@ -48,8 +41,8 @@
 	.globl	swapper_pg_dir
 	.equ	swapper_pg_dir, KERNEL_RAM_VADDR - 0x4000
 
-	.macro	pgtbl, rd
-	ldr	\rd, =(KERNEL_RAM_PADDR - 0x4000)
+	.macro	pgtbl, rd, phys
+	add	\rd, \phys, #TEXT_OFFSET - 0x4000
 	.endm
 
 #ifdef CONFIG_XIP_KERNEL
@@ -88,9 +81,18 @@ ENTRY(stext)
  THUMB( it	eq )		@ force fixup-able long branch encoding
 	beq	__error_p			@ yes, error 'p'
 
+#ifndef CONFIG_XIP_KERNEL
+	adr	r3, 2f
+	ldmia	r3, {r4, r8}
+	sub	r4, r3, r4			@ (PHYS_OFFSET - PAGE_OFFSET)
+	add	r8, r8, r4			@ PHYS_OFFSET
+#else
+	ldr	r8, =PLAT_PHYS_OFFSET
+#endif
+
 	/*
 	 * r1 = machine no, r2 = atags,
-	 * r9 = cpuid, r10 = procinfo
+	 * r8 = phys_offset, r9 = cpuid, r10 = procinfo
 	 */
 	bl	__vet_atags
 #ifdef CONFIG_SMP_ON_UP
@@ -114,21 +116,24 @@ ENTRY(stext)
 1:	b	__enable_mmu
 ENDPROC(stext)
 	.ltorg
+#ifndef CONFIG_XIP_KERNEL
+2:	.long	.
+	.long	PAGE_OFFSET
+#endif
 
 /*
  * Setup the initial page tables.  We only setup the barest
  * amount which are required to get the kernel running, which
  * generally means mapping in the kernel code.
  *
- * r9  = cpuid
- * r10 = procinfo
+ * r8 = phys_offset, r9 = cpuid, r10 = procinfo
  *
  * Returns:
  *  r0, r3, r5-r7 corrupted
  *  r4 = physical page table address
  */
 __create_page_tables:
-	pgtbl	r4				@ page table address
+	pgtbl	r4, r8				@ page table address
 
 	/*
 	 * Clear the 16K level 1 swapper page table
@@ -184,10 +189,8 @@ __create_page_tables:
 	/*
 	 * Map some ram to cover our .data and .bss areas.
 	 */
-	orr	r3, r7, #(KERNEL_RAM_PADDR & 0xff000000)
-	.if	(KERNEL_RAM_PADDR & 0x00f00000)
-	orr	r3, r3, #(KERNEL_RAM_PADDR & 0x00f00000)
-	.endif
+	add	r3, r8, #TEXT_OFFSET
+	orr	r3, r3, r7
 	add	r0, r4,  #(KERNEL_RAM_VADDR & 0xff000000) >> 18
 	str	r3, [r0, #(KERNEL_RAM_VADDR & 0x00f00000) >> 18]!
 	ldr	r6, =(_end - 1)
@@ -203,10 +206,7 @@ __create_page_tables:
 	 * Then map first 1MB of ram in case it contains our boot params.
 	 */
 	add	r0, r4, #PAGE_OFFSET >> 18
-	orr	r6, r7, #(PHYS_OFFSET & 0xff000000)
-	.if	(PHYS_OFFSET & 0x00f00000)
-	orr	r6, r6, #(PHYS_OFFSET & 0x00f00000)
-	.endif
+	orr	r6, r7, r8
 	str	r6, [r0]
 
 #ifdef CONFIG_DEBUG_LL
