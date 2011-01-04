@@ -99,16 +99,6 @@ static int process_sample_event(event_t *event, struct sample_data *sample,
 	return 0;
 }
 
-static u64 nr_lost;
-
-static int process_lost_event(event_t *event, struct sample_data *sample __used,
-			      struct perf_session *session __used)
-{
-	nr_lost += event->lost.lost;
-
-	return 0;
-}
-
 static struct perf_event_ops event_ops = {
 	.sample	= process_sample_event,
 	.comm	= event__process_comm,
@@ -116,7 +106,6 @@ static struct perf_event_ops event_ops = {
 	.event_type = event__process_event_type,
 	.tracing_data = event__process_tracing_data,
 	.build_id = event__process_build_id,
-	.lost = process_lost_event,
 	.ordering_requires_timestamps = true,
 	.ordered_samples = true,
 };
@@ -136,10 +125,8 @@ static int __cmd_script(struct perf_session *session)
 
 	ret = perf_session__process_events(session, &event_ops);
 
-	if (debug_mode) {
+	if (debug_mode)
 		pr_err("Misordered timestamps: %llu\n", nr_unordered);
-		pr_err("Lost events: %llu\n", nr_lost);
-	}
 
 	return ret;
 }
