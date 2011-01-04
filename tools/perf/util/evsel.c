@@ -66,6 +66,9 @@ int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 	if (FD(evsel, cpu, thread) < 0)
 		return -EINVAL;
 
+	if (evsel->counts == NULL && perf_evsel__alloc_counts(evsel, cpu + 1) < 0)
+		return -ENOMEM;
+
 	if (readn(FD(evsel, cpu, thread), &count, nv * sizeof(u64)) < 0)
 		return -errno;
 
@@ -129,6 +132,9 @@ int perf_evsel__open_per_cpu(struct perf_evsel *evsel, struct cpu_map *cpus)
 {
 	int cpu;
 
+	if (evsel->fd == NULL && perf_evsel__alloc_fd(evsel, cpus->nr, 1) < 0)
+		return -1;
+
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
 		FD(evsel, cpu, 0) = sys_perf_event_open(&evsel->attr, -1,
 							cpus->map[cpu], -1, 0);
@@ -149,6 +155,9 @@ out_close:
 int perf_evsel__open_per_thread(struct perf_evsel *evsel, struct thread_map *threads)
 {
 	int thread;
+
+	if (evsel->fd == NULL && perf_evsel__alloc_fd(evsel, 1, threads->nr))
+		return -1;
 
 	for (thread = 0; thread < threads->nr; thread++) {
 		FD(evsel, 0, thread) = sys_perf_event_open(&evsel->attr,
