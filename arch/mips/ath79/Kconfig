@@ -1,0 +1,12 @@
+if ATH79
+
+config SOC_AR71XX
+	def_bool n
+
+config SOC_AR724X
+	def_bool n
+
+config SOC_AR913X
+	def_bool n
+
+endif
