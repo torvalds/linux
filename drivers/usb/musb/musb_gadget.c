@@ -100,9 +100,23 @@
 static inline void map_dma_buffer(struct musb_request *request,
 			struct musb *musb, struct musb_ep *musb_ep)
 {
+	int compatible = true;
+	struct dma_controller *dma = musb->dma_controller;
+
 	request->map_state = UN_MAPPED;
 
 	if (!is_dma_capable() || !musb_ep->dma)
+		return;
+
+	/* Check if DMA engine can handle this request.
+	 * DMA code must reject the USB request explicitly.
+	 * Default behaviour is to map the request.
+	 */
+	if (dma->is_compatible)
+		compatible = dma->is_compatible(musb_ep->dma,
+				musb_ep->packet_sz, request->request.buf,
+				request->request.length);
+	if (!compatible)
 		return;
 
 	if (request->request.dma == DMA_ADDR_INVALID) {
