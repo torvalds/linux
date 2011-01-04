@@ -127,59 +127,75 @@ int __perf_evsel__read(struct perf_evsel *evsel,
 	return 0;
 }
 
-int perf_evsel__open_per_cpu(struct perf_evsel *evsel, struct cpu_map *cpus)
+static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
+			      struct thread_map *threads)
 {
-	int cpu;
+	int cpu, thread;
 
-	if (evsel->fd == NULL && perf_evsel__alloc_fd(evsel, cpus->nr, 1) < 0)
+	if (evsel->fd == NULL &&
+	    perf_evsel__alloc_fd(evsel, cpus->nr, threads->nr) < 0)
 		return -1;
 
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
-		FD(evsel, cpu, 0) = sys_perf_event_open(&evsel->attr, -1,
-							cpus->map[cpu], -1, 0);
-		if (FD(evsel, cpu, 0) < 0)
-			goto out_close;
+		for (thread = 0; thread < threads->nr; thread++) {
+			FD(evsel, cpu, thread) = sys_perf_event_open(&evsel->attr,
+								     threads->map[thread],
+								     cpus->map[cpu], -1, 0);
+			if (FD(evsel, cpu, thread) < 0)
+				goto out_close;
+		}
 	}
 
 	return 0;
 
 out_close:
-	while (--cpu >= 0) {
-		close(FD(evsel, cpu, 0));
-		FD(evsel, cpu, 0) = -1;
-	}
+	do {
+		while (--thread >= 0) {
+			close(FD(evsel, cpu, thread));
+			FD(evsel, cpu, thread) = -1;
+		}
+		thread = threads->nr;
+	} while (--cpu >= 0);
 	return -1;
+}
+
+static struct {
+	struct cpu_map map;
+	int cpus[1];
+} empty_cpu_map = {
+	.map.nr	= 1,
+	.cpus	= { -1, },
+};
+
+static struct {
+	struct thread_map map;
+	int threads[1];
+} empty_thread_map = {
+	.map.nr	 = 1,
+	.threads = { -1, },
+};
+
+int perf_evsel__open(struct perf_evsel *evsel,
+		     struct cpu_map *cpus, struct thread_map *threads)
+{
+
+	if (cpus == NULL) {
+		/* Work around old compiler warnings about strict aliasing */
+		cpus = &empty_cpu_map.map;
+	}
+
+	if (threads == NULL)
+		threads = &empty_thread_map.map;
+
+	return __perf_evsel__open(evsel, cpus, threads);
+}
+
+int perf_evsel__open_per_cpu(struct perf_evsel *evsel, struct cpu_map *cpus)
+{
+	return __perf_evsel__open(evsel, cpus, &empty_thread_map.map);
 }
 
 int perf_evsel__open_per_thread(struct perf_evsel *evsel, struct thread_map *threads)
 {
-	int thread;
-
-	if (evsel->fd == NULL && perf_evsel__alloc_fd(evsel, 1, threads->nr))
-		return -1;
-
-	for (thread = 0; thread < threads->nr; thread++) {
-		FD(evsel, 0, thread) = sys_perf_event_open(&evsel->attr,
-							   threads->map[thread], -1, -1, 0);
-		if (FD(evsel, 0, thread) < 0)
-			goto out_close;
-	}
-
-	return 0;
-
-out_close:
-	while (--thread >= 0) {
-		close(FD(evsel, 0, thread));
-		FD(evsel, 0, thread) = -1;
-	}
-	return -1;
-}
-
-int perf_evsel__open(struct perf_evsel *evsel, 
-		     struct cpu_map *cpus, struct thread_map *threads)
-{
-	if (threads == NULL)
-		return perf_evsel__open_per_cpu(evsel, cpus);
-
-	return perf_evsel__open_per_thread(evsel, threads);
+	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads);
 }
