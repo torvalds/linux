@@ -120,8 +120,11 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 	if (!rootnp)
 		goto bad;
 	np = of_find_node_by_name(rootnp, "GAISLER_IRQMP");
-	if (!np)
-		goto bad;
+	if (!np) {
+		np = of_find_node_by_name(rootnp, "01_00d");
+		if (!np)
+			goto bad;
+	}
 	pp = of_find_property(np, "reg", &len);
 	if (!pp)
 		goto bad;
@@ -129,8 +132,11 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 
 	/* Find GPTIMER Timer Registers base address otherwise bail out. */
 	np = of_find_node_by_name(rootnp, "GAISLER_GPTIMER");
-	if (!np)
-		goto bad;
+	if (!np) {
+		np = of_find_node_by_name(np, "01_011");
+		if (!np)
+			goto bad;
+	}
 	pp = of_find_property(np, "reg", &len);
 	if (!pp)
 		goto bad;
