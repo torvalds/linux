@@ -186,7 +186,7 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 						 msg[i].len,
 						 USB_CTRL_GET_TIMEOUT);
 			if (result < 0) {
-				err("i2c read error (status = %d)\n", result);
+				deb_info("i2c read error (status = %d)\n", result);
 				break;
 			}
 
@@ -215,7 +215,7 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 						 0, 0, buf, msg[i].len + 4,
 						 USB_CTRL_GET_TIMEOUT);
 			if (result < 0) {
-				err("i2c write error (status = %d)\n", result);
+				deb_info("i2c write error (status = %d)\n", result);
 				break;
 			}
 		}
