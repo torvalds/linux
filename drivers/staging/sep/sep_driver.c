@@ -29,7 +29,6 @@
  *  2010.09.14  Upgrade to Medfield
  *
  */
-#define DEBUG
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/miscdevice.h>
@@ -2177,22 +2176,6 @@ static int sep_prepare_input_output_dma_table_in_dcb(struct sep_device *sep,
 	dcb_table_ptr->out_vr_tail_pt = 0;
 
 	if (isapplet == true) {
-		tail_size = data_in_size % block_size;
-		if (tail_size) {
-			if (data_in_size < tail_block_size) {
-				dev_warn(&sep->pdev->dev, "data in size smaller than tail block size\n");
-				error = -ENOSPC;
-				goto end_function;
-			}
-			if (tail_block_size)
-				/*
-				 * Case the tail size should be
-				 * bigger than the real block size
-				 */
-				tail_size = tail_block_size +
-					((data_in_size -
-						tail_block_size) % block_size);
-		}
 
 		/* Check if there is enough data for DMA operation */
 		if (data_in_size < SEP_DRIVER_MIN_DATA_SIZE_PER_TABLE) {
@@ -2213,7 +2196,7 @@ static int sep_prepare_input_output_dma_table_in_dcb(struct sep_device *sep,
 			/* Set the output user-space address for mem2mem op */
 			if (app_out_address)
 				dcb_table_ptr->out_vr_tail_pt =
-							(u32)app_out_address;
+							(aligned_u64)app_out_address;
 
 			/*
 			 * Update both data length parameters in order to avoid
@@ -2222,6 +2205,17 @@ static int sep_prepare_input_output_dma_table_in_dcb(struct sep_device *sep,
 			 */
 			tail_size = 0x0;
 			data_in_size = 0x0;
+
+		} else {
+			if (!app_out_address) {
+				tail_size = data_in_size % block_size;
+				if (!tail_size) {
+					if (tail_block_size == block_size)
+						tail_size = block_size;
+				}
+			} else {
+				tail_size = 0;
+			}
 		}
 		if (tail_size) {
 			if (is_kva == true) {
@@ -2243,7 +2237,7 @@ static int sep_prepare_input_output_dma_table_in_dcb(struct sep_device *sep,
 				 * according to tail data size
 				 */
 				dcb_table_ptr->out_vr_tail_pt =
-					(u32)app_out_address + data_in_size
+					(aligned_u64)app_out_address + data_in_size
 					- tail_size;
 
 			/* Save the real tail data size */

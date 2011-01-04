@@ -141,11 +141,11 @@ struct sep_dcblock {
 	/* size of data in the first output mlli */
 	u32	output_mlli_data_size;
 	/* pointer to the output virtual tail */
-	u32	out_vr_tail_pt;
+	aligned_u64 out_vr_tail_pt;
 	/* size of tail data */
 	u32	tail_data_size;
 	/* input tail data array */
-	u8	tail_data[64];
+	u8	tail_data[68];
 };
 
 struct sep_caller_id_entry {
