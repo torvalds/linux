@@ -21,7 +21,18 @@
 #ifndef __MACH_TEGRA2_FUSE_H
 #define __MACH_TEGRA2_FUSE_H
 
+#include <linux/ioctl.h>
+
 #define SBK_DEVKEY_STATUS_SZ	sizeof(u32)
+
+#define TEGRA_FUSE_IOCTL_PROGRAM_SBK		 _IOWR(0x99, 100, int*)
+#define TEGRA_FUSE_IOCTL_GET_UID		 _IOWR(0x99, 101, int*)
+#define TEGRA_FUSE_IOCTL_PROGRAM_SDMMC		 _IOWR(0x99, 102, int)
+#define TEGRA_FUSE_IOCTL_VERIFY_SBK		 _IOWR(0x99, 103, int)
+#define TEGRA_FUSE_IOCTL_VERIFY_PROD_ODM	 _IOWR(0x99, 104, int)
+
+#define SIZE_OF_UID	        16
+#define SIZE_OF_SBK		16
 
 /* fuse io parameters */
 enum fuse_io_param {

@@ -34,11 +34,14 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/fs.h>
 #include <linux/io.h>
+#include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #include <mach/tegra2_fuse.h>
 
@@ -59,6 +62,9 @@
 #define FUSE_PRIV2INTFC		0x020
 #define FUSE_DIS_PGM		0x02C
 #define FUSE_PWR_GOOD_SW	0x034
+
+#define BOOT_DEVICE_INFO_EMMC           17
+#define USE_FUSE_TO_SELECT_BOOT_DEVICE  1
 
 static u32 fuse_pgm_data[NFUSES / 2];
 static u32 fuse_pgm_mask[NFUSES / 2];
@@ -547,9 +553,156 @@ void tegra_fuse_program_disable(void)
 	mutex_unlock(&fuse_lock);
 }
 
+static int tegra_fuse_program_sdmmc(void)
+{
+	int ret_val                 = 0;
+	u32 boot_cfg_value          = 0;
+	u32 boot_strap_value        = 0;
+
+	struct fuse_data emmc_data;
+
+	emmc_data.ignore_devsel_straps = USE_FUSE_TO_SELECT_BOOT_DEVICE;
+	emmc_data.bootdev_cfg = BOOT_DEVICE_INFO_EMMC;
+
+	tegra_fuse_read(IGNORE_DEV_SEL_STRAPS, &boot_strap_value,
+			sizeof(boot_strap_value));
+	tegra_fuse_read(SEC_BOOT_DEV_CFG, &boot_cfg_value,
+			sizeof(boot_cfg_value));
+	if ((boot_strap_value == USE_FUSE_TO_SELECT_BOOT_DEVICE) &&
+	    (boot_cfg_value == BOOT_DEVICE_INFO_EMMC)) {
+		pr_err("Boot info fuses already programmed!\n");
+		return ret_val;
+	}
+	ret_val = tegra_fuse_program(&emmc_data,
+				FLAGS_SEC_BOOT_DEV_CFG |
+				FLAGS_IGNORE_DEV_SEL_STRAPS);
+	if (ret_val < 0)
+		pr_err("Unable to program emmc fuse\n");
+	return ret_val;
+}
+
+static int tegra_fuse_verify_odm_production(void)
+{
+	int ret_val = 0;
+	u32 fuse = 0;
+	if (tegra_fuse_read(ODM_PROD_MODE, &fuse, sizeof(fuse)) == 0) {
+		pr_info("%s: Production ODM FUSE value:  %x\n", __func__, fuse);
+		ret_val = (int)fuse;
+	}
+	return ret_val;
+}
+
+static int tegra_fuse_verify_sbk(void)
+{
+	int ret_val = 0;
+	u32 fuse = 0;
+	if (tegra_fuse_read(SBK_DEVKEY_STATUS, (void *)&fuse,
+		SBK_DEVKEY_STATUS_SZ) == 0) {
+		pr_info("%s: SBK_DEVKEY_FUSE value: %x\n",
+			__func__, fuse);
+		ret_val = (int)fuse;
+	}
+	pr_info("SBK_DEVKEY_FUSE verify is done\n");
+	return ret_val;
+}
+
+static int tegra_fuse_get_uid(void *data)
+{
+	u64 uid = 0ULL;
+	u32 ub, lb;
+
+	uid = tegra_chip_uid();
+	lb = uid & 0xFFFFFFFF;
+	ub = uid >> 32;
+	snprintf((char *)data, SIZE_OF_UID, "%08X%08X", ub, lb);
+	return 0;
+}
+
+
+static int tegra_fuse_program_sbk_fuse(void *data)
+{
+	int ret_val = 0;
+	struct fuse_data sbk_req_data;
+
+	memcpy(sbk_req_data.sbk, data, SIZE_OF_SBK);
+
+	ret_val = tegra_fuse_verify_sbk();
+	if (ret_val > 0) {
+		pr_err("SBK has been programmed already!\n");
+		return ret_val;
+	}
+
+	ret_val = tegra_fuse_program(&sbk_req_data, FLAGS_SBK);
+	pr_info("tegra_fuse_read return value %d\n ", ret_val);
+	return ret_val;
+}
+
+long tegra_fuse_ioctl(struct file *file, unsigned int ioctl_num,
+		      unsigned long ioctl_param)
+{
+	int ret_val = 0;
+	u32 sbk_buff[4];
+	u32 uid_buff[4];
+
+	switch (ioctl_num) {
+	case TEGRA_FUSE_IOCTL_PROGRAM_SBK:
+		if (copy_from_user((void *)sbk_buff,
+				   (void __user *)ioctl_param,
+				   SIZE_OF_SBK)) {
+			return -EFAULT;
+		}
+		ret_val = tegra_fuse_program_sbk_fuse(sbk_buff);
+		break;
+
+	case TEGRA_FUSE_IOCTL_GET_UID:
+		tegra_fuse_get_uid(uid_buff);
+		if (copy_to_user((void *)uid_buff,
+				 (void __user *)ioctl_param, SIZE_OF_UID)) {
+			ret_val = -EFAULT;
+		}
+		break;
+
+	case TEGRA_FUSE_IOCTL_PROGRAM_SDMMC:
+		ret_val = tegra_fuse_program_sdmmc();
+		break;
+
+	case TEGRA_FUSE_IOCTL_VERIFY_SBK:
+		ret_val = tegra_fuse_verify_sbk();
+		break;
+
+	case TEGRA_FUSE_IOCTL_VERIFY_PROD_ODM:
+		ret_val = tegra_fuse_verify_odm_production();
+		break;
+
+	default:
+		ret_val = -EFAULT;
+		break;
+	}
+	return ret_val;
+}
+
+static const struct file_operations tegra_fuse_fops = {
+	.unlocked_ioctl = tegra_fuse_ioctl,
+};
+
+static struct miscdevice tegra_fuse_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "tegra_fuse",
+	.fops = &tegra_fuse_fops,
+};
+
 static int __init tegra_fuse_program_init(void)
 {
+	int rtn;
+
 	mutex_init(&fuse_lock);
+
+	rtn = misc_register(&tegra_fuse_device);
+	if (rtn < 0) {
+		pr_err("Failed to register misc device %d\n", rtn);
+		return rtn;
+	}
+
 	return 0;
 }
 
