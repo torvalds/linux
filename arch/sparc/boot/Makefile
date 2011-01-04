@@ -15,7 +15,7 @@ quiet_cmd_elftoaout	= ELFTOAOUT $@
 
 ifeq ($(CONFIG_SPARC32),y)
 quiet_cmd_piggy		= PIGGY   $@
-      cmd_piggy		= $(obj)/piggyback_32 $@ System.map $(ROOT_IMG)
+      cmd_piggy		= $(obj)/piggyback_32 $(BITS) $@ System.map $(ROOT_IMG)
 quiet_cmd_btfix		= BTFIX   $@
       cmd_btfix		= $(OBJDUMP) -x vmlinux | $(obj)/btfixupprep > $@
 quiet_cmd_sysmap        = SYSMAP  $(obj)/System.map
