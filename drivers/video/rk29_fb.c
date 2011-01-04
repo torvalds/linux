@@ -430,9 +430,9 @@ int init_lcdc(struct fb_info *info)
     clk_enable(inf->clk);
 
 	// set AHB access rule and disable all windows
-    LcdWrReg(inf, SYS_CONFIG, 0x20000000);
+    LcdWrReg(inf, SYS_CONFIG, 0x60000000);
     LcdWrReg(inf, SWAP_CTRL, 0);
-    LcdWrReg(inf, FIFO_WATER_MARK, 0x00000860);
+    LcdWrReg(inf, FIFO_WATER_MARK, 0x00000864);//68
 
 	// and mcu holdmode; and set win1 top.
     LcdMskReg(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_SELECT | m_MCU_HOLDMODE_FRAME_ST | m_MCU_BYPASSMODE_SELECT ,
@@ -603,7 +603,7 @@ void load_screen(struct fb_info *info, bool initscreen)
         printk(KERN_ERR "failed to get lcd clock clk_share_mem source \n");
         return;
     }
-    inf->aclk_parent = clk_get(NULL, "general_pll");
+    inf->aclk_parent = clk_get(NULL, "ddr_pll");//general_pll //ddr_pll
     if (IS_ERR(inf->dclk_parent))
     {
         printk(KERN_ERR "failed to get lcd dclock parent source\n");
@@ -919,8 +919,7 @@ static int win0_set_par(struct fb_info *info)
     LcdWrReg(inf, WIN0_YRGB_MST, y_addr);
     LcdWrReg(inf, WIN0_CBR_MST, uv_addr);
 
-    LcdMskReg(inf, SYS_CONFIG,  m_W0_FORMAT | m_W0_AXI_OUTSTANDING2,
-           v_W0_FORMAT(par->format) | v_W0_AXI_OUTSTANDING2(inf->video_mode==0));
+    LcdMskReg(inf, SYS_CONFIG,  m_W0_FORMAT , v_W0_FORMAT(par->format));//(inf->video_mode==0)
 
     LcdMskReg(inf, WIN0_VIR, m_WORDLO | m_WORDHI, v_VIRWIDTH(xvir) | v_VIRHEIGHT((yvir)) );
     LcdMskReg(inf, WIN0_ACT_INFO, m_WORDLO | m_WORDHI, v_WORDLO(xact) | v_WORDHI(yact));

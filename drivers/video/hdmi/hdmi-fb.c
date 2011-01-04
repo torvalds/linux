@@ -8,7 +8,7 @@
 
 
 /* Base */
-#define LCD_ACLK		312000000
+#define LCD_ACLK		500000000// 312000000
 
 #define OUT_TYPE		SCREEN_HDMI
 #define OUT_FACE		OUT_P888
