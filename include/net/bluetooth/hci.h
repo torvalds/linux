@@ -384,6 +384,12 @@ struct hci_cp_reject_sync_conn_req {
 	__u8     reason;
 } __packed;
 
+#define HCI_OP_IO_CAPABILITY_NEG_REPLY	0x0434
+struct hci_cp_io_capability_neg_reply {
+	bdaddr_t bdaddr;
+	__u8     reason;
+} __packed;
+
 #define HCI_OP_SNIFF_MODE		0x0803
 struct hci_cp_sniff_mode {
 	__le16   handle;
@@ -838,6 +844,14 @@ struct extended_inquiry_info {
 #define HCI_EV_IO_CAPA_REQUEST		0x31
 struct hci_ev_io_capa_request {
 	bdaddr_t bdaddr;
+} __packed;
+
+#define HCI_EV_IO_CAPA_REPLY		0x32
+struct hci_ev_io_capa_reply {
+	bdaddr_t bdaddr;
+	__u8     capability;
+	__u8     oob_data;
+	__u8     authentication;
 } __packed;
 
 #define HCI_EV_SIMPLE_PAIR_COMPLETE	0x36

@@ -1595,6 +1595,10 @@ static inline void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff
 		hci_conn_put(conn);
 	}
 
+	if (!test_bit(HCI_PAIRABLE, &hdev->flags))
+		hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY,
+					sizeof(ev->bdaddr), &ev->bdaddr);
+
 	hci_dev_unlock(hdev);
 }
 
@@ -1885,9 +1889,52 @@ static inline void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff 
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
-	if (conn)
-		hci_conn_hold(conn);
+	if (!conn)
+		goto unlock;
 
+	hci_conn_hold(conn);
+
+	if (!test_bit(HCI_MGMT, &hdev->flags))
+		goto unlock;
+
+	if (test_bit(HCI_PAIRABLE, &hdev->flags) ||
+			(conn->remote_auth & ~0x01) == HCI_AT_NO_BONDING) {
+		/* FIXME: Do IO capa response based on information
+		 * provided through the management interface */
+	} else {
+		struct hci_cp_io_capability_neg_reply cp;
+
+		bacpy(&cp.bdaddr, &ev->bdaddr);
+		cp.reason = 0x16; /* Pairing not allowed */
+
+		hci_send_cmd(hdev, HCI_OP_IO_CAPABILITY_NEG_REPLY,
+							sizeof(cp), &cp);
+	}
+
+unlock:
+	hci_dev_unlock(hdev);
+}
+
+static inline void hci_io_capa_reply_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_ev_io_capa_reply *ev = (void *) skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
+	if (!conn)
+		goto unlock;
+
+	hci_conn_hold(conn);
+
+	conn->remote_cap = ev->capability;
+	conn->remote_oob = ev->oob_data;
+	conn->remote_auth = ev->authentication;
+
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -2049,6 +2096,10 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_IO_CAPA_REQUEST:
 		hci_io_capa_request_evt(hdev, skb);
+		break;
+
+	case HCI_EV_IO_CAPA_REPLY:
+		hci_io_capa_reply_evt(hdev, skb);
 		break;
 
 	case HCI_EV_SIMPLE_PAIR_COMPLETE:

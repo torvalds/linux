@@ -201,6 +201,10 @@ struct hci_conn {
 	__u16            disc_timeout;
 	unsigned long	 pend;
 
+	__u8		remote_cap;
+	__u8		remote_oob;
+	__u8		remote_auth;
+
 	unsigned int	 sent;
 
 	struct sk_buff_head data_q;
