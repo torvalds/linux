@@ -740,7 +740,7 @@ static struct init_tags {
 	{ tag_size(tag_core), ATAG_CORE },
 	{ 1, PAGE_SIZE, 0xff },
 	{ tag_size(tag_mem32), ATAG_MEM },
-	{ MEM_SIZE, PHYS_OFFSET },
+	{ MEM_SIZE },
 	{ 0, ATAG_NONE }
 };
 
@@ -838,6 +838,8 @@ void __init setup_arch(char **cmdline_p)
 	struct tag *tags = (struct tag *)&init_tags;
 	struct machine_desc *mdesc;
 	char *from = default_command_line;
+
+	init_tags.mem.start = PHYS_OFFSET;
 
 	unwind_init();
 

@@ -65,7 +65,7 @@ resume_with_mmu:
 	/*
 	 * After MMU is turned on, restore the previous MMU table.
 	 */
-	ldr	r9 , =(PAGE_OFFSET - PHYS_OFFSET)
+	ldr	r9 , =(PAGE_OFFSET - PLAT_PHYS_OFFSET)
 	add	r4, r4, r9
 	str	r12, [r4]
 

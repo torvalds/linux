@@ -243,7 +243,7 @@ static void __init ct_ca9x4_init(void)
 }
 
 MACHINE_START(VEXPRESS, "ARM-Versatile Express CA9x4")
-	.boot_params	= PHYS_OFFSET + 0x00000100,
+	.boot_params	= PLAT_PHYS_OFFSET + 0x00000100,
 	.map_io		= ct_ca9x4_map_io,
 	.init_irq	= ct_ca9x4_init_irq,
 #if 0

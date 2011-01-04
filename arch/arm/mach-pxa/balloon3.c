@@ -829,5 +829,5 @@ MACHINE_START(BALLOON3, "Balloon3")
 	.init_irq	= balloon3_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= balloon3_init,
-	.boot_params	= PHYS_OFFSET + 0x100,
+	.boot_params	= PLAT_PHYS_OFFSET + 0x100,
 MACHINE_END
