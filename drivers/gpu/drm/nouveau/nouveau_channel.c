@@ -121,7 +121,6 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 		      uint32_t vram_handle, uint32_t gart_handle)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_channel *chan;
 	unsigned long flags;
@@ -201,15 +200,6 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 
 	/* disable the fifo caches */
 	pfifo->reassign(dev, false);
-
-	/* Create a graphics context for new channel */
-	if (dev_priv->card_type < NV_50) {
-		ret = pgraph->create_context(chan);
-		if (ret) {
-			nouveau_channel_put(&chan);
-			return ret;
-		}
-	}
 
 	/* Construct inital RAMFC for new channel */
 	ret = pfifo->create_context(chan);
