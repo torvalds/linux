@@ -954,6 +954,9 @@ static void ar9002_hw_init_cal_settings(struct ath_hw *ah)
 				&adc_dc_cal_multi_sample;
 		}
 		ah->supp_cals = ADC_GAIN_CAL | ADC_DC_CAL | IQ_MISMATCH_CAL;
+
+		if (AR_SREV_9287(ah))
+			ah->supp_cals &= ~ADC_GAIN_CAL;
 	}
 }
 
