@@ -128,6 +128,7 @@ static void cache_fresh_locked(struct cache_head *head, time_t expiry)
 {
 	head->expiry_time = expiry;
 	head->last_refresh = seconds_since_boot();
+	smp_wmb(); /* paired with smp_rmb() in cache_is_valid() */
 	set_bit(CACHE_VALID, &head->flags);
 }
 
@@ -208,8 +209,16 @@ static inline int cache_is_valid(struct cache_detail *detail, struct cache_head 
 		/* entry is valid */
 		if (test_bit(CACHE_NEGATIVE, &h->flags))
 			return -ENOENT;
-		else
+		else {
+			/*
+			 * In combination with write barrier in
+			 * sunrpc_cache_update, ensures that anyone
+			 * using the cache entry after this sees the
+			 * updated contents:
+			 */
+			smp_rmb();
 			return 0;
+		}
 	}
 }
 
