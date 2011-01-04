@@ -1,6 +1,4 @@
 /*
- *  include/linux/nfs4_acl.c
- *
  *  Common NFSv4 ACL handling definitions.
  *
  *  Copyright (c) 2002 The Regents of the University of Michigan.

@@ -1,6 +1,4 @@
 /*
- *  include/linux/nfsd_idmap.h
- *
  *  Mapping of UID to name and vice versa.
  *
  *  Copyright (c) 2002, 2003 The Regents of the University of
