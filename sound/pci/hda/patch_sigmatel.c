@@ -389,6 +389,9 @@ static hda_nid_t stac92hd83xxx_dmic_nids[STAC92HD83XXX_NUM_DMICS + 1] = {
 	0x11, 0x20, 0
 };
 
+#define STAC92HD88XXX_NUM_DMICS	STAC92HD83XXX_NUM_DMICS
+#define stac92hd88xxx_dmic_nids	stac92hd83xxx_dmic_nids
+
 #define STAC92HD87B_NUM_DMICS	 1
 static hda_nid_t stac92hd87b_dmic_nids[STAC92HD87B_NUM_DMICS + 1] = {
 	0x11, 0
@@ -5462,11 +5465,18 @@ again:
 		spec->num_dmics = stac92xx_connected_ports(codec,
 				stac92hd87b_dmic_nids,
 				STAC92HD87B_NUM_DMICS);
-		/* Fall through */
+		spec->num_pins = ARRAY_SIZE(stac92hd88xxx_pin_nids);
+		spec->pin_nids = stac92hd88xxx_pin_nids;
+		spec->mono_nid = 0;
+		spec->num_pwrs = 0;
+		break;
 	case 0x111d7666:
 	case 0x111d7667:
 	case 0x111d7668:
 	case 0x111d7669:
+		spec->num_dmics = stac92xx_connected_ports(codec,
+				stac92hd88xxx_dmic_nids,
+				STAC92HD88XXX_NUM_DMICS);
 		spec->num_pins = ARRAY_SIZE(stac92hd88xxx_pin_nids);
 		spec->pin_nids = stac92hd88xxx_pin_nids;
 		spec->mono_nid = 0;
