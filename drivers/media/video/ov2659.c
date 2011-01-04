@@ -1263,10 +1263,10 @@ static int sensor_write(struct i2c_client *client, u16 reg, u8 val)
     msg->scl_rate = CONFIG_SENSOR_I2C_SPEED;         /* ddl@rock-chips.com : 100kHz */
     msg->read_type = 0;               /* fpga i2c:0==I2C_NORMAL : direct use number not enum for don't want include spi_fpga.h */
 
-    cnt = 1;
+    cnt = 3;
     err = -EAGAIN;
 
-    while ((cnt--) && (err < 0)) {                       /* ddl@rock-chips.com :  Transfer again if transent is failed   */
+    while ((cnt-- > 0) && (err < 0)) {                       /* ddl@rock-chips.com :  Transfer again if transent is failed   */
         err = i2c_transfer(client->adapter, msg, 1);
 
         if (err >= 0) {
@@ -1304,9 +1304,9 @@ static int sensor_read(struct i2c_client *client, u16 reg, u8 *val)
     msg[1].scl_rate = CONFIG_SENSOR_I2C_SPEED;                       /* ddl@rock-chips.com : 100kHz */
     msg[1].read_type = 2;                             /* fpga i2c:0==I2C_NO_STOP : direct use number not enum for don't want include spi_fpga.h */
 
-    cnt = 1;
+    cnt = 3;
     err = -EAGAIN;
-    while ((cnt--) && (err < 0)) {                       /* ddl@rock-chips.com :  Transfer again if transent is failed   */
+    while ((cnt-- > 0) && (err < 0)) {                       /* ddl@rock-chips.com :  Transfer again if transent is failed   */
         err = i2c_transfer(client->adapter, msg, 2);
 
         if (err >= 0) {
