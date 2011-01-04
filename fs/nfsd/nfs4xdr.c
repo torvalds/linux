@@ -289,17 +289,17 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 			len += XDR_QUADLEN(dummy32) << 2;
 			READMEM(buf, dummy32);
 			ace->whotype = nfs4_acl_get_whotype(buf, dummy32);
-			host_err = 0;
+			status = nfs_ok;
 			if (ace->whotype != NFS4_ACL_WHO_NAMED)
 				ace->who = 0;
 			else if (ace->flag & NFS4_ACE_IDENTIFIER_GROUP)
-				host_err = nfsd_map_name_to_gid(argp->rqstp,
+				status = nfsd_map_name_to_gid(argp->rqstp,
 						buf, dummy32, &ace->who);
 			else
-				host_err = nfsd_map_name_to_uid(argp->rqstp,
+				status = nfsd_map_name_to_uid(argp->rqstp,
 						buf, dummy32, &ace->who);
-			if (host_err)
-				goto out_nfserr;
+			if (status)
+				return status;
 		}
 	} else
 		*acl = NULL;
