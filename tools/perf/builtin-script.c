@@ -137,7 +137,7 @@ struct script_spec {
 	char			spec[0];
 };
 
-LIST_HEAD(script_specs);
+static LIST_HEAD(script_specs);
 
 static struct script_spec *script_spec__new(const char *spec,
 					    struct scripting_ops *ops)
@@ -319,7 +319,7 @@ struct script_desc {
 	char			*args;
 };
 
-LIST_HEAD(script_descs);
+static LIST_HEAD(script_descs);
 
 static struct script_desc *script_desc__new(const char *name)
 {
