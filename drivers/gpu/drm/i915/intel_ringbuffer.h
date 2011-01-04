@@ -55,11 +55,11 @@ struct  intel_ring_buffer {
 	int		effective_size;
 	struct intel_hw_status_page status_page;
 
+	u32		irq_refcount;
 	u32		irq_mask;
 	u32		irq_seqno;		/* last seq seem at irq time */
 	u32		waiting_seqno;
 	u32		sync_seqno[I915_NUM_RINGS-1];
-	atomic_t	irq_refcount;
 	bool __must_check (*irq_get)(struct intel_ring_buffer *ring);
 	void		(*irq_put)(struct intel_ring_buffer *ring);
 

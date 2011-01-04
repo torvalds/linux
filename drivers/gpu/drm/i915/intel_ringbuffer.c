@@ -521,22 +521,20 @@ static bool
 render_ring_get_irq(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	if (!dev->irq_enabled)
 		return false;
 
-	if (atomic_inc_return(&ring->irq_refcount) == 1) {
-		drm_i915_private_t *dev_priv = dev->dev_private;
-		unsigned long irqflags;
-
-		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock(&dev_priv->irq_lock);
+	if (ring->irq_refcount++ == 0) {
 		if (HAS_PCH_SPLIT(dev))
 			ironlake_enable_irq(dev_priv,
 					    GT_PIPE_NOTIFY | GT_USER_INTERRUPT);
 		else
 			i915_enable_irq(dev_priv, I915_USER_INTERRUPT);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
+	spin_unlock(&dev_priv->irq_lock);
 
 	return true;
 }
@@ -545,20 +543,18 @@ static void
 render_ring_put_irq(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	if (atomic_dec_and_test(&ring->irq_refcount)) {
-		drm_i915_private_t *dev_priv = dev->dev_private;
-		unsigned long irqflags;
-
-		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock(&dev_priv->irq_lock);
+	if (--ring->irq_refcount == 0) {
 		if (HAS_PCH_SPLIT(dev))
 			ironlake_disable_irq(dev_priv,
 					     GT_USER_INTERRUPT |
 					     GT_PIPE_NOTIFY);
 		else
 			i915_disable_irq(dev_priv, I915_USER_INTERRUPT);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
+	spin_unlock(&dev_priv->irq_lock);
 }
 
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
@@ -619,18 +615,15 @@ static bool
 ring_get_irq(struct intel_ring_buffer *ring, u32 flag)
 {
 	struct drm_device *dev = ring->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	if (!dev->irq_enabled)
 	       return false;
 
-	if (atomic_inc_return(&ring->irq_refcount) == 1) {
-		drm_i915_private_t *dev_priv = dev->dev_private;
-		unsigned long irqflags;
-
-		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock(&dev_priv->irq_lock);
+	if (ring->irq_refcount++ == 0)
 		ironlake_enable_irq(dev_priv, flag);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-	}
+	spin_unlock(&dev_priv->irq_lock);
 
 	return true;
 }
@@ -639,35 +632,30 @@ static void
 ring_put_irq(struct intel_ring_buffer *ring, u32 flag)
 {
 	struct drm_device *dev = ring->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	if (atomic_dec_and_test(&ring->irq_refcount)) {
-		drm_i915_private_t *dev_priv = dev->dev_private;
-		unsigned long irqflags;
-
-		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock(&dev_priv->irq_lock);
+	if (--ring->irq_refcount == 0)
 		ironlake_disable_irq(dev_priv, flag);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-	}
+	spin_unlock(&dev_priv->irq_lock);
 }
 
 static bool
 gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 {
 	struct drm_device *dev = ring->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	if (!dev->irq_enabled)
 	       return false;
 
-	if (atomic_inc_return(&ring->irq_refcount) == 1) {
-		drm_i915_private_t *dev_priv = dev->dev_private;
-		unsigned long irqflags;
-
-		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock(&dev_priv->irq_lock);
+	if (ring->irq_refcount++ == 0) {
 		ring->irq_mask &= ~rflag;
 		I915_WRITE_IMR(ring, ring->irq_mask);
 		ironlake_enable_irq(dev_priv, gflag);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
+	spin_unlock(&dev_priv->irq_lock);
 
 	return true;
 }
@@ -676,17 +664,15 @@ static void
 gen6_ring_put_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 {
 	struct drm_device *dev = ring->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	if (atomic_dec_and_test(&ring->irq_refcount)) {
-		drm_i915_private_t *dev_priv = dev->dev_private;
-		unsigned long irqflags;
-
-		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	spin_lock(&dev_priv->irq_lock);
+	if (--ring->irq_refcount == 0) {
 		ring->irq_mask |= rflag;
 		I915_WRITE_IMR(ring, ring->irq_mask);
 		ironlake_disable_irq(dev_priv, gflag);
-		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
+	spin_unlock(&dev_priv->irq_lock);
 }
 
 static bool
