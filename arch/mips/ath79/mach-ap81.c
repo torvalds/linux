@@ -10,6 +10,7 @@
  */
 
 #include "machtypes.h"
+#include "dev-ar913x-wmac.h"
 #include "dev-gpio-buttons.h"
 #include "dev-leds-gpio.h"
 #include "dev-spi.h"
@@ -24,6 +25,8 @@
 
 #define AP81_KEYS_POLL_INTERVAL		20	/* msecs */
 #define AP81_KEYS_DEBOUNCE_INTERVAL	(3 * AP81_KEYS_POLL_INTERVAL)
+
+#define AP81_CAL_DATA_ADDR	0x1fff1000
 
 static struct gpio_led ap81_leds_gpio[] __initdata = {
 	{
@@ -79,6 +82,8 @@ static struct ath79_spi_platform_data ap81_spi_data = {
 
 static void __init ap81_setup(void)
 {
+	u8 *cal_data = (u8 *) KSEG1ADDR(AP81_CAL_DATA_ADDR);
+
 	ath79_register_leds_gpio(-1, ARRAY_SIZE(ap81_leds_gpio),
 				 ap81_leds_gpio);
 	ath79_register_gpio_keys_polled(-1, AP81_KEYS_POLL_INTERVAL,
@@ -86,6 +91,7 @@ static void __init ap81_setup(void)
 					ap81_gpio_keys);
 	ath79_register_spi(&ap81_spi_data, ap81_spi_info,
 			   ARRAY_SIZE(ap81_spi_info));
+	ath79_register_ar913x_wmac(cal_data);
 }
 
 MIPS_MACHINE(ATH79_MACH_AP81, "AP81", "Atheros AP81 reference board",
