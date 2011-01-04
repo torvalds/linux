@@ -398,6 +398,50 @@ static void gen6_pm_irq_handler(struct drm_device *dev)
 	I915_WRITE(GEN6_PMIIR, pm_iir);
 }
 
+static void pch_irq_handler(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u32 pch_iir;
+
+	pch_iir = I915_READ(SDEIIR);
+
+	if (pch_iir & SDE_AUDIO_POWER_MASK)
+		DRM_DEBUG_DRIVER("PCH audio power change on port %d\n",
+				 (pch_iir & SDE_AUDIO_POWER_MASK) >>
+				 SDE_AUDIO_POWER_SHIFT);
+
+	if (pch_iir & SDE_GMBUS)
+		DRM_DEBUG_DRIVER("PCH GMBUS interrupt\n");
+
+	if (pch_iir & SDE_AUDIO_HDCP_MASK)
+		DRM_DEBUG_DRIVER("PCH HDCP audio interrupt\n");
+
+	if (pch_iir & SDE_AUDIO_TRANS_MASK)
+		DRM_DEBUG_DRIVER("PCH transcoder audio interrupt\n");
+
+	if (pch_iir & SDE_POISON)
+		DRM_ERROR("PCH poison interrupt\n");
+
+	if (pch_iir & SDE_FDI_MASK) {
+		u32 fdia, fdib;
+
+		fdia = I915_READ(FDI_RXA_IIR);
+		fdib = I915_READ(FDI_RXB_IIR);
+		DRM_DEBUG_DRIVER("PCH FDI RX interrupt; FDI RXA IIR: 0x%08x, FDI RXB IIR: 0x%08x\n", fdia, fdib);
+	}
+
+	if (pch_iir & (SDE_TRANSB_CRC_DONE | SDE_TRANSA_CRC_DONE))
+		DRM_DEBUG_DRIVER("PCH transcoder CRC done interrupt\n");
+
+	if (pch_iir & (SDE_TRANSB_CRC_ERR | SDE_TRANSA_CRC_ERR))
+		DRM_DEBUG_DRIVER("PCH transcoder CRC error interrupt\n");
+
+	if (pch_iir & SDE_TRANSB_FIFO_UNDER)
+		DRM_DEBUG_DRIVER("PCH transcoder B underrun interrupt\n");
+	if (pch_iir & SDE_TRANSA_FIFO_UNDER)
+		DRM_DEBUG_DRIVER("PCH transcoder A underrun interrupt\n");
+}
+
 static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -465,8 +509,11 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 		drm_handle_vblank(dev, 1);
 
 	/* check event from PCH */
-	if ((de_iir & DE_PCH_EVENT) && (pch_iir & hotplug_mask))
-		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
+	if (de_iir & DE_PCH_EVENT) {
+		if (pch_iir & hotplug_mask)
+			queue_work(dev_priv->wq, &dev_priv->hotplug_work);
+		pch_irq_handler(dev);
+	}
 
 	if (de_iir & DE_PCU_EVENT) {
 		I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
@@ -1656,6 +1703,9 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	} else {
 		hotplug_mask = SDE_CRT_HOTPLUG | SDE_PORTB_HOTPLUG |
 			       SDE_PORTC_HOTPLUG | SDE_PORTD_HOTPLUG;
+		hotplug_mask |= SDE_AUX_MASK | SDE_FDI_MASK | SDE_TRANS_MASK;
+		I915_WRITE(FDI_RXA_IMR, 0);
+		I915_WRITE(FDI_RXB_IMR, 0);
 	}
 
 	dev_priv->pch_irq_mask = ~hotplug_mask;
