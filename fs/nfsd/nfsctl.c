@@ -8,12 +8,12 @@
 #include <linux/namei.h>
 #include <linux/ctype.h>
 
-#include <linux/nfsd_idmap.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/nfsd/syscall.h>
 #include <linux/lockd/lockd.h>
 #include <linux/sunrpc/clnt.h>
 
+#include "idmap.h"
 #include "nfsd.h"
 #include "cache.h"
 

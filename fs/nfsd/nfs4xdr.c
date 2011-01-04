@@ -44,12 +44,13 @@
 #include <linux/namei.h>
 #include <linux/statfs.h>
 #include <linux/utsname.h>
-#include <linux/nfsd_idmap.h>
-#include <linux/nfs4_acl.h>
 #include <linux/sunrpc/svcauth_gss.h>
 
+#include "idmap.h"
+#include "acl.h"
 #include "xdr4.h"
 #include "vfs.h"
+
 
 #define NFSDDBG_FACILITY		NFSDDBG_XDR
 
