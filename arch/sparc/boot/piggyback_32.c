@@ -107,7 +107,8 @@ static int end_line(const char *line)
  *
  * Return 0 if either start or end is not found
  */
-static int get_start_end(const char *filename, unsigned int *start, unsigned int *end)
+static int get_start_end(const char *filename, unsigned int *start,
+                                               unsigned int *end)
 {
 	FILE *map;
 	char buffer[1024];
@@ -131,11 +132,60 @@ static int get_start_end(const char *filename, unsigned int *start, unsigned int
 	return 1;
 }
 
+#define LOOKBACK (128 * 4)
+#define BUFSIZE 1024
+/*
+ * Find the HdrS entry from head_32/head_64.
+ * We check if it is at the beginning of the file (sparc64 case)
+ * and if not we search for it.
+ * When we search do so in steps of 4 as HdrS is on a 4-byte aligned
+ * address (it is on same alignment as sparc instructions)
+ * Return the offset to the HdrS entry (as off_t)
+ */
+static off_t get_hdrs_offset(int kernelfd, const char *filename)
+{
+	char buffer[BUFSIZE];
+	off_t offset;
+	int i;
+
+	if (lseek(kernelfd, 0, SEEK_SET) < 0)
+		die("lseek");
+	if (read(kernelfd, buffer, BUFSIZE) != BUFSIZE)
+		die(filename);
+
+	if (buffer[40] == 'H' && buffer[41] == 'd' &&
+	    buffer[42] == 'r' && buffer[43] == 'S') {
+		return 40;
+	} else {
+		/*  Find the gokernel label */
+		/* Decode offset from branch instruction */
+		offset = ld2(buffer + AOUT_TEXT_OFFSET + 2) << 2;
+		/* Go back 512 bytes so we do not miss HdrS */
+		offset -= LOOKBACK;
+		/* skip a.out header */
+		offset += AOUT_TEXT_OFFSET;
+		if (lseek(kernelfd, offset, SEEK_SET) < 0)
+			die("lseek");
+		if (read(kernelfd, buffer, BUFSIZE) != BUFSIZE)
+			die(filename);
+
+		for (i = 0; i < LOOKBACK; i += 4) {
+			if (buffer[i + 0] == 'H' && buffer[i + 1] == 'd' &&
+			    buffer[i + 2] == 'r' && buffer[i + 3] == 'S') {
+				return offset + i;
+			}
+		}
+	}
+	fprintf (stderr, "Couldn't find headers signature in %s\n", filename);
+	exit(1);
+}
+
 int main(int argc,char **argv)
 {
 	static char aout_magic[] = { 0x01, 0x03, 0x01, 0x07 };
-	char buffer[1024], *q, *r;
-	unsigned int i, start, end, offset;
+	char buffer[1024];
+	unsigned int i, start, end;
+	off_t offset;
 	struct stat s;
 	int image, tail;
 
@@ -147,7 +197,8 @@ int main(int argc,char **argv)
 		die(argv[4]);
 
 	if (!get_start_end(argv[3], &start, &end)) {
-		fprintf (stderr, "Could not determine start and end from %s\n", argv[3]);
+		fprintf(stderr, "Could not determine start and end from %s\n",
+		        argv[3]);
 		exit(1);
 	}
 	if ((image = open(argv[2], O_RDWR)) < 0)
@@ -159,27 +210,17 @@ int main(int argc,char **argv)
 		exit(1);
 	}
 	/*
-	 * We need to fill in values for sparc_ramdisk_image + sparc_ramdisk_size
+	 * We need to fill in values for
+	 * sparc_ramdisk_image + sparc_ramdisk_size
 	 * To locate these symbols search for the "HdrS" text which appear
 	 * in the image a little before the gokernel symbol.
 	 * See definition of these in init_32.S
 	 */
 
-	/*  Find the gokernel label */
-	i = AOUT_TEXT_OFFSET + (ld2(buffer + AOUT_TEXT_OFFSET + 2) << 2) - 512;
-	if (lseek(image, i, 0) < 0)
-		die("lseek");
-	if (read(image, buffer, 1024) != 1024)
-		die(argv[2]);
-	for (q = buffer, r = q + 512; q < r; q += 4) {
-		if (*q == 'H' && q[1] == 'd' && q[2] == 'r' && q[3] == 'S')
-			break;
-	}
-	if (q == r) {
-		fprintf (stderr, "Couldn't find headers signature in the kernel.\n");
-		exit(1);
-	}
-	offset = i + (q - buffer) + 10;
+	offset = get_hdrs_offset(image, argv[2]);
+	/* skip HdrS + LINUX_VERSION_CODE + HdrS version */
+	offset += 10;
+
 	if (lseek(image, offset, 0) < 0)
 		die("lseek");
 
@@ -197,6 +238,22 @@ int main(int argc,char **argv)
 
 	if (write(image, buffer + 2, 14) != 14)
 		die(argv[2]);
+
+	/* For sparc64 update a_text and clear a_data + a_bss */
+	if (is64bit)
+	{
+		if (lseek(image, 4, 0) < 0)
+			die("lseek");
+		/* a_text */
+		st4(buffer, align(end + 32 + 8191) - (start & ~0x3fffffUL) +
+		            s.st_size);
+		/* a_data */
+		st4(buffer + 4, 0);
+		/* a_bss */
+		st4(buffer + 8, 0);
+		if (write(image, buffer, 12) != 12)
+			die(argv[2]);
+	}
 
 	/* seek page aligned boundary in the image file and add boot image */
 	if (lseek(image, AOUT_TEXT_OFFSET - start + align(end + 32), 0) < 0)
