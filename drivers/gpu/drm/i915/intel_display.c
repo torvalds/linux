@@ -1058,6 +1058,203 @@ void intel_wait_for_pipe_off(struct drm_device *dev, int pipe)
 	}
 }
 
+static const char *state_string(bool enabled)
+{
+	return enabled ? "on" : "off";
+}
+
+/* Only for pre-ILK configs */
+static void assert_pll(struct drm_i915_private *dev_priv,
+		       enum pipe pipe, bool state)
+{
+	int reg;
+	u32 val;
+	bool cur_state;
+
+	reg = DPLL(pipe);
+	val = I915_READ(reg);
+	cur_state = !!(val & DPLL_VCO_ENABLE);
+	WARN(cur_state != state,
+	     "PLL state assertion failure (expected %s, current %s)\n",
+	     state_string(state), state_string(cur_state));
+}
+#define assert_pll_enabled(d, p) assert_pll(d, p, true)
+#define assert_pll_disabled(d, p) assert_pll(d, p, false)
+
+static void assert_pipe_enabled(struct drm_i915_private *dev_priv,
+				enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	reg = PIPECONF(pipe);
+	val = I915_READ(reg);
+	WARN(!(val & PIPECONF_ENABLE),
+	     "pipe %c assertion failure, should be active but is disabled\n",
+	     pipe ? 'B' : 'A');
+}
+
+static void assert_plane_enabled(struct drm_i915_private *dev_priv,
+				 enum plane plane)
+{
+	int reg;
+	u32 val;
+
+	reg = DSPCNTR(plane);
+	val = I915_READ(reg);
+	WARN(!(val & DISPLAY_PLANE_ENABLE),
+	     "plane %c assertion failure, should be active but is disabled\n",
+	     plane ? 'B' : 'A');
+}
+
+static void assert_planes_disabled(struct drm_i915_private *dev_priv,
+				   enum pipe pipe)
+{
+	int reg, i;
+	u32 val;
+	int cur_pipe;
+
+	/* Need to check both planes against the pipe */
+	for (i = 0; i < 2; i++) {
+		reg = DSPCNTR(i);
+		val = I915_READ(reg);
+		cur_pipe = (val & DISPPLANE_SEL_PIPE_MASK) >>
+			DISPPLANE_SEL_PIPE_SHIFT;
+		WARN((val & DISPLAY_PLANE_ENABLE) && pipe == cur_pipe,
+		     "plane %d assertion failure, should be off on pipe %c but is still active\n",
+		     i, pipe ? 'B' : 'A');
+	}
+}
+
+/**
+ * intel_enable_pipe - enable a pipe, assertiing requirements
+ * @dev_priv: i915 private structure
+ * @pipe: pipe to enable
+ *
+ * Enable @pipe, making sure that various hardware specific requirements
+ * are met, if applicable, e.g. PLL enabled, LVDS pairs enabled, etc.
+ *
+ * @pipe should be %PIPE_A or %PIPE_B.
+ *
+ * Will wait until the pipe is actually running (i.e. first vblank) before
+ * returning.
+ */
+static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	/*
+	 * A pipe without a PLL won't actually be able to drive bits from
+	 * a plane.  On ILK+ the pipe PLLs are integrated, so we don't
+	 * need the check.
+	 */
+	if (!HAS_PCH_SPLIT(dev_priv->dev))
+		assert_pll_enabled(dev_priv, pipe);
+
+	reg = PIPECONF(pipe);
+	val = I915_READ(reg);
+	val |= PIPECONF_ENABLE;
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
+	intel_wait_for_vblank(dev_priv->dev, pipe);
+}
+
+/**
+ * intel_disable_pipe - disable a pipe, assertiing requirements
+ * @dev_priv: i915 private structure
+ * @pipe: pipe to disable
+ *
+ * Disable @pipe, making sure that various hardware specific requirements
+ * are met, if applicable, e.g. plane disabled, panel fitter off, etc.
+ *
+ * @pipe should be %PIPE_A or %PIPE_B.
+ *
+ * Will wait until the pipe has shut down before returning.
+ */
+static void intel_disable_pipe(struct drm_i915_private *dev_priv,
+			       enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	/*
+	 * Make sure planes won't keep trying to pump pixels to us,
+	 * or we might hang the display.
+	 */
+	assert_planes_disabled(dev_priv, pipe);
+
+	/* Don't disable pipe A or pipe A PLLs if needed */
+	if (pipe == PIPE_A && (dev_priv->quirks & QUIRK_PIPEA_FORCE))
+		return;
+
+	reg = PIPECONF(pipe);
+	val = I915_READ(reg);
+	val &= ~PIPECONF_ENABLE;
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
+	intel_wait_for_pipe_off(dev_priv->dev, pipe);
+}
+
+/**
+ * intel_enable_plane - enable a display plane on a given pipe
+ * @dev_priv: i915 private structure
+ * @plane: plane to enable
+ * @pipe: pipe being fed
+ *
+ * Enable @plane on @pipe, making sure that @pipe is running first.
+ */
+static void intel_enable_plane(struct drm_i915_private *dev_priv,
+			       enum plane plane, enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	/* If the pipe isn't enabled, we can't pump pixels and may hang */
+	assert_pipe_enabled(dev_priv, pipe);
+
+	reg = DSPCNTR(plane);
+	val = I915_READ(reg);
+	val |= DISPLAY_PLANE_ENABLE;
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
+	intel_wait_for_vblank(dev_priv->dev, pipe);
+}
+
+/*
+ * Plane regs are double buffered, going from enabled->disabled needs a
+ * trigger in order to latch.  The display address reg provides this.
+ */
+static void intel_flush_display_plane(struct drm_i915_private *dev_priv,
+				      enum plane plane)
+{
+	u32 reg = DSPADDR(plane);
+	I915_WRITE(reg, I915_READ(reg));
+}
+
+/**
+ * intel_disable_plane - disable a display plane
+ * @dev_priv: i915 private structure
+ * @plane: plane to disable
+ * @pipe: pipe consuming the data
+ *
+ * Disable @plane; should be an independent operation.
+ */
+static void intel_disable_plane(struct drm_i915_private *dev_priv,
+				enum plane plane, enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	reg = DSPCNTR(plane);
+	val = I915_READ(reg);
+	val &= ~DISPLAY_PLANE_ENABLE;
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
+	intel_flush_display_plane(dev_priv, plane);
+	intel_wait_for_vblank(dev_priv->dev, pipe);
+}
+
 static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 {
 	struct drm_device *dev = crtc->dev;
@@ -1982,14 +2179,6 @@ static void ironlake_fdi_enable(struct drm_crtc *crtc)
 	}
 }
 
-static void intel_flush_display_plane(struct drm_device *dev,
-				      int plane)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg = DSPADDR(plane);
-	I915_WRITE(reg, I915_READ(reg));
-}
-
 /*
  * When we disable a pipe, we need to clear any pending scanline wait events
  * to avoid hanging the ring, which we assume we are waiting on.
@@ -2062,22 +2251,8 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 			   dev_priv->pch_pf_size);
 	}
 
-	/* Enable CPU pipe */
-	reg = PIPECONF(pipe);
-	temp = I915_READ(reg);
-	if ((temp & PIPECONF_ENABLE) == 0) {
-		I915_WRITE(reg, temp | PIPECONF_ENABLE);
-		POSTING_READ(reg);
-		intel_wait_for_vblank(dev, intel_crtc->pipe);
-	}
-
-	/* configure and enable CPU plane */
-	reg = DSPCNTR(plane);
-	temp = I915_READ(reg);
-	if ((temp & DISPLAY_PLANE_ENABLE) == 0) {
-		I915_WRITE(reg, temp | DISPLAY_PLANE_ENABLE);
-		intel_flush_display_plane(dev, plane);
-	}
+	intel_enable_pipe(dev_priv, pipe);
+	intel_enable_plane(dev_priv, plane, pipe);
 
 	/* For PCH output, training FDI link */
 	if (IS_GEN6(dev))
@@ -2185,27 +2360,13 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	drm_vblank_off(dev, pipe);
 	intel_crtc_update_cursor(crtc, false);
 
-	/* Disable display plane */
-	reg = DSPCNTR(plane);
-	temp = I915_READ(reg);
-	if (temp & DISPLAY_PLANE_ENABLE) {
-		I915_WRITE(reg, temp & ~DISPLAY_PLANE_ENABLE);
-		intel_flush_display_plane(dev, plane);
-	}
+	intel_disable_plane(dev_priv, plane, pipe);
 
 	if (dev_priv->cfb_plane == plane &&
 	    dev_priv->display.disable_fbc)
 		dev_priv->display.disable_fbc(dev);
 
-	/* disable cpu pipe, disable after all planes disabled */
-	reg = PIPECONF(pipe);
-	temp = I915_READ(reg);
-	if (temp & PIPECONF_ENABLE) {
-		I915_WRITE(reg, temp & ~PIPECONF_ENABLE);
-		POSTING_READ(reg);
-		/* wait for cpu pipe off, pipe state */
-		intel_wait_for_pipe_off(dev, intel_crtc->pipe);
-	}
+	intel_disable_pipe(dev_priv, pipe);
 
 	/* Disable PF */
 	I915_WRITE(pipe ? PFB_CTL_1 : PFA_CTL_1, 0);
@@ -2400,19 +2561,8 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 		udelay(150);
 	}
 
-	/* Enable the pipe */
-	reg = PIPECONF(pipe);
-	temp = I915_READ(reg);
-	if ((temp & PIPECONF_ENABLE) == 0)
-		I915_WRITE(reg, temp | PIPECONF_ENABLE);
-
-	/* Enable the plane */
-	reg = DSPCNTR(plane);
-	temp = I915_READ(reg);
-	if ((temp & DISPLAY_PLANE_ENABLE) == 0) {
-		I915_WRITE(reg, temp | DISPLAY_PLANE_ENABLE);
-		intel_flush_display_plane(dev, plane);
-	}
+	intel_enable_pipe(dev_priv, pipe);
+	intel_enable_plane(dev_priv, plane, pipe);
 
 	intel_crtc_load_lut(crtc);
 	intel_update_fbc(dev);
@@ -2444,33 +2594,13 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	    dev_priv->display.disable_fbc)
 		dev_priv->display.disable_fbc(dev);
 
-	/* Disable display plane */
-	reg = DSPCNTR(plane);
-	temp = I915_READ(reg);
-	if (temp & DISPLAY_PLANE_ENABLE) {
-		I915_WRITE(reg, temp & ~DISPLAY_PLANE_ENABLE);
-		/* Flush the plane changes */
-		intel_flush_display_plane(dev, plane);
-
-		/* Wait for vblank for the disable to take effect */
-		if (IS_GEN2(dev))
-			intel_wait_for_vblank(dev, pipe);
-	}
+	intel_disable_plane(dev_priv, plane, pipe);
 
 	/* Don't disable pipe A or pipe A PLLs if needed */
 	if (pipe == 0 && (dev_priv->quirks & QUIRK_PIPEA_FORCE))
 		goto done;
 
-	/* Next, disable display pipes */
-	reg = PIPECONF(pipe);
-	temp = I915_READ(reg);
-	if (temp & PIPECONF_ENABLE) {
-		I915_WRITE(reg, temp & ~PIPECONF_ENABLE);
-
-		/* Wait for the pipe to turn off */
-		POSTING_READ(reg);
-		intel_wait_for_pipe_off(dev, pipe);
-	}
+	intel_disable_pipe(dev_priv, pipe);
 
 	reg = DPLL(pipe);
 	temp = I915_READ(reg);
@@ -4222,11 +4352,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			pipeconf &= ~PIPECONF_DOUBLE_WIDE;
 	}
 
-	if (!HAS_PCH_SPLIT(dev)) {
-		dspcntr |= DISPLAY_PLANE_ENABLE;
-		pipeconf |= PIPECONF_ENABLE;
+	if (!HAS_PCH_SPLIT(dev))
 		dpll |= DPLL_VCO_ENABLE;
-	}
 
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
@@ -4435,6 +4562,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	I915_WRITE(PIPECONF(pipe), pipeconf);
 	POSTING_READ(PIPECONF(pipe));
+	if (!HAS_PCH_SPLIT(dev))
+		intel_enable_pipe(dev_priv, pipe);
 
 	intel_wait_for_vblank(dev, pipe);
 
@@ -4445,6 +4574,9 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	I915_WRITE(DSPCNTR(plane), dspcntr);
+	POSTING_READ(DSPCNTR(plane));
+	if (!HAS_PCH_SPLIT(dev))
+		intel_enable_plane(dev_priv, plane, pipe);
 
 	ret = intel_pipe_set_base(crtc, x, y, old_fb);
 
@@ -5583,22 +5715,8 @@ static void intel_sanitize_modesetting(struct drm_device *dev,
 	pipe = !pipe;
 
 	/* Disable the plane and wait for it to stop reading from the pipe. */
-	I915_WRITE(reg, val & ~DISPLAY_PLANE_ENABLE);
-	intel_flush_display_plane(dev, plane);
-
-	if (IS_GEN2(dev))
-		intel_wait_for_vblank(dev, pipe);
-
-	if (pipe == 0 && (dev_priv->quirks & QUIRK_PIPEA_FORCE))
-		return;
-
-	/* Switch off the pipe. */
-	reg = PIPECONF(pipe);
-	val = I915_READ(reg);
-	if (val & PIPECONF_ENABLE) {
-		I915_WRITE(reg, val & ~PIPECONF_ENABLE);
-		intel_wait_for_pipe_off(dev, pipe);
-	}
+	intel_disable_plane(dev_priv, plane, pipe);
+	intel_disable_pipe(dev_priv, pipe);
 }
 
 static void intel_crtc_init(struct drm_device *dev, int pipe)
