@@ -2273,7 +2273,11 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	udelay(150);
 
 	/* Ironlake workaround, enable clock pointer after FDI enable*/
-	I915_WRITE(FDI_RX_CHICKEN(pipe), FDI_RX_PHASE_SYNC_POINTER_ENABLE);
+	if (HAS_PCH_IBX(dev)) {
+		I915_WRITE(FDI_RX_CHICKEN(pipe), FDI_RX_PHASE_SYNC_POINTER_OVR);
+		I915_WRITE(FDI_RX_CHICKEN(pipe), FDI_RX_PHASE_SYNC_POINTER_OVR |
+			   FDI_RX_PHASE_SYNC_POINTER_EN);
+	}
 
 	reg = FDI_RX_IIR(pipe);
 	for (tries = 0; tries < 5; tries++) {
@@ -2516,10 +2520,12 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 	udelay(100);
 
 	/* Ironlake workaround, disable clock pointer after downing FDI */
-	if (HAS_PCH_IBX(dev))
+	if (HAS_PCH_IBX(dev)) {
+		I915_WRITE(FDI_RX_CHICKEN(pipe), FDI_RX_PHASE_SYNC_POINTER_OVR);
 		I915_WRITE(FDI_RX_CHICKEN(pipe),
 			   I915_READ(FDI_RX_CHICKEN(pipe) &
-				     ~FDI_RX_PHASE_SYNC_POINTER_ENABLE));
+				     ~FDI_RX_PHASE_SYNC_POINTER_EN));
+	}
 
 	/* still set train pattern 1 */
 	reg = FDI_TX_CTL(pipe);
