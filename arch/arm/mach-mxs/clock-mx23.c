@@ -437,10 +437,12 @@ _DEFINE_CLOCK(clk32k_clk, XTAL, TIMROT_CLK32K_GATE, &ref_xtal_clk);
 	},
 
 static struct clk_lookup lookups[] = {
-	_REGISTER_CLOCK("mxs-duart.0", NULL, uart_clk)
+	/* for amba bus driver */
+	_REGISTER_CLOCK("duart", "apb_pclk", xbus_clk)
+	/* for amba-pl011 driver */
+	_REGISTER_CLOCK("duart", NULL, uart_clk)
 	_REGISTER_CLOCK("rtc", NULL, rtc_clk)
 	_REGISTER_CLOCK(NULL, "hclk", hbus_clk)
-	_REGISTER_CLOCK(NULL, "xclk", xbus_clk)
 	_REGISTER_CLOCK(NULL, "usb", usb_clk)
 	_REGISTER_CLOCK(NULL, "audio", audio_clk)
 	_REGISTER_CLOCK(NULL, "pwm", pwm_clk)
@@ -517,6 +519,12 @@ static int clk_misc_init(void)
 int __init mx23_clocks_init(void)
 {
 	clk_misc_init();
+
+	clk_enable(&cpu_clk);
+	clk_enable(&hbus_clk);
+	clk_enable(&xbus_clk);
+	clk_enable(&emi_clk);
+	clk_enable(&uart_clk);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 

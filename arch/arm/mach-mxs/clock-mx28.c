@@ -602,7 +602,10 @@ _DEFINE_CLOCK(fec_clk, ENET, DISABLE, &hbus_clk);
 	},
 
 static struct clk_lookup lookups[] = {
-	_REGISTER_CLOCK("mxs-duart.0", NULL, uart_clk)
+	/* for amba bus driver */
+	_REGISTER_CLOCK("duart", "apb_pclk", xbus_clk)
+	/* for amba-pl011 driver */
+	_REGISTER_CLOCK("duart", NULL, uart_clk)
 	_REGISTER_CLOCK("imx28-fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK("imx28-fec.1", NULL, fec_clk)
 	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
@@ -727,6 +730,12 @@ static int clk_misc_init(void)
 int __init mx28_clocks_init(void)
 {
 	clk_misc_init();
+
+	clk_enable(&cpu_clk);
+	clk_enable(&hbus_clk);
+	clk_enable(&xbus_clk);
+	clk_enable(&emi_clk);
+	clk_enable(&uart_clk);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
