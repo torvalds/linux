@@ -127,7 +127,7 @@ static inline u32 _get_mux(struct clk *parent, struct clk *m0,
 	return -EINVAL;
 }
 
-static inline void __iomem *_get_pll_base(struct clk *pll)
+static inline void __iomem *_mx51_get_pll_base(struct clk *pll)
 {
 	if (pll == &pll1_main_clk)
 		return MX51_DPLL1_BASE;
@@ -135,12 +135,34 @@ static inline void __iomem *_get_pll_base(struct clk *pll)
 		return MX51_DPLL2_BASE;
 	else if (pll == &pll3_sw_clk)
 		return MX51_DPLL3_BASE;
+	else
+		BUG();
+
+	return NULL;
+}
+
+static inline void __iomem *_mx53_get_pll_base(struct clk *pll)
+{
+	if (pll == &pll1_main_clk)
+		return MX53_DPLL1_BASE;
+	else if (pll == &pll2_sw_clk)
+		return MX53_DPLL2_BASE;
+	else if (pll == &pll3_sw_clk)
+		return MX53_DPLL3_BASE;
 	else if (pll == &mx53_pll4_sw_clk)
 		return MX53_DPLL4_BASE;
 	else
 		BUG();
 
 	return NULL;
+}
+
+static inline void __iomem *_get_pll_base(struct clk *pll)
+{
+	if (cpu_is_mx51())
+		return _mx51_get_pll_base(pll);
+	else
+		return _mx53_get_pll_base(pll);
 }
 
 static unsigned long clk_pll_get_rate(struct clk *clk)
@@ -1341,6 +1363,7 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 
 	clk_tree_init();
 
+	clk_set_parent(&uart_root_clk, &pll3_sw_clk);
 	clk_enable(&cpu_clk);
 	clk_enable(&main_bus_clk);
 
