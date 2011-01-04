@@ -115,7 +115,6 @@ prototypes:
 	ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
 	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
 	int (*bdev_try_to_free_page)(struct super_block*, struct page*, gfp_t);
-	int (*trim_fs) (struct super_block *, struct fstrim_range *);
 
 locking rules:
 	All may block [not true, see below]
@@ -138,7 +137,6 @@ show_options:		no		(namespace_sem)
 quota_read:		no		(see below)
 quota_write:		no		(see below)
 bdev_try_to_free_page:	no		(see below)
-trim_fs:		no
 
 ->statfs() has s_umount (shared) when called by ustat(2) (native or
 compat), but that's an accident of bad API; s_umount is used to pin
