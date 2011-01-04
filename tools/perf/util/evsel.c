@@ -1,6 +1,8 @@
 #include "evsel.h"
 #include "../perf.h"
 #include "util.h"
+#include "cpumap.h"
+#include "thread.h"
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 
@@ -123,13 +125,13 @@ int __perf_evsel__read(struct perf_evsel *evsel,
 	return 0;
 }
 
-int perf_evsel__open_per_cpu(struct perf_evsel *evsel, int ncpus, int *cpu_map)
+int perf_evsel__open_per_cpu(struct perf_evsel *evsel, struct cpu_map *cpus)
 {
 	int cpu;
 
-	for (cpu = 0; cpu < ncpus; cpu++) {
+	for (cpu = 0; cpu < cpus->nr; cpu++) {
 		FD(evsel, cpu, 0) = sys_perf_event_open(&evsel->attr, -1,
-							cpu_map[cpu], -1, 0);
+							cpus->map[cpu], -1, 0);
 		if (FD(evsel, cpu, 0) < 0)
 			goto out_close;
 	}
@@ -144,13 +146,13 @@ out_close:
 	return -1;
 }
 
-int perf_evsel__open_per_thread(struct perf_evsel *evsel, int nthreads, int *thread_map)
+int perf_evsel__open_per_thread(struct perf_evsel *evsel, struct thread_map *threads)
 {
 	int thread;
 
-	for (thread = 0; thread < nthreads; thread++) {
+	for (thread = 0; thread < threads->nr; thread++) {
 		FD(evsel, 0, thread) = sys_perf_event_open(&evsel->attr,
-							   thread_map[thread], -1, -1, 0);
+							   threads->map[thread], -1, -1, 0);
 		if (FD(evsel, 0, thread) < 0)
 			goto out_close;
 	}
@@ -165,11 +167,11 @@ out_close:
 	return -1;
 }
 
-int perf_evsel__open(struct perf_evsel *evsel, int ncpus, int nthreads,
-		     int *cpu_map, int *thread_map)
+int perf_evsel__open(struct perf_evsel *evsel, 
+		     struct cpu_map *cpus, struct thread_map *threads)
 {
-	if (nthreads < 0)
-		return perf_evsel__open_per_cpu(evsel, ncpus, cpu_map);
+	if (threads == NULL)
+		return perf_evsel__open_per_cpu(evsel, cpus);
 
-	return perf_evsel__open_per_thread(evsel, nthreads, thread_map);
+	return perf_evsel__open_per_thread(evsel, threads);
 }
