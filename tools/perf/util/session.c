@@ -838,23 +838,6 @@ static struct thread *perf_session__register_idle_thread(struct perf_session *se
 	return thread;
 }
 
-int do_read(int fd, void *buf, size_t size)
-{
-	void *buf_start = buf;
-
-	while (size) {
-		int ret = read(fd, buf, size);
-
-		if (ret <= 0)
-			return ret;
-
-		size -= ret;
-		buf += ret;
-	}
-
-	return buf - buf_start;
-}
-
 #define session_done()	(*(volatile int *)(&session_done))
 volatile int session_done;
 
@@ -872,7 +855,7 @@ static int __perf_session__process_pipe_events(struct perf_session *self,
 
 	head = 0;
 more:
-	err = do_read(self->fd, &event, sizeof(struct perf_event_header));
+	err = readn(self->fd, &event, sizeof(struct perf_event_header));
 	if (err <= 0) {
 		if (err == 0)
 			goto done;
@@ -892,8 +875,7 @@ more:
 	p += sizeof(struct perf_event_header);
 
 	if (size - sizeof(struct perf_event_header)) {
-		err = do_read(self->fd, p,
-			      size - sizeof(struct perf_event_header));
+		err = readn(self->fd, p, size - sizeof(struct perf_event_header));
 		if (err <= 0) {
 			if (err == 0) {
 				pr_err("unexpected end of event stream\n");
