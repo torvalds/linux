@@ -142,6 +142,8 @@ static int read_index_list(struct sock *sk)
 
 		hci_del_off_timer(d);
 
+		set_bit(HCI_MGMT, &d->flags);
+
 		if (test_bit(HCI_SETUP, &d->flags))
 			continue;
 
@@ -199,6 +201,8 @@ static int read_controller_info(struct sock *sk, unsigned char *data, u16 len)
 	hci_del_off_timer(hdev);
 
 	hci_dev_lock_bh(hdev);
+
+	set_bit(HCI_MGMT, &hdev->flags);
 
 	put_unaligned_le16(hdev->id, &rp->index);
 	rp->type = hdev->dev_type;

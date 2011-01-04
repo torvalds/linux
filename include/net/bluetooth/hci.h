@@ -79,6 +79,7 @@ enum {
 
 	HCI_SETUP,
 	HCI_AUTO_OFF,
+	HCI_MGMT,
 };
 
 /* HCI ioctl defines */
