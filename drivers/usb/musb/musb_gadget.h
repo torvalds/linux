@@ -35,13 +35,19 @@
 #ifndef __MUSB_GADGET_H
 #define __MUSB_GADGET_H
 
+enum buffer_map_state {
+	UN_MAPPED = 0,
+	PRE_MAPPED,
+	MUSB_MAPPED
+};
+
 struct musb_request {
 	struct usb_request	request;
 	struct musb_ep		*ep;
 	struct musb		*musb;
 	u8 tx;			/* endpoint direction */
 	u8 epnum;
-	u8 mapped;
+	enum buffer_map_state map_state;
 };
 
 static inline struct musb_request *to_musb_request(struct usb_request *req)
