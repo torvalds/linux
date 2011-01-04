@@ -738,7 +738,7 @@ nfserrno (int errno)
 		{ nfserr_jukebox, -EAGAIN },
 		{ nfserr_jukebox, -EWOULDBLOCK },
 		{ nfserr_jukebox, -ENOMEM },
-		{ nfserr_badname, -ESRCH },
+		{ nfserr_badowner, -ESRCH },
 		{ nfserr_io, -ETXTBSY },
 		{ nfserr_notsupp, -EOPNOTSUPP },
 		{ nfserr_toosmall, -ETOOSMALL },
