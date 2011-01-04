@@ -1110,18 +1110,22 @@ static void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 	     pipe ? 'B' : 'A');
 }
 
-static void assert_pipe_enabled(struct drm_i915_private *dev_priv,
-				enum pipe pipe)
+static void assert_pipe(struct drm_i915_private *dev_priv,
+			enum pipe pipe, bool state)
 {
 	int reg;
 	u32 val;
+	bool cur_state;
 
 	reg = PIPECONF(pipe);
 	val = I915_READ(reg);
-	WARN(!(val & PIPECONF_ENABLE),
-	     "pipe %c assertion failure, should be active but is disabled\n",
-	     pipe ? 'B' : 'A');
+	cur_state = !!(val & PIPECONF_ENABLE);
+	WARN(cur_state != state,
+	     "pipe %c assertion failure (expected %s, current %s)\n",
+	     pipe ? 'B' : 'A', state_string(state), state_string(cur_state));
 }
+#define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
+#define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
 
 static void assert_plane_enabled(struct drm_i915_private *dev_priv,
 				 enum plane plane)
@@ -1153,6 +1157,73 @@ static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 		     "plane %d assertion failure, should be off on pipe %c but is still active\n",
 		     i, pipe ? 'B' : 'A');
 	}
+}
+
+/**
+ * intel_enable_pll - enable a PLL
+ * @dev_priv: i915 private structure
+ * @pipe: pipe PLL to enable
+ *
+ * Enable @pipe's PLL so we can start pumping pixels from a plane.  Check to
+ * make sure the PLL reg is writable first though, since the panel write
+ * protect mechanism may be enabled.
+ *
+ * Note!  This is for pre-ILK only.
+ */
+static void intel_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	/* No really, not for ILK+ */
+	BUG_ON(dev_priv->info->gen >= 5);
+
+	/* PLL is protected by panel, make sure we can write it */
+	if (IS_MOBILE(dev_priv->dev) && !IS_I830(dev_priv->dev))
+		assert_panel_unlocked(dev_priv, pipe);
+
+	reg = DPLL(pipe);
+	val = I915_READ(reg);
+	val |= DPLL_VCO_ENABLE;
+
+	/* We do this three times for luck */
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
+	udelay(150); /* wait for warmup */
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
+	udelay(150); /* wait for warmup */
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
+	udelay(150); /* wait for warmup */
+}
+
+/**
+ * intel_disable_pll - disable a PLL
+ * @dev_priv: i915 private structure
+ * @pipe: pipe PLL to disable
+ *
+ * Disable the PLL for @pipe, making sure the pipe is off first.
+ *
+ * Note!  This is for pre-ILK only.
+ */
+static void intel_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	/* Don't disable pipe A or pipe A PLLs if needed */
+	if (pipe == PIPE_A && (dev_priv->quirks & QUIRK_PIPEA_FORCE))
+		return;
+
+	/* Make sure the pipe isn't still relying on us */
+	assert_pipe_disabled(dev_priv, pipe);
+
+	reg = DPLL(pipe);
+	val = I915_READ(reg);
+	val &= ~DPLL_VCO_ENABLE;
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
 }
 
 /**
@@ -2559,7 +2630,6 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
-	u32 reg, temp;
 
 	if (intel_crtc->active)
 		return;
@@ -2567,29 +2637,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc->active = true;
 	intel_update_watermarks(dev);
 
-	/* Enable the DPLL */
-	reg = DPLL(pipe);
-	temp = I915_READ(reg);
-	if ((temp & DPLL_VCO_ENABLE) == 0) {
-		I915_WRITE(reg, temp);
-
-		/* Wait for the clocks to stabilize. */
-		POSTING_READ(reg);
-		udelay(150);
-
-		I915_WRITE(reg, temp | DPLL_VCO_ENABLE);
-
-		/* Wait for the clocks to stabilize. */
-		POSTING_READ(reg);
-		udelay(150);
-
-		I915_WRITE(reg, temp | DPLL_VCO_ENABLE);
-
-		/* Wait for the clocks to stabilize. */
-		POSTING_READ(reg);
-		udelay(150);
-	}
-
+	intel_enable_pll(dev_priv, pipe);
 	intel_enable_pipe(dev_priv, pipe);
 	intel_enable_plane(dev_priv, plane, pipe);
 
@@ -2608,7 +2656,6 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
-	u32 reg, temp;
 
 	if (!intel_crtc->active)
 		return;
@@ -2624,24 +2671,9 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 		dev_priv->display.disable_fbc(dev);
 
 	intel_disable_plane(dev_priv, plane, pipe);
-
-	/* Don't disable pipe A or pipe A PLLs if needed */
-	if (pipe == 0 && (dev_priv->quirks & QUIRK_PIPEA_FORCE))
-		goto done;
-
 	intel_disable_pipe(dev_priv, pipe);
+	intel_disable_pll(dev_priv, pipe);
 
-	reg = DPLL(pipe);
-	temp = I915_READ(reg);
-	if (temp & DPLL_VCO_ENABLE) {
-		I915_WRITE(reg, temp & ~DPLL_VCO_ENABLE);
-
-		/* Wait for the clocks to turn off. */
-		POSTING_READ(reg);
-		udelay(150);
-	}
-
-done:
 	intel_crtc->active = false;
 	intel_update_fbc(dev);
 	intel_update_watermarks(dev);
