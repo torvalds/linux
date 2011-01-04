@@ -101,7 +101,8 @@
 #define MPT_NAME_LENGTH			32	/* generic length of strings */
 #define MPT_STRING_LENGTH		64
 
-#define	MPT_MAX_CALLBACKS		16
+#define MPT_MAX_CALLBACKS		16
+
 
 #define	 CAN_SLEEP			1
 #define  NO_SLEEP			0
@@ -445,18 +446,31 @@ struct chain_tracker {
 };
 
 /**
- * struct request_tracker - firmware request tracker
+ * struct scsiio_tracker - scsi mf request tracker
  * @smid: system message id
  * @scmd: scsi request pointer
  * @cb_idx: callback index
  * @chain_list: list of chains associated to this IO
  * @tracker_list: list of free request (ioc->free_list)
  */
-struct request_tracker {
+struct scsiio_tracker {
 	u16	smid;
 	struct scsi_cmnd *scmd;
 	u8	cb_idx;
 	struct list_head chain_list;
+	struct list_head tracker_list;
+};
+
+/**
+ * struct request_tracker - misc mf request tracker
+ * @smid: system message id
+ * @scmd: scsi request pointer
+ * @cb_idx: callback index
+ * @tracker_list: list of free request (ioc->free_list)
+ */
+struct request_tracker {
+	u16	smid;
+	u8	cb_idx;
 	struct list_head tracker_list;
 };
 
@@ -723,7 +737,7 @@ struct MPT2SAS_ADAPTER {
 	u8		*request;
 	dma_addr_t	request_dma;
 	u32		request_dma_sz;
-	struct request_tracker *scsi_lookup;
+	struct scsiio_tracker *scsi_lookup;
 	ulong		scsi_lookup_pages;
 	spinlock_t 	scsi_lookup_lock;
 	struct list_head free_list;
