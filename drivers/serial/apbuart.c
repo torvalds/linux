@@ -580,6 +580,9 @@ static struct of_device_id __initdata apbuart_match[] = {
 	{
 	 .name = "GAISLER_APBUART",
 	 },
+	{
+	 .name = "01_00c",
+	 },
 	{},
 };
 
