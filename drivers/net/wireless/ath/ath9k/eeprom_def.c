@@ -86,9 +86,10 @@ static int ath9k_hw_def_get_eeprom_rev(struct ath_hw *ah)
 	return ((ah->eeprom.def.baseEepHeader.version) & 0xFFF);
 }
 
-static bool ath9k_hw_def_fill_eeprom(struct ath_hw *ah)
-{
 #define SIZE_EEPROM_DEF (sizeof(struct ar5416_eeprom_def) / sizeof(u16))
+
+static bool __ath9k_hw_def_fill_eeprom(struct ath_hw *ah)
+{
 	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *eep_data = (u16 *)&ah->eeprom.def;
 	int addr, ar5416_eep_start_loc = 0x100;
@@ -103,8 +104,33 @@ static bool ath9k_hw_def_fill_eeprom(struct ath_hw *ah)
 		eep_data++;
 	}
 	return true;
-#undef SIZE_EEPROM_DEF
 }
+
+static bool __ath9k_hw_usb_def_fill_eeprom(struct ath_hw *ah)
+{
+	u16 *eep_data = (u16 *)&ah->eeprom.def;
+
+	ath9k_hw_usb_gen_fill_eeprom(ah, eep_data,
+				     0x100, SIZE_EEPROM_DEF);
+	return true;
+}
+
+static bool ath9k_hw_def_fill_eeprom(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!ath9k_hw_use_flash(ah)) {
+		ath_dbg(common, ATH_DBG_EEPROM,
+			"Reading from EEPROM, not flash\n");
+	}
+
+	if (common->bus_ops->ath_bus_type == ATH_USB)
+		return __ath9k_hw_usb_def_fill_eeprom(ah);
+	else
+		return __ath9k_hw_def_fill_eeprom(ah);
+}
+
+#undef SIZE_EEPROM_DEF
 
 static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 {
