@@ -73,9 +73,9 @@ static void usage(void)
 
 static int start_line(const char *line)
 {
-	if (strcmp(line + 8, " T start\n") == 0)
+	if (strcmp(line + 8, " T _start\n") == 0)
 		return 1;
-	else if (strcmp(line + 16, " T start\n") == 0)
+	else if (strcmp(line + 16, " T _start\n") == 0)
 		return 1;
 	return 0;
 }
@@ -92,7 +92,7 @@ static int end_line(const char *line)
 /*
  * Find address for start and end in System.map.
  * The file looks like this:
- * f0004000 T start
+ * f0004000 T _start
  * f0379f79 A _end
  * 1234567890123456
  * ^coloumn 1
