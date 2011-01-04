@@ -98,6 +98,9 @@ ENTRY(stext)
 #ifdef CONFIG_SMP_ON_UP
 	bl	__fixup_smp
 #endif
+#ifdef CONFIG_ARM_PATCH_PHYS_VIRT
+	bl	__fixup_pv_table
+#endif
 	bl	__create_page_tables
 
 	/*
@@ -436,6 +439,71 @@ smp_on_up:
 	ALT_UP(.long	0)
 	.popsection
 
+#endif
+
+#ifdef CONFIG_ARM_PATCH_PHYS_VIRT
+
+/* __fixup_pv_table - patch the stub instructions with the delta between
+ * PHYS_OFFSET and PAGE_OFFSET, which is assumed to be 16MiB aligned and
+ * can be expressed by an immediate shifter operand. The stub instruction
+ * has a form of '(add|sub) rd, rn, #imm'.
+ */
+	__HEAD
+__fixup_pv_table:
+	adr	r0, 1f
+	ldmia	r0, {r3-r5, r7}
+	sub	r3, r0, r3	@ PHYS_OFFSET - PAGE_OFFSET
+	add	r4, r4, r3	@ adjust table start address
+	add	r5, r5, r3	@ adjust table end address
+	str	r8, [r7, r3]!	@ save computed PHYS_OFFSET to __pv_phys_offset
+	mov	r6, r3, lsr #24	@ constant for add/sub instructions
+	teq	r3, r6, lsl #24 @ must be 16MiB aligned
+	bne	__error
+	str	r6, [r7, #4]	@ save to __pv_offset
+	b	__fixup_a_pv_table
+ENDPROC(__fixup_pv_table)
+
+	.align
+1:	.long	.
+	.long	__pv_table_begin
+	.long	__pv_table_end
+2:	.long	__pv_phys_offset
+
+	.text
+__fixup_a_pv_table:
+	b	3f
+2:	ldr	ip, [r7, r3]
+	bic	ip, ip, #0x000000ff
+	orr	ip, ip, r6
+	str	ip, [r7, r3]
+3:	cmp	r4, r5
+	ldrcc	r7, [r4], #4	@ use branch for delay slot
+	bcc	2b
+	mov	pc, lr
+ENDPROC(__fixup_a_pv_table)
+
+ENTRY(fixup_pv_table)
+	stmfd	sp!, {r4 - r7, lr}
+	ldr	r2, 2f			@ get address of __pv_phys_offset
+	mov	r3, #0			@ no offset
+	mov	r4, r0			@ r0 = table start
+	add	r5, r0, r1		@ r1 = table size
+	ldr	r6, [r2, #4]		@ get __pv_offset
+	bl	__fixup_a_pv_table
+	ldmfd	sp!, {r4 - r7, pc}
+ENDPROC(fixup_pv_table)
+
+	.align
+2:	.long	__pv_phys_offset
+
+	.data
+	.globl	__pv_phys_offset
+	.type	__pv_phys_offset, %object
+__pv_phys_offset:
+	.long	0
+	.size	__pv_phys_offset, . - __pv_phys_offset
+__pv_offset:
+	.long	0
 #endif
 
 #include "head-common.S"

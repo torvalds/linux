@@ -191,6 +191,19 @@ config VECTORS_BASE
 	help
 	  The base address of exception vectors.
 
+config ARM_PATCH_PHYS_VIRT
+	bool "Patch physical to virtual translations at runtime (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on !XIP_KERNEL && !THUMB2_KERNEL && MMU
+	depends on !ARCH_MSM
+	depends on !ARCH_REALVIEW || !SPARSEMEM
+	help
+	  Patch phys-to-virt translation functions at runtime according to
+	  the position of the kernel in system memory.
+
+	  This can only be used with non-XIP, non-Thumb2, MMU kernels where
+	  the base of physical memory is at a 16MB boundary.
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"

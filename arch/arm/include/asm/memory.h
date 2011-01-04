@@ -24,8 +24,6 @@
  */
 #define UL(x) _AC(x, UL)
 
-#define PHYS_OFFSET	PLAT_PHYS_OFFSET
-
 #ifdef CONFIG_MMU
 
 /*
@@ -135,16 +133,6 @@
 #endif
 
 /*
- * Physical vs virtual RAM address space conversion.  These are
- * private definitions which should NOT be used outside memory.h
- * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
- */
-#ifndef __virt_to_phys
-#define __virt_to_phys(x)	((x) - PAGE_OFFSET + PHYS_OFFSET)
-#define __phys_to_virt(x)	((x) - PHYS_OFFSET + PAGE_OFFSET)
-#endif
-
-/*
  * Convert a physical address to a Page Frame Number and back
  */
 #define	__phys_to_pfn(paddr)	((paddr) >> PAGE_SHIFT)
@@ -157,6 +145,49 @@
 #define phys_to_page(phys)	(pfn_to_page(__phys_to_pfn(phys)))
 
 #ifndef __ASSEMBLY__
+
+/*
+ * Physical vs virtual RAM address space conversion.  These are
+ * private definitions which should NOT be used outside memory.h
+ * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
+ */
+#ifndef __virt_to_phys
+#ifdef CONFIG_ARM_PATCH_PHYS_VIRT
+
+extern unsigned long __pv_phys_offset;
+#define PHYS_OFFSET __pv_phys_offset
+
+#define __pv_stub(from,to,instr)			\
+	__asm__("@ __pv_stub\n"				\
+	"1:	" instr "	%0, %1, %2\n"		\
+	"	.pushsection .pv_table,\"a\"\n"		\
+	"	.long	1b\n"				\
+	"	.popsection\n"				\
+	: "=r" (to)					\
+	: "r" (from), "I" (0x81000000))
+
+static inline unsigned long __virt_to_phys(unsigned long x)
+{
+	unsigned long t;
+	__pv_stub(x, t, "add");
+	return t;
+}
+
+static inline unsigned long __phys_to_virt(unsigned long x)
+{
+	unsigned long t;
+	__pv_stub(x, t, "sub");
+	return t;
+}
+#else
+#define __virt_to_phys(x)	((x) - PAGE_OFFSET + PHYS_OFFSET)
+#define __phys_to_virt(x)	((x) - PHYS_OFFSET + PAGE_OFFSET)
+#endif
+#endif
+
+#ifndef PHYS_OFFSET
+#define PHYS_OFFSET	PLAT_PHYS_OFFSET
+#endif
 
 /*
  * The DMA mask corresponding to the maximum bus address allocatable
