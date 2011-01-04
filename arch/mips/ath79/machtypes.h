@@ -16,6 +16,7 @@
 
 enum ath79_mach_type {
 	ATH79_MACH_GENERIC = 0,
+	ATH79_MACH_PB44,		/* Atheros PB44 reference board */
 };
 
 #endif /* _ATH79_MACHTYPE_H */

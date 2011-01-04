@@ -16,3 +16,8 @@ obj-$(CONFIG_EARLY_PRINTK)		+= early_printk.o
 # Devices
 #
 obj-y					+= dev-common.o
+
+#
+# Machines
+#
+obj-$(CONFIG_ATH79_MACH_PB44)		+= mach-pb44.o
