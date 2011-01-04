@@ -222,6 +222,7 @@ struct platform_device *g_pdev = NULL;
 
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 static int wq_condition = 0;
+static int wq_condition2 = 0;
 #if ANDROID_USE_THREE_BUFS
 static int new_frame_seted = 1;
 #endif
@@ -1218,8 +1219,8 @@ static int fb0_set_par(struct fb_info *info)
 
     if(inf->video_mode == 1)
     {
-        par->xpos = (screen->x_res - var->xres)/2;              //visiable offset in panel
-        par->ypos = (screen->y_res - var->yres);
+        par->xpos = (screen->x_res >= var->xres)?((screen->x_res - var->xres)/2):0;              //visiable offset in panel
+        par->ypos = (screen->y_res >= var->yres)?(screen->y_res - var->yres):0;
         par->xsize = var->xres;                                //visiable size in panel
         par->ysize = var->yres;
         win1_set_par(info);
@@ -1462,9 +1463,9 @@ static int fb1_set_par(struct fb_info *info)
     //u32 ScaleCbrX=0x1000, ScaleCbrY=0x1000;
 
     u8 data_format = var->nonstd&0x0f;
-    u32 win0_en = var->reserved[2];
-    u32 y_addr = var->reserved[3];       //user alloc buf addr y
-    u32 uv_addr = var->reserved[4];
+   // u32 win0_en = var->reserved[2];
+   // u32 y_addr = var->reserved[3];       //user alloc buf addr y
+   // u32 uv_addr = var->reserved[4];
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
@@ -1547,6 +1548,11 @@ static int fb1_set_par(struct fb_info *info)
     par->ysize = ysize;
     win0_set_par(info);
 
+    if ( wq_condition2 == 0 ) {
+        wait_event_interruptible_timeout(wq,  wq_condition2, HZ/20);
+    }
+    wq_condition2 = 0;
+
     return 0;
 }
 
@@ -1570,6 +1576,7 @@ int fb1_open(struct fb_info *info, int user)
     par->par_seted = 0;
     par->addr_seted = 0;
     inf->video_mode = 1;
+    wq_condition2 = 1;
 
     if(par->refcount) {
         printk(">>>>>> fb1 has opened! \n");
@@ -1642,14 +1649,13 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
     case FB1_IOCTL_SET_YUV_ADDR:    //set y&uv address to register direct
         {
             u32 yuv_phy[2];
-            int ret = 0;
             if (copy_from_user(yuv_phy, argp, 8))
 			    return -EFAULT;
 
-            yuv_phy[0] += par->y_offset;
-            yuv_phy[1] += par->c_offset;
             fix0->smem_start = yuv_phy[0];
             fix0->mmio_start = yuv_phy[1];
+            yuv_phy[0] += par->y_offset;
+            yuv_phy[1] += par->c_offset;
 
             LcdWrReg(inf, WIN0_YRGB_MST, yuv_phy[0]);
             LcdWrReg(inf, WIN0_CBR_MST, yuv_phy[1]);
@@ -1682,6 +1688,11 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
     case FB1_IOCTL_SET_ROTATE:    //change MCU panel scan direction
         fbprintk(">>>>>> change lcdc direction(%d) \n", (int)arg);
         return -1;
+        break;
+    case FB1_IOCTL_SET_WIN0_TOP:
+        fbprintk(">>>>>> FB1_IOCTL_SET_WIN0_TOP %d\n",arg);
+        LcdMskReg(inf, DSP_CTRL0, m_W0_ON_TOP, v_W0_ON_TOP(arg));
+        LcdWrReg(inf, REG_CFG_DONE, 0x01);
         break;
     default:
         break;
@@ -1754,6 +1765,38 @@ int FB_Switch_Screen( struct rk29fb_screen *screen, u32 enable )
     return 0;
 }
 
+static ssize_t dsp_win0_info_read(struct device *device,
+			    struct device_attribute *attr, char *buf)
+{
+    //char * s = _buf;
+    struct rk29fb_inf *inf = platform_get_drvdata(g_pdev);
+    struct rk29fb_screen *screen = inf->cur_screen;
+
+    u16 xpos=0,ypos=0,xsize=0,ysize=0;
+
+    fbprintk("%s\n",__FUNCTION__);
+    xpos = LcdRdReg(inf, WIN0_DSP_ST) & 0xffff;
+    ypos = (LcdRdReg(inf, WIN0_DSP_ST)>>16) & 0xffff;
+
+    xpos -= (screen->left_margin + screen->hsync_len);
+    ypos -= (screen->upper_margin + screen->vsync_len);
+
+    xsize=LcdRdReg(inf, WIN0_DSP_INFO)& 0xffff;
+    ysize=(LcdRdReg(inf, WIN0_DSP_INFO)>>16) & 0xffff;
+    fbprintk("%s %d , %d, %d ,%d\n",__FUNCTION__,xpos,ypos,xsize,ysize);
+
+    return snprintf(buf, PAGE_SIZE, "%d,%d,%d,%d\n", xpos,ypos,xsize,ysize);
+}
+static ssize_t dsp_win0_info_write(struct device *device,
+			   struct device_attribute *attr, char *buf)
+{
+     printk("%s\n",__FUNCTION__);
+     printk("%s %x \n",__FUNCTION__,*buf);
+     return 0;
+}
+
+static DRIVER_ATTR(dsp_win0_info,  S_IRUGO|S_IWUSR, dsp_win0_info_read, dsp_win0_info_write);
+
 static irqreturn_t rk29fb_irq(int irq, void *dev_id)
 {
 	struct platform_device *pdev = (struct platform_device*)dev_id;
@@ -1820,6 +1863,7 @@ static irqreturn_t rk29fb_irq(int irq, void *dev_id)
         wake_up_interruptible(&par->wait);
     }
 
+    wq_condition2 = 1;
 	wq_condition = 1;
  	wake_up_interruptible(&wq);
 
@@ -2189,6 +2233,12 @@ static int __init rk29fb_probe (struct platform_device *pdev)
 		goto unregister_win1fb;
     }
 
+    ret = device_create_file(inf->fb1->dev, &driver_attr_dsp_win0_info);
+    if(ret)
+    {
+        printk(">> fb1 dsp win0 info device_create_file err\n");
+        ret = -EINVAL;
+    }
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	suspend_info.inf = inf;
 	register_early_suspend(&suspend_info.early_suspend);
@@ -2264,6 +2314,7 @@ static int rk29fb_remove(struct platform_device *pdev)
         printk("inf==0, rk29_fb_remove fail! \n");
         return -EINVAL;
     }
+    driver_remove_file(inf->fb1->dev, &driver_attr_dsp_win0_info);
 
     irq = platform_get_irq(pdev, 0);
     if (irq >0)

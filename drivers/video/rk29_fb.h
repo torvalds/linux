@@ -378,6 +378,7 @@
 #define FB1_IOCTL_SET_ROTATE            0x5003
 #define FB1_IOCTL_SET_I2P_ODD_ADDR      0x5005
 #define FB1_IOCTL_SET_I2P_EVEN_ADDR     0x5006
+#define FB1_IOCTL_SET_WIN0_TOP          0x5018
 
 
 /********************************************************************
