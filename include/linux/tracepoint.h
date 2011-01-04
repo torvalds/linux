@@ -32,7 +32,7 @@ struct tracepoint {
 	int state;			/* State. */
 	void (*regfunc)(void);
 	void (*unregfunc)(void);
-	struct tracepoint_func *funcs;
+	struct tracepoint_func __rcu *funcs;
 } __attribute__((aligned(32)));		/*
 					 * Aligned on 32 bytes because it is
 					 * globally visible and gcc happily
