@@ -20,11 +20,13 @@
 #include <asm/bootinfo.h>
 #include <asm/time.h>		/* for mips_hpt_frequency */
 #include <asm/reboot.h>		/* for _machine_{restart,halt} */
+#include <asm/mips_machine.h>
 
 #include <asm/mach-ath79/ath79.h>
 #include <asm/mach-ath79/ar71xx_regs.h>
 #include "common.h"
 #include "dev-common.h"
+#include "machtypes.h"
 
 #define ATH79_SYS_TYPE_LEN	64
 
@@ -184,7 +186,20 @@ static int __init ath79_setup(void)
 {
 	ath79_gpio_init();
 	ath79_register_uart();
+
+	mips_machine_setup();
+
 	return 0;
 }
 
 arch_initcall(ath79_setup);
+
+static void __init ath79_generic_init(void)
+{
+	/* Nothing to do */
+}
+
+MIPS_MACHINE(ATH79_MACH_GENERIC,
+	     "Generic",
+	     "Generic AR71XX/AR724X/AR913X based board",
+	     ath79_generic_init);
