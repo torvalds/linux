@@ -456,8 +456,14 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	}
 	seq_printf(m, "Interrupts received: %d\n",
 		   atomic_read(&dev_priv->irq_received));
-	for (i = 0; i < I915_NUM_RINGS; i++)
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		if (IS_GEN6(dev)) {
+			seq_printf(m, "Graphics Interrupt mask (%s):	%08x\n",
+				   dev_priv->ring[i].name,
+				   I915_READ_IMR(&dev_priv->ring[i]));
+		}
 		i915_ring_seqno_info(m, &dev_priv->ring[i]);
+	}
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;

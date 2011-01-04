@@ -349,9 +349,12 @@ static void notify_ring(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 seqno = ring->get_seqno(ring);
-	ring->irq_seqno = seqno;
+
 	trace_i915_gem_request_complete(dev, seqno);
+
+	ring->irq_seqno = seqno;
 	wake_up_all(&ring->irq_queue);
+
 	dev_priv->hangcheck_count = 0;
 	mod_timer(&dev_priv->hangcheck_timer,
 		  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));

@@ -16,23 +16,24 @@ struct  intel_hw_status_page {
 
 #define I915_RING_READ(reg) i915_safe_read(dev_priv, reg)
 
-#define I915_READ_TAIL(ring) I915_RING_READ(RING_TAIL(ring->mmio_base))
-#define I915_WRITE_TAIL(ring, val) I915_WRITE(RING_TAIL(ring->mmio_base), val)
+#define I915_READ_TAIL(ring) I915_RING_READ(RING_TAIL((ring)->mmio_base))
+#define I915_WRITE_TAIL(ring, val) I915_WRITE(RING_TAIL((ring)->mmio_base), val)
 
-#define I915_READ_START(ring) I915_RING_READ(RING_START(ring->mmio_base))
-#define I915_WRITE_START(ring, val) I915_WRITE(RING_START(ring->mmio_base), val)
+#define I915_READ_START(ring) I915_RING_READ(RING_START((ring)->mmio_base))
+#define I915_WRITE_START(ring, val) I915_WRITE(RING_START((ring)->mmio_base), val)
 
-#define I915_READ_HEAD(ring)  I915_RING_READ(RING_HEAD(ring->mmio_base))
-#define I915_WRITE_HEAD(ring, val) I915_WRITE(RING_HEAD(ring->mmio_base), val)
+#define I915_READ_HEAD(ring)  I915_RING_READ(RING_HEAD((ring)->mmio_base))
+#define I915_WRITE_HEAD(ring, val) I915_WRITE(RING_HEAD((ring)->mmio_base), val)
 
-#define I915_READ_CTL(ring) I915_RING_READ(RING_CTL(ring->mmio_base))
-#define I915_WRITE_CTL(ring, val) I915_WRITE(RING_CTL(ring->mmio_base), val)
+#define I915_READ_CTL(ring) I915_RING_READ(RING_CTL((ring)->mmio_base))
+#define I915_WRITE_CTL(ring, val) I915_WRITE(RING_CTL((ring)->mmio_base), val)
 
-#define I915_WRITE_IMR(ring, val) I915_WRITE(RING_IMR(ring->mmio_base), val)
+#define I915_WRITE_IMR(ring, val) I915_WRITE(RING_IMR((ring)->mmio_base), val)
+#define I915_READ_IMR(ring) I915_RING_READ(RING_IMR((ring)->mmio_base))
 
-#define I915_READ_NOPID(ring) I915_RING_READ(RING_NOPID(ring->mmio_base))
-#define I915_READ_SYNC_0(ring) I915_RING_READ(RING_SYNC_0(ring->mmio_base))
-#define I915_READ_SYNC_1(ring) I915_RING_READ(RING_SYNC_1(ring->mmio_base))
+#define I915_READ_NOPID(ring) I915_RING_READ(RING_NOPID((ring)->mmio_base))
+#define I915_READ_SYNC_0(ring) I915_RING_READ(RING_SYNC_0((ring)->mmio_base))
+#define I915_READ_SYNC_1(ring) I915_RING_READ(RING_SYNC_1((ring)->mmio_base))
 
 struct  intel_ring_buffer {
 	const char	*name;
