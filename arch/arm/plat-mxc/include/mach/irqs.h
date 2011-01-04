@@ -23,7 +23,9 @@
 #define MXC_GPIO_IRQ_START	MXC_INTERNAL_IRQS
 
 /* these are ordered by size to support multi-SoC kernels */
-#if defined CONFIG_ARCH_MX2
+#if defined CONFIG_ARCH_MX53
+#define MXC_GPIO_IRQS		(32 * 7)
+#elif defined CONFIG_ARCH_MX2
 #define MXC_GPIO_IRQS		(32 * 6)
 #elif defined CONFIG_ARCH_MX50
 #define MXC_GPIO_IRQS		(32 * 6)

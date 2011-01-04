@@ -64,6 +64,7 @@ static inline void flush(void)
 #define MX3X_UART2_BASE_ADDR	0x43F94000
 #define MX51_UART1_BASE_ADDR	0x73fbc000
 #define MX50_UART1_BASE_ADDR	0x53fbc000
+#define MX53_UART1_BASE_ADDR	0x53fbc000
 
 static __inline__ void __arch_decomp_setup(unsigned long arch_id)
 {
@@ -105,6 +106,9 @@ static __inline__ void __arch_decomp_setup(unsigned long arch_id)
 		break;
 	case MACH_TYPE_MX50_RDP:
 		uart_base = MX50_UART1_BASE_ADDR;
+		break;
+	case MACH_TYPE_MX53_EVK:
+		uart_base = MX53_UART1_BASE_ADDR;
 		break;
 	default:
 		break;

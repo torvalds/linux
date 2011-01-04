@@ -7,6 +7,9 @@ config ARCH_MX50
 config ARCH_MX51
 	bool
 
+config ARCH_MX53
+	bool
+
 config SOC_IMX50
 	bool
 	select MXC_TZIC
@@ -22,6 +25,12 @@ config	SOC_IMX51
 	select ARCH_MXC_AUDMUX_V2
 	select ARCH_HAS_CPUFREQ
 	select ARCH_MX51
+
+config	SOC_IMX53
+	bool
+	select MXC_TZIC
+	select ARCH_MXC_IOMUX_V3
+	select ARCH_MX53
 
 comment "MX5 platforms:"
 
@@ -110,6 +119,15 @@ config MACH_MX51_EFIKAMX
 	help
 	  Include support for Genesi Efika MX nettop. This includes specific
 	  configurations for the board and its peripherals.
+
+config MACH_MX53_EVK
+	bool "Support MX53 EVK platforms"
+	select SOC_IMX53
+	select IMX_HAVE_PLATFORM_IMX_UART
+	help
+	  Include support for MX53 EVK platform. This includes specific
+	  configurations for the board and its peripherals.
+
 
 config MACH_MX50_RDP
 	bool "Support MX50 reference design platform"
