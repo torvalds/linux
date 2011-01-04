@@ -382,10 +382,8 @@ static int rk29_send_address(struct rk29_i2c_data *i2c,
 			i2c_err(i2c->dev, "i2c is busy, when send address\n");
 			return ret;
 		}
-		writel(I2C_LCMR_START, i2c->regs + I2C_LCMR);
 	}
-	else
-		writel(I2C_LCMR_START|I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
+	writel(I2C_LCMR_START|I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
 
 	if((ret = rk29_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK)) != 0)
 	{
