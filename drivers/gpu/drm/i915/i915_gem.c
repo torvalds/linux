@@ -2393,6 +2393,12 @@ i915_gem_object_flush_fence(struct drm_i915_gem_object *obj,
 		obj->last_fenced_ring = NULL;
 	}
 
+	/* Ensure that all CPU reads are completed before installing a fence
+	 * and all writes before removing the fence.
+	 */
+	if (obj->base.read_domains & I915_GEM_DOMAIN_GTT)
+		mb();
+
 	return 0;
 }
 
@@ -2833,10 +2839,16 @@ i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 	if (obj->base.write_domain != I915_GEM_DOMAIN_GTT)
 		return;
 
-	/* No actual flushing is required for the GTT write domain.   Writes
+	/* No actual flushing is required for the GTT write domain.  Writes
 	 * to it immediately go to main memory as far as we know, so there's
 	 * no chipset flush.  It also doesn't land in render cache.
+	 *
+	 * However, we do have to enforce the order so that all writes through
+	 * the GTT land before any writes to the device, such as updates to
+	 * the GATT itself.
 	 */
+	wmb();
+
 	i915_gem_release_mmap(obj);
 
 	old_write_domain = obj->base.write_domain;
