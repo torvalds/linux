@@ -65,3 +65,13 @@ void __init ath79_register_uart(void)
 	ath79_uart_data[0].uartclk = clk_get_rate(clk);
 	platform_device_register(&ath79_uart_device);
 }
+
+static struct platform_device ath79_wdt_device = {
+	.name		= "ath79-wdt",
+	.id		= -1,
+};
+
+void __init ath79_register_wdt(void)
+{
+	platform_device_register(&ath79_wdt_device);
+}
