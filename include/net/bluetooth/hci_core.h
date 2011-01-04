@@ -129,6 +129,7 @@ struct hci_dev {
 	wait_queue_head_t	req_wait_q;
 	__u32			req_status;
 	__u32			req_result;
+	__u16			req_last_cmd;
 
 	struct inquiry_cache	inq_cache;
 	struct hci_conn_hash	conn_hash;
@@ -660,6 +661,11 @@ void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data);
 /* ----- HCI Sockets ----- */
 void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb);
 
+/* Management interface */
+int mgmt_control(struct sock *sk, struct msghdr *msg, size_t len);
+int mgmt_index_added(u16 index);
+int mgmt_index_removed(u16 index);
+
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)
 
@@ -668,6 +674,7 @@ struct hci_pinfo {
 	struct hci_dev    *hdev;
 	struct hci_filter filter;
 	__u32             cmsg_mask;
+	unsigned short   channel;
 };
 
 /* HCI security filter */
@@ -687,6 +694,6 @@ struct hci_sec_filter {
 #define hci_req_lock(d)		mutex_lock(&d->req_lock)
 #define hci_req_unlock(d)	mutex_unlock(&d->req_lock)
 
-void hci_req_complete(struct hci_dev *hdev, int result);
+void hci_req_complete(struct hci_dev *hdev, __u16 cmd, int result);
 
 #endif /* __HCI_CORE_H */

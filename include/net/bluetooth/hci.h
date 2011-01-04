@@ -934,8 +934,12 @@ static inline struct hci_sco_hdr *hci_sco_hdr(const struct sk_buff *skb)
 struct sockaddr_hci {
 	sa_family_t    hci_family;
 	unsigned short hci_dev;
+	unsigned short hci_channel;
 };
 #define HCI_DEV_NONE	0xffff
+
+#define HCI_CHANNEL_RAW		0
+#define HCI_CHANNEL_CONTROL	1
 
 struct hci_filter {
 	unsigned long type_mask;

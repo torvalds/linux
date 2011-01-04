@@ -91,9 +91,16 @@ static void hci_notify(struct hci_dev *hdev, int event)
 
 /* ---- HCI requests ---- */
 
-void hci_req_complete(struct hci_dev *hdev, int result)
+void hci_req_complete(struct hci_dev *hdev, __u16 cmd, int result)
 {
-	BT_DBG("%s result 0x%2.2x", hdev->name, result);
+	BT_DBG("%s command 0x%04x result 0x%2.2x", hdev->name, cmd, result);
+
+	/* If the request has set req_last_cmd (typical for multi-HCI
+	 * command requests) check if the completed command matches
+	 * this, and if not just return. Single HCI command requests
+	 * typically leave req_last_cmd as 0 */
+	if (hdev->req_last_cmd && cmd != hdev->req_last_cmd)
+		return;
 
 	if (hdev->req_status == HCI_REQ_PEND) {
 		hdev->req_result = result;
@@ -149,7 +156,7 @@ static int __hci_request(struct hci_dev *hdev, void (*req)(struct hci_dev *hdev,
 		break;
 	}
 
-	hdev->req_status = hdev->req_result = 0;
+	hdev->req_last_cmd = hdev->req_status = hdev->req_result = 0;
 
 	BT_DBG("%s end: err %d", hdev->name, err);
 
@@ -252,6 +259,8 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 	/* Connection accept timeout ~20 secs */
 	param = cpu_to_le16(0x7d00);
 	hci_send_cmd(hdev, HCI_OP_WRITE_CA_TIMEOUT, 2, &param);
+
+	hdev->req_last_cmd = HCI_OP_WRITE_CA_TIMEOUT;
 }
 
 static void hci_scan_req(struct hci_dev *hdev, unsigned long opt)
@@ -960,6 +969,7 @@ int hci_register_dev(struct hci_dev *hdev)
 		}
 	}
 
+	mgmt_index_added(hdev->id);
 	hci_notify(hdev, HCI_DEV_REG);
 
 	return id;
@@ -989,6 +999,7 @@ int hci_unregister_dev(struct hci_dev *hdev)
 	for (i = 0; i < NUM_REASSEMBLY; i++)
 		kfree_skb(hdev->reassembly[i]);
 
+	mgmt_index_removed(hdev->id);
 	hci_notify(hdev, HCI_DEV_UNREG);
 
 	if (hdev->rfkill) {
