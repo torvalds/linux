@@ -268,24 +268,26 @@ static int test__open_syscall_event(void)
 	int id = trace_event__id("sys_enter_open");
 
 	if (id < 0) {
-		pr_debug("trace_event__id(\"sys_enter_open\") ");
+		pr_debug("is debugfs mounted on /sys/kernel/debug?\n");
 		return -1;
 	}
 
 	threads = thread_map__new(-1, getpid());
 	if (threads == NULL) {
-		pr_debug("thread_map__new ");
+		pr_debug("thread_map__new\n");
 		return -1;
 	}
 
 	evsel = perf_evsel__new(PERF_TYPE_TRACEPOINT, id, 0);
 	if (evsel == NULL) {
-		pr_debug("perf_evsel__new ");
+		pr_debug("perf_evsel__new\n");
 		goto out_thread_map_delete;
 	}
 
 	if (perf_evsel__open_per_thread(evsel, threads) < 0) {
-		pr_debug("perf_evsel__open_per_thread ");
+		pr_debug("failed to open counter: %s, "
+			 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
+			 strerror(errno));
 		goto out_evsel_delete;
 	}
 
@@ -295,13 +297,15 @@ static int test__open_syscall_event(void)
 	}
 
 	if (perf_evsel__read_on_cpu(evsel, 0, 0) < 0) {
-		pr_debug("perf_evsel__open_read_on_cpu ");
+		pr_debug("perf_evsel__open_read_on_cpu\n");
 		goto out_close_fd;
 	}
 
-	if (evsel->counts->cpu[0].val != nr_open_calls)
-		pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls, got %Ld ",
+	if (evsel->counts->cpu[0].val != nr_open_calls) {
+		pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls, got %Ld\n",
 			 nr_open_calls, evsel->counts->cpu[0].val);
+		goto out_close_fd;
+	}
 	
 	err = 0;
 out_close_fd:
