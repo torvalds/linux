@@ -157,7 +157,6 @@ void __init plat_mem_setup(void)
 					   AR71XX_RESET_SIZE);
 	ath79_pll_base = ioremap_nocache(AR71XX_PLL_BASE,
 					 AR71XX_PLL_SIZE);
-
 	ath79_ddr_base = ioremap_nocache(AR71XX_DDR_CTRL_BASE,
 					 AR71XX_DDR_CTRL_SIZE);
 
@@ -183,6 +182,7 @@ void __init plat_time_init(void)
 
 static int __init ath79_setup(void)
 {
+	ath79_gpio_init();
 	ath79_register_uart();
 	return 0;
 }
