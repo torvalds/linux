@@ -234,6 +234,85 @@ out:
 	return err;
 }
 
+#include "util/evsel.h"
+#include <sys/types.h>
+
+static int trace_event__id(const char *event_name)
+{
+	char *filename;
+	int err = -1, fd;
+
+	if (asprintf(&filename,
+		     "/sys/kernel/debug/tracing/events/syscalls/%s/id",
+		     event_name) < 0)
+		return -1;
+
+	fd = open(filename, O_RDONLY);
+	if (fd >= 0) {
+		char id[16];
+		if (read(fd, id, sizeof(id)) > 0)
+			err = atoi(id);
+		close(fd);
+	}
+
+	free(filename);
+	return err;
+}
+
+static int test__open_syscall_event(void)
+{
+	int err = -1, fd;
+	struct thread_map *threads;
+	struct perf_evsel *evsel;
+	unsigned int nr_open_calls = 111, i;
+	int id = trace_event__id("sys_enter_open");
+
+	if (id < 0) {
+		pr_debug("trace_event__id(\"sys_enter_open\") ");
+		return -1;
+	}
+
+	threads = thread_map__new(-1, getpid());
+	if (threads == NULL) {
+		pr_debug("thread_map__new ");
+		return -1;
+	}
+
+	evsel = perf_evsel__new(PERF_TYPE_TRACEPOINT, id, 0);
+	if (evsel == NULL) {
+		pr_debug("perf_evsel__new ");
+		goto out_thread_map_delete;
+	}
+
+	if (perf_evsel__open_per_thread(evsel, threads) < 0) {
+		pr_debug("perf_evsel__open_per_thread ");
+		goto out_evsel_delete;
+	}
+
+	for (i = 0; i < nr_open_calls; ++i) {
+		fd = open("/etc/passwd", O_RDONLY);
+		close(fd);
+	}
+
+	if (perf_evsel__read_on_cpu(evsel, 0, 0) < 0) {
+		pr_debug("perf_evsel__open_read_on_cpu ");
+		goto out_close_fd;
+	}
+
+	if (evsel->counts->cpu[0].val != nr_open_calls)
+		pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls, got %Ld ",
+			 nr_open_calls, evsel->counts->cpu[0].val);
+	
+	err = 0;
+out_close_fd:
+	perf_evsel__close_fd(evsel, 1, threads->nr);
+out_evsel_delete:
+	perf_evsel__delete(evsel);
+out_thread_map_delete:
+	thread_map__delete(threads);
+	return err;
+}
+
 static struct test {
 	const char *desc;
 	int (*func)(void);
@@ -241,6 +320,10 @@ static struct test {
 	{
 		.desc = "vmlinux symtab matches kallsyms",
 		.func = test__vmlinux_matches_kallsyms,
+	},
+	{
+		.desc = "detect open syscall event",
+		.func = test__open_syscall_event,
 	},
 	{
 		.func = NULL,
