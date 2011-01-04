@@ -17,6 +17,7 @@
 #include "machtypes.h"
 #include "dev-gpio-buttons.h"
 #include "dev-leds-gpio.h"
+#include "dev-spi.h"
 
 #define PB44_GPIO_I2C_SCL	0
 #define PB44_GPIO_I2C_SDA	1
@@ -84,6 +85,20 @@ static struct gpio_keys_button pb44_gpio_keys[] __initdata = {
 	}
 };
 
+static struct spi_board_info pb44_spi_info[] = {
+	{
+		.bus_num	= 0,
+		.chip_select	= 0,
+		.max_speed_hz	= 25000000,
+		.modalias	= "m25p64",
+	},
+};
+
+static struct ath79_spi_platform_data pb44_spi_data = {
+	.bus_num		= 0,
+	.num_chipselect		= 1,
+};
+
 static void __init pb44_init(void)
 {
 	i2c_register_board_info(0, pb44_i2c_board_info,
@@ -95,6 +110,8 @@ static void __init pb44_init(void)
 	ath79_register_gpio_keys_polled(-1, PB44_KEYS_POLL_INTERVAL,
 					ARRAY_SIZE(pb44_gpio_keys),
 					pb44_gpio_keys);
+	ath79_register_spi(&pb44_spi_data, pb44_spi_info,
+			   ARRAY_SIZE(pb44_spi_info));
 }
 
 MIPS_MACHINE(ATH79_MACH_PB44, "PB44", "Atheros PB44 reference board",
