@@ -48,7 +48,7 @@ static u32 i915_gem_get_seqno(struct drm_device *dev)
 	return seqno;
 }
 
-static void
+static int
 render_ring_flush(struct intel_ring_buffer *ring,
 		  u32	invalidate_domains,
 		  u32	flush_domains)
@@ -56,6 +56,7 @@ render_ring_flush(struct intel_ring_buffer *ring,
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 cmd;
+	int ret;
 
 #if WATCH_EXEC
 	DRM_INFO("%s: invalidate %08x flush %08x\n", __func__,
@@ -116,12 +117,16 @@ render_ring_flush(struct intel_ring_buffer *ring,
 #if WATCH_EXEC
 		DRM_INFO("%s: queue flush %08x to ring\n", __func__, cmd);
 #endif
-		if (intel_ring_begin(ring, 2) == 0) {
-			intel_ring_emit(ring, cmd);
-			intel_ring_emit(ring, MI_NOOP);
-			intel_ring_advance(ring);
-		}
+		ret = intel_ring_begin(ring, 2);
+		if (ret)
+			return ret;
+
+		intel_ring_emit(ring, cmd);
+		intel_ring_emit(ring, MI_NOOP);
+		intel_ring_advance(ring);
 	}
+
+	return 0;
 }
 
 static void ring_write_tail(struct intel_ring_buffer *ring,
@@ -534,19 +539,24 @@ void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 	POSTING_READ(mmio);
 }
 
-static void
+static int
 bsd_ring_flush(struct intel_ring_buffer *ring,
 	       u32     invalidate_domains,
 	       u32     flush_domains)
 {
-	if ((flush_domains & I915_GEM_DOMAIN_RENDER) == 0)
-		return;
+	int ret;
 
-	if (intel_ring_begin(ring, 2) == 0) {
-		intel_ring_emit(ring, MI_FLUSH);
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_advance(ring);
-	}
+	if ((flush_domains & I915_GEM_DOMAIN_RENDER) == 0)
+		return 0;
+
+	ret = intel_ring_begin(ring, 2);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, MI_FLUSH);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
+	return 0;
 }
 
 static int
@@ -980,20 +990,25 @@ static void gen6_bsd_ring_write_tail(struct intel_ring_buffer *ring,
 	       GEN6_BSD_SLEEP_PSMI_CONTROL_RC_ILDL_MESSAGE_ENABLE);
 }
 
-static void gen6_ring_flush(struct intel_ring_buffer *ring,
-			    u32 invalidate_domains,
-			    u32 flush_domains)
+static int gen6_ring_flush(struct intel_ring_buffer *ring,
+			   u32 invalidate_domains,
+			   u32 flush_domains)
 {
-	if ((flush_domains & I915_GEM_DOMAIN_RENDER) == 0)
-		return;
+	int ret;
 
-	if (intel_ring_begin(ring, 4) == 0) {
-		intel_ring_emit(ring, MI_FLUSH_DW);
-		intel_ring_emit(ring, 0);
-		intel_ring_emit(ring, 0);
-		intel_ring_emit(ring, 0);
-		intel_ring_advance(ring);
-	}
+	if ((flush_domains & I915_GEM_DOMAIN_RENDER) == 0)
+		return 0;
+
+	ret = intel_ring_begin(ring, 4);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, MI_FLUSH_DW);
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, 0);
+	intel_ring_advance(ring);
+	return 0;
 }
 
 static int
@@ -1122,20 +1137,25 @@ static int blt_ring_begin(struct intel_ring_buffer *ring,
 		return intel_ring_begin(ring, 4);
 }
 
-static void blt_ring_flush(struct intel_ring_buffer *ring,
+static int blt_ring_flush(struct intel_ring_buffer *ring,
 			   u32 invalidate_domains,
 			   u32 flush_domains)
 {
-	if ((flush_domains & I915_GEM_DOMAIN_RENDER) == 0)
-		return;
+	int ret;
 
-	if (blt_ring_begin(ring, 4) == 0) {
-		intel_ring_emit(ring, MI_FLUSH_DW);
-		intel_ring_emit(ring, 0);
-		intel_ring_emit(ring, 0);
-		intel_ring_emit(ring, 0);
-		intel_ring_advance(ring);
-	}
+	if ((flush_domains & I915_GEM_DOMAIN_RENDER) == 0)
+		return 0;
+
+	ret = blt_ring_begin(ring, 4);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, MI_FLUSH_DW);
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, 0);
+	intel_ring_advance(ring);
+	return 0;
 }
 
 static void blt_ring_cleanup(struct intel_ring_buffer *ring)

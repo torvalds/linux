@@ -63,9 +63,9 @@ struct  intel_ring_buffer {
 
 	void		(*write_tail)(struct intel_ring_buffer *ring,
 				      u32 value);
-	void		(*flush)(struct intel_ring_buffer *ring,
-				 u32	invalidate_domains,
-				 u32	flush_domains);
+	int __must_check (*flush)(struct intel_ring_buffer *ring,
+				  u32	invalidate_domains,
+				  u32	flush_domains);
 	int		(*add_request)(struct intel_ring_buffer *ring,
 				       u32 *seqno);
 	u32		(*get_seqno)(struct intel_ring_buffer *ring);

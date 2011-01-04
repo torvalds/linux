@@ -2148,8 +2148,8 @@ i915_gem_flush_ring(struct drm_device *dev,
 		    uint32_t invalidate_domains,
 		    uint32_t flush_domains)
 {
-	ring->flush(ring, invalidate_domains, flush_domains);
-	i915_gem_process_flushing_list(dev, flush_domains, ring);
+	if (ring->flush(ring, invalidate_domains, flush_domains) == 0)
+		i915_gem_process_flushing_list(dev, flush_domains, ring);
 }
 
 static int i915_ring_idle(struct drm_device *dev,

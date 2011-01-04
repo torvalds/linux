@@ -924,7 +924,7 @@ i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 				    struct intel_ring_buffer *ring)
 {
 	struct drm_i915_gem_request *request;
-	u32 flush_domains;
+	u32 invalidate;
 
 	/*
 	 * Ensure that the commands in the batch buffer are
@@ -932,11 +932,13 @@ i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 	 *
 	 * The sampler always gets flushed on i965 (sigh).
 	 */
-	flush_domains = 0;
+	invalidate = I915_GEM_DOMAIN_COMMAND;
 	if (INTEL_INFO(dev)->gen >= 4)
-		flush_domains |= I915_GEM_DOMAIN_SAMPLER;
-
-	ring->flush(ring, I915_GEM_DOMAIN_COMMAND, flush_domains);
+		invalidate |= I915_GEM_DOMAIN_SAMPLER;
+	if (ring->flush(ring, invalidate, 0)) {
+		i915_gem_next_request_seqno(dev, ring);
+		return;
+	}
 
 	/* Add a breadcrumb for the completion of the batch buffer */
 	request = kzalloc(sizeof(*request), GFP_KERNEL);
