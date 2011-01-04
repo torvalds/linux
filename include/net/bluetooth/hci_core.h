@@ -66,6 +66,12 @@ struct bdaddr_list {
 	struct list_head list;
 	bdaddr_t bdaddr;
 };
+
+struct bt_uuid {
+	struct list_head list;
+	u8 uuid[16];
+};
+
 #define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
@@ -138,6 +144,8 @@ struct hci_dev {
 	struct inquiry_cache	inq_cache;
 	struct hci_conn_hash	conn_hash;
 	struct list_head	blacklist;
+
+	struct list_head	uuids;
 
 	struct hci_dev_stats	stat;
 
@@ -440,6 +448,8 @@ int hci_inquiry(void __user *arg);
 
 struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr);
 int hci_blacklist_clear(struct hci_dev *hdev);
+
+int hci_uuids_clear(struct hci_dev *hdev);
 
 void hci_del_off_timer(struct hci_dev *hdev);
 

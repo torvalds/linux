@@ -571,6 +571,120 @@ failed:
 	return err;
 }
 
+static int uuid_rsp(struct sock *sk, u16 opcode, u16 index)
+{
+	struct mgmt_hdr *hdr;
+	struct mgmt_ev_cmd_complete *ev;
+	struct sk_buff *skb;
+
+	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + sizeof(index), GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
+	hdr->len = cpu_to_le16(sizeof(*ev) + sizeof(index));
+
+	ev = (void *) skb_put(skb, sizeof(*ev));
+	put_unaligned_le16(opcode, &ev->opcode);
+
+	put_unaligned_le16(index, skb_put(skb, sizeof(index)));
+
+	if (sock_queue_rcv_skb(sk, skb) < 0)
+		kfree_skb(skb);
+
+	return 0;
+}
+
+static int add_uuid(struct sock *sk, unsigned char *data, u16 len)
+{
+	struct mgmt_cp_add_uuid *cp;
+	struct hci_dev *hdev;
+	struct bt_uuid *uuid;
+	u16 dev_id;
+	int err;
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+
+	BT_DBG("request for hci%u", dev_id);
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, MGMT_OP_ADD_UUID, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	uuid = kmalloc(sizeof(*uuid), GFP_ATOMIC);
+	if (!uuid) {
+		err = -ENOMEM;
+		goto failed;
+	}
+
+	memcpy(uuid->uuid, cp->uuid, 16);
+
+	list_add(&uuid->list, &hdev->uuids);
+
+	err = uuid_rsp(sk, MGMT_OP_ADD_UUID, dev_id);
+
+failed:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
+static int remove_uuid(struct sock *sk, unsigned char *data, u16 len)
+{
+	struct list_head *p, *n;
+	struct mgmt_cp_add_uuid *cp;
+	struct hci_dev *hdev;
+	u8 bt_uuid_any[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	u16 dev_id;
+	int err, found;
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+
+	BT_DBG("request for hci%u", dev_id);
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev)
+		return cmd_status(sk, MGMT_OP_REMOVE_UUID, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	if (memcmp(cp->uuid, bt_uuid_any, 16) == 0) {
+		err = hci_uuids_clear(hdev);
+		goto unlock;
+	}
+
+	found = 0;
+
+	list_for_each_safe(p, n, &hdev->uuids) {
+		struct bt_uuid *match = list_entry(p, struct bt_uuid, list);
+
+		if (memcmp(match->uuid, cp->uuid, 16) != 0)
+			continue;
+
+		list_del(&match->list);
+		found++;
+	}
+
+	if (found == 0) {
+		err = cmd_status(sk, MGMT_OP_REMOVE_UUID, ENOENT);
+		goto unlock;
+	}
+
+	err = uuid_rsp(sk, MGMT_OP_REMOVE_UUID, dev_id);
+
+unlock:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -622,6 +736,12 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_SET_PAIRABLE:
 		err = set_pairable(sk, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_ADD_UUID:
+		err = add_uuid(sk, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_REMOVE_UUID:
+		err = remove_uuid(sk, buf + sizeof(*hdr), len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);

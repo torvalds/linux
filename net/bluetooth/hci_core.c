@@ -955,6 +955,22 @@ void hci_del_off_timer(struct hci_dev *hdev)
 	del_timer(&hdev->off_timer);
 }
 
+int hci_uuids_clear(struct hci_dev *hdev)
+{
+	struct list_head *p, *n;
+
+	list_for_each_safe(p, n, &hdev->uuids) {
+		struct bt_uuid *uuid;
+
+		uuid = list_entry(p, struct bt_uuid, list);
+
+		list_del(p);
+		kfree(uuid);
+	}
+
+	return 0;
+}
+
 /* Register HCI device */
 int hci_register_dev(struct hci_dev *hdev)
 {
@@ -1011,6 +1027,8 @@ int hci_register_dev(struct hci_dev *hdev)
 	hci_conn_hash_init(hdev);
 
 	INIT_LIST_HEAD(&hdev->blacklist);
+
+	INIT_LIST_HEAD(&hdev->uuids);
 
 	INIT_WORK(&hdev->power_on, hci_power_on);
 	INIT_WORK(&hdev->power_off, hci_power_off);
@@ -1087,6 +1105,7 @@ int hci_unregister_dev(struct hci_dev *hdev)
 
 	hci_dev_lock_bh(hdev);
 	hci_blacklist_clear(hdev);
+	hci_uuids_clear(hdev);
 	hci_dev_unlock_bh(hdev);
 
 	__hci_dev_put(hdev);
