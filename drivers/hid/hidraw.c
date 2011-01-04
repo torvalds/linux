@@ -344,6 +344,9 @@ static const struct file_operations hidraw_ops = {
 	.open =         hidraw_open,
 	.release =      hidraw_release,
 	.unlocked_ioctl = hidraw_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = hidraw_ioctl,
+#endif
 	.llseek =	noop_llseek,
 };
 
