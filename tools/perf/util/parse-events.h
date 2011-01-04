@@ -4,7 +4,7 @@
  * Parse symbolic events/counts passed in as options:
  */
 
-#include <linux/perf_event.h>
+#include "../../../include/linux/perf_event.h"
 
 struct list_head;
 struct perf_evsel;

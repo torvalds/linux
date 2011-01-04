@@ -3,7 +3,7 @@
 
 #include <linux/list.h>
 #include <stdbool.h>
-#include <linux/perf_event.h>
+#include "../../../include/linux/perf_event.h"
 #include "types.h"
 #include "xyarray.h"
  
