@@ -64,26 +64,6 @@
 #define DRM_I915_VBLANK_PIPE_ALL	(DRM_I915_VBLANK_PIPE_A | \
 					 DRM_I915_VBLANK_PIPE_B)
 
-void
-ironlake_enable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask)
-{
-	if ((dev_priv->gt_irq_mask & mask) != 0) {
-		dev_priv->gt_irq_mask &= ~mask;
-		I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
-		POSTING_READ(GTIMR);
-	}
-}
-
-void
-ironlake_disable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask)
-{
-	if ((dev_priv->gt_irq_mask & mask) != mask) {
-		dev_priv->gt_irq_mask |= mask;
-		I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
-		POSTING_READ(GTIMR);
-	}
-}
-
 /* For display hotplug interrupt */
 static void
 ironlake_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
@@ -102,26 +82,6 @@ ironlake_disable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 		dev_priv->irq_mask |= mask;
 		I915_WRITE(DEIMR, dev_priv->irq_mask);
 		POSTING_READ(DEIMR);
-	}
-}
-
-void
-i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask)
-{
-	if ((dev_priv->irq_mask & mask) != 0) {
-		dev_priv->irq_mask &= ~mask;
-		I915_WRITE(IMR, dev_priv->irq_mask);
-		POSTING_READ(IMR);
-	}
-}
-
-void
-i915_disable_irq(drm_i915_private_t *dev_priv, u32 mask)
-{
-	if ((dev_priv->irq_mask & mask) != mask) {
-		dev_priv->irq_mask |= mask;
-		I915_WRITE(IMR, dev_priv->irq_mask);
-		POSTING_READ(IMR);
 	}
 }
 
@@ -1673,11 +1633,6 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
-	if (IS_GEN6(dev)) {
-		I915_WRITE(GEN6_RENDER_IMR, ~GEN6_RENDER_USER_INTERRUPT);
-		I915_WRITE(GEN6_BSD_IMR, ~GEN6_BSD_USER_INTERRUPT);
-		I915_WRITE(GEN6_BLITTER_IMR, ~GEN6_BLITTER_USER_INTERRUPT);
-	}
 
 	if (IS_GEN6(dev))
 		render_irqs =

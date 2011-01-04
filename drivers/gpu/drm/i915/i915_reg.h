@@ -288,6 +288,7 @@
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
 #define RING_ACTHD(base)	((base)+0x74)
 #define RING_NOPID(base)	((base)+0x94)
+#define RING_IMR(base)		((base)+0xa8)
 #define   TAIL_ADDR		0x001FFFF8
 #define   HEAD_WRAP_COUNT	0xFFE00000
 #define   HEAD_WRAP_ONE		0x00200000

@@ -485,6 +485,38 @@ pc_render_get_seqno(struct intel_ring_buffer *ring)
 	return pc->cpu_page[0];
 }
 
+static void
+ironlake_enable_irq(drm_i915_private_t *dev_priv, u32 mask)
+{
+	dev_priv->gt_irq_mask &= ~mask;
+	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
+	POSTING_READ(GTIMR);
+}
+
+static void
+ironlake_disable_irq(drm_i915_private_t *dev_priv, u32 mask)
+{
+	dev_priv->gt_irq_mask |= mask;
+	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
+	POSTING_READ(GTIMR);
+}
+
+static void
+i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask)
+{
+	dev_priv->irq_mask &= ~mask;
+	I915_WRITE(IMR, dev_priv->irq_mask);
+	POSTING_READ(IMR);
+}
+
+static void
+i915_disable_irq(drm_i915_private_t *dev_priv, u32 mask)
+{
+	dev_priv->irq_mask |= mask;
+	I915_WRITE(IMR, dev_priv->irq_mask);
+	POSTING_READ(IMR);
+}
+
 static bool
 render_ring_get_irq(struct intel_ring_buffer *ring)
 {
@@ -499,8 +531,8 @@ render_ring_get_irq(struct intel_ring_buffer *ring)
 
 		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 		if (HAS_PCH_SPLIT(dev))
-			ironlake_enable_graphics_irq(dev_priv,
-						     GT_PIPE_NOTIFY | GT_USER_INTERRUPT);
+			ironlake_enable_irq(dev_priv,
+					    GT_PIPE_NOTIFY | GT_USER_INTERRUPT);
 		else
 			i915_enable_irq(dev_priv, I915_USER_INTERRUPT);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
@@ -520,9 +552,9 @@ render_ring_put_irq(struct intel_ring_buffer *ring)
 
 		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 		if (HAS_PCH_SPLIT(dev))
-			ironlake_disable_graphics_irq(dev_priv,
-						      GT_USER_INTERRUPT |
-						      GT_PIPE_NOTIFY);
+			ironlake_disable_irq(dev_priv,
+					     GT_USER_INTERRUPT |
+					     GT_PIPE_NOTIFY);
 		else
 			i915_disable_irq(dev_priv, I915_USER_INTERRUPT);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
@@ -596,7 +628,7 @@ ring_get_irq(struct intel_ring_buffer *ring, u32 flag)
 		unsigned long irqflags;
 
 		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-		ironlake_enable_graphics_irq(dev_priv, flag);
+		ironlake_enable_irq(dev_priv, flag);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
 
@@ -613,7 +645,46 @@ ring_put_irq(struct intel_ring_buffer *ring, u32 flag)
 		unsigned long irqflags;
 
 		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-		ironlake_disable_graphics_irq(dev_priv, flag);
+		ironlake_disable_irq(dev_priv, flag);
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	}
+}
+
+static bool
+gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
+{
+	struct drm_device *dev = ring->dev;
+
+	if (!dev->irq_enabled)
+	       return false;
+
+	if (atomic_inc_return(&ring->irq_refcount) == 1) {
+		drm_i915_private_t *dev_priv = dev->dev_private;
+		unsigned long irqflags;
+
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		ring->irq_mask &= ~rflag;
+		I915_WRITE_IMR(ring, ring->irq_mask);
+		ironlake_enable_irq(dev_priv, gflag);
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	}
+
+	return true;
+}
+
+static void
+gen6_ring_put_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
+{
+	struct drm_device *dev = ring->dev;
+
+	if (atomic_dec_and_test(&ring->irq_refcount)) {
+		drm_i915_private_t *dev_priv = dev->dev_private;
+		unsigned long irqflags;
+
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		ring->irq_mask |= rflag;
+		I915_WRITE_IMR(ring, ring->irq_mask);
+		ironlake_disable_irq(dev_priv, gflag);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
 }
@@ -757,6 +828,7 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
 	INIT_LIST_HEAD(&ring->gpu_write_list);
+	ring->irq_mask = ~0;
 
 	if (I915_NEED_GFX_HWS(dev)) {
 		ret = init_status_page(ring);
@@ -1030,15 +1102,35 @@ gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 }
 
 static bool
+gen6_render_ring_get_irq(struct intel_ring_buffer *ring)
+{
+	return gen6_ring_get_irq(ring,
+				 GT_USER_INTERRUPT,
+				 GEN6_RENDER_USER_INTERRUPT);
+}
+
+static void
+gen6_render_ring_put_irq(struct intel_ring_buffer *ring)
+{
+	return gen6_ring_put_irq(ring,
+				 GT_USER_INTERRUPT,
+				 GEN6_RENDER_USER_INTERRUPT);
+}
+
+static bool
 gen6_bsd_ring_get_irq(struct intel_ring_buffer *ring)
 {
-	return ring_get_irq(ring, GT_GEN6_BSD_USER_INTERRUPT);
+	return gen6_ring_get_irq(ring,
+				 GT_GEN6_BSD_USER_INTERRUPT,
+				 GEN6_BSD_USER_INTERRUPT);
 }
 
 static void
 gen6_bsd_ring_put_irq(struct intel_ring_buffer *ring)
 {
-	ring_put_irq(ring, GT_GEN6_BSD_USER_INTERRUPT);
+	return gen6_ring_put_irq(ring,
+				 GT_GEN6_BSD_USER_INTERRUPT,
+				 GEN6_BSD_USER_INTERRUPT);
 }
 
 /* ring buffer for Video Codec for Gen6+ */
@@ -1062,13 +1154,17 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
 static bool
 blt_ring_get_irq(struct intel_ring_buffer *ring)
 {
-	return ring_get_irq(ring, GT_BLT_USER_INTERRUPT);
+	return gen6_ring_get_irq(ring,
+				 GT_BLT_USER_INTERRUPT,
+				 GEN6_BLITTER_USER_INTERRUPT);
 }
 
 static void
 blt_ring_put_irq(struct intel_ring_buffer *ring)
 {
-	ring_put_irq(ring, GT_BLT_USER_INTERRUPT);
+	gen6_ring_put_irq(ring,
+			  GT_BLT_USER_INTERRUPT,
+			  GEN6_BLITTER_USER_INTERRUPT);
 }
 
 
@@ -1192,6 +1288,8 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	*ring = render_ring;
 	if (INTEL_INFO(dev)->gen >= 6) {
 		ring->add_request = gen6_add_request;
+		ring->irq_get = gen6_render_ring_get_irq;
+		ring->irq_put = gen6_render_ring_put_irq;
 	} else if (IS_GEN5(dev)) {
 		ring->add_request = pc_render_add_request;
 		ring->get_seqno = pc_render_get_seqno;

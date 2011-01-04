@@ -28,6 +28,8 @@ struct  intel_hw_status_page {
 #define I915_READ_CTL(ring) I915_RING_READ(RING_CTL(ring->mmio_base))
 #define I915_WRITE_CTL(ring, val) I915_WRITE(RING_CTL(ring->mmio_base), val)
 
+#define I915_WRITE_IMR(ring, val) I915_WRITE(RING_IMR(ring->mmio_base), val)
+
 #define I915_READ_NOPID(ring) I915_RING_READ(RING_NOPID(ring->mmio_base))
 #define I915_READ_SYNC_0(ring) I915_RING_READ(RING_SYNC_0(ring->mmio_base))
 #define I915_READ_SYNC_1(ring) I915_RING_READ(RING_SYNC_1(ring->mmio_base))
@@ -52,6 +54,7 @@ struct  intel_ring_buffer {
 	int		effective_size;
 	struct intel_hw_status_page status_page;
 
+	u32		irq_mask;
 	u32		irq_seqno;		/* last seq seem at irq time */
 	u32		waiting_seqno;
 	u32		sync_seqno[I915_NUM_RINGS-1];
