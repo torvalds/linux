@@ -1285,6 +1285,11 @@ ppp_push(struct ppp *ppp)
 }
 
 #ifdef CONFIG_PPP_MULTILINK
+static bool mp_protocol_compress __read_mostly = true;
+module_param(mp_protocol_compress, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(mp_protocol_compress,
+		 "compress protocol id in multilink fragments");
+
 /*
  * Divide a packet to be transmitted into fragments and
  * send them out the individual links.
@@ -1347,10 +1352,10 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 	if (nfree == 0 || nfree < navail / 2)
 		return 0; /* can't take now, leave it in xmit_pending */
 
-	/* Do protocol field compression (XXX this should be optional) */
+	/* Do protocol field compression */
 	p = skb->data;
 	len = skb->len;
-	if (*p == 0) {
+	if (*p == 0 && mp_protocol_compress) {
 		++p;
 		--len;
 	}
