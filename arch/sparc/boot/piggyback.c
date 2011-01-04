@@ -2,8 +2,9 @@
    Simple utility to make a single-image install kernel with initial ramdisk
    for Sparc tftpbooting without need to set up nfs.
 
-   Copyright (C) 1996 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
+   Copyright (C) 1996,1997 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
    Pete Zaitcev <zaitcev@yahoo.com> endian fixes for cross-compiles, 2000.
+   Copyright (C) 2011 Sam Ravnborg <sam@ravnborg.org>
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
