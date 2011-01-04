@@ -30,7 +30,7 @@
 #include <linux/slab.h>
 #include "dwmac1000.h"
 
-static void dwmac1000_core_init(unsigned long ioaddr)
+static void dwmac1000_core_init(void __iomem *ioaddr)
 {
 	u32 value = readl(ioaddr + GMAC_CONTROL);
 	value |= GMAC_CORE_INIT;
@@ -50,10 +50,22 @@ static void dwmac1000_core_init(unsigned long ioaddr)
 #endif
 }
 
-static void dwmac1000_dump_regs(unsigned long ioaddr)
+static int dwmac1000_rx_coe_supported(void __iomem *ioaddr)
+{
+	u32 value = readl(ioaddr + GMAC_CONTROL);
+
+	value |= GMAC_CONTROL_IPC;
+	writel(value, ioaddr + GMAC_CONTROL);
+
+	value = readl(ioaddr + GMAC_CONTROL);
+
+	return !!(value & GMAC_CONTROL_IPC);
+}
+
+static void dwmac1000_dump_regs(void __iomem *ioaddr)
 {
 	int i;
-	pr_info("\tDWMAC1000 regs (base addr = 0x%8x)\n", (unsigned int)ioaddr);
+	pr_info("\tDWMAC1000 regs (base addr = 0x%p)\n", ioaddr);
 
 	for (i = 0; i < 55; i++) {
 		int offset = i * 4;
@@ -62,14 +74,14 @@ static void dwmac1000_dump_regs(unsigned long ioaddr)
 	}
 }
 
-static void dwmac1000_set_umac_addr(unsigned long ioaddr, unsigned char *addr,
+static void dwmac1000_set_umac_addr(void __iomem *ioaddr, unsigned char *addr,
 				unsigned int reg_n)
 {
 	stmmac_set_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
 				GMAC_ADDR_LOW(reg_n));
 }
 
-static void dwmac1000_get_umac_addr(unsigned long ioaddr, unsigned char *addr,
+static void dwmac1000_get_umac_addr(void __iomem *ioaddr, unsigned char *addr,
 				unsigned int reg_n)
 {
 	stmmac_get_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
@@ -78,7 +90,7 @@ static void dwmac1000_get_umac_addr(unsigned long ioaddr, unsigned char *addr,
 
 static void dwmac1000_set_filter(struct net_device *dev)
 {
-	unsigned long ioaddr = dev->base_addr;
+	void __iomem *ioaddr = (void __iomem *) dev->base_addr;
 	unsigned int value = 0;
 
 	CHIP_DBG(KERN_INFO "%s: # mcasts %d, # unicast %d\n",
@@ -139,7 +151,7 @@ static void dwmac1000_set_filter(struct net_device *dev)
 	    readl(ioaddr + GMAC_HASH_HIGH), readl(ioaddr + GMAC_HASH_LOW));
 }
 
-static void dwmac1000_flow_ctrl(unsigned long ioaddr, unsigned int duplex,
+static void dwmac1000_flow_ctrl(void __iomem *ioaddr, unsigned int duplex,
 			   unsigned int fc, unsigned int pause_time)
 {
 	unsigned int flow = 0;
@@ -162,7 +174,7 @@ static void dwmac1000_flow_ctrl(unsigned long ioaddr, unsigned int duplex,
 	writel(flow, ioaddr + GMAC_FLOW_CTRL);
 }
 
-static void dwmac1000_pmt(unsigned long ioaddr, unsigned long mode)
+static void dwmac1000_pmt(void __iomem *ioaddr, unsigned long mode)
 {
 	unsigned int pmt = 0;
 
@@ -178,7 +190,7 @@ static void dwmac1000_pmt(unsigned long ioaddr, unsigned long mode)
 }
 
 
-static void dwmac1000_irq_status(unsigned long ioaddr)
+static void dwmac1000_irq_status(void __iomem *ioaddr)
 {
 	u32 intr_status = readl(ioaddr + GMAC_INT_STATUS);
 
@@ -200,8 +212,9 @@ static void dwmac1000_irq_status(unsigned long ioaddr)
 	}
 }
 
-struct stmmac_ops dwmac1000_ops = {
+static const struct stmmac_ops dwmac1000_ops = {
 	.core_init = dwmac1000_core_init,
+	.rx_coe = dwmac1000_rx_coe_supported,
 	.dump_regs = dwmac1000_dump_regs,
 	.host_irq_status = dwmac1000_irq_status,
 	.set_filter = dwmac1000_set_filter,
@@ -211,7 +224,7 @@ struct stmmac_ops dwmac1000_ops = {
 	.get_umac_addr = dwmac1000_get_umac_addr,
 };
 
-struct mac_device_info *dwmac1000_setup(unsigned long ioaddr)
+struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr)
 {
 	struct mac_device_info *mac;
 	u32 uid = readl(ioaddr + GMAC_VERSION);
@@ -226,7 +239,6 @@ struct mac_device_info *dwmac1000_setup(unsigned long ioaddr)
 	mac->mac = &dwmac1000_ops;
 	mac->dma = &dwmac1000_dma_ops;
 
-	mac->pmt = PMT_SUPPORTED;
 	mac->link.port = GMAC_CONTROL_PS;
 	mac->link.duplex = GMAC_CONTROL_DM;
 	mac->link.speed = GMAC_CONTROL_FES;

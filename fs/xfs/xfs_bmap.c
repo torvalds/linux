@@ -614,7 +614,7 @@ xfs_bmap_add_extent(
 			nblks += cur->bc_private.b.allocated;
 		ASSERT(nblks <= da_old);
 		if (nblks < da_old)
-			xfs_mod_incore_sb(ip->i_mount, XFS_SBS_FDBLOCKS,
+			xfs_icsb_modify_counters(ip->i_mount, XFS_SBS_FDBLOCKS,
 				(int64_t)(da_old - nblks), rsvd);
 	}
 	/*
@@ -1079,7 +1079,8 @@ xfs_bmap_add_extent_delay_real(
 		diff = (int)(temp + temp2 - startblockval(PREV.br_startblock) -
 			(cur ? cur->bc_private.b.allocated : 0));
 		if (diff > 0 &&
-		    xfs_mod_incore_sb(ip->i_mount, XFS_SBS_FDBLOCKS, -((int64_t)diff), rsvd)) {
+		    xfs_icsb_modify_counters(ip->i_mount, XFS_SBS_FDBLOCKS,
+					     -((int64_t)diff), rsvd)) {
 			/*
 			 * Ick gross gag me with a spoon.
 			 */
@@ -1089,16 +1090,18 @@ xfs_bmap_add_extent_delay_real(
 					temp--;
 					diff--;
 					if (!diff ||
-					    !xfs_mod_incore_sb(ip->i_mount,
-						    XFS_SBS_FDBLOCKS, -((int64_t)diff), rsvd))
+					    !xfs_icsb_modify_counters(ip->i_mount,
+						    XFS_SBS_FDBLOCKS,
+						    -((int64_t)diff), rsvd))
 						break;
 				}
 				if (temp2) {
 					temp2--;
 					diff--;
 					if (!diff ||
-					    !xfs_mod_incore_sb(ip->i_mount,
-						    XFS_SBS_FDBLOCKS, -((int64_t)diff), rsvd))
+					    !xfs_icsb_modify_counters(ip->i_mount,
+						    XFS_SBS_FDBLOCKS,
+						    -((int64_t)diff), rsvd))
 						break;
 				}
 			}
@@ -1766,7 +1769,7 @@ xfs_bmap_add_extent_hole_delay(
 	}
 	if (oldlen != newlen) {
 		ASSERT(oldlen > newlen);
-		xfs_mod_incore_sb(ip->i_mount, XFS_SBS_FDBLOCKS,
+		xfs_icsb_modify_counters(ip->i_mount, XFS_SBS_FDBLOCKS,
 			(int64_t)(oldlen - newlen), rsvd);
 		/*
 		 * Nothing to do for disk quota accounting here.
@@ -3111,9 +3114,10 @@ xfs_bmap_del_extent(
 	 * Nothing to do for disk quota accounting here.
 	 */
 	ASSERT(da_old >= da_new);
-	if (da_old > da_new)
-		xfs_mod_incore_sb(mp, XFS_SBS_FDBLOCKS, (int64_t)(da_old - da_new),
-			rsvd);
+	if (da_old > da_new) {
+		xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS,
+			(int64_t)(da_old - da_new), rsvd);
+	}
 done:
 	*logflagsp = flags;
 	return error;
@@ -4526,13 +4530,13 @@ xfs_bmapi(
 							-((int64_t)extsz), (flags &
 							XFS_BMAPI_RSVBLOCKS));
 				} else {
-					error = xfs_mod_incore_sb(mp,
+					error = xfs_icsb_modify_counters(mp,
 							XFS_SBS_FDBLOCKS,
 							-((int64_t)alen), (flags &
 							XFS_BMAPI_RSVBLOCKS));
 				}
 				if (!error) {
-					error = xfs_mod_incore_sb(mp,
+					error = xfs_icsb_modify_counters(mp,
 							XFS_SBS_FDBLOCKS,
 							-((int64_t)indlen), (flags &
 							XFS_BMAPI_RSVBLOCKS));
@@ -4542,7 +4546,7 @@ xfs_bmapi(
 							(int64_t)extsz, (flags &
 							XFS_BMAPI_RSVBLOCKS));
 					else if (error)
-						xfs_mod_incore_sb(mp,
+						xfs_icsb_modify_counters(mp,
 							XFS_SBS_FDBLOCKS,
 							(int64_t)alen, (flags &
 							XFS_BMAPI_RSVBLOCKS));
@@ -4744,8 +4748,12 @@ xfs_bmapi(
 		 * Check if writing previously allocated but
 		 * unwritten extents.
 		 */
-		if (wr && mval->br_state == XFS_EXT_UNWRITTEN &&
-		    ((flags & (XFS_BMAPI_PREALLOC|XFS_BMAPI_DELAY)) == 0)) {
+		if (wr &&
+		    ((mval->br_state == XFS_EXT_UNWRITTEN &&
+		      ((flags & (XFS_BMAPI_PREALLOC|XFS_BMAPI_DELAY)) == 0)) ||
+		     (mval->br_state == XFS_EXT_NORM &&
+		      ((flags & (XFS_BMAPI_PREALLOC|XFS_BMAPI_CONVERT)) ==
+				(XFS_BMAPI_PREALLOC|XFS_BMAPI_CONVERT))))) {
 			/*
 			 * Modify (by adding) the state flag, if writing.
 			 */
@@ -4757,7 +4765,9 @@ xfs_bmapi(
 					*firstblock;
 				cur->bc_private.b.flist = flist;
 			}
-			mval->br_state = XFS_EXT_NORM;
+			mval->br_state = (mval->br_state == XFS_EXT_UNWRITTEN)
+						? XFS_EXT_NORM
+						: XFS_EXT_UNWRITTEN;
 			error = xfs_bmap_add_extent(ip, lastx, &cur, mval,
 				firstblock, flist, &tmp_logflags,
 				whichfork, (flags & XFS_BMAPI_RSVBLOCKS));
@@ -5200,7 +5210,7 @@ xfs_bunmapi(
 					ip, -((long)del.br_blockcount), 0,
 					XFS_QMOPT_RES_RTBLKS);
 			} else {
-				xfs_mod_incore_sb(mp, XFS_SBS_FDBLOCKS,
+				xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS,
 						(int64_t)del.br_blockcount, rsvd);
 				(void)xfs_trans_reserve_quota_nblks(NULL,
 					ip, -((long)del.br_blockcount), 0,
@@ -5461,8 +5471,13 @@ xfs_getbmap(
 			if (error)
 				goto out_unlock_iolock;
 		}
-
-		ASSERT(ip->i_delayed_blks == 0);
+		/*
+		 * even after flushing the inode, there can still be delalloc
+		 * blocks on the inode beyond EOF due to speculative
+		 * preallocation. These are not removed until the release
+		 * function is called or the inode is inactivated. Hence we
+		 * cannot assert here that ip->i_delayed_blks == 0.
+		 */
 	}
 
 	lock = xfs_ilock_map_shared(ip);
@@ -6059,4 +6074,80 @@ xfs_bmap_disk_count_leaves(
 		frp = XFS_BMBT_REC_ADDR(mp, block, b);
 		*count += xfs_bmbt_disk_get_blockcount(frp);
 	}
+}
+
+/*
+ * dead simple method of punching delalyed allocation blocks from a range in
+ * the inode. Walks a block at a time so will be slow, but is only executed in
+ * rare error cases so the overhead is not critical. This will alays punch out
+ * both the start and end blocks, even if the ranges only partially overlap
+ * them, so it is up to the caller to ensure that partial blocks are not
+ * passed in.
+ */
+int
+xfs_bmap_punch_delalloc_range(
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		start_fsb,
+	xfs_fileoff_t		length)
+{
+	xfs_fileoff_t		remaining = length;
+	int			error = 0;
+
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+
+	do {
+		int		done;
+		xfs_bmbt_irec_t	imap;
+		int		nimaps = 1;
+		xfs_fsblock_t	firstblock;
+		xfs_bmap_free_t flist;
+
+		/*
+		 * Map the range first and check that it is a delalloc extent
+		 * before trying to unmap the range. Otherwise we will be
+		 * trying to remove a real extent (which requires a
+		 * transaction) or a hole, which is probably a bad idea...
+		 */
+		error = xfs_bmapi(NULL, ip, start_fsb, 1,
+				XFS_BMAPI_ENTIRE,  NULL, 0, &imap,
+				&nimaps, NULL);
+
+		if (error) {
+			/* something screwed, just bail */
+			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+				xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+			"Failed delalloc mapping lookup ino %lld fsb %lld.",
+						ip->i_ino, start_fsb);
+			}
+			break;
+		}
+		if (!nimaps) {
+			/* nothing there */
+			goto next_block;
+		}
+		if (imap.br_startblock != DELAYSTARTBLOCK) {
+			/* been converted, ignore */
+			goto next_block;
+		}
+		WARN_ON(imap.br_blockcount == 0);
+
+		/*
+		 * Note: while we initialise the firstblock/flist pair, they
+		 * should never be used because blocks should never be
+		 * allocated or freed for a delalloc extent and hence we need
+		 * don't cancel or finish them after the xfs_bunmapi() call.
+		 */
+		xfs_bmap_init(&flist, &firstblock);
+		error = xfs_bunmapi(NULL, ip, start_fsb, 1, 0, 1, &firstblock,
+					&flist, &done);
+		if (error)
+			break;
+
+		ASSERT(!flist.xbf_count && !flist.xbf_first);
+next_block:
+		start_fsb++;
+		remaining--;
+	} while(remaining > 0);
+
+	return error;
 }

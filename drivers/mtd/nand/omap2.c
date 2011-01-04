@@ -7,7 +7,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#define CONFIG_MTD_NAND_OMAP_HWECC
 
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
@@ -111,11 +110,11 @@ static int use_dma = 1;
 module_param(use_dma, bool, 0);
 MODULE_PARM_DESC(use_dma, "enable/disable use of DMA");
 #else
-const int use_dma;
+static const int use_dma;
 #endif
 #else
 const int use_prefetch;
-const int use_dma;
+static const int use_dma;
 #endif
 
 struct omap_nand_info {

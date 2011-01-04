@@ -1043,6 +1043,7 @@ static const struct file_operations usblp_fops = {
 	.compat_ioctl =		usblp_ioctl,
 	.open =		usblp_open,
 	.release =	usblp_release,
+	.llseek =	noop_llseek,
 };
 
 static char *usblp_devnode(struct device *dev, mode_t *mode)

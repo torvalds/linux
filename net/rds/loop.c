@@ -61,10 +61,17 @@ static int rds_loop_xmit(struct rds_connection *conn, struct rds_message *rm,
 			 unsigned int hdr_off, unsigned int sg,
 			 unsigned int off)
 {
+	/* Do not send cong updates to loopback */
+	if (rm->m_inc.i_hdr.h_flags & RDS_FLAG_CONG_BITMAP) {
+		rds_cong_map_updated(conn->c_fcong, ~(u64) 0);
+		return sizeof(struct rds_header) + RDS_CONG_MAP_BYTES;
+	}
+
 	BUG_ON(hdr_off || sg || off);
 
 	rds_inc_init(&rm->m_inc, conn, conn->c_laddr);
-	rds_message_addref(rm); /* for the inc */
+	/* For the embedded inc. Matching put is in loop_inc_free() */
+	rds_message_addref(rm);
 
 	rds_recv_incoming(conn, conn->c_laddr, conn->c_faddr, &rm->m_inc,
 			  GFP_KERNEL, KM_USER0);
@@ -77,16 +84,14 @@ static int rds_loop_xmit(struct rds_connection *conn, struct rds_message *rm,
 	return sizeof(struct rds_header) + be32_to_cpu(rm->m_inc.i_hdr.h_len);
 }
 
-static int rds_loop_xmit_cong_map(struct rds_connection *conn,
-				  struct rds_cong_map *map,
-				  unsigned long offset)
+/*
+ * See rds_loop_xmit(). Since our inc is embedded in the rm, we
+ * make sure the rm lives at least until the inc is done.
+ */
+static void rds_loop_inc_free(struct rds_incoming *inc)
 {
-	BUG_ON(offset);
-	BUG_ON(map != conn->c_lcong);
-
-	rds_cong_map_updated(conn->c_fcong, ~(u64) 0);
-
-	return sizeof(struct rds_header) + RDS_CONG_MAP_BYTES;
+        struct rds_message *rm = container_of(inc, struct rds_message, m_inc);
+        rds_message_put(rm);
 }
 
 /* we need to at least give the thread something to succeed */
@@ -112,7 +117,7 @@ static int rds_loop_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	unsigned long flags;
 
 	lc = kzalloc(sizeof(struct rds_loop_connection), GFP_KERNEL);
-	if (lc == NULL)
+	if (!lc)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&lc->loop_node);
@@ -129,8 +134,12 @@ static int rds_loop_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 static void rds_loop_conn_free(void *arg)
 {
 	struct rds_loop_connection *lc = arg;
+	unsigned long flags;
+
 	rdsdebug("lc %p\n", lc);
+	spin_lock_irqsave(&loop_conns_lock, flags);
 	list_del(&lc->loop_node);
+	spin_unlock_irqrestore(&loop_conns_lock, flags);
 	kfree(lc);
 }
 
@@ -169,14 +178,12 @@ void rds_loop_exit(void)
  */
 struct rds_transport rds_loop_transport = {
 	.xmit			= rds_loop_xmit,
-	.xmit_cong_map		= rds_loop_xmit_cong_map,
 	.recv			= rds_loop_recv,
 	.conn_alloc		= rds_loop_conn_alloc,
 	.conn_free		= rds_loop_conn_free,
 	.conn_connect		= rds_loop_conn_connect,
 	.conn_shutdown		= rds_loop_conn_shutdown,
 	.inc_copy_to_user	= rds_message_inc_copy_to_user,
-	.inc_purge		= rds_message_inc_purge,
-	.inc_free		= rds_message_inc_free,
+	.inc_free		= rds_loop_inc_free,
 	.t_name			= "loopback",
 };

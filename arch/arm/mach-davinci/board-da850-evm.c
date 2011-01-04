@@ -26,7 +26,6 @@
 #include <linux/mtd/physmap.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/tps6507x.h>
-#include <linux/mfd/tps6507x.h>
 #include <linux/input/tps6507x-ts.h>
 
 #include <asm/mach-types.h>
@@ -36,10 +35,9 @@
 #include <mach/da8xx.h>
 #include <mach/nand.h>
 #include <mach/mux.h>
+#include <mach/aemif.h>
 
-#define DA850_EVM_PHY_MASK		0x1
-#define DA850_EVM_MDIO_FREQUENCY	2200000 /* PHY bus frequency */
-
+#define DA850_EVM_PHY_ID		"0:00"
 #define DA850_LCD_PWR_PIN		GPIO_TO_PIN(2, 8)
 #define DA850_LCD_BL_PIN		GPIO_TO_PIN(2, 15)
 
@@ -110,7 +108,7 @@ static struct platform_device da850_pm_device = {
  * to boot, using TI's tools to install the secondary boot loader
  * (UBL) and U-Boot.
  */
-struct mtd_partition da850_evm_nandflash_partition[] = {
+static struct mtd_partition da850_evm_nandflash_partition[] = {
 	{
 		.name		= "u-boot env",
 		.offset		= 0,
@@ -143,12 +141,23 @@ struct mtd_partition da850_evm_nandflash_partition[] = {
 	},
 };
 
+static struct davinci_aemif_timing da850_evm_nandflash_timing = {
+	.wsetup		= 24,
+	.wstrobe	= 21,
+	.whold		= 14,
+	.rsetup		= 19,
+	.rstrobe	= 50,
+	.rhold		= 0,
+	.ta		= 20,
+};
+
 static struct davinci_nand_pdata da850_evm_nandflash_data = {
 	.parts		= da850_evm_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(da850_evm_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
 	.ecc_bits	= 4,
 	.options	= NAND_USE_FLASH_BBT,
+	.timing		= &da850_evm_nandflash_timing,
 };
 
 static struct resource da850_evm_nandflash_resource[] = {
@@ -196,6 +205,30 @@ static void __init da850_evm_init_nor(void)
 	iounmap(aemif_addr);
 }
 
+static const short da850_evm_nand_pins[] = {
+	DA850_EMA_D_0, DA850_EMA_D_1, DA850_EMA_D_2, DA850_EMA_D_3,
+	DA850_EMA_D_4, DA850_EMA_D_5, DA850_EMA_D_6, DA850_EMA_D_7,
+	DA850_EMA_A_1, DA850_EMA_A_2, DA850_NEMA_CS_3, DA850_NEMA_CS_4,
+	DA850_NEMA_WE, DA850_NEMA_OE,
+	-1
+};
+
+static const short da850_evm_nor_pins[] = {
+	DA850_EMA_BA_1, DA850_EMA_CLK, DA850_EMA_WAIT_1, DA850_NEMA_CS_2,
+	DA850_NEMA_WE, DA850_NEMA_OE, DA850_EMA_D_0, DA850_EMA_D_1,
+	DA850_EMA_D_2, DA850_EMA_D_3, DA850_EMA_D_4, DA850_EMA_D_5,
+	DA850_EMA_D_6, DA850_EMA_D_7, DA850_EMA_D_8, DA850_EMA_D_9,
+	DA850_EMA_D_10, DA850_EMA_D_11, DA850_EMA_D_12, DA850_EMA_D_13,
+	DA850_EMA_D_14, DA850_EMA_D_15, DA850_EMA_A_0, DA850_EMA_A_1,
+	DA850_EMA_A_2, DA850_EMA_A_3, DA850_EMA_A_4, DA850_EMA_A_5,
+	DA850_EMA_A_6, DA850_EMA_A_7, DA850_EMA_A_8, DA850_EMA_A_9,
+	DA850_EMA_A_10, DA850_EMA_A_11, DA850_EMA_A_12, DA850_EMA_A_13,
+	DA850_EMA_A_14, DA850_EMA_A_15, DA850_EMA_A_16, DA850_EMA_A_17,
+	DA850_EMA_A_18, DA850_EMA_A_19, DA850_EMA_A_20, DA850_EMA_A_21,
+	DA850_EMA_A_22, DA850_EMA_A_23,
+	-1
+};
+
 static u32 ui_card_detected;
 
 #if defined(CONFIG_MMC_DAVINCI) || \
@@ -205,17 +238,17 @@ static u32 ui_card_detected;
 #define HAS_MMC 0
 #endif
 
-static __init void da850_evm_setup_nor_nand(void)
+static inline void da850_evm_setup_nor_nand(void)
 {
 	int ret = 0;
 
 	if (ui_card_detected & !HAS_MMC) {
-		ret = davinci_cfg_reg_list(da850_nand_pins);
+		ret = davinci_cfg_reg_list(da850_evm_nand_pins);
 		if (ret)
 			pr_warning("da850_evm_init: nand mux setup failed: "
 					"%d\n", ret);
 
-		ret = davinci_cfg_reg_list(da850_nor_pins);
+		ret = davinci_cfg_reg_list(da850_evm_nor_pins);
 		if (ret)
 			pr_warning("da850_evm_init: nor mux setup failed: %d\n",
 				ret);
@@ -406,7 +439,7 @@ static int da850_lcd_hw_init(void)
 /* TPS65070 voltage regulator support */
 
 /* 3.3V */
-struct regulator_consumer_supply tps65070_dcdc1_consumers[] = {
+static struct regulator_consumer_supply tps65070_dcdc1_consumers[] = {
 	{
 		.supply = "usb0_vdda33",
 	},
@@ -416,7 +449,7 @@ struct regulator_consumer_supply tps65070_dcdc1_consumers[] = {
 };
 
 /* 3.3V or 1.8V */
-struct regulator_consumer_supply tps65070_dcdc2_consumers[] = {
+static struct regulator_consumer_supply tps65070_dcdc2_consumers[] = {
 	{
 		.supply = "dvdd3318_a",
 	},
@@ -429,14 +462,14 @@ struct regulator_consumer_supply tps65070_dcdc2_consumers[] = {
 };
 
 /* 1.2V */
-struct regulator_consumer_supply tps65070_dcdc3_consumers[] = {
+static struct regulator_consumer_supply tps65070_dcdc3_consumers[] = {
 	{
 		.supply = "cvdd",
 	},
 };
 
 /* 1.8V LDO */
-struct regulator_consumer_supply tps65070_ldo1_consumers[] = {
+static struct regulator_consumer_supply tps65070_ldo1_consumers[] = {
 	{
 		.supply = "sata_vddr",
 	},
@@ -452,7 +485,7 @@ struct regulator_consumer_supply tps65070_ldo1_consumers[] = {
 };
 
 /* 1.2V LDO */
-struct regulator_consumer_supply tps65070_ldo2_consumers[] = {
+static struct regulator_consumer_supply tps65070_ldo2_consumers[] = {
 	{
 		.supply = "sata_vdd",
 	},
@@ -475,7 +508,7 @@ static struct tps6507x_reg_platform_data tps6507x_platform_data = {
 	.defdcdc_default = true,
 };
 
-struct regulator_init_data tps65070_regulator_data[] = {
+static struct regulator_init_data tps65070_regulator_data[] = {
 	/* dcdc1 */
 	{
 		.constraints = {
@@ -576,6 +609,23 @@ static const short da850_evm_lcdc_pins[] = {
 	-1
 };
 
+static const short da850_evm_mii_pins[] = {
+	DA850_MII_TXEN, DA850_MII_TXCLK, DA850_MII_COL, DA850_MII_TXD_3,
+	DA850_MII_TXD_2, DA850_MII_TXD_1, DA850_MII_TXD_0, DA850_MII_RXER,
+	DA850_MII_CRS, DA850_MII_RXCLK, DA850_MII_RXDV, DA850_MII_RXD_3,
+	DA850_MII_RXD_2, DA850_MII_RXD_1, DA850_MII_RXD_0, DA850_MDIO_CLK,
+	DA850_MDIO_D,
+	-1
+};
+
+static const short da850_evm_rmii_pins[] = {
+	DA850_RMII_TXD_0, DA850_RMII_TXD_1, DA850_RMII_TXEN,
+	DA850_RMII_CRS_DV, DA850_RMII_RXD_0, DA850_RMII_RXD_1,
+	DA850_RMII_RXER, DA850_RMII_MHZ_50_CLK, DA850_MDIO_CLK,
+	DA850_MDIO_D,
+	-1
+};
+
 static int __init da850_evm_config_emac(void)
 {
 	void __iomem *cfg_chip3_base;
@@ -593,12 +643,12 @@ static int __init da850_evm_config_emac(void)
 
 	if (rmii_en) {
 		val |= BIT(8);
-		ret = davinci_cfg_reg_list(da850_rmii_pins);
+		ret = davinci_cfg_reg_list(da850_evm_rmii_pins);
 		pr_info("EMAC: RMII PHY configured, MII PHY will not be"
 							" functional\n");
 	} else {
 		val &= ~BIT(8);
-		ret = davinci_cfg_reg_list(da850_cpgmac_pins);
+		ret = davinci_cfg_reg_list(da850_evm_mii_pins);
 		pr_info("EMAC: MII PHY configured, RMII PHY will not be"
 							" functional\n");
 	}
@@ -625,8 +675,7 @@ static int __init da850_evm_config_emac(void)
 	/* Enable/Disable MII MDIO clock */
 	gpio_direction_output(DA850_MII_MDIO_CLKEN_PIN, rmii_en);
 
-	soc_info->emac_pdata->phy_mask = DA850_EVM_PHY_MASK;
-	soc_info->emac_pdata->mdio_max_freq = DA850_EVM_MDIO_FREQUENCY;
+	soc_info->emac_pdata->phy_id = DA850_EVM_PHY_ID;
 
 	ret = da8xx_register_emac();
 	if (ret)
@@ -787,7 +836,7 @@ static __init void da850_evm_init(void)
 	if (ret)
 		pr_warning("da850_evm_init: rtc setup failed: %d\n", ret);
 
-	ret = da850_register_cpufreq();
+	ret = da850_register_cpufreq("pll0_sysclk3");
 	if (ret)
 		pr_warning("da850_evm_init: cpufreq registration failed: %d\n",
 				ret);
@@ -806,6 +855,9 @@ static __init void da850_evm_init(void)
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 static int __init da850_evm_console_init(void)
 {
+	if (!machine_is_davinci_da850_evm())
+		return 0;
+
 	return add_preferred_console("ttyS", 2, "115200");
 }
 console_initcall(da850_evm_console_init);
@@ -816,7 +868,7 @@ static void __init da850_evm_map_io(void)
 	da850_init();
 }
 
-MACHINE_START(DAVINCI_DA850_EVM, "DaVinci DA850/OMAP-L138 EVM")
+MACHINE_START(DAVINCI_DA850_EVM, "DaVinci DA850/OMAP-L138/AM18x EVM")
 	.boot_params	= (DA8XX_DDR_BASE + 0x100),
 	.map_io		= da850_evm_map_io,
 	.init_irq	= cp_intc_init,

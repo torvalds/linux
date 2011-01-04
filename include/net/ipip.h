@@ -16,7 +16,7 @@ struct ip_tunnel_6rd_parm {
 };
 
 struct ip_tunnel {
-	struct ip_tunnel	*next;
+	struct ip_tunnel __rcu	*next;
 	struct net_device	*dev;
 
 	int			err_count;	/* Number of arrived ICMP errors */
@@ -34,18 +34,18 @@ struct ip_tunnel {
 #ifdef CONFIG_IPV6_SIT_6RD
 	struct ip_tunnel_6rd_parm	ip6rd;
 #endif
-	struct ip_tunnel_prl_entry	*prl;		/* potential router list */
+	struct ip_tunnel_prl_entry __rcu *prl;		/* potential router list */
 	unsigned int			prl_count;	/* # of entries in PRL */
 };
 
 struct ip_tunnel_prl_entry {
-	struct ip_tunnel_prl_entry	*next;
+	struct ip_tunnel_prl_entry __rcu *next;
 	__be32				addr;
 	u16				flags;
 	struct rcu_head			rcu_head;
 };
 
-#define IPTUNNEL_XMIT() do {						\
+#define __IPTUNNEL_XMIT(stats1, stats2) do {				\
 	int err;							\
 	int pkt_len = skb->len - skb_transport_offset(skb);		\
 									\
@@ -54,12 +54,14 @@ struct ip_tunnel_prl_entry {
 									\
 	err = ip_local_out(skb);					\
 	if (likely(net_xmit_eval(err) == 0)) {				\
-		txq->tx_bytes += pkt_len;				\
-		txq->tx_packets++;					\
+		(stats1)->tx_bytes += pkt_len;				\
+		(stats1)->tx_packets++;					\
 	} else {							\
-		stats->tx_errors++;					\
-		stats->tx_aborted_errors++;				\
+		(stats2)->tx_errors++;					\
+		(stats2)->tx_aborted_errors++;				\
 	}								\
 } while (0)
+
+#define IPTUNNEL_XMIT() __IPTUNNEL_XMIT(txq, stats)
 
 #endif

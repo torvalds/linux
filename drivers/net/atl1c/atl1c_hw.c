@@ -82,7 +82,7 @@ static int atl1c_get_permanent_address(struct atl1c_hw *hw)
 	addr[0] = addr[1] = 0;
 	AT_READ_REG(hw, REG_OTP_CTRL, &otp_ctrl_data);
 	if (atl1c_check_eeprom_exist(hw)) {
-		if (hw->nic_type == athr_l1c || hw->nic_type == athr_l2c_b) {
+		if (hw->nic_type == athr_l1c || hw->nic_type == athr_l2c) {
 			/* Enable OTP CLK */
 			if (!(otp_ctrl_data & OTP_CTRL_CLK_EN)) {
 				otp_ctrl_data |= OTP_CTRL_CLK_EN;
@@ -480,7 +480,7 @@ int atl1c_phy_reset(struct atl1c_hw *hw)
 		atl1c_write_phy_reg(hw, MII_DBG_DATA, 0x929D);
 	}
 	if (hw->nic_type == athr_l1c || hw->nic_type == athr_l2c_b2
-		|| hw->nic_type == athr_l2c || hw->nic_type == athr_l2c) {
+		|| hw->nic_type == athr_l2c) {
 		atl1c_write_phy_reg(hw, MII_DBG_ADDR, 0x29);
 		atl1c_write_phy_reg(hw, MII_DBG_DATA, 0xB6DD);
 	}

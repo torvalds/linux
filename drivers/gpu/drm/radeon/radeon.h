@@ -88,7 +88,6 @@ extern int radeon_benchmarking;
 extern int radeon_testing;
 extern int radeon_connector_table;
 extern int radeon_tv;
-extern int radeon_new_pll;
 extern int radeon_audio;
 extern int radeon_disp_priority;
 extern int radeon_hw_i2c;
@@ -366,6 +365,7 @@ bool radeon_atombios_sideport_present(struct radeon_device *rdev);
  */
 struct radeon_scratch {
 	unsigned		num_reg;
+	uint32_t                reg_base;
 	bool			free[32];
 	uint32_t		reg[32];
 };
@@ -594,7 +594,14 @@ struct radeon_wb {
 	struct radeon_bo	*wb_obj;
 	volatile uint32_t	*wb;
 	uint64_t		gpu_addr;
+	bool                    enabled;
+	bool                    use_event;
 };
+
+#define RADEON_WB_SCRATCH_OFFSET 0
+#define RADEON_WB_CP_RPTR_OFFSET 1024
+#define R600_WB_IH_WPTR_OFFSET   2048
+#define R600_WB_EVENT_OFFSET     3072
 
 /**
  * struct radeon_pm - power management datas
@@ -1124,6 +1131,12 @@ void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence)
 void r600_kms_blit_copy(struct radeon_device *rdev,
 			u64 src_gpu_addr, u64 dst_gpu_addr,
 			int size_bytes);
+/* evergreen blit */
+int evergreen_blit_prepare_copy(struct radeon_device *rdev, int size_bytes);
+void evergreen_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence);
+void evergreen_kms_blit_copy(struct radeon_device *rdev,
+			     u64 src_gpu_addr, u64 dst_gpu_addr,
+			     int size_bytes);
 
 static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg)
 {
@@ -1249,6 +1262,10 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 		(rdev->family == CHIP_RS400) ||			\
 		(rdev->family == CHIP_RS480))
 #define ASIC_IS_AVIVO(rdev) ((rdev->family >= CHIP_RS600))
+#define ASIC_IS_DCE2(rdev) ((rdev->family == CHIP_RS600)  ||	\
+			    (rdev->family == CHIP_RS690)  ||	\
+			    (rdev->family == CHIP_RS740)  ||	\
+			    (rdev->family >= CHIP_R600))
 #define ASIC_IS_DCE3(rdev) ((rdev->family >= CHIP_RV620))
 #define ASIC_IS_DCE32(rdev) ((rdev->family >= CHIP_RV730))
 #define ASIC_IS_DCE4(rdev) ((rdev->family >= CHIP_CEDAR))
@@ -1341,6 +1358,9 @@ extern void radeon_update_bandwidth_info(struct radeon_device *rdev);
 extern void radeon_update_display_priority(struct radeon_device *rdev);
 extern bool radeon_boot_test_post_card(struct radeon_device *rdev);
 extern void radeon_scratch_init(struct radeon_device *rdev);
+extern void radeon_wb_fini(struct radeon_device *rdev);
+extern int radeon_wb_init(struct radeon_device *rdev);
+extern void radeon_wb_disable(struct radeon_device *rdev);
 extern void radeon_surface_init(struct radeon_device *rdev);
 extern int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data);
 extern void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable);
@@ -1425,9 +1445,6 @@ extern int r600_pcie_gart_init(struct radeon_device *rdev);
 extern void r600_pcie_gart_tlb_flush(struct radeon_device *rdev);
 extern int r600_ib_test(struct radeon_device *rdev);
 extern int r600_ring_test(struct radeon_device *rdev);
-extern void r600_wb_fini(struct radeon_device *rdev);
-extern int r600_wb_enable(struct radeon_device *rdev);
-extern void r600_wb_disable(struct radeon_device *rdev);
 extern void r600_scratch_init(struct radeon_device *rdev);
 extern int r600_blit_init(struct radeon_device *rdev);
 extern void r600_blit_fini(struct radeon_device *rdev);
@@ -1465,6 +1482,8 @@ extern void r700_cp_stop(struct radeon_device *rdev);
 extern void r700_cp_fini(struct radeon_device *rdev);
 extern void evergreen_disable_interrupt_state(struct radeon_device *rdev);
 extern int evergreen_irq_set(struct radeon_device *rdev);
+extern int evergreen_blit_init(struct radeon_device *rdev);
+extern void evergreen_blit_fini(struct radeon_device *rdev);
 
 /* radeon_acpi.c */ 
 #if defined(CONFIG_ACPI) 

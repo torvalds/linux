@@ -4,7 +4,7 @@
  * Epson Research S1D13505 Embedded RAMDAC LCD/CRT Controller
  *   (previously known as SED1355)
  *
- * Cf. http://www.erd.epson.com/vdc/html/S1D13505.html
+ * Cf. http://vdc.epson.com/
  *
  *
  * Copyright (C) Hewlett-Packard Company.  All rights reserved.

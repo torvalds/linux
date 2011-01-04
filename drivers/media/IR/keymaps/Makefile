@@ -1,4 +1,6 @@
 obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
+			rc-alink-dtu-m.o \
+			rc-anysee.o \
 			rc-apac-viewcomp.o \
 			rc-asus-pc39.o \
 			rc-ati-tv-wonder-hd-600.o \
@@ -8,7 +10,9 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-avermedia-dvbt.o \
 			rc-avermedia-m135a.o \
 			rc-avermedia-m733a-rm-k6.o \
+			rc-avermedia-rm-ks.o \
 			rc-avertv-303.o \
+			rc-azurewave-ad-tu700.o \
 			rc-behold.o \
 			rc-behold-columbus.o \
 			rc-budget-ci-old.o \
@@ -16,6 +20,8 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-cinergy.o \
 			rc-dib0700-nec.o \
 			rc-dib0700-rc5.o \
+			rc-digitalnow-tinytwin.o \
+			rc-digittrade.o \
 			rc-dm1105-nec.o \
 			rc-dntv-live-dvb-t.o \
 			rc-dntv-live-dvbt-pro.o \
@@ -38,8 +44,12 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-kaiomy.o \
 			rc-kworld-315u.o \
 			rc-kworld-plus-tv-analog.o \
+			rc-leadtek-y04g0051.o \
 			rc-lirc.o \
+			rc-lme2510.o \
 			rc-manli.o \
+			rc-msi-digivox-ii.o \
+			rc-msi-digivox-iii.o \
 			rc-msi-tvanywhere.o \
 			rc-msi-tvanywhere-plus.o \
 			rc-nebula.o \
@@ -58,14 +68,18 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-purpletv.o \
 			rc-pv951.o \
 			rc-rc5-hauppauge-new.o \
-			rc-rc5-streamzap.o \
 			rc-rc5-tv.o \
 			rc-rc6-mce.o \
 			rc-real-audio-220-32-keys.o \
+			rc-streamzap.o \
 			rc-tbs-nec.o \
 			rc-terratec-cinergy-xs.o \
+			rc-terratec-slim.o \
 			rc-tevii-nec.o \
+			rc-total-media-in-hand.o \
+			rc-trekstor.o \
 			rc-tt-1500.o \
+			rc-twinhan1027.o \
 			rc-videomate-s350.o \
 			rc-videomate-tv-pvr.o \
 			rc-winfast.o \

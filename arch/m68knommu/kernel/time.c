@@ -50,9 +50,8 @@ irqreturn_t arch_timer_interrupt(int irq, void *dummy)
 
 	write_sequnlock(&xtime_lock);
 
-#ifndef CONFIG_SMP
 	update_process_times(user_mode(get_irq_regs()));
-#endif
+
 	return(IRQ_HANDLED);
 }
 #endif
@@ -61,13 +60,16 @@ static unsigned long read_rtc_mmss(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
 
-	if (mach_gettod)
+	if (mach_gettod) {
 		mach_gettod(&year, &mon, &day, &hour, &min, &sec);
-	else
-		year = mon = day = hour = min = sec = 0;
+		if ((year += 1900) < 1970)
+			year += 100;
+	} else {
+		year = 1970;
+		mon = day = 1;
+		hour = min = sec = 0;
+	}
 
-	if ((year += 1900) < 1970)
-		year += 100;
 
 	return  mktime(year, mon, day, hour, min, sec);
 }

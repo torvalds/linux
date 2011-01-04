@@ -43,7 +43,7 @@
 #include <linux/proc_fs.h>
 #include <linux/poll.h>
 #include <linux/rtc.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/semaphore.h>
 
 MODULE_AUTHOR("Brian S. Julin <bri@calyx.com>");
@@ -52,6 +52,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define RTC_VERSION "1.10d"
 
+static DEFINE_MUTEX(hp_sdc_rtc_mutex);
 static unsigned long epoch = 2000;
 
 static struct semaphore i8042tregs;
@@ -665,9 +666,9 @@ static long hp_sdc_rtc_unlocked_ioctl(struct file *file,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&hp_sdc_rtc_mutex);
 	ret = hp_sdc_rtc_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&hp_sdc_rtc_mutex);
 
 	return ret;
 }

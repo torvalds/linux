@@ -94,8 +94,7 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	 * By default, hosts do not support SGIO or large requests.
 	 * They have to set these according to their abilities.
 	 */
-	host->max_hw_segs = 1;
-	host->max_phys_segs = 1;
+	host->max_segs = 1;
 	host->max_seg_size = PAGE_CACHE_SIZE;
 
 	host->max_req_size = PAGE_CACHE_SIZE;

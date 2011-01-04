@@ -7,7 +7,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/unistd.h>
 #include <linux/user.h>
 #include <linux/uaccess.h>
@@ -490,6 +489,11 @@ int _access_ok(unsigned long addr, unsigned long size)
 	if (in_mem_const(addr, size, COREB_L1_DATA_A_START, COREB_L1_DATA_A_LENGTH))
 		return 1;
 	if (in_mem_const(addr, size, COREB_L1_DATA_B_START, COREB_L1_DATA_B_LENGTH))
+		return 1;
+#endif
+
+#ifndef CONFIG_EXCEPTION_L1_SCRATCH
+	if (in_mem_const(addr, size, (unsigned long)l1_stack_base, l1_stack_len))
 		return 1;
 #endif
 

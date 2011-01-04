@@ -12,9 +12,8 @@ config DVB_FE_CUSTOMISE
 
 	  If unsure say N.
 
-if DVB_FE_CUSTOMISE
-
 menu "Customise DVB Frontends"
+	visible if DVB_FE_CUSTOMISE
 
 comment "Multistandard (satellite) frontends"
 	depends on DVB_CORE
@@ -257,6 +256,13 @@ config DVB_CX22702
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
+config DVB_S5H1432
+	tristate "Samsung s5h1432 demodulator (OFDM)"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-T tuner module. Say Y when you want to support this frontend.
+
 config DVB_DRX397XD
 	tristate "Micronas DRX3975D/DRX3977D based"
 	depends on DVB_CORE && I2C
@@ -455,16 +461,8 @@ config DVB_LGDT330X
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
 
-config DVB_LGDT3304
-	tristate "LG Electronics LGDT3304"
-	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
-	help
-	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
-	  to support this frontend.
-
 config DVB_LGDT3305
-	tristate "LG Electronics LGDT3305 based"
+	tristate "LG Electronics LGDT3304 and LGDT3305 based"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help
@@ -607,11 +605,16 @@ config DVB_TDA665x
 	  Currently supported tuners:
 	  * Panasonic ENV57H12D5 (ET-50DT)
 
+config DVB_IX2505V
+	tristate "Sharp IX2505V silicon tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
 comment "Tools to develop new frontends"
 
 config DVB_DUMMY_FE
 	tristate "Dummy frontend driver"
 	default n
 endmenu
-
-endif

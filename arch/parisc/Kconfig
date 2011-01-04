@@ -1,10 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux/PA-RISC Kernel Configuration"
-
 config PARISC
 	def_bool y
 	select HAVE_IDE
@@ -19,6 +12,7 @@ config PARISC
 	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
 	select GENERIC_ATOMIC64 if !64BIT
+	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
 	  in many of their workstations & servers (HP9000 700 and 800 series,
@@ -84,6 +78,9 @@ config HAVE_LATENCYTOP_SUPPORT
 config IRQ_PER_CPU
 	bool
 	default y
+
+config GENERIC_HARDIRQS_NO__DO_IRQ
+	def_bool y
 
 # unless you want to implement ACPI on PA-RISC ... ;-)
 config PM

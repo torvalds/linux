@@ -107,6 +107,7 @@ extern int kvmppc_booke_init(void);
 extern void kvmppc_booke_exit(void);
 
 extern void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu);
+extern int kvmppc_kvm_pv(struct kvm_vcpu *vcpu);
 
 /*
  * Cuts out inst bits with ordering according to spec.

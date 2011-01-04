@@ -187,6 +187,18 @@ static struct em28xx_reg_seq pinnacle_hybrid_pro_digital[] = {
 	{	-1,		-1,	-1,		-1},
 };
 
+static struct em28xx_reg_seq terratec_cinergy_USB_XS_FR_analog[] = {
+	{EM28XX_R08_GPIO,	0x6d,	~EM_GPIO_4,	10},
+	{EM2880_R04_GPO,	0x00,	0xff,		10},
+	{ -1,			-1,	-1,		-1},
+};
+
+static struct em28xx_reg_seq terratec_cinergy_USB_XS_FR_digital[] = {
+	{EM28XX_R08_GPIO,	0x6e,	~EM_GPIO_4,	10},
+	{EM2880_R04_GPO,	0x08,	0xff,		10},
+	{ -1,			-1,	-1,		-1},
+};
+
 /* eb1a:2868 Reddo DVB-C USB TV Box
    GPIO4 - CU1216L NIM
    Other GPIOs seems to be don't care. */
@@ -781,22 +793,22 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
 		.has_dvb      = 1,
-		.dvb_gpio     = default_digital,
+		.dvb_gpio     = terratec_cinergy_USB_XS_FR_digital,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = EM28XX_AMUX_VIDEO,
-			.gpio     = default_analog,
+			.gpio     = terratec_cinergy_USB_XS_FR_analog,
 		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AMUX_LINE_IN,
-			.gpio     = default_analog,
+			.gpio     = terratec_cinergy_USB_XS_FR_analog,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AMUX_LINE_IN,
-			.gpio     = default_analog,
+			.gpio     = terratec_cinergy_USB_XS_FR_analog,
 		} },
 	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900] = {
@@ -1648,6 +1660,22 @@ struct em28xx_board em28xx_boards[] = {
 			.gpio     = terratec_av350_unmute_gpio,
 		} },
 	},
+
+	[EM2860_BOARD_ELGATO_VIDEO_CAPTURE] = {
+		.name         = "Elgato Video Capture",
+		.decoder      = EM28XX_SAA711X,
+		.tuner_type   = TUNER_ABSENT,   /* Capture only device */
+		.input        = { {
+			.type  = EM28XX_VMUX_COMPOSITE1,
+			.vmux  = SAA7115_COMPOSITE0,
+			.amux  = EM28XX_AMUX_LINE_IN,
+		}, {
+			.type  = EM28XX_VMUX_SVIDEO,
+			.vmux  = SAA7115_SVIDEO3,
+			.amux  = EM28XX_AMUX_LINE_IN,
+		} },
+	},
+
 	[EM2882_BOARD_EVGA_INDTUBE] = {
 		.name         = "Evga inDtube",
 		.tuner_type   = TUNER_XC2028,
@@ -1772,6 +1800,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2860_BOARD_TERRATEC_AV350 },
 	{ USB_DEVICE(0x0ccd, 0x0096),
 			.driver_info = EM2860_BOARD_TERRATEC_GRABBY },
+	{ USB_DEVICE(0x0fd9, 0x0033),
+			.driver_info = EM2860_BOARD_ELGATO_VIDEO_CAPTURE},
 	{ USB_DEVICE(0x185b, 0x2870),
 			.driver_info = EM2870_BOARD_COMPRO_VIDEOMATE },
 	{ USB_DEVICE(0x185b, 0x2041),
@@ -2168,6 +2198,7 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 		ctl->demod = XC3028_FE_ZARLINK456;
 		break;
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+	case EM2880_BOARD_TERRATEC_HYBRID_XS_FR:
 	case EM2881_BOARD_PINNACLE_HYBRID_PRO:
 		ctl->demod = XC3028_FE_ZARLINK456;
 		break;
@@ -2523,39 +2554,39 @@ void em28xx_card_setup(struct em28xx *dev)
 	/* request some modules */
 	if (dev->board.has_msp34xx)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-			"msp3400", "msp3400", 0, msp3400_addrs);
+			"msp3400", 0, msp3400_addrs);
 
 	if (dev->board.decoder == EM28XX_SAA711X)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-			"saa7115", "saa7115_auto", 0, saa711x_addrs);
+			"saa7115_auto", 0, saa711x_addrs);
 
 	if (dev->board.decoder == EM28XX_TVP5150)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-			"tvp5150", "tvp5150", 0, tvp5150_addrs);
+			"tvp5150", 0, tvp5150_addrs);
 
 	if (dev->em28xx_sensor == EM28XX_MT9V011) {
 		struct v4l2_subdev *sd;
 
 		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-			 &dev->i2c_adap, "mt9v011", "mt9v011", 0, mt9v011_addrs);
+			 &dev->i2c_adap, "mt9v011", 0, mt9v011_addrs);
 		v4l2_subdev_call(sd, core, s_config, 0, &dev->sensor_xtal);
 	}
 
 
 	if (dev->board.adecoder == EM28XX_TVAUDIO)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-			"tvaudio", "tvaudio", dev->board.tvaudio_addr, NULL);
+			"tvaudio", dev->board.tvaudio_addr, NULL);
 
 	if (dev->board.tuner_type != TUNER_ABSENT) {
 		int has_demod = (dev->tda9887_conf & TDA9887_PRESENT);
 
 		if (dev->board.radio.type)
 			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-				"tuner", "tuner", dev->board.radio_addr, NULL);
+				"tuner", dev->board.radio_addr, NULL);
 
 		if (has_demod)
 			v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap, "tuner", "tuner",
+				&dev->i2c_adap, "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		if (dev->tuner_addr == 0) {
 			enum v4l2_i2c_tuner_type type =
@@ -2563,14 +2594,14 @@ void em28xx_card_setup(struct em28xx *dev)
 			struct v4l2_subdev *sd;
 
 			sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap, "tuner", "tuner",
+				&dev->i2c_adap, "tuner",
 				0, v4l2_i2c_tuner_addrs(type));
 
 			if (sd)
 				dev->tuner_addr = v4l2_i2c_subdev_addr(sd);
 		} else {
 			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-				"tuner", "tuner", dev->tuner_addr, NULL);
+				"tuner", dev->tuner_addr, NULL);
 		}
 	}
 

@@ -121,31 +121,6 @@ static const u8 hw_addrs[] = {
 };
 
 /* This array should match the IVTV_HW_ defines */
-static const char *hw_modules[] = {
-	"cx25840",
-	"saa7115",
-	"saa7127",
-	"msp3400",
-	"tuner",
-	"wm8775",
-	"cs53l32a",
-	NULL,
-	"saa7115",
-	"upd64031a",
-	"upd64083",
-	"saa717x",
-	"wm8739",
-	"vp27smpx",
-	"m52790",
-	NULL,
-	NULL,		/* IVTV_HW_I2C_IR_RX_AVER */
-	NULL,		/* IVTV_HW_I2C_IR_RX_HAUP_EXT */
-	NULL,		/* IVTV_HW_I2C_IR_RX_HAUP_INT */
-	NULL,		/* IVTV_HW_Z8F0811_IR_TX_HAUP */
-	NULL,		/* IVTV_HW_Z8F0811_IR_RX_HAUP */
-};
-
-/* This array should match the IVTV_HW_ defines */
 static const char * const hw_devicenames[] = {
 	"cx25840",
 	"saa7115",
@@ -257,7 +232,6 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 {
 	struct v4l2_subdev *sd;
 	struct i2c_adapter *adap = &itv->i2c_adap;
-	const char *mod = hw_modules[idx];
 	const char *type = hw_devicenames[idx];
 	u32 hw = 1 << idx;
 
@@ -265,19 +239,16 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 		return -1;
 	if (hw == IVTV_HW_TUNER) {
 		/* special tuner handling */
-		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
-				adap, mod, type,
-				0, itv->card_i2c->radio);
+		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev, adap, type, 0,
+				itv->card_i2c->radio);
 		if (sd)
 			sd->grp_id = 1 << idx;
-		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
-				adap, mod, type,
-				0, itv->card_i2c->demod);
+		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev, adap, type, 0,
+				itv->card_i2c->demod);
 		if (sd)
 			sd->grp_id = 1 << idx;
-		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
-				adap, mod, type,
-				0, itv->card_i2c->tv);
+		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev, adap, type, 0,
+				itv->card_i2c->tv);
 		if (sd)
 			sd->grp_id = 1 << idx;
 		return sd ? 0 : -1;
@@ -293,16 +264,16 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 	/* It's an I2C device other than an analog tuner or IR chip */
 	if (hw == IVTV_HW_UPD64031A || hw == IVTV_HW_UPD6408X) {
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
-				adap, mod, type, 0, I2C_ADDRS(hw_addrs[idx]));
+				adap, type, 0, I2C_ADDRS(hw_addrs[idx]));
 	} else if (hw == IVTV_HW_CX25840) {
 		struct cx25840_platform_data pdata;
 
 		pdata.pvr150_workaround = itv->pvr150_workaround;
 		sd = v4l2_i2c_new_subdev_cfg(&itv->v4l2_dev,
-				adap, mod, type, 0, &pdata, hw_addrs[idx], NULL);
+				adap, type, 0, &pdata, hw_addrs[idx], NULL);
 	} else {
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
-				adap, mod, type, hw_addrs[idx], NULL);
+				adap, type, hw_addrs[idx], NULL);
 	}
 	if (sd)
 		sd->grp_id = 1 << idx;
@@ -706,8 +677,7 @@ int init_ivtv_i2c(struct ivtv *itv)
 	/* Sanity checks for the I2C hardware arrays. They must be the
 	 * same size.
 	 */
-	if (ARRAY_SIZE(hw_devicenames) != ARRAY_SIZE(hw_addrs) ||
-	    ARRAY_SIZE(hw_devicenames) != ARRAY_SIZE(hw_modules)) {
+	if (ARRAY_SIZE(hw_devicenames) != ARRAY_SIZE(hw_addrs)) {
 		IVTV_ERR("Mismatched I2C hardware arrays\n");
 		return -ENODEV;
 	}

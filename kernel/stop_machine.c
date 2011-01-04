@@ -262,7 +262,7 @@ repeat:
 		cpu_stop_fn_t fn = work->fn;
 		void *arg = work->arg;
 		struct cpu_stop_done *done = work->done;
-		char ksym_buf[KSYM_NAME_LEN];
+		char ksym_buf[KSYM_NAME_LEN] __maybe_unused;
 
 		__set_current_state(TASK_RUNNING);
 
@@ -304,7 +304,7 @@ static int __cpuinit cpu_stop_cpu_callback(struct notifier_block *nfb,
 		p = kthread_create(cpu_stopper_thread, stopper, "migration/%d",
 				   cpu);
 		if (IS_ERR(p))
-			return NOTIFY_BAD;
+			return notifier_from_errno(PTR_ERR(p));
 		get_task_struct(p);
 		kthread_bind(p, cpu);
 		sched_set_stop_task(cpu, p);
@@ -372,7 +372,7 @@ static int __init cpu_stop_init(void)
 	/* start one for the boot cpu */
 	err = cpu_stop_cpu_callback(&cpu_stop_cpu_notifier, CPU_UP_PREPARE,
 				    bcpu);
-	BUG_ON(err == NOTIFY_BAD);
+	BUG_ON(err != NOTIFY_OK);
 	cpu_stop_cpu_callback(&cpu_stop_cpu_notifier, CPU_ONLINE, bcpu);
 	register_cpu_notifier(&cpu_stop_cpu_notifier);
 

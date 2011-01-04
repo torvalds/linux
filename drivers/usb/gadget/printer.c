@@ -884,7 +884,8 @@ static const struct file_operations printer_io_operations = {
 	.fsync =	printer_fsync,
 	.poll =		printer_poll,
 	.unlocked_ioctl = printer_ioctl,
-	.release =	printer_close
+	.release =	printer_close,
+	.llseek =	noop_llseek,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1347,7 +1348,7 @@ printer_unbind(struct usb_gadget *gadget)
 	set_gadget_data(gadget, NULL);
 }
 
-static int __ref
+static int __init
 printer_bind(struct usb_gadget *gadget)
 {
 	struct printer_dev	*dev;
@@ -1543,7 +1544,6 @@ static struct usb_gadget_driver printer_driver = {
 	.speed		= DEVSPEED,
 
 	.function	= (char *) driver_desc,
-	.bind		= printer_bind,
 	.unbind		= printer_unbind,
 
 	.setup		= printer_setup,
@@ -1579,11 +1579,11 @@ init(void)
 		return status;
 	}
 
-	status = usb_gadget_register_driver(&printer_driver);
+	status = usb_gadget_probe_driver(&printer_driver, printer_bind);
 	if (status) {
 		class_destroy(usb_gadget_class);
 		unregister_chrdev_region(g_printer_devno, 1);
-		DBG(dev, "usb_gadget_register_driver %x\n", status);
+		DBG(dev, "usb_gadget_probe_driver %x\n", status);
 	}
 
 	return status;

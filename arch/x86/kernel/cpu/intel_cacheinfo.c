@@ -327,6 +327,7 @@ static void __cpuinit amd_calc_l3_indices(struct amd_l3_cache *l3)
 	l3->subcaches[3] = sc3 = !(val & BIT(12)) + !(val & BIT(13));
 
 	l3->indices = (max(max(max(sc0, sc1), sc2), sc3) << 10) - 1;
+	l3->indices = (max(max3(sc0, sc1, sc2), sc3) << 10) - 1;
 }
 
 static struct amd_l3_cache * __cpuinit amd_init_l3_cache(int node)

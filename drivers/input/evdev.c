@@ -534,6 +534,77 @@ static int handle_eviocgbit(struct input_dev *dev,
 }
 #undef OLD_KEY_MAX
 
+static int evdev_handle_get_keycode(struct input_dev *dev, void __user *p)
+{
+	struct input_keymap_entry ke = {
+		.len	= sizeof(unsigned int),
+		.flags	= 0,
+	};
+	int __user *ip = (int __user *)p;
+	int error;
+
+	/* legacy case */
+	if (copy_from_user(ke.scancode, p, sizeof(unsigned int)))
+		return -EFAULT;
+
+	error = input_get_keycode(dev, &ke);
+	if (error)
+		return error;
+
+	if (put_user(ke.keycode, ip + 1))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int evdev_handle_get_keycode_v2(struct input_dev *dev, void __user *p)
+{
+	struct input_keymap_entry ke;
+	int error;
+
+	if (copy_from_user(&ke, p, sizeof(ke)))
+		return -EFAULT;
+
+	error = input_get_keycode(dev, &ke);
+	if (error)
+		return error;
+
+	if (copy_to_user(p, &ke, sizeof(ke)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int evdev_handle_set_keycode(struct input_dev *dev, void __user *p)
+{
+	struct input_keymap_entry ke = {
+		.len	= sizeof(unsigned int),
+		.flags	= 0,
+	};
+	int __user *ip = (int __user *)p;
+
+	if (copy_from_user(ke.scancode, p, sizeof(unsigned int)))
+		return -EFAULT;
+
+	if (get_user(ke.keycode, ip + 1))
+		return -EFAULT;
+
+	return input_set_keycode(dev, &ke);
+}
+
+static int evdev_handle_set_keycode_v2(struct input_dev *dev, void __user *p)
+{
+	struct input_keymap_entry ke;
+
+	if (copy_from_user(&ke, p, sizeof(ke)))
+		return -EFAULT;
+
+	if (ke.len > sizeof(ke.scancode))
+		return -EINVAL;
+
+	return input_set_keycode(dev, &ke);
+}
+
 static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			   void __user *p, int compat_mode)
 {
@@ -580,25 +651,6 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 
 		return 0;
 
-	case EVIOCGKEYCODE:
-		if (get_user(t, ip))
-			return -EFAULT;
-
-		error = input_get_keycode(dev, t, &v);
-		if (error)
-			return error;
-
-		if (put_user(v, ip + 1))
-			return -EFAULT;
-
-		return 0;
-
-	case EVIOCSKEYCODE:
-		if (get_user(t, ip) || get_user(v, ip + 1))
-			return -EFAULT;
-
-		return input_set_keycode(dev, t, v);
-
 	case EVIOCRMFF:
 		return input_ff_erase(dev, (int)(unsigned long) p, file);
 
@@ -614,13 +666,24 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			return evdev_grab(evdev, client);
 		else
 			return evdev_ungrab(evdev, client);
+
+	case EVIOCGKEYCODE:
+		return evdev_handle_get_keycode(dev, p);
+
+	case EVIOCSKEYCODE:
+		return evdev_handle_set_keycode(dev, p);
+
+	case EVIOCGKEYCODE_V2:
+		return evdev_handle_get_keycode_v2(dev, p);
+
+	case EVIOCSKEYCODE_V2:
+		return evdev_handle_set_keycode_v2(dev, p);
 	}
 
 	size = _IOC_SIZE(cmd);
 
 	/* Now check variable-length commands */
 #define EVIOC_MASK_SIZE(nr)	((nr) & ~(_IOC_SIZEMASK << _IOC_SIZESHIFT))
-
 	switch (EVIOC_MASK_SIZE(cmd)) {
 
 	case EVIOCGKEY(0):
@@ -767,7 +830,8 @@ static const struct file_operations evdev_fops = {
 	.compat_ioctl	= evdev_ioctl_compat,
 #endif
 	.fasync		= evdev_fasync,
-	.flush		= evdev_flush
+	.flush		= evdev_flush,
+	.llseek		= no_llseek,
 };
 
 static int evdev_install_chrdev(struct evdev *evdev)

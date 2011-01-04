@@ -412,7 +412,8 @@ static const struct file_operations dev_fops = {
 	.read    = dev_read,
 	.write   = dev_write,
 	.poll    = dev_poll,
-	.owner   = THIS_MODULE
+	.owner   = THIS_MODULE,
+	.llseek  = noop_llseek,
 };
 
 static struct miscdevice plock_dev_misc = {

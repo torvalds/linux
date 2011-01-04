@@ -222,7 +222,7 @@ static int ieee80211_wep_decrypt(struct ieee80211_local *local,
 				 struct ieee80211_key *key)
 {
 	u32 klen;
-	u8 *rc4key;
+	u8 rc4key[3 + WLAN_KEY_LEN_WEP104];
 	u8 keyidx;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	unsigned int hdrlen;
@@ -240,14 +240,10 @@ static int ieee80211_wep_decrypt(struct ieee80211_local *local,
 
 	keyidx = skb->data[hdrlen + 3] >> 6;
 
-	if (!key || keyidx != key->conf.keyidx || key->conf.alg != ALG_WEP)
+	if (!key || keyidx != key->conf.keyidx)
 		return -1;
 
 	klen = 3 + key->conf.keylen;
-
-	rc4key = kmalloc(klen, GFP_ATOMIC);
-	if (!rc4key)
-		return -1;
 
 	/* Prepend 24-bit IV to RC4 key */
 	memcpy(rc4key, skb->data + hdrlen, 3);
@@ -259,8 +255,6 @@ static int ieee80211_wep_decrypt(struct ieee80211_local *local,
 				       skb->data + hdrlen + WEP_IV_LEN,
 				       len))
 		ret = -1;
-
-	kfree(rc4key);
 
 	/* Trim ICV */
 	skb_trim(skb, skb->len - WEP_ICV_LEN);

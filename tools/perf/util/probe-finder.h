@@ -22,20 +22,27 @@ extern int find_probe_trace_events(int fd, struct perf_probe_event *pev,
 				    int max_tevs);
 
 /* Find a perf_probe_point from debuginfo */
-extern int find_perf_probe_point(int fd, unsigned long addr,
+extern int find_perf_probe_point(unsigned long addr,
 				 struct perf_probe_point *ppt);
 
+/* Find a line range */
 extern int find_line_range(int fd, struct line_range *lr);
+
+/* Find available variables */
+extern int find_available_vars_at(int fd, struct perf_probe_event *pev,
+				  struct variable_list **vls, int max_points,
+				  bool externs);
 
 #include <dwarf.h>
 #include <libdw.h>
+#include <libdwfl.h>
 #include <version.h>
 
 struct probe_finder {
 	struct perf_probe_event	*pev;		/* Target probe event */
-	struct probe_trace_event *tevs;		/* Result trace events */
-	int			ntevs;		/* Number of trace events */
-	int			max_tevs;	/* Max number of trace events */
+
+	/* Callback when a probe point is found */
+	int (*callback)(Dwarf_Die *sp_die, struct probe_finder *pf);
 
 	/* For function searching */
 	int			lno;		/* Line number */
@@ -51,6 +58,22 @@ struct probe_finder {
 	Dwarf_Op		*fb_ops;	/* Frame base attribute */
 	struct perf_probe_arg	*pvar;		/* Current target variable */
 	struct probe_trace_arg	*tvar;		/* Current result variable */
+};
+
+struct trace_event_finder {
+	struct probe_finder	pf;
+	struct probe_trace_event *tevs;		/* Found trace events */
+	int			ntevs;		/* Number of trace events */
+	int			max_tevs;	/* Max number of trace events */
+};
+
+struct available_var_finder {
+	struct probe_finder	pf;
+	struct variable_list	*vls;		/* Found variable lists */
+	int			nvls;		/* Number of variable lists */
+	int			max_vls;	/* Max no. of variable lists */
+	bool			externs;	/* Find external vars too */
+	bool			child;		/* Search child scopes */
 };
 
 struct line_finder {

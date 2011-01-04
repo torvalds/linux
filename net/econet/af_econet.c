@@ -31,6 +31,7 @@
 #include <linux/skbuff.h>
 #include <linux/udp.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <net/sock.h>
 #include <net/inet_common.h>
 #include <linux/stat.h>
@@ -276,12 +277,12 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 #endif
 #ifdef CONFIG_ECONET_AUNUDP
 	struct msghdr udpmsg;
-	struct iovec iov[msg->msg_iovlen+1];
+	struct iovec iov[2];
 	struct aunhdr ah;
 	struct sockaddr_in udpdest;
 	__kernel_size_t size;
-	int i;
 	mm_segment_t oldfs;
+	char *userbuf;
 #endif
 
 	/*
@@ -297,23 +298,14 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	mutex_lock(&econet_mutex);
 
-	if (saddr == NULL) {
-		struct econet_sock *eo = ec_sk(sk);
-
-		addr.station = eo->station;
-		addr.net     = eo->net;
-		port	     = eo->port;
-		cb	     = eo->cb;
-	} else {
-		if (msg->msg_namelen < sizeof(struct sockaddr_ec)) {
-			mutex_unlock(&econet_mutex);
-			return -EINVAL;
-		}
-		addr.station = saddr->addr.station;
-		addr.net = saddr->addr.net;
-		port = saddr->port;
-		cb = saddr->cb;
-	}
+        if (saddr == NULL || msg->msg_namelen < sizeof(struct sockaddr_ec)) {
+                mutex_unlock(&econet_mutex);
+                return -EINVAL;
+        }
+        addr.station = saddr->addr.station;
+        addr.net = saddr->addr.net;
+        port = saddr->port;
+        cb = saddr->cb;
 
 	/* Look for a device with the right network number. */
 	dev = net2dev_map[addr.net];
@@ -328,16 +320,16 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		}
 	}
 
-	if (len + 15 > dev->mtu) {
-		mutex_unlock(&econet_mutex);
-		return -EMSGSIZE;
-	}
-
 	if (dev->type == ARPHRD_ECONET) {
 		/* Real hardware Econet.  We're not worthy etc. */
 #ifdef CONFIG_ECONET_NATIVE
 		unsigned short proto = 0;
 		int res;
+
+		if (len + 15 > dev->mtu) {
+			mutex_unlock(&econet_mutex);
+			return -EMSGSIZE;
+		}
 
 		dev_hold(dev);
 
@@ -351,7 +343,6 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 		eb = (struct ec_cb *)&skb->cb;
 
-		/* BUG: saddr may be NULL */
 		eb->cookie = saddr->cookie;
 		eb->sec = *saddr;
 		eb->sent = ec_tx_done;
@@ -392,7 +383,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		dev_queue_xmit(skb);
 		dev_put(dev);
 		mutex_unlock(&econet_mutex);
-		return(len);
+		return len;
 
 	out_free:
 		kfree_skb(skb);
@@ -413,6 +404,11 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (udpsock == NULL) {
 		mutex_unlock(&econet_mutex);
 		return -ENETDOWN;		/* No socket - can't send */
+	}
+
+	if (len > 32768) {
+		err = -E2BIG;
+		goto error;
 	}
 
 	/* Make up a UDP datagram and hand it off to some higher intellect. */
@@ -446,36 +442,26 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	/* tack our header on the front of the iovec */
 	size = sizeof(struct aunhdr);
-	/*
-	 * XXX: that is b0rken.  We can't mix userland and kernel pointers
-	 * in iovec, since on a lot of platforms copy_from_user() will
-	 * *not* work with the kernel and userland ones at the same time,
-	 * regardless of what we do with set_fs().  And we are talking about
-	 * econet-over-ethernet here, so "it's only ARM anyway" doesn't
-	 * apply.  Any suggestions on fixing that code?		-- AV
-	 */
 	iov[0].iov_base = (void *)&ah;
 	iov[0].iov_len = size;
-	for (i = 0; i < msg->msg_iovlen; i++) {
-		void __user *base = msg->msg_iov[i].iov_base;
-		size_t iov_len = msg->msg_iov[i].iov_len;
-		/* Check it now since we switch to KERNEL_DS later. */
-		if (!access_ok(VERIFY_READ, base, iov_len)) {
-			mutex_unlock(&econet_mutex);
-			return -EFAULT;
-		}
-		iov[i+1].iov_base = base;
-		iov[i+1].iov_len = iov_len;
-		size += iov_len;
+
+	userbuf = vmalloc(len);
+	if (userbuf == NULL) {
+		err = -ENOMEM;
+		goto error;
 	}
+
+	iov[1].iov_base = userbuf;
+	iov[1].iov_len = len;
+	err = memcpy_fromiovec(userbuf, msg->msg_iov, len);
+	if (err)
+		goto error_free_buf;
 
 	/* Get a skbuff (no data, just holds our cb information) */
 	if ((skb = sock_alloc_send_skb(sk, 0,
 				       msg->msg_flags & MSG_DONTWAIT,
-				       &err)) == NULL) {
-		mutex_unlock(&econet_mutex);
-		return err;
-	}
+				       &err)) == NULL)
+		goto error_free_buf;
 
 	eb = (struct ec_cb *)&skb->cb;
 
@@ -491,7 +477,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	udpmsg.msg_name = (void *)&udpdest;
 	udpmsg.msg_namelen = sizeof(udpdest);
 	udpmsg.msg_iov = &iov[0];
-	udpmsg.msg_iovlen = msg->msg_iovlen + 1;
+	udpmsg.msg_iovlen = 2;
 	udpmsg.msg_control = NULL;
 	udpmsg.msg_controllen = 0;
 	udpmsg.msg_flags=0;
@@ -499,9 +485,13 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	oldfs = get_fs(); set_fs(KERNEL_DS);	/* More privs :-) */
 	err = sock_sendmsg(udpsock, &udpmsg, size);
 	set_fs(oldfs);
+
+error_free_buf:
+	vfree(userbuf);
 #else
 	err = -EPROTOTYPE;
 #endif
+	error:
 	mutex_unlock(&econet_mutex);
 
 	return err;
@@ -637,7 +627,7 @@ static int econet_create(struct net *net, struct socket *sock, int protocol,
 	eo->num = protocol;
 
 	econet_insert_socket(&econet_sklist, sk);
-	return(0);
+	return 0;
 out:
 	return err;
 }
@@ -671,6 +661,11 @@ static int ec_dev_ioctl(struct socket *sock, unsigned int cmd, void __user *arg)
 	err = 0;
 	switch (cmd) {
 	case SIOCSIFADDR:
+		if (!capable(CAP_NET_ADMIN)) {
+			err = -EPERM;
+			break;
+		}
+
 		edev = dev->ec_ptr;
 		if (edev == NULL) {
 			/* Magic up a new one. */
@@ -856,9 +851,13 @@ static void aun_incoming(struct sk_buff *skb, struct aunhdr *ah, size_t len)
 {
 	struct iphdr *ip = ip_hdr(skb);
 	unsigned char stn = ntohl(ip->saddr) & 0xff;
+	struct dst_entry *dst = skb_dst(skb);
+	struct ec_device *edev = NULL;
 	struct sock *sk = NULL;
 	struct sk_buff *newskb;
-	struct ec_device *edev = skb->dev->ec_ptr;
+
+	if (dst)
+		edev = dst->dev->ec_ptr;
 
 	if (! edev)
 		goto bad;
@@ -1009,7 +1008,6 @@ static int __init aun_udp_initialise(void)
 	struct sockaddr_in sin;
 
 	skb_queue_head_init(&aun_queue);
-	spin_lock_init(&aun_queue_lock);
 	setup_timer(&ab_cleanup_timer, ab_cleanup, 0);
 	ab_cleanup_timer.expires = jiffies + (HZ*2);
 	add_timer(&ab_cleanup_timer);
@@ -1167,7 +1165,6 @@ static int __init econet_proto_init(void)
 		goto out;
 	sock_register(&econet_family_ops);
 #ifdef CONFIG_ECONET_AUNUDP
-	spin_lock_init(&aun_queue_lock);
 	aun_udp_initialise();
 #endif
 #ifdef CONFIG_ECONET_NATIVE

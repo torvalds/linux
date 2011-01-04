@@ -71,19 +71,6 @@ static const u8 hw_bus[] = {
 };
 
 /* This array should match the CX18_HW_ defines */
-static const char * const hw_modules[] = {
-	"tuner",	/* CX18_HW_TUNER */
-	NULL,		/* CX18_HW_TVEEPROM */
-	"cs5345",	/* CX18_HW_CS5345 */
-	NULL,		/* CX18_HW_DVB */
-	NULL,		/* CX18_HW_418_AV */
-	NULL,		/* CX18_HW_GPIO_MUX */
-	NULL,		/* CX18_HW_GPIO_RESET_CTRL */
-	NULL,		/* CX18_HW_Z8F0811_IR_TX_HAUP */
-	NULL,		/* CX18_HW_Z8F0811_IR_RX_HAUP */
-};
-
-/* This array should match the CX18_HW_ defines */
 static const char * const hw_devicenames[] = {
 	"tuner",
 	"tveeprom",
@@ -126,7 +113,6 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 	struct v4l2_subdev *sd;
 	int bus = hw_bus[idx];
 	struct i2c_adapter *adap = &cx->i2c_adap[bus];
-	const char *mod = hw_modules[idx];
 	const char *type = hw_devicenames[idx];
 	u32 hw = 1 << idx;
 
@@ -136,15 +122,15 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 	if (hw == CX18_HW_TUNER) {
 		/* special tuner group handling */
 		sd = v4l2_i2c_new_subdev(&cx->v4l2_dev,
-				adap, mod, type, 0, cx->card_i2c->radio);
+				adap, type, 0, cx->card_i2c->radio);
 		if (sd != NULL)
 			sd->grp_id = hw;
 		sd = v4l2_i2c_new_subdev(&cx->v4l2_dev,
-				adap, mod, type, 0, cx->card_i2c->demod);
+				adap, type, 0, cx->card_i2c->demod);
 		if (sd != NULL)
 			sd->grp_id = hw;
 		sd = v4l2_i2c_new_subdev(&cx->v4l2_dev,
-				adap, mod, type, 0, cx->card_i2c->tv);
+				adap, type, 0, cx->card_i2c->tv);
 		if (sd != NULL)
 			sd->grp_id = hw;
 		return sd != NULL ? 0 : -1;
@@ -158,7 +144,8 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 		return -1;
 
 	/* It's an I2C device other than an analog tuner or IR chip */
-	sd = v4l2_i2c_new_subdev(&cx->v4l2_dev, adap, mod, type, hw_addrs[idx], NULL);
+	sd = v4l2_i2c_new_subdev(&cx->v4l2_dev, adap, type, hw_addrs[idx],
+				 NULL);
 	if (sd != NULL)
 		sd->grp_id = hw;
 	return sd != NULL ? 0 : -1;

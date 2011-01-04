@@ -129,8 +129,9 @@ static void handle_tx(struct vhost_net *net)
 	size_t hdr_size;
 	struct socket *sock;
 
-	sock = rcu_dereference_check(vq->private_data,
-				     lockdep_is_held(&vq->mutex));
+	/* TODO: check that we are running from vhost_worker?
+	 * Not sure it's worth it, it's straight-forward enough. */
+	sock = rcu_dereference_check(vq->private_data, 1);
 	if (!sock)
 		return;
 
@@ -246,7 +247,7 @@ static int get_rx_bufs(struct vhost_virtqueue *vq,
 	int r, nlogs = 0;
 
 	while (datalen > 0) {
-		if (unlikely(seg >= VHOST_NET_MAX_SG)) {
+		if (unlikely(seg >= UIO_MAXIOV)) {
 			r = -ENOBUFS;
 			goto err;
 		}
@@ -877,6 +878,7 @@ static const struct file_operations vhost_net_fops = {
 	.compat_ioctl   = vhost_net_compat_ioctl,
 #endif
 	.open           = vhost_net_open,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice vhost_net_misc = {

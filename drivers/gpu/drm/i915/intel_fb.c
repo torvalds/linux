@@ -44,13 +44,6 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
-struct intel_fbdev {
-	struct drm_fb_helper helper;
-	struct intel_framebuffer ifb;
-	struct list_head fbdev_list;
-	struct drm_display_mode *our_mode;
-};
-
 static struct fb_ops intelfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = drm_fb_helper_check_var,
@@ -75,7 +68,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	struct drm_gem_object *fbo = NULL;
 	struct drm_i915_gem_object *obj_priv;
 	struct device *device = &dev->pdev->dev;
-	int size, ret, mmio_bar = IS_I9XX(dev) ? 0 : 1;
+	int size, ret, mmio_bar = IS_GEN2(dev) ? 1 : 0;
 
 	/* we don't do packed 24bpp */
 	if (sizes->surface_bpp == 24)
@@ -100,17 +93,11 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	mutex_lock(&dev->struct_mutex);
 
-	ret = intel_pin_and_fence_fb_obj(dev, fbo);
+	/* Flush everything out, we'll be doing GTT only from now on */
+	ret = intel_pin_and_fence_fb_obj(dev, fbo, false);
 	if (ret) {
 		DRM_ERROR("failed to pin fb: %d\n", ret);
 		goto out_unref;
-	}
-
-	/* Flush everything out, we'll be doing GTT only from now on */
-	ret = i915_gem_object_set_to_gtt_domain(fbo, 1);
-	if (ret) {
-		DRM_ERROR("failed to bind fb: %d.\n", ret);
-		goto out_unpin;
 	}
 
 	info = framebuffer_alloc(0, device);
@@ -142,7 +129,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 		goto out_unpin;
 	}
 	info->apertures->ranges[0].base = dev->mode_config.fb_base;
-	if (IS_I9XX(dev))
+	if (!IS_GEN2(dev))
 		info->apertures->ranges[0].size = pci_resource_len(dev->pdev, 2);
 	else
 		info->apertures->ranges[0].size = pci_resource_len(dev->pdev, 0);
@@ -219,8 +206,8 @@ static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.fb_probe = intel_fb_find_or_create_single,
 };
 
-int intel_fbdev_destroy(struct drm_device *dev,
-			struct intel_fbdev *ifbdev)
+static void intel_fbdev_destroy(struct drm_device *dev,
+				struct intel_fbdev *ifbdev)
 {
 	struct fb_info *info;
 	struct intel_framebuffer *ifb = &ifbdev->ifb;
@@ -238,11 +225,9 @@ int intel_fbdev_destroy(struct drm_device *dev,
 
 	drm_framebuffer_cleanup(&ifb->base);
 	if (ifb->obj) {
-		drm_gem_object_unreference(ifb->obj);
+		drm_gem_object_unreference_unlocked(ifb->obj);
 		ifb->obj = NULL;
 	}
-
-	return 0;
 }
 
 int intel_fbdev_init(struct drm_device *dev)

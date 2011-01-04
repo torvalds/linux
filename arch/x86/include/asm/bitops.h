@@ -440,6 +440,8 @@ static inline int fls(int x)
 
 #ifdef __KERNEL__
 
+#include <asm-generic/bitops/find.h>
+
 #include <asm-generic/bitops/sched.h>
 
 #define ARCH_HAS_FAST_MULTIPLIER 1

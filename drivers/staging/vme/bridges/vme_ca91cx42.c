@@ -848,12 +848,57 @@ ssize_t ca91cx42_master_read(struct vme_master_resource *image, void *buf,
 	size_t count, loff_t offset)
 {
 	ssize_t retval;
+	void *addr = image->kern_base + offset;
+	unsigned int done = 0;
+	unsigned int count32;
+
+	if (count == 0)
+		return 0;
 
 	spin_lock(&(image->lock));
 
-	memcpy_fromio(buf, image->kern_base + offset, (unsigned int)count);
-	retval = count;
+	/* The following code handles VME address alignment problem
+	 * in order to assure the maximal data width cycle.
+	 * We cannot use memcpy_xxx directly here because it
+	 * may cut data transfer in 8-bits cycles, thus making
+	 * D16 cycle impossible.
+	 * From the other hand, the bridge itself assures that
+	 * maximal configured data cycle is used and splits it
+	 * automatically for non-aligned addresses.
+	 */
+	if ((int)addr & 0x1) {
+		*(u8 *)buf = ioread8(addr);
+		done += 1;
+		if (done == count)
+			goto out;
+	}
+	if ((int)addr & 0x2) {
+		if ((count - done) < 2) {
+			*(u8 *)(buf + done) = ioread8(addr + done);
+			done += 1;
+			goto out;
+		} else {
+			*(u16 *)(buf + done) = ioread16(addr + done);
+			done += 2;
+		}
+	}
 
+	count32 = (count - done) & ~0x3;
+	if (count32 > 0) {
+		memcpy_fromio(buf + done, addr + done, (unsigned int)count);
+		done += count32;
+	}
+
+	if ((count - done) & 0x2) {
+		*(u16 *)(buf + done) = ioread16(addr + done);
+		done += 2;
+	}
+	if ((count - done) & 0x1) {
+		*(u8 *)(buf + done) = ioread8(addr + done);
+		done += 1;
+	}
+out:
+	retval = count;
 	spin_unlock(&(image->lock));
 
 	return retval;
@@ -862,15 +907,54 @@ ssize_t ca91cx42_master_read(struct vme_master_resource *image, void *buf,
 ssize_t ca91cx42_master_write(struct vme_master_resource *image, void *buf,
 	size_t count, loff_t offset)
 {
-	int retval = 0;
+	ssize_t retval;
+	void *addr = image->kern_base + offset;
+	unsigned int done = 0;
+	unsigned int count32;
+
+	if (count == 0)
+		return 0;
 
 	spin_lock(&(image->lock));
 
-	memcpy_toio(image->kern_base + offset, buf, (unsigned int)count);
+	/* Here we apply for the same strategy we do in master_read
+	 * function in order to assure D16 cycle when required.
+	 */
+	if ((int)addr & 0x1) {
+		iowrite8(*(u8 *)buf, addr);
+		done += 1;
+		if (done == count)
+			goto out;
+	}
+	if ((int)addr & 0x2) {
+		if ((count - done) < 2) {
+			iowrite8(*(u8 *)(buf + done), addr + done);
+			done += 1;
+			goto out;
+		} else {
+			iowrite16(*(u16 *)(buf + done), addr + done);
+			done += 2;
+		}
+	}
+
+	count32 = (count - done) & ~0x3;
+	if (count32 > 0) {
+		memcpy_toio(addr + done, buf + done, count32);
+		done += count32;
+	}
+
+	if ((count - done) & 0x2) {
+		iowrite16(*(u16 *)(buf + done), addr + done);
+		done += 2;
+	}
+	if ((count - done) & 0x1) {
+		iowrite8(*(u8 *)(buf + done), addr + done);
+		done += 1;
+	}
+out:
 	retval = count;
 
 	spin_unlock(&(image->lock));
-
 	return retval;
 }
 

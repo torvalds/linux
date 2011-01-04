@@ -39,6 +39,18 @@ config KEYS_DEBUG_PROC_KEYS
 
 	  If you are unsure as to whether this is required, answer N.
 
+config SECURITY_DMESG_RESTRICT
+	bool "Restrict unprivileged access to the kernel syslog"
+	default n
+	help
+	  This enforces restrictions on unprivileged users reading the kernel
+	  syslog via dmesg(8).
+
+	  If this option is not selected, no restrictions will be enforced
+	  unless the dmesg_restrict sysctl is explicitly set to (1).
+
+	  If you are unsure how to answer this question, answer N.
+
 config SECURITY
 	bool "Enable different security models"
 	depends on SYSFS

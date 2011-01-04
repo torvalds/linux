@@ -44,6 +44,9 @@ struct mfd_cell {
 	 */
 	int			num_resources;
 	const struct resource	*resources;
+
+	/* don't check for resource conflicts */
+	bool			ignore_resource_conflicts;
 };
 
 extern int mfd_add_devices(struct device *parent, int id,

@@ -101,7 +101,7 @@
 #define AR5416_VER_MASK (eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK)
 #define OLC_FOR_AR9280_20_LATER (AR_SREV_9280_20_OR_LATER(ah) && \
 				 ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
-#define OLC_FOR_AR9287_10_LATER (AR_SREV_9287_10_OR_LATER(ah) && \
+#define OLC_FOR_AR9287_10_LATER (AR_SREV_9287_11_OR_LATER(ah) && \
 				 ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
 
 #define AR_EEPROM_RFSILENT_GPIO_SEL     0x001c
@@ -233,6 +233,18 @@
 
 #define AR9287_CHECKSUM_LOCATION (AR9287_EEP_START_LOC + 1)
 
+#define CTL_EDGE_TPOWER(_ctl) ((_ctl) & 0x3f)
+#define CTL_EDGE_FLAGS(_ctl) (((_ctl) >> 6) & 0x03)
+
+#define LNA_CTL_BUF_MODE	BIT(0)
+#define LNA_CTL_ISEL_LO		BIT(1)
+#define LNA_CTL_ISEL_HI		BIT(2)
+#define LNA_CTL_BUF_IN		BIT(3)
+#define LNA_CTL_FEM_BAND	BIT(4)
+#define LNA_CTL_LOCAL_BIAS	BIT(5)
+#define LNA_CTL_FORCE_XPA	BIT(6)
+#define LNA_CTL_USE_ANT1	BIT(7)
+
 enum eeprom_param {
 	EEP_NFTHRESH_5,
 	EEP_NFTHRESH_2,
@@ -266,6 +278,8 @@ enum eeprom_param {
 	EEP_INTERNAL_REGULATOR,
 	EEP_SWREG,
 	EEP_PAPRD,
+	EEP_MODAL_VER,
+	EEP_ANT_DIV_CTL1,
 };
 
 enum ar5416_rates {
@@ -376,10 +390,7 @@ struct modal_eep_header {
 	u8 xatten2Margin[AR5416_MAX_CHAINS];
 	u8 ob_ch1;
 	u8 db_ch1;
-	u8 useAnt1:1,
-	    force_xpaon:1,
-	    local_bias:1,
-	    femBandSelectUsed:1, xlnabufin:1, xlnaisel:2, xlnabufmode:1;
+	u8 lna_ctl;
 	u8 miscBits;
 	u16 xpaBiasLvlFreq[3];
 	u8 futureModal[6];
@@ -533,18 +544,10 @@ struct cal_target_power_ht {
 	u8 tPow2x[8];
 } __packed;
 
-
-#ifdef __BIG_ENDIAN_BITFIELD
 struct cal_ctl_edges {
 	u8 bChannel;
-	u8 flag:2, tPower:6;
+	u8 ctl;
 } __packed;
-#else
-struct cal_ctl_edges {
-	u8 bChannel;
-	u8 tPower:6, flag:2;
-} __packed;
-#endif
 
 struct cal_data_op_loop_ar9287 {
 	u8 pwrPdg[2][5];
@@ -670,7 +673,8 @@ struct eeprom_ops {
 	bool (*fill_eeprom)(struct ath_hw *hw);
 	int (*get_eeprom_ver)(struct ath_hw *hw);
 	int (*get_eeprom_rev)(struct ath_hw *hw);
-	u8 (*get_num_ant_config)(struct ath_hw *hw, enum ieee80211_band band);
+	u8 (*get_num_ant_config)(struct ath_hw *hw,
+				 enum ath9k_hal_freq_band band);
 	u32 (*get_eeprom_antenna_cfg)(struct ath_hw *hw,
 				      struct ath9k_channel *chan);
 	void (*set_board_values)(struct ath_hw *hw, struct ath9k_channel *chan);

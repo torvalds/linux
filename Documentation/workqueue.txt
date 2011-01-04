@@ -196,11 +196,11 @@ resources, scheduled and executed.
 	suspend operations.  Work items on the wq are drained and no
 	new work item starts execution until thawed.
 
-  WQ_RESCUER
+  WQ_MEM_RECLAIM
 
 	All wq which might be used in the memory reclaim paths _MUST_
-	have this flag set.  This reserves one worker exclusively for
-	the execution of this wq under memory pressure.
+	have this flag set.  The wq is guaranteed to have at least one
+	execution context regardless of memory pressure.
 
   WQ_HIGHPRI
 
@@ -356,11 +356,11 @@ If q1 has WQ_CPU_INTENSIVE set,
 
 6. Guidelines
 
-* Do not forget to use WQ_RESCUER if a wq may process work items which
-  are used during memory reclaim.  Each wq with WQ_RESCUER set has one
-  rescuer thread reserved for it.  If there is dependency among
-  multiple work items used during memory reclaim, they should be
-  queued to separate wq each with WQ_RESCUER.
+* Do not forget to use WQ_MEM_RECLAIM if a wq may process work items
+  which are used during memory reclaim.  Each wq with WQ_MEM_RECLAIM
+  set has an execution context reserved for it.  If there is
+  dependency among multiple work items used during memory reclaim,
+  they should be queued to separate wq each with WQ_MEM_RECLAIM.
 
 * Unless strict ordering is required, there is no need to use ST wq.
 
@@ -368,12 +368,13 @@ If q1 has WQ_CPU_INTENSIVE set,
   recommended.  In most use cases, concurrency level usually stays
   well under the default limit.
 
-* A wq serves as a domain for forward progress guarantee (WQ_RESCUER),
-  flush and work item attributes.  Work items which are not involved
-  in memory reclaim and don't need to be flushed as a part of a group
-  of work items, and don't require any special attribute, can use one
-  of the system wq.  There is no difference in execution
-  characteristics between using a dedicated wq and a system wq.
+* A wq serves as a domain for forward progress guarantee
+  (WQ_MEM_RECLAIM, flush and work item attributes.  Work items which
+  are not involved in memory reclaim and don't need to be flushed as a
+  part of a group of work items, and don't require any special
+  attribute, can use one of the system wq.  There is no difference in
+  execution characteristics between using a dedicated wq and a system
+  wq.
 
 * Unless work items are expected to consume a huge amount of CPU
   cycles, using a bound wq is usually beneficial due to the increased

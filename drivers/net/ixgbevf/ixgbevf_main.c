@@ -308,10 +308,10 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_adapter *adapter,
 	tx_ring->total_bytes += total_bytes;
 	tx_ring->total_packets += total_packets;
 
-	adapter->net_stats.tx_bytes += total_bytes;
-	adapter->net_stats.tx_packets += total_packets;
+	netdev->stats.tx_bytes += total_bytes;
+	netdev->stats.tx_packets += total_packets;
 
-	return (count < tx_ring->work_limit);
+	return count < tx_ring->work_limit;
 }
 
 /**
@@ -356,7 +356,7 @@ static void ixgbevf_receive_skb(struct ixgbevf_q_vector *q_vector,
 static inline void ixgbevf_rx_checksum(struct ixgbevf_adapter *adapter,
 				       u32 status_err, struct sk_buff *skb)
 {
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 
 	/* Rx csum disabled */
 	if (!(adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED))
@@ -639,8 +639,8 @@ next_desc:
 
 	rx_ring->total_packets += total_rx_packets;
 	rx_ring->total_bytes += total_rx_bytes;
-	adapter->net_stats.rx_bytes += total_rx_bytes;
-	adapter->net_stats.rx_packets += total_rx_packets;
+	adapter->netdev->stats.rx_bytes += total_rx_bytes;
+	adapter->netdev->stats.rx_packets += total_rx_packets;
 
 	return cleaned;
 }
@@ -1495,7 +1495,7 @@ static void ixgbevf_restore_vlan(struct ixgbevf_adapter *adapter)
 
 	if (adapter->vlgrp) {
 		u16 vid;
-		for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
+		for (vid = 0; vid < VLAN_N_VID; vid++) {
 			if (!vlan_group_get_device(adapter->vlgrp, vid))
 				continue;
 			ixgbevf_vlan_rx_add_vid(adapter->netdev, vid);
@@ -2297,7 +2297,7 @@ void ixgbevf_update_stats(struct ixgbevf_adapter *adapter)
 				adapter->stats.vfmprc);
 
 	/* Fill out the OS statistics structure */
-	adapter->net_stats.multicast = adapter->stats.vfmprc -
+	adapter->netdev->stats.multicast = adapter->stats.vfmprc -
 		adapter->stats.base_vfmprc;
 }
 
@@ -3134,7 +3134,7 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	tx_ring = &adapter->tx_ring[r_idx];
 
-	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		tx_flags |= vlan_tx_tag_get(skb);
 		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_VLAN;
@@ -3178,21 +3178,6 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	ixgbevf_maybe_stop_tx(netdev, tx_ring, DESC_NEEDED);
 
 	return NETDEV_TX_OK;
-}
-
-/**
- * ixgbevf_get_stats - Get System Network Statistics
- * @netdev: network interface device structure
- *
- * Returns the address of the device statistics structure.
- * The statistics are actually updated from the timer callback.
- **/
-static struct net_device_stats *ixgbevf_get_stats(struct net_device *netdev)
-{
-	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
-
-	/* only return the current stats */
-	return &adapter->net_stats;
 }
 
 /**
@@ -3272,7 +3257,6 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open		= &ixgbevf_open,
 	.ndo_stop		= &ixgbevf_close,
 	.ndo_start_xmit		= &ixgbevf_xmit_frame,
-	.ndo_get_stats		= &ixgbevf_get_stats,
 	.ndo_set_rx_mode	= &ixgbevf_set_rx_mode,
 	.ndo_set_multicast_list	= &ixgbevf_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -3426,7 +3410,7 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	}
 
 	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = &ixgbevf_watchdog;
+	adapter->watchdog_timer.function = ixgbevf_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 
 	INIT_WORK(&adapter->reset_task, ixgbevf_reset_task);

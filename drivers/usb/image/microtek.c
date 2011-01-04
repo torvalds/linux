@@ -364,7 +364,7 @@ static int mts_scsi_host_reset(struct scsi_cmnd *srb)
 }
 
 static int
-mts_scsi_queuecommand(struct scsi_cmnd *srb, mts_scsi_cmnd_callback callback);
+mts_scsi_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *srb);
 
 static void mts_transfer_cleanup( struct urb *transfer );
 static void mts_do_sg(struct urb * transfer);
@@ -398,7 +398,6 @@ void mts_int_submit_urb (struct urb* transfer,
 		context->srb->result = DID_ERROR << 16;
 		mts_transfer_cleanup(transfer);
 	}
-	return;
 }
 
 
@@ -409,7 +408,6 @@ static void mts_transfer_cleanup( struct urb *transfer )
 
 	if ( likely(context->final_callback != NULL) )
 		context->final_callback(context->srb);
-
 }
 
 static void mts_transfer_done( struct urb *transfer )
@@ -420,8 +418,6 @@ static void mts_transfer_done( struct urb *transfer )
 	context->srb->result |= (unsigned)(*context->scsi_status)<<1;
 
 	mts_transfer_cleanup(transfer);
-
-	return;
 }
 
 
@@ -452,8 +448,6 @@ static void mts_data_done( struct urb* transfer )
 	}
 
 	mts_get_status(transfer);
-
-	return;
 }
 
 
@@ -496,8 +490,6 @@ static void mts_command_done( struct urb *transfer )
 			mts_get_status(transfer);
 		}
 	}
-
-	return;
 }
 
 static void mts_do_sg (struct urb* transfer)
@@ -522,7 +514,6 @@ static void mts_do_sg (struct urb* transfer)
 			   sg[context->fragment].length,
 			   context->fragment + 1 == scsi_sg_count(context->srb) ?
 			   mts_data_done : mts_do_sg);
-	return;
 }
 
 static const u8 mts_read_image_sig[] = { 0x28, 00, 00, 00 };
@@ -582,7 +573,7 @@ mts_build_transfer_context(struct scsi_cmnd *srb, struct mts_desc* desc)
 
 
 static int
-mts_scsi_queuecommand(struct scsi_cmnd *srb, mts_scsi_cmnd_callback callback)
+mts_scsi_queuecommand_lck(struct scsi_cmnd *srb, mts_scsi_cmnd_callback callback)
 {
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
 	int err = 0;
@@ -634,6 +625,8 @@ mts_scsi_queuecommand(struct scsi_cmnd *srb, mts_scsi_cmnd_callback callback)
 out:
 	return err;
 }
+
+static DEF_SCSI_QCMD(mts_scsi_queuecommand)
 
 static struct scsi_host_template mts_scsi_host_template = {
 	.module			= THIS_MODULE,

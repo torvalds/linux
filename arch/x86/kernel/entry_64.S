@@ -295,6 +295,7 @@ ENDPROC(native_usergs_sysret64)
 	.endm
 
 /* save partial stack frame */
+	.pushsection .kprobes.text, "ax"
 ENTRY(save_args)
 	XCPT_FRAME
 	cld
@@ -334,6 +335,7 @@ ENTRY(save_args)
 	ret
 	CFI_ENDPROC
 END(save_args)
+	.popsection
 
 ENTRY(save_rest)
 	PARTIAL_FRAME 1 REST_SKIP+8
@@ -963,22 +965,10 @@ apicinterrupt X86_PLATFORM_IPI_VECTOR \
 	x86_platform_ipi smp_x86_platform_ipi
 
 #ifdef CONFIG_SMP
-apicinterrupt INVALIDATE_TLB_VECTOR_START+0 \
-	invalidate_interrupt0 smp_invalidate_interrupt
-apicinterrupt INVALIDATE_TLB_VECTOR_START+1 \
-	invalidate_interrupt1 smp_invalidate_interrupt
-apicinterrupt INVALIDATE_TLB_VECTOR_START+2 \
-	invalidate_interrupt2 smp_invalidate_interrupt
-apicinterrupt INVALIDATE_TLB_VECTOR_START+3 \
-	invalidate_interrupt3 smp_invalidate_interrupt
-apicinterrupt INVALIDATE_TLB_VECTOR_START+4 \
-	invalidate_interrupt4 smp_invalidate_interrupt
-apicinterrupt INVALIDATE_TLB_VECTOR_START+5 \
-	invalidate_interrupt5 smp_invalidate_interrupt
-apicinterrupt INVALIDATE_TLB_VECTOR_START+6 \
-	invalidate_interrupt6 smp_invalidate_interrupt
-apicinterrupt INVALIDATE_TLB_VECTOR_START+7 \
-	invalidate_interrupt7 smp_invalidate_interrupt
+.irpc idx, "01234567"
+apicinterrupt (INVALIDATE_TLB_VECTOR_START)+\idx \
+	invalidate_interrupt\idx smp_invalidate_interrupt
+.endr
 #endif
 
 apicinterrupt THRESHOLD_APIC_VECTOR \

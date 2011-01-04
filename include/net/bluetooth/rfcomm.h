@@ -213,11 +213,6 @@ struct rfcomm_dlc {
 #define RFCOMM_DEFER_SETUP  8
 
 /* Scheduling flags and events */
-#define RFCOMM_SCHED_STATE  0
-#define RFCOMM_SCHED_RX     1
-#define RFCOMM_SCHED_TX     2
-#define RFCOMM_SCHED_TIMEO  3
-#define RFCOMM_SCHED_AUTH   4
 #define RFCOMM_SCHED_WAKEUP 31
 
 /* MSC exchange flags */

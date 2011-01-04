@@ -73,8 +73,6 @@ typedef	__int32_t	xfs_tid_t;	/* transaction identifier */
 typedef	__uint32_t	xfs_dablk_t;	/* dir/attr block number (in file) */
 typedef	__uint32_t	xfs_dahash_t;	/* dir/attr hash value */
 
-typedef __uint16_t	xfs_prid_t;	/* prid_t truncated to 16bits in XFS */
-
 typedef __uint32_t	xlog_tid_t;	/* transaction ID type */
 
 /*

@@ -786,7 +786,6 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 {
 	struct inode *dir;
 	int ret;
-	struct btrfs_key location;
 	struct btrfs_inode_ref *ref;
 	struct btrfs_dir_item *di;
 	struct inode *inode;
@@ -794,10 +793,6 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 	int namelen;
 	unsigned long ref_ptr;
 	unsigned long ref_end;
-
-	location.objectid = key->objectid;
-	location.type = BTRFS_INODE_ITEM_KEY;
-	location.offset = 0;
 
 	/*
 	 * it is possible that we didn't log all the parent directories
@@ -1583,7 +1578,6 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 	struct btrfs_path *path;
 	struct btrfs_root *root = wc->replay_dest;
 	struct btrfs_key key;
-	u32 item_size;
 	int level;
 	int i;
 	int ret;
@@ -1601,7 +1595,6 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 	nritems = btrfs_header_nritems(eb);
 	for (i = 0; i < nritems; i++) {
 		btrfs_item_key_to_cpu(eb, &key, i);
-		item_size = btrfs_item_size_nr(eb, i);
 
 		/* inode keys are done during the first stage */
 		if (key.type == BTRFS_INODE_ITEM_KEY &&
@@ -1668,7 +1661,6 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 				   struct walk_control *wc)
 {
 	u64 root_owner;
-	u64 root_gen;
 	u64 bytenr;
 	u64 ptr_gen;
 	struct extent_buffer *next;
@@ -1698,7 +1690,6 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 
 		parent = path->nodes[*level];
 		root_owner = btrfs_header_owner(parent);
-		root_gen = btrfs_header_generation(parent);
 
 		next = btrfs_find_create_tree_block(root, bytenr, blocksize);
 
@@ -1749,7 +1740,6 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 				 struct walk_control *wc)
 {
 	u64 root_owner;
-	u64 root_gen;
 	int i;
 	int slot;
 	int ret;
@@ -1757,8 +1747,6 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 	for (i = *level; i < BTRFS_MAX_LEVEL - 1 && path->nodes[i]; i++) {
 		slot = path->slots[i];
 		if (slot + 1 < btrfs_header_nritems(path->nodes[i])) {
-			struct extent_buffer *node;
-			node = path->nodes[i];
 			path->slots[i]++;
 			*level = i;
 			WARN_ON(*level == 0);
@@ -1771,7 +1759,6 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 				parent = path->nodes[*level + 1];
 
 			root_owner = btrfs_header_owner(parent);
-			root_gen = btrfs_header_generation(parent);
 			wc->process_func(root, path->nodes[*level], wc,
 				 btrfs_header_generation(path->nodes[*level]));
 			if (wc->free) {
@@ -2273,7 +2260,7 @@ fail:
 	}
 	btrfs_end_log_trans(root);
 
-	return 0;
+	return err;
 }
 
 /* see comments for btrfs_del_dir_entries_in_log */
@@ -2729,7 +2716,6 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	struct btrfs_key max_key;
 	struct btrfs_root *log = root->log_root;
 	struct extent_buffer *src = NULL;
-	u32 size;
 	int err = 0;
 	int ret;
 	int nritems;
@@ -2793,7 +2779,6 @@ again:
 			break;
 
 		src = path->nodes[0];
-		size = btrfs_item_size_nr(src, path->slots[0]);
 		if (ins_nr && ins_start_slot + ins_nr == path->slots[0]) {
 			ins_nr++;
 			goto next_slot;
@@ -2884,6 +2869,7 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 {
 	int ret = 0;
 	struct btrfs_root *root;
+	struct dentry *old_parent = NULL;
 
 	/*
 	 * for regular files, if its inode is already on disk, we don't
@@ -2925,10 +2911,13 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 		if (IS_ROOT(parent))
 			break;
 
-		parent = parent->d_parent;
+		parent = dget_parent(parent);
+		dput(old_parent);
+		old_parent = parent;
 		inode = parent->d_inode;
 
 	}
+	dput(old_parent);
 out:
 	return ret;
 }
@@ -2960,6 +2949,7 @@ int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 {
 	int inode_only = exists_only ? LOG_INODE_EXISTS : LOG_INODE_ALL;
 	struct super_block *sb;
+	struct dentry *old_parent = NULL;
 	int ret = 0;
 	u64 last_committed = root->fs_info->last_trans_committed;
 
@@ -3031,10 +3021,13 @@ int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		if (IS_ROOT(parent))
 			break;
 
-		parent = parent->d_parent;
+		parent = dget_parent(parent);
+		dput(old_parent);
+		old_parent = parent;
 	}
 	ret = 0;
 end_trans:
+	dput(old_parent);
 	if (ret < 0) {
 		BUG_ON(ret != -ENOSPC);
 		root->fs_info->last_trans_log_full_commit = trans->transid;
@@ -3054,8 +3047,13 @@ end_no_trans:
 int btrfs_log_dentry_safe(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root, struct dentry *dentry)
 {
-	return btrfs_log_inode_parent(trans, root, dentry->d_inode,
-				      dentry->d_parent, 0);
+	struct dentry *parent = dget_parent(dentry);
+	int ret;
+
+	ret = btrfs_log_inode_parent(trans, root, dentry->d_inode, parent, 0);
+	dput(parent);
+
+	return ret;
 }
 
 /*

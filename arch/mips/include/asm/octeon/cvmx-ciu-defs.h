@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2008 Cavium Networks
+ * Copyright (c) 2003-2010 Cavium Networks
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -28,87 +28,61 @@
 #ifndef __CVMX_CIU_DEFS_H__
 #define __CVMX_CIU_DEFS_H__
 
-#define CVMX_CIU_BIST \
-	 CVMX_ADD_IO_SEG(0x0001070000000730ull)
-#define CVMX_CIU_DINT \
-	 CVMX_ADD_IO_SEG(0x0001070000000720ull)
-#define CVMX_CIU_FUSE \
-	 CVMX_ADD_IO_SEG(0x0001070000000728ull)
-#define CVMX_CIU_GSTOP \
-	 CVMX_ADD_IO_SEG(0x0001070000000710ull)
-#define CVMX_CIU_INTX_EN0(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000000200ull + (((offset) & 63) * 16))
-#define CVMX_CIU_INTX_EN0_W1C(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000002200ull + (((offset) & 63) * 16))
-#define CVMX_CIU_INTX_EN0_W1S(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000006200ull + (((offset) & 63) * 16))
-#define CVMX_CIU_INTX_EN1(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000000208ull + (((offset) & 63) * 16))
-#define CVMX_CIU_INTX_EN1_W1C(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000002208ull + (((offset) & 63) * 16))
-#define CVMX_CIU_INTX_EN1_W1S(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000006208ull + (((offset) & 63) * 16))
-#define CVMX_CIU_INTX_EN4_0(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000000C80ull + (((offset) & 15) * 16))
-#define CVMX_CIU_INTX_EN4_0_W1C(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000002C80ull + (((offset) & 15) * 16))
-#define CVMX_CIU_INTX_EN4_0_W1S(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000006C80ull + (((offset) & 15) * 16))
-#define CVMX_CIU_INTX_EN4_1(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000000C88ull + (((offset) & 15) * 16))
-#define CVMX_CIU_INTX_EN4_1_W1C(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000002C88ull + (((offset) & 15) * 16))
-#define CVMX_CIU_INTX_EN4_1_W1S(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000006C88ull + (((offset) & 15) * 16))
-#define CVMX_CIU_INTX_SUM0(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000000000ull + (((offset) & 63) * 8))
-#define CVMX_CIU_INTX_SUM4(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000000C00ull + (((offset) & 15) * 8))
-#define CVMX_CIU_INT_SUM1 \
-	 CVMX_ADD_IO_SEG(0x0001070000000108ull)
-#define CVMX_CIU_MBOX_CLRX(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000000680ull + (((offset) & 15) * 8))
-#define CVMX_CIU_MBOX_SETX(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000000600ull + (((offset) & 15) * 8))
-#define CVMX_CIU_NMI \
-	 CVMX_ADD_IO_SEG(0x0001070000000718ull)
-#define CVMX_CIU_PCI_INTA \
-	 CVMX_ADD_IO_SEG(0x0001070000000750ull)
-#define CVMX_CIU_PP_DBG \
-	 CVMX_ADD_IO_SEG(0x0001070000000708ull)
-#define CVMX_CIU_PP_POKEX(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000000580ull + (((offset) & 15) * 8))
-#define CVMX_CIU_PP_RST \
-	 CVMX_ADD_IO_SEG(0x0001070000000700ull)
-#define CVMX_CIU_QLM_DCOK \
-	 CVMX_ADD_IO_SEG(0x0001070000000760ull)
-#define CVMX_CIU_QLM_JTGC \
-	 CVMX_ADD_IO_SEG(0x0001070000000768ull)
-#define CVMX_CIU_QLM_JTGD \
-	 CVMX_ADD_IO_SEG(0x0001070000000770ull)
-#define CVMX_CIU_SOFT_BIST \
-	 CVMX_ADD_IO_SEG(0x0001070000000738ull)
-#define CVMX_CIU_SOFT_PRST \
-	 CVMX_ADD_IO_SEG(0x0001070000000748ull)
-#define CVMX_CIU_SOFT_PRST1 \
-	 CVMX_ADD_IO_SEG(0x0001070000000758ull)
-#define CVMX_CIU_SOFT_RST \
-	 CVMX_ADD_IO_SEG(0x0001070000000740ull)
-#define CVMX_CIU_TIMX(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000000480ull + (((offset) & 3) * 8))
-#define CVMX_CIU_WDOGX(offset) \
-	 CVMX_ADD_IO_SEG(0x0001070000000500ull + (((offset) & 15) * 8))
+#define CVMX_CIU_BIST (CVMX_ADD_IO_SEG(0x0001070000000730ull))
+#define CVMX_CIU_BLOCK_INT (CVMX_ADD_IO_SEG(0x00010700000007C0ull))
+#define CVMX_CIU_DINT (CVMX_ADD_IO_SEG(0x0001070000000720ull))
+#define CVMX_CIU_FUSE (CVMX_ADD_IO_SEG(0x0001070000000728ull))
+#define CVMX_CIU_GSTOP (CVMX_ADD_IO_SEG(0x0001070000000710ull))
+#define CVMX_CIU_INT33_SUM0 (CVMX_ADD_IO_SEG(0x0001070000000110ull))
+#define CVMX_CIU_INTX_EN0(offset) (CVMX_ADD_IO_SEG(0x0001070000000200ull) + ((offset) & 63) * 16)
+#define CVMX_CIU_INTX_EN0_W1C(offset) (CVMX_ADD_IO_SEG(0x0001070000002200ull) + ((offset) & 63) * 16)
+#define CVMX_CIU_INTX_EN0_W1S(offset) (CVMX_ADD_IO_SEG(0x0001070000006200ull) + ((offset) & 63) * 16)
+#define CVMX_CIU_INTX_EN1(offset) (CVMX_ADD_IO_SEG(0x0001070000000208ull) + ((offset) & 63) * 16)
+#define CVMX_CIU_INTX_EN1_W1C(offset) (CVMX_ADD_IO_SEG(0x0001070000002208ull) + ((offset) & 63) * 16)
+#define CVMX_CIU_INTX_EN1_W1S(offset) (CVMX_ADD_IO_SEG(0x0001070000006208ull) + ((offset) & 63) * 16)
+#define CVMX_CIU_INTX_EN4_0(offset) (CVMX_ADD_IO_SEG(0x0001070000000C80ull) + ((offset) & 15) * 16)
+#define CVMX_CIU_INTX_EN4_0_W1C(offset) (CVMX_ADD_IO_SEG(0x0001070000002C80ull) + ((offset) & 15) * 16)
+#define CVMX_CIU_INTX_EN4_0_W1S(offset) (CVMX_ADD_IO_SEG(0x0001070000006C80ull) + ((offset) & 15) * 16)
+#define CVMX_CIU_INTX_EN4_1(offset) (CVMX_ADD_IO_SEG(0x0001070000000C88ull) + ((offset) & 15) * 16)
+#define CVMX_CIU_INTX_EN4_1_W1C(offset) (CVMX_ADD_IO_SEG(0x0001070000002C88ull) + ((offset) & 15) * 16)
+#define CVMX_CIU_INTX_EN4_1_W1S(offset) (CVMX_ADD_IO_SEG(0x0001070000006C88ull) + ((offset) & 15) * 16)
+#define CVMX_CIU_INTX_SUM0(offset) (CVMX_ADD_IO_SEG(0x0001070000000000ull) + ((offset) & 63) * 8)
+#define CVMX_CIU_INTX_SUM4(offset) (CVMX_ADD_IO_SEG(0x0001070000000C00ull) + ((offset) & 15) * 8)
+#define CVMX_CIU_INT_DBG_SEL (CVMX_ADD_IO_SEG(0x00010700000007D0ull))
+#define CVMX_CIU_INT_SUM1 (CVMX_ADD_IO_SEG(0x0001070000000108ull))
+#define CVMX_CIU_MBOX_CLRX(offset) (CVMX_ADD_IO_SEG(0x0001070000000680ull) + ((offset) & 15) * 8)
+#define CVMX_CIU_MBOX_SETX(offset) (CVMX_ADD_IO_SEG(0x0001070000000600ull) + ((offset) & 15) * 8)
+#define CVMX_CIU_NMI (CVMX_ADD_IO_SEG(0x0001070000000718ull))
+#define CVMX_CIU_PCI_INTA (CVMX_ADD_IO_SEG(0x0001070000000750ull))
+#define CVMX_CIU_PP_DBG (CVMX_ADD_IO_SEG(0x0001070000000708ull))
+#define CVMX_CIU_PP_POKEX(offset) (CVMX_ADD_IO_SEG(0x0001070000000580ull) + ((offset) & 15) * 8)
+#define CVMX_CIU_PP_RST (CVMX_ADD_IO_SEG(0x0001070000000700ull))
+#define CVMX_CIU_QLM0 (CVMX_ADD_IO_SEG(0x0001070000000780ull))
+#define CVMX_CIU_QLM1 (CVMX_ADD_IO_SEG(0x0001070000000788ull))
+#define CVMX_CIU_QLM2 (CVMX_ADD_IO_SEG(0x0001070000000790ull))
+#define CVMX_CIU_QLM_DCOK (CVMX_ADD_IO_SEG(0x0001070000000760ull))
+#define CVMX_CIU_QLM_JTGC (CVMX_ADD_IO_SEG(0x0001070000000768ull))
+#define CVMX_CIU_QLM_JTGD (CVMX_ADD_IO_SEG(0x0001070000000770ull))
+#define CVMX_CIU_SOFT_BIST (CVMX_ADD_IO_SEG(0x0001070000000738ull))
+#define CVMX_CIU_SOFT_PRST (CVMX_ADD_IO_SEG(0x0001070000000748ull))
+#define CVMX_CIU_SOFT_PRST1 (CVMX_ADD_IO_SEG(0x0001070000000758ull))
+#define CVMX_CIU_SOFT_RST (CVMX_ADD_IO_SEG(0x0001070000000740ull))
+#define CVMX_CIU_TIMX(offset) (CVMX_ADD_IO_SEG(0x0001070000000480ull) + ((offset) & 3) * 8)
+#define CVMX_CIU_WDOGX(offset) (CVMX_ADD_IO_SEG(0x0001070000000500ull) + ((offset) & 15) * 8)
 
 union cvmx_ciu_bist {
 	uint64_t u64;
 	struct cvmx_ciu_bist_s {
+		uint64_t reserved_5_63:59;
+		uint64_t bist:5;
+	} s;
+	struct cvmx_ciu_bist_cn30xx {
 		uint64_t reserved_4_63:60;
 		uint64_t bist:4;
-	} s;
-	struct cvmx_ciu_bist_s cn30xx;
-	struct cvmx_ciu_bist_s cn31xx;
-	struct cvmx_ciu_bist_s cn38xx;
-	struct cvmx_ciu_bist_s cn38xxp2;
+	} cn30xx;
+	struct cvmx_ciu_bist_cn30xx cn31xx;
+	struct cvmx_ciu_bist_cn30xx cn38xx;
+	struct cvmx_ciu_bist_cn30xx cn38xxp2;
 	struct cvmx_ciu_bist_cn50xx {
 		uint64_t reserved_2_63:62;
 		uint64_t bist:2;
@@ -118,10 +92,57 @@ union cvmx_ciu_bist {
 		uint64_t bist:3;
 	} cn52xx;
 	struct cvmx_ciu_bist_cn52xx cn52xxp1;
-	struct cvmx_ciu_bist_s cn56xx;
-	struct cvmx_ciu_bist_s cn56xxp1;
-	struct cvmx_ciu_bist_s cn58xx;
-	struct cvmx_ciu_bist_s cn58xxp1;
+	struct cvmx_ciu_bist_cn30xx cn56xx;
+	struct cvmx_ciu_bist_cn30xx cn56xxp1;
+	struct cvmx_ciu_bist_cn30xx cn58xx;
+	struct cvmx_ciu_bist_cn30xx cn58xxp1;
+	struct cvmx_ciu_bist_s cn63xx;
+	struct cvmx_ciu_bist_s cn63xxp1;
+};
+
+union cvmx_ciu_block_int {
+	uint64_t u64;
+	struct cvmx_ciu_block_int_s {
+		uint64_t reserved_43_63:21;
+		uint64_t ptp:1;
+		uint64_t dpi:1;
+		uint64_t dfm:1;
+		uint64_t reserved_34_39:6;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t reserved_31_31:1;
+		uint64_t iob:1;
+		uint64_t reserved_29_29:1;
+		uint64_t agl:1;
+		uint64_t reserved_27_27:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t reserved_23_24:2;
+		uint64_t asxpcs0:1;
+		uint64_t reserved_21_21:1;
+		uint64_t pip:1;
+		uint64_t reserved_18_19:2;
+		uint64_t lmc0:1;
+		uint64_t l2c:1;
+		uint64_t reserved_15_15:1;
+		uint64_t rad:1;
+		uint64_t usb:1;
+		uint64_t pow:1;
+		uint64_t tim:1;
+		uint64_t pko:1;
+		uint64_t ipd:1;
+		uint64_t reserved_8_8:1;
+		uint64_t zip:1;
+		uint64_t dfa:1;
+		uint64_t fpa:1;
+		uint64_t key:1;
+		uint64_t sli:1;
+		uint64_t reserved_2_2:1;
+		uint64_t gmx0:1;
+		uint64_t mio:1;
+	} s;
+	struct cvmx_ciu_block_int_s cn63xx;
+	struct cvmx_ciu_block_int_s cn63xxp1;
 };
 
 union cvmx_ciu_dint {
@@ -153,6 +174,11 @@ union cvmx_ciu_dint {
 	struct cvmx_ciu_dint_cn56xx cn56xxp1;
 	struct cvmx_ciu_dint_s cn58xx;
 	struct cvmx_ciu_dint_s cn58xxp1;
+	struct cvmx_ciu_dint_cn63xx {
+		uint64_t reserved_6_63:58;
+		uint64_t dint:6;
+	} cn63xx;
+	struct cvmx_ciu_dint_cn63xx cn63xxp1;
 };
 
 union cvmx_ciu_fuse {
@@ -184,6 +210,11 @@ union cvmx_ciu_fuse {
 	struct cvmx_ciu_fuse_cn56xx cn56xxp1;
 	struct cvmx_ciu_fuse_s cn58xx;
 	struct cvmx_ciu_fuse_s cn58xxp1;
+	struct cvmx_ciu_fuse_cn63xx {
+		uint64_t reserved_6_63:58;
+		uint64_t fuse:6;
+	} cn63xx;
+	struct cvmx_ciu_fuse_cn63xx cn63xxp1;
 };
 
 union cvmx_ciu_gstop {
@@ -203,6 +234,8 @@ union cvmx_ciu_gstop {
 	struct cvmx_ciu_gstop_s cn56xxp1;
 	struct cvmx_ciu_gstop_s cn58xx;
 	struct cvmx_ciu_gstop_s cn58xxp1;
+	struct cvmx_ciu_gstop_s cn63xx;
+	struct cvmx_ciu_gstop_s cn63xxp1;
 };
 
 union cvmx_ciu_intx_en0 {
@@ -343,6 +376,8 @@ union cvmx_ciu_intx_en0 {
 	struct cvmx_ciu_intx_en0_cn56xx cn56xxp1;
 	struct cvmx_ciu_intx_en0_cn38xx cn58xx;
 	struct cvmx_ciu_intx_en0_cn38xx cn58xxp1;
+	struct cvmx_ciu_intx_en0_cn52xx cn63xx;
+	struct cvmx_ciu_intx_en0_cn52xx cn63xxp1;
 };
 
 union cvmx_ciu_intx_en0_w1c {
@@ -412,6 +447,8 @@ union cvmx_ciu_intx_en0_w1c {
 		uint64_t gpio:16;
 		uint64_t workq:16;
 	} cn58xx;
+	struct cvmx_ciu_intx_en0_w1c_cn52xx cn63xx;
+	struct cvmx_ciu_intx_en0_w1c_cn52xx cn63xxp1;
 };
 
 union cvmx_ciu_intx_en0_w1s {
@@ -481,12 +518,42 @@ union cvmx_ciu_intx_en0_w1s {
 		uint64_t gpio:16;
 		uint64_t workq:16;
 	} cn58xx;
+	struct cvmx_ciu_intx_en0_w1s_cn52xx cn63xx;
+	struct cvmx_ciu_intx_en0_w1s_cn52xx cn63xxp1;
 };
 
 union cvmx_ciu_intx_en1 {
 	uint64_t u64;
 	struct cvmx_ciu_intx_en1_s {
-		uint64_t reserved_20_63:44;
+		uint64_t rst:1;
+		uint64_t reserved_57_62:6;
+		uint64_t dfm:1;
+		uint64_t reserved_53_55:3;
+		uint64_t lmc0:1;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t ptp:1;
+		uint64_t agl:1;
+		uint64_t reserved_37_45:9;
+		uint64_t agx0:1;
+		uint64_t dpi:1;
+		uint64_t sli:1;
+		uint64_t usb:1;
+		uint64_t dfa:1;
+		uint64_t key:1;
+		uint64_t rad:1;
+		uint64_t tim:1;
+		uint64_t zip:1;
+		uint64_t pko:1;
+		uint64_t pip:1;
+		uint64_t ipd:1;
+		uint64_t l2c:1;
+		uint64_t pow:1;
+		uint64_t fpa:1;
+		uint64_t iob:1;
+		uint64_t mio:1;
 		uint64_t nand:1;
 		uint64_t mii1:1;
 		uint64_t usb1:1;
@@ -531,12 +598,76 @@ union cvmx_ciu_intx_en1 {
 	struct cvmx_ciu_intx_en1_cn56xx cn56xxp1;
 	struct cvmx_ciu_intx_en1_cn38xx cn58xx;
 	struct cvmx_ciu_intx_en1_cn38xx cn58xxp1;
+	struct cvmx_ciu_intx_en1_cn63xx {
+		uint64_t rst:1;
+		uint64_t reserved_57_62:6;
+		uint64_t dfm:1;
+		uint64_t reserved_53_55:3;
+		uint64_t lmc0:1;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t ptp:1;
+		uint64_t agl:1;
+		uint64_t reserved_37_45:9;
+		uint64_t agx0:1;
+		uint64_t dpi:1;
+		uint64_t sli:1;
+		uint64_t usb:1;
+		uint64_t dfa:1;
+		uint64_t key:1;
+		uint64_t rad:1;
+		uint64_t tim:1;
+		uint64_t zip:1;
+		uint64_t pko:1;
+		uint64_t pip:1;
+		uint64_t ipd:1;
+		uint64_t l2c:1;
+		uint64_t pow:1;
+		uint64_t fpa:1;
+		uint64_t iob:1;
+		uint64_t mio:1;
+		uint64_t nand:1;
+		uint64_t mii1:1;
+		uint64_t reserved_6_17:12;
+		uint64_t wdog:6;
+	} cn63xx;
+	struct cvmx_ciu_intx_en1_cn63xx cn63xxp1;
 };
 
 union cvmx_ciu_intx_en1_w1c {
 	uint64_t u64;
 	struct cvmx_ciu_intx_en1_w1c_s {
-		uint64_t reserved_20_63:44;
+		uint64_t rst:1;
+		uint64_t reserved_57_62:6;
+		uint64_t dfm:1;
+		uint64_t reserved_53_55:3;
+		uint64_t lmc0:1;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t ptp:1;
+		uint64_t agl:1;
+		uint64_t reserved_37_45:9;
+		uint64_t agx0:1;
+		uint64_t dpi:1;
+		uint64_t sli:1;
+		uint64_t usb:1;
+		uint64_t dfa:1;
+		uint64_t key:1;
+		uint64_t rad:1;
+		uint64_t tim:1;
+		uint64_t zip:1;
+		uint64_t pko:1;
+		uint64_t pip:1;
+		uint64_t ipd:1;
+		uint64_t l2c:1;
+		uint64_t pow:1;
+		uint64_t fpa:1;
+		uint64_t iob:1;
+		uint64_t mio:1;
 		uint64_t nand:1;
 		uint64_t mii1:1;
 		uint64_t usb1:1;
@@ -560,12 +691,76 @@ union cvmx_ciu_intx_en1_w1c {
 		uint64_t reserved_16_63:48;
 		uint64_t wdog:16;
 	} cn58xx;
+	struct cvmx_ciu_intx_en1_w1c_cn63xx {
+		uint64_t rst:1;
+		uint64_t reserved_57_62:6;
+		uint64_t dfm:1;
+		uint64_t reserved_53_55:3;
+		uint64_t lmc0:1;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t ptp:1;
+		uint64_t agl:1;
+		uint64_t reserved_37_45:9;
+		uint64_t agx0:1;
+		uint64_t dpi:1;
+		uint64_t sli:1;
+		uint64_t usb:1;
+		uint64_t dfa:1;
+		uint64_t key:1;
+		uint64_t rad:1;
+		uint64_t tim:1;
+		uint64_t zip:1;
+		uint64_t pko:1;
+		uint64_t pip:1;
+		uint64_t ipd:1;
+		uint64_t l2c:1;
+		uint64_t pow:1;
+		uint64_t fpa:1;
+		uint64_t iob:1;
+		uint64_t mio:1;
+		uint64_t nand:1;
+		uint64_t mii1:1;
+		uint64_t reserved_6_17:12;
+		uint64_t wdog:6;
+	} cn63xx;
+	struct cvmx_ciu_intx_en1_w1c_cn63xx cn63xxp1;
 };
 
 union cvmx_ciu_intx_en1_w1s {
 	uint64_t u64;
 	struct cvmx_ciu_intx_en1_w1s_s {
-		uint64_t reserved_20_63:44;
+		uint64_t rst:1;
+		uint64_t reserved_57_62:6;
+		uint64_t dfm:1;
+		uint64_t reserved_53_55:3;
+		uint64_t lmc0:1;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t ptp:1;
+		uint64_t agl:1;
+		uint64_t reserved_37_45:9;
+		uint64_t agx0:1;
+		uint64_t dpi:1;
+		uint64_t sli:1;
+		uint64_t usb:1;
+		uint64_t dfa:1;
+		uint64_t key:1;
+		uint64_t rad:1;
+		uint64_t tim:1;
+		uint64_t zip:1;
+		uint64_t pko:1;
+		uint64_t pip:1;
+		uint64_t ipd:1;
+		uint64_t l2c:1;
+		uint64_t pow:1;
+		uint64_t fpa:1;
+		uint64_t iob:1;
+		uint64_t mio:1;
 		uint64_t nand:1;
 		uint64_t mii1:1;
 		uint64_t usb1:1;
@@ -589,6 +784,42 @@ union cvmx_ciu_intx_en1_w1s {
 		uint64_t reserved_16_63:48;
 		uint64_t wdog:16;
 	} cn58xx;
+	struct cvmx_ciu_intx_en1_w1s_cn63xx {
+		uint64_t rst:1;
+		uint64_t reserved_57_62:6;
+		uint64_t dfm:1;
+		uint64_t reserved_53_55:3;
+		uint64_t lmc0:1;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t ptp:1;
+		uint64_t agl:1;
+		uint64_t reserved_37_45:9;
+		uint64_t agx0:1;
+		uint64_t dpi:1;
+		uint64_t sli:1;
+		uint64_t usb:1;
+		uint64_t dfa:1;
+		uint64_t key:1;
+		uint64_t rad:1;
+		uint64_t tim:1;
+		uint64_t zip:1;
+		uint64_t pko:1;
+		uint64_t pip:1;
+		uint64_t ipd:1;
+		uint64_t l2c:1;
+		uint64_t pow:1;
+		uint64_t fpa:1;
+		uint64_t iob:1;
+		uint64_t mio:1;
+		uint64_t nand:1;
+		uint64_t mii1:1;
+		uint64_t reserved_6_17:12;
+		uint64_t wdog:6;
+	} cn63xx;
+	struct cvmx_ciu_intx_en1_w1s_cn63xx cn63xxp1;
 };
 
 union cvmx_ciu_intx_en4_0 {
@@ -705,6 +936,8 @@ union cvmx_ciu_intx_en4_0 {
 		uint64_t workq:16;
 	} cn58xx;
 	struct cvmx_ciu_intx_en4_0_cn58xx cn58xxp1;
+	struct cvmx_ciu_intx_en4_0_cn52xx cn63xx;
+	struct cvmx_ciu_intx_en4_0_cn52xx cn63xxp1;
 };
 
 union cvmx_ciu_intx_en4_0_w1c {
@@ -774,6 +1007,8 @@ union cvmx_ciu_intx_en4_0_w1c {
 		uint64_t gpio:16;
 		uint64_t workq:16;
 	} cn58xx;
+	struct cvmx_ciu_intx_en4_0_w1c_cn52xx cn63xx;
+	struct cvmx_ciu_intx_en4_0_w1c_cn52xx cn63xxp1;
 };
 
 union cvmx_ciu_intx_en4_0_w1s {
@@ -843,12 +1078,42 @@ union cvmx_ciu_intx_en4_0_w1s {
 		uint64_t gpio:16;
 		uint64_t workq:16;
 	} cn58xx;
+	struct cvmx_ciu_intx_en4_0_w1s_cn52xx cn63xx;
+	struct cvmx_ciu_intx_en4_0_w1s_cn52xx cn63xxp1;
 };
 
 union cvmx_ciu_intx_en4_1 {
 	uint64_t u64;
 	struct cvmx_ciu_intx_en4_1_s {
-		uint64_t reserved_20_63:44;
+		uint64_t rst:1;
+		uint64_t reserved_57_62:6;
+		uint64_t dfm:1;
+		uint64_t reserved_53_55:3;
+		uint64_t lmc0:1;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t ptp:1;
+		uint64_t agl:1;
+		uint64_t reserved_37_45:9;
+		uint64_t agx0:1;
+		uint64_t dpi:1;
+		uint64_t sli:1;
+		uint64_t usb:1;
+		uint64_t dfa:1;
+		uint64_t key:1;
+		uint64_t rad:1;
+		uint64_t tim:1;
+		uint64_t zip:1;
+		uint64_t pko:1;
+		uint64_t pip:1;
+		uint64_t ipd:1;
+		uint64_t l2c:1;
+		uint64_t pow:1;
+		uint64_t fpa:1;
+		uint64_t iob:1;
+		uint64_t mio:1;
 		uint64_t nand:1;
 		uint64_t mii1:1;
 		uint64_t usb1:1;
@@ -886,12 +1151,76 @@ union cvmx_ciu_intx_en4_1 {
 		uint64_t wdog:16;
 	} cn58xx;
 	struct cvmx_ciu_intx_en4_1_cn58xx cn58xxp1;
+	struct cvmx_ciu_intx_en4_1_cn63xx {
+		uint64_t rst:1;
+		uint64_t reserved_57_62:6;
+		uint64_t dfm:1;
+		uint64_t reserved_53_55:3;
+		uint64_t lmc0:1;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t ptp:1;
+		uint64_t agl:1;
+		uint64_t reserved_37_45:9;
+		uint64_t agx0:1;
+		uint64_t dpi:1;
+		uint64_t sli:1;
+		uint64_t usb:1;
+		uint64_t dfa:1;
+		uint64_t key:1;
+		uint64_t rad:1;
+		uint64_t tim:1;
+		uint64_t zip:1;
+		uint64_t pko:1;
+		uint64_t pip:1;
+		uint64_t ipd:1;
+		uint64_t l2c:1;
+		uint64_t pow:1;
+		uint64_t fpa:1;
+		uint64_t iob:1;
+		uint64_t mio:1;
+		uint64_t nand:1;
+		uint64_t mii1:1;
+		uint64_t reserved_6_17:12;
+		uint64_t wdog:6;
+	} cn63xx;
+	struct cvmx_ciu_intx_en4_1_cn63xx cn63xxp1;
 };
 
 union cvmx_ciu_intx_en4_1_w1c {
 	uint64_t u64;
 	struct cvmx_ciu_intx_en4_1_w1c_s {
-		uint64_t reserved_20_63:44;
+		uint64_t rst:1;
+		uint64_t reserved_57_62:6;
+		uint64_t dfm:1;
+		uint64_t reserved_53_55:3;
+		uint64_t lmc0:1;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t ptp:1;
+		uint64_t agl:1;
+		uint64_t reserved_37_45:9;
+		uint64_t agx0:1;
+		uint64_t dpi:1;
+		uint64_t sli:1;
+		uint64_t usb:1;
+		uint64_t dfa:1;
+		uint64_t key:1;
+		uint64_t rad:1;
+		uint64_t tim:1;
+		uint64_t zip:1;
+		uint64_t pko:1;
+		uint64_t pip:1;
+		uint64_t ipd:1;
+		uint64_t l2c:1;
+		uint64_t pow:1;
+		uint64_t fpa:1;
+		uint64_t iob:1;
+		uint64_t mio:1;
 		uint64_t nand:1;
 		uint64_t mii1:1;
 		uint64_t usb1:1;
@@ -915,12 +1244,76 @@ union cvmx_ciu_intx_en4_1_w1c {
 		uint64_t reserved_16_63:48;
 		uint64_t wdog:16;
 	} cn58xx;
+	struct cvmx_ciu_intx_en4_1_w1c_cn63xx {
+		uint64_t rst:1;
+		uint64_t reserved_57_62:6;
+		uint64_t dfm:1;
+		uint64_t reserved_53_55:3;
+		uint64_t lmc0:1;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t ptp:1;
+		uint64_t agl:1;
+		uint64_t reserved_37_45:9;
+		uint64_t agx0:1;
+		uint64_t dpi:1;
+		uint64_t sli:1;
+		uint64_t usb:1;
+		uint64_t dfa:1;
+		uint64_t key:1;
+		uint64_t rad:1;
+		uint64_t tim:1;
+		uint64_t zip:1;
+		uint64_t pko:1;
+		uint64_t pip:1;
+		uint64_t ipd:1;
+		uint64_t l2c:1;
+		uint64_t pow:1;
+		uint64_t fpa:1;
+		uint64_t iob:1;
+		uint64_t mio:1;
+		uint64_t nand:1;
+		uint64_t mii1:1;
+		uint64_t reserved_6_17:12;
+		uint64_t wdog:6;
+	} cn63xx;
+	struct cvmx_ciu_intx_en4_1_w1c_cn63xx cn63xxp1;
 };
 
 union cvmx_ciu_intx_en4_1_w1s {
 	uint64_t u64;
 	struct cvmx_ciu_intx_en4_1_w1s_s {
-		uint64_t reserved_20_63:44;
+		uint64_t rst:1;
+		uint64_t reserved_57_62:6;
+		uint64_t dfm:1;
+		uint64_t reserved_53_55:3;
+		uint64_t lmc0:1;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t ptp:1;
+		uint64_t agl:1;
+		uint64_t reserved_37_45:9;
+		uint64_t agx0:1;
+		uint64_t dpi:1;
+		uint64_t sli:1;
+		uint64_t usb:1;
+		uint64_t dfa:1;
+		uint64_t key:1;
+		uint64_t rad:1;
+		uint64_t tim:1;
+		uint64_t zip:1;
+		uint64_t pko:1;
+		uint64_t pip:1;
+		uint64_t ipd:1;
+		uint64_t l2c:1;
+		uint64_t pow:1;
+		uint64_t fpa:1;
+		uint64_t iob:1;
+		uint64_t mio:1;
 		uint64_t nand:1;
 		uint64_t mii1:1;
 		uint64_t usb1:1;
@@ -944,6 +1337,42 @@ union cvmx_ciu_intx_en4_1_w1s {
 		uint64_t reserved_16_63:48;
 		uint64_t wdog:16;
 	} cn58xx;
+	struct cvmx_ciu_intx_en4_1_w1s_cn63xx {
+		uint64_t rst:1;
+		uint64_t reserved_57_62:6;
+		uint64_t dfm:1;
+		uint64_t reserved_53_55:3;
+		uint64_t lmc0:1;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t ptp:1;
+		uint64_t agl:1;
+		uint64_t reserved_37_45:9;
+		uint64_t agx0:1;
+		uint64_t dpi:1;
+		uint64_t sli:1;
+		uint64_t usb:1;
+		uint64_t dfa:1;
+		uint64_t key:1;
+		uint64_t rad:1;
+		uint64_t tim:1;
+		uint64_t zip:1;
+		uint64_t pko:1;
+		uint64_t pip:1;
+		uint64_t ipd:1;
+		uint64_t l2c:1;
+		uint64_t pow:1;
+		uint64_t fpa:1;
+		uint64_t iob:1;
+		uint64_t mio:1;
+		uint64_t nand:1;
+		uint64_t mii1:1;
+		uint64_t reserved_6_17:12;
+		uint64_t wdog:6;
+	} cn63xx;
+	struct cvmx_ciu_intx_en4_1_w1s_cn63xx cn63xxp1;
 };
 
 union cvmx_ciu_intx_sum0 {
@@ -1084,6 +1513,8 @@ union cvmx_ciu_intx_sum0 {
 	struct cvmx_ciu_intx_sum0_cn56xx cn56xxp1;
 	struct cvmx_ciu_intx_sum0_cn38xx cn58xx;
 	struct cvmx_ciu_intx_sum0_cn38xx cn58xxp1;
+	struct cvmx_ciu_intx_sum0_cn52xx cn63xx;
+	struct cvmx_ciu_intx_sum0_cn52xx cn63xxp1;
 };
 
 union cvmx_ciu_intx_sum4 {
@@ -1200,12 +1631,85 @@ union cvmx_ciu_intx_sum4 {
 		uint64_t workq:16;
 	} cn58xx;
 	struct cvmx_ciu_intx_sum4_cn58xx cn58xxp1;
+	struct cvmx_ciu_intx_sum4_cn52xx cn63xx;
+	struct cvmx_ciu_intx_sum4_cn52xx cn63xxp1;
+};
+
+union cvmx_ciu_int33_sum0 {
+	uint64_t u64;
+	struct cvmx_ciu_int33_sum0_s {
+		uint64_t bootdma:1;
+		uint64_t mii:1;
+		uint64_t ipdppthr:1;
+		uint64_t powiq:1;
+		uint64_t twsi2:1;
+		uint64_t reserved_57_58:2;
+		uint64_t usb:1;
+		uint64_t timer:4;
+		uint64_t reserved_51_51:1;
+		uint64_t ipd_drp:1;
+		uint64_t reserved_49_49:1;
+		uint64_t gmx_drp:1;
+		uint64_t trace:1;
+		uint64_t rml:1;
+		uint64_t twsi:1;
+		uint64_t wdog_sum:1;
+		uint64_t pci_msi:4;
+		uint64_t pci_int:4;
+		uint64_t uart:2;
+		uint64_t mbox:2;
+		uint64_t gpio:16;
+		uint64_t workq:16;
+	} s;
+	struct cvmx_ciu_int33_sum0_s cn63xx;
+	struct cvmx_ciu_int33_sum0_s cn63xxp1;
+};
+
+union cvmx_ciu_int_dbg_sel {
+	uint64_t u64;
+	struct cvmx_ciu_int_dbg_sel_s {
+		uint64_t reserved_19_63:45;
+		uint64_t sel:3;
+		uint64_t reserved_10_15:6;
+		uint64_t irq:2;
+		uint64_t reserved_3_7:5;
+		uint64_t pp:3;
+	} s;
+	struct cvmx_ciu_int_dbg_sel_s cn63xx;
 };
 
 union cvmx_ciu_int_sum1 {
 	uint64_t u64;
 	struct cvmx_ciu_int_sum1_s {
-		uint64_t reserved_20_63:44;
+		uint64_t rst:1;
+		uint64_t reserved_57_62:6;
+		uint64_t dfm:1;
+		uint64_t reserved_53_55:3;
+		uint64_t lmc0:1;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t ptp:1;
+		uint64_t agl:1;
+		uint64_t reserved_37_45:9;
+		uint64_t agx0:1;
+		uint64_t dpi:1;
+		uint64_t sli:1;
+		uint64_t usb:1;
+		uint64_t dfa:1;
+		uint64_t key:1;
+		uint64_t rad:1;
+		uint64_t tim:1;
+		uint64_t zip:1;
+		uint64_t pko:1;
+		uint64_t pip:1;
+		uint64_t ipd:1;
+		uint64_t l2c:1;
+		uint64_t pow:1;
+		uint64_t fpa:1;
+		uint64_t iob:1;
+		uint64_t mio:1;
 		uint64_t nand:1;
 		uint64_t mii1:1;
 		uint64_t usb1:1;
@@ -1250,6 +1754,42 @@ union cvmx_ciu_int_sum1 {
 	struct cvmx_ciu_int_sum1_cn56xx cn56xxp1;
 	struct cvmx_ciu_int_sum1_cn38xx cn58xx;
 	struct cvmx_ciu_int_sum1_cn38xx cn58xxp1;
+	struct cvmx_ciu_int_sum1_cn63xx {
+		uint64_t rst:1;
+		uint64_t reserved_57_62:6;
+		uint64_t dfm:1;
+		uint64_t reserved_53_55:3;
+		uint64_t lmc0:1;
+		uint64_t srio1:1;
+		uint64_t srio0:1;
+		uint64_t pem1:1;
+		uint64_t pem0:1;
+		uint64_t ptp:1;
+		uint64_t agl:1;
+		uint64_t reserved_37_45:9;
+		uint64_t agx0:1;
+		uint64_t dpi:1;
+		uint64_t sli:1;
+		uint64_t usb:1;
+		uint64_t dfa:1;
+		uint64_t key:1;
+		uint64_t rad:1;
+		uint64_t tim:1;
+		uint64_t zip:1;
+		uint64_t pko:1;
+		uint64_t pip:1;
+		uint64_t ipd:1;
+		uint64_t l2c:1;
+		uint64_t pow:1;
+		uint64_t fpa:1;
+		uint64_t iob:1;
+		uint64_t mio:1;
+		uint64_t nand:1;
+		uint64_t mii1:1;
+		uint64_t reserved_6_17:12;
+		uint64_t wdog:6;
+	} cn63xx;
+	struct cvmx_ciu_int_sum1_cn63xx cn63xxp1;
 };
 
 union cvmx_ciu_mbox_clrx {
@@ -1269,6 +1809,8 @@ union cvmx_ciu_mbox_clrx {
 	struct cvmx_ciu_mbox_clrx_s cn56xxp1;
 	struct cvmx_ciu_mbox_clrx_s cn58xx;
 	struct cvmx_ciu_mbox_clrx_s cn58xxp1;
+	struct cvmx_ciu_mbox_clrx_s cn63xx;
+	struct cvmx_ciu_mbox_clrx_s cn63xxp1;
 };
 
 union cvmx_ciu_mbox_setx {
@@ -1288,6 +1830,8 @@ union cvmx_ciu_mbox_setx {
 	struct cvmx_ciu_mbox_setx_s cn56xxp1;
 	struct cvmx_ciu_mbox_setx_s cn58xx;
 	struct cvmx_ciu_mbox_setx_s cn58xxp1;
+	struct cvmx_ciu_mbox_setx_s cn63xx;
+	struct cvmx_ciu_mbox_setx_s cn63xxp1;
 };
 
 union cvmx_ciu_nmi {
@@ -1319,6 +1863,11 @@ union cvmx_ciu_nmi {
 	struct cvmx_ciu_nmi_cn56xx cn56xxp1;
 	struct cvmx_ciu_nmi_s cn58xx;
 	struct cvmx_ciu_nmi_s cn58xxp1;
+	struct cvmx_ciu_nmi_cn63xx {
+		uint64_t reserved_6_63:58;
+		uint64_t nmi:6;
+	} cn63xx;
+	struct cvmx_ciu_nmi_cn63xx cn63xxp1;
 };
 
 union cvmx_ciu_pci_inta {
@@ -1338,6 +1887,8 @@ union cvmx_ciu_pci_inta {
 	struct cvmx_ciu_pci_inta_s cn56xxp1;
 	struct cvmx_ciu_pci_inta_s cn58xx;
 	struct cvmx_ciu_pci_inta_s cn58xxp1;
+	struct cvmx_ciu_pci_inta_s cn63xx;
+	struct cvmx_ciu_pci_inta_s cn63xxp1;
 };
 
 union cvmx_ciu_pp_dbg {
@@ -1369,12 +1920,17 @@ union cvmx_ciu_pp_dbg {
 	struct cvmx_ciu_pp_dbg_cn56xx cn56xxp1;
 	struct cvmx_ciu_pp_dbg_s cn58xx;
 	struct cvmx_ciu_pp_dbg_s cn58xxp1;
+	struct cvmx_ciu_pp_dbg_cn63xx {
+		uint64_t reserved_6_63:58;
+		uint64_t ppdbg:6;
+	} cn63xx;
+	struct cvmx_ciu_pp_dbg_cn63xx cn63xxp1;
 };
 
 union cvmx_ciu_pp_pokex {
 	uint64_t u64;
 	struct cvmx_ciu_pp_pokex_s {
-		uint64_t reserved_0_63:64;
+		uint64_t poke:64;
 	} s;
 	struct cvmx_ciu_pp_pokex_s cn30xx;
 	struct cvmx_ciu_pp_pokex_s cn31xx;
@@ -1387,6 +1943,8 @@ union cvmx_ciu_pp_pokex {
 	struct cvmx_ciu_pp_pokex_s cn56xxp1;
 	struct cvmx_ciu_pp_pokex_s cn58xx;
 	struct cvmx_ciu_pp_pokex_s cn58xxp1;
+	struct cvmx_ciu_pp_pokex_s cn63xx;
+	struct cvmx_ciu_pp_pokex_s cn63xxp1;
 };
 
 union cvmx_ciu_pp_rst {
@@ -1422,6 +1980,97 @@ union cvmx_ciu_pp_rst {
 	struct cvmx_ciu_pp_rst_cn56xx cn56xxp1;
 	struct cvmx_ciu_pp_rst_s cn58xx;
 	struct cvmx_ciu_pp_rst_s cn58xxp1;
+	struct cvmx_ciu_pp_rst_cn63xx {
+		uint64_t reserved_6_63:58;
+		uint64_t rst:5;
+		uint64_t rst0:1;
+	} cn63xx;
+	struct cvmx_ciu_pp_rst_cn63xx cn63xxp1;
+};
+
+union cvmx_ciu_qlm0 {
+	uint64_t u64;
+	struct cvmx_ciu_qlm0_s {
+		uint64_t g2bypass:1;
+		uint64_t reserved_53_62:10;
+		uint64_t g2deemph:5;
+		uint64_t reserved_45_47:3;
+		uint64_t g2margin:5;
+		uint64_t reserved_32_39:8;
+		uint64_t txbypass:1;
+		uint64_t reserved_21_30:10;
+		uint64_t txdeemph:5;
+		uint64_t reserved_13_15:3;
+		uint64_t txmargin:5;
+		uint64_t reserved_4_7:4;
+		uint64_t lane_en:4;
+	} s;
+	struct cvmx_ciu_qlm0_s cn63xx;
+	struct cvmx_ciu_qlm0_cn63xxp1 {
+		uint64_t reserved_32_63:32;
+		uint64_t txbypass:1;
+		uint64_t reserved_20_30:11;
+		uint64_t txdeemph:4;
+		uint64_t reserved_13_15:3;
+		uint64_t txmargin:5;
+		uint64_t reserved_4_7:4;
+		uint64_t lane_en:4;
+	} cn63xxp1;
+};
+
+union cvmx_ciu_qlm1 {
+	uint64_t u64;
+	struct cvmx_ciu_qlm1_s {
+		uint64_t g2bypass:1;
+		uint64_t reserved_53_62:10;
+		uint64_t g2deemph:5;
+		uint64_t reserved_45_47:3;
+		uint64_t g2margin:5;
+		uint64_t reserved_32_39:8;
+		uint64_t txbypass:1;
+		uint64_t reserved_21_30:10;
+		uint64_t txdeemph:5;
+		uint64_t reserved_13_15:3;
+		uint64_t txmargin:5;
+		uint64_t reserved_4_7:4;
+		uint64_t lane_en:4;
+	} s;
+	struct cvmx_ciu_qlm1_s cn63xx;
+	struct cvmx_ciu_qlm1_cn63xxp1 {
+		uint64_t reserved_32_63:32;
+		uint64_t txbypass:1;
+		uint64_t reserved_20_30:11;
+		uint64_t txdeemph:4;
+		uint64_t reserved_13_15:3;
+		uint64_t txmargin:5;
+		uint64_t reserved_4_7:4;
+		uint64_t lane_en:4;
+	} cn63xxp1;
+};
+
+union cvmx_ciu_qlm2 {
+	uint64_t u64;
+	struct cvmx_ciu_qlm2_s {
+		uint64_t reserved_32_63:32;
+		uint64_t txbypass:1;
+		uint64_t reserved_21_30:10;
+		uint64_t txdeemph:5;
+		uint64_t reserved_13_15:3;
+		uint64_t txmargin:5;
+		uint64_t reserved_4_7:4;
+		uint64_t lane_en:4;
+	} s;
+	struct cvmx_ciu_qlm2_s cn63xx;
+	struct cvmx_ciu_qlm2_cn63xxp1 {
+		uint64_t reserved_32_63:32;
+		uint64_t txbypass:1;
+		uint64_t reserved_20_30:11;
+		uint64_t txdeemph:4;
+		uint64_t reserved_13_15:3;
+		uint64_t txmargin:5;
+		uint64_t reserved_4_7:4;
+		uint64_t lane_en:4;
+	} cn63xxp1;
 };
 
 union cvmx_ciu_qlm_dcok {
@@ -1459,6 +2108,15 @@ union cvmx_ciu_qlm_jtgc {
 	struct cvmx_ciu_qlm_jtgc_cn52xx cn52xxp1;
 	struct cvmx_ciu_qlm_jtgc_s cn56xx;
 	struct cvmx_ciu_qlm_jtgc_s cn56xxp1;
+	struct cvmx_ciu_qlm_jtgc_cn63xx {
+		uint64_t reserved_11_63:53;
+		uint64_t clk_div:3;
+		uint64_t reserved_6_7:2;
+		uint64_t mux_sel:2;
+		uint64_t reserved_3_3:1;
+		uint64_t bypass:3;
+	} cn63xx;
+	struct cvmx_ciu_qlm_jtgc_cn63xx cn63xxp1;
 };
 
 union cvmx_ciu_qlm_jtgd {
@@ -1493,6 +2151,17 @@ union cvmx_ciu_qlm_jtgd {
 		uint64_t shft_cnt:5;
 		uint64_t shft_reg:32;
 	} cn56xxp1;
+	struct cvmx_ciu_qlm_jtgd_cn63xx {
+		uint64_t capture:1;
+		uint64_t shift:1;
+		uint64_t update:1;
+		uint64_t reserved_43_60:18;
+		uint64_t select:3;
+		uint64_t reserved_37_39:3;
+		uint64_t shft_cnt:5;
+		uint64_t shft_reg:32;
+	} cn63xx;
+	struct cvmx_ciu_qlm_jtgd_cn63xx cn63xxp1;
 };
 
 union cvmx_ciu_soft_bist {
@@ -1512,6 +2181,8 @@ union cvmx_ciu_soft_bist {
 	struct cvmx_ciu_soft_bist_s cn56xxp1;
 	struct cvmx_ciu_soft_bist_s cn58xx;
 	struct cvmx_ciu_soft_bist_s cn58xxp1;
+	struct cvmx_ciu_soft_bist_s cn63xx;
+	struct cvmx_ciu_soft_bist_s cn63xxp1;
 };
 
 union cvmx_ciu_soft_prst {
@@ -1536,6 +2207,8 @@ union cvmx_ciu_soft_prst {
 	struct cvmx_ciu_soft_prst_cn52xx cn56xxp1;
 	struct cvmx_ciu_soft_prst_s cn58xx;
 	struct cvmx_ciu_soft_prst_s cn58xxp1;
+	struct cvmx_ciu_soft_prst_cn52xx cn63xx;
+	struct cvmx_ciu_soft_prst_cn52xx cn63xxp1;
 };
 
 union cvmx_ciu_soft_prst1 {
@@ -1548,6 +2221,8 @@ union cvmx_ciu_soft_prst1 {
 	struct cvmx_ciu_soft_prst1_s cn52xxp1;
 	struct cvmx_ciu_soft_prst1_s cn56xx;
 	struct cvmx_ciu_soft_prst1_s cn56xxp1;
+	struct cvmx_ciu_soft_prst1_s cn63xx;
+	struct cvmx_ciu_soft_prst1_s cn63xxp1;
 };
 
 union cvmx_ciu_soft_rst {
@@ -1567,6 +2242,8 @@ union cvmx_ciu_soft_rst {
 	struct cvmx_ciu_soft_rst_s cn56xxp1;
 	struct cvmx_ciu_soft_rst_s cn58xx;
 	struct cvmx_ciu_soft_rst_s cn58xxp1;
+	struct cvmx_ciu_soft_rst_s cn63xx;
+	struct cvmx_ciu_soft_rst_s cn63xxp1;
 };
 
 union cvmx_ciu_timx {
@@ -1587,6 +2264,8 @@ union cvmx_ciu_timx {
 	struct cvmx_ciu_timx_s cn56xxp1;
 	struct cvmx_ciu_timx_s cn58xx;
 	struct cvmx_ciu_timx_s cn58xxp1;
+	struct cvmx_ciu_timx_s cn63xx;
+	struct cvmx_ciu_timx_s cn63xxp1;
 };
 
 union cvmx_ciu_wdogx {
@@ -1611,6 +2290,8 @@ union cvmx_ciu_wdogx {
 	struct cvmx_ciu_wdogx_s cn56xxp1;
 	struct cvmx_ciu_wdogx_s cn58xx;
 	struct cvmx_ciu_wdogx_s cn58xxp1;
+	struct cvmx_ciu_wdogx_s cn63xx;
+	struct cvmx_ciu_wdogx_s cn63xxp1;
 };
 
 #endif

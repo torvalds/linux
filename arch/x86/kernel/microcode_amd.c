@@ -212,7 +212,7 @@ static int install_equiv_cpu_table(const u8 *buf)
 		return 0;
 	}
 
-	equiv_cpu_table = (struct equiv_cpu_entry *) vmalloc(size);
+	equiv_cpu_table = vmalloc(size);
 	if (!equiv_cpu_table) {
 		pr_err("failed to allocate equivalent CPU table\n");
 		return 0;

@@ -65,6 +65,13 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 	if (req == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	/* get lock context early so we can deal with alloc failures */
+	req->wb_lock_context = nfs_get_lock_context(ctx);
+	if (req->wb_lock_context == NULL) {
+		nfs_page_free(req);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	/* Initialize the request struct. Initially, we assume a
 	 * long write-back delay. This will be adjusted in
 	 * update_nfs_request below if the region is not locked. */
@@ -79,7 +86,6 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 	req->wb_pgbase	= offset;
 	req->wb_bytes   = count;
 	req->wb_context = get_nfs_open_context(ctx);
-	req->wb_lock_context = nfs_get_lock_context(ctx);
 	kref_init(&req->wb_kref);
 	return req;
 }
@@ -109,7 +115,7 @@ int nfs_set_page_tag_locked(struct nfs_page *req)
 {
 	if (!nfs_lock_request_dontget(req))
 		return 0;
-	if (req->wb_page != NULL)
+	if (test_bit(PG_MAPPED, &req->wb_flags))
 		radix_tree_tag_set(&NFS_I(req->wb_context->path.dentry->d_inode)->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
 	return 1;
 }
@@ -119,7 +125,7 @@ int nfs_set_page_tag_locked(struct nfs_page *req)
  */
 void nfs_clear_page_tag_locked(struct nfs_page *req)
 {
-	if (req->wb_page != NULL) {
+	if (test_bit(PG_MAPPED, &req->wb_flags)) {
 		struct inode *inode = req->wb_context->path.dentry->d_inode;
 		struct nfs_inode *nfsi = NFS_I(inode);
 

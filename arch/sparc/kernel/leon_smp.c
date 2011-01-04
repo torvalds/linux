@@ -12,7 +12,6 @@
 #include <linux/sched.h>
 #include <linux/threads.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/init.h>
@@ -56,8 +55,8 @@ void __init leon_configure_cache_smp(void);
 static inline unsigned long do_swap(volatile unsigned long *ptr,
 				    unsigned long val)
 {
-	__asm__ __volatile__("swapa [%1] %2, %0\n\t" : "=&r"(val)
-			     : "r"(ptr), "i"(ASI_LEON_DCACHE_MISS)
+	__asm__ __volatile__("swapa [%2] %3, %0\n\t" : "=&r"(val)
+			     : "0"(val), "r"(ptr), "i"(ASI_LEON_DCACHE_MISS)
 			     : "memory");
 	return val;
 }

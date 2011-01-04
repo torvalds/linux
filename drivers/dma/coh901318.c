@@ -157,6 +157,7 @@ static const struct file_operations coh901318_debugfs_status_operations = {
 	.owner		= THIS_MODULE,
 	.open		= coh901318_debugfs_open,
 	.read		= coh901318_debugfs_read,
+	.llseek		= default_llseek,
 };
 
 
@@ -1609,7 +1610,7 @@ int __init coh901318_init(void)
 {
 	return platform_driver_probe(&coh901318_driver, coh901318_probe);
 }
-subsys_initcall(coh901318_init);
+arch_initcall(coh901318_init);
 
 void __exit coh901318_exit(void)
 {

@@ -240,9 +240,21 @@ YAMAHA_DEVICE(0x104f, NULL),
 YAMAHA_DEVICE(0x1050, NULL),
 YAMAHA_DEVICE(0x1051, NULL),
 YAMAHA_DEVICE(0x1052, NULL),
+YAMAHA_INTERFACE(0x1053, 0, NULL),
+YAMAHA_INTERFACE(0x1054, 0, NULL),
+YAMAHA_DEVICE(0x1055, NULL),
+YAMAHA_DEVICE(0x1056, NULL),
+YAMAHA_DEVICE(0x1057, NULL),
+YAMAHA_DEVICE(0x1058, NULL),
+YAMAHA_DEVICE(0x1059, NULL),
+YAMAHA_DEVICE(0x105a, NULL),
+YAMAHA_DEVICE(0x105b, NULL),
+YAMAHA_DEVICE(0x105c, NULL),
+YAMAHA_DEVICE(0x105d, NULL),
 YAMAHA_DEVICE(0x2000, "DGP-7"),
 YAMAHA_DEVICE(0x2001, "DGP-5"),
 YAMAHA_DEVICE(0x2002, NULL),
+YAMAHA_DEVICE(0x2003, NULL),
 YAMAHA_DEVICE(0x5000, "CS1D"),
 YAMAHA_DEVICE(0x5001, "DSP1D"),
 YAMAHA_DEVICE(0x5002, "DME32"),
@@ -1136,11 +1148,34 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x0066 when not in "Advanced Driver" mode */
+	USB_DEVICE(0x0582, 0x0064),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "EDIROL", */
+		/* .product_name = "PCR-1", */
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+{
 	/* has ID 0x0067 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0065),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "EDIROL",
-		.product_name = "PCR-1",
+		/* .vendor_name = "EDIROL", */
+		/* .product_name = "PCR-1", */
 		.ifnum = 0,
 		.type = QUIRK_MIDI_FIXED_ENDPOINT,
 		.data = & (const struct snd_usb_midi_endpoint_info) {
@@ -1525,6 +1560,50 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
+{
+	/* has ID 0x0110 when not in Advanced Driver mode */
+	USB_DEVICE_VENDOR_SPEC(0x0582, 0x010f),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "Roland", */
+		/* .product_name = "A-PRO", */
+		.ifnum = 1,
+		.type = QUIRK_MIDI_FIXED_ENDPOINT,
+		.data = & (const struct snd_usb_midi_endpoint_info) {
+			.out_cables = 0x0003,
+			.in_cables  = 0x0007
+		}
+	}
+},
+{
+	USB_DEVICE(0x0582, 0x0113),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "BOSS", */
+		/* .product_name = "ME-25", */
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_MIDI_FIXED_ENDPOINT,
+				.data = & (const struct snd_usb_midi_endpoint_info) {
+					.out_cables = 0x0001,
+					.in_cables  = 0x0001
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
 
 /* Guillemot devices */
 {
@@ -1830,7 +1909,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	USB_DEVICE(0x0763, 0x2080),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		/* .vendor_name = "M-Audio", */
-		/* .product_name = "Fast Track Ultra 8", */
+		/* .product_name = "Fast Track Ultra", */
 		.ifnum = QUIRK_ANY_INTERFACE,
 		.type = QUIRK_COMPOSITE,
 		.data = & (const struct snd_usb_audio_quirk[]) {
@@ -1840,11 +1919,51 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 			},
 			{
 				.ifnum = 1,
-				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = & (const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 8,
+					.iface = 1,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = UAC_EP_CS_ATTR_SAMPLE_RATE,
+					.endpoint = 0x01,
+					.ep_attr = 0x09,
+					.rates = SNDRV_PCM_RATE_44100 |
+						 SNDRV_PCM_RATE_48000 |
+						 SNDRV_PCM_RATE_88200 |
+						 SNDRV_PCM_RATE_96000,
+					.rate_min = 44100,
+					.rate_max = 96000,
+					.nr_rates = 4,
+					.rate_table = (unsigned int[]) {
+						44100, 48000, 88200, 96000
+					}
+				}
 			},
 			{
 				.ifnum = 2,
-				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = & (const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 8,
+					.iface = 2,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = UAC_EP_CS_ATTR_SAMPLE_RATE,
+					.endpoint = 0x81,
+					.ep_attr = 0x05,
+					.rates = SNDRV_PCM_RATE_44100 |
+						 SNDRV_PCM_RATE_48000 |
+						 SNDRV_PCM_RATE_88200 |
+						 SNDRV_PCM_RATE_96000,
+					.rate_min = 44100,
+					.rate_max = 96000,
+					.nr_rates = 4,
+					.rate_table = (unsigned int[]) {
+						44100, 48000, 88200, 96000
+					}
+				}
 			},
 			/* interface 3 (MIDI) is standard compliant */
 			{
@@ -1867,11 +1986,51 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 			},
 			{
 				.ifnum = 1,
-				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = & (const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 8,
+					.iface = 1,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = UAC_EP_CS_ATTR_SAMPLE_RATE,
+					.endpoint = 0x01,
+					.ep_attr = 0x09,
+					.rates = SNDRV_PCM_RATE_44100 |
+						 SNDRV_PCM_RATE_48000 |
+						 SNDRV_PCM_RATE_88200 |
+						 SNDRV_PCM_RATE_96000,
+					.rate_min = 44100,
+					.rate_max = 96000,
+					.nr_rates = 4,
+					.rate_table = (unsigned int[]) {
+							44100, 48000, 88200, 96000
+					}
+				}
 			},
 			{
 				.ifnum = 2,
-				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = & (const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 8,
+					.iface = 2,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = UAC_EP_CS_ATTR_SAMPLE_RATE,
+					.endpoint = 0x81,
+					.ep_attr = 0x05,
+					.rates = SNDRV_PCM_RATE_44100 |
+						 SNDRV_PCM_RATE_48000 |
+						 SNDRV_PCM_RATE_88200 |
+						 SNDRV_PCM_RATE_96000,
+					.rate_min = 44100,
+					.rate_max = 96000,
+					.nr_rates = 4,
+					.rate_table = (unsigned int[]) {
+						44100, 48000, 88200, 96000
+					}
+				}
 			},
 			/* interface 3 (MIDI) is standard compliant */
 			{
@@ -1919,7 +2078,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.data = & (const struct snd_usb_audio_quirk[]) {
 			{
 				.ifnum = 0,
-				.type = QUIRK_MIDI_FASTLANE
+				.type = QUIRK_MIDI_RAW_BYTES
 			},
 			{
 				.ifnum = 1,
@@ -2065,6 +2224,15 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.product_name = "Speedio",
 		.ifnum = 3,
 		.type = QUIRK_MIDI_NOVATION
+	}
+},
+{
+	USB_DEVICE(0x1235, 0x000e),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "Novation", */
+		/* .product_name = "Launchpad", */
+		.ifnum = 0,
+		.type = QUIRK_MIDI_RAW_BYTES
 	}
 },
 {

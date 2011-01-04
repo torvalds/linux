@@ -28,13 +28,23 @@
 static void __iomem *l2x0_base;
 static DEFINE_SPINLOCK(l2x0_lock);
 static uint32_t l2x0_way_mask;	/* Bitmask of active ways */
+static uint32_t l2x0_size;
 
-static inline void cache_wait(void __iomem *reg, unsigned long mask)
+static inline void cache_wait_way(void __iomem *reg, unsigned long mask)
 {
-	/* wait for the operation to complete */
+	/* wait for cache operation by line or way to complete */
 	while (readl_relaxed(reg) & mask)
 		;
 }
+
+#ifdef CONFIG_CACHE_PL310
+static inline void cache_wait(void __iomem *reg, unsigned long mask)
+{
+	/* cache operations by line are atomic on PL310 */
+}
+#else
+#define cache_wait	cache_wait_way
+#endif
 
 static inline void cache_sync(void)
 {
@@ -103,14 +113,40 @@ static void l2x0_cache_sync(void)
 	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
-static inline void l2x0_inv_all(void)
+static void l2x0_flush_all(void)
+{
+	unsigned long flags;
+
+	/* clean all ways */
+	spin_lock_irqsave(&l2x0_lock, flags);
+	writel_relaxed(l2x0_way_mask, l2x0_base + L2X0_CLEAN_INV_WAY);
+	cache_wait_way(l2x0_base + L2X0_CLEAN_INV_WAY, l2x0_way_mask);
+	cache_sync();
+	spin_unlock_irqrestore(&l2x0_lock, flags);
+}
+
+static void l2x0_clean_all(void)
+{
+	unsigned long flags;
+
+	/* clean all ways */
+	spin_lock_irqsave(&l2x0_lock, flags);
+	writel_relaxed(l2x0_way_mask, l2x0_base + L2X0_CLEAN_WAY);
+	cache_wait_way(l2x0_base + L2X0_CLEAN_WAY, l2x0_way_mask);
+	cache_sync();
+	spin_unlock_irqrestore(&l2x0_lock, flags);
+}
+
+static void l2x0_inv_all(void)
 {
 	unsigned long flags;
 
 	/* invalidate all ways */
 	spin_lock_irqsave(&l2x0_lock, flags);
+	/* Invalidating when L2 is enabled is a nono */
+	BUG_ON(readl(l2x0_base + L2X0_CTRL) & 1);
 	writel_relaxed(l2x0_way_mask, l2x0_base + L2X0_INV_WAY);
-	cache_wait(l2x0_base + L2X0_INV_WAY, l2x0_way_mask);
+	cache_wait_way(l2x0_base + L2X0_INV_WAY, l2x0_way_mask);
 	cache_sync();
 	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
@@ -159,6 +195,11 @@ static void l2x0_clean_range(unsigned long start, unsigned long end)
 	void __iomem *base = l2x0_base;
 	unsigned long flags;
 
+	if ((end - start) >= l2x0_size) {
+		l2x0_clean_all();
+		return;
+	}
+
 	spin_lock_irqsave(&l2x0_lock, flags);
 	start &= ~(CACHE_LINE_SIZE - 1);
 	while (start < end) {
@@ -184,6 +225,11 @@ static void l2x0_flush_range(unsigned long start, unsigned long end)
 	void __iomem *base = l2x0_base;
 	unsigned long flags;
 
+	if ((end - start) >= l2x0_size) {
+		l2x0_flush_all();
+		return;
+	}
+
 	spin_lock_irqsave(&l2x0_lock, flags);
 	start &= ~(CACHE_LINE_SIZE - 1);
 	while (start < end) {
@@ -206,10 +252,20 @@ static void l2x0_flush_range(unsigned long start, unsigned long end)
 	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
+static void l2x0_disable(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&l2x0_lock, flags);
+	writel(0, l2x0_base + L2X0_CTRL);
+	spin_unlock_irqrestore(&l2x0_lock, flags);
+}
+
 void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
 {
 	__u32 aux;
 	__u32 cache_id;
+	__u32 way_size = 0;
 	int ways;
 	const char *type;
 
@@ -244,6 +300,13 @@ void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
 	l2x0_way_mask = (1 << ways) - 1;
 
 	/*
+	 * L2 cache Size =  Way size * Number of ways
+	 */
+	way_size = (aux & L2X0_AUX_CTRL_WAY_SIZE_MASK) >> 17;
+	way_size = 1 << (way_size + 3);
+	l2x0_size = ways * way_size * SZ_1K;
+
+	/*
 	 * Check if l2x0 controller is already enabled.
 	 * If you are booting from non-secure mode
 	 * accessing the below registers will fault.
@@ -263,8 +326,11 @@ void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
 	outer_cache.clean_range = l2x0_clean_range;
 	outer_cache.flush_range = l2x0_flush_range;
 	outer_cache.sync = l2x0_cache_sync;
+	outer_cache.flush_all = l2x0_flush_all;
+	outer_cache.inv_all = l2x0_inv_all;
+	outer_cache.disable = l2x0_disable;
 
 	printk(KERN_INFO "%s cache controller enabled\n", type);
-	printk(KERN_INFO "l2x0: %d ways, CACHE_ID 0x%08x, AUX_CTRL 0x%08x\n",
-			 ways, cache_id, aux);
+	printk(KERN_INFO "l2x0: %d ways, CACHE_ID 0x%08x, AUX_CTRL 0x%08x, Cache size: %d B\n",
+			ways, cache_id, aux, l2x0_size);
 }

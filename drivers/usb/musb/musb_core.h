@@ -330,6 +330,7 @@ struct musb {
 	/* device lock */
 	spinlock_t		lock;
 	struct clk		*clock;
+	struct clk		*phy_clock;
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
 	u16			hwvers;
@@ -486,7 +487,7 @@ struct musb_context_registers {
 };
 
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
-    defined(CONFIG_ARCH_OMAP4)
+    defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_BLACKFIN)
 extern void musb_platform_save_context(struct musb *musb,
 		struct musb_context_registers *musb_context);
 extern void musb_platform_restore_context(struct musb *musb,
@@ -599,6 +600,7 @@ extern void musb_hnp_stop(struct musb *musb);
 extern int musb_platform_set_mode(struct musb *musb, u8 musb_mode);
 
 #if defined(CONFIG_USB_TUSB6010) || defined(CONFIG_BLACKFIN) || \
+	defined(CONFIG_ARCH_DAVINCI_DA8XX) || \
 	defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
 	defined(CONFIG_ARCH_OMAP4)
 extern void musb_platform_try_idle(struct musb *musb, unsigned long timeout);

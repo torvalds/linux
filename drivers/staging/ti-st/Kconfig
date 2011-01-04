@@ -3,20 +3,9 @@
 # drivers (BT, FM and GPS)
 #
 menu "Texas Instruments shared transport line discipline"
-config TI_ST
-	tristate "Shared transport core driver"
-	depends on RFKILL
-	select FW_LOADER
-	help
-	  This enables the shared transport core driver for TI
-	  BT / FM and GPS combo chips. This enables protocol drivers
-	  to register themselves with core and send data, the responses
-	  are returned to relevant protocol drivers based on their
-	  packet types.
-
 config ST_BT
 	tristate "BlueZ bluetooth driver for ST"
-	depends on BT
+	depends on BT && RFKILL
 	select TI_ST
 	help
 	  This enables the Bluetooth driver for TI BT/FM/GPS combo devices.

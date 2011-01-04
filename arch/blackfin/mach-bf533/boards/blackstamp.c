@@ -368,8 +368,8 @@ static struct platform_device bfin_device_gpiokeys = {
 #include <linux/i2c-gpio.h>
 
 static struct i2c_gpio_platform_data i2c_gpio_data = {
-	.sda_pin		= 8,
-	.scl_pin		= 9,
+	.sda_pin		= GPIO_PF8,
+	.scl_pin		= GPIO_PF9,
 	.sda_is_open_drain	= 0,
 	.scl_is_open_drain	= 0,
 	.udelay			= 40,

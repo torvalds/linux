@@ -40,7 +40,6 @@
 #include <linux/highmem.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
-#include <linux/smp_lock.h>
 #include <asm/pgtable.h>
 
 #include "ipath_kernel.h"
@@ -63,7 +62,8 @@ static const struct file_operations ipath_file_ops = {
 	.open = ipath_open,
 	.release = ipath_close,
 	.poll = ipath_poll,
-	.mmap = ipath_mmap
+	.mmap = ipath_mmap,
+	.llseek = noop_llseek,
 };
 
 /*

@@ -209,6 +209,13 @@ config EDAC_I5100
 	  Support for error detection and correction the Intel
 	  San Clemente MCH.
 
+config EDAC_I7300
+	tristate "Intel Clarksboro MCH"
+	depends on EDAC_MM_EDAC && X86 && PCI
+	help
+	  Support for error detection and correction the Intel
+	  Clarksboro MCH (Intel 7300 chipset).
+
 config EDAC_MPC85XX
 	tristate "Freescale MPC83xx / MPC85xx"
 	depends on EDAC_MM_EDAC && FSL_SOC && (PPC_83xx || PPC_85xx)

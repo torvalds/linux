@@ -75,6 +75,30 @@ static int cx231xx_isoc_audio_deinit(struct cx231xx *dev)
 	return 0;
 }
 
+static int cx231xx_bulk_audio_deinit(struct cx231xx *dev)
+{
+	int i;
+
+	dprintk("Stopping bulk\n");
+
+	for (i = 0; i < CX231XX_AUDIO_BUFS; i++) {
+		if (dev->adev.urb[i]) {
+			if (!irqs_disabled())
+				usb_kill_urb(dev->adev.urb[i]);
+			else
+				usb_unlink_urb(dev->adev.urb[i]);
+
+			usb_free_urb(dev->adev.urb[i]);
+			dev->adev.urb[i] = NULL;
+
+			kfree(dev->adev.transfer_buffer[i]);
+			dev->adev.transfer_buffer[i] = NULL;
+		}
+	}
+
+	return 0;
+}
+
 static void cx231xx_audio_isocirq(struct urb *urb)
 {
 	struct cx231xx *dev = urb->context;
@@ -99,6 +123,9 @@ static void cx231xx_audio_isocirq(struct urb *urb)
 		dprintk("urb completition error %d.\n", urb->status);
 		break;
 	}
+
+	if (atomic_read(&dev->stream_started) == 0)
+		return;
 
 	if (dev->adev.capture_pcm_substream) {
 		substream = dev->adev.capture_pcm_substream;
@@ -158,14 +185,95 @@ static void cx231xx_audio_isocirq(struct urb *urb)
 	return;
 }
 
+static void cx231xx_audio_bulkirq(struct urb *urb)
+{
+	struct cx231xx *dev = urb->context;
+	unsigned int oldptr;
+	int period_elapsed = 0;
+	int status;
+	unsigned char *cp;
+	unsigned int stride;
+	struct snd_pcm_substream *substream;
+	struct snd_pcm_runtime *runtime;
+
+	switch (urb->status) {
+	case 0:		/* success */
+	case -ETIMEDOUT:	/* NAK */
+		break;
+	case -ECONNRESET:	/* kill */
+	case -ENOENT:
+	case -ESHUTDOWN:
+		return;
+	default:		/* error */
+		dprintk("urb completition error %d.\n", urb->status);
+		break;
+	}
+
+	if (atomic_read(&dev->stream_started) == 0)
+		return;
+
+	if (dev->adev.capture_pcm_substream) {
+		substream = dev->adev.capture_pcm_substream;
+		runtime = substream->runtime;
+		stride = runtime->frame_bits >> 3;
+
+		if (1) {
+			int length = urb->actual_length /
+				     stride;
+			cp = (unsigned char *)urb->transfer_buffer;
+
+			oldptr = dev->adev.hwptr_done_capture;
+			if (oldptr + length >= runtime->buffer_size) {
+				unsigned int cnt;
+
+				cnt = runtime->buffer_size - oldptr;
+				memcpy(runtime->dma_area + oldptr * stride, cp,
+				       cnt * stride);
+				memcpy(runtime->dma_area, cp + cnt * stride,
+				       length * stride - cnt * stride);
+			} else {
+				memcpy(runtime->dma_area + oldptr * stride, cp,
+				       length * stride);
+			}
+
+			snd_pcm_stream_lock(substream);
+
+			dev->adev.hwptr_done_capture += length;
+			if (dev->adev.hwptr_done_capture >=
+						runtime->buffer_size)
+				dev->adev.hwptr_done_capture -=
+						runtime->buffer_size;
+
+			dev->adev.capture_transfer_done += length;
+			if (dev->adev.capture_transfer_done >=
+				runtime->period_size) {
+				dev->adev.capture_transfer_done -=
+						runtime->period_size;
+				period_elapsed = 1;
+			}
+			snd_pcm_stream_unlock(substream);
+		}
+		if (period_elapsed)
+			snd_pcm_period_elapsed(substream);
+	}
+	urb->status = 0;
+
+	status = usb_submit_urb(urb, GFP_ATOMIC);
+	if (status < 0) {
+		cx231xx_errdev("resubmit of audio urb failed (error=%i)\n",
+			       status);
+	}
+	return;
+}
+
 static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 {
 	int i, errCode;
 	int sb_size;
 
-	cx231xx_info("%s: Starting AUDIO transfers\n", __func__);
+	cx231xx_info("%s: Starting ISO AUDIO transfers\n", __func__);
 
-	sb_size = CX231XX_NUM_AUDIO_PACKETS * dev->adev.max_pkt_size;
+	sb_size = CX231XX_ISO_NUM_AUDIO_PACKETS * dev->adev.max_pkt_size;
 
 	for (i = 0; i < CX231XX_AUDIO_BUFS; i++) {
 		struct urb *urb;
@@ -176,7 +284,7 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 			return -ENOMEM;
 
 		memset(dev->adev.transfer_buffer[i], 0x80, sb_size);
-		urb = usb_alloc_urb(CX231XX_NUM_AUDIO_PACKETS, GFP_ATOMIC);
+		urb = usb_alloc_urb(CX231XX_ISO_NUM_AUDIO_PACKETS, GFP_ATOMIC);
 		if (!urb) {
 			cx231xx_errdev("usb_alloc_urb failed!\n");
 			for (j = 0; j < i; j++) {
@@ -194,10 +302,10 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 		urb->transfer_buffer = dev->adev.transfer_buffer[i];
 		urb->interval = 1;
 		urb->complete = cx231xx_audio_isocirq;
-		urb->number_of_packets = CX231XX_NUM_AUDIO_PACKETS;
+		urb->number_of_packets = CX231XX_ISO_NUM_AUDIO_PACKETS;
 		urb->transfer_buffer_length = sb_size;
 
-		for (j = k = 0; j < CX231XX_NUM_AUDIO_PACKETS;
+		for (j = k = 0; j < CX231XX_ISO_NUM_AUDIO_PACKETS;
 			j++, k += dev->adev.max_pkt_size) {
 			urb->iso_frame_desc[j].offset = k;
 			urb->iso_frame_desc[j].length = dev->adev.max_pkt_size;
@@ -216,27 +324,56 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 	return errCode;
 }
 
-static int cx231xx_cmd(struct cx231xx *dev, int cmd, int arg)
+static int cx231xx_init_audio_bulk(struct cx231xx *dev)
 {
-	dprintk("%s transfer\n", (dev->adev.capture_stream == STREAM_ON) ?
-		"stop" : "start");
+	int i, errCode;
+	int sb_size;
 
-	switch (cmd) {
-	case CX231XX_CAPTURE_STREAM_EN:
-		if (dev->adev.capture_stream == STREAM_OFF && arg == 1) {
-			dev->adev.capture_stream = STREAM_ON;
-			cx231xx_init_audio_isoc(dev);
-		} else if (dev->adev.capture_stream == STREAM_ON && arg == 0) {
-			dev->adev.capture_stream = STREAM_OFF;
-			cx231xx_isoc_audio_deinit(dev);
-		} else {
-			cx231xx_errdev("An underrun very likely occurred. "
-				       "Ignoring it.\n");
+	cx231xx_info("%s: Starting BULK AUDIO transfers\n", __func__);
+
+	sb_size = CX231XX_NUM_AUDIO_PACKETS * dev->adev.max_pkt_size;
+
+	for (i = 0; i < CX231XX_AUDIO_BUFS; i++) {
+		struct urb *urb;
+		int j;
+
+		dev->adev.transfer_buffer[i] = kmalloc(sb_size, GFP_ATOMIC);
+		if (!dev->adev.transfer_buffer[i])
+			return -ENOMEM;
+
+		memset(dev->adev.transfer_buffer[i], 0x80, sb_size);
+		urb = usb_alloc_urb(CX231XX_NUM_AUDIO_PACKETS, GFP_ATOMIC);
+		if (!urb) {
+			cx231xx_errdev("usb_alloc_urb failed!\n");
+			for (j = 0; j < i; j++) {
+				usb_free_urb(dev->adev.urb[j]);
+				kfree(dev->adev.transfer_buffer[j]);
+			}
+			return -ENOMEM;
 		}
-		return 0;
-	default:
-		return -EINVAL;
+
+		urb->dev = dev->udev;
+		urb->context = dev;
+		urb->pipe = usb_rcvbulkpipe(dev->udev,
+						dev->adev.end_point_addr);
+		urb->transfer_flags = 0;
+		urb->transfer_buffer = dev->adev.transfer_buffer[i];
+		urb->complete = cx231xx_audio_bulkirq;
+		urb->transfer_buffer_length = sb_size;
+
+		dev->adev.urb[i] = urb;
+
 	}
+
+	for (i = 0; i < CX231XX_AUDIO_BUFS; i++) {
+		errCode = usb_submit_urb(dev->adev.urb[i], GFP_ATOMIC);
+		if (errCode < 0) {
+			cx231xx_bulk_audio_deinit(dev);
+			return errCode;
+		}
+	}
+
+	return errCode;
 }
 
 static int snd_pcm_alloc_vmalloc_buffer(struct snd_pcm_substream *subs,
@@ -300,19 +437,24 @@ static int snd_cx231xx_capture_open(struct snd_pcm_substream *substream)
 
 	/* set alternate setting for audio interface */
 	/* 1 - 48000 samples per sec */
-	ret = cx231xx_set_alt_setting(dev, INDEX_AUDIO, 1);
+	mutex_lock(&dev->lock);
+	if (dev->USE_ISO)
+		ret = cx231xx_set_alt_setting(dev, INDEX_AUDIO, 1);
+	else
+		ret = cx231xx_set_alt_setting(dev, INDEX_AUDIO, 0);
+	mutex_unlock(&dev->lock);
 	if (ret < 0) {
 		cx231xx_errdev("failed to set alternate setting !\n");
 
 		return ret;
 	}
 
-	/* inform hardware to start streaming */
-	ret = cx231xx_capture_start(dev, 1, Audio);
-
 	runtime->hw = snd_cx231xx_hw_capture;
 
 	mutex_lock(&dev->lock);
+	/* inform hardware to start streaming */
+	ret = cx231xx_capture_start(dev, 1, Audio);
+
 	dev->adev.users++;
 	mutex_unlock(&dev->lock);
 
@@ -330,20 +472,21 @@ static int snd_cx231xx_pcm_close(struct snd_pcm_substream *substream)
 
 	dprintk("closing device\n");
 
+	/* inform hardware to stop streaming */
+	mutex_lock(&dev->lock);
+	ret = cx231xx_capture_start(dev, 0, Audio);
+
 	/* set alternate setting for audio interface */
 	/* 1 - 48000 samples per sec */
 	ret = cx231xx_set_alt_setting(dev, INDEX_AUDIO, 0);
 	if (ret < 0) {
 		cx231xx_errdev("failed to set alternate setting !\n");
 
+		mutex_unlock(&dev->lock);
 		return ret;
 	}
 
-	/* inform hardware to start streaming */
-	ret = cx231xx_capture_start(dev, 0, Audio);
-
 	dev->mute = 1;
-	mutex_lock(&dev->lock);
 	dev->adev.users--;
 	mutex_unlock(&dev->lock);
 
@@ -352,7 +495,10 @@ static int snd_cx231xx_pcm_close(struct snd_pcm_substream *substream)
 		dprintk("disabling audio stream!\n");
 		dev->adev.shutdown = 0;
 		dprintk("released lock\n");
-		cx231xx_cmd(dev, CX231XX_CAPTURE_STREAM_EN, 0);
+		if (atomic_read(&dev->stream_started) > 0) {
+			atomic_set(&dev->stream_started, 0);
+			schedule_work(&dev->wq_trigger);
+		}
 	}
 	return 0;
 }
@@ -383,15 +529,40 @@ static int snd_cx231xx_hw_capture_free(struct snd_pcm_substream *substream)
 
 	dprintk("Stop capture, if needed\n");
 
-	if (dev->adev.capture_stream == STREAM_ON)
-		cx231xx_cmd(dev, CX231XX_CAPTURE_STREAM_EN, CX231XX_STOP_AUDIO);
+	if (atomic_read(&dev->stream_started) > 0) {
+		atomic_set(&dev->stream_started, 0);
+		schedule_work(&dev->wq_trigger);
+	}
 
 	return 0;
 }
 
 static int snd_cx231xx_prepare(struct snd_pcm_substream *substream)
 {
+	struct cx231xx *dev = snd_pcm_substream_chip(substream);
+
+	dev->adev.hwptr_done_capture = 0;
+	dev->adev.capture_transfer_done = 0;
+
 	return 0;
+}
+
+static void audio_trigger(struct work_struct *work)
+{
+	struct cx231xx *dev = container_of(work, struct cx231xx, wq_trigger);
+
+	if (atomic_read(&dev->stream_started)) {
+		dprintk("starting capture");
+		if (is_fw_load(dev) == 0)
+			cx25840_call(dev, core, load_fw);
+		if (dev->USE_ISO)
+			cx231xx_init_audio_isoc(dev);
+		else
+			cx231xx_init_audio_bulk(dev);
+	} else {
+		dprintk("stopping capture");
+		cx231xx_isoc_audio_deinit(dev);
+	}
 }
 
 static int snd_cx231xx_capture_trigger(struct snd_pcm_substream *substream,
@@ -400,26 +571,22 @@ static int snd_cx231xx_capture_trigger(struct snd_pcm_substream *substream,
 	struct cx231xx *dev = snd_pcm_substream_chip(substream);
 	int retval;
 
-	dprintk("Should %s capture\n", (cmd == SNDRV_PCM_TRIGGER_START) ?
-		"start" : "stop");
-
 	spin_lock(&dev->adev.slock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		cx231xx_cmd(dev, CX231XX_CAPTURE_STREAM_EN,
-			    CX231XX_START_AUDIO);
-		retval = 0;
+		atomic_set(&dev->stream_started, 1);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		cx231xx_cmd(dev, CX231XX_CAPTURE_STREAM_EN, CX231XX_STOP_AUDIO);
-		retval = 0;
+		atomic_set(&dev->stream_started, 0);
 		break;
 	default:
 		retval = -EINVAL;
 	}
-
 	spin_unlock(&dev->adev.slock);
-	return retval;
+
+	schedule_work(&dev->wq_trigger);
+
+	return 0;
 }
 
 static snd_pcm_uframes_t snd_cx231xx_capture_pointer(struct snd_pcm_substream
@@ -495,9 +662,12 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 	pcm->info_flags = 0;
 	pcm->private_data = dev;
 	strcpy(pcm->name, "Conexant cx231xx Capture");
+	snd_card_set_dev(card, &dev->udev->dev);
 	strcpy(card->driver, "Cx231xx-Audio");
 	strcpy(card->shortname, "Cx231xx Audio");
 	strcpy(card->longname, "Conexant cx231xx Audio");
+
+	INIT_WORK(&dev->wq_trigger, audio_trigger);
 
 	err = snd_card_register(card);
 	if (err < 0) {

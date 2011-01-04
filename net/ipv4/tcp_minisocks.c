@@ -55,7 +55,7 @@ static __inline__ int tcp_in_window(u32 seq, u32 end_seq, u32 s_win, u32 e_win)
 		return 1;
 	if (after(end_seq, s_win) && before(seq, e_win))
 		return 1;
-	return (seq == e_win && seq == end_seq);
+	return seq == e_win && seq == end_seq;
 }
 
 /*
@@ -347,7 +347,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		 * socket up.  We've got bigger problems than
 		 * non-graceful socket closings.
 		 */
-		LIMIT_NETDEBUG(KERN_INFO "TCP: time wait bucket table overflow\n");
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPTIMEWAITOVERFLOW);
 	}
 
 	tcp_update_metrics(sk);

@@ -48,7 +48,7 @@ struct siu_port *siu_ports[SIU_PORT_NUM];
 /* transfersize is number of u32 dma transfers per period */
 static int siu_pcm_stmwrite_stop(struct siu_port *port_info)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	u32 __iomem *base = info->reg;
 	struct siu_stream *siu_stream = &port_info->playback;
 	u32 stfifo;
@@ -114,7 +114,7 @@ static void siu_dma_tx_complete(void *arg)
 static int siu_pcm_wr_set(struct siu_port *port_info,
 			  dma_addr_t buff, u32 size)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	u32 __iomem *base = info->reg;
 	struct siu_stream *siu_stream = &port_info->playback;
 	struct snd_pcm_substream *substream = siu_stream->substream;
@@ -127,6 +127,7 @@ static int siu_pcm_wr_set(struct siu_port *port_info,
 	sg_init_table(&sg, 1);
 	sg_set_page(&sg, pfn_to_page(PFN_DOWN(buff)),
 		    size, offset_in_page(buff));
+	sg_dma_len(&sg) = size;
 	sg_dma_address(&sg) = buff;
 
 	desc = siu_stream->chan->device->device_prep_slave_sg(siu_stream->chan,
@@ -161,7 +162,7 @@ static int siu_pcm_wr_set(struct siu_port *port_info,
 static int siu_pcm_rd_set(struct siu_port *port_info,
 			  dma_addr_t buff, size_t size)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	u32 __iomem *base = info->reg;
 	struct siu_stream *siu_stream = &port_info->capture;
 	struct snd_pcm_substream *substream = siu_stream->substream;
@@ -176,6 +177,7 @@ static int siu_pcm_rd_set(struct siu_port *port_info,
 	sg_init_table(&sg, 1);
 	sg_set_page(&sg, pfn_to_page(PFN_DOWN(buff)),
 		    size, offset_in_page(buff));
+	sg_dma_len(&sg) = size;
 	sg_dma_address(&sg) = buff;
 
 	desc = siu_stream->chan->device->device_prep_slave_sg(siu_stream->chan,
@@ -270,7 +272,7 @@ static int siu_pcm_stmread_start(struct siu_port *port_info)
 
 static int siu_pcm_stmread_stop(struct siu_port *port_info)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	u32 __iomem *base = info->reg;
 	struct siu_stream *siu_stream = &port_info->capture;
 	struct device *dev = siu_stream->substream->pcm->card->dev;
@@ -294,7 +296,7 @@ static int siu_pcm_stmread_stop(struct siu_port *port_info)
 static int siu_pcm_hw_params(struct snd_pcm_substream *ss,
 			     struct snd_pcm_hw_params *hw_params)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	struct device *dev = ss->pcm->card->dev;
 	int ret;
 
@@ -309,7 +311,7 @@ static int siu_pcm_hw_params(struct snd_pcm_substream *ss,
 
 static int siu_pcm_hw_free(struct snd_pcm_substream *ss)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	struct siu_port	*port_info = siu_port_info(ss);
 	struct device *dev = ss->pcm->card->dev;
 	struct siu_stream *siu_stream;
@@ -340,11 +342,12 @@ static bool filter(struct dma_chan *chan, void *slave)
 static int siu_pcm_open(struct snd_pcm_substream *ss)
 {
 	/* Playback / Capture */
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct snd_soc_pcm_runtime *rtd = ss->private_data;
+	struct siu_platform *pdata = rtd->platform->dev->platform_data;
+	struct siu_info *info = siu_i2s_data;
 	struct siu_port *port_info = siu_port_info(ss);
 	struct siu_stream *siu_stream;
 	u32 port = info->port_id;
-	struct siu_platform *pdata = siu_i2s_dai.dev->platform_data;
 	struct device *dev = ss->pcm->card->dev;
 	dma_cap_mask_t mask;
 	struct sh_dmae_slave *param;
@@ -381,7 +384,7 @@ static int siu_pcm_open(struct snd_pcm_substream *ss)
 
 static int siu_pcm_close(struct snd_pcm_substream *ss)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	struct device *dev = ss->pcm->card->dev;
 	struct siu_port *port_info = siu_port_info(ss);
 	struct siu_stream *siu_stream;
@@ -403,7 +406,7 @@ static int siu_pcm_close(struct snd_pcm_substream *ss)
 
 static int siu_pcm_prepare(struct snd_pcm_substream *ss)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	struct siu_port *port_info = siu_port_info(ss);
 	struct device *dev = ss->pcm->card->dev;
 	struct snd_pcm_runtime 	*rt = ss->runtime;
@@ -449,7 +452,7 @@ static int siu_pcm_prepare(struct snd_pcm_substream *ss)
 
 static int siu_pcm_trigger(struct snd_pcm_substream *ss, int cmd)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	struct device *dev = ss->pcm->card->dev;
 	struct siu_port *port_info = siu_port_info(ss);
 	int ret;
@@ -492,7 +495,7 @@ static int siu_pcm_trigger(struct snd_pcm_substream *ss, int cmd)
 static snd_pcm_uframes_t siu_pcm_pointer_dma(struct snd_pcm_substream *ss)
 {
 	struct device *dev = ss->pcm->card->dev;
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	u32 __iomem *base = info->reg;
 	struct siu_port *port_info = siu_port_info(ss);
 	struct snd_pcm_runtime *rt = ss->runtime;
@@ -528,7 +531,7 @@ static int siu_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 		       struct snd_pcm *pcm)
 {
 	/* card->dev == socdev->dev, see snd_soc_new_pcms() */
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	struct platform_device *pdev = to_platform_device(card->dev);
 	int ret;
 	int i;
@@ -605,9 +608,8 @@ static struct snd_pcm_ops siu_pcm_ops = {
 	.pointer	= siu_pcm_pointer_dma,
 };
 
-struct snd_soc_platform siu_platform = {
-	.name		= "siu-audio",
-	.pcm_ops 	= &siu_pcm_ops,
+struct snd_soc_platform_driver siu_platform = {
+	.ops			= &siu_pcm_ops,
 	.pcm_new	= siu_pcm_new,
 	.pcm_free	= siu_pcm_free,
 };

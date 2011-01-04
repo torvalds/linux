@@ -22,7 +22,8 @@
 #ifndef _NET_BATMAN_ADV_BITARRAY_H_
 #define _NET_BATMAN_ADV_BITARRAY_H_
 
-/* you should choose something big, if you don't want to waste cpu */
+/* you should choose something big, if you don't want to waste cpu
+ * and keep the type in sync with bit_packet_count */
 #define TYPE_OF_WORD unsigned long
 #define WORD_BIT_SIZE (sizeof(TYPE_OF_WORD) * 8)
 
@@ -37,8 +38,8 @@ void bit_mark(TYPE_OF_WORD *seq_bits, int32_t n);
 
 /* receive and process one packet, returns 1 if received seq_num is considered
  * new, 0 if old  */
-char bit_get_packet(TYPE_OF_WORD *seq_bits, int32_t seq_num_diff,
-					int8_t set_mark);
+char bit_get_packet(void *priv, TYPE_OF_WORD *seq_bits,
+		    int32_t seq_num_diff, int8_t set_mark);
 
 /* count the hamming weight, how many good packets did we receive? */
 int  bit_packet_count(TYPE_OF_WORD *seq_bits);

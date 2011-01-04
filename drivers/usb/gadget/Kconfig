@@ -158,6 +158,7 @@ config USB_GADGET_FSL_USB2
 	boolean "Freescale Highspeed USB DR Peripheral Controller"
 	depends on FSL_SOC || ARCH_MXC
 	select USB_GADGET_DUALSPEED
+	select USB_FSL_MPH_DR_OF if OF
 	help
 	   Some of Freescale PowerPC processors have a High Speed
 	   Dual-Role(DR) USB controller, which supports device mode.
@@ -208,17 +209,6 @@ config USB_OMAP
 	depends on USB_GADGET_OMAP
 	default USB_GADGET
 	select USB_GADGET_SELECTED
-
-config USB_OTG
-	boolean "OTG Support"
-	depends on USB_GADGET_OMAP && ARCH_OMAP_OTG && USB_OHCI_HCD
-	help
-	   The most notable feature of USB OTG is support for a
-	   "Dual-Role" device, which can act as either a device
-	   or a host.  The initial role choice can be changed
-	   later, when two dual-role devices talk to each other.
-
-	   Select this only if your OMAP board has a Mini-AB connector.
 
 config USB_GADGET_PXA25X
 	boolean "PXA 25x or IXP 4xx"
@@ -716,8 +706,8 @@ config USB_FUNCTIONFS
 	depends on EXPERIMENTAL
 	select USB_FUNCTIONFS_GENERIC if !(USB_FUNCTIONFS_ETH || USB_FUNCTIONFS_RNDIS)
 	help
-	  The Function Filesystem (FunctioFS) lets one create USB
-	  composite functions in user space in the same way as GadgetFS
+	  The Function Filesystem (FunctionFS) lets one create USB
+	  composite functions in user space in the same way GadgetFS
 	  lets one create USB gadgets in user space.  This allows creation
 	  of composite gadgets such that some of the functions are
 	  implemented in kernel space (for instance Ethernet, serial or
@@ -733,14 +723,14 @@ config USB_FUNCTIONFS_ETH
 	bool "Include configuration with CDC ECM (Ethernet)"
 	depends on USB_FUNCTIONFS && NET
 	help
-	  Include a configuration with CDC ECM funcion (Ethernet) and the
-	  Funcion Filesystem.
+	  Include a configuration with CDC ECM function (Ethernet) and the
+	  Function Filesystem.
 
 config USB_FUNCTIONFS_RNDIS
 	bool "Include configuration with RNDIS (Ethernet)"
 	depends on USB_FUNCTIONFS && NET
 	help
-	  Include a configuration with RNDIS funcion (Ethernet) and the Filesystem.
+	  Include a configuration with RNDIS function (Ethernet) and the Filesystem.
 
 config USB_FUNCTIONFS_GENERIC
 	bool "Include 'pure' configuration"

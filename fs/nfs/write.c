@@ -55,7 +55,6 @@ struct nfs_write_data *nfs_commitdata_alloc(void)
 	if (p) {
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
-		p->res.seq_res.sr_slotid = NFS4_MAX_SLOT_TABLE;
 	}
 	return p;
 }
@@ -75,7 +74,6 @@ struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
 		p->npages = pagecount;
-		p->res.seq_res.sr_slotid = NFS4_MAX_SLOT_TABLE;
 		if (pagecount <= ARRAY_SIZE(p->page_array))
 			p->pagevec = p->page_array;
 		else {
@@ -292,9 +290,7 @@ static int nfs_do_writepage(struct page *page, struct writeback_control *wbc, st
 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
 
 	nfs_pageio_cond_complete(pgio, page->index);
-	ret = nfs_page_async_flush(pgio, page,
-			wbc->sync_mode == WB_SYNC_NONE ||
-			wbc->nonblocking != 0);
+	ret = nfs_page_async_flush(pgio, page, wbc->sync_mode == WB_SYNC_NONE);
 	if (ret == -EAGAIN) {
 		redirty_page_for_writepage(wbc, page);
 		ret = 0;
@@ -394,6 +390,7 @@ static int nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 		if (nfs_have_delegation(inode, FMODE_WRITE))
 			nfsi->change_attr++;
 	}
+	set_bit(PG_MAPPED, &req->wb_flags);
 	SetPagePrivate(req->wb_page);
 	set_page_private(req->wb_page, (unsigned long)req);
 	nfsi->npages++;
@@ -419,6 +416,7 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 	spin_lock(&inode->i_lock);
 	set_page_private(req->wb_page, 0);
 	ClearPagePrivate(req->wb_page);
+	clear_bit(PG_MAPPED, &req->wb_flags);
 	radix_tree_delete(&nfsi->nfs_page_tree, req->wb_index);
 	nfsi->npages--;
 	if (!nfsi->npages) {
@@ -426,7 +424,6 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 		iput(inode);
 	} else
 		spin_unlock(&inode->i_lock);
-	nfs_clear_request(req);
 	nfs_release_request(req);
 }
 
@@ -1433,15 +1430,17 @@ static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_contr
 	int flags = FLUSH_SYNC;
 	int ret = 0;
 
-	/* Don't commit yet if this is a non-blocking flush and there are
-	 * lots of outstanding writes for this mapping.
-	 */
-	if (wbc->sync_mode == WB_SYNC_NONE &&
-	    nfsi->ncommit <= (nfsi->npages >> 1))
-		goto out_mark_dirty;
+	if (wbc->sync_mode == WB_SYNC_NONE) {
+		/* Don't commit yet if this is a non-blocking flush and there
+		 * are a lot of outstanding writes for this mapping.
+		 */
+		if (nfsi->ncommit <= (nfsi->npages >> 1))
+			goto out_mark_dirty;
 
-	if (wbc->nonblocking || wbc->for_background)
+		/* don't wait for the COMMIT response */
 		flags = 0;
+	}
+
 	ret = nfs_commit_inode(inode, flags);
 	if (ret >= 0) {
 		if (wbc->sync_mode == WB_SYNC_NONE) {

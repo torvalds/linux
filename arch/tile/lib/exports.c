@@ -45,6 +45,9 @@ EXPORT_SYMBOL(__copy_from_user_zeroing);
 EXPORT_SYMBOL(__copy_in_user_inatomic);
 #endif
 
+/* arch/tile/lib/mb_incoherent.S */
+EXPORT_SYMBOL(__mb_incoherent);
+
 /* hypervisor glue */
 #include <hv/hypervisor.h>
 EXPORT_SYMBOL(hv_dev_open);

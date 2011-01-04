@@ -368,7 +368,7 @@ out:
 static u32 e1000_get_rx_csum(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	return (adapter->flags & FLAG_RX_CSUM_ENABLED);
+	return adapter->flags & FLAG_RX_CSUM_ENABLED;
 }
 
 static int e1000_set_rx_csum(struct net_device *netdev, u32 data)
@@ -389,7 +389,7 @@ static int e1000_set_rx_csum(struct net_device *netdev, u32 data)
 
 static u32 e1000_get_tx_csum(struct net_device *netdev)
 {
-	return ((netdev->features & NETIF_F_HW_CSUM) != 0);
+	return (netdev->features & NETIF_F_HW_CSUM) != 0;
 }
 
 static int e1000_set_tx_csum(struct net_device *netdev, u32 data)
@@ -1717,13 +1717,6 @@ static void e1000_diag_test(struct net_device *netdev,
 
 		e_info("offline testing starting\n");
 
-		/*
-		 * Link test performed before hardware reset so autoneg doesn't
-		 * interfere with test result
-		 */
-		if (e1000_link_test(adapter, &data[4]))
-			eth_test->flags |= ETH_TEST_FL_FAILED;
-
 		if (if_running)
 			/* indicate we're in test mode */
 			dev_close(netdev);
@@ -1747,15 +1740,19 @@ static void e1000_diag_test(struct net_device *netdev,
 		if (e1000_loopback_test(adapter, &data[3]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		/* restore speed, duplex, autoneg settings */
-		adapter->hw.phy.autoneg_advertised = autoneg_advertised;
-		adapter->hw.mac.forced_speed_duplex = forced_speed_duplex;
-		adapter->hw.mac.autoneg = autoneg;
-
 		/* force this routine to wait until autoneg complete/timeout */
 		adapter->hw.phy.autoneg_wait_to_complete = 1;
 		e1000e_reset(adapter);
 		adapter->hw.phy.autoneg_wait_to_complete = 0;
+
+		if (e1000_link_test(adapter, &data[4]))
+			eth_test->flags |= ETH_TEST_FL_FAILED;
+
+		/* restore speed, duplex, autoneg settings */
+		adapter->hw.phy.autoneg_advertised = autoneg_advertised;
+		adapter->hw.mac.forced_speed_duplex = forced_speed_duplex;
+		adapter->hw.mac.autoneg = autoneg;
+		e1000e_reset(adapter);
 
 		clear_bit(__E1000_TESTING, &adapter->state);
 		if (if_running)

@@ -80,7 +80,6 @@ void PHY_SetRF8256Bandwidth(struct net_device* dev , HT_CHANNEL_WIDTH Bandwidth)
 
 		}
 	}
-	return;
 }
 /*--------------------------------------------------------------------------
  * Overview:    Interface to config 8256
@@ -414,7 +413,6 @@ void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
 
 #endif
 #endif
-	return;
 }
 
 #define MAX_DOZE_WAITING_TIMES_9x 64

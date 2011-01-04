@@ -4442,13 +4442,13 @@ static int ipmi_init_msghandler(void)
 	return 0;
 }
 
-static __init int ipmi_init_msghandler_mod(void)
+static int __init ipmi_init_msghandler_mod(void)
 {
 	ipmi_init_msghandler();
 	return 0;
 }
 
-static __exit void cleanup_ipmi(void)
+static void __exit cleanup_ipmi(void)
 {
 	int count;
 

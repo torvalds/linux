@@ -171,7 +171,7 @@ static struct bfin5xx_spi_chip spi_adc_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_SND_BLACKFIN_AD183X) || defined(CONFIG_SND_BLACKFIN_AD183X_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AD183X) || defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
 static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
 	.enable_dma = 0,
 	.bits_per_word = 16,
@@ -206,12 +206,12 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_SND_BLACKFIN_AD183X) || defined(CONFIG_SND_BLACKFIN_AD183X_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AD183X) || defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
 	{
-		.modalias = "ad1836",
+		.modalias = "ad183x",
 		.max_speed_hz = 16,
 		.bus_num = 1,
-		.chip_select = CONFIG_SND_BLACKFIN_SPI_PFBIT,
+		.chip_select = 4,
 		.controller_data = &ad1836_spi_chip_info,
 	},
 #endif
@@ -347,6 +347,7 @@ static struct plat_serial8250_port serial8250_platform_data [] = {
 		.membase = (void *)0x20200000,
 		.mapbase = 0x20200000,
 		.irq = IRQ_PF8,
+		.irqflags = IRQF_TRIGGER_HIGH,
 		.flags = UPF_BOOT_AUTOCONF | UART_CONFIG_TYPE,
 		.iotype = UPIO_MEM,
 		.regshift = 1,
@@ -355,6 +356,7 @@ static struct plat_serial8250_port serial8250_platform_data [] = {
 		.membase = (void *)0x20200010,
 		.mapbase = 0x20200010,
 		.irq = IRQ_PF8,
+		.irqflags = IRQF_TRIGGER_HIGH,
 		.flags = UPF_BOOT_AUTOCONF | UART_CONFIG_TYPE,
 		.iotype = UPIO_MEM,
 		.regshift = 1,

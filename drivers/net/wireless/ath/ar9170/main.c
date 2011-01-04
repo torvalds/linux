@@ -1190,14 +1190,13 @@ static int ar9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 	if (info->control.hw_key) {
 		icv = info->control.hw_key->icv_len;
 
-		switch (info->control.hw_key->alg) {
-		case ALG_WEP:
+		switch (info->control.hw_key->cipher) {
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+		case WLAN_CIPHER_SUITE_TKIP:
 			keytype = AR9170_TX_MAC_ENCR_RC4;
 			break;
-		case ALG_TKIP:
-			keytype = AR9170_TX_MAC_ENCR_RC4;
-			break;
-		case ALG_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP:
 			keytype = AR9170_TX_MAC_ENCR_AES;
 			break;
 		default:
@@ -1778,17 +1777,17 @@ static int ar9170_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if ((!ar->vif) || (ar->disable_offload))
 		return -EOPNOTSUPP;
 
-	switch (key->alg) {
-	case ALG_WEP:
-		if (key->keylen == WLAN_KEY_LEN_WEP40)
-			ktype = AR9170_ENC_ALG_WEP64;
-		else
-			ktype = AR9170_ENC_ALG_WEP128;
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+		ktype = AR9170_ENC_ALG_WEP64;
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_WEP104:
+		ktype = AR9170_ENC_ALG_WEP128;
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
 		ktype = AR9170_ENC_ALG_TKIP;
 		break;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		ktype = AR9170_ENC_ALG_AESCCMP;
 		break;
 	default:
@@ -1827,7 +1826,7 @@ static int ar9170_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		if (err)
 			goto out;
 
-		if (key->alg == ALG_TKIP) {
+		if (key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 			err = ar9170_upload_key(ar, i, sta ? sta->addr : NULL,
 						ktype, 1, key->key + 16, 16);
 			if (err)
@@ -1864,7 +1863,7 @@ static int ar9170_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			if (err)
 				goto out;
 
-			if (key->alg == ALG_TKIP) {
+			if (key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 				err = ar9170_upload_key(ar, key->hw_key_idx,
 							NULL,
 							AR9170_ENC_ALG_NONE, 1,

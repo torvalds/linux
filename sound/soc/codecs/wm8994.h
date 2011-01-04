@@ -11,9 +11,6 @@
 
 #include <sound/soc.h>
 
-extern struct snd_soc_codec_device soc_codec_dev_wm8994;
-extern struct snd_soc_dai wm8994_dai[];
-
 /* Sources for AIF1/2 SYSCLK - use with set_dai_sysclk() */
 #define WM8994_SYSCLK_MCLK1 1
 #define WM8994_SYSCLK_MCLK2 2

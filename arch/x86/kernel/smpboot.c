@@ -299,21 +299,15 @@ notrace static void __cpuinit start_secondary(void *unused)
 	 * fragile that we want to limit the things done here to the
 	 * most necessary things.
 	 */
-
-#ifdef CONFIG_X86_32
-	/*
-	 * Switch away from the trampoline page-table
-	 *
-	 * Do this before cpu_init() because it needs to access per-cpu
-	 * data which may not be mapped in the trampoline page-table.
-	 */
-	load_cr3(swapper_pg_dir);
-	__flush_tlb_all();
-#endif
-
 	cpu_init();
 	preempt_disable();
 	smp_callin();
+
+#ifdef CONFIG_X86_32
+	/* switch away from the initial page table */
+	load_cr3(swapper_pg_dir);
+	__flush_tlb_all();
+#endif
 
 	/* otherwise gcc will move up smp_processor_id before the cpu_init */
 	barrier();
@@ -753,7 +747,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 		.done	= COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
 	};
 
-	INIT_WORK_ON_STACK(&c_idle.work, do_fork_idle);
+	INIT_WORK_ONSTACK(&c_idle.work, do_fork_idle);
 
 	alternatives_smp_switch(1);
 
@@ -785,7 +779,6 @@ do_rest:
 #ifdef CONFIG_X86_32
 	/* Stack for startup_32 can be just as for start_secondary onwards */
 	irq_ctx_init(cpu);
-	initial_page_table = __pa(&trampoline_pg_dir);
 #else
 	clear_tsk_thread_flag(c_idle.idle, TIF_FORK);
 	initial_gs = per_cpu_offset(cpu);
@@ -934,7 +927,6 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
 
 	err = do_boot_cpu(apicid, cpu);
-
 	if (err) {
 		pr_debug("do_boot_cpu failed %d\n", err);
 		return -EIO;
@@ -1381,7 +1373,6 @@ void play_dead_common(void)
 {
 	idle_task_exit();
 	reset_lazy_tlbstate();
-	irq_ctx_exit(raw_smp_processor_id());
 	c1e_remove_cpu(raw_smp_processor_id());
 
 	mb();

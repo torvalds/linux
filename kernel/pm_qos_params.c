@@ -110,6 +110,7 @@ static const struct file_operations pm_qos_power_fops = {
 	.write = pm_qos_power_write,
 	.open = pm_qos_power_open,
 	.release = pm_qos_power_release,
+	.llseek = noop_llseek,
 };
 
 /* unlocked internal variant */
@@ -120,10 +121,10 @@ static inline int pm_qos_get_value(struct pm_qos_object *o)
 
 	switch (o->type) {
 	case PM_QOS_MIN:
-		return plist_last(&o->requests)->prio;
+		return plist_first(&o->requests)->prio;
 
 	case PM_QOS_MAX:
-		return plist_first(&o->requests)->prio;
+		return plist_last(&o->requests)->prio;
 
 	default:
 		/* runtime check for not using enum */
@@ -398,7 +399,7 @@ static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
 	} else
 		return -EINVAL;
 
-	pm_qos_req = (struct pm_qos_request_list *)filp->private_data;
+	pm_qos_req = filp->private_data;
 	pm_qos_update_request(pm_qos_req, value);
 
 	return count;

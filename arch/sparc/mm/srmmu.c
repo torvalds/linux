@@ -1262,7 +1262,8 @@ extern unsigned long bootmem_init(unsigned long *pages_avail);
 
 void __init srmmu_paging_init(void)
 {
-	int i, cpunode;
+	int i;
+	phandle cpunode;
 	char node_str[128];
 	pgd_t *pgd;
 	pmd_t *pmd;
@@ -1398,7 +1399,8 @@ static void __init srmmu_is_bad(void)
 
 static void __init init_vac_layout(void)
 {
-	int nd, cache_lines;
+	phandle nd;
+	int cache_lines;
 	char node_str[128];
 #ifdef CONFIG_SMP
 	int cpu = 0;
@@ -2082,7 +2084,7 @@ static void __init get_srmmu_type(void)
 
 	/* Next check for Fujitsu Swift. */
 	if(psr_typ == 0 && psr_vers == 4) {
-		int cpunode;
+		phandle cpunode;
 		char node_str[128];
 
 		/* Look if it is not a TurboSparc emulating Swift... */

@@ -239,8 +239,7 @@ static ssize_t lirc_write(struct file *file, const char *buf,
 static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	int retval = 0;
-	unsigned long value = 0;
-	unsigned int ivalue;
+	__u32 value = 0;
 	unsigned long hw_flags;
 
 	if (cmd == LIRC_GET_FEATURES)
@@ -256,24 +255,24 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	case LIRC_GET_FEATURES:
 	case LIRC_GET_SEND_MODE:
 	case LIRC_GET_REC_MODE:
-		retval = put_user(value, (unsigned long *) arg);
+		retval = put_user(value, (__u32 *) arg);
 		break;
 
 	case LIRC_SET_SEND_MODE:
 	case LIRC_SET_REC_MODE:
-		retval = get_user(value, (unsigned long *) arg);
+		retval = get_user(value, (__u32 *) arg);
 		break;
 
 	case LIRC_SET_SEND_CARRIER:
-		retval = get_user(ivalue, (unsigned int *) arg);
+		retval = get_user(value, (__u32 *) arg);
 		if (retval)
 			return retval;
-		ivalue /= 1000;
-		if (ivalue > IT87_CIR_FREQ_MAX ||
-		    ivalue < IT87_CIR_FREQ_MIN)
+		value /= 1000;
+		if (value > IT87_CIR_FREQ_MAX ||
+		    value < IT87_CIR_FREQ_MIN)
 			return -EINVAL;
 
-		it87_freq = ivalue;
+		it87_freq = value;
 
 		spin_lock_irqsave(&hardware_lock, hw_flags);
 		outb(((inb(io + IT87_CIR_TCR2) & IT87_CIR_TCR2_TXMPW) |
@@ -340,8 +339,12 @@ static const struct file_operations lirc_fops = {
 	.write		= lirc_write,
 	.poll		= lirc_poll,
 	.unlocked_ioctl	= lirc_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= lirc_ioctl,
+#endif
 	.open		= lirc_open,
 	.release	= lirc_close,
+	.llseek		= noop_llseek,
 };
 
 static int set_use_inc(void *data)
@@ -963,10 +966,11 @@ static void __exit lirc_it87_exit(void)
 	printk(KERN_INFO LIRC_DRIVER_NAME ": Uninstalled.\n");
 }
 
-/* SECTION: PNP for ITE8704/18 */
+/* SECTION: PNP for ITE8704/13/18 */
 
 static const struct pnp_device_id pnp_dev_table[] = {
 	{"ITE8704", 0},
+	{"ITE8713", 0},
 	{}
 };
 

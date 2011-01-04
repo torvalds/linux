@@ -115,7 +115,7 @@ static unsigned int ath5k_hw_rfb_op(struct ath5k_hw *ah,
 \**********************/
 
 /*
- * This code is used to optimize rf gain on different environments
+ * This code is used to optimize RF gain on different environments
  * (temperature mostly) based on feedback from a power detector.
  *
  * It's only used on RF5111 and RF5112, later RF chips seem to have
@@ -302,7 +302,7 @@ static bool ath5k_hw_rf_check_gainf_readback(struct ath5k_hw *ah)
 }
 
 /* Perform gain_F adjustment by choosing the right set
- * of parameters from rf gain optimization ladder */
+ * of parameters from RF gain optimization ladder */
 static s8 ath5k_hw_rf_gainf_adjust(struct ath5k_hw *ah)
 {
 	const struct ath5k_gain_opt *go;
@@ -367,7 +367,7 @@ done:
 	return ret;
 }
 
-/* Main callback for thermal rf gain calibration engine
+/* Main callback for thermal RF gain calibration engine
  * Check for a new gain reading and schedule an adjustment
  * if needed.
  *
@@ -433,7 +433,7 @@ done:
 	return ah->ah_gain.g_state;
 }
 
-/* Write initial rf gain table to set the RF sensitivity
+/* Write initial RF gain table to set the RF sensitivity
  * this one works on all RF chips and has nothing to do
  * with gain_F calibration */
 int ath5k_hw_rfgain_init(struct ath5k_hw *ah, unsigned int freq)
@@ -496,7 +496,7 @@ int ath5k_hw_rfgain_init(struct ath5k_hw *ah, unsigned int freq)
 
 
 /*
- * Setup RF registers by writing rf buffer on hw
+ * Setup RF registers by writing RF buffer on hw
  */
 int ath5k_hw_rfregs_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		unsigned int mode)
@@ -571,7 +571,7 @@ int ath5k_hw_rfregs_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		return -EINVAL;
 	}
 
-	/* If it's the first time we set rf buffer, allocate
+	/* If it's the first time we set RF buffer, allocate
 	 * ah->ah_rf_banks based on ah->ah_rf_banks_size
 	 * we set above */
 	if (ah->ah_rf_banks == NULL) {
@@ -1093,6 +1093,7 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 
 	ah->ah_current_channel = channel;
 	ah->ah_turbo = channel->hw_value == CHANNEL_T ? true : false;
+	ath5k_hw_set_clockrate(ah);
 
 	return 0;
 }
@@ -1257,7 +1258,7 @@ static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 	 * Disable beacons and RX/TX queues, wait
 	 */
 	AR5K_REG_ENABLE_BITS(ah, AR5K_DIAG_SW_5210,
-		AR5K_DIAG_SW_DIS_TX | AR5K_DIAG_SW_DIS_RX_5210);
+		AR5K_DIAG_SW_DIS_TX_5210 | AR5K_DIAG_SW_DIS_RX_5210);
 	beacon = ath5k_hw_reg_read(ah, AR5K_BEACON_5210);
 	ath5k_hw_reg_write(ah, beacon & ~AR5K_BEACON_ENABLE, AR5K_BEACON_5210);
 
@@ -1336,7 +1337,7 @@ static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 	 * Re-enable RX/TX and beacons
 	 */
 	AR5K_REG_DISABLE_BITS(ah, AR5K_DIAG_SW_5210,
-		AR5K_DIAG_SW_DIS_TX | AR5K_DIAG_SW_DIS_RX_5210);
+		AR5K_DIAG_SW_DIS_TX_5210 | AR5K_DIAG_SW_DIS_RX_5210);
 	ath5k_hw_reg_write(ah, beacon, AR5K_BEACON_5210);
 
 	return 0;
@@ -1377,7 +1378,7 @@ ath5k_hw_rf511x_iq_calibrate(struct ath5k_hw *ah)
 
 	/* protect against divide by 0 and loss of sign bits */
 	if (i_coffd == 0 || q_coffd < 2)
-		return -1;
+		return 0;
 
 	i_coff = (-iq_corr) / i_coffd;
 	i_coff = clamp(i_coff, -32, 31); /* signed 6 bit */
@@ -1582,7 +1583,7 @@ ath5k_hw_set_spur_mitigation_filter(struct ath5k_hw *ah,
 			else if (curr_sym_off >= 31 && curr_sym_off <= 46)
 				mag_mask[2] |=
 					plt_mag_map << (curr_sym_off - 31) * 2;
-			else if (curr_sym_off >= 46 && curr_sym_off <= 53)
+			else if (curr_sym_off >= 47 && curr_sym_off <= 53)
 				mag_mask[3] |=
 					plt_mag_map << (curr_sym_off - 47) * 2;
 
@@ -2987,7 +2988,7 @@ ath5k_setup_rate_powertable(struct ath5k_hw *ah, u16 max_pwr,
 
 
 /*
- * Set transmition power
+ * Set transmission power
  */
 int
 ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
@@ -3034,9 +3035,6 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 
 	/* Limit max power if we have a CTL available */
 	ath5k_get_max_ctl_power(ah, channel);
-
-	/* FIXME: Tx power limit for this regdomain
-	 * XXX: Mac80211/CRDA will do that anyway ? */
 
 	/* FIXME: Antenna reduction stuff */
 

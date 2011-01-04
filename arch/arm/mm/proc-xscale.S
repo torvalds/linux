@@ -181,6 +181,17 @@ ENTRY(cpu_xscale_do_idle)
 /* ================================= CACHE ================================ */
 
 /*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(xscale_flush_icache_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+	mov	pc, lr
+ENDPROC(xscale_flush_icache_all)
+
+/*
  *	flush_user_cache_all()
  *
  *	Invalidate all cache entries in a particular address
@@ -397,6 +408,7 @@ ENTRY(xscale_dma_unmap_area)
 ENDPROC(xscale_dma_unmap_area)
 
 ENTRY(xscale_cache_fns)
+	.long	xscale_flush_icache_all
 	.long	xscale_flush_kern_cache_all
 	.long	xscale_flush_user_cache_all
 	.long	xscale_flush_user_cache_range

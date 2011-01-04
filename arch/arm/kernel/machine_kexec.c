@@ -78,7 +78,10 @@ void machine_kexec(struct kimage *image)
 	local_fiq_disable();
 	setup_mm_for_reboot(0); /* mode is not used, so just pass 0*/
 	flush_cache_all();
+	outer_flush_all();
+	outer_disable();
 	cpu_proc_fin();
+	outer_inv_all();
 	flush_cache_all();
 	cpu_reset(reboot_code_buffer_phys);
 }

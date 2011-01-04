@@ -2296,7 +2296,7 @@ static int fcoe_ctlr_vn_recv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 {
 	struct fip_header *fiph;
 	enum fip_vn2vn_subcode sub;
-	union {
+	struct {
 		struct fc_rport_priv rdata;
 		struct fcoe_rport frport;
 	} buf;

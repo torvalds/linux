@@ -16,6 +16,7 @@
 #define USB_PID_SESSIONIO		0x1915
 #define USB_PID_GUITARRIGMOBILE		0x0d8d
 #define USB_PID_TRAKTORKONTROLX1	0x2305
+#define USB_PID_TRAKTORKONTROLS4	0xbaff
 
 #define EP1_BUFSIZE 64
 #define EP4_BUFSIZE 512
@@ -99,13 +100,14 @@ struct snd_usb_caiaqdev {
 	struct snd_pcm_substream *sub_capture[MAX_STREAMS];
 
 	/* Controls */
-	unsigned char control_state[64];
+	unsigned char control_state[256];
+	unsigned char ep8_out_buf[2];
 
 	/* Linux input */
 #ifdef CONFIG_SND_USB_CAIAQ_INPUT
 	struct input_dev *input_dev;
 	char phys[64];			/* physical device path */
-	unsigned short keycode[64];
+	unsigned short keycode[128];
 	struct urb *ep4_in_urb;
 	unsigned char ep4_in_buf[EP4_BUFSIZE];
 #endif

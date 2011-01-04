@@ -1009,6 +1009,7 @@ static const struct file_operations device_fops = {
 	.write   = device_write,
 	.poll    = device_poll,
 	.owner   = THIS_MODULE,
+	.llseek  = noop_llseek,
 };
 
 static const struct file_operations ctl_device_fops = {
@@ -1017,6 +1018,7 @@ static const struct file_operations ctl_device_fops = {
 	.read    = device_read,
 	.write   = device_write,
 	.owner   = THIS_MODULE,
+	.llseek  = noop_llseek,
 };
 
 static struct miscdevice ctl_device = {
@@ -1029,6 +1031,7 @@ static const struct file_operations monitor_device_fops = {
 	.open    = monitor_device_open,
 	.release = monitor_device_close,
 	.owner   = THIS_MODULE,
+	.llseek  = noop_llseek,
 };
 
 static struct miscdevice monitor_device = {

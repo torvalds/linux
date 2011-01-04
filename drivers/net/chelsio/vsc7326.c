@@ -255,7 +255,7 @@ static int bist_rd(adapter_t *adapter, int moduleid, int address)
 	else if ((result & (1 << 8)) != 0x0)
 		pr_err("bist read error: 0x%x\n", result);
 
-	return (result & 0xff);
+	return result & 0xff;
 }
 
 static int bist_wr(adapter_t *adapter, int moduleid, int address, int value)

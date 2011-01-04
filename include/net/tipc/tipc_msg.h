@@ -107,7 +107,7 @@ static inline u32 msg_hdr_sz(struct tipc_msg *m)
 
 static inline int msg_short(struct tipc_msg *m)
 {
-	return (msg_hdr_sz(m) == 24);
+	return msg_hdr_sz(m) == 24;
 }
 
 static inline u32 msg_size(struct tipc_msg *m)
@@ -117,7 +117,7 @@ static inline u32 msg_size(struct tipc_msg *m)
 
 static inline u32 msg_data_sz(struct tipc_msg *m)
 {
-	return (msg_size(m) - msg_hdr_sz(m));
+	return msg_size(m) - msg_hdr_sz(m);
 }
 
 static inline unchar *msg_data(struct tipc_msg *m)
@@ -132,17 +132,17 @@ static inline u32 msg_type(struct tipc_msg *m)
 
 static inline u32 msg_named(struct tipc_msg *m)
 {
-	return (msg_type(m) == TIPC_NAMED_MSG);
+	return msg_type(m) == TIPC_NAMED_MSG;
 }
 
 static inline u32 msg_mcast(struct tipc_msg *m)
 {
-	return (msg_type(m) == TIPC_MCAST_MSG);
+	return msg_type(m) == TIPC_MCAST_MSG;
 }
 
 static inline u32 msg_connected(struct tipc_msg *m)
 {
-	return (msg_type(m) == TIPC_CONN_MSG);
+	return msg_type(m) == TIPC_CONN_MSG;
 }
 
 static inline u32 msg_errcode(struct tipc_msg *m)

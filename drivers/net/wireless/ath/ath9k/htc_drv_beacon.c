@@ -235,7 +235,14 @@ void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
 	ath9k_hw_get_txq_props(ah, qnum, &qi_be);
 
 	qi.tqi_aifs = qi_be.tqi_aifs;
-	qi.tqi_cwmin = 4*qi_be.tqi_cwmin;
+	/* For WIFI Beacon Distribution
+	 * Long slot time  : 2x cwmin
+	 * Short slot time : 4x cwmin
+	 */
+	if (ah->slottime == ATH9K_SLOT_TIME_20)
+		qi.tqi_cwmin = 2*qi_be.tqi_cwmin;
+	else
+		qi.tqi_cwmin = 4*qi_be.tqi_cwmin;
 	qi.tqi_cwmax = qi_be.tqi_cwmax;
 
 	if (!ath9k_hw_set_txq_props(ah, priv->beaconq, &qi)) {

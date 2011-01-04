@@ -710,9 +710,9 @@ static void Et_setgainG(struct gspca_dev *gspca_dev, __u8 gain)
 }
 
 #define BLIMIT(bright) \
-	(__u8)((bright > 0x1f)?0x1f:((bright < 4)?3:bright))
+	(u8)((bright > 0x1f) ? 0x1f : ((bright < 4) ? 3 : bright))
 #define LIMIT(color) \
-	(unsigned char)((color > 0xff)?0xff:((color < 0)?0:color))
+	(u8)((color > 0xff) ? 0xff : ((color < 0) ? 0 : color))
 
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
@@ -896,18 +896,12 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

@@ -135,7 +135,4 @@
 #define TWL6040_HPPLL_ID		1
 #define TWL6040_LPPLL_ID		2
 
-extern struct snd_soc_dai twl6040_dai;
-extern struct snd_soc_codec_device soc_codec_dev_twl6040;
-
 #endif /* End of __TWL6040_H__ */

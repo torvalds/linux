@@ -67,6 +67,7 @@
 #define RIO_PW_MSG_SIZE		64
 
 extern struct bus_type rio_bus_type;
+extern struct device rio_bus;
 extern struct list_head rio_devices;	/* list of all devices */
 
 struct rio_mport;
@@ -98,6 +99,7 @@ union rio_pw_msg;
  * @riores: RIO resources this device owns
  * @pwcback: port-write callback function for this device
  * @destid: Network destination ID
+ * @prev: Previous RIO device connected to the current one
  */
 struct rio_dev {
 	struct list_head global_list;	/* node in list of all RIO devices */
@@ -111,7 +113,7 @@ struct rio_dev {
 	u16 asm_rev;
 	u16 efptr;
 	u32 pef;
-	u32 swpinfo;		/* Only used for switches */
+	u32 swpinfo;
 	u32 src_ops;
 	u32 dst_ops;
 	u32 comp_tag;
@@ -124,6 +126,7 @@ struct rio_dev {
 	struct resource riores[RIO_MAX_DEV_RESOURCES];
 	int (*pwcback) (struct rio_dev *rdev, union rio_pw_msg *msg, int step);
 	u16 destid;
+	struct rio_dev *prev;
 };
 
 #define rio_dev_g(n) list_entry(n, struct rio_dev, global_list)
@@ -174,6 +177,7 @@ enum rio_phy_type {
  * @index: Port index, unique among all port interfaces of the same type
  * @sys_size: RapidIO common transport system size
  * @phy_type: RapidIO phy type
+ * @phys_efptr: RIO port extended features pointer
  * @name: Port name string
  * @priv: Master port private data
  */
@@ -195,6 +199,7 @@ struct rio_mport {
 				 * 1 - Large size, 65536 devices.
 				 */
 	enum rio_phy_type phy_type;	/* RapidIO phy type */
+	u32 phys_efptr;
 	unsigned char name[40];
 	void *priv;		/* Master port private data */
 };
@@ -215,9 +220,14 @@ struct rio_net {
 	unsigned char id;	/* RIO network ID */
 };
 
+/* Definitions used by switch sysfs initialization callback */
+#define RIO_SW_SYSFS_CREATE	1	/* Create switch attributes */
+#define RIO_SW_SYSFS_REMOVE	0	/* Remove switch attributes */
+
 /**
  * struct rio_switch - RIO switch info
  * @node: Node in global list of switches
+ * @rdev: Associated RIO device structure
  * @switchid: Switch ID that is unique across a network
  * @hopcount: Hopcount to this switch
  * @destid: Associated destid in the path
@@ -230,9 +240,12 @@ struct rio_net {
  * @get_domain: Callback for switch-specific domain get function
  * @em_init: Callback for switch-specific error management initialization function
  * @em_handle: Callback for switch-specific error management handler function
+ * @sw_sysfs: Callback that initializes switch-specific sysfs attributes
+ * @nextdev: Array of per-port pointers to the next attached device
  */
 struct rio_switch {
 	struct list_head node;
+	struct rio_dev *rdev;
 	u16 switchid;
 	u16 hopcount;
 	u16 destid;
@@ -250,6 +263,8 @@ struct rio_switch {
 			   u8 *sw_domain);
 	int (*em_init) (struct rio_dev *dev);
 	int (*em_handle) (struct rio_dev *dev, u8 swport);
+	int (*sw_sysfs) (struct rio_dev *dev, int create);
+	struct rio_dev *nextdev[0];
 };
 
 /* Low-level architecture-dependent routines */

@@ -173,12 +173,13 @@ prototypes:
 	sector_t (*bmap)(struct address_space *, sector_t);
 	int (*invalidatepage) (struct page *, unsigned long);
 	int (*releasepage) (struct page *, int);
+	void (*freepage)(struct page *);
 	int (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs);
 	int (*launder_page) (struct page *);
 
 locking rules:
-	All except set_page_dirty may block
+	All except set_page_dirty and freepage may block
 
 			BKL	PageLocked(page)	i_mutex
 writepage:		no	yes, unlocks (see below)
@@ -193,6 +194,7 @@ perform_write:		no	n/a			yes
 bmap:			no
 invalidatepage:		no	yes
 releasepage:		no	yes
+freepage:		no	yes
 direct_IO:		no
 launder_page:		no	yes
 
@@ -288,6 +290,9 @@ buffers from the page in preparation for freeing it.  It returns zero to
 indicate that the buffers are (or may be) freeable.  If ->releasepage is zero,
 the kernel assumes that the fs has no private interest in the buffers.
 
+	->freepage() is called when the kernel is done dropping the page
+from the page cache.
+
 	->launder_page() may be called prior to releasing a page if
 it is still found to be dirty. It returns zero if the page was successfully
 cleaned, or an error value if not. Note that in order to prevent the page
@@ -322,7 +327,6 @@ fl_release_private:	yes	yes
 prototypes:
 	int (*fl_compare_owner)(struct file_lock *, struct file_lock *);
 	void (*fl_notify)(struct file_lock *);  /* unblock callback */
-	void (*fl_copy_lock)(struct file_lock *, struct file_lock *);
 	void (*fl_release_private)(struct file_lock *);
 	void (*fl_break)(struct file_lock *); /* break_lease callback */
 
@@ -330,7 +334,6 @@ locking rules:
 			BKL	may block
 fl_compare_owner:	yes	no
 fl_notify:		yes	no
-fl_copy_lock:		yes	no
 fl_release_private:	yes	yes
 fl_break:		yes	no
 
@@ -349,21 +352,36 @@ call this method upon the IO completion.
 
 --------------------------- block_device_operations -----------------------
 prototypes:
-	int (*open) (struct inode *, struct file *);
-	int (*release) (struct inode *, struct file *);
-	int (*ioctl) (struct inode *, struct file *, unsigned, unsigned long);
+	int (*open) (struct block_device *, fmode_t);
+	int (*release) (struct gendisk *, fmode_t);
+	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+	int (*direct_access) (struct block_device *, sector_t, void **, unsigned long *);
 	int (*media_changed) (struct gendisk *);
+	void (*unlock_native_capacity) (struct gendisk *);
 	int (*revalidate_disk) (struct gendisk *);
+	int (*getgeo)(struct block_device *, struct hd_geometry *);
+	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
 
 locking rules:
-			BKL	bd_sem
-open:			yes	yes
-release:		yes	yes
-ioctl:			yes	no
+			BKL	bd_mutex
+open:			no	yes
+release:		no	yes
+ioctl:			no	no
+compat_ioctl:		no	no
+direct_access:		no	no
 media_changed:		no	no
+unlock_native_capacity:	no	no
 revalidate_disk:	no	no
+getgeo:			no	no
+swap_slot_free_notify:	no	no	(see below)
 
-The last two are called only from check_disk_change().
+media_changed, unlock_native_capacity and revalidate_disk are called only from
+check_disk_change().
+
+swap_slot_free_notify is called with swap_lock and sometimes the page lock
+held.
+
 
 --------------------------- file_operations -------------------------------
 prototypes:

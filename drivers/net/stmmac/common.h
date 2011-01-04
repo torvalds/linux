@@ -102,8 +102,6 @@ struct stmmac_extra_stats {
 
 #define SF_DMA_MODE 1 /* DMA STORE-AND-FORWARD Operation Mode */
 
-#define HW_CSUM 1
-#define NO_HW_CSUM 0
 enum rx_frame_status { /* IPC status */
 	good_frame = 0,
 	discard_frame = 1,
@@ -167,7 +165,7 @@ struct stmmac_desc_ops {
 	int (*get_tx_ls) (struct dma_desc *p);
 	/* Return the transmit status looking at the TDES1 */
 	int (*tx_status) (void *data, struct stmmac_extra_stats *x,
-			  struct dma_desc *p, unsigned long ioaddr);
+			  struct dma_desc *p, void __iomem *ioaddr);
 	/* Get the buffer size from the descriptor */
 	int (*get_tx_len) (struct dma_desc *p);
 	/* Handle extra events on specific interrupts hw dependent */
@@ -182,44 +180,46 @@ struct stmmac_desc_ops {
 
 struct stmmac_dma_ops {
 	/* DMA core initialization */
-	int (*init) (unsigned long ioaddr, int pbl, u32 dma_tx, u32 dma_rx);
+	int (*init) (void __iomem *ioaddr, int pbl, u32 dma_tx, u32 dma_rx);
 	/* Dump DMA registers */
-	void (*dump_regs) (unsigned long ioaddr);
+	void (*dump_regs) (void __iomem *ioaddr);
 	/* Set tx/rx threshold in the csr6 register
 	 * An invalid value enables the store-and-forward mode */
-	void (*dma_mode) (unsigned long ioaddr, int txmode, int rxmode);
+	void (*dma_mode) (void __iomem *ioaddr, int txmode, int rxmode);
 	/* To track extra statistic (if supported) */
 	void (*dma_diagnostic_fr) (void *data, struct stmmac_extra_stats *x,
-				   unsigned long ioaddr);
-	void (*enable_dma_transmission) (unsigned long ioaddr);
-	void (*enable_dma_irq) (unsigned long ioaddr);
-	void (*disable_dma_irq) (unsigned long ioaddr);
-	void (*start_tx) (unsigned long ioaddr);
-	void (*stop_tx) (unsigned long ioaddr);
-	void (*start_rx) (unsigned long ioaddr);
-	void (*stop_rx) (unsigned long ioaddr);
-	int (*dma_interrupt) (unsigned long ioaddr,
+				   void __iomem *ioaddr);
+	void (*enable_dma_transmission) (void __iomem *ioaddr);
+	void (*enable_dma_irq) (void __iomem *ioaddr);
+	void (*disable_dma_irq) (void __iomem *ioaddr);
+	void (*start_tx) (void __iomem *ioaddr);
+	void (*stop_tx) (void __iomem *ioaddr);
+	void (*start_rx) (void __iomem *ioaddr);
+	void (*stop_rx) (void __iomem *ioaddr);
+	int (*dma_interrupt) (void __iomem *ioaddr,
 			      struct stmmac_extra_stats *x);
 };
 
 struct stmmac_ops {
 	/* MAC core initialization */
-	void (*core_init) (unsigned long ioaddr) ____cacheline_aligned;
+	void (*core_init) (void __iomem *ioaddr) ____cacheline_aligned;
+	/* Support checksum offload engine */
+	int  (*rx_coe) (void __iomem *ioaddr);
 	/* Dump MAC registers */
-	void (*dump_regs) (unsigned long ioaddr);
+	void (*dump_regs) (void __iomem *ioaddr);
 	/* Handle extra events on specific interrupts hw dependent */
-	void (*host_irq_status) (unsigned long ioaddr);
+	void (*host_irq_status) (void __iomem *ioaddr);
 	/* Multicast filter setting */
 	void (*set_filter) (struct net_device *dev);
 	/* Flow control setting */
-	void (*flow_ctrl) (unsigned long ioaddr, unsigned int duplex,
+	void (*flow_ctrl) (void __iomem *ioaddr, unsigned int duplex,
 			   unsigned int fc, unsigned int pause_time);
 	/* Set power management mode (e.g. magic frame) */
-	void (*pmt) (unsigned long ioaddr, unsigned long mode);
+	void (*pmt) (void __iomem *ioaddr, unsigned long mode);
 	/* Set/Get Unicast MAC addresses */
-	void (*set_umac_addr) (unsigned long ioaddr, unsigned char *addr,
+	void (*set_umac_addr) (void __iomem *ioaddr, unsigned char *addr,
 			       unsigned int reg_n);
-	void (*get_umac_addr) (unsigned long ioaddr, unsigned char *addr,
+	void (*get_umac_addr) (void __iomem *ioaddr, unsigned char *addr,
 			       unsigned int reg_n);
 };
 
@@ -235,19 +235,18 @@ struct mii_regs {
 };
 
 struct mac_device_info {
-	struct stmmac_ops	*mac;
-	struct stmmac_desc_ops	*desc;
-	struct stmmac_dma_ops	*dma;
-	unsigned int pmt;	/* support Power-Down */
+	const struct stmmac_ops		*mac;
+	const struct stmmac_desc_ops	*desc;
+	const struct stmmac_dma_ops	*dma;
 	struct mii_regs mii;	/* MII register Addresses */
 	struct mac_link link;
 };
 
-struct mac_device_info *dwmac1000_setup(unsigned long addr);
-struct mac_device_info *dwmac100_setup(unsigned long addr);
+struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr);
+struct mac_device_info *dwmac100_setup(void __iomem *ioaddr);
 
-extern void stmmac_set_mac_addr(unsigned long ioaddr, u8 addr[6],
+extern void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 				unsigned int high, unsigned int low);
-extern void stmmac_get_mac_addr(unsigned long ioaddr, unsigned char *addr,
+extern void stmmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 				unsigned int high, unsigned int low);
-extern void dwmac_dma_flush_tx_fifo(unsigned long ioaddr);
+extern void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr);

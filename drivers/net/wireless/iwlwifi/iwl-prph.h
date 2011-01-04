@@ -306,7 +306,7 @@
  *     at a time, until receiving ACK from receiving station, or reaching
  *     retry limit and giving up.
  *
- *     The command queue (#4) must use this mode!
+ *     The command queue (#4/#9) must use this mode!
  *     This mode does not require use of the Byte Count table in host DRAM.
  *
  * Driver controls scheduler operation via 3 means:
@@ -322,7 +322,7 @@
  *     (1024 bytes for each queue).
  *
  * After receiving "Alive" response from uCode, driver must initialize
- * the scheduler (especially for queue #4, the command queue, otherwise
+ * the scheduler (especially for queue #4/#9, the command queue, otherwise
  * the driver can't issue commands!):
  */
 
@@ -555,8 +555,9 @@
 #define IWLAGN_SCD_TRANSLATE_TBL_OFFSET_QUEUE(x) \
 	((IWLAGN_SCD_TRANSLATE_TBL_OFFSET + ((x) * 2)) & 0xfffc)
 
-#define IWLAGN_SCD_QUEUECHAIN_SEL_ALL(x)		(((1<<(x)) - 1) &\
-	(~(1<<IWL_CMD_QUEUE_NUM)))
+#define IWLAGN_SCD_QUEUECHAIN_SEL_ALL(priv)	\
+	(((1<<(priv)->hw_params.max_txq_num) - 1) &\
+	(~(1<<(priv)->cmd_queue)))
 
 #define IWLAGN_SCD_BASE			(PRPH_BASE + 0xa02c00)
 

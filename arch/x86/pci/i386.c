@@ -72,9 +72,6 @@ pcibios_align_resource(void *data, const struct resource *res,
 			return start;
 		if (start & 0x300)
 			start = (start + 0x3ff) & ~0x3ff;
-	} else if (res->flags & IORESOURCE_MEM) {
-		if (start < BIOS_END)
-			start = BIOS_END;
 	}
 	return start;
 }
@@ -310,6 +307,8 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		 * aswell.
 		 */
 		prot |= _PAGE_CACHE_UC_MINUS;
+
+	prot |= _PAGE_IOMAP;	/* creating a mapping for IO */
 
 	vma->vm_page_prot = __pgprot(prot);
 

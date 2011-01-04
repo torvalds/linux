@@ -315,7 +315,7 @@ struct usbduxsub {
  */
 static struct usbduxsub usbduxsub[NUMUSBDUX];
 
-static DECLARE_MUTEX(start_stop_sem);
+static DEFINE_SEMAPHORE(start_stop_sem);
 
 /*
  * Stops the data acquision
@@ -649,7 +649,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 
 	/* normal operation: executing a command in this subdevice */
 	this_usbduxsub->ao_counter--;
-	if (this_usbduxsub->ao_counter <= 0) {
+	if ((int)this_usbduxsub->ao_counter <= 0) {
 		/* timer zero */
 		this_usbduxsub->ao_counter = this_usbduxsub->ao_timer;
 
@@ -2295,8 +2295,8 @@ static void tidy_up(struct usbduxsub *usbduxsub_tmp)
 	usbduxsub_tmp->inBuffer = NULL;
 	kfree(usbduxsub_tmp->insnBuffer);
 	usbduxsub_tmp->insnBuffer = NULL;
-	kfree(usbduxsub_tmp->inBuffer);
-	usbduxsub_tmp->inBuffer = NULL;
+	kfree(usbduxsub_tmp->outBuffer);
+	usbduxsub_tmp->outBuffer = NULL;
 	kfree(usbduxsub_tmp->dac_commands);
 	usbduxsub_tmp->dac_commands = NULL;
 	kfree(usbduxsub_tmp->dux_commands);
@@ -2367,7 +2367,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	dev_dbg(dev, "comedi_: usbdux: "
 		"usbduxsub[%d] is ready to connect to comedi.\n", index);
 
-	init_MUTEX(&(usbduxsub[index].sem));
+	sema_init(&(usbduxsub[index].sem), 1);
 	/* save a pointer to the usb device */
 	usbduxsub[index].usbdev = udev;
 

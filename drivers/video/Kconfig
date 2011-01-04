@@ -17,6 +17,8 @@ source "drivers/gpu/vga/Kconfig"
 
 source "drivers/gpu/drm/Kconfig"
 
+source "drivers/gpu/stub/Kconfig"
+
 config VGASTATE
        tristate
        default n
@@ -49,7 +51,7 @@ menuconfig FB
 	  You need an utility program called fbset to make full use of frame
 	  buffer devices. Please read <file:Documentation/fb/framebuffer.txt>
 	  and the Framebuffer-HOWTO at
-	  <http://www.munted.org.uk/programming/Framebuffer-HOWTO-1.2.html> for more
+	  <http://www.munted.org.uk/programming/Framebuffer-HOWTO-1.3.html> for more
 	  information.
 
 	  Say Y here and to the driver for your graphics board below if you
@@ -955,7 +957,7 @@ config FB_EPSON1355
 	  Build in support for the SED1355 Epson Research Embedded RAMDAC
 	  LCD/CRT Controller (since redesignated as the S1D13505) as a
 	  framebuffer.  Product specs at
-	  <http://www.erd.epson.com/vdc/html/products.htm>.
+	  <http://vdc.epson.com/>.
 
 config FB_S1D13XXX
 	tristate "Epson S1D13XXX framebuffer support"
@@ -966,7 +968,7 @@ config FB_S1D13XXX
 	help
 	  Support for S1D13XXX framebuffer device family (currently only
 	  working with S1D13806). Product specs at
-	  <http://www.erd.epson.com/vdc/html/legacy_13xxx.htm>
+	  <http://vdc.epson.com/>
 
 config FB_ATMEL
 	tristate "AT91/AT32 LCD Controller support"
@@ -1323,7 +1325,7 @@ config FB_RADEON
 	  don't need to choose this to run the Radeon in plain VGA mode.
 
 	  There is a product page at
-	  http://apps.ati.com/ATIcompare/
+	  http://products.amd.com/en-us/GraphicCardResult.aspx
 
 config FB_RADEON_I2C
 	bool "DDC/I2C for ATI Radeon support"
@@ -1395,7 +1397,7 @@ config FB_ATY_CT
 	  Say Y here to support use of ATI's 64-bit Rage boards (or other
 	  boards based on the Mach64 CT, VT, GT, and LT chipsets) as a
 	  framebuffer device.  The ATI product support page for these boards
-	  is at <http://support.ati.com/products/pc/mach64/>.
+	  is at <http://support.ati.com/products/pc/mach64/mach64.html>.
 
 config FB_ATY_GENERIC_LCD
 	bool "Mach64 generic LCD support (EXPERIMENTAL)"
@@ -1919,6 +1921,9 @@ config FB_SH_MOBILE_HDMI
 	tristate "SuperH Mobile HDMI controller support"
 	depends on FB_SH_MOBILE_LCDC
 	select FB_MODE_HELPERS
+	select SOUND
+	select SND
+	select SND_SOC
 	---help---
 	  Driver for the on-chip SH-Mobile HDMI controller.
 

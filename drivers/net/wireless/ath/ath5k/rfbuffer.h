@@ -25,10 +25,10 @@
  *
  * We don't write on those registers directly but
  * we send a data packet on the chip, using a special register,
- * that holds all the settings we need. After we 've sent the
+ * that holds all the settings we need. After we've sent the
  * data packet, we write on another special register to notify hw
  * to apply the settings. This is done so that control registers
- * can be dynamicaly programmed during operation and the settings
+ * can be dynamically programmed during operation and the settings
  * are applied faster on the hw.
  *
  * We call each data packet an "RF Bank" and all the data we write

@@ -21,7 +21,6 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/time.h>
 #include <linux/device.h>
 #include <linux/moduleparam.h>
@@ -184,7 +183,8 @@ static int snd_open(struct inode *inode, struct file *file)
 static const struct file_operations snd_fops =
 {
 	.owner =	THIS_MODULE,
-	.open =		snd_open
+	.open =		snd_open,
+	.llseek =	noop_llseek,
 };
 
 #ifdef CONFIG_SND_DYNAMIC_MINORS

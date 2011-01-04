@@ -107,7 +107,7 @@
 .endm
 #endif /* CONFIG_M532x */
 
-#if defined(CONFIG_M5407)
+#if defined(CONFIG_M5407) || defined(CONFIG_M548x)
 /*
  *	Version 4 cores have a true harvard style separate instruction
  *	and data cache. Invalidate and enable cache, also enable write

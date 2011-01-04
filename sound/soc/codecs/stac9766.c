@@ -25,7 +25,6 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
-#include <sound/soc-of-simple.h>
 
 #include "stac9766.h"
 
@@ -257,20 +256,15 @@ static int stac9766_reset(struct snd_soc_codec *codec, int try_warm)
 	return 0;
 }
 
-static int stac9766_codec_suspend(struct platform_device *pdev,
+static int stac9766_codec_suspend(struct snd_soc_codec *codec,
 				  pm_message_t state)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
 	stac9766_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
-static int stac9766_codec_resume(struct platform_device *pdev)
+static int stac9766_codec_resume(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
 	u16 id, reset;
 
 	reset = 0;
@@ -300,10 +294,9 @@ static struct snd_soc_dai_ops stac9766_dai_ops_digital = {
 	.prepare = ac97_digital_prepare,
 };
 
-struct snd_soc_dai stac9766_dai[] = {
+static struct snd_soc_dai_driver stac9766_dai[] = {
 {
-	.name = "stac9766 analog",
-	.id = 0,
+	.name = "stac9766-hifi-analog",
 	.ac97_control = 1,
 
 	/* stream cababilities */
@@ -325,8 +318,7 @@ struct snd_soc_dai stac9766_dai[] = {
 	.ops = &stac9766_dai_ops_analog,
 },
 {
-	.name = "stac9766 IEC958",
-	.id = 1,
+	.name = "stac9766-hifi-IEC958",
 	.ac97_control = 1,
 
 	/* stream cababilities */
@@ -342,49 +334,16 @@ struct snd_soc_dai stac9766_dai[] = {
 	.ops = &stac9766_dai_ops_digital,
 }
 };
-EXPORT_SYMBOL_GPL(stac9766_dai);
 
-static int stac9766_codec_probe(struct platform_device *pdev)
+static int stac9766_codec_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
 	int ret = 0;
 
 	printk(KERN_INFO "STAC9766 SoC Audio Codec %s\n", STAC9766_VERSION);
 
-	socdev->card->codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (socdev->card->codec == NULL)
-		return -ENOMEM;
-	codec = socdev->card->codec;
-	mutex_init(&codec->mutex);
-
-	codec->reg_cache = kmemdup(stac9766_reg, sizeof(stac9766_reg),
-				   GFP_KERNEL);
-	if (codec->reg_cache == NULL) {
-		ret = -ENOMEM;
-		goto cache_err;
-	}
-	codec->reg_cache_size = sizeof(stac9766_reg);
-	codec->reg_cache_step = 2;
-
-	codec->name = "STAC9766";
-	codec->owner = THIS_MODULE;
-	codec->dai = stac9766_dai;
-	codec->num_dai = ARRAY_SIZE(stac9766_dai);
-	codec->write = stac9766_ac97_write;
-	codec->read = stac9766_ac97_read;
-	codec->set_bias_level = stac9766_set_bias_level;
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
 	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
 	if (ret < 0)
 		goto codec_err;
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0)
-		goto pcm_err;
 
 	/* do a cold reset for the controller and then try
 	 * a warm reset followed by an optional cold reset for codec */
@@ -392,7 +351,7 @@ static int stac9766_codec_probe(struct platform_device *pdev)
 	ret = stac9766_reset(codec, 1);
 	if (ret < 0) {
 		printk(KERN_ERR "Failed to reset STAC9766: AC97 link error\n");
-		goto reset_err;
+		goto codec_err;
 	}
 
 	stac9766_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -402,40 +361,64 @@ static int stac9766_codec_probe(struct platform_device *pdev)
 
 	return 0;
 
-reset_err:
-	snd_soc_free_pcms(socdev);
-pcm_err:
-	snd_soc_free_ac97_codec(codec);
 codec_err:
-	kfree(snd_soc_codec_get_drvdata(codec));
-cache_err:
-	kfree(socdev->card->codec);
-	socdev->card->codec = NULL;
+	snd_soc_free_ac97_codec(codec);
 	return ret;
 }
 
-static int stac9766_codec_remove(struct platform_device *pdev)
+static int stac9766_codec_remove(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	if (codec == NULL)
-		return 0;
-
-	snd_soc_free_pcms(socdev);
 	snd_soc_free_ac97_codec(codec);
-	kfree(codec->reg_cache);
-	kfree(codec);
 	return 0;
 }
 
-struct snd_soc_codec_device soc_codec_dev_stac9766 = {
+static struct snd_soc_codec_driver soc_codec_dev_stac9766 = {
+	.write = stac9766_ac97_write,
+	.read = stac9766_ac97_read,
+	.set_bias_level = stac9766_set_bias_level,
 	.probe = stac9766_codec_probe,
 	.remove = stac9766_codec_remove,
 	.suspend = stac9766_codec_suspend,
 	.resume = stac9766_codec_resume,
+	.reg_cache_size = sizeof(stac9766_reg),
+	.reg_word_size = sizeof(u16),
+	.reg_cache_step = 2,
+	.reg_cache_default = stac9766_reg,
 };
-EXPORT_SYMBOL_GPL(soc_codec_dev_stac9766);
+
+static __devinit int stac9766_probe(struct platform_device *pdev)
+{
+	return snd_soc_register_codec(&pdev->dev,
+			&soc_codec_dev_stac9766, stac9766_dai, ARRAY_SIZE(stac9766_dai));
+}
+
+static int __devexit stac9766_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_codec(&pdev->dev);
+	return 0;
+}
+
+static struct platform_driver stac9766_codec_driver = {
+	.driver = {
+			.name = "stac9766-codec",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = stac9766_probe,
+	.remove = __devexit_p(stac9766_remove),
+};
+
+static int __init stac9766_init(void)
+{
+	return platform_driver_register(&stac9766_codec_driver);
+}
+module_init(stac9766_init);
+
+static void __exit stac9766_exit(void)
+{
+	platform_driver_unregister(&stac9766_codec_driver);
+}
+module_exit(stac9766_exit);
 
 MODULE_DESCRIPTION("ASoC stac9766 driver");
 MODULE_AUTHOR("Jon Smirl <jonsmirl@gmail.com>");

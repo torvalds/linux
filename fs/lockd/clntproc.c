@@ -7,7 +7,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -166,7 +165,6 @@ int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl)
 	/* Set up the argument struct */
 	nlmclnt_setlockargs(call, fl);
 
-	lock_kernel();
 	if (IS_SETLK(cmd) || IS_SETLKW(cmd)) {
 		if (fl->fl_type != F_UNLCK) {
 			call->a_args.block = IS_SETLKW(cmd) ? 1 : 0;
@@ -177,10 +175,8 @@ int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl)
 		status = nlmclnt_test(call, fl);
 	else
 		status = -EINVAL;
-
 	fl->fl_ops->fl_release_private(fl);
 	fl->fl_ops = NULL;
-	unlock_kernel();
 
 	dprintk("lockd: clnt proc returns %d\n", status);
 	return status;
@@ -226,9 +222,7 @@ void nlm_release_call(struct nlm_rqst *call)
 
 static void nlmclnt_rpc_release(void *data)
 {
-	lock_kernel();
 	nlm_release_call(data);
-	unlock_kernel();
 }
 
 static int nlm_wait_on_grace(wait_queue_head_t *queue)
@@ -448,14 +442,18 @@ out:
 
 static void nlmclnt_locks_copy_lock(struct file_lock *new, struct file_lock *fl)
 {
+	spin_lock(&fl->fl_u.nfs_fl.owner->host->h_lock);
 	new->fl_u.nfs_fl.state = fl->fl_u.nfs_fl.state;
 	new->fl_u.nfs_fl.owner = nlm_get_lockowner(fl->fl_u.nfs_fl.owner);
 	list_add_tail(&new->fl_u.nfs_fl.list, &fl->fl_u.nfs_fl.owner->host->h_granted);
+	spin_unlock(&fl->fl_u.nfs_fl.owner->host->h_lock);
 }
 
 static void nlmclnt_locks_release_private(struct file_lock *fl)
 {
+	spin_lock(&fl->fl_u.nfs_fl.owner->host->h_lock);
 	list_del(&fl->fl_u.nfs_fl.list);
+	spin_unlock(&fl->fl_u.nfs_fl.owner->host->h_lock);
 	nlm_put_lockowner(fl->fl_u.nfs_fl.owner);
 }
 
@@ -721,9 +719,7 @@ static void nlmclnt_unlock_callback(struct rpc_task *task, void *data)
 die:
 	return;
  retry_rebind:
-	lock_kernel();
 	nlm_rebind_host(req->a_host);
-	unlock_kernel();
  retry_unlock:
 	rpc_restart_call(task);
 }
@@ -801,9 +797,7 @@ retry_cancel:
 	/* Don't ever retry more than 3 times */
 	if (req->a_retries++ >= NLMCLNT_MAX_RETRIES)
 		goto die;
-	lock_kernel();
 	nlm_rebind_host(req->a_host);
-	unlock_kernel();
 	rpc_restart_call(task);
 	rpc_delay(task, 30 * HZ);
 }

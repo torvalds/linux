@@ -376,7 +376,7 @@ int rpc_queue_empty(struct rpc_wait_queue *queue)
 	spin_lock_bh(&queue->lock);
 	res = queue->qlen;
 	spin_unlock_bh(&queue->lock);
-	return (res == 0);
+	return res == 0;
 }
 EXPORT_SYMBOL_GPL(rpc_queue_empty);
 
@@ -908,7 +908,7 @@ static int rpciod_start(void)
 	 * Create the rpciod thread and wait for it to start.
 	 */
 	dprintk("RPC:       creating workqueue rpciod\n");
-	wq = create_workqueue("rpciod");
+	wq = alloc_workqueue("rpciod", WQ_RESCUER, 0);
 	rpciod_workqueue = wq;
 	return rpciod_workqueue != NULL;
 }

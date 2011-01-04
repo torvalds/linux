@@ -511,7 +511,7 @@ static void bfin_demux_mac_status_irq(unsigned int int_err_irq,
 	int i, irq = 0;
 	u32 status = bfin_read_EMAC_SYSTAT();
 
-	for (i = 0; i < (IRQ_MAC_STMDONE - IRQ_MAC_PHYINT); i++)
+	for (i = 0; i <= (IRQ_MAC_STMDONE - IRQ_MAC_PHYINT); i++)
 		if (status & (1L << i)) {
 			irq = IRQ_MAC_PHYINT + i;
 			break;
@@ -529,8 +529,9 @@ static void bfin_demux_mac_status_irq(unsigned int int_err_irq,
 	} else
 		printk(KERN_ERR
 		       "%s : %s : LINE %d :\nIRQ ?: MAC ERROR"
-		       " INTERRUPT ASSERTED BUT NO SOURCE FOUND\n",
-		       __func__, __FILE__, __LINE__);
+		       " INTERRUPT ASSERTED BUT NO SOURCE FOUND"
+		       "(EMAC_SYSTAT=0x%X)\n",
+		       __func__, __FILE__, __LINE__, status);
 }
 #endif
 
@@ -1298,7 +1299,7 @@ void do_irq(int vec, struct pt_regs *fp)
 	} else {
 		struct ivgx *ivg = ivg7_13[vec - IVG7].ifirst;
 		struct ivgx *ivg_stop = ivg7_13[vec - IVG7].istop;
-#if defined(SIC_ISR0) || defined(SICA_ISR0)
+#if defined(SIC_ISR0)
 		unsigned long sic_status[3];
 
 		if (smp_processor_id()) {
@@ -1378,7 +1379,7 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 	if (likely(vec == EVT_IVTMR_P))
 		irq = IRQ_CORETMR;
 	else {
-#if defined(SIC_ISR0) || defined(SICA_ISR0)
+#if defined(SIC_ISR0)
 		unsigned long sic_status[3];
 
 		sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();

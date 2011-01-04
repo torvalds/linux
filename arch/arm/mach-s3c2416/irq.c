@@ -168,12 +168,11 @@ static struct irq_chip s3c2416_irq_dma = {
 
 static void s3c2416_irq_demux_uart3(unsigned int irq, struct irq_desc *desc)
 {
-	s3c2416_irq_demux(IRQ_S3C2443_UART3, 3);
+	s3c2416_irq_demux(IRQ_S3C2443_RX3, 3);
 }
 
 #define INTMSK_UART3	(1UL << (IRQ_S3C2443_UART3 - IRQ_EINT0))
-#define SUBMSK_UART3	(0xf << (IRQ_S3C2443_RX3 - S3C2410_IRQSUB(0)))
-
+#define SUBMSK_UART3	(0x7 << (IRQ_S3C2443_RX3 - S3C2410_IRQSUB(0)))
 
 static void s3c2416_irq_uart3_mask(unsigned int irqno)
 {
@@ -243,6 +242,8 @@ static int __init s3c2416_irq_add(struct sys_device *sysdev)
 
 static struct sysdev_driver s3c2416_irq_driver = {
 	.add		= s3c2416_irq_add,
+	.suspend	= s3c24xx_irq_suspend,
+	.resume		= s3c24xx_irq_resume,
 };
 
 static int __init s3c2416_irq_init(void)

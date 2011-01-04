@@ -274,6 +274,33 @@ static int dspregs_active(struct task_struct *target,
 }
 #endif
 
+const struct pt_regs_offset regoffset_table[] = {
+	REGS_OFFSET_NAME(0),
+	REGS_OFFSET_NAME(1),
+	REGS_OFFSET_NAME(2),
+	REGS_OFFSET_NAME(3),
+	REGS_OFFSET_NAME(4),
+	REGS_OFFSET_NAME(5),
+	REGS_OFFSET_NAME(6),
+	REGS_OFFSET_NAME(7),
+	REGS_OFFSET_NAME(8),
+	REGS_OFFSET_NAME(9),
+	REGS_OFFSET_NAME(10),
+	REGS_OFFSET_NAME(11),
+	REGS_OFFSET_NAME(12),
+	REGS_OFFSET_NAME(13),
+	REGS_OFFSET_NAME(14),
+	REGS_OFFSET_NAME(15),
+	REG_OFFSET_NAME(pc),
+	REG_OFFSET_NAME(pr),
+	REG_OFFSET_NAME(sr),
+	REG_OFFSET_NAME(gbr),
+	REG_OFFSET_NAME(mach),
+	REG_OFFSET_NAME(macl),
+	REG_OFFSET_NAME(tra),
+	REG_OFFSET_END,
+};
+
 /*
  * These are our native regset flavours.
  */
@@ -338,9 +365,9 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 	return &user_sh_native_view;
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
-	struct user * dummy = NULL;
 	unsigned long __user *datap = (unsigned long __user *)data;
 	int ret;
 
@@ -356,17 +383,20 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 		if (addr < sizeof(struct pt_regs))
 			tmp = get_stack_long(child, addr);
-		else if (addr >= (long) &dummy->fpu &&
-			 addr < (long) &dummy->u_fpvalid) {
+		else if (addr >= offsetof(struct user, fpu) &&
+			 addr < offsetof(struct user, u_fpvalid)) {
 			if (!tsk_used_math(child)) {
-				if (addr == (long)&dummy->fpu.fpscr)
+				if (addr == offsetof(struct user, fpu.fpscr))
 					tmp = FPSCR_INIT;
 				else
 					tmp = 0;
-			} else
-				tmp = ((long *)child->thread.xstate)
-					[(addr - (long)&dummy->fpu) >> 2];
-		} else if (addr == (long) &dummy->u_fpvalid)
+			} else {
+				unsigned long index;
+				index = addr - offsetof(struct user, fpu);
+				tmp = ((unsigned long *)child->thread.xstate)
+					[index >> 2];
+			}
+		} else if (addr == offsetof(struct user, u_fpvalid))
 			tmp = !!tsk_used_math(child);
 		else if (addr == PT_TEXT_ADDR)
 			tmp = child->mm->start_code;
@@ -390,13 +420,15 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 		if (addr < sizeof(struct pt_regs))
 			ret = put_stack_long(child, addr, data);
-		else if (addr >= (long) &dummy->fpu &&
-			 addr < (long) &dummy->u_fpvalid) {
+		else if (addr >= offsetof(struct user, fpu) &&
+			 addr < offsetof(struct user, u_fpvalid)) {
+			unsigned long index;
+			index = addr - offsetof(struct user, fpu);
 			set_stopped_child_used_math(child);
-			((long *)child->thread.xstate)
-				[(addr - (long)&dummy->fpu) >> 2] = data;
+			((unsigned long *)child->thread.xstate)
+				[index >> 2] = data;
 			ret = 0;
-		} else if (addr == (long) &dummy->u_fpvalid) {
+		} else if (addr == offsetof(struct user, u_fpvalid)) {
 			conditional_stopped_child_used_math(data, child);
 			ret = 0;
 		}
@@ -406,35 +438,35 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		return copy_regset_to_user(child, &user_sh_native_view,
 					   REGSET_GENERAL,
 					   0, sizeof(struct pt_regs),
-					   (void __user *)data);
+					   datap);
 	case PTRACE_SETREGS:
 		return copy_regset_from_user(child, &user_sh_native_view,
 					     REGSET_GENERAL,
 					     0, sizeof(struct pt_regs),
-					     (const void __user *)data);
+					     datap);
 #ifdef CONFIG_SH_FPU
 	case PTRACE_GETFPREGS:
 		return copy_regset_to_user(child, &user_sh_native_view,
 					   REGSET_FPU,
 					   0, sizeof(struct user_fpu_struct),
-					   (void __user *)data);
+					   datap);
 	case PTRACE_SETFPREGS:
 		return copy_regset_from_user(child, &user_sh_native_view,
 					     REGSET_FPU,
 					     0, sizeof(struct user_fpu_struct),
-					     (const void __user *)data);
+					     datap);
 #endif
 #ifdef CONFIG_SH_DSP
 	case PTRACE_GETDSPREGS:
 		return copy_regset_to_user(child, &user_sh_native_view,
 					   REGSET_DSP,
 					   0, sizeof(struct pt_dspregs),
-					   (void __user *)data);
+					   datap);
 	case PTRACE_SETDSPREGS:
 		return copy_regset_from_user(child, &user_sh_native_view,
 					     REGSET_DSP,
 					     0, sizeof(struct pt_dspregs),
-					     (const void __user *)data);
+					     datap);
 #endif
 	default:
 		ret = ptrace_request(child, request, addr, data);

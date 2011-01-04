@@ -3365,18 +3365,19 @@ static int onenand_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
 static void onenand_check_features(struct mtd_info *mtd)
 {
 	struct onenand_chip *this = mtd->priv;
-	unsigned int density, process;
+	unsigned int density, process, numbufs;
 
 	/* Lock scheme depends on density and process */
 	density = onenand_get_density(this->device_id);
 	process = this->version_id >> ONENAND_VERSION_PROCESS_SHIFT;
+	numbufs = this->read_word(this->base + ONENAND_REG_NUM_BUFFERS) >> 8;
 
 	/* Lock scheme */
 	switch (density) {
 	case ONENAND_DEVICE_DENSITY_4Gb:
 		if (ONENAND_IS_DDP(this))
 			this->options |= ONENAND_HAS_2PLANE;
-		else
+		else if (numbufs == 1)
 			this->options |= ONENAND_HAS_4KB_PAGE;
 
 	case ONENAND_DEVICE_DENSITY_2Gb:
@@ -4027,7 +4028,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->ecclayout = this->ecclayout;
 
 	/* Fill in remaining MTD driver data */
-	mtd->type = MTD_NANDFLASH;
+	mtd->type = ONENAND_IS_MLC(this) ? MTD_MLCNANDFLASH : MTD_NANDFLASH;
 	mtd->flags = MTD_CAP_NANDFLASH;
 	mtd->erase = onenand_erase;
 	mtd->point = NULL;

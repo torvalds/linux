@@ -20,7 +20,6 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/mman.h>
 #include <linux/file.h>
@@ -108,6 +107,15 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 #define sys_fadvise64_64 sys32_fadvise64_64
 #define sys_readahead sys32_readahead
 #define sys_sync_file_range sys_sync_file_range2
+#endif
+
+/* Call the trampolines to manage pt_regs where necessary. */
+#define sys_execve _sys_execve
+#define sys_sigaltstack _sys_sigaltstack
+#define sys_rt_sigreturn _sys_rt_sigreturn
+#define sys_clone _sys_clone
+#ifndef __tilegx__
+#define sys_cmpxchg_badaddr _sys_cmpxchg_badaddr
 #endif
 
 /*

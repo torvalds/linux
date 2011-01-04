@@ -1,7 +1,7 @@
 /*
- * Line6 Linux USB driver - 0.8.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
- * Copyright (C) 2004-2009 Markus Grabner (grabner@icg.tugraz.at)
+ * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -9,10 +9,7 @@
  *
  */
 
-#include "driver.h"
-
 #include <linux/slab.h>
-
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
@@ -20,9 +17,184 @@
 
 #include "audio.h"
 #include "capture.h"
+#include "driver.h"
 #include "playback.h"
 #include "pod.h"
 
+#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
+
+static struct snd_line6_pcm *dev2pcm(struct device *dev)
+{
+	struct usb_interface *interface = to_usb_interface(dev);
+	struct usb_line6 *line6 = usb_get_intfdata(interface);
+	struct snd_line6_pcm *line6pcm = line6->line6pcm;
+	return line6pcm;
+}
+
+/*
+	"read" request on "impulse_volume" special file.
+*/
+static ssize_t pcm_get_impulse_volume(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", dev2pcm(dev)->impulse_volume);
+}
+
+/*
+	"write" request on "impulse_volume" special file.
+*/
+static ssize_t pcm_set_impulse_volume(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct snd_line6_pcm *line6pcm = dev2pcm(dev);
+	int value = simple_strtoul(buf, NULL, 10);
+	line6pcm->impulse_volume = value;
+
+	if (value > 0)
+		line6_pcm_start(line6pcm, MASK_PCM_IMPULSE);
+	else
+		line6_pcm_stop(line6pcm, MASK_PCM_IMPULSE);
+
+	return count;
+}
+
+/*
+	"read" request on "impulse_period" special file.
+*/
+static ssize_t pcm_get_impulse_period(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", dev2pcm(dev)->impulse_period);
+}
+
+/*
+	"write" request on "impulse_period" special file.
+*/
+static ssize_t pcm_set_impulse_period(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	dev2pcm(dev)->impulse_period = simple_strtoul(buf, NULL, 10);
+	return count;
+}
+
+static DEVICE_ATTR(impulse_volume, S_IWUSR | S_IRUGO, pcm_get_impulse_volume,
+		   pcm_set_impulse_volume);
+static DEVICE_ATTR(impulse_period, S_IWUSR | S_IRUGO, pcm_get_impulse_period,
+		   pcm_set_impulse_period);
+
+#endif
+
+int line6_pcm_start(struct snd_line6_pcm *line6pcm, int channels)
+{
+	unsigned long flags_old =
+	    __sync_fetch_and_or(&line6pcm->flags, channels);
+	unsigned long flags_new = flags_old | channels;
+	int err = 0;
+
+#if LINE6_BACKUP_MONITOR_SIGNAL
+	if (!(line6pcm->line6->properties->capabilities & LINE6_BIT_HWMON)) {
+		line6pcm->prev_fbuf =
+		    kmalloc(LINE6_ISO_PACKETS * line6pcm->max_packet_size,
+			    GFP_KERNEL);
+
+		if (!line6pcm->prev_fbuf) {
+			dev_err(line6pcm->line6->ifcdev,
+				"cannot malloc monitor buffer\n");
+			return -ENOMEM;
+		}
+	}
+#else
+	line6pcm->prev_fbuf = NULL;
+#endif
+
+	if (((flags_old & MASK_CAPTURE) == 0) &&
+	    ((flags_new & MASK_CAPTURE) != 0)) {
+		/*
+		   Waiting for completion of active URBs in the stop handler is
+		   a bug, we therefore report an error if capturing is restarted
+		   too soon.
+		 */
+		if (line6pcm->active_urb_in | line6pcm->unlink_urb_in)
+			return -EBUSY;
+
+		line6pcm->buffer_in =
+		    kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
+			    line6pcm->max_packet_size, GFP_KERNEL);
+
+		if (!line6pcm->buffer_in) {
+			dev_err(line6pcm->line6->ifcdev,
+				"cannot malloc capture buffer\n");
+			return -ENOMEM;
+		}
+
+		line6pcm->count_in = 0;
+		line6pcm->prev_fsize = 0;
+		err = line6_submit_audio_in_all_urbs(line6pcm);
+
+		if (err < 0) {
+			__sync_fetch_and_and(&line6pcm->flags, ~channels);
+			return err;
+		}
+	}
+
+	if (((flags_old & MASK_PLAYBACK) == 0) &&
+	    ((flags_new & MASK_PLAYBACK) != 0)) {
+		/*
+		   See comment above regarding PCM restart.
+		 */
+		if (line6pcm->active_urb_out | line6pcm->unlink_urb_out)
+			return -EBUSY;
+
+		line6pcm->buffer_out =
+		    kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
+			    line6pcm->max_packet_size, GFP_KERNEL);
+
+		if (!line6pcm->buffer_out) {
+			dev_err(line6pcm->line6->ifcdev,
+				"cannot malloc playback buffer\n");
+			return -ENOMEM;
+		}
+
+		line6pcm->count_out = 0;
+		err = line6_submit_audio_out_all_urbs(line6pcm);
+
+		if (err < 0) {
+			__sync_fetch_and_and(&line6pcm->flags, ~channels);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+int line6_pcm_stop(struct snd_line6_pcm *line6pcm, int channels)
+{
+	unsigned long flags_old =
+	    __sync_fetch_and_and(&line6pcm->flags, ~channels);
+	unsigned long flags_new = flags_old & ~channels;
+
+	if (((flags_old & MASK_CAPTURE) != 0) &&
+	    ((flags_new & MASK_CAPTURE) == 0)) {
+		line6_unlink_audio_in_urbs(line6pcm);
+		kfree(line6pcm->buffer_in);
+		line6pcm->buffer_in = NULL;
+	}
+
+	if (((flags_old & MASK_PLAYBACK) != 0) &&
+	    ((flags_new & MASK_PLAYBACK) == 0)) {
+		line6_unlink_audio_out_urbs(line6pcm);
+		kfree(line6pcm->buffer_out);
+		line6pcm->buffer_out = NULL;
+	}
+#if LINE6_BACKUP_MONITOR_SIGNAL
+	if (line6pcm->prev_fbuf != NULL)
+		kfree(line6pcm->prev_fbuf);
+#endif
+
+	return 0;
+}
 
 /* trigger callback */
 int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
@@ -38,7 +210,7 @@ int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
 	snd_pcm_group_for_each_entry(s, substream) {
 		switch (s->stream) {
 		case SNDRV_PCM_STREAM_PLAYBACK:
-			err = snd_line6_playback_trigger(s, cmd);
+			err = snd_line6_playback_trigger(line6pcm, cmd);
 
 			if (err < 0) {
 				spin_unlock_irqrestore(&line6pcm->lock_trigger,
@@ -49,7 +221,7 @@ int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
 			break;
 
 		case SNDRV_PCM_STREAM_CAPTURE:
-			err = snd_line6_capture_trigger(s, cmd);
+			err = snd_line6_capture_trigger(line6pcm, cmd);
 
 			if (err < 0) {
 				spin_unlock_irqrestore(&line6pcm->lock_trigger,
@@ -60,8 +232,8 @@ int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
 			break;
 
 		default:
-			dev_err(s2m(substream), "Unknown stream direction %d\n",
-				s->stream);
+			dev_err(line6pcm->line6->ifcdev,
+				"Unknown stream direction %d\n", s->stream);
 		}
 	}
 
@@ -70,8 +242,8 @@ int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
 }
 
 /* control info callback */
-static int snd_line6_control_info(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_info *uinfo)
+static int snd_line6_control_playback_info(struct snd_kcontrol *kcontrol,
+					   struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
@@ -81,28 +253,30 @@ static int snd_line6_control_info(struct snd_kcontrol *kcontrol,
 }
 
 /* control get callback */
-static int snd_line6_control_get(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
+static int snd_line6_control_playback_get(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *ucontrol)
 {
 	int i;
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
 
 	for (i = 2; i--;)
-		ucontrol->value.integer.value[i] = line6pcm->volume[i];
+		ucontrol->value.integer.value[i] = line6pcm->volume_playback[i];
 
 	return 0;
 }
 
 /* control put callback */
-static int snd_line6_control_put(struct snd_kcontrol *kcontrol,
-				 struct snd_ctl_elem_value *ucontrol)
+static int snd_line6_control_playback_put(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *ucontrol)
 {
 	int i, changed = 0;
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
 
 	for (i = 2; i--;)
-		if (line6pcm->volume[i] != ucontrol->value.integer.value[i]) {
-			line6pcm->volume[i] = ucontrol->value.integer.value[i];
+		if (line6pcm->volume_playback[i] !=
+		    ucontrol->value.integer.value[i]) {
+			line6pcm->volume_playback[i] =
+			    ucontrol->value.integer.value[i];
 			changed = 1;
 		}
 
@@ -110,14 +284,14 @@ static int snd_line6_control_put(struct snd_kcontrol *kcontrol,
 }
 
 /* control definition */
-static struct snd_kcontrol_new line6_control = {
+static struct snd_kcontrol_new line6_control_playback = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Playback Volume",
 	.index = 0,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-	.info = snd_line6_control_info,
-	.get = snd_line6_control_get,
-	.put = snd_line6_control_put
+	.info = snd_line6_control_playback_info,
+	.get = snd_line6_control_playback_get,
+	.put = snd_line6_control_playback_put
 };
 
 /*
@@ -127,6 +301,11 @@ static void line6_cleanup_pcm(struct snd_pcm *pcm)
 {
 	int i;
 	struct snd_line6_pcm *line6pcm = snd_pcm_chip(pcm);
+
+#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
+	device_remove_file(line6pcm->line6->ifcdev, &dev_attr_impulse_volume);
+	device_remove_file(line6pcm->line6->ifcdev, &dev_attr_impulse_period);
+#endif
 
 	for (i = LINE6_ISO_BUFFERS; i--;) {
 		if (line6pcm->urb_audio_out[i]) {
@@ -147,8 +326,8 @@ static int snd_line6_new_pcm(struct snd_line6_pcm *line6pcm)
 	int err;
 
 	err = snd_pcm_new(line6pcm->line6->card,
-			 (char *)line6pcm->line6->properties->name,
-			 0, 1, 1, &pcm);
+			  (char *)line6pcm->line6->properties->name,
+			  0, 1, 1, &pcm);
 	if (err < 0)
 		return err;
 
@@ -164,8 +343,9 @@ static int snd_line6_new_pcm(struct snd_line6_pcm *line6pcm)
 
 	/* pre-allocation of buffers */
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
-					snd_dma_continuous_data(GFP_KERNEL),
-					64 * 1024, 128 * 1024);
+					      snd_dma_continuous_data
+					      (GFP_KERNEL), 64 * 1024,
+					      128 * 1024);
 
 	return 0;
 }
@@ -174,6 +354,28 @@ static int snd_line6_new_pcm(struct snd_line6_pcm *line6pcm)
 static int snd_line6_pcm_free(struct snd_device *device)
 {
 	return 0;
+}
+
+/*
+	Stop substream if still running.
+*/
+static void pcm_disconnect_substream(struct snd_pcm_substream *substream)
+{
+	if (substream->runtime && snd_pcm_running(substream))
+		snd_pcm_stop(substream, SNDRV_PCM_STATE_DISCONNECTED);
+}
+
+/*
+	Stop PCM stream.
+*/
+void line6_pcm_disconnect(struct snd_line6_pcm *line6pcm)
+{
+	pcm_disconnect_substream(get_substream
+				 (line6pcm, SNDRV_PCM_STREAM_CAPTURE));
+	pcm_disconnect_substream(get_substream
+				 (line6pcm, SNDRV_PCM_STREAM_PLAYBACK));
+	line6_unlink_wait_clear_audio_out_urbs(line6pcm);
+	line6_unlink_wait_clear_audio_in_urbs(line6pcm);
 }
 
 /*
@@ -192,7 +394,7 @@ int line6_init_pcm(struct usb_line6 *line6,
 	struct snd_line6_pcm *line6pcm;
 
 	if (!(line6->properties->capabilities & LINE6_BIT_PCM))
-		return 0;  /* skip PCM initialization and report success */
+		return 0;	/* skip PCM initialization and report success */
 
 	/* initialize PCM subsystem based on product id: */
 	switch (line6->product) {
@@ -202,36 +404,39 @@ int line6_init_pcm(struct usb_line6 *line6,
 	case LINE6_DEVID_PODXT:
 	case LINE6_DEVID_PODXTLIVE:
 	case LINE6_DEVID_PODXTPRO:
-		ep_read  = 0x82;
+		ep_read = 0x82;
 		ep_write = 0x01;
 		break;
 
 	case LINE6_DEVID_PODX3:
 	case LINE6_DEVID_PODX3LIVE:
-		ep_read  = 0x86;
+		ep_read = 0x86;
 		ep_write = 0x02;
 		break;
 
 	case LINE6_DEVID_POCKETPOD:
-		ep_read  = 0x82;
+		ep_read = 0x82;
 		ep_write = 0x02;
 		break;
 
 	case LINE6_DEVID_GUITARPORT:
+	case LINE6_DEVID_PODSTUDIO_GX:
+	case LINE6_DEVID_PODSTUDIO_UX1:
+	case LINE6_DEVID_PODSTUDIO_UX2:
 	case LINE6_DEVID_TONEPORT_GX:
-		ep_read  = 0x82;
+	case LINE6_DEVID_TONEPORT_UX1:
+	case LINE6_DEVID_TONEPORT_UX2:
+		ep_read = 0x82;
 		ep_write = 0x01;
 		break;
 
-	case LINE6_DEVID_TONEPORT_UX1:
-		ep_read  = 0x00;
-		ep_write = 0x00;
-		break;
-
-	case LINE6_DEVID_TONEPORT_UX2:
-		ep_read  = 0x87;
-		ep_write = 0x00;
-		break;
+		/* this is for interface_number == 1:
+		   case LINE6_DEVID_TONEPORT_UX2:
+		   case LINE6_DEVID_PODSTUDIO_UX2:
+		   ep_read  = 0x87;
+		   ep_write = 0x00;
+		   break;
+		 */
 
 	default:
 		MISSING_CASE;
@@ -242,14 +447,14 @@ int line6_init_pcm(struct usb_line6 *line6,
 	if (line6pcm == NULL)
 		return -ENOMEM;
 
-	line6pcm->volume[0] = line6pcm->volume[1] = 128;
+	line6pcm->volume_playback[0] = line6pcm->volume_playback[1] = 255;
+	line6pcm->volume_monitor = 255;
 	line6pcm->line6 = line6;
 	line6pcm->ep_audio_read = ep_read;
 	line6pcm->ep_audio_write = ep_write;
 	line6pcm->max_packet_size = usb_maxpacket(line6->usbdev,
-						 usb_rcvintpipe(line6->usbdev,
-								ep_read),
-						  0);
+						  usb_rcvintpipe(line6->usbdev,
+								 ep_read), 0);
 	line6pcm->properties = properties;
 	line6->line6pcm = line6pcm;
 
@@ -268,18 +473,33 @@ int line6_init_pcm(struct usb_line6 *line6,
 	spin_lock_init(&line6pcm->lock_audio_in);
 	spin_lock_init(&line6pcm->lock_trigger);
 
-	err = create_audio_out_urbs(line6pcm);
+	err = line6_create_audio_out_urbs(line6pcm);
 	if (err < 0)
 		return err;
 
-	err = create_audio_in_urbs(line6pcm);
+	err = line6_create_audio_in_urbs(line6pcm);
 	if (err < 0)
 		return err;
 
 	/* mixer: */
-	err = snd_ctl_add(line6->card, snd_ctl_new1(&line6_control, line6pcm));
+	err =
+	    snd_ctl_add(line6->card,
+			snd_ctl_new1(&line6_control_playback, line6pcm));
 	if (err < 0)
 		return err;
+
+#ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
+	/* impulse response test: */
+	err = device_create_file(line6->ifcdev, &dev_attr_impulse_volume);
+	if (err < 0)
+		return err;
+
+	err = device_create_file(line6->ifcdev, &dev_attr_impulse_period);
+	if (err < 0)
+		return err;
+
+	line6pcm->impulse_period = LINE6_IMPULSE_DEFAULT_PERIOD;
+#endif
 
 	return 0;
 }
@@ -290,12 +510,11 @@ int snd_line6_prepare(struct snd_pcm_substream *substream)
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 
 	if (!test_and_set_bit(BIT_PREPARED, &line6pcm->flags)) {
-		unlink_wait_clear_audio_out_urbs(line6pcm);
+		line6pcm->count_out = 0;
 		line6pcm->pos_out = 0;
 		line6pcm->pos_out_done = 0;
-
-		unlink_wait_clear_audio_in_urbs(line6pcm);
 		line6pcm->bytes_out = 0;
+		line6pcm->count_in = 0;
 		line6pcm->pos_in_done = 0;
 		line6pcm->bytes_in = 0;
 	}

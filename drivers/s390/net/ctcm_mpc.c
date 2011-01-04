@@ -540,7 +540,7 @@ void ctc_mpc_dealloc_ch(int port_num)
 
 	CTCM_DBF_TEXT_(MPC_SETUP, CTC_DBF_DEBUG,
 			"%s: %s: refcount = %d\n",
-			CTCM_FUNTAIL, dev->name, atomic_read(&dev->refcnt));
+			CTCM_FUNTAIL, dev->name, netdev_refcnt_read(dev));
 
 	fsm_deltimer(&priv->restart_timer);
 	grp->channels_terminating = 0;

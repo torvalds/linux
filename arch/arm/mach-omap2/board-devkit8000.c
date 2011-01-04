@@ -28,6 +28,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
+#include <linux/mmc/host.h>
 
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
@@ -44,7 +45,6 @@
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 #include <plat/usb.h>
-#include <plat/timer-gp.h>
 #include <plat/display.h>
 
 #include <plat/mcspi.h>
@@ -58,6 +58,7 @@
 
 #include "mux.h"
 #include "hsmmc.h"
+#include "timer-gp.h"
 
 #define NAND_BLOCK_SIZE		SZ_128K
 
@@ -105,7 +106,7 @@ static struct omap_nand_platform_data devkit8000_nand_data = {
 static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
-		.wires		= 8,
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
 		.gpio_wp	= 29,
 	},
 	{}	/* Terminator */
@@ -198,7 +199,7 @@ static struct platform_device devkit8000_dss_device = {
 static struct regulator_consumer_supply devkit8000_vdda_dac_supply =
 	REGULATOR_SUPPLY("vdda_dac", "omapdss");
 
-static int board_keymap[] = {
+static uint32_t board_keymap[] = {
 	KEY(0, 0, KEY_1),
 	KEY(1, 0, KEY_2),
 	KEY(2, 0, KEY_3),
@@ -240,9 +241,6 @@ static int devkit8000_twl_gpio_setup(struct device *dev,
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
 	omap2_hsmmc_init(mmc);
-
-	/* link regulators to MMC adapters */
-	devkit8000_vmmc1_supply.dev = mmc[0].dev;
 
 	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;

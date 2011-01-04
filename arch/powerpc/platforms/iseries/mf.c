@@ -1249,6 +1249,7 @@ out:
 
 static const struct file_operations proc_vmlinux_operations = {
 	.write		= proc_mf_change_vmlinux,
+	.llseek		= default_llseek,
 };
 
 static int __init mf_proc_init(void)

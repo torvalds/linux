@@ -45,7 +45,7 @@ void rds_tcp_state_change(struct sock *sk)
 
 	read_lock_bh(&sk->sk_callback_lock);
 	conn = sk->sk_user_data;
-	if (conn == NULL) {
+	if (!conn) {
 		state_change = sk->sk_state_change;
 		goto out;
 	}

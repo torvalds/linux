@@ -242,9 +242,11 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 			switch (sprn) {
 			case SPRN_SRR0:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.srr0); break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->srr0);
+				break;
 			case SPRN_SRR1:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.srr1); break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->srr1);
+				break;
 			case SPRN_PVR:
 				kvmppc_set_gpr(vcpu, rt, vcpu->arch.pvr); break;
 			case SPRN_PIR:
@@ -261,13 +263,17 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 				kvmppc_set_gpr(vcpu, rt, get_tb()); break;
 
 			case SPRN_SPRG0:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.sprg0); break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->sprg0);
+				break;
 			case SPRN_SPRG1:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.sprg1); break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->sprg1);
+				break;
 			case SPRN_SPRG2:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.sprg2); break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->sprg2);
+				break;
 			case SPRN_SPRG3:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.sprg3); break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->sprg3);
+				break;
 			/* Note: SPRG4-7 are user-readable, so we don't get
 			 * a trap. */
 
@@ -320,9 +326,11 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			rs = get_rs(inst);
 			switch (sprn) {
 			case SPRN_SRR0:
-				vcpu->arch.srr0 = kvmppc_get_gpr(vcpu, rs); break;
+				vcpu->arch.shared->srr0 = kvmppc_get_gpr(vcpu, rs);
+				break;
 			case SPRN_SRR1:
-				vcpu->arch.srr1 = kvmppc_get_gpr(vcpu, rs); break;
+				vcpu->arch.shared->srr1 = kvmppc_get_gpr(vcpu, rs);
+				break;
 
 			/* XXX We need to context-switch the timebase for
 			 * watchdog and FIT. */
@@ -337,13 +345,17 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 				break;
 
 			case SPRN_SPRG0:
-				vcpu->arch.sprg0 = kvmppc_get_gpr(vcpu, rs); break;
+				vcpu->arch.shared->sprg0 = kvmppc_get_gpr(vcpu, rs);
+				break;
 			case SPRN_SPRG1:
-				vcpu->arch.sprg1 = kvmppc_get_gpr(vcpu, rs); break;
+				vcpu->arch.shared->sprg1 = kvmppc_get_gpr(vcpu, rs);
+				break;
 			case SPRN_SPRG2:
-				vcpu->arch.sprg2 = kvmppc_get_gpr(vcpu, rs); break;
+				vcpu->arch.shared->sprg2 = kvmppc_get_gpr(vcpu, rs);
+				break;
 			case SPRN_SPRG3:
-				vcpu->arch.sprg3 = kvmppc_get_gpr(vcpu, rs); break;
+				vcpu->arch.shared->sprg3 = kvmppc_get_gpr(vcpu, rs);
+				break;
 
 			default:
 				emulated = kvmppc_core_emulate_mtspr(vcpu, sprn, rs);

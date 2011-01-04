@@ -121,7 +121,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 			tx_hdr.data_type = ATH9K_HTC_NORMAL;
 		}
 
-		if (ieee80211_is_data(fc)) {
+		if (ieee80211_is_data_qos(fc)) {
 			qc = ieee80211_get_qos_ctl(hdr);
 			tx_hdr.tidno = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 		}
@@ -369,8 +369,7 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
 		| ATH9K_RX_FILTER_UCAST | ATH9K_RX_FILTER_BCAST
 		| ATH9K_RX_FILTER_MCAST;
 
-	/* If not a STA, enable processing of Probe Requests */
-	if (ah->opmode != NL80211_IFTYPE_STATION)
+	if (priv->rxfilter & FIF_PROBE_REQ)
 		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
 
 	/*
@@ -415,8 +414,7 @@ static void ath9k_htc_opmode_init(struct ath9k_htc_priv *priv)
 	ath9k_hw_setrxfilter(ah, rfilt);
 
 	/* configure bssid mask */
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		ath_hw_setbssidmask(common);
+	ath_hw_setbssidmask(common);
 
 	/* configure operational mode */
 	ath9k_hw_setopmode(ah);

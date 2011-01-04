@@ -40,7 +40,7 @@
 #include <linux/major.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/device.h>
@@ -56,6 +56,7 @@
  * Table for permanently allocated memory (used when unloading the module)
  */
 void *          sound_mem_blocks[MAX_MEM_BLOCKS];
+static DEFINE_MUTEX(soundcard_mutex);
 int             sound_nblocks = 0;
 
 /* Persistent DMA buffers */
@@ -151,7 +152,7 @@ static ssize_t sound_read(struct file *file, char __user *buf, size_t count, lof
 	 *	big one anyway, we might as well bandage here..
 	 */
 	 
-	lock_kernel();
+	mutex_lock(&soundcard_mutex);
 	
 	DEB(printk("sound_read(dev=%d, count=%d)\n", dev, count));
 	switch (dev & 0x0f) {
@@ -169,7 +170,7 @@ static ssize_t sound_read(struct file *file, char __user *buf, size_t count, lof
 	case SND_DEV_MIDIN:
 		ret = MIDIbuf_read(dev, file, buf, count);
 	}
-	unlock_kernel();
+	mutex_unlock(&soundcard_mutex);
 	return ret;
 }
 
@@ -178,7 +179,7 @@ static ssize_t sound_write(struct file *file, const char __user *buf, size_t cou
 	int dev = iminor(file->f_path.dentry->d_inode);
 	int ret = -EINVAL;
 	
-	lock_kernel();
+	mutex_lock(&soundcard_mutex);
 	DEB(printk("sound_write(dev=%d, count=%d)\n", dev, count));
 	switch (dev & 0x0f) {
 	case SND_DEV_SEQ:
@@ -196,7 +197,7 @@ static ssize_t sound_write(struct file *file, const char __user *buf, size_t cou
 		ret =  MIDIbuf_write(dev, file, buf, count);
 		break;
 	}
-	unlock_kernel();
+	mutex_unlock(&soundcard_mutex);
 	return ret;
 }
 
@@ -210,7 +211,7 @@ static int sound_open(struct inode *inode, struct file *file)
 		printk(KERN_ERR "Invalid minor device %d\n", dev);
 		return -ENXIO;
 	}
-	lock_kernel();
+	mutex_lock(&soundcard_mutex);
 	switch (dev & 0x0f) {
 	case SND_DEV_CTL:
 		dev >>= 4;
@@ -247,15 +248,15 @@ static int sound_open(struct inode *inode, struct file *file)
 		retval = -ENXIO;
 	}
 
-	unlock_kernel();
-	return 0;
+	mutex_unlock(&soundcard_mutex);
+	return retval;
 }
 
 static int sound_release(struct inode *inode, struct file *file)
 {
 	int dev = iminor(inode);
 
-	lock_kernel();
+	mutex_lock(&soundcard_mutex);
 	DEB(printk("sound_release(dev=%d)\n", dev));
 	switch (dev & 0x0f) {
 	case SND_DEV_CTL:
@@ -280,7 +281,7 @@ static int sound_release(struct inode *inode, struct file *file)
 	default:
 		printk(KERN_ERR "Sound error: Releasing unknown device 0x%02x\n", dev);
 	}
-	unlock_kernel();
+	mutex_unlock(&soundcard_mutex);
 
 	return 0;
 }
@@ -354,7 +355,7 @@ static long sound_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if (cmd == OSS_GETVERSION)
 		return __put_user(SOUND_VERSION, (int __user *)p);
 	
-	lock_kernel();
+	mutex_lock(&soundcard_mutex);
 	if (_IOC_TYPE(cmd) == 'M' && num_mixers > 0 &&   /* Mixer ioctl */
 	    (dev & 0x0f) != SND_DEV_CTL) {              
 		dtype = dev & 0x0f;
@@ -369,7 +370,7 @@ static long sound_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = sound_mixer_ioctl(dev >> 4, cmd, p);
 			break;
 		}
-		unlock_kernel();
+		mutex_unlock(&soundcard_mutex);
 		return ret;
 	}
 
@@ -399,7 +400,7 @@ static long sound_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	}
-	unlock_kernel();
+	mutex_unlock(&soundcard_mutex);
 	return ret;
 }
 
@@ -439,35 +440,35 @@ static int sound_mmap(struct file *file, struct vm_area_struct *vma)
 		printk(KERN_ERR "Sound: mmap() not supported for other than audio devices\n");
 		return -EINVAL;
 	}
-	lock_kernel();
+	mutex_lock(&soundcard_mutex);
 	if (vma->vm_flags & VM_WRITE)	/* Map write and read/write to the output buf */
 		dmap = audio_devs[dev]->dmap_out;
 	else if (vma->vm_flags & VM_READ)
 		dmap = audio_devs[dev]->dmap_in;
 	else {
 		printk(KERN_ERR "Sound: Undefined mmap() access\n");
-		unlock_kernel();
+		mutex_unlock(&soundcard_mutex);
 		return -EINVAL;
 	}
 
 	if (dmap == NULL) {
 		printk(KERN_ERR "Sound: mmap() error. dmap == NULL\n");
-		unlock_kernel();
+		mutex_unlock(&soundcard_mutex);
 		return -EIO;
 	}
 	if (dmap->raw_buf == NULL) {
 		printk(KERN_ERR "Sound: mmap() called when raw_buf == NULL\n");
-		unlock_kernel();
+		mutex_unlock(&soundcard_mutex);
 		return -EIO;
 	}
 	if (dmap->mapping_flags) {
 		printk(KERN_ERR "Sound: mmap() called twice for the same DMA buffer\n");
-		unlock_kernel();
+		mutex_unlock(&soundcard_mutex);
 		return -EIO;
 	}
 	if (vma->vm_pgoff != 0) {
 		printk(KERN_ERR "Sound: mmap() offset must be 0.\n");
-		unlock_kernel();
+		mutex_unlock(&soundcard_mutex);
 		return -EINVAL;
 	}
 	size = vma->vm_end - vma->vm_start;
@@ -478,7 +479,7 @@ static int sound_mmap(struct file *file, struct vm_area_struct *vma)
 	if (remap_pfn_range(vma, vma->vm_start,
 			virt_to_phys(dmap->raw_buf) >> PAGE_SHIFT,
 			vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
-		unlock_kernel();
+		mutex_unlock(&soundcard_mutex);
 		return -EAGAIN;
 	}
 
@@ -490,7 +491,7 @@ static int sound_mmap(struct file *file, struct vm_area_struct *vma)
 	memset(dmap->raw_buf,
 	       dmap->neutral_byte,
 	       dmap->bytes_in_use);
-	unlock_kernel();
+	mutex_unlock(&soundcard_mutex);
 	return 0;
 }
 

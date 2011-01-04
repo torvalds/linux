@@ -172,7 +172,7 @@ config MTD_OCTAGON
 	  This provides a 'mapping' driver which supports the way in which
 	  the flash chips are connected in the Octagon-5066 Single Board
 	  Computer. More information on the board is available at
-	  <http://www.octagonsystems.com/CPUpages/5066.html>.
+	  <http://www.octagonsystems.com/products/5066.aspx>.
 
 config MTD_VMAX
 	tristate "JEDEC Flash device mapped on Tempustech VMAX SBC301"
@@ -251,6 +251,15 @@ config MTD_NETtel
 	help
 	  Support for flash chips on NETtel/SecureEdge/SnapGear boards.
 
+config MTD_BCM963XX
+        tristate "Map driver for Broadcom BCM963xx boards"
+        depends on BCM63XX
+	select MTD_MAP_BANK_WIDTH_2
+	select MTD_CFI_I1
+        help
+	  Support for parsing CFE image tag and creating MTD partitions on
+	  Broadcom BCM63xx boards.
+
 config MTD_DILNETPC
 	tristate "CFI Flash device mapped on DIL/Net PC"
 	depends on X86 && MTD_CONCAT && MTD_PARTITIONS && MTD_CFI_INTELEXT && BROKEN
@@ -284,7 +293,7 @@ config MTD_TQM8XXL
 	  chips, currently uses AMD one. This 'mapping' driver supports
 	  that arrangement, allowing the CFI probe and command set driver
 	  code to communicate with the chips on the TQM8xxL board. More at
-	  <http://www.denx.de/embedded-ppc-en.html>.
+	  <http://www.denx.de/wiki/PPCEmbedded/>.
 
 config MTD_RPXLITE
 	tristate "CFI Flash device mapped on RPX Lite or CLLF"

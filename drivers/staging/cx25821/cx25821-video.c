@@ -92,7 +92,7 @@ int cx25821_get_format_size(void)
 	return ARRAY_SIZE(formats);
 }
 
-struct cx25821_fmt *format_by_fourcc(unsigned int fourcc)
+struct cx25821_fmt *cx25821_format_by_fourcc(unsigned int fourcc)
 {
 	unsigned int i;
 
@@ -848,7 +848,7 @@ static int video_open(struct file *file)
        pix_format =
 	   (dev->channels[ch_id].pixel_formats ==
 	    PIXEL_FRMT_411) ? V4L2_PIX_FMT_Y41P : V4L2_PIX_FMT_YUYV;
-       fh->fmt = format_by_fourcc(pix_format);
+       fh->fmt = cx25821_format_by_fourcc(pix_format);
 
        v4l2_prio_open(&dev->channels[ch_id].prio, &fh->prio);
 
@@ -856,7 +856,7 @@ static int video_open(struct file *file)
 			      &dev->pci->dev, &dev->slock,
 			      V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			      V4L2_FIELD_INTERLACED,
-			      sizeof(struct cx25821_buffer), fh);
+			      sizeof(struct cx25821_buffer), fh, NULL);
 
        dprintk(1, "post videobuf_queue_init()\n");
        unlock_kernel();
@@ -993,6 +993,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 {
        struct cx25821_fh *fh = priv;
        struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
+	struct v4l2_mbus_framefmt mbus_fmt;
        int err;
        int pix_format = PIXEL_FRMT_422;
 
@@ -1009,7 +1010,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
        if (0 != err)
 	       return err;
 
-       fh->fmt = format_by_fourcc(f->fmt.pix.pixelformat);
+       fh->fmt = cx25821_format_by_fourcc(f->fmt.pix.pixelformat);
        fh->vidq.field = f->fmt.pix.field;
 
        /* check if width and height is valid based on set standard */
@@ -1039,7 +1040,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
        dprintk(2, "%s() width=%d height=%d field=%d\n", __func__, fh->width,
 	       fh->height, fh->vidq.field);
-       cx25821_call_all(dev, video, s_fmt, f);
+	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
+	cx25821_call_all(dev, video, s_mbus_fmt, &mbus_fmt);
 
        return 0;
 }
@@ -1117,7 +1119,7 @@ int cx25821_vidioc_try_fmt_vid_cap(struct file *file, void *priv, struct v4l2_fo
 	enum v4l2_field field;
 	unsigned int maxw, maxh;
 
-	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
+	fmt = cx25821_format_by_fourcc(f->fmt.pix.pixelformat);
 	if (NULL == fmt)
 		return -EINVAL;
 

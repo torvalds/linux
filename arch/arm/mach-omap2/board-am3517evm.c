@@ -18,6 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/i2c/pca953x.h>
@@ -32,25 +33,43 @@
 
 #include <plat/board.h>
 #include <plat/common.h>
-#include <plat/control.h>
 #include <plat/usb.h>
 #include <plat/display.h>
 
 #include "mux.h"
+#include "control.h"
 
-#define AM35XX_EVM_PHY_MASK		(0xF)
 #define AM35XX_EVM_MDIO_FREQUENCY	(1000000)
 
+static struct mdio_platform_data am3517_evm_mdio_pdata = {
+	.bus_freq	= AM35XX_EVM_MDIO_FREQUENCY,
+};
+
+static struct resource am3517_mdio_resources[] = {
+	{
+		.start  = AM35XX_IPSS_EMAC_BASE + AM35XX_EMAC_MDIO_OFFSET,
+		.end    = AM35XX_IPSS_EMAC_BASE + AM35XX_EMAC_MDIO_OFFSET +
+			  SZ_4K - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device am3517_mdio_device = {
+	.name		= "davinci_mdio",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(am3517_mdio_resources),
+	.resource	= am3517_mdio_resources,
+	.dev.platform_data = &am3517_evm_mdio_pdata,
+};
+
 static struct emac_platform_data am3517_evm_emac_pdata = {
-	.phy_mask	= AM35XX_EVM_PHY_MASK,
-	.mdio_max_freq	= AM35XX_EVM_MDIO_FREQUENCY,
 	.rmii_en	= 1,
 };
 
 static struct resource am3517_emac_resources[] = {
 	{
 		.start  = AM35XX_IPSS_EMAC_BASE,
-		.end    = AM35XX_IPSS_EMAC_BASE + 0x3FFFF,
+		.end    = AM35XX_IPSS_EMAC_BASE + 0x2FFFF,
 		.flags  = IORESOURCE_MEM,
 	},
 	{
@@ -106,14 +125,13 @@ static void am3517_disable_ethernet_int(void)
 	regval = omap_ctrl_readl(AM35XX_CONTROL_LVL_INTR_CLEAR);
 }
 
-void am3517_evm_ethernet_init(struct emac_platform_data *pdata)
+static void am3517_evm_ethernet_init(struct emac_platform_data *pdata)
 {
 	unsigned int regval;
 
 	pdata->ctrl_reg_offset		= AM35XX_EMAC_CNTRL_OFFSET;
 	pdata->ctrl_mod_reg_offset	= AM35XX_EMAC_CNTRL_MOD_OFFSET;
 	pdata->ctrl_ram_offset		= AM35XX_EMAC_CNTRL_RAM_OFFSET;
-	pdata->mdio_reg_offset		= AM35XX_EMAC_MDIO_OFFSET;
 	pdata->ctrl_ram_size		= AM35XX_EMAC_CNTRL_RAM_SIZE;
 	pdata->version			= EMAC_VERSION_2;
 	pdata->hw_ram_addr		= AM35XX_EMAC_HW_RAM_ADDR;
@@ -121,6 +139,9 @@ void am3517_evm_ethernet_init(struct emac_platform_data *pdata)
 	pdata->interrupt_disable	= am3517_disable_ethernet_int;
 	am3517_emac_device.dev.platform_data	= pdata;
 	platform_device_register(&am3517_emac_device);
+	platform_device_register(&am3517_mdio_device);
+	clk_add_alias(NULL, dev_name(&am3517_mdio_device.dev),
+		      NULL, &am3517_emac_device.dev);
 
 	regval = omap_ctrl_readl(AM35XX_CONTROL_IP_SW_RESET);
 	regval = regval & (~(AM35XX_CPGMACSS_SW_RST));
@@ -139,7 +160,6 @@ void am3517_evm_ethernet_init(struct emac_platform_data *pdata)
 static struct i2c_board_info __initdata am3517evm_i2c1_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("s35390a", 0x30),
-		.type		= "s35390a",
 	},
 };
 
@@ -347,7 +367,7 @@ static struct omap_dss_board_info am3517_evm_dss_data = {
 	.default_device	= &am3517_evm_lcd_device,
 };
 
-struct platform_device am3517_evm_dss_device = {
+static struct platform_device am3517_evm_dss_device = {
 	.name		= "omapdss",
 	.id		= -1,
 	.dev		= {
@@ -375,6 +395,31 @@ static void __init am3517_evm_init_irq(void)
 	omap_gpio_init();
 }
 
+static struct omap_musb_board_data musb_board_data = {
+	.interface_type         = MUSB_INTERFACE_ULPI,
+	.mode                   = MUSB_OTG,
+	.power                  = 500,
+};
+
+static __init void am3517_evm_musb_init(void)
+{
+	u32 devconf2;
+
+	/*
+	 * Set up USB clock/mode in the DEVCONF2 register.
+	 */
+	devconf2 = omap_ctrl_readl(AM35XX_CONTROL_DEVCONF2);
+
+	/* USB2.0 PHY reference clock is 13 MHz */
+	devconf2 &= ~(CONF2_REFFREQ | CONF2_OTGMODE | CONF2_PHY_GPIOMODE);
+	devconf2 |=  CONF2_REFFREQ_13MHZ | CONF2_SESENDEN | CONF2_VBDTCTEN
+			| CONF2_DATPOL;
+
+	omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
+
+	usb_musb_init(&musb_board_data);
+}
+
 static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
 #if defined(CONFIG_PANEL_SHARP_LQ043T1DG01) || \
@@ -393,6 +438,8 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
+	/* USB OTG DRVVBUS offset = 0x212 */
+	OMAP3_MUX(SAD2D_MCAD23, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLDOWN),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #else
@@ -459,6 +506,9 @@ static void __init am3517_evm_init(void)
 				ARRAY_SIZE(am3517evm_i2c1_boardinfo));
 	/*Ethernet*/
 	am3517_evm_ethernet_init(&am3517_evm_emac_pdata);
+
+	/* MUSB */
+	am3517_evm_musb_init();
 }
 
 MACHINE_START(OMAP3517EVM, "OMAP3517/AM3517 EVM")

@@ -566,7 +566,9 @@ access the palette, this must be done with ioctls of the Linux framebuffer API.<
     &sub-sbggr8;
     &sub-sgbrg8;
     &sub-sgrbg8;
+    &sub-srggb8;
     &sub-sbggr16;
+    &sub-srggb10;
   </section>
 
   <section id="yuv-formats">
@@ -589,6 +591,7 @@ information.</para>
 
     &sub-packed-yuv;
     &sub-grey;
+    &sub-y10;
     &sub-y16;
     &sub-yuyv;
     &sub-uyvy;
@@ -685,6 +688,11 @@ http://www.ivtvdriver.org/</ulink></para><para>The format is documented in the
 kernel sources in the file <filename>Documentation/video4linux/cx2341x/README.hm12</filename>
 </para></entry>
 	  </row>
+	  <row id="V4L2-PIX-FMT-CPIA1">
+	    <entry><constant>V4L2_PIX_FMT_CPIA1</constant></entry>
+	    <entry>'CPIA'</entry>
+	    <entry>YUV format used by the gspca cpia1 driver.</entry>
+	  </row>
 	  <row id="V4L2-PIX-FMT-SPCA501">
 	    <entry><constant>V4L2_PIX_FMT_SPCA501</constant></entry>
 	    <entry>'S501'</entry>
@@ -704,11 +712,6 @@ kernel sources in the file <filename>Documentation/video4linux/cx2341x/README.hm
 	    <entry><constant>V4L2_PIX_FMT_SPCA561</constant></entry>
 	    <entry>'S561'</entry>
 	    <entry>Compressed GBRG Bayer format used by the gspca driver.</entry>
-	  </row>
-	  <row id="V4L2-PIX-FMT-SGRBG10">
-	    <entry><constant>V4L2_PIX_FMT_SGRBG10</constant></entry>
-	    <entry>'DA10'</entry>
-	    <entry>10 bit raw Bayer, expanded to 16 bits.</entry>
 	  </row>
 	  <row id="V4L2-PIX-FMT-SGRBG10DPCM8">
 	    <entry><constant>V4L2_PIX_FMT_SGRBG10DPCM8</constant></entry>
@@ -770,6 +773,11 @@ kernel sources in the file <filename>Documentation/video4linux/cx2341x/README.hm
 	    <entry>'S920'</entry>
 	    <entry>YUV 4:2:0 format of the gspca sn9c20x driver.</entry>
 	  </row>
+	  <row id="V4L2-PIX-FMT-SN9C2028">
+	    <entry><constant>V4L2_PIX_FMT_SN9C2028</constant></entry>
+	    <entry>'SONX'</entry>
+	    <entry>Compressed GBRG bayer format of the gspca sn9c2028 driver.</entry>
+	  </row>
 	  <row id="V4L2-PIX-FMT-STV0680">
 	    <entry><constant>V4L2_PIX_FMT_STV0680</constant></entry>
 	    <entry>'S680'</entry>
@@ -786,6 +794,20 @@ http://www.thedirks.org/winnov/</ulink></para></entry>
 	    <entry><constant>V4L2_PIX_FMT_TM6000</constant></entry>
 	    <entry>'TM60'</entry>
 	    <entry><para>Used by Trident tm6000</para></entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-CIT-YYVYUY">
+	    <entry><constant>V4L2_PIX_FMT_CIT_YYVYUY</constant></entry>
+	    <entry>'CITV'</entry>
+	    <entry><para>Used by xirlink CIT, found at IBM webcams.</para>
+	           <para>Uses one line of Y then 1 line of VYUY</para>
+	    </entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-KONICA420">
+	    <entry><constant>V4L2_PIX_FMT_KONICA420</constant></entry>
+	    <entry>'KONI'</entry>
+	    <entry><para>Used by Konica webcams.</para>
+	           <para>YUV420 planar in blocks of 256 pixels.</para>
+	    </entry>
 	  </row>
 	  <row id="V4L2-PIX-FMT-YYUV">
 	    <entry><constant>V4L2_PIX_FMT_YYUV</constant></entry>

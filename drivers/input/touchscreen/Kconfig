@@ -98,6 +98,18 @@ config TOUCHSCREEN_BITSY
 	  To compile this driver as a module, choose M here: the
 	  module will be called h3600_ts_input.
 
+config TOUCHSCREEN_BU21013
+	tristate "BU21013 based touch panel controllers"
+	depends on I2C
+	help
+	  Say Y here if you have a bu21013 touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bu21013_ts.
+
 config TOUCHSCREEN_CY8CTMG110
 	tristate "cy8ctmg110 touchscreen"
 	depends on I2C
@@ -214,6 +226,16 @@ config TOUCHSCREEN_WACOM_W8001
 	  To compile this driver as a module, choose M here: the
 	  module will be called wacom_w8001.
 
+config TOUCHSCREEN_LPC32XX
+	tristate "LPC32XX touchscreen controller"
+	depends on ARCH_LPC32XX
+	help
+	  Say Y here if you have a LPC32XX device and want
+	  to support the built-in touchscreen.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lpc32xx_ts.
+
 config TOUCHSCREEN_MCS5000
 	tristate "MELFAS MCS-5000 touchscreen"
 	depends on I2C
@@ -249,6 +271,18 @@ config TOUCHSCREEN_INEXIO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called inexio.
+
+config TOUCHSCREEN_INTEL_MID
+	tristate "Intel MID platform resistive touchscreen"
+	depends on INTEL_SCU_IPC
+	help
+	  Say Y here if you have a Intel MID based touchscreen in
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called intel_mid_touch.
 
 config TOUCHSCREEN_MK712
 	tristate "ICS MicroClock MK712 touchscreen"
@@ -327,6 +361,15 @@ config TOUCHSCREEN_MIGOR
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called migor_ts.
+
+config TOUCHSCREEN_TNETV107X
+	tristate "TI TNETV107X touchscreen support"
+	depends on ARCH_DAVINCI_TNETV107X
+	help
+	  Say Y here if you want to use the TNETV107X touchscreen.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tnetv107x-ts.
 
 config TOUCHSCREEN_TOUCHRIGHT
 	tristate "Touchright serial touchscreen"

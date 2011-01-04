@@ -815,6 +815,7 @@ static void cx23885_dev_checkrevision(struct cx23885_dev *dev)
 	case 0x0e:
 		/* CX23887-15Z */
 		dev->hwrevision = 0xc0;
+		break;
 	case 0x0f:
 		/* CX23887-14Z */
 		dev->hwrevision = 0xb1;
@@ -1221,7 +1222,7 @@ void cx23885_free_buffer(struct videobuf_queue *q, struct cx23885_buffer *buf)
 	struct videobuf_dmabuf *dma = videobuf_to_dma(&buf->vb);
 
 	BUG_ON(in_interrupt());
-	videobuf_waiton(&buf->vb, 0, 0);
+	videobuf_waiton(q, &buf->vb, 0, 0);
 	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);
 	btcx_riscmem_free(to_pci_dev(q->dev), &buf->risc);

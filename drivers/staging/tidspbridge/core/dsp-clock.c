@@ -25,7 +25,6 @@
 
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
-#include <dspbridge/cfg.h>
 #include <dspbridge/drv.h>
 #include <dspbridge/dev.h>
 #include "_tiomap.h"

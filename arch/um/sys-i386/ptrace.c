@@ -203,8 +203,8 @@ int set_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *child)
 				     (unsigned long *) &fpregs);
 }
 
-long subarch_ptrace(struct task_struct *child, long request, long addr,
-		    long data)
+long subarch_ptrace(struct task_struct *child, long request,
+		    unsigned long addr, unsigned long data)
 {
 	return -EIO;
 }

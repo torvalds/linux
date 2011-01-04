@@ -88,6 +88,25 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 	if (wdev->ssid_len)
 		return -EALREADY;
 
+	if (!params->basic_rates) {
+		/*
+		* If no rates were explicitly configured,
+		* use the mandatory rate set for 11b or
+		* 11a for maximum compatibility.
+		*/
+		struct ieee80211_supported_band *sband =
+			rdev->wiphy.bands[params->channel->band];
+		int j;
+		u32 flag = params->channel->band == IEEE80211_BAND_5GHZ ?
+			IEEE80211_RATE_MANDATORY_A :
+			IEEE80211_RATE_MANDATORY_B;
+
+		for (j = 0; j < sband->n_bitrates; j++) {
+			if (sband->bitrates[j].flags & flag)
+				params->basic_rates |= BIT(j);
+		}
+	}
+
 	if (WARN_ON(wdev->connect_keys))
 		kfree(wdev->connect_keys);
 	wdev->connect_keys = connkeys;
@@ -141,7 +160,7 @@ static void __cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 	 */
 	if (rdev->ops->del_key)
 		for (i = 0; i < 6; i++)
-			rdev->ops->del_key(wdev->wiphy, dev, i, NULL);
+			rdev->ops->del_key(wdev->wiphy, dev, i, false, NULL);
 
 	if (wdev->current_bss) {
 		cfg80211_unhold_bss(wdev->current_bss);

@@ -42,6 +42,7 @@ static const char *r8a66597_ep_name[] = {
 	"ep8", "ep9",
 };
 
+static void init_controller(struct r8a66597 *r8a66597);
 static void disable_controller(struct r8a66597 *r8a66597);
 static void irq_ep0_write(struct r8a66597_ep *ep, struct r8a66597_request *req);
 static void irq_packet_write(struct r8a66597_ep *ep,
@@ -104,6 +105,8 @@ __acquires(r8a66597->lock)
 	spin_lock(&r8a66597->lock);
 
 	disable_controller(r8a66597);
+	init_controller(r8a66597);
+	r8a66597_bset(r8a66597, VBSE, INTENB0);
 	INIT_LIST_HEAD(&r8a66597->ep[0].queue);
 }
 
@@ -274,7 +277,7 @@ static int pipe_buffer_setting(struct r8a66597 *r8a66597,
 	}
 
 	if (buf_bsize && ((bufnum + 16) >= R8A66597_MAX_BUFNUM)) {
-		pr_err(KERN_ERR "r8a66597 pipe memory is insufficient\n");
+		pr_err("r8a66597 pipe memory is insufficient\n");
 		return -ENOMEM;
 	}
 
@@ -1405,14 +1408,15 @@ static struct usb_ep_ops r8a66597_ep_ops = {
 /*-------------------------------------------------------------------------*/
 static struct r8a66597 *the_controller;
 
-int usb_gadget_register_driver(struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	struct r8a66597 *r8a66597 = the_controller;
 	int retval;
 
 	if (!driver
 			|| driver->speed != USB_SPEED_HIGH
-			|| !driver->bind
+			|| !bind
 			|| !driver->setup)
 		return -EINVAL;
 	if (!r8a66597)
@@ -1431,7 +1435,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		goto error;
 	}
 
-	retval = driver->bind(&r8a66597->gadget);
+	retval = bind(&r8a66597->gadget);
 	if (retval) {
 		printk(KERN_ERR "bind to driver error (%d)\n", retval);
 		device_del(&r8a66597->gadget.dev);
@@ -1456,7 +1460,7 @@ error:
 
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 {

@@ -39,21 +39,6 @@
 #include "en_port.h"
 
 
-static void mlx4_en_update_lro_stats(struct mlx4_en_priv *priv)
-{
-	int i;
-
-	priv->port_stats.lro_aggregated = 0;
-	priv->port_stats.lro_flushed = 0;
-	priv->port_stats.lro_no_desc = 0;
-
-	for (i = 0; i < priv->rx_ring_num; i++) {
-		priv->port_stats.lro_aggregated += priv->rx_ring[i].lro.stats.aggregated;
-		priv->port_stats.lro_flushed += priv->rx_ring[i].lro.stats.flushed;
-		priv->port_stats.lro_no_desc += priv->rx_ring[i].lro.stats.no_desc;
-	}
-}
-
 static void
 mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 {
@@ -112,7 +97,7 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	"tx_heartbeat_errors", "tx_window_errors",
 
 	/* port statistics */
-	"lro_aggregated", "lro_flushed", "lro_no_desc", "tso_packets",
+	"tso_packets",
 	"queue_stopped", "wake_queue", "tx_timeout", "rx_alloc_failed",
 	"rx_csum_good", "rx_csum_none", "tx_chksum_offload",
 
@@ -124,6 +109,14 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 };
 #define NUM_MAIN_STATS	21
 #define NUM_ALL_STATS	(NUM_MAIN_STATS + NUM_PORT_STATS + NUM_PKT_STATS + NUM_PERF_STATS)
+
+static const char mlx4_en_test_names[][ETH_GSTRING_LEN]= {
+	"Interupt Test",
+	"Link Test",
+	"Speed Test",
+	"Register Test",
+	"Loopback Test",
+};
 
 static u32 mlx4_en_get_msglevel(struct net_device *dev)
 {
@@ -146,10 +139,15 @@ static int mlx4_en_get_sset_count(struct net_device *dev, int sset)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 
-	if (sset != ETH_SS_STATS)
+	switch (sset) {
+	case ETH_SS_STATS:
+		return NUM_ALL_STATS +
+			(priv->tx_ring_num + priv->rx_ring_num) * 2;
+	case ETH_SS_TEST:
+		return MLX4_EN_NUM_SELF_TEST - !(priv->mdev->dev->caps.loopback_support) * 2;
+	default:
 		return -EOPNOTSUPP;
-
-	return NUM_ALL_STATS + (priv->tx_ring_num + priv->rx_ring_num) * 2;
+	}
 }
 
 static void mlx4_en_get_ethtool_stats(struct net_device *dev,
@@ -160,8 +158,6 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 	int i;
 
 	spin_lock_bh(&priv->stats_lock);
-
-	mlx4_en_update_lro_stats(priv);
 
 	for (i = 0; i < NUM_MAIN_STATS; i++)
 		data[index++] = ((unsigned long *) &priv->stats)[i];
@@ -181,6 +177,12 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 
 }
 
+static void mlx4_en_self_test(struct net_device *dev,
+			      struct ethtool_test *etest, u64 *buf)
+{
+	mlx4_en_ex_selftest(dev, &etest->flags, buf);
+}
+
 static void mlx4_en_get_strings(struct net_device *dev,
 				uint32_t stringset, uint8_t *data)
 {
@@ -188,43 +190,75 @@ static void mlx4_en_get_strings(struct net_device *dev,
 	int index = 0;
 	int i;
 
-	if (stringset != ETH_SS_STATS)
-		return;
+	switch (stringset) {
+	case ETH_SS_TEST:
+		for (i = 0; i < MLX4_EN_NUM_SELF_TEST - 2; i++)
+			strcpy(data + i * ETH_GSTRING_LEN, mlx4_en_test_names[i]);
+		if (priv->mdev->dev->caps.loopback_support)
+			for (; i < MLX4_EN_NUM_SELF_TEST; i++)
+				strcpy(data + i * ETH_GSTRING_LEN, mlx4_en_test_names[i]);
+		break;
 
-	/* Add main counters */
-	for (i = 0; i < NUM_MAIN_STATS; i++)
-		strcpy(data + (index++) * ETH_GSTRING_LEN, main_strings[i]);
-	for (i = 0; i < NUM_PORT_STATS; i++)
-		strcpy(data + (index++) * ETH_GSTRING_LEN,
+	case ETH_SS_STATS:
+		/* Add main counters */
+		for (i = 0; i < NUM_MAIN_STATS; i++)
+			strcpy(data + (index++) * ETH_GSTRING_LEN, main_strings[i]);
+		for (i = 0; i< NUM_PORT_STATS; i++)
+			strcpy(data + (index++) * ETH_GSTRING_LEN,
 			main_strings[i + NUM_MAIN_STATS]);
-	for (i = 0; i < priv->tx_ring_num; i++) {
-		sprintf(data + (index++) * ETH_GSTRING_LEN,
-			"tx%d_packets", i);
-		sprintf(data + (index++) * ETH_GSTRING_LEN,
-			"tx%d_bytes", i);
-	}
-	for (i = 0; i < priv->rx_ring_num; i++) {
-		sprintf(data + (index++) * ETH_GSTRING_LEN,
-			"rx%d_packets", i);
-		sprintf(data + (index++) * ETH_GSTRING_LEN,
-			"rx%d_bytes", i);
-	}
-	for (i = 0; i < NUM_PKT_STATS; i++)
-		strcpy(data + (index++) * ETH_GSTRING_LEN,
+		for (i = 0; i < priv->tx_ring_num; i++) {
+			sprintf(data + (index++) * ETH_GSTRING_LEN,
+				"tx%d_packets", i);
+			sprintf(data + (index++) * ETH_GSTRING_LEN,
+				"tx%d_bytes", i);
+		}
+		for (i = 0; i < priv->rx_ring_num; i++) {
+			sprintf(data + (index++) * ETH_GSTRING_LEN,
+				"rx%d_packets", i);
+			sprintf(data + (index++) * ETH_GSTRING_LEN,
+				"rx%d_bytes", i);
+		}
+		for (i = 0; i< NUM_PKT_STATS; i++)
+			strcpy(data + (index++) * ETH_GSTRING_LEN,
 			main_strings[i + NUM_MAIN_STATS + NUM_PORT_STATS]);
+		break;
+	}
 }
 
 static int mlx4_en_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	int trans_type;
+
 	cmd->autoneg = AUTONEG_DISABLE;
 	cmd->supported = SUPPORTED_10000baseT_Full;
-	cmd->advertising = ADVERTISED_1000baseT_Full;
+	cmd->advertising = ADVERTISED_10000baseT_Full;
+
+	if (mlx4_en_QUERY_PORT(priv->mdev, priv->port))
+		return -ENOMEM;
+
+	trans_type = priv->port_state.transciver;
 	if (netif_carrier_ok(dev)) {
-		cmd->speed = SPEED_10000;
+		cmd->speed = priv->port_state.link_speed;
 		cmd->duplex = DUPLEX_FULL;
 	} else {
 		cmd->speed = -1;
 		cmd->duplex = -1;
+	}
+
+	if (trans_type > 0 && trans_type <= 0xC) {
+		cmd->port = PORT_FIBRE;
+		cmd->transceiver = XCVR_EXTERNAL;
+		cmd->supported |= SUPPORTED_FIBRE;
+		cmd->advertising |= ADVERTISED_FIBRE;
+	} else if (trans_type == 0x80 || trans_type == 0) {
+		cmd->port = PORT_TP;
+		cmd->transceiver = XCVR_INTERNAL;
+		cmd->supported |= SUPPORTED_TP;
+		cmd->advertising |= ADVERTISED_TP;
+	} else  {
+		cmd->port = -1;
+		cmd->transceiver = -1;
 	}
 	return 0;
 }
@@ -343,8 +377,9 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 	tx_size = max_t(u32, tx_size, MLX4_EN_MIN_TX_SIZE);
 	tx_size = min_t(u32, tx_size, MLX4_EN_MAX_TX_SIZE);
 
-	if (rx_size == priv->prof->rx_ring_size &&
-	    tx_size == priv->prof->tx_ring_size)
+	if (rx_size == (priv->port_up ? priv->rx_ring[0].actual_size :
+					priv->rx_ring[0].size) &&
+	    tx_size == priv->tx_ring[0].size)
 		return 0;
 
 	mutex_lock(&mdev->state_lock);
@@ -378,49 +413,13 @@ static void mlx4_en_get_ringparam(struct net_device *dev,
 				  struct ethtool_ringparam *param)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_dev *mdev = priv->mdev;
 
 	memset(param, 0, sizeof(*param));
 	param->rx_max_pending = MLX4_EN_MAX_RX_SIZE;
 	param->tx_max_pending = MLX4_EN_MAX_TX_SIZE;
-	param->rx_pending = mdev->profile.prof[priv->port].rx_ring_size;
-	param->tx_pending = mdev->profile.prof[priv->port].tx_ring_size;
-}
-
-static int mlx4_ethtool_op_set_flags(struct net_device *dev, u32 data)
-{
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_dev *mdev = priv->mdev;
-	int rc = 0;
-	int changed = 0;
-
-	if (data & ~ETH_FLAG_LRO)
-		return -EOPNOTSUPP;
-
-	if (data & ETH_FLAG_LRO) {
-		if (mdev->profile.num_lro == 0)
-			return -EOPNOTSUPP;
-		if (!(dev->features & NETIF_F_LRO))
-			changed = 1;
-	} else if (dev->features & NETIF_F_LRO) {
-		changed = 1;
-	}
-
-	if (changed) {
-		if (netif_running(dev)) {
-			mutex_lock(&mdev->state_lock);
-			mlx4_en_stop_port(dev);
-		}
-		dev->features ^= NETIF_F_LRO;
-		if (netif_running(dev)) {
-			rc = mlx4_en_start_port(dev);
-			if (rc)
-				en_err(priv, "Failed to restart port\n");
-			mutex_unlock(&mdev->state_lock);
-		}
-	}
-
-	return rc;
+	param->rx_pending = priv->port_up ?
+		priv->rx_ring[0].actual_size : priv->rx_ring[0].size;
+	param->tx_pending = priv->tx_ring[0].size;
 }
 
 const struct ethtool_ops mlx4_en_ethtool_ops = {
@@ -441,6 +440,7 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_strings = mlx4_en_get_strings,
 	.get_sset_count = mlx4_en_get_sset_count,
 	.get_ethtool_stats = mlx4_en_get_ethtool_stats,
+	.self_test = mlx4_en_self_test,
 	.get_wol = mlx4_en_get_wol,
 	.get_msglevel = mlx4_en_get_msglevel,
 	.set_msglevel = mlx4_en_set_msglevel,
@@ -451,7 +451,6 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_ringparam = mlx4_en_get_ringparam,
 	.set_ringparam = mlx4_en_set_ringparam,
 	.get_flags = ethtool_op_get_flags,
-	.set_flags = mlx4_ethtool_op_set_flags,
 };
 
 

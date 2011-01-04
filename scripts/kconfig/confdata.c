@@ -5,6 +5,7 @@
 
 #include <sys/stat.h>
 #include <ctype.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +17,9 @@
 #include "lkc.h"
 
 static void conf_warning(const char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
+
+static void conf_message(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
 static const char *conf_filename;
@@ -32,6 +36,29 @@ static void conf_warning(const char *fmt, ...)
 	fprintf(stderr, "\n");
 	va_end(ap);
 	conf_warnings++;
+}
+
+static void conf_default_message_callback(const char *fmt, va_list ap)
+{
+	printf("#\n# ");
+	vprintf(fmt, ap);
+	printf("\n#\n");
+}
+
+static void (*conf_message_callback) (const char *fmt, va_list ap) =
+	conf_default_message_callback;
+void conf_set_message_callback(void (*fn) (const char *fmt, va_list ap))
+{
+	conf_message_callback = fn;
+}
+
+static void conf_message(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	if (conf_message_callback)
+		conf_message_callback(fmt, ap);
 }
 
 const char *conf_get_configname(void)
@@ -183,9 +210,8 @@ int conf_read_simple(const char *name, int def)
 			name = conf_expand_value(prop->expr->left.sym->name);
 			in = zconf_fopen(name);
 			if (in) {
-				printf(_("#\n"
-					 "# using defaults found in %s\n"
-					 "#\n"), name);
+				conf_message(_("using defaults found in %s"),
+					 name);
 				goto load;
 			}
 		}
@@ -220,24 +246,23 @@ load:
 	while (fgets(line, sizeof(line), in)) {
 		conf_lineno++;
 		sym = NULL;
-		switch (line[0]) {
-		case '#':
-			if (memcmp(line + 2, "CONFIG_", 7))
+		if (line[0] == '#') {
+			if (memcmp(line + 2, CONFIG_, strlen(CONFIG_)))
 				continue;
-			p = strchr(line + 9, ' ');
+			p = strchr(line + 2 + strlen(CONFIG_), ' ');
 			if (!p)
 				continue;
 			*p++ = 0;
 			if (strncmp(p, "is not set", 10))
 				continue;
 			if (def == S_DEF_USER) {
-				sym = sym_find(line + 9);
+				sym = sym_find(line + 2 + strlen(CONFIG_));
 				if (!sym) {
 					sym_add_change_count(1);
-					break;
+					goto setsym;
 				}
 			} else {
-				sym = sym_lookup(line + 9, 0);
+				sym = sym_lookup(line + 2 + strlen(CONFIG_), 0);
 				if (sym->type == S_UNKNOWN)
 					sym->type = S_BOOLEAN;
 			}
@@ -253,13 +278,8 @@ load:
 			default:
 				;
 			}
-			break;
-		case 'C':
-			if (memcmp(line, "CONFIG_", 7)) {
-				conf_warning("unexpected data");
-				continue;
-			}
-			p = strchr(line + 7, '=');
+		} else if (memcmp(line, CONFIG_, strlen(CONFIG_)) == 0) {
+			p = strchr(line + strlen(CONFIG_), '=');
 			if (!p)
 				continue;
 			*p++ = 0;
@@ -270,13 +290,13 @@ load:
 					*p2 = 0;
 			}
 			if (def == S_DEF_USER) {
-				sym = sym_find(line + 7);
+				sym = sym_find(line + strlen(CONFIG_));
 				if (!sym) {
 					sym_add_change_count(1);
-					break;
+					goto setsym;
 				}
 			} else {
-				sym = sym_lookup(line + 7, 0);
+				sym = sym_lookup(line + strlen(CONFIG_), 0);
 				if (sym->type == S_UNKNOWN)
 					sym->type = S_OTHER;
 			}
@@ -285,14 +305,12 @@ load:
 			}
 			if (conf_set_sym_val(sym, def, def_flags, p))
 				continue;
-			break;
-		case '\r':
-		case '\n':
-			break;
-		default:
-			conf_warning("unexpected data");
+		} else {
+			if (line[0] != '\r' && line[0] != '\n')
+				conf_warning("unexpected data");
 			continue;
 		}
+setsym:
 		if (sym && sym_is_choice_value(sym)) {
 			struct symbol *cs = prop_get_symbol(sym_get_choice_prop(sym));
 			switch (sym->def[def].tri) {
@@ -405,9 +423,9 @@ static void conf_write_string(bool headerfile, const char *name,
 {
 	int l;
 	if (headerfile)
-		fprintf(out, "#define CONFIG_%s \"", name);
+		fprintf(out, "#define %s%s \"", CONFIG_, name);
 	else
-		fprintf(out, "CONFIG_%s=\"", name);
+		fprintf(out, "%s%s=\"", CONFIG_, name);
 
 	while (1) {
 		l = strcspn(str, "\"\\");
@@ -433,13 +451,14 @@ static void conf_write_symbol(struct symbol *sym, enum symbol_type type,
 		switch (sym_get_tristate_value(sym)) {
 		case no:
 			if (write_no)
-				fprintf(out, "# CONFIG_%s is not set\n", sym->name);
+				fprintf(out, "# %s%s is not set\n",
+				    CONFIG_, sym->name);
 			break;
 		case mod:
-			fprintf(out, "CONFIG_%s=m\n", sym->name);
+			fprintf(out, "%s%s=m\n", CONFIG_, sym->name);
 			break;
 		case yes:
-			fprintf(out, "CONFIG_%s=y\n", sym->name);
+			fprintf(out, "%s%s=y\n", CONFIG_, sym->name);
 			break;
 		}
 		break;
@@ -449,7 +468,7 @@ static void conf_write_symbol(struct symbol *sym, enum symbol_type type,
 	case S_HEX:
 	case S_INT:
 		str = sym_get_string_value(sym);
-		fprintf(out, "CONFIG_%s=%s\n", sym->name, str);
+		fprintf(out, "%s%s=%s\n", CONFIG_, sym->name, str);
 		break;
 	case S_OTHER:
 	case S_UNKNOWN:
@@ -541,7 +560,7 @@ int conf_write(const char *name)
 	struct menu *menu;
 	const char *basename;
 	const char *str;
-	char dirname[128], tmpname[128], newname[128];
+	char dirname[PATH_MAX+1], tmpname[PATH_MAX+1], newname[PATH_MAX+1];
 	enum symbol_type type;
 	time_t now;
 	int use_timestamp = 1;
@@ -581,8 +600,6 @@ int conf_write(const char *name)
 	if (!out)
 		return 1;
 
-	sym = sym_lookup("KERNELVERSION", 0);
-	sym_calc_value(sym);
 	time(&now);
 	env = getenv("KCONFIG_NOTIMESTAMP");
 	if (env && *env)
@@ -590,10 +607,10 @@ int conf_write(const char *name)
 
 	fprintf(out, _("#\n"
 		       "# Automatically generated make config: don't edit\n"
-		       "# Linux kernel version: %s\n"
+		       "# %s\n"
 		       "%s%s"
 		       "#\n"),
-		     sym_get_string_value(sym),
+		     rootmenu.prompt->text,
 		     use_timestamp ? "# " : "",
 		     use_timestamp ? ctime(&now) : "");
 
@@ -650,9 +667,7 @@ next:
 			return 1;
 	}
 
-	printf(_("#\n"
-		 "# configuration written to %s\n"
-		 "#\n"), newname);
+	conf_message(_("configuration written to %s"), newname);
 
 	sym_set_change_count(0);
 
@@ -662,7 +677,7 @@ next:
 static int conf_split_config(void)
 {
 	const char *name;
-	char path[128];
+	char path[PATH_MAX+1];
 	char *s, *d, c;
 	struct symbol *sym;
 	struct stat sb;
@@ -804,25 +819,23 @@ int conf_write_autoconf(void)
 		return 1;
 	}
 
-	sym = sym_lookup("KERNELVERSION", 0);
-	sym_calc_value(sym);
 	time(&now);
 	fprintf(out, "#\n"
 		     "# Automatically generated make config: don't edit\n"
-		     "# Linux kernel version: %s\n"
+		     "# %s\n"
 		     "# %s"
 		     "#\n",
-		     sym_get_string_value(sym), ctime(&now));
+		     rootmenu.prompt->text, ctime(&now));
 	fprintf(tristate, "#\n"
 			  "# Automatically generated - do not edit\n"
 			  "\n");
 	fprintf(out_h, "/*\n"
 		       " * Automatically generated C config: don't edit\n"
-		       " * Linux kernel version: %s\n"
+		       " * %s\n"
 		       " * %s"
 		       " */\n"
 		       "#define AUTOCONF_INCLUDED\n",
-		       sym_get_string_value(sym), ctime(&now));
+		       rootmenu.prompt->text, ctime(&now));
 
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
@@ -840,14 +853,17 @@ int conf_write_autoconf(void)
 			case no:
 				break;
 			case mod:
-				fprintf(tristate, "CONFIG_%s=M\n", sym->name);
-				fprintf(out_h, "#define CONFIG_%s_MODULE 1\n", sym->name);
+				fprintf(tristate, "%s%s=M\n",
+				    CONFIG_, sym->name);
+				fprintf(out_h, "#define %s%s_MODULE 1\n",
+				    CONFIG_, sym->name);
 				break;
 			case yes:
 				if (sym->type == S_TRISTATE)
-					fprintf(tristate, "CONFIG_%s=Y\n",
-							sym->name);
-				fprintf(out_h, "#define CONFIG_%s 1\n", sym->name);
+					fprintf(tristate,"%s%s=Y\n",
+					    CONFIG_, sym->name);
+				fprintf(out_h, "#define %s%s 1\n",
+				    CONFIG_, sym->name);
 				break;
 			}
 			break;
@@ -857,12 +873,14 @@ int conf_write_autoconf(void)
 		case S_HEX:
 			str = sym_get_string_value(sym);
 			if (str[0] != '0' || (str[1] != 'x' && str[1] != 'X')) {
-				fprintf(out_h, "#define CONFIG_%s 0x%s\n", sym->name, str);
+				fprintf(out_h, "#define %s%s 0x%s\n",
+				    CONFIG_, sym->name, str);
 				break;
 			}
 		case S_INT:
 			str = sym_get_string_value(sym);
-			fprintf(out_h, "#define CONFIG_%s %s\n", sym->name, str);
+			fprintf(out_h, "#define %s%s %s\n",
+			    CONFIG_, sym->name, str);
 			break;
 		default:
 			break;

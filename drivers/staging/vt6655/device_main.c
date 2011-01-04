@@ -955,12 +955,13 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
     pDevice->dev = dev;
     pDevice->next_module = root_device_dev;
     root_device_dev = dev;
-    dev->irq = pcid->irq;
 
     if (pci_enable_device(pcid)) {
         device_free_info(pDevice);
         return -ENODEV;
     }
+    dev->irq = pcid->irq;
+
 #ifdef	DEBUG
 	printk("Before get pci_info memaddr is %x\n",pDevice->memaddr);
 #endif

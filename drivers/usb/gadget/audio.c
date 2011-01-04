@@ -89,7 +89,7 @@ static const struct usb_descriptor_header *otg_desc[] = {
 
 /*-------------------------------------------------------------------------*/
 
-static int __ref audio_do_config(struct usb_configuration *c)
+static int __init audio_do_config(struct usb_configuration *c)
 {
 	/* FIXME alloc iConfiguration string, set it in c->strings */
 
@@ -105,7 +105,6 @@ static int __ref audio_do_config(struct usb_configuration *c)
 
 static struct usb_configuration audio_config_driver = {
 	.label			= DRIVER_DESC,
-	.bind			= audio_do_config,
 	.bConfigurationValue	= 1,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
@@ -113,7 +112,7 @@ static struct usb_configuration audio_config_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-static int __ref audio_bind(struct usb_composite_dev *cdev)
+static int __init audio_bind(struct usb_composite_dev *cdev)
 {
 	int			gcnum;
 	int			status;
@@ -145,7 +144,7 @@ static int __ref audio_bind(struct usb_composite_dev *cdev)
 	strings_dev[STRING_PRODUCT_IDX].id = status;
 	device_desc.iProduct = status;
 
-	status = usb_add_config(cdev, &audio_config_driver);
+	status = usb_add_config(cdev, &audio_config_driver, audio_do_config);
 	if (status < 0)
 		goto fail;
 
@@ -166,13 +165,12 @@ static struct usb_composite_driver audio_driver = {
 	.name		= "g_audio",
 	.dev		= &device_desc,
 	.strings	= audio_strings,
-	.bind		= audio_bind,
 	.unbind		= __exit_p(audio_unbind),
 };
 
 static int __init init(void)
 {
-	return usb_composite_register(&audio_driver);
+	return usb_composite_probe(&audio_driver, audio_bind);
 }
 module_init(init);
 

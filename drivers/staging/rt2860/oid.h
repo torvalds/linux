@@ -701,7 +701,7 @@ struct PACKED rt_rt_802_11_acl {
 
 struct rt_802_11_wds {
 	unsigned long Num;
-	NDIS_802_11_MAC_ADDRESS Entry[24 /*MAX_NUM_OF_WDS_LINK */ ];
+	NDIS_802_11_MAC_ADDRESS Entry[24 /*MAX_NUM_OF_WDS_LINK */];
 	unsigned long KeyLength;
 	u8 KeyMaterial[32];
 };

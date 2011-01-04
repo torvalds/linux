@@ -1,6 +1,3 @@
-# x86 configuration
-mainmenu "Linux Kernel Configuration for x86"
-
 # Select 32 or 64 bit
 config 64BIT
 	bool "64-bit kernel" if ARCH = "x86"
@@ -24,7 +21,7 @@ config X86
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_IDE
 	select HAVE_OPROFILE
-	select HAVE_PERF_EVENTS if (!M386 && !M486)
+	select HAVE_PERF_EVENTS
 	select HAVE_IRQ_WORK
 	select HAVE_IOREMAP_PROT
 	select HAVE_KPROBES
@@ -347,6 +344,7 @@ endif
 
 config X86_VSMP
 	bool "ScaleMP vSMP"
+	select PARAVIRT_GUEST
 	select PARAVIRT
 	depends on X86_64 && PCI
 	depends on X86_EXTENDED_PLATFORM
@@ -1894,6 +1892,11 @@ config PCI_MMCONFIG
 config PCI_OLPC
 	def_bool y
 	depends on PCI && OLPC && (PCI_GOOLPC || PCI_GOANY)
+
+config PCI_XEN
+	def_bool y
+	depends on PCI && XEN
+	select SWIOTLB_XEN
 
 config PCI_DOMAINS
 	def_bool y

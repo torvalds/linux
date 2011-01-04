@@ -31,6 +31,7 @@
 #include <linux/statfs.h>
 #include <linux/security.h>
 #include <linux/magic.h>
+#include <linux/migrate.h>
 
 #include <asm/uaccess.h>
 
@@ -455,6 +456,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid,
 	inode = new_inode(sb);
 	if (inode) {
 		struct hugetlbfs_inode_info *info;
+		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_uid = uid;
 		inode->i_gid = gid;
@@ -573,6 +575,19 @@ static int hugetlbfs_set_page_dirty(struct page *page)
 	return 0;
 }
 
+static int hugetlbfs_migrate_page(struct address_space *mapping,
+				struct page *newpage, struct page *page)
+{
+	int rc;
+
+	rc = migrate_huge_page_move_mapping(mapping, newpage, page);
+	if (rc)
+		return rc;
+	migrate_page_copy(newpage, page);
+
+	return 0;
+}
+
 static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(dentry->d_sb);
@@ -659,6 +674,7 @@ static const struct address_space_operations hugetlbfs_aops = {
 	.write_begin	= hugetlbfs_write_begin,
 	.write_end	= hugetlbfs_write_end,
 	.set_page_dirty	= hugetlbfs_set_page_dirty,
+	.migratepage    = hugetlbfs_migrate_page,
 };
 
 
@@ -674,6 +690,7 @@ const struct file_operations hugetlbfs_file_operations = {
 	.mmap			= hugetlbfs_file_mmap,
 	.fsync			= noop_fsync,
 	.get_unmapped_area	= hugetlb_get_unmapped_area,
+	.llseek		= default_llseek,
 };
 
 static const struct inode_operations hugetlbfs_dir_inode_operations = {
@@ -879,15 +896,15 @@ void hugetlb_put_quota(struct address_space *mapping, long delta)
 	}
 }
 
-static int hugetlbfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *hugetlbfs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, hugetlbfs_fill_super, mnt);
+	return mount_nodev(fs_type, flags, data, hugetlbfs_fill_super);
 }
 
 static struct file_system_type hugetlbfs_fs_type = {
 	.name		= "hugetlbfs",
-	.get_sb		= hugetlbfs_get_sb,
+	.mount		= hugetlbfs_mount,
 	.kill_sb	= kill_litter_super,
 };
 
@@ -915,8 +932,7 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
 	if (creat_flags == HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()) {
 		*user = current_user();
 		if (user_shm_lock(size, *user)) {
-			WARN_ONCE(1,
-			  "Using mlock ulimits for SHM_HUGETLB deprecated\n");
+			printk_once(KERN_WARNING "Using mlock ulimits for SHM_HUGETLB is deprecated\n");
 		} else {
 			*user = NULL;
 			return ERR_PTR(-EPERM);

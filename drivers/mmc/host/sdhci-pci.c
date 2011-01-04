@@ -145,6 +145,37 @@ static const struct sdhci_pci_fixes sdhci_cafe = {
 			  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
 };
 
+/*
+ * ADMA operation is disabled for Moorestown platform due to
+ * hardware bugs.
+ */
+static int mrst_hc_probe(struct sdhci_pci_chip *chip)
+{
+	/*
+	 * slots number is fixed here for MRST as SDIO3/5 are never used and
+	 * have hardware bugs.
+	 */
+	chip->num_slots = 1;
+	return 0;
+}
+
+static const struct sdhci_pci_fixes sdhci_intel_mrst_hc0 = {
+	.quirks		= SDHCI_QUIRK_BROKEN_ADMA | SDHCI_QUIRK_NO_HISPD_BIT,
+};
+
+static const struct sdhci_pci_fixes sdhci_intel_mrst_hc1_hc2 = {
+	.quirks		= SDHCI_QUIRK_BROKEN_ADMA | SDHCI_QUIRK_NO_HISPD_BIT,
+	.probe		= mrst_hc_probe,
+};
+
+static const struct sdhci_pci_fixes sdhci_intel_mfd_sd = {
+	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+};
+
+static const struct sdhci_pci_fixes sdhci_intel_mfd_emmc_sdio = {
+	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+};
+
 static int jmicron_pmos(struct sdhci_pci_chip *chip, int on)
 {
 	u8 scratch;
@@ -494,6 +525,70 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.driver_data	= (kernel_ulong_t)&sdhci_via,
 	},
 
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MRST_SD0,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mrst_hc0,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MRST_SD1,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mrst_hc1_hc2,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MRST_SD2,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mrst_hc1_hc2,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MFD_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_sd,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MFD_SDIO1,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_emmc_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MFD_SDIO2,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_emmc_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MFD_EMMC0,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_emmc_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_MFD_EMMC1,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_emmc_sdio,
+	},
+
 	{	/* Generic SD host controller */
 		PCI_DEVICE_CLASS((PCI_CLASS_SYSTEM_SDHCI << 8), 0xFFFF00)
 	},
@@ -550,6 +645,7 @@ static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 {
 	struct sdhci_pci_chip *chip;
 	struct sdhci_pci_slot *slot;
+	mmc_pm_flag_t slot_pm_flags;
 	mmc_pm_flag_t pm_flags = 0;
 	int i, ret;
 
@@ -570,7 +666,11 @@ static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 			return ret;
 		}
 
-		pm_flags |= slot->host->mmc->pm_flags;
+		slot_pm_flags = slot->host->mmc->pm_flags;
+		if (slot_pm_flags & MMC_PM_WAKE_SDIO_IRQ)
+			sdhci_enable_irq_wakeups(slot->host);
+
+		pm_flags |= slot_pm_flags;
 	}
 
 	if (chip->fixes && chip->fixes->suspend) {
@@ -584,8 +684,10 @@ static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 
 	pci_save_state(pdev);
 	if (pm_flags & MMC_PM_KEEP_POWER) {
-		if (pm_flags & MMC_PM_WAKE_SDIO_IRQ)
+		if (pm_flags & MMC_PM_WAKE_SDIO_IRQ) {
+			pci_pme_active(pdev, true);
 			pci_enable_wake(pdev, PCI_D3hot, 1);
+		}
 		pci_set_power_state(pdev, PCI_D3hot);
 	} else {
 		pci_enable_wake(pdev, pci_choose_state(pdev, state), 0);
@@ -817,6 +919,8 @@ static int __devinit sdhci_pci_probe(struct pci_dev *pdev,
 		if (ret)
 			goto free;
 	}
+
+	slots = chip->num_slots;	/* Quirk may have changed this */
 
 	for (i = 0;i < slots;i++) {
 		slot = sdhci_pci_probe_slot(pdev, chip, first_bar + i);

@@ -63,6 +63,8 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -209,13 +211,6 @@ enum xirc_cmd { 	    /* Commands */
 
 static const char *if_names[] = { "Auto", "10BaseT", "10Base2", "AUI", "100BaseT" };
 
-
-#define KDBG_XIRC KERN_DEBUG   "xirc2ps_cs: "
-#define KERR_XIRC KERN_ERR     "xirc2ps_cs: "
-#define KWRN_XIRC KERN_WARNING "xirc2ps_cs: "
-#define KNOT_XIRC KERN_NOTICE  "xirc2ps_cs: "
-#define KINF_XIRC KERN_INFO    "xirc2ps_cs: "
-
 /* card types */
 #define XIR_UNKNOWN  0	/* unknown: not supported */
 #define XIR_CE	     1	/* (prodid 1) different hardware: not supported */
@@ -327,26 +322,26 @@ PrintRegisters(struct net_device *dev)
     if (pc_debug > 1) {
 	int i, page;
 
-	printk(KDBG_XIRC "Register  common: ");
+	printk(KERN_DEBUG pr_fmt("Register  common: "));
 	for (i = 0; i < 8; i++)
-	    printk(" %2.2x", GetByte(i));
-	printk("\n");
+	    pr_cont(" %2.2x", GetByte(i));
+	pr_cont("\n");
 	for (page = 0; page <= 8; page++) {
-	    printk(KDBG_XIRC "Register page %2x: ", page);
+	    printk(KERN_DEBUG pr_fmt("Register page %2x: "), page);
 	    SelectPage(page);
 	    for (i = 8; i < 16; i++)
-		printk(" %2.2x", GetByte(i));
-	    printk("\n");
+		pr_cont(" %2.2x", GetByte(i));
+	    pr_cont("\n");
 	}
 	for (page=0x40 ; page <= 0x5f; page++) {
 		if (page == 0x43 || (page >= 0x46 && page <= 0x4f) ||
 		    (page >= 0x51 && page <=0x5e))
 			continue;
-	    printk(KDBG_XIRC "Register page %2x: ", page);
+	    printk(KERN_DEBUG pr_fmt("Register page %2x: "), page);
 	    SelectPage(page);
 	    for (i = 8; i < 16; i++)
-		printk(" %2.2x", GetByte(i));
-	    printk("\n");
+		pr_cont(" %2.2x", GetByte(i));
+	    pr_cont("\n");
 	}
     }
 }
@@ -566,11 +561,11 @@ set_card_type(struct pcmcia_device *link)
     local->modem = 0;
     local->card_type = XIR_UNKNOWN;
     if (!(prodid & 0x40)) {
-	printk(KNOT_XIRC "Ooops: Not a creditcard\n");
+	pr_notice("Oops: Not a creditcard\n");
 	return 0;
     }
     if (!(mediaid & 0x01)) {
-	printk(KNOT_XIRC "Not an Ethernet card\n");
+	pr_notice("Not an Ethernet card\n");
 	return 0;
     }
     if (mediaid & 0x10) {
@@ -601,12 +596,11 @@ set_card_type(struct pcmcia_device *link)
 	}
     }
     if (local->card_type == XIR_CE || local->card_type == XIR_CEM) {
-	printk(KNOT_XIRC "Sorry, this is an old CE card\n");
+	pr_notice("Sorry, this is an old CE card\n");
 	return 0;
     }
     if (local->card_type == XIR_UNKNOWN)
-	printk(KNOT_XIRC "unknown card (mediaid=%02x prodid=%02x)\n",
-	       mediaid, prodid);
+	pr_notice("unknown card (mediaid=%02x prodid=%02x)\n", mediaid, prodid);
 
     return 1;
 }
@@ -710,7 +704,7 @@ xirc2ps_config(struct pcmcia_device * link)
 
     /* Is this a valid	card */
     if (link->has_manf_id == 0) {
-	printk(KNOT_XIRC "manfid not found in CIS\n");
+	pr_notice("manfid not found in CIS\n");
 	goto failure;
     }
 
@@ -732,14 +726,14 @@ xirc2ps_config(struct pcmcia_device * link)
 	local->manf_str = "Toshiba";
 	break;
       default:
-	printk(KNOT_XIRC "Unknown Card Manufacturer ID: 0x%04x\n",
-	       (unsigned)link->manf_id);
+	pr_notice("Unknown Card Manufacturer ID: 0x%04x\n",
+		  (unsigned)link->manf_id);
 	goto failure;
     }
     dev_dbg(&link->dev, "found %s card\n", local->manf_str);
 
     if (!set_card_type(link)) {
-	printk(KNOT_XIRC "this card is not supported\n");
+	pr_notice("this card is not supported\n");
 	goto failure;
     }
 
@@ -765,7 +759,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	err = pcmcia_loop_tuple(link, CISTPL_FUNCE, pcmcia_get_mac_ce, dev);
 
     if (err) {
-	printk(KNOT_XIRC "node-id not found in CIS\n");
+	pr_notice("node-id not found in CIS\n");
 	goto failure;
     }
 
@@ -792,7 +786,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	     * try to configure as Ethernet only.
 	     * .... */
 	}
-	printk(KNOT_XIRC "no ports available\n");
+	pr_notice("no ports available\n");
     } else {
 	link->io_lines = 10;
 	link->resource[0]->end = 16;
@@ -865,24 +859,24 @@ xirc2ps_config(struct pcmcia_device * link)
       #if 0
 	{
 	    u_char tmp;
-	    printk(KERN_INFO "ECOR:");
+	    pr_info("ECOR:");
 	    for (i=0; i < 7; i++) {
 		tmp = readb(local->dingo_ccr + i*2);
-		printk(" %02x", tmp);
+		pr_cont(" %02x", tmp);
 	    }
-	    printk("\n");
-	    printk(KERN_INFO "DCOR:");
+	    pr_cont("\n");
+	    pr_info("DCOR:");
 	    for (i=0; i < 4; i++) {
 		tmp = readb(local->dingo_ccr + 0x20 + i*2);
-		printk(" %02x", tmp);
+		pr_cont(" %02x", tmp);
 	    }
-	    printk("\n");
-	    printk(KERN_INFO "SCOR:");
+	    pr_cont("\n");
+	    pr_info("SCOR:");
 	    for (i=0; i < 10; i++) {
 		tmp = readb(local->dingo_ccr + 0x40 + i*2);
-		printk(" %02x", tmp);
+		pr_cont(" %02x", tmp);
 	    }
-	    printk("\n");
+	    pr_cont("\n");
 	}
       #endif
 
@@ -901,7 +895,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	       (local->mohawk && if_port==4))
 	dev->if_port = if_port;
     else
-	printk(KNOT_XIRC "invalid if_port requested\n");
+	pr_notice("invalid if_port requested\n");
 
     /* we can now register the device with the net subsystem */
     dev->irq = link->irq;
@@ -913,14 +907,14 @@ xirc2ps_config(struct pcmcia_device * link)
     SET_NETDEV_DEV(dev, &link->dev);
 
     if ((err=register_netdev(dev))) {
-	printk(KNOT_XIRC "register_netdev() failed\n");
+	pr_notice("register_netdev() failed\n");
 	goto config_error;
     }
 
     /* give some infos about the hardware */
-    printk(KERN_INFO "%s: %s: port %#3lx, irq %d, hwaddr %pM\n",
-	   dev->name, local->manf_str,(u_long)dev->base_addr, (int)dev->irq,
-	   dev->dev_addr);
+    netdev_info(dev, "%s: port %#3lx, irq %d, hwaddr %pM\n",
+		local->manf_str, (u_long)dev->base_addr, (int)dev->irq,
+		dev->dev_addr);
 
     return 0;
 
@@ -1047,8 +1041,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
 
 	    skb = dev_alloc_skb(pktlen+3); /* 1 extra so we can use insw */
 	    if (!skb) {
-		printk(KNOT_XIRC "low memory, packet dropped (size=%u)\n",
-		       pktlen);
+		pr_notice("low memory, packet dropped (size=%u)\n", pktlen);
 		dev->stats.rx_dropped++;
 	    } else { /* okay get the packet */
 		skb_reserve(skb, 2);
@@ -1217,7 +1210,7 @@ xirc_tx_timeout(struct net_device *dev)
 {
     local_info_t *lp = netdev_priv(dev);
     dev->stats.tx_errors++;
-    printk(KERN_NOTICE "%s: transmit timed out\n", dev->name);
+    netdev_notice(dev, "transmit timed out\n");
     schedule_work(&lp->tx_timeout_task);
 }
 
@@ -1384,8 +1377,7 @@ do_config(struct net_device *dev, struct ifmap *map)
 	    local->probe_port = 0;
 	    dev->if_port = map->port;
 	}
-	printk(KERN_INFO "%s: switching to %s port\n",
-	       dev->name, if_names[dev->if_port]);
+	netdev_info(dev, "switching to %s port\n", if_names[dev->if_port]);
 	do_reset(dev,1);  /* not the fine way :-) */
     }
     return 0;
@@ -1525,7 +1517,7 @@ do_reset(struct net_device *dev, int full)
     {
 	SelectPage(0);
 	value = GetByte(XIRCREG_ESR);	 /* read the ESR */
-	printk(KERN_DEBUG "%s: ESR is: %#02x\n", dev->name, value);
+	pr_debug("%s: ESR is: %#02x\n", dev->name, value);
     }
   #endif
 
@@ -1575,13 +1567,12 @@ do_reset(struct net_device *dev, int full)
 
     if (full && local->mohawk && init_mii(dev)) {
 	if (dev->if_port == 4 || local->dingo || local->new_mii) {
-	    printk(KERN_INFO "%s: MII selected\n", dev->name);
+	    netdev_info(dev, "MII selected\n");
 	    SelectPage(2);
 	    PutByte(XIRCREG2_MSR, GetByte(XIRCREG2_MSR) | 0x08);
 	    msleep(20);
 	} else {
-	    printk(KERN_INFO "%s: MII detected; using 10mbs\n",
-		   dev->name);
+	    netdev_info(dev, "MII detected; using 10mbs\n");
 	    SelectPage(0x42);
 	    if (dev->if_port == 2) /* enable 10Base2 */
 		PutByte(XIRCREG42_SWC1, 0xC0);
@@ -1626,8 +1617,8 @@ do_reset(struct net_device *dev, int full)
     }
 
     if (full)
-	printk(KERN_INFO "%s: media %s, silicon revision %d\n",
-	       dev->name, if_names[dev->if_port], local->silicon);
+	netdev_info(dev, "media %s, silicon revision %d\n",
+		    if_names[dev->if_port], local->silicon);
     /* We should switch back to page 0 to avoid a bug in revision 0
      * where regs with offset below 8 can't be read after an access
      * to the MAC registers */
@@ -1669,8 +1660,7 @@ init_mii(struct net_device *dev)
     control = mii_rd(ioaddr, 0, 0);
 
     if (control & 0x0400) {
-	printk(KERN_NOTICE "%s can't take PHY out of isolation mode\n",
-	       dev->name);
+	netdev_notice(dev, "can't take PHY out of isolation mode\n");
 	local->probe_port = 0;
 	return 0;
     }
@@ -1688,8 +1678,7 @@ init_mii(struct net_device *dev)
 	}
 
 	if (!(status & 0x0020)) {
-	    printk(KERN_INFO "%s: autonegotiation failed;"
-		   " using 10mbs\n", dev->name);
+	    netdev_info(dev, "autonegotiation failed; using 10mbs\n");
 	    if (!local->new_mii) {
 		control = 0x0000;
 		mii_wr(ioaddr,  0, 0, control, 16);
@@ -1699,8 +1688,7 @@ init_mii(struct net_device *dev)
 	    }
 	} else {
 	    linkpartner = mii_rd(ioaddr, 0, 5);
-	    printk(KERN_INFO "%s: MII link partner: %04x\n",
-		   dev->name, linkpartner);
+	    netdev_info(dev, "MII link partner: %04x\n", linkpartner);
 	    if (linkpartner & 0x0080) {
 		dev->if_port = 4;
 	    } else

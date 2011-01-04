@@ -97,14 +97,8 @@ u32 rv6xx_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = (RREG32(CG_THERMAL_STATUS) & ASIC_T_MASK) >>
 		ASIC_T_SHIFT;
-	u32 actual_temp = 0;
 
-	if ((temp >> 7) & 1)
-		actual_temp = 0;
-	else
-		actual_temp = (temp >> 1) & 0xff;
-
-	return actual_temp * 1000;
+	return temp * 1000;
 }
 
 void r600_pm_get_dynpm_state(struct radeon_device *rdev)
@@ -884,12 +878,15 @@ void r600_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	u32 tmp;
 
 	/* flush hdp cache so updates hit vram */
-	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740)) {
+	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740) &&
+	    !(rdev->flags & RADEON_IS_AGP)) {
 		void __iomem *ptr = (void *)rdev->gart.table.vram.ptr;
 		u32 tmp;
 
 		/* r7xx hw bug.  write to HDP_DEBUG1 followed by fb read
 		 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL
+		 * This seems to cause problems on some AGP cards. Just use the old
+		 * method for them.
 		 */
 		WREG32(HDP_DEBUG1, 0);
 		tmp = readl((void __iomem *)ptr);
@@ -919,7 +916,7 @@ int r600_pcie_gart_init(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->gart.table.vram.robj) {
-		WARN(1, "R600 PCIE GART already initialized.\n");
+		WARN(1, "R600 PCIE GART already initialized\n");
 		return 0;
 	}
 	/* Initialize common gart structure */
@@ -1201,8 +1198,10 @@ void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 				mc->vram_end, mc->real_vram_size >> 20);
 	} else {
 		u64 base = 0;
-		if (rdev->flags & RADEON_IS_IGP)
-			base = (RREG32(MC_VM_FB_LOCATION) & 0xFFFF) << 24;
+		if (rdev->flags & RADEON_IS_IGP) {
+			base = RREG32(MC_VM_FB_LOCATION) & 0xFFFF;
+			base <<= 24;
+		}
 		radeon_vram_location(rdev, &rdev->mc, base);
 		rdev->mc.gtt_base_align = 0;
 		radeon_gtt_location(rdev, mc);
@@ -1343,13 +1342,19 @@ bool r600_gpu_is_lockup(struct radeon_device *rdev)
 	u32 srbm_status;
 	u32 grbm_status;
 	u32 grbm_status2;
+	struct r100_gpu_lockup *lockup;
 	int r;
+
+	if (rdev->family >= CHIP_RV770)
+		lockup = &rdev->config.rv770.lockup;
+	else
+		lockup = &rdev->config.r600.lockup;
 
 	srbm_status = RREG32(R_000E50_SRBM_STATUS);
 	grbm_status = RREG32(R_008010_GRBM_STATUS);
 	grbm_status2 = RREG32(R_008014_GRBM_STATUS2);
 	if (!G_008010_GUI_ACTIVE(grbm_status)) {
-		r100_gpu_lockup_update(&rdev->config.r300.lockup, &rdev->cp);
+		r100_gpu_lockup_update(lockup, &rdev->cp);
 		return false;
 	}
 	/* force CP activities */
@@ -1361,7 +1366,7 @@ bool r600_gpu_is_lockup(struct radeon_device *rdev)
 		radeon_ring_unlock_commit(rdev);
 	}
 	rdev->cp.rptr = RREG32(R600_CP_RB_RPTR);
-	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r300.lockup, &rdev->cp);
+	return r100_gpu_cp_is_lockup(rdev, lockup, &rdev->cp);
 }
 
 int r600_asic_reset(struct radeon_device *rdev)
@@ -1608,8 +1613,11 @@ void r600_gpu_init(struct radeon_device *rdev)
 	rdev->config.r600.tiling_npipes = rdev->config.r600.max_tile_pipes;
 	rdev->config.r600.tiling_nbanks = 4 << ((ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT);
 	tiling_config |= BANK_TILING((ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT);
-	tiling_config |= GROUP_SIZE(0);
-	rdev->config.r600.tiling_group_size = 256;
+	tiling_config |= GROUP_SIZE((ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT);
+	if ((ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT)
+		rdev->config.r600.tiling_group_size = 512;
+	else
+		rdev->config.r600.tiling_group_size = 256;
 	tmp = (ramcfg & NOOFROWS_MASK) >> NOOFROWS_SHIFT;
 	if (tmp > 3) {
 		tiling_config |= ROW_TILING(3);
@@ -1920,6 +1928,7 @@ void r600_cp_stop(struct radeon_device *rdev)
 {
 	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	WREG32(R_0086D8_CP_ME_CNTL, S_0086D8_CP_ME_HALT(1));
+	WREG32(SCRATCH_UMSK, 0);
 }
 
 int r600_init_microcode(struct radeon_device *rdev)
@@ -2152,7 +2161,7 @@ int r600_cp_resume(struct radeon_device *rdev)
 
 	/* Set ring buffer size */
 	rb_bufsz = drm_order(rdev->cp.ring_size / 8);
-	tmp = RB_NO_UPDATE | (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
+	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 #ifdef __BIG_ENDIAN
 	tmp |= BUF_SWAP_32BIT;
 #endif
@@ -2166,8 +2175,19 @@ int r600_cp_resume(struct radeon_device *rdev)
 	WREG32(CP_RB_CNTL, tmp | RB_RPTR_WR_ENA);
 	WREG32(CP_RB_RPTR_WR, 0);
 	WREG32(CP_RB_WPTR, 0);
-	WREG32(CP_RB_RPTR_ADDR, rdev->cp.gpu_addr & 0xFFFFFFFF);
-	WREG32(CP_RB_RPTR_ADDR_HI, upper_32_bits(rdev->cp.gpu_addr));
+
+	/* set the wb address whether it's enabled or not */
+	WREG32(CP_RB_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC);
+	WREG32(CP_RB_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFF);
+	WREG32(SCRATCH_ADDR, ((rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET) >> 8) & 0xFFFFFFFF);
+
+	if (rdev->wb.enabled)
+		WREG32(SCRATCH_UMSK, 0xff);
+	else {
+		tmp |= RB_NO_UPDATE;
+		WREG32(SCRATCH_UMSK, 0);
+	}
+
 	mdelay(1);
 	WREG32(CP_RB_CNTL, tmp);
 
@@ -2219,9 +2239,10 @@ void r600_scratch_init(struct radeon_device *rdev)
 	int i;
 
 	rdev->scratch.num_reg = 7;
+	rdev->scratch.reg_base = SCRATCH_REG0;
 	for (i = 0; i < rdev->scratch.num_reg; i++) {
 		rdev->scratch.free[i] = true;
-		rdev->scratch.reg[i] = SCRATCH_REG0 + (i * 4);
+		rdev->scratch.reg[i] = rdev->scratch.reg_base + (i * 4);
 	}
 }
 
@@ -2265,88 +2286,34 @@ int r600_ring_test(struct radeon_device *rdev)
 	return r;
 }
 
-void r600_wb_disable(struct radeon_device *rdev)
-{
-	int r;
-
-	WREG32(SCRATCH_UMSK, 0);
-	if (rdev->wb.wb_obj) {
-		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
-		if (unlikely(r != 0))
-			return;
-		radeon_bo_kunmap(rdev->wb.wb_obj);
-		radeon_bo_unpin(rdev->wb.wb_obj);
-		radeon_bo_unreserve(rdev->wb.wb_obj);
-	}
-}
-
-void r600_wb_fini(struct radeon_device *rdev)
-{
-	r600_wb_disable(rdev);
-	if (rdev->wb.wb_obj) {
-		radeon_bo_unref(&rdev->wb.wb_obj);
-		rdev->wb.wb = NULL;
-		rdev->wb.wb_obj = NULL;
-	}
-}
-
-int r600_wb_enable(struct radeon_device *rdev)
-{
-	int r;
-
-	if (rdev->wb.wb_obj == NULL) {
-		r = radeon_bo_create(rdev, NULL, RADEON_GPU_PAGE_SIZE, true,
-				RADEON_GEM_DOMAIN_GTT, &rdev->wb.wb_obj);
-		if (r) {
-			dev_warn(rdev->dev, "(%d) create WB bo failed\n", r);
-			return r;
-		}
-		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
-		if (unlikely(r != 0)) {
-			r600_wb_fini(rdev);
-			return r;
-		}
-		r = radeon_bo_pin(rdev->wb.wb_obj, RADEON_GEM_DOMAIN_GTT,
-				&rdev->wb.gpu_addr);
-		if (r) {
-			radeon_bo_unreserve(rdev->wb.wb_obj);
-			dev_warn(rdev->dev, "(%d) pin WB bo failed\n", r);
-			r600_wb_fini(rdev);
-			return r;
-		}
-		r = radeon_bo_kmap(rdev->wb.wb_obj, (void **)&rdev->wb.wb);
-		radeon_bo_unreserve(rdev->wb.wb_obj);
-		if (r) {
-			dev_warn(rdev->dev, "(%d) map WB bo failed\n", r);
-			r600_wb_fini(rdev);
-			return r;
-		}
-	}
-	WREG32(SCRATCH_ADDR, (rdev->wb.gpu_addr >> 8) & 0xFFFFFFFF);
-	WREG32(CP_RB_RPTR_ADDR, (rdev->wb.gpu_addr + 1024) & 0xFFFFFFFC);
-	WREG32(CP_RB_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + 1024) & 0xFF);
-	WREG32(SCRATCH_UMSK, 0xff);
-	return 0;
-}
-
 void r600_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence)
 {
-	/* Also consider EVENT_WRITE_EOP.  it handles the interrupts + timestamps + events */
-
-	radeon_ring_write(rdev, PACKET3(PACKET3_EVENT_WRITE, 0));
-	radeon_ring_write(rdev, CACHE_FLUSH_AND_INV_EVENT);
-	/* wait for 3D idle clean */
-	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
-	radeon_ring_write(rdev, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
-	radeon_ring_write(rdev, WAIT_3D_IDLE_bit | WAIT_3D_IDLECLEAN_bit);
-	/* Emit fence sequence & fire IRQ */
-	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
-	radeon_ring_write(rdev, ((rdev->fence_drv.scratch_reg - PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
-	radeon_ring_write(rdev, fence->seq);
-	/* CP_INTERRUPT packet 3 no longer exists, use packet 0 */
-	radeon_ring_write(rdev, PACKET0(CP_INT_STATUS, 0));
-	radeon_ring_write(rdev, RB_INT_STAT);
+	if (rdev->wb.use_event) {
+		u64 addr = rdev->wb.gpu_addr + R600_WB_EVENT_OFFSET +
+			(u64)(rdev->fence_drv.scratch_reg - rdev->scratch.reg_base);
+		/* EVENT_WRITE_EOP - flush caches, send int */
+		radeon_ring_write(rdev, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
+		radeon_ring_write(rdev, EVENT_TYPE(CACHE_FLUSH_AND_INV_EVENT_TS) | EVENT_INDEX(5));
+		radeon_ring_write(rdev, addr & 0xffffffff);
+		radeon_ring_write(rdev, (upper_32_bits(addr) & 0xff) | DATA_SEL(1) | INT_SEL(2));
+		radeon_ring_write(rdev, fence->seq);
+		radeon_ring_write(rdev, 0);
+	} else {
+		radeon_ring_write(rdev, PACKET3(PACKET3_EVENT_WRITE, 0));
+		radeon_ring_write(rdev, EVENT_TYPE(CACHE_FLUSH_AND_INV_EVENT) | EVENT_INDEX(0));
+		/* wait for 3D idle clean */
+		radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+		radeon_ring_write(rdev, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
+		radeon_ring_write(rdev, WAIT_3D_IDLE_bit | WAIT_3D_IDLECLEAN_bit);
+		/* Emit fence sequence & fire IRQ */
+		radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+		radeon_ring_write(rdev, ((rdev->fence_drv.scratch_reg - PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
+		radeon_ring_write(rdev, fence->seq);
+		/* CP_INTERRUPT packet 3 no longer exists, use packet 0 */
+		radeon_ring_write(rdev, PACKET0(CP_INT_STATUS, 0));
+		radeon_ring_write(rdev, RB_INT_STAT);
+	}
 }
 
 int r600_copy_blit(struct radeon_device *rdev,
@@ -2428,19 +2395,12 @@ int r600_startup(struct radeon_device *rdev)
 		rdev->asic->copy = NULL;
 		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
 	}
-	/* pin copy shader into vram */
-	if (rdev->r600_blit.shader_obj) {
-		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-		if (unlikely(r != 0))
-			return r;
-		r = radeon_bo_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
-				&rdev->r600_blit.shader_gpu_addr);
-		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
-		if (r) {
-			dev_err(rdev->dev, "(%d) pin blit object failed\n", r);
-			return r;
-		}
-	}
+
+	/* allocate wb buffer */
+	r = radeon_wb_init(rdev);
+	if (r)
+		return r;
+
 	/* Enable IRQ */
 	r = r600_irq_init(rdev);
 	if (r) {
@@ -2459,8 +2419,7 @@ int r600_startup(struct radeon_device *rdev)
 	r = r600_cp_resume(rdev);
 	if (r)
 		return r;
-	/* write back buffer are not vital so don't worry about failure */
-	r600_wb_enable(rdev);
+
 	return 0;
 }
 
@@ -2519,7 +2478,7 @@ int r600_suspend(struct radeon_device *rdev)
 	r600_cp_stop(rdev);
 	rdev->cp.ready = false;
 	r600_irq_suspend(rdev);
-	r600_wb_disable(rdev);
+	radeon_wb_disable(rdev);
 	r600_pcie_gart_disable(rdev);
 	/* unpin shaders bo */
 	if (rdev->r600_blit.shader_obj) {
@@ -2616,8 +2575,8 @@ int r600_init(struct radeon_device *rdev)
 	if (r) {
 		dev_err(rdev->dev, "disabling GPU acceleration\n");
 		r600_cp_fini(rdev);
-		r600_wb_fini(rdev);
 		r600_irq_fini(rdev);
+		radeon_wb_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		r600_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
@@ -2647,8 +2606,8 @@ void r600_fini(struct radeon_device *rdev)
 	r600_audio_fini(rdev);
 	r600_blit_fini(rdev);
 	r600_cp_fini(rdev);
-	r600_wb_fini(rdev);
 	r600_irq_fini(rdev);
+	radeon_wb_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	r600_pcie_gart_fini(rdev);
 	radeon_agp_fini(rdev);
@@ -2770,7 +2729,7 @@ static int r600_ih_ring_alloc(struct radeon_device *rdev)
 	/* Allocate ring buffer */
 	if (rdev->ih.ring_obj == NULL) {
 		r = radeon_bo_create(rdev, NULL, rdev->ih.ring_size,
-				     true,
+				     PAGE_SIZE, true,
 				     RADEON_GEM_DOMAIN_GTT,
 				     &rdev->ih.ring_obj);
 		if (r) {
@@ -2983,10 +2942,13 @@ int r600_irq_init(struct radeon_device *rdev)
 	ih_rb_cntl = (IH_WPTR_OVERFLOW_ENABLE |
 		      IH_WPTR_OVERFLOW_CLEAR |
 		      (rb_bufsz << 1));
-	/* WPTR writeback, not yet */
-	/*ih_rb_cntl |= IH_WPTR_WRITEBACK_ENABLE;*/
-	WREG32(IH_RB_WPTR_ADDR_LO, 0);
-	WREG32(IH_RB_WPTR_ADDR_HI, 0);
+
+	if (rdev->wb.enabled)
+		ih_rb_cntl |= IH_WPTR_WRITEBACK_ENABLE;
+
+	/* set the writeback address whether it's enabled or not */
+	WREG32(IH_RB_WPTR_ADDR_LO, (rdev->wb.gpu_addr + R600_WB_IH_WPTR_OFFSET) & 0xFFFFFFFC);
+	WREG32(IH_RB_WPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + R600_WB_IH_WPTR_OFFSET) & 0xFF);
 
 	WREG32(IH_RB_CNTL, ih_rb_cntl);
 
@@ -3038,7 +3000,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 hdmi1, hdmi2;
 
 	if (!rdev->irq.installed) {
-		WARN(1, "Can't enable IRQ/MSI because no handler is installed.\n");
+		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
 		return -EINVAL;
 	}
 	/* don't enable anything if the ih is disabled */
@@ -3070,6 +3032,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	if (rdev->irq.sw_int) {
 		DRM_DEBUG("r600_irq_set: sw int\n");
 		cp_int_cntl |= RB_INT_ENABLE;
+		cp_int_cntl |= TIME_STAMP_INT_ENABLE;
 	}
 	if (rdev->irq.crtc_vblank_int[0]) {
 		DRM_DEBUG("r600_irq_set: vblank 0\n");
@@ -3244,8 +3207,10 @@ static inline u32 r600_get_ih_wptr(struct radeon_device *rdev)
 {
 	u32 wptr, tmp;
 
-	/* XXX use writeback */
-	wptr = RREG32(IH_RB_WPTR);
+	if (rdev->wb.enabled)
+		wptr = rdev->wb.wb[R600_WB_IH_WPTR_OFFSET/4];
+	else
+		wptr = RREG32(IH_RB_WPTR);
 
 	if (wptr & RB_OVERFLOW) {
 		/* When a ring buffer overflow happen start parsing interrupt
@@ -3433,6 +3398,7 @@ restart_ih:
 			break;
 		case 181: /* CP EOP event */
 			DRM_DEBUG("IH: CP EOP\n");
+			radeon_fence_process(rdev);
 			break;
 		case 233: /* GUI IDLE */
 			DRM_DEBUG("IH: CP EOP\n");
@@ -3528,10 +3494,12 @@ int r600_debugfs_mc_info_init(struct radeon_device *rdev)
 void r600_ioctl_wait_idle(struct radeon_device *rdev, struct radeon_bo *bo)
 {
 	/* r7xx hw bug.  write to HDP_DEBUG1 followed by fb read
-	 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL
+	 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL.
+	 * This seems to cause problems on some AGP cards. Just use the old
+	 * method for them.
 	 */
 	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740) &&
-	    rdev->vram_scratch.ptr) {
+	    rdev->vram_scratch.ptr && !(rdev->flags & RADEON_IS_AGP)) {
 		void __iomem *ptr = (void *)rdev->vram_scratch.ptr;
 		u32 tmp;
 

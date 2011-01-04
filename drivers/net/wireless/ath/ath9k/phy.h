@@ -45,9 +45,6 @@
 		}							\
 	} while (0)
 
-#define ATH9K_IS_MIC_ENABLED(ah)					\
-	((ah)->sta_id1_defaults & AR_STA_ID1_CRPT_MIC_ENABLE)
-
 #define ANTSWAP_AB 0x0001
 #define REDUCE_CHAIN_0 0x00000050
 #define REDUCE_CHAIN_1 0x00000051

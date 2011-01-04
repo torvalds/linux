@@ -223,7 +223,7 @@ static void xrun_log(struct snd_pcm_substream *substream,
 	entry->jiffies = jiffies;
 	entry->pos = pos;
 	entry->period_size = runtime->period_size;
-	entry->buffer_size = runtime->buffer_size;;
+	entry->buffer_size = runtime->buffer_size;
 	entry->old_hw_ptr = runtime->status->hw_ptr;
 	entry->hw_ptr_base = runtime->hw_ptr_base;
 	log->idx = (log->idx + 1) % XRUN_LOG_CNT;
@@ -334,11 +334,15 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		/* delta = "expected next hw_ptr" for in_interrupt != 0 */
 		delta = runtime->hw_ptr_interrupt + runtime->period_size;
 		if (delta > new_hw_ptr) {
-			hw_base += runtime->buffer_size;
-			if (hw_base >= runtime->boundary)
-				hw_base = 0;
-			new_hw_ptr = hw_base + pos;
-			goto __delta;
+			/* check for double acknowledged interrupts */
+			hdelta = jiffies - runtime->hw_ptr_jiffies;
+			if (hdelta > runtime->hw_ptr_buffer_jiffies/2) {
+				hw_base += runtime->buffer_size;
+				if (hw_base >= runtime->boundary)
+					hw_base = 0;
+				new_hw_ptr = hw_base + pos;
+				goto __delta;
+			}
 		}
 	}
 	/* new_hw_ptr might be lower than old_hw_ptr in case when */
@@ -1066,8 +1070,10 @@ int snd_pcm_hw_rule_add(struct snd_pcm_runtime *runtime, unsigned int cond,
 		struct snd_pcm_hw_rule *new;
 		unsigned int new_rules = constrs->rules_all + 16;
 		new = kcalloc(new_rules, sizeof(*c), GFP_KERNEL);
-		if (!new)
+		if (!new) {
+			va_end(args);
 			return -ENOMEM;
+		}
 		if (constrs->rules) {
 			memcpy(new, constrs->rules,
 			       constrs->rules_num * sizeof(*c));
@@ -1083,8 +1089,10 @@ int snd_pcm_hw_rule_add(struct snd_pcm_runtime *runtime, unsigned int cond,
 	c->private = private;
 	k = 0;
 	while (1) {
-		if (snd_BUG_ON(k >= ARRAY_SIZE(c->deps)))
+		if (snd_BUG_ON(k >= ARRAY_SIZE(c->deps))) {
+			va_end(args);
 			return -EINVAL;
+		}
 		c->deps[k++] = dep;
 		if (dep < 0)
 			break;
@@ -1093,7 +1101,7 @@ int snd_pcm_hw_rule_add(struct snd_pcm_runtime *runtime, unsigned int cond,
 	constrs->rules_num++;
 	va_end(args);
 	return 0;
-}				    
+}
 
 EXPORT_SYMBOL(snd_pcm_hw_rule_add);
 

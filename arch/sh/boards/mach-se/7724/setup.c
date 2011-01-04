@@ -144,16 +144,42 @@ static struct platform_device nor_flash_device = {
 };
 
 /* LCDC */
+const static struct fb_videomode lcdc_720p_modes[] = {
+	{
+		.name		= "LB070WV1",
+		.sync		= 0, /* hsync and vsync are active low */
+		.xres		= 1280,
+		.yres		= 720,
+		.left_margin	= 220,
+		.right_margin	= 110,
+		.hsync_len	= 40,
+		.upper_margin	= 20,
+		.lower_margin	= 5,
+		.vsync_len	= 5,
+	},
+};
+
+const static struct fb_videomode lcdc_vga_modes[] = {
+	{
+		.name		= "LB070WV1",
+		.sync		= 0, /* hsync and vsync are active low */
+		.xres		= 640,
+		.yres		= 480,
+		.left_margin	= 105,
+		.right_margin	= 50,
+		.hsync_len	= 96,
+		.upper_margin	= 33,
+		.lower_margin	= 10,
+		.vsync_len	= 2,
+	},
+};
+
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.clock_source = LCDC_CLK_EXTERNAL,
 	.ch[0] = {
 		.chan = LCDC_CHAN_MAINLCD,
 		.bpp = 16,
 		.clock_divider = 1,
-		.lcd_cfg = {
-			.name = "LB070WV1",
-			.sync = 0, /* hsync and vsync are active low */
-		},
 		.lcd_size_cfg = { /* 7.0 inch */
 			.width = 152,
 			.height = 91,
@@ -257,31 +283,6 @@ static struct platform_device ceu1_device = {
 };
 
 /* FSI */
-/*
- * FSI-A use external clock which came from ak464x.
- * So, we should change parent of fsi
- */
-#define FCLKACR		0xa4150008
-static void fsimck_init(struct clk *clk)
-{
-	u32 status = __raw_readl(clk->enable_reg);
-
-	/* use external clock */
-	status &= ~0x000000ff;
-	status |= 0x00000080;
-	__raw_writel(status, clk->enable_reg);
-}
-
-static struct clk_ops fsimck_clk_ops = {
-	.init = fsimck_init,
-};
-
-static struct clk fsimcka_clk = {
-	.ops		= &fsimck_clk_ops,
-	.enable_reg	= (void __iomem *)FCLKACR,
-	.rate		= 0, /* unknown */
-};
-
 /* change J20, J21, J22 pin to 1-2 connection to use slave mode */
 static struct sh_fsi_platform_info fsi_info = {
 	.porta_flags = SH_FSI_BRS_INV |
@@ -550,7 +551,6 @@ static struct sh_vou_pdata sh_vou_pdata = {
 	.flags		= SH_VOU_HSYNC_LOW | SH_VOU_VSYNC_LOW,
 	.board_info	= &ak8813,
 	.i2c_adap	= 0,
-	.module_name	= "ak881x",
 };
 
 static struct resource sh_vou_resources[] = {
@@ -827,37 +827,29 @@ static int __init devices_setup(void)
 	gpio_request(GPIO_FN_KEYOUT0,     NULL);
 
 	/* enable FSI */
-	gpio_request(GPIO_FN_FSIMCKB,    NULL);
 	gpio_request(GPIO_FN_FSIMCKA,    NULL);
+	gpio_request(GPIO_FN_FSIIASD,    NULL);
 	gpio_request(GPIO_FN_FSIOASD,    NULL);
 	gpio_request(GPIO_FN_FSIIABCK,   NULL);
 	gpio_request(GPIO_FN_FSIIALRCK,  NULL);
 	gpio_request(GPIO_FN_FSIOABCK,   NULL);
 	gpio_request(GPIO_FN_FSIOALRCK,  NULL);
 	gpio_request(GPIO_FN_CLKAUDIOAO, NULL);
-	gpio_request(GPIO_FN_FSIIBSD,    NULL);
-	gpio_request(GPIO_FN_FSIOBSD,    NULL);
-	gpio_request(GPIO_FN_FSIIBBCK,   NULL);
-	gpio_request(GPIO_FN_FSIIBLRCK,  NULL);
-	gpio_request(GPIO_FN_FSIOBBCK,   NULL);
-	gpio_request(GPIO_FN_FSIOBLRCK,  NULL);
-	gpio_request(GPIO_FN_CLKAUDIOBO, NULL);
-	gpio_request(GPIO_FN_FSIIASD,    NULL);
 
 	/* set SPU2 clock to 83.4 MHz */
 	clk = clk_get(NULL, "spu_clk");
-	if (clk) {
+	if (!IS_ERR(clk)) {
 		clk_set_rate(clk, clk_round_rate(clk, 83333333));
 		clk_put(clk);
 	}
 
 	/* change parent of FSI A */
 	clk = clk_get(NULL, "fsia_clk");
-	if (clk) {
-		clk_register(&fsimcka_clk);
-		clk_set_parent(clk, &fsimcka_clk);
-		clk_set_rate(clk, 11000);
-		clk_set_rate(&fsimcka_clk, 11000);
+	if (!IS_ERR(clk)) {
+		/* 48kHz dummy clock was used to make sure 1/1 divide */
+		clk_set_rate(&sh7724_fsimcka_clk, 48000);
+		clk_set_parent(clk, &sh7724_fsimcka_clk);
+		clk_set_rate(clk, 48000);
 		clk_put(clk);
 	}
 
@@ -909,24 +901,12 @@ static int __init devices_setup(void)
 
 	if (sw & SW41_B) {
 		/* 720p */
-		lcdc_info.ch[0].lcd_cfg.xres         = 1280;
-		lcdc_info.ch[0].lcd_cfg.yres         = 720;
-		lcdc_info.ch[0].lcd_cfg.left_margin  = 220;
-		lcdc_info.ch[0].lcd_cfg.right_margin = 110;
-		lcdc_info.ch[0].lcd_cfg.hsync_len    = 40;
-		lcdc_info.ch[0].lcd_cfg.upper_margin = 20;
-		lcdc_info.ch[0].lcd_cfg.lower_margin = 5;
-		lcdc_info.ch[0].lcd_cfg.vsync_len    = 5;
+		lcdc_info.ch[0].lcd_cfg	= lcdc_720p_modes;
+		lcdc_info.ch[0].num_cfg	= ARRAY_SIZE(lcdc_720p_modes);
 	} else {
 		/* VGA */
-		lcdc_info.ch[0].lcd_cfg.xres         = 640;
-		lcdc_info.ch[0].lcd_cfg.yres         = 480;
-		lcdc_info.ch[0].lcd_cfg.left_margin  = 105;
-		lcdc_info.ch[0].lcd_cfg.right_margin = 50;
-		lcdc_info.ch[0].lcd_cfg.hsync_len    = 96;
-		lcdc_info.ch[0].lcd_cfg.upper_margin = 33;
-		lcdc_info.ch[0].lcd_cfg.lower_margin = 10;
-		lcdc_info.ch[0].lcd_cfg.vsync_len    = 2;
+		lcdc_info.ch[0].lcd_cfg	= lcdc_vga_modes;
+		lcdc_info.ch[0].num_cfg	= ARRAY_SIZE(lcdc_vga_modes);
 	}
 
 	if (sw & SW41_A) {

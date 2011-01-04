@@ -1,7 +1,7 @@
 /*
  * arch/sh/oprofile/init.c
  *
- * Copyright (C) 2003 - 2008  Paul Mundt
+ * Copyright (C) 2003 - 2010  Paul Mundt
  *
  * Based on arch/mips/oprofile/common.c:
  *
@@ -18,31 +18,33 @@
 #include <linux/errno.h>
 #include <linux/smp.h>
 #include <linux/perf_event.h>
+#include <linux/slab.h>
 #include <asm/processor.h>
 
-#ifdef CONFIG_HW_PERF_EVENTS
 extern void sh_backtrace(struct pt_regs * const regs, unsigned int depth);
+
+#ifdef CONFIG_HW_PERF_EVENTS
+/*
+ * This will need to be reworked when multiple PMUs are supported.
+ */
+static char *sh_pmu_op_name;
 
 char *op_name_from_perf_id(void)
 {
-	const char *pmu;
-	char buf[20];
-	int size;
-
-	pmu = perf_pmu_name();
-	if (!pmu)
-		return NULL;
-
-	size = snprintf(buf, sizeof(buf), "sh/%s", pmu);
-	if (size > -1 && size < sizeof(buf))
-		return buf;
-
-	return NULL;
+	return sh_pmu_op_name;
 }
 
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 	ops->backtrace = sh_backtrace;
+
+	if (perf_num_counters() == 0)
+		return -ENODEV;
+
+	sh_pmu_op_name = kasprintf(GFP_KERNEL, "%s/%s",
+				   UTS_MACHINE, perf_pmu_name());
+	if (unlikely(!sh_pmu_op_name))
+		return -ENOMEM;
 
 	return oprofile_perf_init(ops);
 }
@@ -50,11 +52,12 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 void __exit oprofile_arch_exit(void)
 {
 	oprofile_perf_exit();
+	kfree(sh_pmu_op_name);
 }
 #else
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
-	pr_info("oprofile: hardware counters not available\n");
+	ops->backtrace = sh_backtrace;
 	return -ENODEV;
 }
 void __exit oprofile_arch_exit(void) {}

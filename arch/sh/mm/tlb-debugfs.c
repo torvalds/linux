@@ -151,25 +151,18 @@ static int __init tlb_debugfs_init(void)
 {
 	struct dentry *itlb, *utlb;
 
-	itlb = debugfs_create_file("itlb", S_IRUSR, sh_debugfs_root,
+	itlb = debugfs_create_file("itlb", S_IRUSR, arch_debugfs_dir,
 				   (unsigned int *)TLB_TYPE_ITLB,
 				   &tlb_debugfs_fops);
 	if (unlikely(!itlb))
 		return -ENOMEM;
-	if (IS_ERR(itlb))
-		return PTR_ERR(itlb);
 
-	utlb = debugfs_create_file("utlb", S_IRUSR, sh_debugfs_root,
+	utlb = debugfs_create_file("utlb", S_IRUSR, arch_debugfs_dir,
 				   (unsigned int *)TLB_TYPE_UTLB,
 				   &tlb_debugfs_fops);
 	if (unlikely(!utlb)) {
 		debugfs_remove(itlb);
 		return -ENOMEM;
-	}
-
-	if (IS_ERR(utlb)) {
-		debugfs_remove(itlb);
-		return PTR_ERR(utlb);
 	}
 
 	return 0;

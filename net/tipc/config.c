@@ -95,7 +95,7 @@ int tipc_cfg_append_tlv(struct sk_buff *buf, int tlv_type,
 	return 1;
 }
 
-struct sk_buff *tipc_cfg_reply_unsigned_type(u16 tlv_type, u32 value)
+static struct sk_buff *tipc_cfg_reply_unsigned_type(u16 tlv_type, u32 value)
 {
 	struct sk_buff *buf;
 	__be32 value_net;
@@ -109,6 +109,11 @@ struct sk_buff *tipc_cfg_reply_unsigned_type(u16 tlv_type, u32 value)
 	return buf;
 }
 
+static struct sk_buff *tipc_cfg_reply_unsigned(u32 value)
+{
+	return tipc_cfg_reply_unsigned_type(TIPC_TLV_UNSIGNED, value);
+}
+
 struct sk_buff *tipc_cfg_reply_string_type(u16 tlv_type, char *string)
 {
 	struct sk_buff *buf;
@@ -119,139 +124,6 @@ struct sk_buff *tipc_cfg_reply_string_type(u16 tlv_type, char *string)
 		tipc_cfg_append_tlv(buf, tlv_type, string, string_len);
 	return buf;
 }
-
-
-#if 0
-
-/* Now obsolete code for handling commands not yet implemented the new way */
-
-/*
- * Some of this code assumed that the manager structure contains two added
- * fields:
- *	u32 link_subscriptions;
- *	struct list_head link_subscribers;
- * which are currently not present.  These fields may need to be re-introduced
- * if and when support for link subscriptions is added.
- */
-
-void tipc_cfg_link_event(u32 addr, char *name, int up)
-{
-	/* TIPC DOESN'T HANDLE LINK EVENT SUBSCRIPTIONS AT THE MOMENT */
-}
-
-int tipc_cfg_cmd(const struct tipc_cmd_msg * msg,
-		 char *data,
-		 u32 sz,
-		 u32 *ret_size,
-		 struct tipc_portid *orig)
-{
-	int rv = -EINVAL;
-	u32 cmd = msg->cmd;
-
-	*ret_size = 0;
-	switch (cmd) {
-	case TIPC_REMOVE_LINK:
-	case TIPC_CMD_BLOCK_LINK:
-	case TIPC_CMD_UNBLOCK_LINK:
-		if (!cfg_check_connection(orig))
-			rv = link_control(msg->argv.link_name, msg->cmd, 0);
-		break;
-	case TIPC_ESTABLISH:
-		{
-			int connected;
-
-			tipc_isconnected(mng.conn_port_ref, &connected);
-			if (connected || !orig) {
-				rv = TIPC_FAILURE;
-				break;
-			}
-			rv = tipc_connect2port(mng.conn_port_ref, orig);
-			if (rv == TIPC_OK)
-				orig = 0;
-			break;
-		}
-	case TIPC_GET_PEER_ADDRESS:
-		*ret_size = link_peer_addr(msg->argv.link_name, data, sz);
-		break;
-	case TIPC_GET_ROUTES:
-		rv = TIPC_OK;
-		break;
-	default: {}
-	}
-	if (*ret_size)
-		rv = TIPC_OK;
-	return rv;
-}
-
-static void cfg_cmd_event(struct tipc_cmd_msg *msg,
-			  char *data,
-			  u32 sz,
-			  struct tipc_portid const *orig)
-{
-	int rv = -EINVAL;
-	struct tipc_cmd_result_msg rmsg;
-	struct iovec msg_sect[2];
-	int *arg;
-
-	msg->cmd = ntohl(msg->cmd);
-
-	cfg_prepare_res_msg(msg->cmd, msg->usr_handle, rv, &rmsg, msg_sect,
-			    data, 0);
-	if (ntohl(msg->magic) != TIPC_MAGIC)
-		goto exit;
-
-	switch (msg->cmd) {
-	case TIPC_CREATE_LINK:
-		if (!cfg_check_connection(orig))
-			rv = disc_create_link(&msg->argv.create_link);
-		break;
-	case TIPC_LINK_SUBSCRIBE:
-		{
-			struct subscr_data *sub;
-
-			if (mng.link_subscriptions > 64)
-				break;
-			sub = kmalloc(sizeof(*sub),
-							    GFP_ATOMIC);
-			if (sub == NULL) {
-				warn("Memory squeeze; dropped remote link subscription\n");
-				break;
-			}
-			INIT_LIST_HEAD(&sub->subd_list);
-			tipc_createport(mng.user_ref,
-					(void *)sub,
-					TIPC_HIGH_IMPORTANCE,
-					0,
-					0,
-					(tipc_conn_shutdown_event)cfg_linksubscr_cancel,
-					0,
-					0,
-					(tipc_conn_msg_event)cfg_linksubscr_cancel,
-					0,
-					&sub->port_ref);
-			if (!sub->port_ref) {
-				kfree(sub);
-				break;
-			}
-			memcpy(sub->usr_handle,msg->usr_handle,
-			       sizeof(sub->usr_handle));
-			sub->domain = msg->argv.domain;
-			list_add_tail(&sub->subd_list, &mng.link_subscribers);
-			tipc_connect2port(sub->port_ref, orig);
-			rmsg.retval = TIPC_OK;
-			tipc_send(sub->port_ref, 2u, msg_sect);
-			mng.link_subscriptions++;
-			return;
-		}
-	default:
-		rv = tipc_cfg_cmd(msg, data, sz, (u32 *)&msg_sect[1].iov_len, orig);
-	}
-exit:
-	rmsg.result_len = htonl(msg_sect[1].iov_len);
-	rmsg.retval = htonl(rv);
-	tipc_cfg_respond(msg_sect, 2u, orig);
-}
-#endif
 
 #define MAX_STATS_INFO 2000
 
@@ -557,14 +429,6 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_SHOW_PORTS:
 		rep_tlv_buf = tipc_port_get_ports();
 		break;
-#if 0
-	case TIPC_CMD_SHOW_PORT_STATS:
-		rep_tlv_buf = port_show_stats(req_tlv_area, req_tlv_space);
-		break;
-	case TIPC_CMD_RESET_PORT_STATS:
-		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED);
-		break;
-#endif
 	case TIPC_CMD_SET_LOG_SIZE:
 		rep_tlv_buf = tipc_log_resize_cmd(req_tlv_area, req_tlv_space);
 		break;

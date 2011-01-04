@@ -154,10 +154,40 @@ static int v9fs_launder_page(struct page *page)
 	return 0;
 }
 
+/**
+ * v9fs_direct_IO - 9P address space operation for direct I/O
+ * @rw: direction (read or write)
+ * @iocb: target I/O control block
+ * @iov: array of vectors that define I/O buffer
+ * @pos: offset in file to begin the operation
+ * @nr_segs: size of iovec array
+ *
+ * The presence of v9fs_direct_IO() in the address space ops vector
+ * allowes open() O_DIRECT flags which would have failed otherwise.
+ *
+ * In the non-cached mode, we shunt off direct read and write requests before
+ * the VFS gets them, so this method should never be called.
+ *
+ * Direct IO is not 'yet' supported in the cached mode. Hence when
+ * this routine is called through generic_file_aio_read(), the read/write fails
+ * with an error.
+ *
+ */
+ssize_t v9fs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
+		loff_t pos, unsigned long nr_segs)
+{
+	P9_DPRINTK(P9_DEBUG_VFS, "v9fs_direct_IO: v9fs_direct_IO (%s) "
+			"off/no(%lld/%lu) EINVAL\n",
+			iocb->ki_filp->f_path.dentry->d_name.name,
+			(long long) pos, nr_segs);
+
+	return -EINVAL;
+}
 const struct address_space_operations v9fs_addr_operations = {
       .readpage = v9fs_vfs_readpage,
       .readpages = v9fs_vfs_readpages,
       .releasepage = v9fs_release_page,
       .invalidatepage = v9fs_invalidate_page,
       .launder_page = v9fs_launder_page,
+      .direct_IO = v9fs_direct_IO,
 };

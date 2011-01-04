@@ -43,7 +43,7 @@ static DEFINE_PER_CPU(unsigned long, hrtimer_interrupts_saved);
 static DEFINE_PER_CPU(struct perf_event *, watchdog_ev);
 #endif
 
-static int __initdata no_watchdog;
+static int no_watchdog;
 
 
 /* boot commands */

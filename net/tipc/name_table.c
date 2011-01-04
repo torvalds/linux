@@ -116,7 +116,7 @@ DEFINE_RWLOCK(tipc_nametbl_lock);
 
 static int hash(int x)
 {
-	return(x & (tipc_nametbl_size - 1));
+	return x & (tipc_nametbl_size - 1);
 }
 
 /**
@@ -613,8 +613,7 @@ struct publication *tipc_nametbl_remove_publ(u32 type, u32 lower,
 }
 
 /*
- * tipc_nametbl_translate(): Translate tipc_name -> tipc_portid.
- *                      Very time-critical.
+ * tipc_nametbl_translate - translate name to port id
  *
  * Note: on entry 'destnode' is the search domain used during translation;
  *       on exit it passes back the node address of the matching port (if any)
@@ -685,7 +684,6 @@ found:
 	}
 	spin_unlock_bh(&seq->lock);
 not_found:
-	*destnode = 0;
 	read_unlock_bh(&tipc_nametbl_lock);
 	return 0;
 }
@@ -877,7 +875,7 @@ static void subseq_list(struct sub_seq *sseq, struct print_buf *buf, u32 depth,
 			u32 index)
 {
 	char portIdStr[27];
-	char *scopeStr;
+	const char *scope_str[] = {"", " zone", " cluster", " node"};
 	struct publication *publ = sseq->zone_list;
 
 	tipc_printf(buf, "%-10u %-10u ", sseq->lower, sseq->upper);
@@ -893,15 +891,8 @@ static void subseq_list(struct sub_seq *sseq, struct print_buf *buf, u32 depth,
 			 tipc_node(publ->node), publ->ref);
 		tipc_printf(buf, "%-26s ", portIdStr);
 		if (depth > 3) {
-			if (publ->node != tipc_own_addr)
-				scopeStr = "";
-			else if (publ->scope == TIPC_NODE_SCOPE)
-				scopeStr = "node";
-			else if (publ->scope == TIPC_CLUSTER_SCOPE)
-				scopeStr = "cluster";
-			else
-				scopeStr = "zone";
-			tipc_printf(buf, "%-10u %s", publ->key, scopeStr);
+			tipc_printf(buf, "%-10u %s", publ->key,
+				    scope_str[publ->scope]);
 		}
 
 		publ = publ->zone_list_next;
@@ -951,24 +942,19 @@ static void nameseq_list(struct name_seq *seq, struct print_buf *buf, u32 depth,
 
 static void nametbl_header(struct print_buf *buf, u32 depth)
 {
-	tipc_printf(buf, "Type       ");
+	const char *header[] = {
+		"Type       ",
+		"Lower      Upper      ",
+		"Port Identity              ",
+		"Publication Scope"
+	};
 
-	if (depth > 1)
-		tipc_printf(buf, "Lower      Upper      ");
-	if (depth > 2)
-		tipc_printf(buf, "Port Identity              ");
-	if (depth > 3)
-		tipc_printf(buf, "Publication");
+	int i;
 
-	tipc_printf(buf, "\n-----------");
-
-	if (depth > 1)
-		tipc_printf(buf, "--------------------- ");
-	if (depth > 2)
-		tipc_printf(buf, "-------------------------- ");
-	if (depth > 3)
-		tipc_printf(buf, "------------------");
-
+	if (depth > 4)
+		depth = 4;
+	for (i = 0; i < depth; i++)
+		tipc_printf(buf, header[i]);
 	tipc_printf(buf, "\n");
 }
 
@@ -1023,16 +1009,6 @@ static void nametbl_list(struct print_buf *buf, u32 depth_info,
 	}
 }
 
-#if 0
-void tipc_nametbl_print(struct print_buf *buf, const char *str)
-{
-	tipc_printf(buf, str);
-	read_lock_bh(&tipc_nametbl_lock);
-	nametbl_list(buf, 0, 0, 0, 0);
-	read_unlock_bh(&tipc_nametbl_lock);
-}
-#endif
-
 #define MAX_NAME_TBL_QUERY 32768
 
 struct sk_buff *tipc_nametbl_get(const void *req_tlv_area, int req_tlv_space)
@@ -1064,13 +1040,6 @@ struct sk_buff *tipc_nametbl_get(const void *req_tlv_area, int req_tlv_space)
 
 	return buf;
 }
-
-#if 0
-void tipc_nametbl_dump(void)
-{
-	nametbl_list(TIPC_CONS, 0, 0, 0, 0);
-}
-#endif
 
 int tipc_nametbl_init(void)
 {

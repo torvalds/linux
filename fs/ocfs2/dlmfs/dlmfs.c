@@ -400,6 +400,7 @@ static struct inode *dlmfs_get_root_inode(struct super_block *sb)
 	if (inode) {
 		ip = DLMFS_I(inode);
 
+		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_uid = current_fsuid();
 		inode->i_gid = current_fsgid();
@@ -425,6 +426,7 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
 	if (!inode)
 		return NULL;
 
+	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
@@ -612,6 +614,7 @@ static const struct file_operations dlmfs_file_operations = {
 	.poll		= dlmfs_file_poll,
 	.read		= dlmfs_file_read,
 	.write		= dlmfs_file_write,
+	.llseek		= default_llseek,
 };
 
 static const struct inode_operations dlmfs_dir_inode_operations = {
@@ -640,16 +643,16 @@ static const struct inode_operations dlmfs_file_inode_operations = {
 	.setattr	= dlmfs_file_setattr,
 };
 
-static int dlmfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *dlmfs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, dlmfs_fill_super, mnt);
+	return mount_nodev(fs_type, flags, data, dlmfs_fill_super);
 }
 
 static struct file_system_type dlmfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "ocfs2_dlmfs",
-	.get_sb		= dlmfs_get_sb,
+	.mount		= dlmfs_mount,
 	.kill_sb	= kill_litter_super,
 };
 

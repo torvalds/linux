@@ -514,7 +514,9 @@ int pcmcia_enable_device(struct pcmcia_device *p_dev)
 	}
 
 	/* Pick memory or I/O card, DMA mode, interrupt */
-	if (p_dev->_io)
+	if (p_dev->_io || flags & CONF_ENABLE_IRQ)
+		flags |= CONF_ENABLE_IOCARD;
+	if (flags & CONF_ENABLE_IOCARD)
 		s->socket.flags |= SS_IOCARD;
 	if (flags & CONF_ENABLE_SPKR) {
 		s->socket.flags |= SS_SPKR_ENA;

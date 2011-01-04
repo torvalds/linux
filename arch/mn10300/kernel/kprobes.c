@@ -377,8 +377,10 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 
 void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
+#ifndef CONFIG_MN10300_CACHE_SNOOP
 	mn10300_dcache_flush();
 	mn10300_icache_inv();
+#endif
 }
 
 void arch_remove_kprobe(struct kprobe *p)
@@ -390,8 +392,10 @@ void __kprobes disarm_kprobe(struct kprobe *p, struct pt_regs *regs)
 {
 	*p->addr = p->opcode;
 	regs->pc = (unsigned long) p->addr;
+#ifndef CONFIG_MN10300_CACHE_SNOOP
 	mn10300_dcache_flush();
 	mn10300_icache_inv();
+#endif
 }
 
 static inline

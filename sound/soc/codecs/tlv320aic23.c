@@ -240,7 +240,8 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 /* AIC23 driver data */
 struct aic23 {
-	struct snd_soc_codec codec;
+	enum snd_soc_control_type control_type;
+	void *control_data;
 	int mclk;
 	int requested_adc;
 	int requested_dac;
@@ -404,11 +405,10 @@ static int tlv320aic23_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
 	u16 iface_reg;
 	int ret;
-	struct aic23 *aic23 = container_of(codec, struct aic23, codec);
+	struct aic23 *aic23 = snd_soc_codec_get_drvdata(codec);
 	u32 sample_rate_adc = aic23->requested_adc;
 	u32 sample_rate_dac = aic23->requested_dac;
 	u32 sample_rate = params_rate(params);
@@ -452,8 +452,7 @@ static int tlv320aic23_pcm_prepare(struct snd_pcm_substream *substream,
 				   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
 
 	/* set active */
 	tlv320aic23_write(codec, TLV320AIC23_ACTIVE, 0x0001);
@@ -465,9 +464,8 @@ static void tlv320aic23_shutdown(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	struct aic23 *aic23 = container_of(codec, struct aic23, codec);
+	struct snd_soc_codec *codec = rtd->codec;
+	struct aic23 *aic23 = snd_soc_codec_get_drvdata(codec);
 
 	/* deactivate */
 	if (!codec->active) {
@@ -546,8 +544,7 @@ static int tlv320aic23_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int tlv320aic23_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				      int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct aic23 *aic23 = container_of(codec, struct aic23, codec);
+	struct aic23 *aic23 = snd_soc_dai_get_drvdata(codec_dai);
 	aic23->mclk = freq;
 	return 0;
 }
@@ -594,8 +591,8 @@ static struct snd_soc_dai_ops tlv320aic23_dai_ops = {
 	.set_sysclk	= tlv320aic23_set_dai_sysclk,
 };
 
-struct snd_soc_dai tlv320aic23_dai = {
-	.name = "tlv320aic23",
+static struct snd_soc_dai_driver tlv320aic23_dai = {
+	.name = "tlv320aic23-hifi",
 	.playback = {
 		     .stream_name = "Playback",
 		     .channels_min = 2,
@@ -610,23 +607,17 @@ struct snd_soc_dai tlv320aic23_dai = {
 		    .formats = AIC23_FORMATS,},
 	.ops = &tlv320aic23_dai_ops,
 };
-EXPORT_SYMBOL_GPL(tlv320aic23_dai);
 
-static int tlv320aic23_suspend(struct platform_device *pdev,
+static int tlv320aic23_suspend(struct snd_soc_codec *codec,
 			       pm_message_t state)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
 	tlv320aic23_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
 
-static int tlv320aic23_resume(struct platform_device *pdev)
+static int tlv320aic23_resume(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
 	u16 reg;
 
 	/* Sync reg_cache with the hardware */
@@ -639,38 +630,18 @@ static int tlv320aic23_resume(struct platform_device *pdev)
 	return 0;
 }
 
-/*
- * initialise the AIC23 driver
- * register the mixer and dsp interfaces with the kernel
- */
-static int tlv320aic23_init(struct snd_soc_device *socdev)
+static int tlv320aic23_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_codec *codec = socdev->card->codec;
-	int ret = 0;
-	u16 reg;
+	struct aic23 *aic23 = snd_soc_codec_get_drvdata(codec);
+	int reg;
 
-	codec->name = "tlv320aic23";
-	codec->owner = THIS_MODULE;
-	codec->read = tlv320aic23_read_reg_cache;
-	codec->write = tlv320aic23_write;
-	codec->set_bias_level = tlv320aic23_set_bias_level;
-	codec->dai = &tlv320aic23_dai;
-	codec->num_dai = 1;
-	codec->reg_cache_size = ARRAY_SIZE(tlv320aic23_reg);
-	codec->reg_cache =
-	    kmemdup(tlv320aic23_reg, sizeof(tlv320aic23_reg), GFP_KERNEL);
-	if (codec->reg_cache == NULL)
-		return -ENOMEM;
+	printk(KERN_INFO "AIC23 Audio Codec %s\n", AIC23_VERSION);
+	codec->control_data = aic23->control_data;
+	codec->hw_write = (hw_write_t)i2c_master_send;
+	codec->hw_read = NULL;
 
 	/* Reset codec */
 	tlv320aic23_write(codec, TLV320AIC23_RESET, 0);
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		printk(KERN_ERR "tlv320aic23: failed to create pcms\n");
-		goto pcm_err;
-	}
 
 	/* power on device */
 	tlv320aic23_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -707,13 +678,27 @@ static int tlv320aic23_init(struct snd_soc_device *socdev)
 				ARRAY_SIZE(tlv320aic23_snd_controls));
 	tlv320aic23_add_widgets(codec);
 
-	return ret;
-
-pcm_err:
-	kfree(codec->reg_cache);
-	return ret;
+	return 0;
 }
-static struct snd_soc_device *tlv320aic23_socdev;
+
+static int tlv320aic23_remove(struct snd_soc_codec *codec)
+{
+	tlv320aic23_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	return 0;
+}
+
+static struct snd_soc_codec_driver soc_codec_dev_tlv320aic23 = {
+	.reg_cache_size = ARRAY_SIZE(tlv320aic23_reg),
+	.reg_word_size = sizeof(u16),
+	.reg_cache_default = tlv320aic23_reg,
+	.probe = tlv320aic23_probe,
+	.remove = tlv320aic23_remove,
+	.suspend = tlv320aic23_suspend,
+	.resume = tlv320aic23_resume,
+	.read = tlv320aic23_read_reg_cache,
+	.write = tlv320aic23_write,
+	.set_bias_level = tlv320aic23_set_bias_level,
+};
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 /*
@@ -723,31 +708,30 @@ static struct snd_soc_device *tlv320aic23_socdev;
 static int tlv320aic23_codec_probe(struct i2c_client *i2c,
 				   const struct i2c_device_id *i2c_id)
 {
-	struct snd_soc_device *socdev = tlv320aic23_socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct aic23 *aic23;
 	int ret;
 
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EINVAL;
 
-	i2c_set_clientdata(i2c, codec);
-	codec->control_data = i2c;
+	aic23 = kzalloc(sizeof(struct aic23), GFP_KERNEL);
+	if (aic23 == NULL)
+		return -ENOMEM;
 
-	ret = tlv320aic23_init(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "tlv320aic23: failed to initialise AIC23\n");
-		goto err;
-	}
-	return ret;
+	i2c_set_clientdata(i2c, aic23);
+	aic23->control_data = i2c;
+	aic23->control_type = SND_SOC_I2C;
 
-err:
-	kfree(codec);
-	kfree(i2c);
+	ret =  snd_soc_register_codec(&i2c->dev,
+			&soc_codec_dev_tlv320aic23, &tlv320aic23_dai, 1);
+	if (ret < 0)
+		kfree(aic23);
 	return ret;
 }
 static int __exit tlv320aic23_i2c_remove(struct i2c_client *i2c)
 {
-	put_device(&i2c->dev);
+	snd_soc_unregister_codec(&i2c->dev);
+	kfree(i2c_get_clientdata(i2c));
 	return 0;
 }
 
@@ -760,7 +744,7 @@ MODULE_DEVICE_TABLE(i2c, tlv320aic23_id);
 
 static struct i2c_driver tlv320aic23_i2c_driver = {
 	.driver = {
-		   .name = "tlv320aic23",
+		   .name = "tlv320aic23-codec",
 		   },
 	.probe = tlv320aic23_codec_probe,
 	.remove = __exit_p(tlv320aic23_i2c_remove),
@@ -769,71 +753,25 @@ static struct i2c_driver tlv320aic23_i2c_driver = {
 
 #endif
 
-static int tlv320aic23_probe(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	struct aic23 *aic23;
-	int ret = 0;
-
-	printk(KERN_INFO "AIC23 Audio Codec %s\n", AIC23_VERSION);
-
-	aic23 = kzalloc(sizeof(struct aic23), GFP_KERNEL);
-	if (aic23 == NULL)
-		return -ENOMEM;
-	codec = &aic23->codec;
-	socdev->card->codec = codec;
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	tlv320aic23_socdev = socdev;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	codec->hw_write = (hw_write_t) i2c_master_send;
-	codec->hw_read = NULL;
-	ret = i2c_add_driver(&tlv320aic23_i2c_driver);
-	if (ret != 0)
-		printk(KERN_ERR "can't add i2c driver");
-#endif
-	return ret;
-}
-
-static int tlv320aic23_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-	struct aic23 *aic23 = container_of(codec, struct aic23, codec);
-
-	if (codec->control_data)
-		tlv320aic23_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_del_driver(&tlv320aic23_i2c_driver);
-#endif
-	kfree(codec->reg_cache);
-	kfree(aic23);
-
-	return 0;
-}
-struct snd_soc_codec_device soc_codec_dev_tlv320aic23 = {
-	.probe = tlv320aic23_probe,
-	.remove = tlv320aic23_remove,
-	.suspend = tlv320aic23_suspend,
-	.resume = tlv320aic23_resume,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_tlv320aic23);
-
 static int __init tlv320aic23_modinit(void)
 {
-	return snd_soc_register_dai(&tlv320aic23_dai);
+	int ret;
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	ret = i2c_add_driver(&tlv320aic23_i2c_driver);
+	if (ret != 0) {
+		printk(KERN_ERR "Failed to register TLV320AIC23 I2C driver: %d\n",
+		       ret);
+	}
+#endif
+	return ret;
 }
 module_init(tlv320aic23_modinit);
 
 static void __exit tlv320aic23_exit(void)
 {
-	snd_soc_unregister_dai(&tlv320aic23_dai);
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	i2c_del_driver(&tlv320aic23_i2c_driver);
+#endif
 }
 module_exit(tlv320aic23_exit);
 

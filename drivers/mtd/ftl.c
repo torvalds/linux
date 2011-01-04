@@ -51,7 +51,7 @@
 
     Use of the FTL format for non-PCMCIA applications may be an
     infringement of these patents.  For additional information,
-    contact M-Systems (http://www.m-sys.com) directly.
+    contact M-Systems directly. M-Systems since acquired by Sandisk. 
 
 ======================================================================*/
 #include <linux/mtd/blktrans.h>

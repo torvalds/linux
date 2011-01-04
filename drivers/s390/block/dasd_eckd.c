@@ -1190,7 +1190,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 		goto out_err2;
 	}
 	/*
-	 * dasd_eckd_vaildate_server is done on the first device that
+	 * dasd_eckd_validate_server is done on the first device that
 	 * is found for an LCU. All later other devices have to wait
 	 * for it, so they will read the correct feature codes.
 	 */
@@ -1216,7 +1216,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 				"Read device characteristic failed, rc=%d", rc);
 		goto out_err3;
 	}
-	/* find the vaild cylinder size */
+	/* find the valid cylinder size */
 	if (private->rdc_data.no_cyl == LV_COMPAT_CYL &&
 	    private->rdc_data.long_no_cyl)
 		private->real_cyl = private->rdc_data.long_no_cyl;
@@ -1776,13 +1776,13 @@ static void dasd_eckd_handle_unsolicited_interrupt(struct dasd_device *device,
 	}
 
 	/* summary unit check */
-	if ((scsw_dstat(&irb->scsw) & DEV_STAT_UNIT_CHECK) &&
-	    (irb->ecw[7] == 0x0D)) {
+	sense = dasd_get_sense(irb);
+	if (sense && (sense[7] == 0x0D) &&
+	    (scsw_dstat(&irb->scsw) & DEV_STAT_UNIT_CHECK)) {
 		dasd_alias_handle_summary_unit_check(device, irb);
 		return;
 	}
 
-	sense = dasd_get_sense(irb);
 	/* service information message SIM */
 	if (sense && !(sense[27] & DASD_SENSE_BIT_0) &&
 	    ((sense[6] & DASD_SIM_SENSE) == DASD_SIM_SENSE)) {
@@ -1791,24 +1791,13 @@ static void dasd_eckd_handle_unsolicited_interrupt(struct dasd_device *device,
 		return;
 	}
 
-	if ((scsw_cc(&irb->scsw) == 1) &&
-	    (scsw_fctl(&irb->scsw) & SCSW_FCTL_START_FUNC) &&
-	    (scsw_actl(&irb->scsw) & SCSW_ACTL_START_PEND) &&
-	    (scsw_stctl(&irb->scsw) & SCSW_STCTL_STATUS_PEND)) {
+	if ((scsw_cc(&irb->scsw) == 1) && !sense &&
+	    (scsw_fctl(&irb->scsw) == SCSW_FCTL_START_FUNC) &&
+	    (scsw_actl(&irb->scsw) == SCSW_ACTL_START_PEND) &&
+	    (scsw_stctl(&irb->scsw) == SCSW_STCTL_STATUS_PEND)) {
 		/* fake irb do nothing, they are handled elsewhere */
 		dasd_schedule_device_bh(device);
 		return;
-	}
-
-	if (!sense) {
-		/* just report other unsolicited interrupts */
-		DBF_DEV_EVENT(DBF_ERR, device, "%s",
-			    "unsolicited interrupt received");
-	} else {
-		DBF_DEV_EVENT(DBF_ERR, device, "%s",
-			    "unsolicited interrupt received "
-			    "(sense available)");
-		device->discipline->dump_sense_dbf(device, irb, "unsolicited");
 	}
 
 	dasd_schedule_device_bh(device);
@@ -2813,6 +2802,73 @@ dasd_eckd_steal_lock(struct dasd_device *device)
 }
 
 /*
+ * SNID - Sense Path Group ID
+ * This ioctl may be used in situations where I/O is stalled due to
+ * a reserve, so if the normal dasd_smalloc_request fails, we use the
+ * preallocated dasd_reserve_req.
+ */
+static int dasd_eckd_snid(struct dasd_device *device,
+			  void __user *argp)
+{
+	struct dasd_ccw_req *cqr;
+	int rc;
+	struct ccw1 *ccw;
+	int useglobal;
+	struct dasd_snid_ioctl_data usrparm;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	if (copy_from_user(&usrparm, argp, sizeof(usrparm)))
+		return -EFAULT;
+
+	useglobal = 0;
+	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 1,
+				   sizeof(struct dasd_snid_data), device);
+	if (IS_ERR(cqr)) {
+		mutex_lock(&dasd_reserve_mutex);
+		useglobal = 1;
+		cqr = &dasd_reserve_req->cqr;
+		memset(cqr, 0, sizeof(*cqr));
+		memset(&dasd_reserve_req->ccw, 0,
+		       sizeof(dasd_reserve_req->ccw));
+		cqr->cpaddr = &dasd_reserve_req->ccw;
+		cqr->data = &dasd_reserve_req->data;
+		cqr->magic = DASD_ECKD_MAGIC;
+	}
+	ccw = cqr->cpaddr;
+	ccw->cmd_code = DASD_ECKD_CCW_SNID;
+	ccw->flags |= CCW_FLAG_SLI;
+	ccw->count = 12;
+	ccw->cda = (__u32)(addr_t) cqr->data;
+	cqr->startdev = device;
+	cqr->memdev = device;
+	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
+	set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
+	cqr->retries = 5;
+	cqr->expires = 10 * HZ;
+	cqr->buildclk = get_clock();
+	cqr->status = DASD_CQR_FILLED;
+	cqr->lpm = usrparm.path_mask;
+
+	rc = dasd_sleep_on_immediatly(cqr);
+	/* verify that I/O processing didn't modify the path mask */
+	if (!rc && usrparm.path_mask && (cqr->lpm != usrparm.path_mask))
+		rc = -EIO;
+	if (!rc) {
+		usrparm.data = *((struct dasd_snid_data *)cqr->data);
+		if (copy_to_user(argp, &usrparm, sizeof(usrparm)))
+			rc = -EFAULT;
+	}
+
+	if (useglobal)
+		mutex_unlock(&dasd_reserve_mutex);
+	else
+		dasd_sfree_request(cqr, cqr->memdev);
+	return rc;
+}
+
+/*
  * Read performance statistics
  */
 static int
@@ -3047,6 +3103,8 @@ dasd_eckd_ioctl(struct dasd_block *block, unsigned int cmd, void __user *argp)
 		return dasd_eckd_reserve(device);
 	case BIODASDSLCK:
 		return dasd_eckd_steal_lock(device);
+	case BIODASDSNID:
+		return dasd_eckd_snid(device, argp);
 	case BIODASDSYMMIO:
 		return dasd_symm_io(device, argp);
 	default:
@@ -3093,19 +3151,19 @@ dasd_eckd_dump_sense_dbf(struct dasd_device *device, struct irb *irb,
 			 char *reason)
 {
 	u64 *sense;
+	u64 *stat;
 
 	sense = (u64 *) dasd_get_sense(irb);
+	stat = (u64 *) &irb->scsw;
 	if (sense) {
-		DBF_DEV_EVENT(DBF_EMERG, device,
-			      "%s: %s %02x%02x%02x %016llx %016llx %016llx "
-			      "%016llx", reason,
-			      scsw_is_tm(&irb->scsw) ? "t" : "c",
-			      scsw_cc(&irb->scsw), scsw_cstat(&irb->scsw),
-			      scsw_dstat(&irb->scsw), sense[0], sense[1],
-			      sense[2], sense[3]);
+		DBF_DEV_EVENT(DBF_EMERG, device, "%s: %016llx %08x : "
+			      "%016llx %016llx %016llx %016llx",
+			      reason, *stat, *((u32 *) (stat + 1)),
+			      sense[0], sense[1], sense[2], sense[3]);
 	} else {
-		DBF_DEV_EVENT(DBF_EMERG, device, "%s",
-			      "SORRY - NO VALID SENSE AVAILABLE\n");
+		DBF_DEV_EVENT(DBF_EMERG, device, "%s: %016llx %08x : %s",
+			      reason, *stat, *((u32 *) (stat + 1)),
+			      "NO VALID SENSE");
 	}
 }
 
@@ -3131,9 +3189,12 @@ static void dasd_eckd_dump_sense_ccw(struct dasd_device *device,
 		      " I/O status report for device %s:\n",
 		      dev_name(&device->cdev->dev));
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
-		       " in req: %p CS: 0x%02X DS: 0x%02X CC: 0x%02X RC: %d\n",
-		       req, scsw_cstat(&irb->scsw), scsw_dstat(&irb->scsw),
-		       scsw_cc(&irb->scsw), req ? req->intrc : 0);
+		       " in req: %p CC:%02X FC:%02X AC:%02X SC:%02X DS:%02X "
+		       "CS:%02X RC:%d\n",
+		       req, scsw_cc(&irb->scsw), scsw_fctl(&irb->scsw),
+		       scsw_actl(&irb->scsw), scsw_stctl(&irb->scsw),
+		       scsw_dstat(&irb->scsw), scsw_cstat(&irb->scsw),
+		       req ? req->intrc : 0);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " device %s: Failing CCW: %p\n",
 		       dev_name(&device->cdev->dev),
@@ -3234,11 +3295,13 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 		      " I/O status report for device %s:\n",
 		      dev_name(&device->cdev->dev));
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
-		       " in req: %p CS: 0x%02X DS: 0x%02X CC: 0x%02X RC: %d "
-		       "fcxs: 0x%02X schxs: 0x%02X\n", req,
-		       scsw_cstat(&irb->scsw), scsw_dstat(&irb->scsw),
-		       scsw_cc(&irb->scsw), req->intrc,
-		       irb->scsw.tm.fcxs, irb->scsw.tm.schxs);
+		       " in req: %p CC:%02X FC:%02X AC:%02X SC:%02X DS:%02X "
+		       "CS:%02X fcxs:%02X schxs:%02X RC:%d\n",
+		       req, scsw_cc(&irb->scsw), scsw_fctl(&irb->scsw),
+		       scsw_actl(&irb->scsw), scsw_stctl(&irb->scsw),
+		       scsw_dstat(&irb->scsw), scsw_cstat(&irb->scsw),
+		       irb->scsw.tm.fcxs, irb->scsw.tm.schxs,
+		       req ? req->intrc : 0);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " device %s: Failing TCW: %p\n",
 		       dev_name(&device->cdev->dev),
@@ -3246,7 +3309,7 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 
 	tsb = NULL;
 	sense = NULL;
-	if (irb->scsw.tm.tcw && (irb->scsw.tm.fcxs == 0x01))
+	if (irb->scsw.tm.tcw && (irb->scsw.tm.fcxs & 0x01))
 		tsb = tcw_get_tsb(
 			(struct tcw *)(unsigned long)irb->scsw.tm.tcw);
 
@@ -3344,7 +3407,7 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 static void dasd_eckd_dump_sense(struct dasd_device *device,
 				 struct dasd_ccw_req *req, struct irb *irb)
 {
-	if (req && scsw_is_tm(&req->irb.scsw))
+	if (scsw_is_tm(&irb->scsw))
 		dasd_eckd_dump_sense_tcw(device, req, irb);
 	else
 		dasd_eckd_dump_sense_ccw(device, req, irb);

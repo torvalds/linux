@@ -34,7 +34,7 @@
 
 #include "iwl-dev.h"
 #include "iwl-core.h"
-#include "iwl-calib.h"
+#include "iwl-agn-calib.h"
 #include "iwl-sta.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"
@@ -73,7 +73,8 @@ static void iwl_rx_calc_noise(struct iwl_priv *priv)
 	int bcn_silence_a, bcn_silence_b, bcn_silence_c;
 	int last_rx_noise;
 
-	if (priv->cfg->bt_statistics)
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->bt_statistics)
 		rx_info = &(priv->_agn.statistics_bt.rx.general.common);
 	else
 		rx_info = &(priv->_agn.statistics.rx.general);
@@ -124,7 +125,8 @@ static void iwl_accumulative_statistics(struct iwl_priv *priv,
 	struct statistics_general_common *general, *accum_general;
 	struct statistics_tx *tx, *accum_tx;
 
-	if (priv->cfg->bt_statistics) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->bt_statistics) {
 		prev_stats = (__le32 *)&priv->_agn.statistics_bt;
 		accum_stats = (u32 *)&priv->_agn.accum_statistics_bt;
 		size = sizeof(struct iwl_bt_notif_statistics);
@@ -183,7 +185,7 @@ bool iwl_good_plcp_health(struct iwl_priv *priv,
 	unsigned int plcp_msec;
 	unsigned long plcp_received_jiffies;
 
-	if (priv->cfg->plcp_delta_threshold ==
+	if (priv->cfg->base_params->plcp_delta_threshold ==
 	    IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE) {
 		IWL_DEBUG_RADIO(priv, "plcp_err check disabled\n");
 		return rc;
@@ -205,7 +207,8 @@ bool iwl_good_plcp_health(struct iwl_priv *priv,
 		struct statistics_rx_phy *ofdm;
 		struct statistics_rx_ht_phy *ofdm_ht;
 
-		if (priv->cfg->bt_statistics) {
+		if (priv->cfg->bt_params &&
+		    priv->cfg->bt_params->bt_statistics) {
 			ofdm = &pkt->u.stats_bt.rx.ofdm;
 			ofdm_ht = &pkt->u.stats_bt.rx.ofdm_ht;
 			combined_plcp_delta =
@@ -229,7 +232,7 @@ bool iwl_good_plcp_health(struct iwl_priv *priv,
 
 		if ((combined_plcp_delta > 0) &&
 		    ((combined_plcp_delta * 100) / plcp_msec) >
-			priv->cfg->plcp_delta_threshold) {
+			priv->cfg->base_params->plcp_delta_threshold) {
 			/*
 			 * if plcp_err exceed the threshold,
 			 * the following data is printed in csv format:
@@ -242,13 +245,13 @@ bool iwl_good_plcp_health(struct iwl_priv *priv,
 			 *    plcp_msec
 			 */
 			IWL_DEBUG_RADIO(priv, "plcp_err exceeded %u, "
-				    "%u, %u, %u, %u, %d, %u mSecs\n",
-				    priv->cfg->plcp_delta_threshold,
-				    le32_to_cpu(ofdm->plcp_err),
-				    le32_to_cpu(ofdm->plcp_err),
-				    le32_to_cpu(ofdm_ht->plcp_err),
-				    le32_to_cpu(ofdm_ht->plcp_err),
-				    combined_plcp_delta, plcp_msec);
+				"%u, %u, %u, %u, %d, %u mSecs\n",
+				priv->cfg->base_params->plcp_delta_threshold,
+				le32_to_cpu(ofdm->plcp_err),
+				le32_to_cpu(ofdm->plcp_err),
+				le32_to_cpu(ofdm_ht->plcp_err),
+				le32_to_cpu(ofdm_ht->plcp_err),
+				combined_plcp_delta, plcp_msec);
 
 			rc = false;
 		}
@@ -262,7 +265,8 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 	int change;
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 
-	if (priv->cfg->bt_statistics) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->bt_statistics) {
 		IWL_DEBUG_RX(priv,
 			     "Statistics notification received (%d vs %d).\n",
 			     (int)sizeof(struct iwl_bt_notif_statistics),
@@ -300,7 +304,8 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 
 	iwl_recover_from_statistics(priv, pkt);
 
-	if (priv->cfg->bt_statistics)
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->bt_statistics)
 		memcpy(&priv->_agn.statistics_bt, &pkt->u.stats_bt,
 			sizeof(priv->_agn.statistics_bt));
 	else

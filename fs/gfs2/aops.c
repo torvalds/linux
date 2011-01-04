@@ -618,7 +618,6 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 	struct gfs2_alloc *al = NULL;
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
-	unsigned to = from + len;
 	struct page *page;
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &ip->i_gh);
@@ -691,7 +690,7 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 	}
 
 prepare_write:
-	error = block_prepare_write(page, from, to, gfs2_block_map);
+	error = __block_write_begin(page, from, len, gfs2_block_map);
 out:
 	if (error == 0)
 		return 0;

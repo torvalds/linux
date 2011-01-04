@@ -61,6 +61,8 @@
 
 #define ATH9K_RSSI_BAD			-128
 
+#define ATH9K_NUM_CHANNELS	38
+
 /* Register read/write primitives */
 #define REG_WRITE(_ah, _reg, _val) \
 	ath9k_hw_common(_ah)->ops->write((_ah), (_val), (_reg))
@@ -70,19 +72,13 @@
 
 #define ENABLE_REGWRITE_BUFFER(_ah)					\
 	do {								\
-		if (AR_SREV_9271(_ah))					\
+		if (ath9k_hw_common(_ah)->ops->enable_write_buffer)	\
 			ath9k_hw_common(_ah)->ops->enable_write_buffer((_ah)); \
-	} while (0)
-
-#define DISABLE_REGWRITE_BUFFER(_ah)					\
-	do {								\
-		if (AR_SREV_9271(_ah))					\
-			ath9k_hw_common(_ah)->ops->disable_write_buffer((_ah)); \
 	} while (0)
 
 #define REGWRITE_BUFFER_FLUSH(_ah)					\
 	do {								\
-		if (AR_SREV_9271(_ah))					\
+		if (ath9k_hw_common(_ah)->ops->write_flush)		\
 			ath9k_hw_common(_ah)->ops->write_flush((_ah));	\
 	} while (0)
 
@@ -168,47 +164,26 @@ enum ath_ini_subsys {
 	ATH_INI_NUM_SPLIT,
 };
 
-enum wireless_mode {
-	ATH9K_MODE_11A = 0,
-	ATH9K_MODE_11G,
-	ATH9K_MODE_11NA_HT20,
-	ATH9K_MODE_11NG_HT20,
-	ATH9K_MODE_11NA_HT40PLUS,
-	ATH9K_MODE_11NA_HT40MINUS,
-	ATH9K_MODE_11NG_HT40PLUS,
-	ATH9K_MODE_11NG_HT40MINUS,
-	ATH9K_MODE_MAX,
-};
-
 enum ath9k_hw_caps {
-	ATH9K_HW_CAP_MIC_AESCCM                 = BIT(0),
-	ATH9K_HW_CAP_MIC_CKIP                   = BIT(1),
-	ATH9K_HW_CAP_MIC_TKIP                   = BIT(2),
-	ATH9K_HW_CAP_CIPHER_AESCCM              = BIT(3),
-	ATH9K_HW_CAP_CIPHER_CKIP                = BIT(4),
-	ATH9K_HW_CAP_CIPHER_TKIP                = BIT(5),
-	ATH9K_HW_CAP_VEOL                       = BIT(6),
-	ATH9K_HW_CAP_BSSIDMASK                  = BIT(7),
-	ATH9K_HW_CAP_MCAST_KEYSEARCH            = BIT(8),
-	ATH9K_HW_CAP_HT                         = BIT(9),
-	ATH9K_HW_CAP_GTT                        = BIT(10),
-	ATH9K_HW_CAP_FASTCC                     = BIT(11),
-	ATH9K_HW_CAP_RFSILENT                   = BIT(12),
-	ATH9K_HW_CAP_CST                        = BIT(13),
-	ATH9K_HW_CAP_ENHANCEDPM                 = BIT(14),
-	ATH9K_HW_CAP_AUTOSLEEP                  = BIT(15),
-	ATH9K_HW_CAP_4KB_SPLITTRANS             = BIT(16),
-	ATH9K_HW_CAP_EDMA			= BIT(17),
-	ATH9K_HW_CAP_RAC_SUPPORTED		= BIT(18),
-	ATH9K_HW_CAP_LDPC			= BIT(19),
-	ATH9K_HW_CAP_FASTCLOCK			= BIT(20),
-	ATH9K_HW_CAP_SGI_20			= BIT(21),
-	ATH9K_HW_CAP_PAPRD			= BIT(22),
+	ATH9K_HW_CAP_HT                         = BIT(0),
+	ATH9K_HW_CAP_RFSILENT                   = BIT(1),
+	ATH9K_HW_CAP_CST                        = BIT(2),
+	ATH9K_HW_CAP_ENHANCEDPM                 = BIT(3),
+	ATH9K_HW_CAP_AUTOSLEEP                  = BIT(4),
+	ATH9K_HW_CAP_4KB_SPLITTRANS             = BIT(5),
+	ATH9K_HW_CAP_EDMA			= BIT(6),
+	ATH9K_HW_CAP_RAC_SUPPORTED		= BIT(7),
+	ATH9K_HW_CAP_LDPC			= BIT(8),
+	ATH9K_HW_CAP_FASTCLOCK			= BIT(9),
+	ATH9K_HW_CAP_SGI_20			= BIT(10),
+	ATH9K_HW_CAP_PAPRD			= BIT(11),
+	ATH9K_HW_CAP_ANT_DIV_COMB		= BIT(12),
+	ATH9K_HW_CAP_2GHZ			= BIT(13),
+	ATH9K_HW_CAP_5GHZ			= BIT(14),
 };
 
 struct ath9k_hw_capabilities {
 	u32 hw_caps; /* ATH9K_HW_CAP_* from ath9k_hw_caps */
-	DECLARE_BITMAP(wireless_modes, ATH9K_MODE_MAX); /* ATH9K_MODE_* */
 	u16 total_queues;
 	u16 keycache_size;
 	u16 low_5ghz_chan, high_5ghz_chan;
@@ -352,9 +327,9 @@ struct ath9k_hw_cal_data {
 	int32_t CalValid;
 	int8_t iCoff;
 	int8_t qCoff;
-	int16_t rawNoiseFloor;
 	bool paprd_done;
 	bool nfcal_pending;
+	bool nfcal_interference;
 	u16 small_signal_gain[AR9300_MAX_CHAINS];
 	u32 pa_table[AR9300_MAX_CHAINS][PAPRD_TABLE_SZ];
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
@@ -362,9 +337,11 @@ struct ath9k_hw_cal_data {
 
 struct ath9k_channel {
 	struct ieee80211_channel *chan;
+	struct ar5416AniState ani;
 	u16 channel;
 	u32 channelFlags;
 	u32 chanmode;
+	s16 noisefloor;
 };
 
 #define IS_CHAN_G(_c) ((((_c)->channelFlags & (CHANNEL_G)) == CHANNEL_G) || \
@@ -494,6 +471,12 @@ struct ath_gen_timer_table {
 	} timer_mask;
 };
 
+struct ath_hw_antcomb_conf {
+	u8 main_lna_conf;
+	u8 alt_lna_conf;
+	u8 fast_div_bias;
+};
+
 /**
  * struct ath_hw_private_ops - callbacks used internally by hardware code
  *
@@ -517,14 +500,6 @@ struct ath_gen_timer_table {
  * @setup_calibration: set up calibration
  * @iscal_supported: used to query if a type of calibration is supported
  *
- * @ani_reset: reset ANI parameters to default values
- * @ani_lower_immunity: lower the noise immunity level. The level controls
- *	the power-based packet detection on hardware. If a power jump is
- *	detected the adapter takes it as an indication that a packet has
- *	arrived. The level ranges from 0-5. Each level corresponds to a
- *	few dB more of noise immunity. If you have a strong time-varying
- *	interference that is causing false detections (OFDM timing errors or
- *	CCK timing errors) the level can be increased.
  * @ani_cache_ini_regs: cache the values for ANI from the initial
  *	register settings through the register initialization.
  */
@@ -538,8 +513,6 @@ struct ath_hw_private_ops {
 	bool (*macversion_supported)(u32 macversion);
 	void (*setup_calibration)(struct ath_hw *ah,
 				  struct ath9k_cal_list *currCal);
-	bool (*iscal_supported)(struct ath_hw *ah,
-				enum ath9k_cal_types calType);
 
 	/* PHY ops */
 	int (*rf_set_freq)(struct ath_hw *ah,
@@ -571,8 +544,6 @@ struct ath_hw_private_ops {
 	void (*do_getnf)(struct ath_hw *ah, int16_t nfarray[NUM_NF_READINGS]);
 
 	/* ANI */
-	void (*ani_reset)(struct ath_hw *ah, bool is_scanning);
-	void (*ani_lower_immunity)(struct ath_hw *ah);
 	void (*ani_cache_ini_regs)(struct ath_hw *ah);
 };
 
@@ -584,11 +555,6 @@ struct ath_hw_private_ops {
  *
  * @config_pci_powersave:
  * @calibrate: periodic calibration for NF, ANI, IQ, ADC gain, ADC-DC
- *
- * @ani_proc_mib_event: process MIB events, this would happen upon specific ANI
- *	thresholds being reached or having overflowed.
- * @ani_monitor: called periodically by the core driver to collect
- *	MIB stats and adjust ANI if specific thresholds have been reached.
  */
 struct ath_hw_ops {
 	void (*config_pci_powersave)(struct ath_hw *ah,
@@ -629,9 +595,6 @@ struct ath_hw_ops {
 				     u32 burstDuration);
 	void (*set11n_virtualmorefrag)(struct ath_hw *ah, void *ds,
 				       u32 vmf);
-
-	void (*ani_proc_mib_event)(struct ath_hw *ah);
-	void (*ani_monitor)(struct ath_hw *ah, struct ath9k_channel *chan);
 };
 
 struct ath_nf_limits {
@@ -646,7 +609,7 @@ struct ath_hw {
 	struct ath9k_hw_version hw_version;
 	struct ath9k_ops_config config;
 	struct ath9k_hw_capabilities caps;
-	struct ath9k_channel channels[38];
+	struct ath9k_channel channels[ATH9K_NUM_CHANNELS];
 	struct ath9k_channel *curchan;
 
 	union {
@@ -659,6 +622,7 @@ struct ath_hw {
 
 	bool sw_mgmt_crypto;
 	bool is_pciexpress;
+	bool is_monitoring;
 	bool need_an_top2_fixup;
 	u16 tx_trig_level;
 
@@ -692,10 +656,9 @@ struct ath_hw {
 	u32 atim_window;
 
 	/* Calibration */
-	enum ath9k_cal_types supp_cals;
+	u32 supp_cals;
 	struct ath9k_cal_list iq_caldata;
 	struct ath9k_cal_list adcgain_caldata;
-	struct ath9k_cal_list adcdc_calinitdata;
 	struct ath9k_cal_list adcdc_caldata;
 	struct ath9k_cal_list tempCompCalData;
 	struct ath9k_cal_list *cal_list;
@@ -764,8 +727,6 @@ struct ath_hw {
 	/* ANI */
 	u32 proc_phyerr;
 	u32 aniperiod;
-	struct ar5416AniState *curani;
-	struct ar5416AniState ani[255];
 	int totalSizeDesired[5];
 	int coarse_high[5];
 	int coarse_low[5];
@@ -873,12 +834,6 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 int ath9k_hw_fill_cap_info(struct ath_hw *ah);
 u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan);
 
-/* Key Cache Management */
-bool ath9k_hw_keyreset(struct ath_hw *ah, u16 entry);
-bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
-				 const struct ath9k_keyval *k,
-				 const u8 *mac);
-
 /* GPIO / RFKILL / Antennae */
 void ath9k_hw_cfg_gpio_input(struct ath_hw *ah, u32 gpio);
 u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio);
@@ -887,6 +842,10 @@ void ath9k_hw_cfg_output(struct ath_hw *ah, u32 gpio,
 void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val);
 u32 ath9k_hw_getdefantenna(struct ath_hw *ah);
 void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
+void ath9k_hw_antdiv_comb_conf_get(struct ath_hw *ah,
+				   struct ath_hw_antcomb_conf *antconf);
+void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
+				   struct ath_hw_antcomb_conf *antconf);
 
 /* General Operation */
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
@@ -984,6 +943,7 @@ void ar9003_hw_attach_calib_ops(struct ath_hw *ah);
 void ar9002_hw_attach_ops(struct ath_hw *ah);
 void ar9003_hw_attach_ops(struct ath_hw *ah);
 
+void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan);
 /*
  * ANI work can be shared between all families but a next
  * generation implementation of ANI will be used only for AR9003 only
@@ -992,8 +952,9 @@ void ar9003_hw_attach_ops(struct ath_hw *ah);
  * older families (AR5008, AR9001, AR9002) by using modparam_force_new_ani.
  */
 extern int modparam_force_new_ani;
-void ath9k_hw_attach_ani_ops_old(struct ath_hw *ah);
-void ath9k_hw_attach_ani_ops_new(struct ath_hw *ah);
+void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning);
+void ath9k_hw_proc_mib_event(struct ath_hw *ah);
+void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan);
 
 #define ATH_PCIE_CAP_LINK_CTRL	0x70
 #define ATH_PCIE_CAP_LINK_L0S	1

@@ -16,12 +16,13 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <plat/dsp.h>
+
 #include <linux/types.h>
 /*  ----------------------------------- Host OS */
 #include <dspbridge/host_os.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
-#include <plat/control.h>
 
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
@@ -30,7 +31,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
 #include <dspbridge/drv.h>
 #include <dspbridge/sync.h>
 
@@ -72,6 +72,19 @@
 #define OMAP3_IVA2_BOOTADDR_MASK 0xFFFFFC00
 #define PAGES_II_LVL_TABLE   512
 #define PHYS_TO_PAGE(phys)      pfn_to_page((phys) >> PAGE_SHIFT)
+
+/*
+ * This is a totally ugly layer violation, but needed until
+ * omap_ctrl_set_dsp_boot*() are provided.
+ */
+#define OMAP3_IVA2_BOOTMOD_IDLE 1
+#define OMAP2_CONTROL_GENERAL 0x270
+#define OMAP343X_CONTROL_IVA2_BOOTADDR (OMAP2_CONTROL_GENERAL + 0x0190)
+#define OMAP343X_CONTROL_IVA2_BOOTMOD (OMAP2_CONTROL_GENERAL + 0x0194)
+
+#define OMAP343X_CTRL_REGADDR(reg) \
+	OMAP2_L4_IO_ADDRESS(OMAP343X_CTRL_BASE + (reg))
+
 
 /* Forward Declarations: */
 static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt);
@@ -264,8 +277,8 @@ static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt)
 {
 	struct bridge_dev_context *dev_context = dev_ctxt;
 	u32 temp;
-	struct dspbridge_platform_data *pdata =
-				    omap_dspbridge_dev->dev.platform_data;
+	struct omap_dsp_platform_data *pdata =
+		omap_dspbridge_dev->dev.platform_data;
 
 	temp = (*pdata->dsp_prm_read)(OMAP3430_IVA2_MOD, OMAP2_PM_PWSTST) &
 					OMAP_POWERSTATEST_MASK;
@@ -374,8 +387,8 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 	u32 clk_cmd;
 	struct io_mgr *hio_mgr;
 	u32 ul_load_monitor_timer;
-	struct dspbridge_platform_data *pdata =
-				omap_dspbridge_dev->dev.platform_data;
+	struct omap_dsp_platform_data *pdata =
+		omap_dspbridge_dev->dev.platform_data;
 
 	/* The device context contains all the mmu setup info from when the
 	 * last dsp base image was loaded. The first entry is always
@@ -626,9 +639,8 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 	struct bridge_dev_context *dev_context = dev_ctxt;
 	struct pg_table_attrs *pt_attrs;
 	u32 dsp_pwr_state;
-	int clk_status;
-	struct dspbridge_platform_data *pdata =
-				omap_dspbridge_dev->dev.platform_data;
+	struct omap_dsp_platform_data *pdata =
+		omap_dspbridge_dev->dev.platform_data;
 
 	if (dev_context->dw_brd_state == BRD_STOPPED)
 		return status;
@@ -680,7 +692,8 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 	(*pdata->dsp_prm_write)(OMAP3430_RST1_IVA2_MASK | OMAP3430_RST2_IVA2_MASK |
 			OMAP3430_RST3_IVA2_MASK, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 
-	clk_status = dsp_clk_disable(DSP_CLK_IVA2);
+	dsp_clock_disable_all(dev_context->dsp_per_clks);
+	dsp_clk_disable(DSP_CLK_IVA2);
 
 	return status;
 }

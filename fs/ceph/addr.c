@@ -204,7 +204,7 @@ static int readpage_nounlock(struct file *filp, struct page *page)
 	err = ceph_osdc_readpages(osdc, ceph_vino(inode), &ci->i_layout,
 				  page->index << PAGE_CACHE_SHIFT, &len,
 				  ci->i_truncate_seq, ci->i_truncate_size,
-				  &page, 1);
+				  &page, 1, 0);
 	if (err == -ENOENT)
 		err = 0;
 	if (err < 0) {
@@ -287,7 +287,7 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 	rc = ceph_osdc_readpages(osdc, ceph_vino(inode), &ci->i_layout,
 				 offset, &len,
 				 ci->i_truncate_seq, ci->i_truncate_size,
-				 pages, nr_pages);
+				 pages, nr_pages, 0);
 	if (rc == -ENOENT)
 		rc = 0;
 	if (rc < 0)
@@ -591,7 +591,6 @@ static int ceph_writepages_start(struct address_space *mapping,
 				 struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
-	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_fs_client *fsc;
 	pgoff_t index, start, end;
@@ -632,13 +631,6 @@ static int ceph_writepages_start(struct address_space *mapping,
 	max_pages_ever = wsize >> PAGE_CACHE_SHIFT;
 
 	pagevec_init(&pvec, 0);
-
-	/* ?? */
-	if (wbc->nonblocking && bdi_write_congested(bdi)) {
-		dout(" writepages congested\n");
-		wbc->encountered_congestion = 1;
-		goto out_final;
-	}
 
 	/* where to start/end? */
 	if (wbc->range_cyclic) {
@@ -782,7 +774,7 @@ get_more_pages:
 					    snapc, do_sync,
 					    ci->i_truncate_seq,
 					    ci->i_truncate_size,
-					    &inode->i_mtime, true, 1);
+					    &inode->i_mtime, true, 1, 0);
 				max_pages = req->r_num_pages;
 
 				alloc_page_vec(fsc, req);
@@ -885,7 +877,6 @@ out:
 		rc = 0;  /* vfs expects us to return 0 */
 	ceph_put_snap_context(snapc);
 	dout("writepages done, rc = %d\n", rc);
-out_final:
 	return rc;
 }
 

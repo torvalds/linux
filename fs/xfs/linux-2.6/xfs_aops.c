@@ -934,7 +934,6 @@ xfs_aops_discard_page(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct buffer_head	*bh, *head;
 	loff_t			offset = page_offset(page);
-	ssize_t			len = 1 << inode->i_blkbits;
 
 	if (!xfs_is_delayed_page(page, IO_DELAY))
 		goto out_invalidate;
@@ -949,58 +948,14 @@ xfs_aops_discard_page(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	bh = head = page_buffers(page);
 	do {
-		int		done;
-		xfs_fileoff_t	offset_fsb;
-		xfs_bmbt_irec_t	imap;
-		int		nimaps = 1;
 		int		error;
-		xfs_fsblock_t	firstblock;
-		xfs_bmap_free_t flist;
+		xfs_fileoff_t	start_fsb;
 
 		if (!buffer_delay(bh))
 			goto next_buffer;
 
-		offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
-
-		/*
-		 * Map the range first and check that it is a delalloc extent
-		 * before trying to unmap the range. Otherwise we will be
-		 * trying to remove a real extent (which requires a
-		 * transaction) or a hole, which is probably a bad idea...
-		 */
-		error = xfs_bmapi(NULL, ip, offset_fsb, 1,
-				XFS_BMAPI_ENTIRE,  NULL, 0, &imap,
-				&nimaps, NULL);
-
-		if (error) {
-			/* something screwed, just bail */
-			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-				xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
-				"page discard failed delalloc mapping lookup.");
-			}
-			break;
-		}
-		if (!nimaps) {
-			/* nothing there */
-			goto next_buffer;
-		}
-		if (imap.br_startblock != DELAYSTARTBLOCK) {
-			/* been converted, ignore */
-			goto next_buffer;
-		}
-		WARN_ON(imap.br_blockcount == 0);
-
-		/*
-		 * Note: while we initialise the firstblock/flist pair, they
-		 * should never be used because blocks should never be
-		 * allocated or freed for a delalloc extent and hence we need
-		 * don't cancel or finish them after the xfs_bunmapi() call.
-		 */
-		xfs_bmap_init(&flist, &firstblock);
-		error = xfs_bunmapi(NULL, ip, offset_fsb, 1, 0, 1, &firstblock,
-					&flist, &done);
-
-		ASSERT(!flist.xbf_count && !flist.xbf_first);
+		start_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
+		error = xfs_bmap_punch_delalloc_range(ip, start_fsb, 1);
 		if (error) {
 			/* something screwed, just bail */
 			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
@@ -1010,7 +965,7 @@ xfs_aops_discard_page(
 			break;
 		}
 next_buffer:
-		offset += len;
+		offset += 1 << inode->i_blkbits;
 
 	} while ((bh = bh->b_this_page) != head);
 
@@ -1111,11 +1066,12 @@ xfs_vm_writepage(
 			uptodate = 0;
 
 		/*
-		 * A hole may still be marked uptodate because discard_buffer
-		 * leaves the flag set.
+		 * set_page_dirty dirties all buffers in a page, independent
+		 * of their state.  The dirty state however is entirely
+		 * meaningless for holes (!mapped && uptodate), so skip
+		 * buffers covering holes here.
 		 */
 		if (!buffer_mapped(bh) && buffer_uptodate(bh)) {
-			ASSERT(!buffer_dirty(bh));
 			imap_valid = 0;
 			continue;
 		}
@@ -1139,8 +1095,7 @@ xfs_vm_writepage(
 				type = IO_DELAY;
 				flags = BMAPI_ALLOCATE;
 
-				if (wbc->sync_mode == WB_SYNC_NONE &&
-				    wbc->nonblocking)
+				if (wbc->sync_mode == WB_SYNC_NONE)
 					flags |= BMAPI_TRYLOCK;
 			}
 
@@ -1505,11 +1460,42 @@ xfs_vm_write_failed(
 	struct inode		*inode = mapping->host;
 
 	if (to > inode->i_size) {
-		struct iattr	ia = {
-			.ia_valid	= ATTR_SIZE | ATTR_FORCE,
-			.ia_size	= inode->i_size,
-		};
-		xfs_setattr(XFS_I(inode), &ia, XFS_ATTR_NOLOCK);
+		/*
+		 * punch out the delalloc blocks we have already allocated. We
+		 * don't call xfs_setattr() to do this as we may be in the
+		 * middle of a multi-iovec write and so the vfs inode->i_size
+		 * will not match the xfs ip->i_size and so it will zero too
+		 * much. Hence we jus truncate the page cache to zero what is
+		 * necessary and punch the delalloc blocks directly.
+		 */
+		struct xfs_inode	*ip = XFS_I(inode);
+		xfs_fileoff_t		start_fsb;
+		xfs_fileoff_t		end_fsb;
+		int			error;
+
+		truncate_pagecache(inode, to, inode->i_size);
+
+		/*
+		 * Check if there are any blocks that are outside of i_size
+		 * that need to be trimmed back.
+		 */
+		start_fsb = XFS_B_TO_FSB(ip->i_mount, inode->i_size) + 1;
+		end_fsb = XFS_B_TO_FSB(ip->i_mount, to);
+		if (end_fsb <= start_fsb)
+			return;
+
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		error = xfs_bmap_punch_delalloc_range(ip, start_fsb,
+							end_fsb - start_fsb);
+		if (error) {
+			/* something screwed, just bail */
+			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+				xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+			"xfs_vm_write_failed: unable to clean up ino %lld",
+						ip->i_ino);
+			}
+		}
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	}
 }
 

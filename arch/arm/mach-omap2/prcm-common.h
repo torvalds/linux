@@ -243,13 +243,14 @@
 #define OMAP24XX_EN_GPT1_MASK				(1 << 0)
 
 /* PM_WKST_WKUP, CM_IDLEST_WKUP shared bits */
-#define OMAP24XX_ST_GPIOS_SHIFT				(1 << 2)
-#define OMAP24XX_ST_GPIOS_MASK				2
-#define OMAP24XX_ST_GPT1_SHIFT				(1 << 0)
-#define OMAP24XX_ST_GPT1_MASK				0
+#define OMAP24XX_ST_GPIOS_SHIFT				2
+#define OMAP24XX_ST_GPIOS_MASK				(1 << 2)
+#define OMAP24XX_ST_GPT1_SHIFT				0
+#define OMAP24XX_ST_GPT1_MASK				(1 << 0)
 
 /* CM_IDLEST_MDM and PM_WKST_MDM shared bits */
-#define OMAP2430_ST_MDM_SHIFT				(1 << 0)
+#define OMAP2430_ST_MDM_SHIFT				0
+#define OMAP2430_ST_MDM_MASK				(1 << 0)
 
 
 /* 3430 register bits shared between CM & PRM registers */
@@ -382,6 +383,9 @@
 #define OMAP3430_EN_MPU_SHIFT				1
 
 /* CM_FCLKEN_PER, CM_ICLKEN_PER, PM_WKEN_PER shared bits */
+
+#define OMAP3630_EN_UART4_MASK				(1 << 18)
+#define OMAP3630_EN_UART4_SHIFT				18
 #define OMAP3430_EN_GPIO6_MASK				(1 << 17)
 #define OMAP3430_EN_GPIO6_SHIFT				17
 #define OMAP3430_EN_GPIO5_MASK				(1 << 16)
@@ -422,6 +426,8 @@
 #define OMAP3430_EN_MCBSP2_SHIFT			0
 
 /* CM_IDLEST_PER, PM_WKST_PER shared bits */
+#define OMAP3630_ST_UART4_SHIFT				18
+#define OMAP3630_ST_UART4_MASK				(1 << 18)
 #define OMAP3430_ST_GPIO6_SHIFT				17
 #define OMAP3430_ST_GPIO6_MASK				(1 << 17)
 #define OMAP3430_ST_GPIO5_SHIFT				16

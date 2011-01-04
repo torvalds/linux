@@ -312,6 +312,7 @@ static ssize_t av7110_ir_proc_write(struct file *file, const char __user *buffer
 static const struct file_operations av7110_ir_proc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= av7110_ir_proc_write,
+	.llseek		= noop_llseek,
 };
 
 /* interrupt handler */

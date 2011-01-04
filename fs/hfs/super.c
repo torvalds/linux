@@ -20,7 +20,6 @@
 #include <linux/parser.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/vfs.h>
 
 #include "hfs_fs.h"
@@ -79,15 +78,11 @@ static int hfs_sync_fs(struct super_block *sb, int wait)
  */
 static void hfs_put_super(struct super_block *sb)
 {
-	lock_kernel();
-
 	if (sb->s_dirt)
 		hfs_write_super(sb);
 	hfs_mdb_close(sb);
 	/* release the MDB's resources */
 	hfs_mdb_put(sb);
-
-	unlock_kernel();
 }
 
 /*
@@ -385,8 +380,8 @@ static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi = kzalloc(sizeof(struct hfs_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
+
 	sb->s_fs_info = sbi;
-	INIT_HLIST_HEAD(&sbi->rsrc_inodes);
 
 	res = -EINVAL;
 	if (!parse_options((char *)data, sbi)) {
@@ -446,17 +441,16 @@ bail:
 	return res;
 }
 
-static int hfs_get_sb(struct file_system_type *fs_type,
-		      int flags, const char *dev_name, void *data,
-		      struct vfsmount *mnt)
+static struct dentry *hfs_mount(struct file_system_type *fs_type,
+		      int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, hfs_fill_super, mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, hfs_fill_super);
 }
 
 static struct file_system_type hfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "hfs",
-	.get_sb		= hfs_get_sb,
+	.mount		= hfs_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

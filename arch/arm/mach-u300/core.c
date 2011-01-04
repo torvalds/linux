@@ -21,7 +21,8 @@
 #include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-#include <mach/coh901318.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/fsmc.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -30,6 +31,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/coh901318.h>
 #include <mach/hardware.h>
 #include <mach/syscon.h>
 #include <mach/dma_channels.h>
@@ -285,6 +287,13 @@ static struct resource rtc_resources[] = {
  */
 static struct resource fsmc_resources[] = {
 	{
+		.name  = "nand_data",
+		.start = U300_NAND_CS0_PHYS_BASE,
+		.end   = U300_NAND_CS0_PHYS_BASE + SZ_16K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.name  = "fsmc_regs",
 		.start = U300_NAND_IF_PHYS_BASE,
 		.end   = U300_NAND_IF_PHYS_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
@@ -1429,11 +1438,39 @@ static struct platform_device rtc_device = {
 	.resource = rtc_resources,
 };
 
-static struct platform_device fsmc_device = {
-	.name = "nandif",
+static struct mtd_partition u300_partitions[] = {
+	{
+		.name = "bootrecords",
+		.offset = 0,
+		.size = SZ_128K,
+	},
+	{
+		.name = "free",
+		.offset = SZ_128K,
+		.size = 8064 * SZ_1K,
+	},
+	{
+		.name = "platform",
+		.offset = 8192 * SZ_1K,
+		.size = 253952 * SZ_1K,
+	},
+};
+
+static struct fsmc_nand_platform_data nand_platform_data = {
+	.partitions = u300_partitions,
+	.nr_partitions = ARRAY_SIZE(u300_partitions),
+	.options = NAND_SKIP_BBTSCAN,
+	.width = FSMC_NAND_BW8,
+};
+
+static struct platform_device nand_device = {
+	.name = "fsmc-nand",
 	.id = -1,
-	.num_resources = ARRAY_SIZE(fsmc_resources),
 	.resource = fsmc_resources,
+	.num_resources = ARRAY_SIZE(fsmc_resources),
+	.dev = {
+		.platform_data = &nand_platform_data,
+	},
 };
 
 static struct platform_device ave_device = {
@@ -1465,7 +1502,7 @@ static struct platform_device *platform_devs[] __initdata = {
 	&keypad_device,
 	&rtc_device,
 	&gpio_device,
-	&fsmc_device,
+	&nand_device,
 	&wdog_device,
 	&ave_device
 };

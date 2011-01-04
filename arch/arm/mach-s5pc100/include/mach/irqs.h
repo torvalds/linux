@@ -48,8 +48,8 @@
 #define IRQ_SPI1		S5P_IRQ_VIC1(16)
 #define IRQ_SPI2		S5P_IRQ_VIC1(17)
 #define IRQ_IRDA		S5P_IRQ_VIC1(18)
-#define IRQ_CAN0		S5P_IRQ_VIC1(19)
-#define IRQ_CAN1		S5P_IRQ_VIC1(20)
+#define IRQ_IIC2		S5P_IRQ_VIC1(19)
+#define IRQ_IIC3		S5P_IRQ_VIC1(20)
 #define IRQ_HSIRX		S5P_IRQ_VIC1(21)
 #define IRQ_HSITX		S5P_IRQ_VIC1(22)
 #define IRQ_UHOST		S5P_IRQ_VIC1(23)
@@ -100,11 +100,12 @@
 #define S5P_EINT_BASE1		(S5P_IRQ_VIC0(0))
 #define S5P_EINT_BASE2		(IRQ_VIC_END + 1)
 
-#define S3C_IRQ_GPIO_BASE	(IRQ_EINT(31) + 1)
-#define S3C_IRQ_GPIO(x)		(S3C_IRQ_GPIO_BASE + (x))
+/* GPIO interrupt */
+#define S5P_GPIOINT_BASE	(IRQ_EINT(31) + 1)
+#define S5P_GPIOINT_GROUP_MAXNR	21
 
-/* Until MP04 Groups -> 40 (exactly 39) Groups * 8 ~= 320 GPIOs */
-#define NR_IRQS		(S3C_IRQ_GPIO(320) + 1)
+/* Set the default NR_IRQS */
+#define NR_IRQS			(IRQ_EINT(31) + S5P_GPIOINT_COUNT + 1)
 
 /* Compatibility */
 #define IRQ_LCD_FIFO		IRQ_LCD0

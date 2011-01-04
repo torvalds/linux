@@ -79,6 +79,7 @@ struct ceph_osd_request {
 	struct ceph_file_layout r_file_layout;
 	struct ceph_snap_context *r_snapc;    /* snap context for writes */
 	unsigned          r_num_pages;        /* size of page array (follows) */
+	unsigned          r_page_alignment;   /* io offset in first page */
 	struct page     **r_pages;            /* pages for data payload */
 	int               r_pages_from_pool;
 	int               r_own_pages;        /* if true, i own page list */
@@ -194,7 +195,8 @@ extern struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *,
 				      int do_sync, u32 truncate_seq,
 				      u64 truncate_size,
 				      struct timespec *mtime,
-				      bool use_mempool, int num_reply);
+				      bool use_mempool, int num_reply,
+				      int page_align);
 
 static inline void ceph_osdc_get_request(struct ceph_osd_request *req)
 {
@@ -218,7 +220,8 @@ extern int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 			       struct ceph_file_layout *layout,
 			       u64 off, u64 *plen,
 			       u32 truncate_seq, u64 truncate_size,
-			       struct page **pages, int nr_pages);
+			       struct page **pages, int nr_pages,
+			       int page_align);
 
 extern int ceph_osdc_writepages(struct ceph_osd_client *osdc,
 				struct ceph_vino vino,

@@ -486,11 +486,6 @@ static int __table_get_device(struct dm_table *t, struct dm_target *ti,
 	return 0;
 }
 
-/*
- * Returns the minimum that is _not_ zero, unless both are zero.
- */
-#define min_not_zero(l, r) (l == 0) ? r : ((r == 0) ? l : min(l, r))
-
 int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 			 sector_t start, sector_t len, void *data)
 {
@@ -522,9 +517,8 @@ int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 	 */
 
 	if (q->merge_bvec_fn && !ti->type->merge)
-		limits->max_sectors =
-			min_not_zero(limits->max_sectors,
-				     (unsigned int) (PAGE_SIZE >> 9));
+		blk_limits_max_hw_sectors(limits,
+					  (unsigned int) (PAGE_SIZE >> 9));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dm_set_device_limits);
@@ -1135,11 +1129,6 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	 * Copy table's limits to the DM device's request_queue
 	 */
 	q->limits = *limits;
-
-	if (limits->no_cluster)
-		queue_flag_clear_unlocked(QUEUE_FLAG_CLUSTER, q);
-	else
-		queue_flag_set_unlocked(QUEUE_FLAG_CLUSTER, q);
 
 	if (!dm_table_supports_discards(t))
 		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);

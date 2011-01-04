@@ -721,7 +721,7 @@ struct libfc_function_template {
  * struct fc_disc - Discovery context
  * @retry_count:   Number of retries
  * @pending:       1 if discovery is pending, 0 if not
- * @requesting:    1 if discovery has been requested, 0 if not
+ * @requested:     1 if discovery has been requested, 0 if not
  * @seq_count:     Number of sequences used for discovery
  * @buf_len:       Length of the discovery buffer
  * @disc_id:       Discovery ID
@@ -1006,8 +1006,7 @@ void fc_fcp_destroy(struct fc_lport *);
 /*
  * SCSI INTERACTION LAYER
  *****************************/
-int fc_queuecommand(struct scsi_cmnd *,
-		    void (*done)(struct scsi_cmnd *));
+int fc_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
 int fc_eh_abort(struct scsi_cmnd *);
 int fc_eh_device_reset(struct scsi_cmnd *);
 int fc_eh_host_reset(struct scsi_cmnd *);

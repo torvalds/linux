@@ -340,6 +340,8 @@ asmlinkage void __cpuinit cpu_init(void)
 	 */
 	current_cpu_data.asid_cache = NO_CONTEXT;
 
+	current_cpu_data.phys_bits = __in_29bit_mode() ? 29 : 32;
+
 	speculative_execution_init();
 	expmask_init();
 

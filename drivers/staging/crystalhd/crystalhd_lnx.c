@@ -351,6 +351,7 @@ static const struct file_operations chd_dec_fops = {
 	.unlocked_ioctl = chd_dec_ioctl,
 	.open    = chd_dec_open,
 	.release = chd_dec_close,
+	.llseek = noop_llseek,
 };
 
 static int __devinit chd_dec_init_chdev(struct crystalhd_adp *adp)
@@ -570,6 +571,7 @@ static int __devinit chd_dec_pci_probe(struct pci_dev *pdev,
 	rc = chd_pci_reserve_mem(pinfo);
 	if (rc) {
 		BCMLOG_ERR("Failed to setup memory regions.\n");
+		pci_disable_device(pdev);
 		return -ENOMEM;
 	}
 

@@ -220,7 +220,7 @@ static u16 get_desc (IADEV *dev, struct ia_vcc *iavcc) {
   while (!desc_num || (dev->desc_tbl[desc_num -1]).timestamp) {
      dev->ffL.tcq_rd += 2;
      if (dev->ffL.tcq_rd > dev->ffL.tcq_ed) 
-     dev->ffL.tcq_rd = dev->ffL.tcq_st;
+	dev->ffL.tcq_rd = dev->ffL.tcq_st;
      if (dev->ffL.tcq_rd == dev->host_tcq_wr) 
         return 0xFFFF; 
      desc_num = *(u_short *)(dev->seg_ram + dev->ffL.tcq_rd);
@@ -3172,7 +3172,7 @@ static int __devinit ia_init_one(struct pci_dev *pdev,
 		ret = -ENODEV;
 		goto err_out_free_iadev;
 	}
-	dev = atm_dev_register(DEV_LABEL, &ops, -1, NULL);
+	dev = atm_dev_register(DEV_LABEL, &pdev->dev, &ops, -1, NULL);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err_out_disable_dev;

@@ -501,7 +501,18 @@ static inline unsigned long long get_total_mem(void)
 	return total << PAGE_SHIFT;
 }
 
-#define DEFAULT_BZIMAGE_ADDR_MAX 0x37FFFFFF
+/*
+ * Keep the crash kernel below this limit.  On 32 bits earlier kernels
+ * would limit the kernel to the low 512 MiB due to mapping restrictions.
+ * On 64 bits, kexec-tools currently limits us to 896 MiB; increase this
+ * limit once kexec-tools are fixed.
+ */
+#ifdef CONFIG_X86_32
+# define CRASH_KERNEL_ADDR_MAX	(512 << 20)
+#else
+# define CRASH_KERNEL_ADDR_MAX	(896 << 20)
+#endif
+
 static void __init reserve_crashkernel(void)
 {
 	unsigned long long total_mem;
@@ -520,10 +531,10 @@ static void __init reserve_crashkernel(void)
 		const unsigned long long alignment = 16<<20;	/* 16M */
 
 		/*
-		 *  kexec want bzImage is below DEFAULT_BZIMAGE_ADDR_MAX
+		 *  kexec want bzImage is below CRASH_KERNEL_ADDR_MAX
 		 */
 		crash_base = memblock_find_in_range(alignment,
-			       DEFAULT_BZIMAGE_ADDR_MAX, crash_size, alignment);
+			       CRASH_KERNEL_ADDR_MAX, crash_size, alignment);
 
 		if (crash_base == MEMBLOCK_ERROR) {
 			pr_info("crashkernel reservation failed - No suitable area found.\n");
@@ -700,6 +711,17 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_X86_32
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
 	visws_early_detect();
+
+	/*
+	 * copy kernel address range established so far and switch
+	 * to the proper swapper page table
+	 */
+	clone_pgd_range(swapper_pg_dir     + KERNEL_PGD_BOUNDARY,
+			initial_page_table + KERNEL_PGD_BOUNDARY,
+			KERNEL_PGD_PTRS);
+
+	load_cr3(swapper_pg_dir);
+	__flush_tlb_all();
 #else
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 #endif
@@ -758,6 +780,7 @@ void __init setup_arch(char **cmdline_p)
 
 	x86_init.oem.arch_setup();
 
+	iomem_resource.end = (1ULL << boot_cpu_data.x86_phys_bits) - 1;
 	setup_memory_map();
 	parse_setup_data();
 	/* update the e820_saved too */
@@ -985,7 +1008,12 @@ void __init setup_arch(char **cmdline_p)
 	paging_init();
 	x86_init.paging.pagetable_setup_done(swapper_pg_dir);
 
-	setup_trampoline_page_table();
+#ifdef CONFIG_X86_32
+	/* sync back kernel address range */
+	clone_pgd_range(initial_page_table + KERNEL_PGD_BOUNDARY,
+			swapper_pg_dir     + KERNEL_PGD_BOUNDARY,
+			KERNEL_PGD_PTRS);
+#endif
 
 	tboot_probe();
 

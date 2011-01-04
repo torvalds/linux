@@ -753,6 +753,44 @@ static struct platform_device bf54x_sdh_device = {
 };
 #endif
 
+#if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
+unsigned short bfin_can_peripherals[] = {
+	P_CAN0_RX, P_CAN0_TX, 0
+};
+
+static struct resource bfin_can_resources[] = {
+	{
+		.start = 0xFFC02A00,
+		.end = 0xFFC02FFF,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_CAN0_RX,
+		.end = IRQ_CAN0_RX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_CAN0_TX,
+		.end = IRQ_CAN0_TX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_CAN0_ERROR,
+		.end = IRQ_CAN0_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device bfin_can_device = {
+	.name = "bfin_can",
+	.num_resources = ARRAY_SIZE(bfin_can_resources),
+	.resource = bfin_can_resources,
+	.dev = {
+		.platform_data = &bfin_can_peripherals, /* Passed to driver */
+	},
+};
+#endif
+
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 static struct mtd_partition para_partitions[] = {
 	{
@@ -928,7 +966,7 @@ static struct resource bfin_spi1_resource[] = {
 
 /* SPI controller data */
 static struct bfin5xx_spi_master bf54x_spi_master_info0 = {
-	.num_chipselect = 3,
+	.num_chipselect = 4,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
@@ -944,7 +982,7 @@ static struct platform_device bf54x_spi_master0 = {
 };
 
 static struct bfin5xx_spi_master bf54x_spi_master_info1 = {
-	.num_chipselect = 3,
+	.num_chipselect = 4,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI1_SCK, P_SPI1_MISO, P_SPI1_MOSI, 0},
 };
@@ -1152,6 +1190,11 @@ static struct platform_device *cm_bf548_devices[] __initdata = {
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 	&para_flash_device,
 #endif
+
+#if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
+	&bfin_can_device,
+#endif
+
 };
 
 static int __init cm_bf548_init(void)

@@ -21,7 +21,6 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
@@ -52,6 +51,7 @@ static struct usb_driver usb_serial_driver = {
 	.suspend =	usb_serial_suspend,
 	.resume =	usb_serial_resume,
 	.no_dynamic_id = 	1,
+	.supports_autosuspend =	1,
 };
 
 /* There is no MODULE_DEVICE_TABLE for usbserial.c.  Instead
@@ -516,6 +516,18 @@ static int serial_tiocmset(struct tty_struct *tty, struct file *file,
 
 	if (port->serial->type->tiocmset)
 		return port->serial->type->tiocmset(tty, file, set, clear);
+	return -EINVAL;
+}
+
+static int serial_get_icount(struct tty_struct *tty,
+				struct serial_icounter_struct *icount)
+{
+	struct usb_serial_port *port = tty->driver_data;
+
+	dbg("%s - port %d", __func__, port->number);
+
+	if (port->serial->type->get_icount)
+		return port->serial->type->get_icount(tty, icount);
 	return -EINVAL;
 }
 
@@ -1195,6 +1207,7 @@ static const struct tty_operations serial_ops = {
 	.chars_in_buffer =	serial_chars_in_buffer,
 	.tiocmget =		serial_tiocmget,
 	.tiocmset =		serial_tiocmset,
+	.get_icount = 		serial_get_icount,
 	.cleanup = 		serial_cleanup,
 	.install = 		serial_install,
 	.proc_fops =		&serial_proc_fops,
@@ -1331,6 +1344,8 @@ int usb_serial_register(struct usb_serial_driver *driver)
 		return -ENODEV;
 
 	fixup_generic(driver);
+	if (driver->usb_driver)
+		driver->usb_driver->supports_autosuspend = 1;
 
 	if (!driver->description)
 		driver->description = driver->driver.name;

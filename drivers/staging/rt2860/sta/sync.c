@@ -424,9 +424,8 @@ void MlmeJoinReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *E
 	} while (FALSE);
 
 	DBGPRINT(RT_DEBUG_TRACE,
-		 ("SYNC - Switch to ch %d, Wait BEACON from %02x:%02x:%02x:%02x:%02x:%02x\n",
-		  pBss->Channel, pBss->Bssid[0], pBss->Bssid[1], pBss->Bssid[2],
-		  pBss->Bssid[3], pBss->Bssid[4], pBss->Bssid[5]));
+		("SYNC - Switch to ch %d, Wait BEACON from %pM\n",
+			pBss->Channel, pBss->Bssid));
 
 	pAd->Mlme.SyncMachine.CurrState = JOIN_WAIT_BEACON;
 }
@@ -1225,10 +1224,9 @@ void PeerBeacon(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 			for (i = 0; i < 6; i++) {
 				if (Bssid[i] > pAd->CommonCfg.Bssid[i]) {
 					DBGPRINT(RT_DEBUG_TRACE,
-						 ("SYNC - merge to the IBSS with bigger BSSID=%02x:%02x:%02x:%02x:%02x:%02x\n",
-						  Bssid[0], Bssid[1], Bssid[2],
-						  Bssid[3], Bssid[4],
-						  Bssid[5]));
+						("SYNC - merge to the IBSS "
+							"with bigger BSSID="
+							"%pM\n", Bssid));
 					AsicDisableSync(pAd);
 					COPY_MAC_ADDR(pAd->CommonCfg.Bssid,
 						      Bssid);

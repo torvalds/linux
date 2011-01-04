@@ -18,6 +18,7 @@
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/signal.h>
+#include <linux/tracehook.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -111,9 +112,12 @@ void ptrace_disable(struct task_struct *child)
 	user_disable_single_step(child);
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	int ret;
+	int regno = addr >> 2;
+	unsigned long __user *datap = (unsigned long __user *) data;
 
 	switch (request) {
 		/* read the word at location addr in the USER area. */
@@ -121,71 +125,48 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			unsigned long tmp;
 			
 			ret = -EIO;
-			if ((addr & 3) || addr < 0 ||
-			    addr > sizeof(struct user) - 3)
+			if ((addr & 3) || addr > sizeof(struct user) - 3)
 				break;
 			
 			tmp = 0;  /* Default return condition */
-			addr = addr >> 2; /* temporary hack. */
 			ret = -EIO;
-			if (addr < 19) {
-				tmp = get_reg(child, addr);
-				if (addr == PT_SR)
+			if (regno < 19) {
+				tmp = get_reg(child, regno);
+				if (regno == PT_SR)
 					tmp >>= 16;
-			} else if (addr >= 21 && addr < 49) {
-				tmp = child->thread.fp[addr - 21];
-#ifdef CONFIG_M68KFPU_EMU
-				/* Convert internal fpu reg representation
-				 * into long double format
-				 */
-				if (FPU_IS_EMU && (addr < 45) && !(addr % 3))
-					tmp = ((tmp & 0xffff0000) << 15) |
-					      ((tmp & 0x0000ffff) << 16);
-#endif
-			} else if (addr == 49) {
+			} else if (regno >= 21 && regno < 49) {
+				tmp = child->thread.fp[regno - 21];
+			} else if (regno == 49) {
 				tmp = child->mm->start_code;
-			} else if (addr == 50) {
+			} else if (regno == 50) {
 				tmp = child->mm->start_data;
-			} else if (addr == 51) {
+			} else if (regno == 51) {
 				tmp = child->mm->end_code;
 			} else
 				break;
-			ret = put_user(tmp,(unsigned long *) data);
+			ret = put_user(tmp, datap);
 			break;
 		}
 
 		case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 			ret = -EIO;
-			if ((addr & 3) || addr < 0 ||
-			    addr > sizeof(struct user) - 3)
+			if ((addr & 3) || addr > sizeof(struct user) - 3)
 				break;
 
-			addr = addr >> 2; /* temporary hack. */
-			    
-			if (addr == PT_SR) {
+			if (regno == PT_SR) {
 				data &= SR_MASK;
 				data <<= 16;
 				data |= get_reg(child, PT_SR) & ~(SR_MASK << 16);
 			}
-			if (addr < 19) {
-				if (put_reg(child, addr, data))
+			if (regno < 19) {
+				if (put_reg(child, regno, data))
 					break;
 				ret = 0;
 				break;
 			}
-			if (addr >= 21 && addr < 48)
+			if (regno >= 21 && regno < 48)
 			{
-#ifdef CONFIG_M68KFPU_EMU
-				/* Convert long double format
-				 * into internal fpu reg representation
-				 */
-				if (FPU_IS_EMU && (addr < 45) && !(addr % 3)) {
-					data = (unsigned long)data << 15;
-					data = (data & 0xffff0000) |
-					       ((data & 0x0000ffff) >> 1);
-				}
-#endif
-				child->thread.fp[addr - 21] = data;
+				child->thread.fp[regno - 21] = data;
 				ret = 0;
 			}
 			break;
@@ -197,11 +178,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			    tmp = get_reg(child, i);
 			    if (i == PT_SR)
 				tmp >>= 16;
-			    if (put_user(tmp, (unsigned long *) data)) {
+			    if (put_user(tmp, datap)) {
 				ret = -EFAULT;
 				break;
 			    }
-			    data += sizeof(long);
+			    datap++;
 			}
 			ret = 0;
 			break;
@@ -211,7 +192,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			int i;
 			unsigned long tmp;
 			for (i = 0; i < 19; i++) {
-			    if (get_user(tmp, (unsigned long *) data)) {
+			    if (get_user(tmp, datap)) {
 				ret = -EFAULT;
 				break;
 			    }
@@ -221,7 +202,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				tmp |= get_reg(child, PT_SR) & ~(SR_MASK << 16);
 			    }
 			    put_reg(child, i, tmp);
-			    data += sizeof(long);
+			    datap++;
 			}
 			ret = 0;
 			break;
@@ -230,7 +211,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #ifdef PTRACE_GETFPREGS
 		case PTRACE_GETFPREGS: { /* Get the child FPU state. */
 			ret = 0;
-			if (copy_to_user((void *)data, &child->thread.fp,
+			if (copy_to_user(datap, &child->thread.fp,
 					 sizeof(struct user_m68kfp_struct)))
 				ret = -EFAULT;
 			break;
@@ -240,7 +221,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #ifdef PTRACE_SETFPREGS
 		case PTRACE_SETFPREGS: { /* Set the child FPU state. */
 			ret = 0;
-			if (copy_from_user(&child->thread.fp, (void *)data,
+			if (copy_from_user(&child->thread.fp, datap,
 					   sizeof(struct user_m68kfp_struct)))
 				ret = -EFAULT;
 			break;
@@ -248,8 +229,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #endif
 
 	case PTRACE_GET_THREAD_AREA:
-		ret = put_user(task_thread_info(child)->tp_value,
-			       (unsigned long __user *)data);
+		ret = put_user(task_thread_info(child)->tp_value, datap);
 		break;
 
 		default:
@@ -259,21 +239,17 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
-asmlinkage void syscall_trace(void)
+asmlinkage int syscall_trace_enter(void)
 {
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
-	if (!(current->ptrace & PT_PTRACED))
-		return;
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-				 ? 0x80 : 0));
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
-	}
+	int ret = 0;
+
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		ret = tracehook_report_syscall_entry(task_pt_regs(current));
+	return ret;
+}
+
+asmlinkage void syscall_trace_leave(void)
+{
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(task_pt_regs(current), 0);
 }

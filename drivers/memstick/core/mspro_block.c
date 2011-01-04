@@ -18,11 +18,12 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/memstick.h>
 
 #define DRIVER_NAME "mspro_block"
 
+static DEFINE_MUTEX(mspro_block_mutex);
 static int major;
 module_param(major, int, 0644);
 
@@ -180,7 +181,7 @@ static int mspro_block_bd_open(struct block_device *bdev, fmode_t mode)
 	struct mspro_block_data *msb = disk->private_data;
 	int rc = -ENXIO;
 
-	lock_kernel();
+	mutex_lock(&mspro_block_mutex);
 	mutex_lock(&mspro_block_disk_lock);
 
 	if (msb && msb->card) {
@@ -192,7 +193,7 @@ static int mspro_block_bd_open(struct block_device *bdev, fmode_t mode)
 	}
 
 	mutex_unlock(&mspro_block_disk_lock);
-	unlock_kernel();
+	mutex_unlock(&mspro_block_mutex);
 
 	return rc;
 }
@@ -225,9 +226,9 @@ static int mspro_block_disk_release(struct gendisk *disk)
 static int mspro_block_bd_release(struct gendisk *disk, fmode_t mode)
 {
 	int ret;
-	lock_kernel();
+	mutex_lock(&mspro_block_mutex);
 	ret = mspro_block_disk_release(disk);
-	unlock_kernel();
+	mutex_unlock(&mspro_block_mutex);
 	return ret;
 }
 

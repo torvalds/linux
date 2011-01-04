@@ -36,24 +36,58 @@ int ath5k_hw_get_tx_queueprops(struct ath5k_hw *ah, int queue,
 }
 
 /*
+ * Make sure cw is a power of 2 minus 1 and smaller than 1024
+ */
+static u16 ath5k_cw_validate(u16 cw_req)
+{
+	u32 cw = 1;
+	cw_req = min(cw_req, (u16)1023);
+
+	while (cw < cw_req)
+		cw = (cw << 1) | 1;
+
+	return cw;
+}
+
+/*
  * Set properties for a transmit queue
  */
 int ath5k_hw_set_tx_queueprops(struct ath5k_hw *ah, int queue,
-				const struct ath5k_txq_info *queue_info)
+				const struct ath5k_txq_info *qinfo)
 {
+	struct ath5k_txq_info *qi;
+
 	AR5K_ASSERT_ENTRY(queue, ah->ah_capabilities.cap_queues.q_tx_num);
 
-	if (ah->ah_txq[queue].tqi_type == AR5K_TX_QUEUE_INACTIVE)
+	qi = &ah->ah_txq[queue];
+
+	if (qi->tqi_type == AR5K_TX_QUEUE_INACTIVE)
 		return -EIO;
 
-	memcpy(&ah->ah_txq[queue], queue_info, sizeof(struct ath5k_txq_info));
+	/* copy and validate values */
+	qi->tqi_type = qinfo->tqi_type;
+	qi->tqi_subtype = qinfo->tqi_subtype;
+	qi->tqi_flags = qinfo->tqi_flags;
+	/*
+	 * According to the docs: Although the AIFS field is 8 bit wide,
+	 * the maximum supported value is 0xFC. Setting it higher than that
+	 * will cause the DCU to hang.
+	 */
+	qi->tqi_aifs = min(qinfo->tqi_aifs, (u8)0xFC);
+	qi->tqi_cw_min = ath5k_cw_validate(qinfo->tqi_cw_min);
+	qi->tqi_cw_max = ath5k_cw_validate(qinfo->tqi_cw_max);
+	qi->tqi_cbr_period = qinfo->tqi_cbr_period;
+	qi->tqi_cbr_overflow_limit = qinfo->tqi_cbr_overflow_limit;
+	qi->tqi_burst_time = qinfo->tqi_burst_time;
+	qi->tqi_ready_time = qinfo->tqi_ready_time;
 
 	/*XXX: Is this supported on 5210 ?*/
-	if ((queue_info->tqi_type == AR5K_TX_QUEUE_DATA &&
-			((queue_info->tqi_subtype == AR5K_WME_AC_VI) ||
-			(queue_info->tqi_subtype == AR5K_WME_AC_VO))) ||
-			queue_info->tqi_type == AR5K_TX_QUEUE_UAPSD)
-		ah->ah_txq[queue].tqi_flags |= AR5K_TXQ_FLAG_POST_FR_BKOFF_DIS;
+	/*XXX: Is this correct for AR5K_WME_AC_VI,VO ???*/
+	if ((qinfo->tqi_type == AR5K_TX_QUEUE_DATA &&
+		((qinfo->tqi_subtype == AR5K_WME_AC_VI) ||
+		 (qinfo->tqi_subtype == AR5K_WME_AC_VO))) ||
+	     qinfo->tqi_type == AR5K_TX_QUEUE_UAPSD)
+		qi->tqi_flags |= AR5K_TXQ_FLAG_POST_FR_BKOFF_DIS;
 
 	return 0;
 }
@@ -186,7 +220,7 @@ void ath5k_hw_release_tx_queue(struct ath5k_hw *ah, unsigned int queue)
  */
 int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 {
-	u32 cw_min, cw_max, retry_lg, retry_sh;
+	u32 retry_lg, retry_sh;
 	struct ath5k_txq_info *tq = &ah->ah_txq[queue];
 
 	AR5K_ASSERT_ENTRY(queue, ah->ah_capabilities.cap_queues.q_tx_num);
@@ -217,14 +251,13 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		/* Set IFS0 */
 		if (ah->ah_turbo) {
 			 ath5k_hw_reg_write(ah, ((AR5K_INIT_SIFS_TURBO +
-				(ah->ah_aifs + tq->tqi_aifs) *
-				AR5K_INIT_SLOT_TIME_TURBO) <<
+				tq->tqi_aifs * AR5K_INIT_SLOT_TIME_TURBO) <<
 				AR5K_IFS0_DIFS_S) | AR5K_INIT_SIFS_TURBO,
 				AR5K_IFS0);
 		} else {
 			ath5k_hw_reg_write(ah, ((AR5K_INIT_SIFS +
-				(ah->ah_aifs + tq->tqi_aifs) *
-				AR5K_INIT_SLOT_TIME) << AR5K_IFS0_DIFS_S) |
+				tq->tqi_aifs * AR5K_INIT_SLOT_TIME) <<
+				AR5K_IFS0_DIFS_S) |
 				AR5K_INIT_SIFS, AR5K_IFS0);
 		}
 
@@ -248,35 +281,6 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 	}
 
 	/*
-	 * Calculate cwmin/max by channel mode
-	 */
-	cw_min = ah->ah_cw_min = AR5K_TUNE_CWMIN;
-	cw_max = ah->ah_cw_max = AR5K_TUNE_CWMAX;
-	ah->ah_aifs = AR5K_TUNE_AIFS;
-	/*XR is only supported on 5212*/
-	if (IS_CHAN_XR(ah->ah_current_channel) &&
-			ah->ah_version == AR5K_AR5212) {
-		cw_min = ah->ah_cw_min = AR5K_TUNE_CWMIN_XR;
-		cw_max = ah->ah_cw_max = AR5K_TUNE_CWMAX_XR;
-		ah->ah_aifs = AR5K_TUNE_AIFS_XR;
-	/*B mode is not supported on 5210*/
-	} else if (IS_CHAN_B(ah->ah_current_channel) &&
-			ah->ah_version != AR5K_AR5210) {
-		cw_min = ah->ah_cw_min = AR5K_TUNE_CWMIN_11B;
-		cw_max = ah->ah_cw_max = AR5K_TUNE_CWMAX_11B;
-		ah->ah_aifs = AR5K_TUNE_AIFS_11B;
-	}
-
-	cw_min = 1;
-	while (cw_min < ah->ah_cw_min)
-		cw_min = (cw_min << 1) | 1;
-
-	cw_min = tq->tqi_cw_min < 0 ? (cw_min >> (-tq->tqi_cw_min)) :
-		((cw_min << tq->tqi_cw_min) + (1 << tq->tqi_cw_min) - 1);
-	cw_max = tq->tqi_cw_max < 0 ? (cw_max >> (-tq->tqi_cw_max)) :
-		((cw_max << tq->tqi_cw_max) + (1 << tq->tqi_cw_max) - 1);
-
-	/*
 	 * Calculate and set retry limits
 	 */
 	if (ah->ah_software_retry) {
@@ -292,7 +296,7 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 	/*No QCU/DCU [5210]*/
 	if (ah->ah_version == AR5K_AR5210) {
 		ath5k_hw_reg_write(ah,
-			(cw_min << AR5K_NODCU_RETRY_LMT_CW_MIN_S)
+			(tq->tqi_cw_min << AR5K_NODCU_RETRY_LMT_CW_MIN_S)
 			| AR5K_REG_SM(AR5K_INIT_SLG_RETRY,
 				AR5K_NODCU_RETRY_LMT_SLG_RETRY)
 			| AR5K_REG_SM(AR5K_INIT_SSH_RETRY,
@@ -314,14 +318,13 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 	/*===Rest is also for QCU/DCU only [5211+]===*/
 
 		/*
-		 * Set initial content window (cw_min/cw_max)
+		 * Set contention window (cw_min/cw_max)
 		 * and arbitrated interframe space (aifs)...
 		 */
 		ath5k_hw_reg_write(ah,
-			AR5K_REG_SM(cw_min, AR5K_DCU_LCL_IFS_CW_MIN) |
-			AR5K_REG_SM(cw_max, AR5K_DCU_LCL_IFS_CW_MAX) |
-			AR5K_REG_SM(ah->ah_aifs + tq->tqi_aifs,
-				AR5K_DCU_LCL_IFS_AIFS),
+			AR5K_REG_SM(tq->tqi_cw_min, AR5K_DCU_LCL_IFS_CW_MIN) |
+			AR5K_REG_SM(tq->tqi_cw_max, AR5K_DCU_LCL_IFS_CW_MAX) |
+			AR5K_REG_SM(tq->tqi_aifs, AR5K_DCU_LCL_IFS_AIFS),
 			AR5K_QUEUE_DFS_LOCAL_IFS(queue));
 
 		/*

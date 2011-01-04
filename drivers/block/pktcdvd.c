@@ -57,7 +57,6 @@
 #include <linux/seq_file.h>
 #include <linux/miscdevice.h>
 #include <linux/freezer.h>
-#include <linux/smp_lock.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <scsi/scsi_cmnd.h>
@@ -86,6 +85,7 @@
 
 #define ZONE(sector, pd) (((sector) + (pd)->offset) & ~((pd)->settings.size - 1))
 
+static DEFINE_MUTEX(pktcdvd_mutex);
 static struct pktcdvd_device *pkt_devs[MAX_WRITERS];
 static struct proc_dir_entry *pkt_proc;
 static int pktdev_major;
@@ -753,7 +753,6 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 
 	rq->timeout = 60*HZ;
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-	rq->cmd_flags |= REQ_HARDBARRIER;
 	if (cgc->quiet)
 		rq->cmd_flags |= REQ_QUIET;
 
@@ -2383,7 +2382,7 @@ static int pkt_open(struct block_device *bdev, fmode_t mode)
 
 	VPRINTK(DRIVER_NAME": entering open\n");
 
-	lock_kernel();
+	mutex_lock(&pktcdvd_mutex);
 	mutex_lock(&ctl_mutex);
 	pd = pkt_find_dev_from_minor(MINOR(bdev->bd_dev));
 	if (!pd) {
@@ -2411,7 +2410,7 @@ static int pkt_open(struct block_device *bdev, fmode_t mode)
 	}
 
 	mutex_unlock(&ctl_mutex);
-	unlock_kernel();
+	mutex_unlock(&pktcdvd_mutex);
 	return 0;
 
 out_dec:
@@ -2419,7 +2418,7 @@ out_dec:
 out:
 	VPRINTK(DRIVER_NAME": failed open (%d)\n", ret);
 	mutex_unlock(&ctl_mutex);
-	unlock_kernel();
+	mutex_unlock(&pktcdvd_mutex);
 	return ret;
 }
 
@@ -2428,7 +2427,7 @@ static int pkt_close(struct gendisk *disk, fmode_t mode)
 	struct pktcdvd_device *pd = disk->private_data;
 	int ret = 0;
 
-	lock_kernel();
+	mutex_lock(&pktcdvd_mutex);
 	mutex_lock(&ctl_mutex);
 	pd->refcnt--;
 	BUG_ON(pd->refcnt < 0);
@@ -2437,7 +2436,7 @@ static int pkt_close(struct gendisk *disk, fmode_t mode)
 		pkt_release_dev(pd, flush);
 	}
 	mutex_unlock(&ctl_mutex);
-	unlock_kernel();
+	mutex_unlock(&pktcdvd_mutex);
 	return ret;
 }
 
@@ -2773,7 +2772,7 @@ static int pkt_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, 
 	VPRINTK("pkt_ioctl: cmd %x, dev %d:%d\n", cmd,
 		MAJOR(bdev->bd_dev), MINOR(bdev->bd_dev));
 
-	lock_kernel();
+	mutex_lock(&pktcdvd_mutex);
 	switch (cmd) {
 	case CDROMEJECT:
 		/*
@@ -2798,7 +2797,7 @@ static int pkt_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, 
 		VPRINTK(DRIVER_NAME": Unknown ioctl for %s (%x)\n", pd->name, cmd);
 		ret = -ENOTTY;
 	}
-	unlock_kernel();
+	mutex_unlock(&pktcdvd_mutex);
 
 	return ret;
 }
@@ -3046,6 +3045,7 @@ static const struct file_operations pkt_ctl_fops = {
 	.compat_ioctl	= pkt_ctl_compat_ioctl,
 #endif
 	.owner		= THIS_MODULE,
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice pkt_misc = {

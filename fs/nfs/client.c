@@ -48,6 +48,7 @@
 #include "iostat.h"
 #include "internal.h"
 #include "fscache.h"
+#include "pnfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
@@ -155,7 +156,9 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	cred = rpc_lookup_machine_cred();
 	if (!IS_ERR(cred))
 		clp->cl_machine_cred = cred;
-
+#if defined(CONFIG_NFS_V4_1)
+	INIT_LIST_HEAD(&clp->cl_layouts);
+#endif
 	nfs_fscache_get_client_cookie(clp);
 
 	return clp;
@@ -252,6 +255,7 @@ void nfs_put_client(struct nfs_client *clp)
 		nfs_free_client(clp);
 	}
 }
+EXPORT_SYMBOL_GPL(nfs_put_client);
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 /*
@@ -601,6 +605,7 @@ static int nfs_create_rpc_client(struct nfs_client *clp,
 {
 	struct rpc_clnt		*clnt = NULL;
 	struct rpc_create_args args = {
+		.net		= &init_net,
 		.protocol	= clp->cl_proto,
 		.address	= (struct sockaddr *)&clp->cl_addr,
 		.addrsize	= clp->cl_addrlen,
@@ -635,7 +640,8 @@ static int nfs_create_rpc_client(struct nfs_client *clp,
  */
 static void nfs_destroy_server(struct nfs_server *server)
 {
-	if (!(server->flags & NFS_MOUNT_NONLM))
+	if (!(server->flags & NFS_MOUNT_LOCAL_FLOCK) ||
+			!(server->flags & NFS_MOUNT_LOCAL_FCNTL))
 		nlmclnt_done(server->nlm_host);
 }
 
@@ -657,7 +663,8 @@ static int nfs_start_lockd(struct nfs_server *server)
 
 	if (nlm_init.nfs_version > 3)
 		return 0;
-	if (server->flags & NFS_MOUNT_NONLM)
+	if ((server->flags & NFS_MOUNT_LOCAL_FLOCK) &&
+			(server->flags & NFS_MOUNT_LOCAL_FCNTL))
 		return 0;
 
 	switch (clp->cl_proto) {
@@ -898,11 +905,13 @@ static void nfs_server_set_fsinfo(struct nfs_server *server, struct nfs_fsinfo *
 	if (server->wsize > NFS_MAX_FILE_IO_SIZE)
 		server->wsize = NFS_MAX_FILE_IO_SIZE;
 	server->wpages = (server->wsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	set_pnfs_layoutdriver(server, fsinfo->layouttype);
+
 	server->wtmult = nfs_block_bits(fsinfo->wtmult, NULL);
 
 	server->dtsize = nfs_block_size(fsinfo->dtpref, NULL);
-	if (server->dtsize > PAGE_CACHE_SIZE)
-		server->dtsize = PAGE_CACHE_SIZE;
+	if (server->dtsize > PAGE_CACHE_SIZE * NFS_MAX_READDIR_PAGES)
+		server->dtsize = PAGE_CACHE_SIZE * NFS_MAX_READDIR_PAGES;
 	if (server->dtsize > server->rsize)
 		server->dtsize = server->rsize;
 
@@ -912,6 +921,8 @@ static void nfs_server_set_fsinfo(struct nfs_server *server, struct nfs_fsinfo *
 	}
 
 	server->maxfilesize = fsinfo->maxfilesize;
+
+	server->time_delta = fsinfo->time_delta;
 
 	/* We're airborne Set socket buffersize */
 	rpc_setbufsize(server->client, server->wsize + 100, server->rsize + 100);
@@ -935,6 +946,7 @@ static int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *mntfh, str
 	}
 
 	fsinfo.fattr = fattr;
+	fsinfo.layouttype = 0;
 	error = clp->rpc_ops->fsinfo(server, mntfh, &fsinfo);
 	if (error < 0)
 		goto out_error;
@@ -1017,6 +1029,7 @@ void nfs_free_server(struct nfs_server *server)
 {
 	dprintk("--> nfs_free_server()\n");
 
+	unset_pnfs_layoutdriver(server);
 	spin_lock(&nfs_client_lock);
 	list_del(&server->client_link);
 	list_del(&server->master_link);
@@ -1356,8 +1369,9 @@ static int nfs4_init_server(struct nfs_server *server,
 
 	/* Initialise the client representation from the mount data */
 	server->flags = data->flags;
-	server->caps |= NFS_CAP_ATOMIC_OPEN|NFS_CAP_CHANGE_ATTR|
-		NFS_CAP_POSIX_LOCK;
+	server->caps |= NFS_CAP_ATOMIC_OPEN|NFS_CAP_CHANGE_ATTR|NFS_CAP_POSIX_LOCK;
+	if (!(data->flags & NFS_MOUNT_NORDIRPLUS))
+			server->caps |= NFS_CAP_READDIRPLUS;
 	server->options = data->options;
 
 	/* Get a client record */

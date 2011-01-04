@@ -21,7 +21,7 @@ static inline int __iio_allocate_sw_ring_buffer(struct iio_sw_ring_buffer *ring,
 	if ((length == 0) || (bytes_per_datum == 0))
 		return -EINVAL;
 	__iio_update_ring_buffer(&ring->buf, bytes_per_datum, length);
-	ring->data = kmalloc(length*ring->buf.bpd, GFP_ATOMIC);
+	ring->data = kmalloc(length*ring->buf.bytes_per_datum, GFP_ATOMIC);
 	ring->read_p = NULL;
 	ring->write_p = NULL;
 	ring->last_written_p = NULL;
@@ -77,10 +77,10 @@ static int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
 		 * as long as the read pointer is valid before this
 		 * passes it - guaranteed as set later in this function.
 		 */
-		ring->half_p = ring->data - ring->buf.length*ring->buf.bpd/2;
+		ring->half_p = ring->data - ring->buf.length*ring->buf.bytes_per_datum/2;
 	}
 	/* Copy data to where ever the current write pointer says */
-	memcpy(ring->write_p, data, ring->buf.bpd);
+	memcpy(ring->write_p, data, ring->buf.bytes_per_datum);
 	barrier();
 	/* Update the pointer used to get most recent value.
 	 * Always valid as either points to latest or second latest value.
@@ -91,9 +91,9 @@ static int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
 	/* temp_ptr used to ensure we never have an invalid pointer
 	 * it may be slightly lagging, but never invalid
 	 */
-	temp_ptr = ring->write_p + ring->buf.bpd;
+	temp_ptr = ring->write_p + ring->buf.bytes_per_datum;
 	/* End of ring, back to the beginning */
-	if (temp_ptr == ring->data + ring->buf.length*ring->buf.bpd)
+	if (temp_ptr == ring->data + ring->buf.length*ring->buf.bytes_per_datum)
 		temp_ptr = ring->data;
 	/* Update the write pointer
 	 * always valid as long as this is the only function able to write.
@@ -112,9 +112,9 @@ static int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
 	 */
 	else if (ring->write_p == ring->read_p) {
 		change_test_ptr = ring->read_p;
-		temp_ptr = change_test_ptr + ring->buf.bpd;
+		temp_ptr = change_test_ptr + ring->buf.bytes_per_datum;
 		if (temp_ptr
-		    == ring->data + ring->buf.length*ring->buf.bpd) {
+		    == ring->data + ring->buf.length*ring->buf.bytes_per_datum) {
 			temp_ptr = ring->data;
 		}
 		/* We are moving pointer on one because the ring is full.  Any
@@ -135,8 +135,8 @@ static int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
 	/* There are definite 'issues' with this and chances of
 	 * simultaneous read */
 	/* Also need to use loop count to ensure this only happens once */
-	ring->half_p += ring->buf.bpd;
-	if (ring->half_p == ring->data + ring->buf.length*ring->buf.bpd)
+	ring->half_p += ring->buf.bytes_per_datum;
+	if (ring->half_p == ring->data + ring->buf.length*ring->buf.bytes_per_datum)
 		ring->half_p = ring->data;
 	if (ring->half_p == ring->read_p) {
 		spin_lock(&ring->buf.shared_ev_pointer.lock);
@@ -164,15 +164,15 @@ int iio_rip_sw_rb(struct iio_ring_buffer *r,
 	 *  read something that is not a whole number of bpds.
 	 * Return an error.
 	 */
-	if (count % ring->buf.bpd) {
+	if (count % ring->buf.bytes_per_datum) {
 		ret = -EINVAL;
 		printk(KERN_INFO "Ring buffer read request not whole number of"
-		       "samples: Request bytes %zd, Current bpd %d\n",
-		       count, ring->buf.bpd);
+		       "samples: Request bytes %zd, Current bytes per datum %d\n",
+		       count, ring->buf.bytes_per_datum);
 		goto error_ret;
 	}
 	/* Limit size to whole of ring buffer */
-	bytes_to_rip = min((size_t)(ring->buf.bpd*ring->buf.length), count);
+	bytes_to_rip = min((size_t)(ring->buf.bytes_per_datum*ring->buf.length), count);
 
 	*data = kmalloc(bytes_to_rip, GFP_KERNEL);
 	if (*data == NULL) {
@@ -214,7 +214,7 @@ int iio_rip_sw_rb(struct iio_ring_buffer *r,
 	} else {
 		/* going through 'end' of ring buffer */
 		max_copied = ring->data
-			+ ring->buf.length*ring->buf.bpd - initial_read_p;
+			+ ring->buf.length*ring->buf.bytes_per_datum - initial_read_p;
 		memcpy(*data, initial_read_p, max_copied);
 		/* possible we are done if we align precisely with end */
 		if (max_copied == bytes_to_rip)
@@ -240,7 +240,7 @@ int iio_rip_sw_rb(struct iio_ring_buffer *r,
 	if (initial_read_p <= current_read_p)
 		*dead_offset = current_read_p - initial_read_p;
 	else
-		*dead_offset = ring->buf.length*ring->buf.bpd
+		*dead_offset = ring->buf.length*ring->buf.bytes_per_datum
 			- (initial_read_p - current_read_p);
 
 	/* possible issue if the initial write has been lapped or indeed
@@ -293,7 +293,7 @@ again:
 	/* Check there is anything here */
 	if (last_written_p_copy == NULL)
 		return -EAGAIN;
-	memcpy(data, last_written_p_copy, ring->buf.bpd);
+	memcpy(data, last_written_p_copy, ring->buf.bytes_per_datum);
 
 	if (unlikely(ring->last_written_p != last_written_p_copy))
 		goto again;
@@ -322,7 +322,7 @@ int iio_request_update_sw_rb(struct iio_ring_buffer *r)
 		goto error_ret;
 	}
 	__iio_free_sw_ring_buffer(ring);
-	ret = __iio_allocate_sw_ring_buffer(ring, ring->buf.bpd,
+	ret = __iio_allocate_sw_ring_buffer(ring, ring->buf.bytes_per_datum,
 					    ring->buf.length);
 error_ret:
 	spin_unlock(&ring->use_lock);
@@ -330,23 +330,23 @@ error_ret:
 }
 EXPORT_SYMBOL(iio_request_update_sw_rb);
 
-int iio_get_bpd_sw_rb(struct iio_ring_buffer *r)
+int iio_get_bytes_per_datum_sw_rb(struct iio_ring_buffer *r)
 {
 	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
-	return ring->buf.bpd;
+	return ring->buf.bytes_per_datum;
 }
-EXPORT_SYMBOL(iio_get_bpd_sw_rb);
+EXPORT_SYMBOL(iio_get_bytes_per_datum_sw_rb);
 
-int iio_set_bpd_sw_rb(struct iio_ring_buffer *r, size_t bpd)
+int iio_set_bytes_per_datum_sw_rb(struct iio_ring_buffer *r, size_t bpd)
 {
-	if (r->bpd != bpd) {
-		r->bpd = bpd;
+	if (r->bytes_per_datum != bpd) {
+		r->bytes_per_datum = bpd;
 		if (r->access.mark_param_change)
 			r->access.mark_param_change(r);
 	}
 	return 0;
 }
-EXPORT_SYMBOL(iio_set_bpd_sw_rb);
+EXPORT_SYMBOL(iio_set_bytes_per_datum_sw_rb);
 
 int iio_get_length_sw_rb(struct iio_ring_buffer *r)
 {
@@ -380,14 +380,14 @@ static void iio_sw_rb_release(struct device *dev)
 }
 
 static IIO_RING_ENABLE_ATTR;
-static IIO_RING_BPS_ATTR;
+static IIO_RING_BYTES_PER_DATUM_ATTR;
 static IIO_RING_LENGTH_ATTR;
 
 /* Standard set of ring buffer attributes */
 static struct attribute *iio_ring_attributes[] = {
 	&dev_attr_length.attr,
-	&dev_attr_bps.attr,
-	&dev_attr_ring_enable.attr,
+	&dev_attr_bytes_per_datum.attr,
+	&dev_attr_enable.attr,
 	NULL,
 };
 
@@ -435,23 +435,24 @@ EXPORT_SYMBOL(iio_sw_rb_free);
 
 int iio_sw_ring_preenable(struct iio_dev *indio_dev)
 {
+	struct iio_ring_buffer *ring = indio_dev->ring;
 	size_t size;
 	dev_dbg(&indio_dev->dev, "%s\n", __func__);
 	/* Check if there are any scan elements enabled, if not fail*/
-	if (!(indio_dev->scan_count || indio_dev->scan_timestamp))
+	if (!(ring->scan_count || ring->scan_timestamp))
 		return -EINVAL;
-	if (indio_dev->scan_timestamp)
-		if (indio_dev->scan_count)
+	if (ring->scan_timestamp)
+		if (ring->scan_count)
 			/* Timestamp (aligned to s64) and data */
-			size = (((indio_dev->scan_count * indio_dev->ring->bpe)
+			size = (((ring->scan_count * ring->bpe)
 					+ sizeof(s64) - 1)
 				& ~(sizeof(s64) - 1))
 				+ sizeof(s64);
 		else /* Timestamp only  */
 			size = sizeof(s64);
 	else /* Data only */
-		size = indio_dev->scan_count * indio_dev->ring->bpe;
-	indio_dev->ring->access.set_bpd(indio_dev->ring, size);
+		size = ring->scan_count * ring->bpe;
+	ring->access.set_bytes_per_datum(ring, size);
 
 	return 0;
 }
@@ -462,9 +463,9 @@ void iio_sw_trigger_bh_to_ring(struct work_struct *work_s)
 	struct iio_sw_ring_helper_state *st
 		= container_of(work_s, struct iio_sw_ring_helper_state,
 			work_trigger_to_ring);
+	struct iio_ring_buffer *ring = st->indio_dev->ring;
 	int len = 0;
-	size_t datasize = st->indio_dev
-		->ring->access.get_bpd(st->indio_dev->ring);
+	size_t datasize = ring->access.get_bytes_per_datum(ring);
 	char *data = kmalloc(datasize, GFP_KERNEL);
 
 	if (data == NULL) {
@@ -473,16 +474,16 @@ void iio_sw_trigger_bh_to_ring(struct work_struct *work_s)
 		return;
 	}
 
-	if (st->indio_dev->scan_count)
+	if (ring->scan_count)
 		len = st->get_ring_element(st, data);
 
 	  /* Guaranteed to be aligned with 8 byte boundary */
-	if (st->indio_dev->scan_timestamp)
+	if (ring->scan_timestamp)
 		*(s64 *)(((phys_addr_t)data + len
 				+ sizeof(s64) - 1) & ~(sizeof(s64) - 1))
 			= st->last_timestamp;
-	  st->indio_dev->ring->access.store_to(st->indio_dev->ring,
-					(u8 *)data,
+	ring->access.store_to(ring,
+			(u8 *)data,
 			st->last_timestamp);
 
 	iio_trigger_notify_done(st->indio_dev->trig);

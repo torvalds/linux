@@ -187,8 +187,7 @@ static int ocfs2_sync_file(struct file *file, int datasync)
 		 * platter
 		 */
 		if (osb->s_mount_opt & OCFS2_MOUNT_BARRIER)
-			blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL,
-					   NULL, BLKDEV_IFL_WAIT);
+			blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
 		goto bail;
 	}
 
@@ -797,13 +796,12 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 		block_end = block_start + (1 << inode->i_blkbits);
 
 		/*
-		 * block_start is block-aligned.  Bump it by one to
-		 * force ocfs2_{prepare,commit}_write() to zero the
+		 * block_start is block-aligned.  Bump it by one to force
+		 * __block_write_begin and block_commit_write to zero the
 		 * whole block.
 		 */
-		ret = ocfs2_prepare_write_nolock(inode, page,
-						 block_start + 1,
-						 block_start + 1);
+		ret = __block_write_begin(page, block_start + 1, 0,
+					  ocfs2_get_block);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out_unlock;
@@ -2243,11 +2241,15 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 
 	mutex_lock(&inode->i_mutex);
 
+	ocfs2_iocb_clear_sem_locked(iocb);
+
 relock:
 	/* to match setattr's i_mutex -> i_alloc_sem -> rw_lock ordering */
 	if (direct_io) {
 		down_read(&inode->i_alloc_sem);
 		have_alloc_sem = 1;
+		/* communicate with ocfs2_dio_end_io */
+		ocfs2_iocb_set_sem_locked(iocb);
 	}
 
 	/*
@@ -2384,8 +2386,10 @@ out:
 		ocfs2_rw_unlock(inode, rw_level);
 
 out_sems:
-	if (have_alloc_sem)
+	if (have_alloc_sem) {
 		up_read(&inode->i_alloc_sem);
+		ocfs2_iocb_clear_sem_locked(iocb);
+	}
 
 	mutex_unlock(&inode->i_mutex);
 
@@ -2529,6 +2533,8 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 		goto bail;
 	}
 
+	ocfs2_iocb_clear_sem_locked(iocb);
+
 	/*
 	 * buffered reads protect themselves in ->readpage().  O_DIRECT reads
 	 * need locks to protect pending reads from racing with truncate.
@@ -2536,6 +2542,7 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 	if (filp->f_flags & O_DIRECT) {
 		down_read(&inode->i_alloc_sem);
 		have_alloc_sem = 1;
+		ocfs2_iocb_set_sem_locked(iocb);
 
 		ret = ocfs2_rw_lock(inode, 0);
 		if (ret < 0) {
@@ -2577,8 +2584,10 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 	}
 
 bail:
-	if (have_alloc_sem)
+	if (have_alloc_sem) {
 		up_read(&inode->i_alloc_sem);
+		ocfs2_iocb_clear_sem_locked(iocb);
+	}
 	if (rw_level != -1)
 		ocfs2_rw_unlock(inode, rw_level);
 	mlog_exit(ret);

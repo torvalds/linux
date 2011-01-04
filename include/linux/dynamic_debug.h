@@ -83,7 +83,7 @@ static inline int ddebug_remove_module(const char *mod)
 
 #define dynamic_pr_debug(fmt, ...)					\
 	do { if (0) printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); } while (0)
-#define dynamic_dev_dbg(dev, format, ...)				\
+#define dynamic_dev_dbg(dev, fmt, ...)					\
 	do { if (0) dev_printk(KERN_DEBUG, dev, fmt, ##__VA_ARGS__); } while (0)
 #endif
 

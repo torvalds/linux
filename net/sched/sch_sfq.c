@@ -123,40 +123,39 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 	case htons(ETH_P_IP):
 	{
 		const struct iphdr *iph;
+		int poff;
 
 		if (!pskb_network_may_pull(skb, sizeof(*iph)))
 			goto err;
 		iph = ip_hdr(skb);
 		h = (__force u32)iph->daddr;
 		h2 = (__force u32)iph->saddr ^ iph->protocol;
-		if (!(iph->frag_off&htons(IP_MF|IP_OFFSET)) &&
-		    (iph->protocol == IPPROTO_TCP ||
-		     iph->protocol == IPPROTO_UDP ||
-		     iph->protocol == IPPROTO_UDPLITE ||
-		     iph->protocol == IPPROTO_SCTP ||
-		     iph->protocol == IPPROTO_DCCP ||
-		     iph->protocol == IPPROTO_ESP) &&
-		     pskb_network_may_pull(skb, iph->ihl * 4 + 4))
-			h2 ^= *(((u32*)iph) + iph->ihl);
+		if (iph->frag_off & htons(IP_MF|IP_OFFSET))
+			break;
+		poff = proto_ports_offset(iph->protocol);
+		if (poff >= 0 &&
+		    pskb_network_may_pull(skb, iph->ihl * 4 + 4 + poff)) {
+			iph = ip_hdr(skb);
+			h2 ^= *(u32*)((void *)iph + iph->ihl * 4 + poff);
+		}
 		break;
 	}
 	case htons(ETH_P_IPV6):
 	{
 		struct ipv6hdr *iph;
+		int poff;
 
 		if (!pskb_network_may_pull(skb, sizeof(*iph)))
 			goto err;
 		iph = ipv6_hdr(skb);
 		h = (__force u32)iph->daddr.s6_addr32[3];
 		h2 = (__force u32)iph->saddr.s6_addr32[3] ^ iph->nexthdr;
-		if ((iph->nexthdr == IPPROTO_TCP ||
-		     iph->nexthdr == IPPROTO_UDP ||
-		     iph->nexthdr == IPPROTO_UDPLITE ||
-		     iph->nexthdr == IPPROTO_SCTP ||
-		     iph->nexthdr == IPPROTO_DCCP ||
-		     iph->nexthdr == IPPROTO_ESP) &&
-		    pskb_network_may_pull(skb, sizeof(*iph) + 4))
-			h2 ^= *(u32*)&iph[1];
+		poff = proto_ports_offset(iph->nexthdr);
+		if (poff >= 0 &&
+		    pskb_network_may_pull(skb, sizeof(*iph) + 4 + poff)) {
+			iph = ipv6_hdr(skb);
+			h2 ^= *(u32*)((void *)iph + sizeof(*iph) + poff);
+		}
 		break;
 	}
 	default:
@@ -271,7 +270,6 @@ static unsigned int sfq_drop(struct Qdisc *sch)
 		/* It is difficult to believe, but ALL THE SLOTS HAVE LENGTH 1. */
 		d = q->next[q->tail];
 		q->next[q->tail] = q->next[d];
-		q->allot[q->next[d]] += q->quantum;
 		skb = q->qs[d].prev;
 		len = qdisc_pkt_len(skb);
 		__skb_unlink(skb, &q->qs[d]);
@@ -322,14 +320,13 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	sfq_inc(q, x);
 	if (q->qs[x].qlen == 1) {		/* The flow is new */
 		if (q->tail == SFQ_DEPTH) {	/* It is the first flow */
-			q->tail = x;
 			q->next[x] = x;
-			q->allot[x] = q->quantum;
 		} else {
 			q->next[x] = q->next[q->tail];
 			q->next[q->tail] = x;
-			q->tail = x;
 		}
+		q->tail = x;
+		q->allot[x] = q->quantum;
 	}
 	if (++sch->q.qlen <= q->limit) {
 		sch->bstats.bytes += qdisc_pkt_len(skb);
@@ -360,13 +357,13 @@ sfq_dequeue(struct Qdisc *sch)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *skb;
-	sfq_index a, old_a;
+	sfq_index a, next_a;
 
 	/* No active slots */
 	if (q->tail == SFQ_DEPTH)
 		return NULL;
 
-	a = old_a = q->next[q->tail];
+	a = q->next[q->tail];
 
 	/* Grab packet */
 	skb = __skb_dequeue(&q->qs[a]);
@@ -377,17 +374,15 @@ sfq_dequeue(struct Qdisc *sch)
 	/* Is the slot empty? */
 	if (q->qs[a].qlen == 0) {
 		q->ht[q->hash[a]] = SFQ_DEPTH;
-		a = q->next[a];
-		if (a == old_a) {
+		next_a = q->next[a];
+		if (a == next_a) {
 			q->tail = SFQ_DEPTH;
 			return skb;
 		}
-		q->next[q->tail] = a;
-		q->allot[a] += q->quantum;
+		q->next[q->tail] = next_a;
 	} else if ((q->allot[a] -= qdisc_pkt_len(skb)) <= 0) {
-		q->tail = a;
-		a = q->next[a];
 		q->allot[a] += q->quantum;
+		q->tail = a;
 	}
 	return skb;
 }

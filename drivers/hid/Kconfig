@@ -56,20 +56,20 @@ menu "Special HID drivers"
 	depends on HID
 
 config HID_3M_PCT
-	tristate "3M PCT"
+	tristate "3M PCT touchscreen"
 	depends on USB_HID
 	---help---
 	Support for 3M PCT touch screens.
 
 config HID_A4TECH
-	tristate "A4 tech" if EMBEDDED
+	tristate "A4 tech mice" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
 	Support for A4 tech X5 and WOP-35 / Trust 450L mice.
 
 config HID_ACRUX_FF
-	tristate "ACRUX force feedback support"
+	tristate "ACRUX force feedback"
 	depends on USB_HID
 	select INPUT_FF_MEMLESS
 	---help---
@@ -77,7 +77,7 @@ config HID_ACRUX_FF
 	game controllers.
 
 config HID_APPLE
-	tristate "Apple" if EMBEDDED
+	tristate "Apple {i,Power,Mac}Books" if EMBEDDED
 	depends on (USB_HID || BT_HIDP)
 	default !EMBEDDED
 	---help---
@@ -88,7 +88,7 @@ config HID_APPLE
 	MacBooks, MacBook Pros and Apple Aluminum.
 
 config HID_BELKIN
-	tristate "Belkin" if EMBEDDED
+	tristate "Belkin Flip KVM and Wireless keyboard" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
@@ -101,14 +101,14 @@ config HID_CANDO
 	Support for Cando dual touch panel.
 
 config HID_CHERRY
-	tristate "Cherry" if EMBEDDED
+	tristate "Cherry Cymotion keyboard" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
 	Support for Cherry Cymotion keyboard.
 
 config HID_CHICONY
-	tristate "Chicony" if EMBEDDED
+	tristate "Chicony Tactical pad" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
@@ -130,20 +130,20 @@ config HID_PRODIKEYS
 	  and some additional multimedia keys.
 
 config HID_CYPRESS
-	tristate "Cypress" if EMBEDDED
+	tristate "Cypress mouse and barcode readers" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
 	Support for cypress mouse and barcode readers.
 
 config HID_DRAGONRISE
-	tristate "DragonRise Inc. support"
+	tristate "DragonRise Inc. game controller"
 	depends on USB_HID
 	---help---
 	Say Y here if you have DragonRise Inc.game controllers.
 
 config DRAGONRISE_FF
-	bool "DragonRise Inc. force feedback support"
+	bool "DragonRise Inc. force feedback"
 	depends on HID_DRAGONRISE
 	select INPUT_FF_MEMLESS
 	---help---
@@ -157,46 +157,58 @@ config HID_EGALAX
 	Support for the eGalax dual-touch panel.
 
 config HID_ELECOM
-	tristate "ELECOM"
+	tristate "ELECOM BM084 bluetooth mouse"
 	depends on BT_HIDP
 	---help---
 	Support for the ELECOM BM084 (bluetooth mouse).
 
 config HID_EZKEY
-	tristate "Ezkey" if EMBEDDED
+	tristate "Ezkey BTC 8193 keyboard" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
 	Support for Ezkey BTC 8193 keyboard.
 
 config HID_KYE
-	tristate "Kye" if EMBEDDED
+	tristate "Kye/Genius Ergo Mouse" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
 	Support for Kye/Genius Ergo Mouse.
 
+config HID_UCLOGIC
+	tristate "UC-Logic"
+	depends on USB_HID
+	---help---
+	Support for UC-Logic tablets.
+
+config HID_WALTOP
+	tristate "Waltop"
+	depends on USB_HID
+	---help---
+	Support for Waltop tablets.
+
 config HID_GYRATION
-	tristate "Gyration"
+	tristate "Gyration remote control"
 	depends on USB_HID
 	---help---
 	Support for Gyration remote control.
 
 config HID_TWINHAN
-	tristate "Twinhan"
+	tristate "Twinhan IR remote control"
 	depends on USB_HID
 	---help---
 	Support for Twinhan IR remote control.
 
 config HID_KENSINGTON
-	tristate "Kensington" if EMBEDDED
+	tristate "Kensington Slimblade Trackball" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
 	Support for Kensington Slimblade Trackball.
 
 config HID_LOGITECH
-	tristate "Logitech" if EMBEDDED
+	tristate "Logitech devices" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
@@ -220,12 +232,12 @@ config LOGITECH_FF
 	  force feedback.
 
 config LOGIRUMBLEPAD2_FF
-	bool "Logitech Rumblepad 2 force feedback support"
+	bool "Logitech RumblePad/Rumblepad 2 force feedback support"
 	depends on HID_LOGITECH
 	select INPUT_FF_MEMLESS
 	help
 	  Say Y here if you want to enable force feedback support for Logitech
-	  Rumblepad 2 devices.
+	  RumblePad and Rumblepad 2 devices.
 
 config LOGIG940_FF
 	bool "Logitech Flight System G940 force feedback support"
@@ -234,6 +246,14 @@ config LOGIG940_FF
 	help
 	  Say Y here if you want to enable force feedback support for Logitech
 	  Flight System G940 devices.
+
+config LOGIWII_FF
+	bool "Logitech Speed Force Wireless force feedback support"
+	depends on HID_LOGITECH
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you want to enable force feedback support for Logitech
+	  Speed Force Wireless (Wii) devices.
 
 config HID_MAGICMOUSE
 	tristate "Apple MagicMouse multi-touch support"
@@ -245,39 +265,39 @@ config HID_MAGICMOUSE
 	Apple Wireless "Magic" Mouse.
 
 config HID_MICROSOFT
-	tristate "Microsoft" if EMBEDDED
+	tristate "Microsoft non-fully HID-compliant devices" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
 	Support for Microsoft devices that are not fully compliant with HID standard.
 
 config HID_MOSART
-	tristate "MosArt"
+	tristate "MosArt dual-touch panels"
 	depends on USB_HID
 	---help---
 	Support for MosArt dual-touch panels.
 
 config HID_MONTEREY
-	tristate "Monterey" if EMBEDDED
+	tristate "Monterey Genius KB29E keyboard" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
 	Support for Monterey Genius KB29E.
 
 config HID_NTRIG
-	tristate "NTrig"
+	tristate "N-Trig touch screen"
 	depends on USB_HID
 	---help---
 	Support for N-Trig touch screen.
 
 config HID_ORTEK
-	tristate "Ortek"
+	tristate "Ortek WKB-2000 wireless keyboard and mouse trackpad"
 	depends on USB_HID
 	---help---
 	Support for Ortek WKB-2000 wireless keyboard + mouse trackpad.
 
 config HID_PANTHERLORD
-	tristate "Pantherlord support"
+	tristate "Pantherlord/GreenAsia game controller"
 	depends on USB_HID
 	---help---
 	  Say Y here if you have a PantherLord/GreenAsia based game controller
@@ -292,7 +312,7 @@ config PANTHERLORD_FF
 	  or adapter and want to enable force feedback support for it.
 
 config HID_PETALYNX
-	tristate "Petalynx"
+	tristate "Petalynx Maxter remote control"
 	depends on USB_HID
 	---help---
 	Support for Petalynx Maxter remote control.
@@ -356,7 +376,7 @@ config HID_PICOLCD_LEDS
 	  Provide access to PicoLCD's GPO pins via leds class.
 
 config HID_QUANTA
-	tristate "Quanta Optical Touch"
+	tristate "Quanta Optical Touch panels"
 	depends on USB_HID
 	---help---
 	Support for Quanta Optical Touch dual-touch panels.
@@ -376,32 +396,39 @@ config HID_ROCCAT_KONE
 	---help---
 	Support for Roccat Kone mouse.
 
+config HID_ROCCAT_PYRA
+	tristate "Roccat Pyra mouse support"
+	depends on USB_HID
+	select HID_ROCCAT
+	---help---
+	Support for Roccat Pyra mouse.
+
 config HID_SAMSUNG
-	tristate "Samsung"
+	tristate "Samsung InfraRed remote control or keyboards"
 	depends on USB_HID
 	---help---
 	Support for Samsung InfraRed remote control or keyboards.
 
 config HID_SONY
-	tristate "Sony"
+	tristate "Sony PS3 controller"
 	depends on USB_HID
 	---help---
 	Support for Sony PS3 controller.
 
 config HID_STANTUM
-	tristate "Stantum"
+	tristate "Stantum multitouch panel"
 	depends on USB_HID
 	---help---
 	Support for Stantum multitouch panel.
 
 config HID_SUNPLUS
-	tristate "Sunplus"
+	tristate "Sunplus wireless desktop"
 	depends on USB_HID
 	---help---
 	Support for Sunplus wireless desktop.
 
 config HID_GREENASIA
-	tristate "GreenAsia (Product ID 0x12) support"
+	tristate "GreenAsia (Product ID 0x12) game controller support"
 	depends on USB_HID
 	---help---
 	  Say Y here if you have a GreenAsia (Product ID 0x12) based game

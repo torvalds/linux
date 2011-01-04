@@ -43,6 +43,8 @@ struct s3c_gpio_cfg;
  * struct s3c_gpio_chip - wrapper for specific implementation of gpio
  * @chip: The chip structure to be exported via gpiolib.
  * @base: The base pointer to the gpio configuration registers.
+ * @group: The group register number for gpio interrupt support.
+ * @irq_base: The base irq number.
  * @config: special function and pull-resistor control information.
  * @lock: Lock for exclusive access to this gpio bank.
  * @pm_save: Save information for suspend/resume support.
@@ -63,6 +65,8 @@ struct s3c_gpio_chip {
 	struct s3c_gpio_cfg	*config;
 	struct s3c_gpio_pm	*pm;
 	void __iomem		*base;
+	int			irq_base;
+	int			group;
 	spinlock_t		 lock;
 #ifdef CONFIG_PM
 	u32			pm_save[4];
@@ -117,6 +121,17 @@ extern void samsung_gpiolib_add_4bit2_chips(struct s3c_gpio_chip *chip,
 
 extern void samsung_gpiolib_add_4bit(struct s3c_gpio_chip *chip);
 extern void samsung_gpiolib_add_4bit2(struct s3c_gpio_chip *chip);
+
+
+/**
+ * samsung_gpiolib_to_irq - convert gpio pin to irq number
+ * @chip: The gpio chip that the pin belongs to.
+ * @offset: The offset of the pin in the chip.
+ *
+ * This helper returns the irq number calculated from the chip->irq_base and
+ * the provided offset.
+ */
+extern int samsung_gpiolib_to_irq(struct gpio_chip *chip, unsigned int offset);
 
 /* exported for core SoC support to change */
 extern struct s3c_gpio_cfg s3c24xx_gpiocfg_default;

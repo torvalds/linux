@@ -179,7 +179,7 @@
 
 /* TW: BR(16)+2 = 0x8242 */
 
-int     xgiCmdQueLen;
+static int     xgiCmdQueLen;
 
 #define XGI300Idle \
   { \
@@ -488,6 +488,7 @@ int     xgiCmdQueLen;
 
 int  XGIfb_initaccel(void);
 void XGIfb_syncaccel(void);
+int fbcon_XGI_sync(struct fb_info *info);
 
 extern struct video_info xgi_video_info;
 

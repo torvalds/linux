@@ -216,7 +216,6 @@
 #include <linux/eisa.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/bitops.h>
@@ -397,6 +396,7 @@ static struct real_driver sx_real_driver = {
 static const struct file_operations sx_fw_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = sx_fw_ioctl,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice sx_fw_device = {

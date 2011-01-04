@@ -131,9 +131,20 @@
 #define CIFS_CRYPTO_KEY_SIZE (8)
 
 /*
+ * Size of the ntlm client response
+ */
+#define CIFS_AUTH_RESP_SIZE (24)
+
+/*
  * Size of the session key (crypto key encrypted with the password
  */
-#define CIFS_SESS_KEY_SIZE (24)
+#define CIFS_SESS_KEY_SIZE (16)
+
+#define CIFS_CLIENT_CHALLENGE_SIZE (8)
+#define CIFS_SERVER_CHALLENGE_SIZE (8)
+#define CIFS_HMAC_MD5_HASH_SIZE (16)
+#define CIFS_CPHTXT_SIZE (16)
+#define CIFS_NTHASH_SIZE (16)
 
 /*
  * Maximum user name length
@@ -663,7 +674,6 @@ struct ntlmv2_resp {
 	__le64  time;
 	__u64  client_chal; /* random */
 	__u32  reserved2;
-	struct ntlmssp2_name names[2];
 	/* array of name entries could follow ending in minimum 4 byte struct */
 } __attribute__((packed));
 

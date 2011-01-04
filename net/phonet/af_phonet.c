@@ -251,6 +251,16 @@ int pn_skb_send(struct sock *sk, struct sk_buff *skb,
 	else if (phonet_address_lookup(net, daddr) == 0) {
 		dev = phonet_device_get(net);
 		skb->pkt_type = PACKET_LOOPBACK;
+	} else if (pn_sockaddr_get_object(target) == 0) {
+		/* Resource routing (small race until phonet_rcv()) */
+		struct sock *sk = pn_find_sock_by_res(net,
+							target->spn_resource);
+		if (sk)	{
+			sock_put(sk);
+			dev = phonet_device_get(net);
+			skb->pkt_type = PACKET_LOOPBACK;
+		} else
+			dev = phonet_route_output(net, daddr);
 	} else
 		dev = phonet_route_output(net, daddr);
 
@@ -381,6 +391,13 @@ static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (pn_sockaddr_get_addr(&sa) == PNADDR_BROADCAST) {
 		pn_deliver_sock_broadcast(net, skb);
 		goto out;
+	}
+
+	/* resource routing */
+	if (pn_sockaddr_get_object(&sa) == 0) {
+		struct sock *sk = pn_find_sock_by_res(net, sa.spn_resource);
+		if (sk)
+			return sk_receive_skb(sk, skb, 0);
 	}
 
 	/* check if we are the destination */

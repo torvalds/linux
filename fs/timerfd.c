@@ -144,6 +144,7 @@ static const struct file_operations timerfd_fops = {
 	.release	= timerfd_release,
 	.poll		= timerfd_poll,
 	.read		= timerfd_read,
+	.llseek		= noop_llseek,
 };
 
 static struct file *timerfd_fget(int fd)

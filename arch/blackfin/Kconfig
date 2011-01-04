@@ -1,10 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Blackfin Kernel Configuration"
-
 config SYMBOL_PREFIX
 	string
 	default "_"
@@ -300,7 +293,7 @@ config BF_REV_0_1
 
 config BF_REV_0_2
 	bool "0.2"
-	depends on (BF52x || BF537 || BF536 || BF534 || (BF54x && !BF54xM))
+	depends on (BF51x || BF52x || BF537 || BF536 || BF534 || (BF54x && !BF54xM))
 
 config BF_REV_0_3
 	bool "0.3"
@@ -356,7 +349,7 @@ config MEM_MT48LC8M32B2B5_7
 
 config MEM_MT48LC32M16A2TG_75
 	bool
-	depends on (BFIN527_EZKIT || BFIN527_EZKIT_V2 || BFIN532_IP0X || BLACKSTAMP)
+	depends on (BFIN527_EZKIT || BFIN527_EZKIT_V2 || BFIN532_IP0X || BLACKSTAMP || BFIN527_AD7160EVAL)
 	default y
 
 config MEM_MT48H32M16LFCJ_75
@@ -426,6 +419,7 @@ config CLKIN_HZ
 	default "25000000" # most people use this
 	default "27000000" if BFIN533_EZKIT
 	default "30000000" if BFIN561_EZKIT
+	default "24000000" if BFIN527_AD7160EVAL
 	help
 	  The frequency of CLKIN crystal oscillator on the board in Hz.
 	  Warning: This value should match the crystal on the board. Otherwise,
@@ -463,6 +457,7 @@ config VCO_MULT
 	default "20" if (BFIN537_BLUETECHNIX_CM_E || BFIN537_BLUETECHNIX_CM_U || BFIN527_BLUETECHNIX_CM || BFIN561_BLUETECHNIX_CM)
 	default "20" if BFIN561_EZKIT
 	default "16" if (H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD || BFIN518F_EZBRD)
+	default "25" if BFIN527_AD7160EVAL
 	help
 	  This controls the frequency of the on-chip PLL. This can be between 1 and 64.
 	  PLL Frequency = (Crystal Frequency) * (this setting)
@@ -925,6 +920,12 @@ config ROMKERNEL
 	  The kernel will be resident in FLASH/ROM when running.
 
 endchoice
+
+# Common code uses "ROMKERNEL" or "XIP_KERNEL", so define both
+config XIP_KERNEL
+	bool
+	default y
+	depends on ROMKERNEL
 
 source "mm/Kconfig"
 

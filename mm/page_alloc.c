@@ -104,19 +104,24 @@ gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
  * only be modified with pm_mutex held, unless the suspend/hibernate code is
  * guaranteed not to run in parallel with that modification).
  */
-void set_gfp_allowed_mask(gfp_t mask)
+
+static gfp_t saved_gfp_mask;
+
+void pm_restore_gfp_mask(void)
 {
 	WARN_ON(!mutex_is_locked(&pm_mutex));
-	gfp_allowed_mask = mask;
+	if (saved_gfp_mask) {
+		gfp_allowed_mask = saved_gfp_mask;
+		saved_gfp_mask = 0;
+	}
 }
 
-gfp_t clear_gfp_allowed_mask(gfp_t mask)
+void pm_restrict_gfp_mask(void)
 {
-	gfp_t ret = gfp_allowed_mask;
-
 	WARN_ON(!mutex_is_locked(&pm_mutex));
-	gfp_allowed_mask &= ~mask;
-	return ret;
+	WARN_ON(saved_gfp_mask);
+	saved_gfp_mask = gfp_allowed_mask;
+	gfp_allowed_mask &= ~GFP_IOFS;
 }
 #endif /* CONFIG_PM_SLEEP */
 
@@ -531,7 +536,7 @@ static inline void __free_one_page(struct page *page,
 	 * so it's less likely to be used soon and more likely to be merged
 	 * as a higher order page
 	 */
-	if ((order < MAX_ORDER-1) && pfn_valid_within(page_to_pfn(buddy))) {
+	if ((order < MAX_ORDER-2) && pfn_valid_within(page_to_pfn(buddy))) {
 		struct page *higher_page, *higher_buddy;
 		combined_idx = __find_combined_index(page_idx, order);
 		higher_page = page + combined_idx - page_idx;
@@ -1907,7 +1912,7 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
 			preferred_zone, migratetype);
 
 		if (!page && gfp_mask & __GFP_NOFAIL)
-			congestion_wait(BLK_RW_ASYNC, HZ/50);
+			wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
 	} while (!page && (gfp_mask & __GFP_NOFAIL));
 
 	return page;
@@ -1932,7 +1937,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
 	const gfp_t wait = gfp_mask & __GFP_WAIT;
 
 	/* __GFP_HIGH is assumed to be the same as ALLOC_HIGH to save a branch. */
-	BUILD_BUG_ON(__GFP_HIGH != ALLOC_HIGH);
+	BUILD_BUG_ON(__GFP_HIGH != (__force gfp_t) ALLOC_HIGH);
 
 	/*
 	 * The caller may dip into page reserves a bit more if the caller
@@ -1940,7 +1945,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
 	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
 	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
 	 */
-	alloc_flags |= (gfp_mask & __GFP_HIGH);
+	alloc_flags |= (__force int) (gfp_mask & __GFP_HIGH);
 
 	if (!wait) {
 		alloc_flags |= ALLOC_HARDER;
@@ -2095,7 +2100,7 @@ rebalance:
 	pages_reclaimed += did_some_progress;
 	if (should_alloc_retry(gfp_mask, order, pages_reclaimed)) {
 		/* Wait for some write requests to complete then retry */
-		congestion_wait(BLK_RW_ASYNC, HZ/50);
+		wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
 		goto rebalance;
 	}
 
@@ -3008,14 +3013,6 @@ static __init_refok int __build_all_zonelists(void *data)
 		build_zonelist_cache(pgdat);
 	}
 
-#ifdef CONFIG_MEMORY_HOTPLUG
-	/* Setup real pagesets for the new zone */
-	if (data) {
-		struct zone *zone = data;
-		setup_zone_pageset(zone);
-	}
-#endif
-
 	/*
 	 * Initialize the boot_pagesets that are going to be used
 	 * for bootstrapping processors. The real pagesets for
@@ -3064,7 +3061,11 @@ void build_all_zonelists(void *data)
 	} else {
 		/* we have to stop all cpus to guarantee there is no user
 		   of zonelist */
-		stop_machine(__build_all_zonelists, data, NULL);
+#ifdef CONFIG_MEMORY_HOTPLUG
+		if (data)
+			setup_zone_pageset((struct zone *)data);
+#endif
+		stop_machine(__build_all_zonelists, NULL, NULL);
 		/* cpuset refresh routine should be here */
 	}
 	vm_total_pages = nr_free_pagecache_pages();
@@ -5297,12 +5298,65 @@ void set_pageblock_flags_group(struct page *page, unsigned long flags,
  * page allocater never alloc memory from ISOLATE block.
  */
 
+static int
+__count_immobile_pages(struct zone *zone, struct page *page, int count)
+{
+	unsigned long pfn, iter, found;
+	/*
+	 * For avoiding noise data, lru_add_drain_all() should be called
+	 * If ZONE_MOVABLE, the zone never contains immobile pages
+	 */
+	if (zone_idx(zone) == ZONE_MOVABLE)
+		return true;
+
+	if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE)
+		return true;
+
+	pfn = page_to_pfn(page);
+	for (found = 0, iter = 0; iter < pageblock_nr_pages; iter++) {
+		unsigned long check = pfn + iter;
+
+		if (!pfn_valid_within(check)) {
+			iter++;
+			continue;
+		}
+		page = pfn_to_page(check);
+		if (!page_count(page)) {
+			if (PageBuddy(page))
+				iter += (1 << page_order(page)) - 1;
+			continue;
+		}
+		if (!PageLRU(page))
+			found++;
+		/*
+		 * If there are RECLAIMABLE pages, we need to check it.
+		 * But now, memory offline itself doesn't call shrink_slab()
+		 * and it still to be fixed.
+		 */
+		/*
+		 * If the page is not RAM, page_count()should be 0.
+		 * we don't need more check. This is an _used_ not-movable page.
+		 *
+		 * The problematic thing here is PG_reserved pages. PG_reserved
+		 * is set to both of a memory hole page and a _used_ kernel
+		 * page at boot.
+		 */
+		if (found > count)
+			return false;
+	}
+	return true;
+}
+
+bool is_pageblock_removable_nolock(struct page *page)
+{
+	struct zone *zone = page_zone(page);
+	return __count_immobile_pages(zone, page, 0);
+}
+
 int set_migratetype_isolate(struct page *page)
 {
 	struct zone *zone;
-	struct page *curr_page;
-	unsigned long flags, pfn, iter;
-	unsigned long immobile = 0;
+	unsigned long flags, pfn;
 	struct memory_isolate_notify arg;
 	int notifier_ret;
 	int ret = -EBUSY;
@@ -5312,11 +5366,6 @@ int set_migratetype_isolate(struct page *page)
 	zone_idx = zone_idx(zone);
 
 	spin_lock_irqsave(&zone->lock, flags);
-	if (get_pageblock_migratetype(page) == MIGRATE_MOVABLE ||
-	    zone_idx == ZONE_MOVABLE) {
-		ret = 0;
-		goto out;
-	}
 
 	pfn = page_to_pfn(page);
 	arg.start_pfn = pfn;
@@ -5336,22 +5385,19 @@ int set_migratetype_isolate(struct page *page)
 	 */
 	notifier_ret = memory_isolate_notify(MEM_ISOLATE_COUNT, &arg);
 	notifier_ret = notifier_to_errno(notifier_ret);
-	if (notifier_ret || !arg.pages_found)
+	if (notifier_ret)
 		goto out;
-
-	for (iter = pfn; iter < (pfn + pageblock_nr_pages); iter++) {
-		if (!pfn_valid_within(pfn))
-			continue;
-
-		curr_page = pfn_to_page(iter);
-		if (!page_count(curr_page) || PageLRU(curr_page))
-			continue;
-
-		immobile++;
-	}
-
-	if (arg.pages_found == immobile)
+	/*
+	 * FIXME: Now, memory hotplug doesn't call shrink_slab() by itself.
+	 * We just check MOVABLE pages.
+	 */
+	if (__count_immobile_pages(zone, page, arg.pages_found))
 		ret = 0;
+
+	/*
+	 * immobile means "not-on-lru" paes. If immobile is larger than
+	 * removable-by-driver pages reported by notifier, we'll fail.
+	 */
 
 out:
 	if (!ret) {

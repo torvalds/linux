@@ -262,7 +262,7 @@ struct dt9812_usb_cmd {
 
 #define DT9812_NUM_SLOTS	16
 
-static DECLARE_MUTEX(dt9812_mutex);
+static DEFINE_SEMAPHORE(dt9812_mutex);
 
 static const struct usb_device_id dt9812_table[] = {
 	{USB_DEVICE(0x0867, 0x9812)},
@@ -1128,7 +1128,7 @@ static int __init usb_dt9812_init(void)
 
 	/* Initialize all driver slots */
 	for (i = 0; i < DT9812_NUM_SLOTS; i++) {
-		init_MUTEX(&dt9812[i].mutex);
+		sema_init(&dt9812[i].mutex, 1);
 		dt9812[i].serial = 0;
 		dt9812[i].usb = NULL;
 		dt9812[i].comedi = NULL;

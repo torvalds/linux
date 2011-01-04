@@ -507,7 +507,7 @@ static struct omap_mux __initdata omap2420_muxmodes[] = {
  * Balls for 447-pin POP package
  */
 #ifdef CONFIG_DEBUG_FS
-struct omap_ball __initdata omap2420_pop_ball[] = {
+static struct omap_ball __initdata omap2420_pop_ball[] = {
 	_OMAP2420_BALLENTRY(CAM_D0, "y4", NULL),
 	_OMAP2420_BALLENTRY(CAM_D1, "y3", NULL),
 	_OMAP2420_BALLENTRY(CAM_D2, "u7", NULL),

@@ -237,6 +237,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	subs->datainterval = fmt->datainterval;
 	subs->syncpipe = subs->syncinterval = 0;
 	subs->maxpacksize = fmt->maxpacksize;
+	subs->syncmaxsize = 0;
 	subs->fill_max = 0;
 
 	/* we need a sync pipe in async OUT or adaptive IN mode */
@@ -283,6 +284,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 			subs->syncinterval = get_endpoint(alts, 1)->bInterval - 1;
 		else
 			subs->syncinterval = 3;
+		subs->syncmaxsize = le16_to_cpu(get_endpoint(alts, 1)->wMaxPacketSize);
 	}
 
 	/* always fill max packet size */
@@ -466,7 +468,7 @@ static int hw_check_valid_format(struct snd_usb_substream *subs,
 		return 0;
 	}
 	/* check whether the period time is >= the data packet interval */
-	if (snd_usb_get_speed(subs->dev) == USB_SPEED_HIGH) {
+	if (snd_usb_get_speed(subs->dev) != USB_SPEED_FULL) {
 		ptime = 125 * (1 << fp->datainterval);
 		if (ptime > pt->max || (ptime == pt->max && pt->openmax)) {
 			hwc_debug("   > check: ptime %u > max %u\n", ptime, pt->max);
@@ -674,8 +676,10 @@ static int snd_usb_pcm_check_knot(struct snd_pcm_runtime *runtime,
 	if (!needs_knot)
 		return 0;
 
-	subs->rate_list.count = count;
 	subs->rate_list.list = kmalloc(sizeof(int) * count, GFP_KERNEL);
+	if (!subs->rate_list.list)
+		return -ENOMEM;
+	subs->rate_list.count = count;
 	subs->rate_list.mask = 0;
 	count = 0;
 	list_for_each_entry(fp, &subs->fmt_list, list) {
@@ -734,7 +738,7 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 	}
 
 	param_period_time_if_needed = SNDRV_PCM_HW_PARAM_PERIOD_TIME;
-	if (snd_usb_get_speed(subs->dev) != USB_SPEED_HIGH)
+	if (snd_usb_get_speed(subs->dev) == USB_SPEED_FULL)
 		/* full speed devices have fixed data packet interval */
 		ptmin = 1000;
 	if (ptmin == 1000)

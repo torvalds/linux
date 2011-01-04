@@ -40,7 +40,11 @@
 
 #include <linux/pagemap.h>
 #include "nilfs.h"
+#include "export.h"
 
+#define NILFS_FID_SIZE_NON_CONNECTABLE \
+	(offsetof(struct nilfs_fid, parent_gen) / 4)
+#define NILFS_FID_SIZE_CONNECTABLE	(sizeof(struct nilfs_fid) / 4)
 
 static inline int nilfs_add_nondir(struct dentry *dentry, struct inode *inode)
 {
@@ -70,27 +74,11 @@ nilfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	ino = nilfs_inode_by_name(dir, &dentry->d_name);
 	inode = NULL;
 	if (ino) {
-		inode = nilfs_iget(dir->i_sb, ino);
+		inode = nilfs_iget(dir->i_sb, NILFS_I(dir)->i_root, ino);
 		if (IS_ERR(inode))
 			return ERR_CAST(inode);
 	}
 	return d_splice_alias(inode, dentry);
-}
-
-struct dentry *nilfs_get_parent(struct dentry *child)
-{
-	unsigned long ino;
-	struct inode *inode;
-	struct qstr dotdot = {.name = "..", .len = 2};
-
-	ino = nilfs_inode_by_name(child->d_inode, &dotdot);
-	if (!ino)
-		return ERR_PTR(-ENOENT);
-
-	inode = nilfs_iget(child->d_inode->i_sb, ino);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	return d_obtain_alias(inode);
 }
 
 /*
@@ -219,7 +207,7 @@ static int nilfs_link(struct dentry *old_dentry, struct inode *dir,
 
 	inode->i_ctime = CURRENT_TIME;
 	inode_inc_link_count(inode);
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 
 	err = nilfs_add_nondir(dentry, inode);
 	if (!err)
@@ -468,6 +456,115 @@ out:
 	return err;
 }
 
+/*
+ * Export operations
+ */
+static struct dentry *nilfs_get_parent(struct dentry *child)
+{
+	unsigned long ino;
+	struct inode *inode;
+	struct qstr dotdot = {.name = "..", .len = 2};
+	struct nilfs_root *root;
+
+	ino = nilfs_inode_by_name(child->d_inode, &dotdot);
+	if (!ino)
+		return ERR_PTR(-ENOENT);
+
+	root = NILFS_I(child->d_inode)->i_root;
+
+	inode = nilfs_iget(child->d_inode->i_sb, root, ino);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+
+	return d_obtain_alias(inode);
+}
+
+static struct dentry *nilfs_get_dentry(struct super_block *sb, u64 cno,
+				       u64 ino, u32 gen)
+{
+	struct nilfs_root *root;
+	struct inode *inode;
+
+	if (ino < NILFS_FIRST_INO(sb) && ino != NILFS_ROOT_INO)
+		return ERR_PTR(-ESTALE);
+
+	root = nilfs_lookup_root(NILFS_SB(sb)->s_nilfs, cno);
+	if (!root)
+		return ERR_PTR(-ESTALE);
+
+	inode = nilfs_iget(sb, root, ino);
+	nilfs_put_root(root);
+
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+	if (gen && inode->i_generation != gen) {
+		iput(inode);
+		return ERR_PTR(-ESTALE);
+	}
+	return d_obtain_alias(inode);
+}
+
+static struct dentry *nilfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
+					 int fh_len, int fh_type)
+{
+	struct nilfs_fid *fid = (struct nilfs_fid *)fh;
+
+	if ((fh_len != NILFS_FID_SIZE_NON_CONNECTABLE &&
+	     fh_len != NILFS_FID_SIZE_CONNECTABLE) ||
+	    (fh_type != FILEID_NILFS_WITH_PARENT &&
+	     fh_type != FILEID_NILFS_WITHOUT_PARENT))
+		return NULL;
+
+	return nilfs_get_dentry(sb, fid->cno, fid->ino, fid->gen);
+}
+
+static struct dentry *nilfs_fh_to_parent(struct super_block *sb, struct fid *fh,
+					 int fh_len, int fh_type)
+{
+	struct nilfs_fid *fid = (struct nilfs_fid *)fh;
+
+	if (fh_len != NILFS_FID_SIZE_CONNECTABLE ||
+	    fh_type != FILEID_NILFS_WITH_PARENT)
+		return NULL;
+
+	return nilfs_get_dentry(sb, fid->cno, fid->parent_ino, fid->parent_gen);
+}
+
+static int nilfs_encode_fh(struct dentry *dentry, __u32 *fh, int *lenp,
+			   int connectable)
+{
+	struct nilfs_fid *fid = (struct nilfs_fid *)fh;
+	struct inode *inode = dentry->d_inode;
+	struct nilfs_root *root = NILFS_I(inode)->i_root;
+	int type;
+
+	if (*lenp < NILFS_FID_SIZE_NON_CONNECTABLE ||
+	    (connectable && *lenp < NILFS_FID_SIZE_CONNECTABLE))
+		return 255;
+
+	fid->cno = root->cno;
+	fid->ino = inode->i_ino;
+	fid->gen = inode->i_generation;
+
+	if (connectable && !S_ISDIR(inode->i_mode)) {
+		struct inode *parent;
+
+		spin_lock(&dentry->d_lock);
+		parent = dentry->d_parent->d_inode;
+		fid->parent_ino = parent->i_ino;
+		fid->parent_gen = parent->i_generation;
+		spin_unlock(&dentry->d_lock);
+
+		type = FILEID_NILFS_WITH_PARENT;
+		*lenp = NILFS_FID_SIZE_CONNECTABLE;
+	} else {
+		type = FILEID_NILFS_WITHOUT_PARENT;
+		*lenp = NILFS_FID_SIZE_NON_CONNECTABLE;
+	}
+
+	return type;
+}
+
 const struct inode_operations nilfs_dir_inode_operations = {
 	.create		= nilfs_create,
 	.lookup		= nilfs_lookup,
@@ -491,4 +588,12 @@ const struct inode_operations nilfs_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= page_follow_link_light,
 	.put_link	= page_put_link,
+	.permission     = nilfs_permission,
+};
+
+const struct export_operations nilfs_export_ops = {
+	.encode_fh = nilfs_encode_fh,
+	.fh_to_dentry = nilfs_fh_to_dentry,
+	.fh_to_parent = nilfs_fh_to_parent,
+	.get_parent = nilfs_get_parent,
 };

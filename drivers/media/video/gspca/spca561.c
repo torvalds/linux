@@ -315,7 +315,7 @@ static void reg_w_val(struct usb_device *dev, __u16 index, __u8 value)
 			      value, index, NULL, 0, 500);
 	PDEBUG(D_USBO, "reg write: 0x%02x:0x%02x", index, value);
 	if (ret < 0)
-		PDEBUG(D_ERR, "reg write: error %d", ret);
+		err("reg write: error %d", ret);
 }
 
 static void write_vector(struct gspca_dev *gspca_dev,
@@ -787,7 +787,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			return;
 		}
 
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 		if (data[0] & 0x20) {
 			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
 			input_sync(gspca_dev->input_dev);
@@ -1037,7 +1037,7 @@ static const struct sd_desc sd_desc_12a = {
 	.start = sd_start_12a,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	.other_input = 1,
 #endif
 };
@@ -1051,7 +1051,7 @@ static const struct sd_desc sd_desc_72a = {
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	.other_input = 1,
 #endif
 };
@@ -1107,17 +1107,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

@@ -282,7 +282,6 @@ static int Config_FileGetParameter(unsigned char *string,
 				   unsigned char *dest,
 				   unsigned char *source);
 
-//2008-0714<Add>by Mike Liu
 static BOOL device_release_WPADEV(PSDevice pDevice);
 
 static void usb_device_reset(PSDevice pDevice);
@@ -771,10 +770,9 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	udev = usb_get_dev(udev);
 	netdev = alloc_etherdev(sizeof(DEVICE_INFO));
-
 	if (!netdev) {
 		printk(KERN_ERR DEVICE_NAME ": allocate net device failed\n");
-		kfree(pDevice);
+		rc = -ENOMEM;
 		goto err_nomem;
 	}
 
@@ -800,9 +798,7 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	rc = register_netdev(netdev);
 	if (rc) {
 		printk(KERN_ERR DEVICE_NAME " Failed to register netdev\n");
-		free_netdev(netdev);
-		kfree(pDevice);
-		return -ENODEV;
+		goto err_netdev;
 	}
 
 	usb_device_reset(pDevice);
@@ -820,10 +816,12 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	return 0;
 
+err_netdev:
+	free_netdev(netdev);
 err_nomem:
 	usb_put_dev(udev);
 
-	return -ENOMEM;
+	return rc;
 }
 
 static void device_free_tx_bufs(PSDevice pDevice)
@@ -869,7 +867,6 @@ static void device_free_rx_bufs(PSDevice pDevice)
     return;
 }
 
-//2007-1107-02<Add>by MikeLiu
 static void usb_device_reset(PSDevice pDevice)
 {
  int status;
@@ -1091,8 +1088,8 @@ static int  device_open(struct net_device *dev) {
     memcpy(pDevice->dev->dev_addr, pDevice->abyCurrentNetAddr, ETH_ALEN);
     pDevice->bStopTx0Pkt = FALSE;
     pDevice->bStopDataPkt = FALSE;
-    pDevice->bRoaming = FALSE;  //DavidWang
-    pDevice->bIsRoaming = FALSE;//DavidWang
+    pDevice->bRoaming = FALSE;
+    pDevice->bIsRoaming = FALSE;
     pDevice->bEnableRoaming = FALSE;
     if (pDevice->bDiversityRegCtlON) {
         device_init_diversity_timer(pDevice);
@@ -1195,14 +1192,11 @@ static int  device_close(struct net_device *dev) {
   wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, NULL);
 }
 
-//2007-1121-02<Add>by EinsnLiu
     if (pDevice->bLinkPass) {
 	bScheduleCommand((void *) pDevice, WLAN_CMD_DISASSOCIATE, NULL);
         mdelay(30);
     }
-//End Add
 
-//2008-0714-01<Add>by MikeLiu
 device_release_WPADEV(pDevice);
 
         memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
@@ -1236,8 +1230,8 @@ device_release_WPADEV(pDevice);
     tasklet_kill(&pDevice->ReadWorkItem);
     tasklet_kill(&pDevice->EventWorkItem);
 
-   pDevice->bRoaming = FALSE;  //DavidWang
-   pDevice->bIsRoaming = FALSE;//DavidWang
+   pDevice->bRoaming = FALSE;
+   pDevice->bIsRoaming = FALSE;
    pDevice->bEnableRoaming = FALSE;
     pDevice->bCmdRunning = FALSE;
     pDevice->bLinkPass = FALSE;
@@ -1681,13 +1675,14 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 
 		{
 			char essid[IW_ESSID_MAX_SIZE+1];
-			if (wrq->u.essid.pointer)
+			if (wrq->u.essid.pointer) {
 				rc = iwctl_giwessid(dev, NULL,
 						    &(wrq->u.essid), essid);
 				if (copy_to_user(wrq->u.essid.pointer,
 						         essid,
 						         wrq->u.essid.length) )
 					rc = -EFAULT;
+			}
 		}
 		break;
 
@@ -1914,11 +1909,9 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 */
 		break;
 
-
-//2008-0409-07, <Add> by Einsn Liu
 #ifdef  WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 	case SIOCSIWAUTH:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWAUTH \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWAUTH\n");
 		rc = iwctl_siwauth(dev, NULL, &(wrq->u.param), NULL);
 		break;
 
@@ -1970,7 +1963,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 		break;
 
 #endif // #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-//End Add -- //2008-0409-07, <Add> by Einsn Liu
 
     case IOCTL_CMD_TEST:
 

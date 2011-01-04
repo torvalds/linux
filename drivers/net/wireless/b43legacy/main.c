@@ -1623,6 +1623,7 @@ error:
 
 static int b43legacy_upload_microcode(struct b43legacy_wldev *dev)
 {
+	struct wiphy *wiphy = dev->wl->hw->wiphy;
 	const size_t hdr_len = sizeof(struct b43legacy_fw_header);
 	const __be32 *data;
 	unsigned int i;
@@ -1731,6 +1732,10 @@ static int b43legacy_upload_microcode(struct b43legacy_wldev *dev)
 
 	dev->fw.rev = fwrev;
 	dev->fw.patch = fwpatch;
+
+	snprintf(wiphy->fw_version, sizeof(wiphy->fw_version), "%u.%u",
+			dev->fw.rev, dev->fw.patch);
+	wiphy->hw_version = dev->dev->id.coreid;
 
 	return 0;
 

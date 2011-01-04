@@ -29,6 +29,7 @@ static void afs_mntpt_expiry_timed_out(struct work_struct *work);
 
 const struct file_operations afs_mntpt_file_operations = {
 	.open		= afs_mntpt_open,
+	.llseek		= noop_llseek,
 };
 
 const struct inode_operations afs_mntpt_inode_operations = {

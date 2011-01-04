@@ -35,7 +35,6 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/compat.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <asm/atomic.h>
 #include <asm/uaccess.h>
@@ -897,7 +896,8 @@ static const struct file_operations zcrypt_fops = {
 	.compat_ioctl	= zcrypt_compat_ioctl,
 #endif
 	.open		= zcrypt_open,
-	.release	= zcrypt_release
+	.release	= zcrypt_release,
+	.llseek		= no_llseek,
 };
 
 /*

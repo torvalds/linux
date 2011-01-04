@@ -20,7 +20,7 @@
 #include <linux/fd.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/hdreg.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
@@ -222,6 +222,7 @@ extern int swim_read_sector_header(struct swim __iomem *base,
 extern int swim_read_sector_data(struct swim __iomem *base,
 				 unsigned char *data);
 
+static DEFINE_MUTEX(swim_mutex);
 static inline void set_swim_mode(struct swim __iomem *base, int enable)
 {
 	struct iwm __iomem *iwm_base;
@@ -666,9 +667,9 @@ static int floppy_unlocked_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&swim_mutex);
 	ret = floppy_open(bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&swim_mutex);
 
 	return ret;
 }
@@ -678,7 +679,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 	struct floppy_state *fs = disk->private_data;
 	struct swim __iomem *base = fs->swd->base;
 
-	lock_kernel();
+	mutex_lock(&swim_mutex);
 	if (fs->ref_count < 0)
 		fs->ref_count = 0;
 	else if (fs->ref_count > 0)
@@ -686,7 +687,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 
 	if (fs->ref_count == 0)
 		swim_motor(base, OFF);
-	unlock_kernel();
+	mutex_unlock(&swim_mutex);
 
 	return 0;
 }
@@ -704,9 +705,9 @@ static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
 	case FDEJECT:
 		if (fs->ref_count != 1)
 			return -EBUSY;
-		lock_kernel();
+		mutex_lock(&swim_mutex);
 		err = floppy_eject(fs);
-		unlock_kernel();
+		mutex_unlock(&swim_mutex);
 		return err;
 
 	case FDGETPRM:

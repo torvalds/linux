@@ -91,23 +91,10 @@ static inline int compressed_bio_size(struct btrfs_root *root,
 static struct bio *compressed_bio_alloc(struct block_device *bdev,
 					u64 first_byte, gfp_t gfp_flags)
 {
-	struct bio *bio;
 	int nr_vecs;
 
 	nr_vecs = bio_get_nr_vecs(bdev);
-	bio = bio_alloc(gfp_flags, nr_vecs);
-
-	if (bio == NULL && (current->flags & PF_MEMALLOC)) {
-		while (!bio && (nr_vecs /= 2))
-			bio = bio_alloc(gfp_flags, nr_vecs);
-	}
-
-	if (bio) {
-		bio->bi_size = 0;
-		bio->bi_bdev = bdev;
-		bio->bi_sector = first_byte >> 9;
-	}
-	return bio;
+	return btrfs_bio_alloc(bdev, first_byte >> 9, nr_vecs, gfp_flags);
 }
 
 static int check_compressed_csum(struct inode *inode,
@@ -163,7 +150,6 @@ fail:
  */
 static void end_compressed_bio_read(struct bio *bio, int err)
 {
-	struct extent_io_tree *tree;
 	struct compressed_bio *cb = bio->bi_private;
 	struct inode *inode;
 	struct page *page;
@@ -187,7 +173,6 @@ static void end_compressed_bio_read(struct bio *bio, int err)
 	/* ok, we're the last bio for this extent, lets start
 	 * the decompression.
 	 */
-	tree = &BTRFS_I(inode)->io_tree;
 	ret = btrfs_zlib_decompress_biovec(cb->compressed_pages,
 					cb->start,
 					cb->orig_bio->bi_io_vec,

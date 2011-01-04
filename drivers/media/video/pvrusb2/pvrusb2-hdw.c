@@ -2082,29 +2082,20 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 		return -EINVAL;
 	}
 
-	/* Note how the 2nd and 3rd arguments are the same for
-	 * v4l2_i2c_new_subdev().  Why?
-	 * Well the 2nd argument is the module name to load, while the 3rd
-	 * argument is documented in the framework as being the "chipid" -
-	 * and every other place where I can find examples of this, the
-	 * "chipid" appears to just be the module name again.  So here we
-	 * just do the same thing. */
 	if (i2ccnt == 1) {
 		pvr2_trace(PVR2_TRACE_INIT,
 			   "Module ID %u:"
 			   " Setting up with specified i2c address 0x%x",
 			   mid, i2caddr[0]);
 		sd = v4l2_i2c_new_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
-					 fname, fname,
-					 i2caddr[0], NULL);
+					 fname, i2caddr[0], NULL);
 	} else {
 		pvr2_trace(PVR2_TRACE_INIT,
 			   "Module ID %u:"
 			   " Setting up with address probe list",
 			   mid);
 		sd = v4l2_i2c_new_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
-						fname, fname,
-						0, i2caddr);
+					 fname, 0, i2caddr);
 	}
 
 	if (!sd) {

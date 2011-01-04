@@ -184,7 +184,7 @@ struct acpi_device_pnp {
 
 #define acpi_device_bid(d)	((d)->pnp.bus_id)
 #define acpi_device_adr(d)	((d)->pnp.bus_address)
-char *acpi_device_hid(struct acpi_device *device);
+const char *acpi_device_hid(struct acpi_device *device);
 #define acpi_device_name(d)	((d)->pnp.device_name)
 #define acpi_device_class(d)	((d)->pnp.device_class)
 
@@ -389,21 +389,25 @@ struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle);
 int acpi_enable_wakeup_device_power(struct acpi_device *dev, int state);
 int acpi_disable_wakeup_device_power(struct acpi_device *dev);
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_OPS
 int acpi_pm_device_sleep_state(struct device *, int *);
-int acpi_pm_device_sleep_wake(struct device *, bool);
-#else /* !CONFIG_PM_SLEEP */
+#else
 static inline int acpi_pm_device_sleep_state(struct device *d, int *p)
 {
 	if (p)
 		*p = ACPI_STATE_D0;
 	return ACPI_STATE_D3;
 }
+#endif
+
+#ifdef CONFIG_PM_SLEEP
+int acpi_pm_device_sleep_wake(struct device *, bool);
+#else
 static inline int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 {
 	return -ENODEV;
 }
-#endif /* !CONFIG_PM_SLEEP */
+#endif
 
 #endif				/* CONFIG_ACPI */
 

@@ -2,6 +2,7 @@
  * kirkwood-i2s.c
  *
  * (c) 2010 Arnaud Patard <apatard@mandriva.com>
+ * (c) 2010 Arnaud Patard <arnaud.patard@rtp-net.org>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -20,7 +21,6 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <plat/audio.h>
-#include "kirkwood-i2s.h"
 #include "kirkwood.h"
 
 #define DRV_NAME	"kirkwood-i2s"
@@ -33,13 +33,10 @@
 	 SNDRV_PCM_FMTBIT_S24_LE | \
 	 SNDRV_PCM_FMTBIT_S32_LE)
 
-
-struct snd_soc_dai kirkwood_i2s_dai;
-static struct kirkwood_dma_data *priv;
-
 static int kirkwood_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		unsigned int fmt)
 {
+	struct kirkwood_dma_data *priv = snd_soc_dai_get_drvdata(cpu_dai);
 	unsigned long mask;
 	unsigned long value;
 
@@ -101,10 +98,20 @@ static inline void kirkwood_set_dco(void __iomem *io, unsigned long rate)
 	} while (value == 0);
 }
 
+static int kirkwood_i2s_startup(struct snd_pcm_substream *substream,
+		struct snd_soc_dai *dai)
+{
+	struct kirkwood_dma_data *priv = snd_soc_dai_get_drvdata(dai);
+
+	snd_soc_dai_set_dma_data(dai, substream, priv);
+	return 0;
+}
+
 static int kirkwood_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
+	struct kirkwood_dma_data *priv = snd_soc_dai_get_drvdata(dai);
 	unsigned int i2s_reg, reg;
 	unsigned long i2s_value, value;
 
@@ -171,6 +178,7 @@ static int kirkwood_i2s_hw_params(struct snd_pcm_substream *substream,
 static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
 {
+	struct kirkwood_dma_data *priv = snd_soc_dai_get_drvdata(dai);
 	unsigned long value;
 
 	/*
@@ -244,6 +252,7 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 static int kirkwood_i2s_rec_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
 {
+	struct kirkwood_dma_data *priv = snd_soc_dai_get_drvdata(dai);
 	unsigned long value;
 
 	value = readl(priv->io + KIRKWOOD_RECCTL);
@@ -323,9 +332,9 @@ static int kirkwood_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
-static int kirkwood_i2s_probe(struct platform_device *pdev,
-			     struct snd_soc_dai *dai)
+static int kirkwood_i2s_probe(struct snd_soc_dai *dai)
 {
+	struct kirkwood_dma_data *priv = snd_soc_dai_get_drvdata(dai);
 	unsigned long value;
 	unsigned int reg_data;
 
@@ -359,21 +368,20 @@ static int kirkwood_i2s_probe(struct platform_device *pdev,
 
 }
 
-static void kirkwood_i2s_remove(struct platform_device *pdev,
-				struct snd_soc_dai *dai)
+static int kirkwood_i2s_remove(struct snd_soc_dai *dai)
 {
+	return 0;
 }
 
 static struct snd_soc_dai_ops kirkwood_i2s_dai_ops = {
+	.startup	= kirkwood_i2s_startup,
 	.trigger	= kirkwood_i2s_trigger,
 	.hw_params      = kirkwood_i2s_hw_params,
 	.set_fmt        = kirkwood_i2s_set_fmt,
 };
 
 
-struct snd_soc_dai kirkwood_i2s_dai = {
-	.name = DRV_NAME,
-	.id = 0,
+static struct snd_soc_dai_driver kirkwood_i2s_dai = {
 	.probe = kirkwood_i2s_probe,
 	.remove = kirkwood_i2s_remove,
 	.playback = {
@@ -388,13 +396,13 @@ struct snd_soc_dai kirkwood_i2s_dai = {
 		.formats = KIRKWOOD_I2S_FORMATS,},
 	.ops = &kirkwood_i2s_dai_ops,
 };
-EXPORT_SYMBOL_GPL(kirkwood_i2s_dai);
 
 static __devinit int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
 	struct kirkwood_asoc_platform_data *data =
 		pdev->dev.platform_data;
+	struct kirkwood_dma_data *priv;
 	int err;
 
 	priv = kzalloc(sizeof(struct kirkwood_dma_data), GFP_KERNEL);
@@ -403,6 +411,7 @@ static __devinit int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 		err = -ENOMEM;
 		goto error;
 	}
+	dev_set_drvdata(&pdev->dev, priv);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
@@ -441,10 +450,7 @@ static __devinit int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 	priv->dram = data->dram;
 	priv->burst = data->burst;
 
-	kirkwood_i2s_dai.capture.dma_data = priv;
-	kirkwood_i2s_dai.playback.dma_data = priv;
-
-	return snd_soc_register_dai(&kirkwood_i2s_dai);
+	return snd_soc_register_dai(&pdev->dev, &kirkwood_i2s_dai);
 
 err_ioremap:
 	iounmap(priv->io);
@@ -458,12 +464,13 @@ error:
 
 static __devexit int kirkwood_i2s_dev_remove(struct platform_device *pdev)
 {
-	if (priv) {
-		iounmap(priv->io);
-		release_mem_region(priv->mem->start, SZ_16K);
-		kfree(priv);
-	}
-	snd_soc_unregister_dai(&kirkwood_i2s_dai);
+	struct kirkwood_dma_data *priv = dev_get_drvdata(&pdev->dev);
+
+	snd_soc_unregister_dai(&pdev->dev);
+	iounmap(priv->io);
+	release_mem_region(priv->mem->start, SZ_16K);
+	kfree(priv);
+
 	return 0;
 }
 
@@ -489,7 +496,7 @@ static void __exit kirkwood_i2s_exit(void)
 module_exit(kirkwood_i2s_exit);
 
 /* Module information */
-MODULE_AUTHOR("Arnaud Patard, <apatard@mandriva.com>");
+MODULE_AUTHOR("Arnaud Patard, <arnaud.patard@rtp-net.org>");
 MODULE_DESCRIPTION("Kirkwood I2S SoC Interface");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:kirkwood-i2s");

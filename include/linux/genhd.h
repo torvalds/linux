@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/kdev_t.h>
 #include <linux/rcupdate.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_BLOCK
 
@@ -86,7 +87,15 @@ struct disk_stats {
 	unsigned long io_ticks;
 	unsigned long time_in_queue;
 };
-	
+
+#define PARTITION_META_INFO_VOLNAMELTH	64
+#define PARTITION_META_INFO_UUIDLTH	16
+
+struct partition_meta_info {
+	u8 uuid[PARTITION_META_INFO_UUIDLTH];	/* always big endian */
+	u8 volname[PARTITION_META_INFO_VOLNAMELTH];
+};
+
 struct hd_struct {
 	sector_t start_sect;
 	sector_t nr_sects;
@@ -95,6 +104,7 @@ struct hd_struct {
 	struct device __dev;
 	struct kobject *holder_dir;
 	int policy, partno;
+	struct partition_meta_info *info;
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	int make_it_fail;
 #endif
@@ -179,6 +189,30 @@ static inline struct gendisk *part_to_disk(struct hd_struct *part)
 			return dev_to_disk(part_to_dev(part));
 	}
 	return NULL;
+}
+
+static inline void part_pack_uuid(const u8 *uuid_str, u8 *to)
+{
+	int i;
+	for (i = 0; i < 16; ++i) {
+		*to++ = (hex_to_bin(*uuid_str) << 4) |
+			(hex_to_bin(*(uuid_str + 1)));
+		uuid_str += 2;
+		switch (i) {
+		case 3:
+		case 5:
+		case 7:
+		case 9:
+			uuid_str++;
+			continue;
+		}
+	}
+}
+
+static inline char *part_unpack_uuid(const u8 *uuid, char *out)
+{
+	sprintf(out, "%pU", uuid);
+	return out;
 }
 
 static inline int disk_max_parts(struct gendisk *disk)
@@ -340,6 +374,19 @@ static inline void part_dec_in_flight(struct hd_struct *part, int rw)
 static inline int part_in_flight(struct hd_struct *part)
 {
 	return part->in_flight[0] + part->in_flight[1];
+}
+
+static inline struct partition_meta_info *alloc_part_info(struct gendisk *disk)
+{
+	if (disk)
+		return kzalloc_node(sizeof(struct partition_meta_info),
+				    GFP_KERNEL, disk->node_id);
+	return kzalloc(sizeof(struct partition_meta_info), GFP_KERNEL);
+}
+
+static inline void free_part_info(struct hd_struct *part)
+{
+	kfree(part->info);
 }
 
 /* block/blk-core.c */
@@ -533,7 +580,9 @@ extern int disk_expand_part_tbl(struct gendisk *disk, int target);
 extern int rescan_partitions(struct gendisk *disk, struct block_device *bdev);
 extern struct hd_struct * __must_check add_partition(struct gendisk *disk,
 						     int partno, sector_t start,
-						     sector_t len, int flags);
+						     sector_t len, int flags,
+						     struct partition_meta_info
+						       *info);
 extern void delete_partition(struct gendisk *, int);
 extern void printk_all_partitions(void);
 

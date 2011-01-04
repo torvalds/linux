@@ -44,7 +44,7 @@ MODULE_DEVICE_TABLE(of, ulite_of_match);
  * Register definitions
  *
  * For register details see datasheet:
- * http://www.xilinx.com/bvdocs/ipcenter/data_sheet/opb_uartlite.pdf
+ * http://www.xilinx.com/support/documentation/ip_documentation/opb_uartlite.pdf 
  */
 
 #define ULITE_RX		0x00
@@ -322,6 +322,26 @@ static int ulite_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return -EINVAL;
 }
 
+#ifdef CONFIG_CONSOLE_POLL
+static int ulite_get_poll_char(struct uart_port *port)
+{
+	if (!(ioread32be(port->membase + ULITE_STATUS)
+						& ULITE_STATUS_RXVALID))
+		return NO_POLL_CHAR;
+
+	return ioread32be(port->membase + ULITE_RX);
+}
+
+static void ulite_put_poll_char(struct uart_port *port, unsigned char ch)
+{
+	while (ioread32be(port->membase + ULITE_STATUS) & ULITE_STATUS_TXFULL)
+		cpu_relax();
+
+	/* write char to device */
+	iowrite32be(ch, port->membase + ULITE_TX);
+}
+#endif
+
 static struct uart_ops ulite_ops = {
 	.tx_empty	= ulite_tx_empty,
 	.set_mctrl	= ulite_set_mctrl,
@@ -338,7 +358,11 @@ static struct uart_ops ulite_ops = {
 	.release_port	= ulite_release_port,
 	.request_port	= ulite_request_port,
 	.config_port	= ulite_config_port,
-	.verify_port	= ulite_verify_port
+	.verify_port	= ulite_verify_port,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char	= ulite_get_poll_char,
+	.poll_put_char	= ulite_put_poll_char,
+#endif
 };
 
 /* ---------------------------------------------------------------------

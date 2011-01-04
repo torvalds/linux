@@ -73,6 +73,8 @@
  *				being removable.
  *	->cdrom		Flag specifying that LUN shall be reported as
  *				being a CD-ROM.
+ *	->nofua		Flag specifying that FUA flag in SCSI WRITE(10,12)
+ *				commands for this LUN shall be ignored.
  *
  *	lun_name_format	A printf-like format for names of the LUN
  *				devices.  This determines how the
@@ -127,6 +129,8 @@
  *			Default true, boolean for removable media.
  *	cdrom=b[,b...]	Default false, boolean for whether to emulate
  *				a CD-ROM drive.
+ *	nofua=b[,b...]	Default false, booleans for ignore FUA flag
+ *				in SCSI WRITE(10,12) commands
  *	luns=N		Default N = number of filenames, number of
  *				LUNs to support.
  *	stall		Default determined according to the type of
@@ -409,6 +413,7 @@ struct fsg_config {
 		char ro;
 		char removable;
 		char cdrom;
+		char nofua;
 	} luns[FSG_MAX_LUNS];
 
 	const char		*lun_name_format;
@@ -736,7 +741,7 @@ static int do_read(struct fsg_common *common)
 
 	/* Get the starting Logical Block Address and check that it's
 	 * not too big */
-	if (common->cmnd[0] == SC_READ_6)
+	if (common->cmnd[0] == READ_6)
 		lba = get_unaligned_be24(&common->cmnd[1]);
 	else {
 		lba = get_unaligned_be32(&common->cmnd[2]);
@@ -874,7 +879,7 @@ static int do_write(struct fsg_common *common)
 
 	/* Get the starting Logical Block Address and check that it's
 	 * not too big */
-	if (common->cmnd[0] == SC_WRITE_6)
+	if (common->cmnd[0] == WRITE_6)
 		lba = get_unaligned_be24(&common->cmnd[1]);
 	else {
 		lba = get_unaligned_be32(&common->cmnd[2]);
@@ -887,7 +892,7 @@ static int do_write(struct fsg_common *common)
 			curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 			return -EINVAL;
 		}
-		if (common->cmnd[1] & 0x08) {	/* FUA */
+		if (!curlun->nofua && (common->cmnd[1] & 0x08)) { /* FUA */
 			spin_lock(&curlun->filp->f_lock);
 			curlun->filp->f_flags |= O_SYNC;
 			spin_unlock(&curlun->filp->f_lock);
@@ -1181,7 +1186,7 @@ static int do_inquiry(struct fsg_common *common, struct fsg_buffhd *bh)
 		return 36;
 	}
 
-	buf[0] = curlun->cdrom ? TYPE_CDROM : TYPE_DISK;
+	buf[0] = curlun->cdrom ? TYPE_ROM : TYPE_DISK;
 	buf[1] = curlun->removable ? 0x80 : 0;
 	buf[2] = 2;		/* ANSI SCSI level 2 */
 	buf[3] = 2;		/* SCSI-2 INQUIRY data format */
@@ -1348,11 +1353,11 @@ static int do_mode_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 	 * The only variable value is the WriteProtect bit.  We will fill in
 	 * the mode data length later. */
 	memset(buf, 0, 8);
-	if (mscmnd == SC_MODE_SENSE_6) {
+	if (mscmnd == MODE_SENSE) {
 		buf[2] = (curlun->ro ? 0x80 : 0x00);		/* WP, DPOFUA */
 		buf += 4;
 		limit = 255;
-	} else {			/* SC_MODE_SENSE_10 */
+	} else {			/* MODE_SENSE_10 */
 		buf[3] = (curlun->ro ? 0x80 : 0x00);		/* WP, DPOFUA */
 		buf += 8;
 		limit = 65535;		/* Should really be FSG_BUFLEN */
@@ -1392,7 +1397,7 @@ static int do_mode_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 	}
 
 	/*  Store the mode data length */
-	if (mscmnd == SC_MODE_SENSE_6)
+	if (mscmnd == MODE_SENSE)
 		buf0[0] = len - 1;
 	else
 		put_unaligned_be16(len - 2, buf0);
@@ -1881,7 +1886,7 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 	if (common->lun >= 0 && common->lun < common->nluns) {
 		curlun = &common->luns[common->lun];
 		common->curlun = curlun;
-		if (common->cmnd[0] != SC_REQUEST_SENSE) {
+		if (common->cmnd[0] != REQUEST_SENSE) {
 			curlun->sense_data = SS_NO_SENSE;
 			curlun->sense_data_info = 0;
 			curlun->info_valid = 0;
@@ -1893,8 +1898,8 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 
 		/* INQUIRY and REQUEST SENSE commands are explicitly allowed
 		 * to use unsupported LUNs; all others may not. */
-		if (common->cmnd[0] != SC_INQUIRY &&
-		    common->cmnd[0] != SC_REQUEST_SENSE) {
+		if (common->cmnd[0] != INQUIRY &&
+		    common->cmnd[0] != REQUEST_SENSE) {
 			DBG(common, "unsupported LUN %d\n", common->lun);
 			return -EINVAL;
 		}
@@ -1903,8 +1908,8 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 	/* If a unit attention condition exists, only INQUIRY and
 	 * REQUEST SENSE commands are allowed; anything else must fail. */
 	if (curlun && curlun->unit_attention_data != SS_NO_SENSE &&
-			common->cmnd[0] != SC_INQUIRY &&
-			common->cmnd[0] != SC_REQUEST_SENSE) {
+			common->cmnd[0] != INQUIRY &&
+			common->cmnd[0] != REQUEST_SENSE) {
 		curlun->sense_data = curlun->unit_attention_data;
 		curlun->unit_attention_data = SS_NO_SENSE;
 		return -EINVAL;
@@ -1955,7 +1960,7 @@ static int do_scsi_command(struct fsg_common *common)
 	down_read(&common->filesem);	/* We're using the backing file */
 	switch (common->cmnd[0]) {
 
-	case SC_INQUIRY:
+	case INQUIRY:
 		common->data_size_from_cmnd = common->cmnd[4];
 		reply = check_command(common, 6, DATA_DIR_TO_HOST,
 				      (1<<4), 0,
@@ -1964,7 +1969,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_inquiry(common, bh);
 		break;
 
-	case SC_MODE_SELECT_6:
+	case MODE_SELECT:
 		common->data_size_from_cmnd = common->cmnd[4];
 		reply = check_command(common, 6, DATA_DIR_FROM_HOST,
 				      (1<<1) | (1<<4), 0,
@@ -1973,7 +1978,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_mode_select(common, bh);
 		break;
 
-	case SC_MODE_SELECT_10:
+	case MODE_SELECT_10:
 		common->data_size_from_cmnd =
 			get_unaligned_be16(&common->cmnd[7]);
 		reply = check_command(common, 10, DATA_DIR_FROM_HOST,
@@ -1983,7 +1988,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_mode_select(common, bh);
 		break;
 
-	case SC_MODE_SENSE_6:
+	case MODE_SENSE:
 		common->data_size_from_cmnd = common->cmnd[4];
 		reply = check_command(common, 6, DATA_DIR_TO_HOST,
 				      (1<<1) | (1<<2) | (1<<4), 0,
@@ -1992,7 +1997,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_mode_sense(common, bh);
 		break;
 
-	case SC_MODE_SENSE_10:
+	case MODE_SENSE_10:
 		common->data_size_from_cmnd =
 			get_unaligned_be16(&common->cmnd[7]);
 		reply = check_command(common, 10, DATA_DIR_TO_HOST,
@@ -2002,7 +2007,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_mode_sense(common, bh);
 		break;
 
-	case SC_PREVENT_ALLOW_MEDIUM_REMOVAL:
+	case ALLOW_MEDIUM_REMOVAL:
 		common->data_size_from_cmnd = 0;
 		reply = check_command(common, 6, DATA_DIR_NONE,
 				      (1<<4), 0,
@@ -2011,7 +2016,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_prevent_allow(common);
 		break;
 
-	case SC_READ_6:
+	case READ_6:
 		i = common->cmnd[4];
 		common->data_size_from_cmnd = (i == 0 ? 256 : i) << 9;
 		reply = check_command(common, 6, DATA_DIR_TO_HOST,
@@ -2021,7 +2026,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_read(common);
 		break;
 
-	case SC_READ_10:
+	case READ_10:
 		common->data_size_from_cmnd =
 				get_unaligned_be16(&common->cmnd[7]) << 9;
 		reply = check_command(common, 10, DATA_DIR_TO_HOST,
@@ -2031,7 +2036,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_read(common);
 		break;
 
-	case SC_READ_12:
+	case READ_12:
 		common->data_size_from_cmnd =
 				get_unaligned_be32(&common->cmnd[6]) << 9;
 		reply = check_command(common, 12, DATA_DIR_TO_HOST,
@@ -2041,7 +2046,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_read(common);
 		break;
 
-	case SC_READ_CAPACITY:
+	case READ_CAPACITY:
 		common->data_size_from_cmnd = 8;
 		reply = check_command(common, 10, DATA_DIR_TO_HOST,
 				      (0xf<<2) | (1<<8), 1,
@@ -2050,7 +2055,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_read_capacity(common, bh);
 		break;
 
-	case SC_READ_HEADER:
+	case READ_HEADER:
 		if (!common->curlun || !common->curlun->cdrom)
 			goto unknown_cmnd;
 		common->data_size_from_cmnd =
@@ -2062,7 +2067,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_read_header(common, bh);
 		break;
 
-	case SC_READ_TOC:
+	case READ_TOC:
 		if (!common->curlun || !common->curlun->cdrom)
 			goto unknown_cmnd;
 		common->data_size_from_cmnd =
@@ -2074,7 +2079,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_read_toc(common, bh);
 		break;
 
-	case SC_READ_FORMAT_CAPACITIES:
+	case READ_FORMAT_CAPACITIES:
 		common->data_size_from_cmnd =
 			get_unaligned_be16(&common->cmnd[7]);
 		reply = check_command(common, 10, DATA_DIR_TO_HOST,
@@ -2084,7 +2089,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_read_format_capacities(common, bh);
 		break;
 
-	case SC_REQUEST_SENSE:
+	case REQUEST_SENSE:
 		common->data_size_from_cmnd = common->cmnd[4];
 		reply = check_command(common, 6, DATA_DIR_TO_HOST,
 				      (1<<4), 0,
@@ -2093,7 +2098,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_request_sense(common, bh);
 		break;
 
-	case SC_START_STOP_UNIT:
+	case START_STOP:
 		common->data_size_from_cmnd = 0;
 		reply = check_command(common, 6, DATA_DIR_NONE,
 				      (1<<1) | (1<<4), 0,
@@ -2102,7 +2107,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_start_stop(common);
 		break;
 
-	case SC_SYNCHRONIZE_CACHE:
+	case SYNCHRONIZE_CACHE:
 		common->data_size_from_cmnd = 0;
 		reply = check_command(common, 10, DATA_DIR_NONE,
 				      (0xf<<2) | (3<<7), 1,
@@ -2111,7 +2116,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_synchronize_cache(common);
 		break;
 
-	case SC_TEST_UNIT_READY:
+	case TEST_UNIT_READY:
 		common->data_size_from_cmnd = 0;
 		reply = check_command(common, 6, DATA_DIR_NONE,
 				0, 1,
@@ -2120,7 +2125,7 @@ static int do_scsi_command(struct fsg_common *common)
 
 	/* Although optional, this command is used by MS-Windows.  We
 	 * support a minimal version: BytChk must be 0. */
-	case SC_VERIFY:
+	case VERIFY:
 		common->data_size_from_cmnd = 0;
 		reply = check_command(common, 10, DATA_DIR_NONE,
 				      (1<<1) | (0xf<<2) | (3<<7), 1,
@@ -2129,7 +2134,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_verify(common);
 		break;
 
-	case SC_WRITE_6:
+	case WRITE_6:
 		i = common->cmnd[4];
 		common->data_size_from_cmnd = (i == 0 ? 256 : i) << 9;
 		reply = check_command(common, 6, DATA_DIR_FROM_HOST,
@@ -2139,7 +2144,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_write(common);
 		break;
 
-	case SC_WRITE_10:
+	case WRITE_10:
 		common->data_size_from_cmnd =
 				get_unaligned_be16(&common->cmnd[7]) << 9;
 		reply = check_command(common, 10, DATA_DIR_FROM_HOST,
@@ -2149,7 +2154,7 @@ static int do_scsi_command(struct fsg_common *common)
 			reply = do_write(common);
 		break;
 
-	case SC_WRITE_12:
+	case WRITE_12:
 		common->data_size_from_cmnd =
 				get_unaligned_be32(&common->cmnd[6]) << 9;
 		reply = check_command(common, 12, DATA_DIR_FROM_HOST,
@@ -2163,10 +2168,10 @@ static int do_scsi_command(struct fsg_common *common)
 	 * They don't mean much in this setting.  It's left as an exercise
 	 * for anyone interested to implement RESERVE and RELEASE in terms
 	 * of Posix locks. */
-	case SC_FORMAT_UNIT:
-	case SC_RELEASE:
-	case SC_RESERVE:
-	case SC_SEND_DIAGNOSTIC:
+	case FORMAT_UNIT:
+	case RELEASE:
+	case RESERVE:
+	case SEND_DIAGNOSTIC:
 		/* Fall through */
 
 	default:
@@ -2662,6 +2667,7 @@ static int fsg_main_thread(void *common_)
 
 /* Write permission is checked per LUN in store_*() functions. */
 static DEVICE_ATTR(ro, 0644, fsg_show_ro, fsg_store_ro);
+static DEVICE_ATTR(nofua, 0644, fsg_show_nofua, fsg_store_nofua);
 static DEVICE_ATTR(file, 0644, fsg_show_file, fsg_store_file);
 
 
@@ -2766,6 +2772,9 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 		if (rc)
 			goto error_luns;
 		rc = device_create_file(&curlun->dev, &dev_attr_file);
+		if (rc)
+			goto error_luns;
+		rc = device_create_file(&curlun->dev, &dev_attr_nofua);
 		if (rc)
 			goto error_luns;
 
@@ -2911,6 +2920,7 @@ static void fsg_common_release(struct kref *ref)
 
 		/* In error recovery common->nluns may be zero. */
 		for (; i; --i, ++lun) {
+			device_remove_file(&lun->dev, &dev_attr_nofua);
 			device_remove_file(&lun->dev, &dev_attr_ro);
 			device_remove_file(&lun->dev, &dev_attr_file);
 			fsg_lun_close(lun);
@@ -3069,8 +3079,10 @@ struct fsg_module_parameters {
 	int		ro[FSG_MAX_LUNS];
 	int		removable[FSG_MAX_LUNS];
 	int		cdrom[FSG_MAX_LUNS];
+	int		nofua[FSG_MAX_LUNS];
 
 	unsigned int	file_count, ro_count, removable_count, cdrom_count;
+	unsigned int	nofua_count;
 	unsigned int	luns;	/* nluns */
 	int		stall;	/* can_stall */
 };
@@ -3096,6 +3108,8 @@ struct fsg_module_parameters {
 				"true to simulate removable media");	\
 	_FSG_MODULE_PARAM_ARRAY(prefix, params, cdrom, bool,		\
 				"true to simulate CD-ROM instead of disk"); \
+	_FSG_MODULE_PARAM_ARRAY(prefix, params, nofua, bool,		\
+				"true to ignore SCSI WRITE(10,12) FUA bit"); \
 	_FSG_MODULE_PARAM(prefix, params, luns, uint,			\
 			  "number of LUNs");				\
 	_FSG_MODULE_PARAM(prefix, params, stall, bool,			\

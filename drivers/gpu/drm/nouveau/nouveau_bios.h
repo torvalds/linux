@@ -34,6 +34,20 @@
 
 #define DCB_LOC_ON_CHIP 0
 
+#define ROM16(x) le16_to_cpu(*(uint16_t *)&(x))
+#define ROM32(x) le32_to_cpu(*(uint32_t *)&(x))
+#define ROMPTR(bios, x) (ROM16(x) ? &(bios)->data[ROM16(x)] : NULL)
+
+struct bit_entry {
+	uint8_t  id;
+	uint8_t  version;
+	uint16_t length;
+	uint16_t offset;
+	uint8_t *data;
+};
+
+int bit_table(struct drm_device *, u8 id, struct bit_entry *);
+
 struct dcb_i2c_entry {
 	uint32_t entry;
 	uint8_t port_type;
@@ -170,16 +184,28 @@ enum LVDS_script {
 	LVDS_PANEL_OFF
 };
 
-/* changing these requires matching changes to reg tables in nv_get_clock */
-#define MAX_PLL_TYPES	4
+/* these match types in pll limits table version 0x40,
+ * nouveau uses them on all chipsets internally where a
+ * specific pll needs to be referenced, but the exact
+ * register isn't known.
+ */
 enum pll_types {
-	NVPLL,
-	MPLL,
-	VPLL1,
-	VPLL2
+	PLL_CORE   = 0x01,
+	PLL_SHADER = 0x02,
+	PLL_UNK03  = 0x03,
+	PLL_MEMORY = 0x04,
+	PLL_UNK05  = 0x05,
+	PLL_UNK40  = 0x40,
+	PLL_UNK41  = 0x41,
+	PLL_UNK42  = 0x42,
+	PLL_VPLL0  = 0x80,
+	PLL_VPLL1  = 0x81,
+	PLL_MAX    = 0xff
 };
 
 struct pll_lims {
+	u32 reg;
+
 	struct {
 		int minfreq;
 		int maxfreq;
@@ -212,6 +238,11 @@ struct pll_lims {
 
 struct nvbios {
 	struct drm_device *dev;
+	enum {
+		NVBIOS_BMP,
+		NVBIOS_BIT
+	} type;
+	uint16_t offset;
 
 	uint8_t chip_version;
 

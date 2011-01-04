@@ -61,10 +61,10 @@ static inline void samsung_irda_dev_trace(struct hid_device *hdev,
 			"descriptor\n", rsize);
 }
 
-static void samsung_irda_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int rsize)
+static __u8 *samsung_irda_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
 {
-	if (rsize == 184 && rdesc[175] == 0x25 && rdesc[176] == 0x40 &&
+	if (*rsize == 184 && rdesc[175] == 0x25 && rdesc[176] == 0x40 &&
 			rdesc[177] == 0x75 && rdesc[178] == 0x30 &&
 			rdesc[179] == 0x95 && rdesc[180] == 0x01 &&
 			rdesc[182] == 0x40) {
@@ -74,24 +74,25 @@ static void samsung_irda_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		rdesc[180] = 0x06;
 		rdesc[182] = 0x42;
 	} else
-	if (rsize == 203 && rdesc[192] == 0x15 && rdesc[193] == 0x0 &&
+	if (*rsize == 203 && rdesc[192] == 0x15 && rdesc[193] == 0x0 &&
 			rdesc[194] == 0x25 && rdesc[195] == 0x12) {
 		samsung_irda_dev_trace(hdev, 203);
 		rdesc[193] = 0x1;
 		rdesc[195] = 0xf;
 	} else
-	if (rsize == 135 && rdesc[124] == 0x15 && rdesc[125] == 0x0 &&
+	if (*rsize == 135 && rdesc[124] == 0x15 && rdesc[125] == 0x0 &&
 			rdesc[126] == 0x25 && rdesc[127] == 0x11) {
 		samsung_irda_dev_trace(hdev, 135);
 		rdesc[125] = 0x1;
 		rdesc[127] = 0xe;
 	} else
-	if (rsize == 171 && rdesc[160] == 0x15 && rdesc[161] == 0x0 &&
+	if (*rsize == 171 && rdesc[160] == 0x15 && rdesc[161] == 0x0 &&
 			rdesc[162] == 0x25 && rdesc[163] == 0x01) {
 		samsung_irda_dev_trace(hdev, 171);
 		rdesc[161] = 0x1;
 		rdesc[163] = 0x3;
 	}
+	return rdesc;
 }
 
 #define samsung_kbd_mouse_map_key_clear(c) \
@@ -130,11 +131,12 @@ static int samsung_kbd_mouse_input_mapping(struct hid_device *hdev,
 	return 1;
 }
 
-static void samsung_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-	unsigned int rsize)
+static __u8 *samsung_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+	unsigned int *rsize)
 {
 	if (USB_DEVICE_ID_SAMSUNG_IR_REMOTE == hdev->product)
-		samsung_irda_report_fixup(hdev, rdesc, rsize);
+		rdesc = samsung_irda_report_fixup(hdev, rdesc, rsize);
+	return rdesc;
 }
 
 static int samsung_input_mapping(struct hid_device *hdev, struct hid_input *hi,

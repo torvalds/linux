@@ -92,7 +92,11 @@ static int fanotify_get_response_from_access(struct fsnotify_group *group,
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
-	wait_event(group->fanotify_data.access_waitq, event->response);
+	wait_event(group->fanotify_data.access_waitq, event->response ||
+				atomic_read(&group->fanotify_data.bypass_perm));
+
+	if (!event->response) /* bypass_perm set */
+		return 0;
 
 	/* userspace responded, convert to something usable */
 	spin_lock(&event->lock);
@@ -131,6 +135,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	BUILD_BUG_ON(FAN_Q_OVERFLOW != FS_Q_OVERFLOW);
 	BUILD_BUG_ON(FAN_OPEN_PERM != FS_OPEN_PERM);
 	BUILD_BUG_ON(FAN_ACCESS_PERM != FS_ACCESS_PERM);
+	BUILD_BUG_ON(FAN_ONDIR != FS_ISDIR);
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
@@ -160,18 +165,19 @@ static bool fanotify_should_send_event(struct fsnotify_group *group,
 				       __u32 event_mask, void *data, int data_type)
 {
 	__u32 marks_mask, marks_ignored_mask;
+	struct path *path = data;
 
 	pr_debug("%s: group=%p to_tell=%p inode_mark=%p vfsmnt_mark=%p "
 		 "mask=%x data=%p data_type=%d\n", __func__, group, to_tell,
 		 inode_mark, vfsmnt_mark, event_mask, data, data_type);
 
-	/* sorry, fanotify only gives a damn about files and dirs */
-	if (!S_ISREG(to_tell->i_mode) &&
-	    !S_ISDIR(to_tell->i_mode))
-		return false;
-
 	/* if we don't have enough info to send an event to userspace say no */
 	if (data_type != FSNOTIFY_EVENT_PATH)
+		return false;
+
+	/* sorry, fanotify only gives a damn about files and dirs */
+	if (!S_ISREG(path->dentry->d_inode->i_mode) &&
+	    !S_ISDIR(path->dentry->d_inode->i_mode))
 		return false;
 
 	if (inode_mark && vfsmnt_mark) {
@@ -194,16 +200,29 @@ static bool fanotify_should_send_event(struct fsnotify_group *group,
 		BUG();
 	}
 
+	if (S_ISDIR(path->dentry->d_inode->i_mode) &&
+	    (marks_ignored_mask & FS_ISDIR))
+		return false;
+
 	if (event_mask & marks_mask & ~marks_ignored_mask)
 		return true;
 
 	return false;
 }
 
+static void fanotify_free_group_priv(struct fsnotify_group *group)
+{
+	struct user_struct *user;
+
+	user = group->fanotify_data.user;
+	atomic_dec(&user->fanotify_listeners);
+	free_uid(user);
+}
+
 const struct fsnotify_ops fanotify_fsnotify_ops = {
 	.handle_event = fanotify_handle_event,
 	.should_send_event = fanotify_should_send_event,
-	.free_group_priv = NULL,
+	.free_group_priv = fanotify_free_group_priv,
 	.free_event_priv = NULL,
 	.freeing_mark = NULL,
 };

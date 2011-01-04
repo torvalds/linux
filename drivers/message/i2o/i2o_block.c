@@ -53,7 +53,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2o.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include <linux/mempool.h>
 
@@ -69,6 +69,7 @@
 #define OSM_VERSION	"1.325"
 #define OSM_DESCRIPTION	"I2O Block Device OSM"
 
+static DEFINE_MUTEX(i2o_block_mutex);
 static struct i2o_driver i2o_block_driver;
 
 /* global Block OSM request mempool */
@@ -578,7 +579,7 @@ static int i2o_block_open(struct block_device *bdev, fmode_t mode)
 	if (!dev->i2o_dev)
 		return -ENODEV;
 
-	lock_kernel();
+	mutex_lock(&i2o_block_mutex);
 	if (dev->power > 0x1f)
 		i2o_block_device_power(dev, 0x02);
 
@@ -587,7 +588,7 @@ static int i2o_block_open(struct block_device *bdev, fmode_t mode)
 	i2o_block_device_lock(dev->i2o_dev, -1);
 
 	osm_debug("Ready.\n");
-	unlock_kernel();
+	mutex_unlock(&i2o_block_mutex);
 
 	return 0;
 };
@@ -618,7 +619,7 @@ static int i2o_block_release(struct gendisk *disk, fmode_t mode)
 	if (!dev->i2o_dev)
 		return 0;
 
-	lock_kernel();
+	mutex_lock(&i2o_block_mutex);
 	i2o_block_device_flush(dev->i2o_dev);
 
 	i2o_block_device_unlock(dev->i2o_dev, -1);
@@ -629,7 +630,7 @@ static int i2o_block_release(struct gendisk *disk, fmode_t mode)
 		operation = 0x24;
 
 	i2o_block_device_power(dev, operation);
-	unlock_kernel();
+	mutex_unlock(&i2o_block_mutex);
 
 	return 0;
 }
@@ -664,7 +665,7 @@ static int i2o_block_ioctl(struct block_device *bdev, fmode_t mode,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	lock_kernel();
+	mutex_lock(&i2o_block_mutex);
 	switch (cmd) {
 	case BLKI2OGRSTRAT:
 		ret = put_user(dev->rcache, (int __user *)arg);
@@ -688,7 +689,7 @@ static int i2o_block_ioctl(struct block_device *bdev, fmode_t mode,
 		ret = 0;
 		break;
 	}
-	unlock_kernel();
+	mutex_unlock(&i2o_block_mutex);
 
 	return ret;
 };

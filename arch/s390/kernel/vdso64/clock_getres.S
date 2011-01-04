@@ -19,9 +19,9 @@
 	.type  __kernel_clock_getres,@function
 __kernel_clock_getres:
 	.cfi_startproc
-	cghi	%r2,CLOCK_REALTIME
+	cghi	%r2,__CLOCK_REALTIME
 	je	0f
-	cghi	%r2,CLOCK_MONOTONIC
+	cghi	%r2,__CLOCK_MONOTONIC
 	je	0f
 	cghi	%r2,-2		/* CLOCK_THREAD_CPUTIME_ID for this thread */
 	jne	2f
@@ -39,6 +39,6 @@ __kernel_clock_getres:
 2:	lghi	%r1,__NR_clock_getres		/* fallback to svc */
 	svc	0
 	br	%r14
-3:	.quad	CLOCK_REALTIME_RES
+3:	.quad	__CLOCK_REALTIME_RES
 	.cfi_endproc
 	.size	__kernel_clock_getres,.-__kernel_clock_getres

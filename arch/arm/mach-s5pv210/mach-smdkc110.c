@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/i2c.h>
+#include <linux/sysdev.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -28,6 +29,7 @@
 #include <plat/cpu.h>
 #include <plat/ata.h>
 #include <plat/iic.h>
+#include <plat/pm.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define SMDKC110_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -81,6 +83,7 @@ static struct s3c_ide_platdata smdkc110_ide_pdata __initdata = {
 static struct platform_device *smdkc110_devices[] __initdata = {
 	&s5pv210_device_iis0,
 	&s5pv210_device_ac97,
+	&s5pv210_device_spdif,
 	&s3c_device_cfcon,
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
@@ -110,6 +113,8 @@ static void __init smdkc110_map_io(void)
 
 static void __init smdkc110_machine_init(void)
 {
+	s3c_pm_init();
+
 	s3c_i2c0_set_platdata(NULL);
 	s3c_i2c1_set_platdata(NULL);
 	s3c_i2c2_set_platdata(NULL);

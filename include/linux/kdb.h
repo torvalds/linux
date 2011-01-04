@@ -28,6 +28,41 @@ extern int kdb_poll_idx;
 extern int kdb_initial_cpu;
 extern atomic_t kdb_event;
 
+/* Types and messages used for dynamically added kdb shell commands */
+
+#define KDB_MAXARGS    16 /* Maximum number of arguments to a function  */
+
+typedef enum {
+	KDB_REPEAT_NONE = 0,	/* Do not repeat this command */
+	KDB_REPEAT_NO_ARGS,	/* Repeat the command without arguments */
+	KDB_REPEAT_WITH_ARGS,	/* Repeat the command including its arguments */
+} kdb_repeat_t;
+
+typedef int (*kdb_func_t)(int, const char **);
+
+/* KDB return codes from a command or internal kdb function */
+#define KDB_NOTFOUND	(-1)
+#define KDB_ARGCOUNT	(-2)
+#define KDB_BADWIDTH	(-3)
+#define KDB_BADRADIX	(-4)
+#define KDB_NOTENV	(-5)
+#define KDB_NOENVVALUE	(-6)
+#define KDB_NOTIMP	(-7)
+#define KDB_ENVFULL	(-8)
+#define KDB_ENVBUFFULL	(-9)
+#define KDB_TOOMANYBPT	(-10)
+#define KDB_TOOMANYDBREGS (-11)
+#define KDB_DUPBPT	(-12)
+#define KDB_BPTNOTFOUND	(-13)
+#define KDB_BADMODE	(-14)
+#define KDB_BADINT	(-15)
+#define KDB_INVADDRFMT  (-16)
+#define KDB_BADREG      (-17)
+#define KDB_BADCPUNUM   (-18)
+#define KDB_BADLENGTH	(-19)
+#define KDB_NOBP	(-20)
+#define KDB_BADADDR	(-21)
+
 /*
  * kdb_diemsg
  *
@@ -104,10 +139,26 @@ int kdb_process_cpu(const struct task_struct *p)
 
 /* kdb access to register set for stack dumping */
 extern struct pt_regs *kdb_current_regs;
+#ifdef CONFIG_KALLSYMS
+extern const char *kdb_walk_kallsyms(loff_t *pos);
+#else /* ! CONFIG_KALLSYMS */
+static inline const char *kdb_walk_kallsyms(loff_t *pos)
+{
+	return NULL;
+}
+#endif /* ! CONFIG_KALLSYMS */
 
+/* Dynamic kdb shell command registration */
+extern int kdb_register(char *, kdb_func_t, char *, char *, short);
+extern int kdb_register_repeat(char *, kdb_func_t, char *, char *,
+			       short, kdb_repeat_t);
+extern int kdb_unregister(char *);
 #else /* ! CONFIG_KGDB_KDB */
 #define kdb_printf(...)
 #define kdb_init(x)
+#define kdb_register(...)
+#define kdb_register_repeat(...)
+#define kdb_uregister(x)
 #endif	/* CONFIG_KGDB_KDB */
 enum {
 	KDB_NOT_INITIALIZED,

@@ -59,6 +59,7 @@ struct nilfs_inode_info {
 #endif
 	struct buffer_head *i_bh;	/* i_bh contains a new or dirty
 					   disk inode */
+	struct nilfs_root *i_root;
 	struct inode vfs_inode;
 };
 
@@ -100,7 +101,6 @@ enum {
 	NILFS_I_INODE_DIRTY,		/* write_inode is requested */
 	NILFS_I_BMAP,			/* has bmap and btnode_cache */
 	NILFS_I_GCINODE,		/* inode for GC, on memory only */
-	NILFS_I_GCDAT,			/* shadow DAT, on memory only */
 };
 
 /*
@@ -192,7 +192,7 @@ static inline int nilfs_doing_construction(void)
 
 static inline struct inode *nilfs_dat_inode(const struct the_nilfs *nilfs)
 {
-	return nilfs_doing_gc() ? nilfs->ns_gc_dat : nilfs->ns_dat;
+	return nilfs->ns_dat;
 }
 
 /*
@@ -200,12 +200,9 @@ static inline struct inode *nilfs_dat_inode(const struct the_nilfs *nilfs)
  */
 #ifdef CONFIG_NILFS_POSIX_ACL
 #error "NILFS: not yet supported POSIX ACL"
-extern int nilfs_permission(struct inode *, int, struct nameidata *);
 extern int nilfs_acl_chmod(struct inode *);
 extern int nilfs_init_acl(struct inode *, struct inode *);
 #else
-#define nilfs_permission   NULL
-
 static inline int nilfs_acl_chmod(struct inode *inode)
 {
 	return 0;
@@ -247,11 +244,19 @@ extern int nilfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
 extern void nilfs_set_inode_flags(struct inode *);
 extern int nilfs_read_inode_common(struct inode *, struct nilfs_inode *);
 extern void nilfs_write_inode_common(struct inode *, struct nilfs_inode *, int);
-extern struct inode *nilfs_iget(struct super_block *, unsigned long);
+struct inode *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
+			    unsigned long ino);
+struct inode *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
+				unsigned long ino);
+struct inode *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
+			 unsigned long ino);
+extern struct inode *nilfs_iget_for_gc(struct super_block *sb,
+				       unsigned long ino, __u64 cno);
 extern void nilfs_update_inode(struct inode *, struct buffer_head *);
 extern void nilfs_truncate(struct inode *);
 extern void nilfs_evict_inode(struct inode *);
 extern int nilfs_setattr(struct dentry *, struct iattr *);
+int nilfs_permission(struct inode *inode, int mask);
 extern int nilfs_load_inode_block(struct nilfs_sb_info *, struct inode *,
 				  struct buffer_head **);
 extern int nilfs_inode_dirty(struct inode *);
@@ -260,11 +265,7 @@ extern int nilfs_set_file_dirty(struct nilfs_sb_info *, struct inode *,
 extern int nilfs_mark_inode_dirty(struct inode *);
 extern void nilfs_dirty_inode(struct inode *);
 
-/* namei.c */
-extern struct dentry *nilfs_get_parent(struct dentry *);
-
 /* super.c */
-extern struct inode *nilfs_alloc_inode_common(struct the_nilfs *);
 extern struct inode *nilfs_alloc_inode(struct super_block *);
 extern void nilfs_destroy_inode(struct inode *);
 extern void nilfs_error(struct super_block *, const char *, const char *, ...)
@@ -283,8 +284,9 @@ extern struct nilfs_super_block **nilfs_prepare_super(struct nilfs_sb_info *,
 						      int flip);
 extern int nilfs_commit_super(struct nilfs_sb_info *, int);
 extern int nilfs_cleanup_super(struct nilfs_sb_info *);
-extern int nilfs_attach_checkpoint(struct nilfs_sb_info *, __u64);
-extern void nilfs_detach_checkpoint(struct nilfs_sb_info *);
+int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno, int curr_mnt,
+			    struct nilfs_root **root);
+int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cno);
 
 /* gcinode.c */
 int nilfs_gccache_submit_read_data(struct inode *, sector_t, sector_t, __u64,
@@ -292,16 +294,8 @@ int nilfs_gccache_submit_read_data(struct inode *, sector_t, sector_t, __u64,
 int nilfs_gccache_submit_read_node(struct inode *, sector_t, __u64,
 				   struct buffer_head **);
 int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *);
-int nilfs_init_gccache(struct the_nilfs *);
-void nilfs_destroy_gccache(struct the_nilfs *);
-void nilfs_clear_gcinode(struct inode *);
-struct inode *nilfs_gc_iget(struct the_nilfs *, ino_t, __u64);
-void nilfs_remove_all_gcinode(struct the_nilfs *);
-
-/* gcdat.c */
-int nilfs_init_gcdat_inode(struct the_nilfs *);
-void nilfs_commit_gcdat_inode(struct the_nilfs *);
-void nilfs_clear_gcdat_inode(struct the_nilfs *);
+int nilfs_init_gcinode(struct inode *inode);
+void nilfs_remove_all_gcinodes(struct the_nilfs *nilfs);
 
 /*
  * Inodes and files operations

@@ -110,6 +110,17 @@ ENTRY(cpu_arm920_do_idle)
 #ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
 
 /*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(arm920_flush_icache_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+	mov	pc, lr
+ENDPROC(arm920_flush_icache_all)
+
+/*
  *	flush_user_cache_all()
  *
  *	Invalidate all cache entries in a particular address
@@ -305,6 +316,7 @@ ENTRY(arm920_dma_unmap_area)
 ENDPROC(arm920_dma_unmap_area)
 
 ENTRY(arm920_cache_fns)
+	.long	arm920_flush_icache_all
 	.long	arm920_flush_kern_cache_all
 	.long	arm920_flush_user_cache_all
 	.long	arm920_flush_user_cache_range

@@ -75,22 +75,30 @@ error_ret:
 	return ret;
 
 }
-static IIO_SCAN_EL_C(accel_x, 0, IIO_SIGNED(16),
+static IIO_SCAN_EL_C(accel_x, 0,
 		     LIS3L02DQ_REG_OUT_X_L_ADDR,
 		     &lis3l02dq_scan_el_set_state);
-static IIO_SCAN_EL_C(accel_y, 1, IIO_SIGNED(16),
+static IIO_SCAN_EL_C(accel_y, 1,
 		     LIS3L02DQ_REG_OUT_Y_L_ADDR,
 		     &lis3l02dq_scan_el_set_state);
-static IIO_SCAN_EL_C(accel_z, 2, IIO_SIGNED(16),
+static IIO_SCAN_EL_C(accel_z, 2,
 		     LIS3L02DQ_REG_OUT_Z_L_ADDR,
 		     &lis3l02dq_scan_el_set_state);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(accel, s, 12, 16);
 static IIO_SCAN_EL_TIMESTAMP(3);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64);
 
 static struct attribute *lis3l02dq_scan_el_attrs[] = {
 	&iio_scan_el_accel_x.dev_attr.attr,
+	&iio_const_attr_accel_x_index.dev_attr.attr,
 	&iio_scan_el_accel_y.dev_attr.attr,
+	&iio_const_attr_accel_y_index.dev_attr.attr,
 	&iio_scan_el_accel_z.dev_attr.attr,
+	&iio_const_attr_accel_z_index.dev_attr.attr,
+	&iio_const_attr_accel_type.dev_attr.attr,
 	&iio_scan_el_timestamp.dev_attr.attr,
+	&iio_const_attr_timestamp_index.dev_attr.attr,
+	&iio_const_attr_timestamp_type.dev_attr.attr,
 	NULL,
 };
 
@@ -150,38 +158,40 @@ ssize_t lis3l02dq_read_accel_from_ring(struct device *dev,
 	int ret, len = 0, i = 0;
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_ring_buffer *ring = dev_info->ring;
+	struct attribute_group *scan_el_attrs = ring->scan_el_attrs;
 	s16 *data;
 
-	while (dev_info->scan_el_attrs->attrs[i]) {
+	while (scan_el_attrs->attrs[i]) {
 		el = to_iio_scan_el((struct device_attribute *)
-				    (dev_info->scan_el_attrs->attrs[i]));
+				    (scan_el_attrs->attrs[i]));
 		/* label is in fact the address */
 		if (el->label == this_attr->address)
 			break;
 		i++;
 	}
-	if (!dev_info->scan_el_attrs->attrs[i]) {
+	if (!scan_el_attrs->attrs[i]) {
 		ret = -EINVAL;
 		goto error_ret;
 	}
 	/* If this element is in the scan mask */
-	ret = iio_scan_mask_query(dev_info, el->number);
+	ret = iio_scan_mask_query(ring, el->number);
 	if (ret < 0)
 		goto error_ret;
 	if (ret) {
-		data = kmalloc(dev_info->ring->access.get_bpd(dev_info->ring),
+		data = kmalloc(ring->access.get_bytes_per_datum(ring),
 			       GFP_KERNEL);
 		if (data == NULL)
 			return -ENOMEM;
-		ret = dev_info->ring->access.read_last(dev_info->ring,
-						      (u8 *)data);
+		ret = ring->access.read_last(ring,
+					(u8 *)data);
 		if (ret)
 			goto error_free_data;
 	} else {
 		ret = -EINVAL;
 		goto error_ret;
 	}
-	len = iio_scan_mask_count_to_right(dev_info, el->number);
+	len = iio_scan_mask_count_to_right(ring, el->number);
 	if (len < 0) {
 		ret = len;
 		goto error_free_data;
@@ -211,11 +221,12 @@ static const u8 read_all_tx_array[] = {
  **/
 static int lis3l02dq_read_all(struct lis3l02dq_state *st, u8 *rx_array)
 {
+	struct iio_ring_buffer *ring = st->help.indio_dev->ring;
 	struct spi_transfer *xfers;
 	struct spi_message msg;
 	int ret, i, j = 0;
 
-	xfers = kzalloc((st->help.indio_dev->scan_count) * 2
+	xfers = kzalloc((ring->scan_count) * 2
 			* sizeof(*xfers), GFP_KERNEL);
 	if (!xfers)
 		return -ENOMEM;
@@ -223,7 +234,7 @@ static int lis3l02dq_read_all(struct lis3l02dq_state *st, u8 *rx_array)
 	mutex_lock(&st->buf_lock);
 
 	for (i = 0; i < ARRAY_SIZE(read_all_tx_array)/4; i++) {
-		if (st->help.indio_dev->scan_mask & (1 << i)) {
+		if (ring->scan_mask & (1 << i)) {
 			/* lower byte */
 			xfers[j].tx_buf = st->tx + 2*j;
 			st->tx[2*j] = read_all_tx_array[i*4];
@@ -251,7 +262,7 @@ static int lis3l02dq_read_all(struct lis3l02dq_state *st, u8 *rx_array)
 	 * values in alternate bytes
 	 */
 	spi_message_init(&msg);
-	for (j = 0; j < st->help.indio_dev->scan_count * 2; j++)
+	for (j = 0; j < ring->scan_count * 2; j++)
 		spi_message_add_tail(&xfers[j], &msg);
 
 	ret = spi_sync(st->us, &msg);
@@ -279,13 +290,13 @@ static int lis3l02dq_get_ring_element(struct iio_sw_ring_helper_state *h,
 	u8 *rx_array ;
 	s16 *data = (s16 *)buf;
 
-	rx_array = kzalloc(4 * (h->indio_dev->scan_count), GFP_KERNEL);
+	rx_array = kzalloc(4 * (h->indio_dev->ring->scan_count), GFP_KERNEL);
 	if (rx_array == NULL)
 		return -ENOMEM;
 	ret = lis3l02dq_read_all(lis3l02dq_h_to_s(h), rx_array);
 	if (ret < 0)
 		return ret;
-	for (i = 0; i < h->indio_dev->scan_count; i++)
+	for (i = 0; i < h->indio_dev->ring->scan_count; i++)
 		data[i] = combine_8_to_16(rx_array[i*4+1],
 					rx_array[i*4+3]);
 	kfree(rx_array);
@@ -379,7 +390,8 @@ static int lis3l02dq_data_rdy_trigger_set_state(struct iio_trigger *trig,
 				 &t);
 	return ret;
 }
-static DEVICE_ATTR(name, S_IRUGO, iio_trigger_read_name, NULL);
+
+static IIO_TRIGGER_NAME_ATTR;
 
 static struct attribute *lis3l02dq_trigger_attrs[] = {
 	&dev_attr_name.attr,
@@ -479,28 +491,29 @@ int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 {
 	int ret;
 	struct iio_sw_ring_helper_state *h = iio_dev_get_devdata(indio_dev);
-
+	struct iio_ring_buffer *ring;
 	INIT_WORK(&h->work_trigger_to_ring, lis3l02dq_trigger_bh_to_ring);
-	/* Set default scan mode */
 	h->get_ring_element = &lis3l02dq_get_ring_element;
-	iio_scan_mask_set(indio_dev, iio_scan_el_accel_x.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_accel_y.number);
-	iio_scan_mask_set(indio_dev, iio_scan_el_accel_z.number);
-	indio_dev->scan_timestamp = true;
 
-	indio_dev->scan_el_attrs = &lis3l02dq_scan_el_group;
-
-	indio_dev->ring = iio_sw_rb_allocate(indio_dev);
-	if (!indio_dev->ring)
+	ring = iio_sw_rb_allocate(indio_dev);
+	if (!ring)
 		return -ENOMEM;
 
+	indio_dev->ring = ring;
 	/* Effectively select the ring buffer implementation */
-	iio_ring_sw_register_funcs(&indio_dev->ring->access);
-	indio_dev->ring->bpe = 2;
-	indio_dev->ring->preenable = &iio_sw_ring_preenable;
-	indio_dev->ring->postenable = &iio_triggered_ring_postenable;
-	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
-	indio_dev->ring->owner = THIS_MODULE;
+	iio_ring_sw_register_funcs(&ring->access);
+	ring->bpe = 2;
+	ring->scan_el_attrs = &lis3l02dq_scan_el_group;
+	ring->scan_timestamp = true;
+	ring->preenable = &iio_sw_ring_preenable;
+	ring->postenable = &iio_triggered_ring_postenable;
+	ring->predisable = &iio_triggered_ring_predisable;
+	ring->owner = THIS_MODULE;
+
+	/* Set default scan mode */
+	iio_scan_mask_set(ring, iio_scan_el_accel_x.number);
+	iio_scan_mask_set(ring, iio_scan_el_accel_y.number);
+	iio_scan_mask_set(ring, iio_scan_el_accel_z.number);
 
 	ret = iio_alloc_pollfunc(indio_dev, NULL, &lis3l02dq_poll_func_th);
 	if (ret)

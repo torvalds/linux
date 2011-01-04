@@ -453,7 +453,6 @@ static struct soc_camera_link iclink[] = {
 		.query_bus_param	= pcm990_camera_query_bus_param,
 		.set_bus_param		= pcm990_camera_set_bus_param,
 		.free_bus		= pcm990_camera_free_bus,
-		.module_name		= "mt9v022",
 	}, {
 		.bus_id			= 0, /* Must match with the camera ID */
 		.board_info		= &pcm990_camera_i2c[1],
@@ -461,7 +460,6 @@ static struct soc_camera_link iclink[] = {
 		.query_bus_param	= pcm990_camera_query_bus_param,
 		.set_bus_param		= pcm990_camera_set_bus_param,
 		.free_bus		= pcm990_camera_free_bus,
-		.module_name		= "mt9m001",
 	},
 };
 

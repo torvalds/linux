@@ -210,10 +210,6 @@ struct link {
 		u32 msg_length_counts;
 		u32 msg_lengths_total;
 		u32 msg_length_profile[7];
-#if 0
-		u32 sent_tunneled;
-		u32 recv_tunneled;
-#endif
 	} stats;
 
 	struct print_buf print_buf;
@@ -229,7 +225,6 @@ void tipc_link_send_duplicate(struct link *l_ptr, struct link *dest);
 void tipc_link_reset_fragments(struct link *l_ptr);
 int tipc_link_is_up(struct link *l_ptr);
 int tipc_link_is_active(struct link *l_ptr);
-void tipc_link_start(struct link *l_ptr);
 u32 tipc_link_push_packet(struct link *l_ptr);
 void tipc_link_stop(struct link *l_ptr);
 struct sk_buff *tipc_link_cmd_config(const void *req_tlv_area, int req_tlv_space, u16 cmd);
@@ -243,9 +238,6 @@ int tipc_link_send_sections_fast(struct port* sender,
 				 struct iovec const *msg_sect,
 				 const u32 num_sect,
 				 u32 destnode);
-int tipc_link_send_long_buf(struct link *l_ptr, struct sk_buff *buf);
-void tipc_link_tunnel(struct link *l_ptr, struct tipc_msg *tnl_hdr,
-		      struct tipc_msg *msg, u32 selector);
 void tipc_link_recv_bundle(struct sk_buff *buf);
 int  tipc_link_recv_fragment(struct sk_buff **pending,
 			     struct sk_buff **fb,
@@ -279,12 +271,12 @@ static inline int between(u32 lower, u32 upper, u32 n)
 
 static inline int less_eq(u32 left, u32 right)
 {
-	return (mod(right - left) < 32768u);
+	return mod(right - left) < 32768u;
 }
 
 static inline int less(u32 left, u32 right)
 {
-	return (less_eq(left, right) && (mod(right) != mod(left)));
+	return less_eq(left, right) && (mod(right) != mod(left));
 }
 
 static inline u32 lesser(u32 left, u32 right)
@@ -299,32 +291,32 @@ static inline u32 lesser(u32 left, u32 right)
 
 static inline int link_working_working(struct link *l_ptr)
 {
-	return (l_ptr->state == WORKING_WORKING);
+	return l_ptr->state == WORKING_WORKING;
 }
 
 static inline int link_working_unknown(struct link *l_ptr)
 {
-	return (l_ptr->state == WORKING_UNKNOWN);
+	return l_ptr->state == WORKING_UNKNOWN;
 }
 
 static inline int link_reset_unknown(struct link *l_ptr)
 {
-	return (l_ptr->state == RESET_UNKNOWN);
+	return l_ptr->state == RESET_UNKNOWN;
 }
 
 static inline int link_reset_reset(struct link *l_ptr)
 {
-	return (l_ptr->state == RESET_RESET);
+	return l_ptr->state == RESET_RESET;
 }
 
 static inline int link_blocked(struct link *l_ptr)
 {
-	return (l_ptr->exp_msg_count || l_ptr->blocked);
+	return l_ptr->exp_msg_count || l_ptr->blocked;
 }
 
 static inline int link_congested(struct link *l_ptr)
 {
-	return (l_ptr->out_queue_size >= l_ptr->queue_limit[0]);
+	return l_ptr->out_queue_size >= l_ptr->queue_limit[0];
 }
 
 #endif

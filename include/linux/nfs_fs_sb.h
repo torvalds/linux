@@ -82,6 +82,8 @@ struct nfs_client {
 	/* The flags used for obtaining the clientid during EXCHANGE_ID */
 	u32			cl_exchange_flags;
 	struct nfs4_session	*cl_session; 	/* sharred session */
+	struct list_head	cl_layouts;
+	struct pnfs_deviceid_cache *cl_devid_cache; /* pNFS deviceid cache */
 #endif /* CONFIG_NFS_V4_1 */
 
 #ifdef CONFIG_NFS_FSCACHE
@@ -124,6 +126,7 @@ struct nfs_server {
 
 	struct nfs_fsid		fsid;
 	__u64			maxfilesize;	/* maximum file size */
+	struct timespec		time_delta;	/* smallest time granularity */
 	unsigned long		mount_time;	/* when this fs was mounted */
 	dev_t			s_dev;		/* superblock dev numbers */
 
@@ -144,6 +147,7 @@ struct nfs_server {
 	u32			acl_bitmask;	/* V4 bitmask representing the ACEs
 						   that are supported on this
 						   filesystem */
+	struct pnfs_layoutdriver_type  *pnfs_curr_ld; /* Active layout driver */
 #endif
 	void (*destroy)(struct nfs_server *);
 

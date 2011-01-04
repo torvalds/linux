@@ -56,7 +56,7 @@
 #include <net/checksum.h>
 #include <linux/mroute6.h>
 
-static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *));
+int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *));
 
 int __ip6_local_out(struct sk_buff *skb)
 {
@@ -143,14 +143,6 @@ static int ip6_finish_output2(struct sk_buff *skb)
 			 ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
 	kfree_skb(skb);
 	return -EINVAL;
-}
-
-static inline int ip6_skb_dst_mtu(struct sk_buff *skb)
-{
-	struct ipv6_pinfo *np = skb->sk ? inet6_sk(skb->sk) : NULL;
-
-	return (np && np->pmtudisc == IPV6_PMTUDISC_PROBE) ?
-	       skb_dst(skb)->dev->mtu : dst_mtu(skb_dst(skb));
 }
 
 static int ip6_finish_output(struct sk_buff *skb)
@@ -601,7 +593,7 @@ int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
 	return offset;
 }
 
-static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
+int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 {
 	struct sk_buff *frag;
 	struct rt6_info *rt = (struct rt6_info*)skb_dst(skb);
@@ -637,7 +629,7 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 	}
 	mtu -= hlen + sizeof(struct frag_hdr);
 
-	if (skb_has_frags(skb)) {
+	if (skb_has_frag_list(skb)) {
 		int first_len = skb_pagelen(skb);
 		struct sk_buff *frag2;
 
@@ -878,8 +870,8 @@ static inline int ip6_rt_check(struct rt6key *rt_key,
 			       struct in6_addr *fl_addr,
 			       struct in6_addr *addr_cache)
 {
-	return ((rt_key->plen != 128 || !ipv6_addr_equal(fl_addr, &rt_key->addr)) &&
-		(addr_cache == NULL || !ipv6_addr_equal(fl_addr, addr_cache)));
+	return (rt_key->plen != 128 || !ipv6_addr_equal(fl_addr, &rt_key->addr)) &&
+		(addr_cache == NULL || !ipv6_addr_equal(fl_addr, addr_cache));
 }
 
 static struct dst_entry *ip6_sk_dst_check(struct sock *sk,

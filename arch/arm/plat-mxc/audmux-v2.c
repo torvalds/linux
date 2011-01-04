@@ -137,6 +137,7 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 static const struct file_operations audmux_debugfs_fops = {
 	.open = audmux_open_file,
 	.read = audmux_read_file,
+	.llseek = default_llseek,
 };
 
 static void audmux_debugfs_init(void)

@@ -1,0 +1,47 @@
+Speakup project home:  http://www.linux-speakup.org
+
+Mailing List:  speakup@braille.uwo.ca
+
+Speakup is a kernel based screen review package for the linux operating
+system.  It allows blind users to interact with applications on the
+linux console by means of synthetic speech.
+
+Currently, speakup has several issues we know of.
+
+The first issue has to do with the way speakup communicates with serial
+ports.  Currently, we communicate directly with the hardware
+ports. This however conflicts with the standard serial port drivers,
+which poses various problems. This is also not working for modern hardware
+such as PCI-based serial ports.  Also, there is not a way we can
+communicate with USB devices.  The current serial port handling code is
+in serialio.c in this directory.
+
+Some places are currently using in_atomic() because speakup functions
+are called in various contexts, and a couple of things can't happen
+in these cases. Pushing work to some worker thread would probably help,
+as was already done for the serial port driving part.
+
+There is a duplication of the selection functions in selections.c. These
+functions should get exported from drivers/char/selection.c (clear_selection
+notably) and used from there instead.
+
+The kobjects may have to move to a more proper place in /sys. The
+discussion on lkml resulted to putting speech synthesizers in the
+"speech" class, and the speakup screen reader itself into
+/sys/class/vtconsole/vtcon0/speakup, the nasty path being handled by
+userland tools.
+
+Another issue seems to only happen on SMP systems.  It seems
+that text in the output buffer gets garbled because a lock is not set.
+This bug happens regularly, but no one has been able to find a situation
+which produces it consistently.
+
+Patches, suggestions, corrections, etc, are definitely welcome.
+
+We prefer that you contact us on the mailing list; however, if you do
+not want to subscribe to a mailing list, send your email to all of the
+following:
+
+w.d.hubbs@gmail.com, chris@the-brannons.com, kirk@braille.uwo.ca and
+samuel.thibault@ens-lyon.org.
+

@@ -14,6 +14,10 @@ Supported chips:
     Prefix: 'adt7463'
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
     Datasheet: http://www.onsemi.com/PowerSolutions/product.do?id=ADT7463
+  * Analog Devices ADT7468
+    Prefix: 'adt7468'
+    Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+    Datasheet: http://www.onsemi.com/PowerSolutions/product.do?id=ADT7468
   * SMSC EMC6D100, SMSC EMC6D101
     Prefix: 'emc6d100'
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
@@ -34,7 +38,7 @@ Description
 -----------
 
 This driver implements support for the National Semiconductor LM85 and
-compatible chips including the Analog Devices ADM1027, ADT7463 and
+compatible chips including the Analog Devices ADM1027, ADT7463, ADT7468 and
 SMSC EMC6D10x chips family.
 
 The LM85 uses the 2-wire interface compatible with the SMBUS 2.0
@@ -87,14 +91,22 @@ To smooth the response of fans to changes in temperature, the LM85 has an
 optional filter for smoothing temperatures. The ADM1027 has the same
 config option but uses it to rate limit the changes to fan speed instead.
 
-The ADM1027 and ADT7463 have a 10-bit ADC and can therefore measure
-temperatures with 0.25 degC resolution. They also provide an offset to the
-temperature readings that is automatically applied during measurement.
-This offset can be used to zero out any errors due to traces and placement.
-The documentation says that the offset is in 0.25 degC steps, but in
-initial testing of the ADM1027 it was 1.00 degC steps. Analog Devices has
-confirmed this "bug". The ADT7463 is reported to work as described in the
-documentation. The current lm85 driver does not show the offset register.
+The ADM1027, ADT7463 and ADT7468 have a 10-bit ADC and can therefore
+measure temperatures with 0.25 degC resolution. They also provide an offset
+to the temperature readings that is automatically applied during
+measurement. This offset can be used to zero out any errors due to traces
+and placement. The documentation says that the offset is in 0.25 degC
+steps, but in initial testing of the ADM1027 it was 1.00 degC steps. Analog
+Devices has confirmed this "bug". The ADT7463 is reported to work as
+described in the documentation. The current lm85 driver does not show the
+offset register.
+
+The ADT7468 has a high-frequency PWM mode, where all PWM outputs are
+driven by a 22.5 kHz clock. This is a global mode, not per-PWM output,
+which means that setting any PWM frequency above 11.3 kHz will switch
+all 3 PWM outputs to a 22.5 kHz frequency. Conversely, setting any PWM
+frequency below 11.3 kHz will switch all 3 PWM outputs to a frequency
+between 10 and 100 Hz, which can then be tuned separately.
 
 See the vendor datasheets for more information. There is application note
 from National (AN-1260) with some additional information about the LM85.
@@ -125,17 +137,17 @@ datasheet for a complete description of the differences. Other than
 identifying the chip, the driver behaves no differently with regard to
 these two chips. The LM85B is recommended for new designs.
 
-The ADM1027 and ADT7463 chips have an optional SMBALERT output that can be
-used to signal the chipset in case a limit is exceeded or the temperature
-sensors fail. Individual sensor interrupts can be masked so they won't
-trigger SMBALERT. The SMBALERT output if configured replaces one of the other
-functions (PWM2 or IN0). This functionality is not implemented in current
-driver.
+The ADM1027, ADT7463 and ADT7468 chips have an optional SMBALERT output
+that can be used to signal the chipset in case a limit is exceeded or the
+temperature sensors fail. Individual sensor interrupts can be masked so
+they won't trigger SMBALERT. The SMBALERT output if configured replaces one
+of the other functions (PWM2 or IN0). This functionality is not implemented
+in current driver.
 
-The ADT7463 also has an optional THERM output/input which can be connected
-to the processor PROC_HOT output. If available, the autofan control
-dynamic Tmin feature can be enabled to keep the system temperature within
-spec (just?!) with the least possible fan noise.
+The ADT7463 and ADT7468 also have an optional THERM output/input which can
+be connected to the processor PROC_HOT output. If available, the autofan
+control dynamic Tmin feature can be enabled to keep the system temperature
+within spec (just?!) with the least possible fan noise.
 
 Configuration Notes
 -------------------
@@ -201,8 +213,8 @@ the temperatures to compensate for systemic errors in the
 measurements. These features are not currently supported by the lm85
 driver.
 
-In addition to the ADM1027 features, the ADT7463 also has Tmin control
-and THERM asserted counts. Automatic Tmin control acts to adjust the
-Tmin value to maintain the measured temperature sensor at a specified
-temperature. There isn't much documentation on this feature in the
-ADT7463 data sheet. This is not supported by current driver.
+In addition to the ADM1027 features, the ADT7463 and ADT7468 also have
+Tmin control and THERM asserted counts. Automatic Tmin control acts to
+adjust the Tmin value to maintain the measured temperature sensor at a
+specified temperature. There isn't much documentation on this feature in
+the ADT7463 data sheet. This is not supported by current driver.

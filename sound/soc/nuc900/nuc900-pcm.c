@@ -50,11 +50,11 @@ static int nuc900_dma_hw_params(struct snd_pcm_substream *substream,
 	unsigned long flags;
 	int ret = 0;
 
-	spin_lock_irqsave(&nuc900_audio->lock, flags);
-
 	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 	if (ret < 0)
 		return ret;
+
+	spin_lock_irqsave(&nuc900_audio->lock, flags);
 
 	nuc900_audio->substream = substream;
 	nuc900_audio->dma_addr[substream->stream] = runtime->dma_addr;
@@ -169,6 +169,7 @@ static int nuc900_dma_prepare(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct nuc900_audio *nuc900_audio = runtime->private_data;
 	unsigned long flags, val;
+	int ret = 0;
 
 	spin_lock_irqsave(&nuc900_audio->lock, flags);
 
@@ -197,10 +198,10 @@ static int nuc900_dma_prepare(struct snd_pcm_substream *substream)
 		AUDIO_WRITE(nuc900_audio->mmio + ACTL_RESET, val);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 	spin_unlock_irqrestore(&nuc900_audio->lock, flags);
-	return 0;
+	return ret;
 }
 
 static int nuc900_dma_trigger(struct snd_pcm_substream *substream, int cmd)
@@ -328,26 +329,44 @@ static int nuc900_dma_new(struct snd_card *card,
 	return 0;
 }
 
-struct snd_soc_platform nuc900_soc_platform = {
-	.name		= "nuc900-dma",
-	.pcm_ops	= &nuc900_dma_ops,
+static struct snd_soc_platform_driver nuc900_soc_platform = {
+	.ops		= &nuc900_dma_ops,
 	.pcm_new	= nuc900_dma_new,
 	.pcm_free	= nuc900_dma_free_dma_buffers,
-}
-EXPORT_SYMBOL_GPL(nuc900_soc_platform);
+};
 
-static int __init nuc900_soc_platform_init(void)
+static int __devinit nuc900_soc_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_platform(&nuc900_soc_platform);
+	return snd_soc_register_platform(&pdev->dev, &nuc900_soc_platform);
 }
 
-static void __exit nuc900_soc_platform_exit(void)
+static int __devexit nuc900_soc_platform_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_platform(&nuc900_soc_platform);
+	snd_soc_unregister_platform(&pdev->dev);
+	return 0;
 }
 
-module_init(nuc900_soc_platform_init);
-module_exit(nuc900_soc_platform_exit);
+static struct platform_driver nuc900_pcm_driver = {
+	.driver = {
+			.name = "nuc900-pcm-audio",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = nuc900_soc_platform_probe,
+	.remove = __devexit_p(nuc900_soc_platform_remove),
+};
+
+static int __init nuc900_pcm_init(void)
+{
+	return platform_driver_register(&nuc900_pcm_driver);
+}
+module_init(nuc900_pcm_init);
+
+static void __exit nuc900_pcm_exit(void)
+{
+	platform_driver_unregister(&nuc900_pcm_driver);
+}
+module_exit(nuc900_pcm_exit);
 
 MODULE_AUTHOR("Wan ZongShun, <mcuos.com@gmail.com>");
 MODULE_DESCRIPTION("nuc900 Audio DMA module");

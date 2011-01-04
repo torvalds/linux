@@ -1804,7 +1804,7 @@ static int si4713_g_modulator(struct v4l2_subdev *sd, struct v4l2_modulator *vm)
 
 	strncpy(vm->name, "FM Modulator", 32);
 	vm->capability = V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_LOW |
-						V4L2_TUNER_CAP_RDS;
+		V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_CONTROLS;
 
 	/* Report current frequency range limits */
 	vm->rangelow = si4713_to_v4l2(FREQ_RANGE_LOW);

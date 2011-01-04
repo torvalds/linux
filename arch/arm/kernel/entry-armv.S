@@ -911,7 +911,7 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	 * A special ghost syscall is used for that (see traps.c).
 	 */
 	stmfd	sp!, {r7, lr}
-	ldr	r7, =1f			@ it's 20 bits
+	ldr	r7, 1f			@ it's 20 bits
 	swi	__ARM_NR_cmpxchg
 	ldmfd	sp!, {r7, pc}
 1:	.word	__ARM_NR_cmpxchg

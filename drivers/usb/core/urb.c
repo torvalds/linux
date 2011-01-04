@@ -401,8 +401,11 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	};
 
 	/* Check that the pipe's type matches the endpoint's type */
-	if (usb_pipetype(urb->pipe) != pipetypes[xfertype])
+	if (usb_pipetype(urb->pipe) != pipetypes[xfertype]) {
+		dev_err(&dev->dev, "BOGUS urb xfer, pipe %x != type %x\n",
+			usb_pipetype(urb->pipe), pipetypes[xfertype]);
 		return -EPIPE;		/* The most suitable error code :-) */
+	}
 
 	/* enforce simple/standard policy */
 	allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_INTERRUPT | URB_DIR_MASK |

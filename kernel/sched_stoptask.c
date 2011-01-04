@@ -19,14 +19,14 @@ select_task_rq_stop(struct rq *rq, struct task_struct *p,
 static void
 check_preempt_curr_stop(struct rq *rq, struct task_struct *p, int flags)
 {
-	resched_task(rq->curr); /* we preempt everything */
+	/* we're never preempted */
 }
 
 static struct task_struct *pick_next_task_stop(struct rq *rq)
 {
 	struct task_struct *stop = rq->stop;
 
-	if (stop && stop->state == TASK_RUNNING)
+	if (stop && stop->se.on_rq)
 		return stop;
 
 	return NULL;

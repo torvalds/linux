@@ -320,19 +320,11 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 				    "changed. The Linux SCSI layer does not "
 				    "automatically adjust these parameters.\n");
 
-		if (scmd->request->cmd_flags & REQ_HARDBARRIER)
-			/*
-			 * barrier requests should always retry on UA
-			 * otherwise block will get a spurious error
-			 */
-			return NEEDS_RETRY;
-		else
-			/*
-			 * for normal (non barrier) commands, pass the
-			 * UA upwards for a determination in the
-			 * completion functions
-			 */
-			return SUCCESS;
+		/*
+		 * Pass the UA upwards for a determination in the completion
+		 * functions.
+		 */
+		return SUCCESS;
 
 		/* these three are not supported */
 	case COPY_ABORTED:
@@ -623,7 +615,7 @@ static int scsi_try_bus_device_reset(struct scsi_cmnd *scmd)
 	return rtn;
 }
 
-static int __scsi_try_to_abort_cmd(struct scsi_cmnd *scmd)
+static int scsi_try_to_abort_cmd(struct scsi_cmnd *scmd)
 {
 	if (!scmd->device->host->hostt->eh_abort_handler)
 		return FAILED;
@@ -631,31 +623,9 @@ static int __scsi_try_to_abort_cmd(struct scsi_cmnd *scmd)
 	return scmd->device->host->hostt->eh_abort_handler(scmd);
 }
 
-/**
- * scsi_try_to_abort_cmd - Ask host to abort a running command.
- * @scmd:	SCSI cmd to abort from Lower Level.
- *
- * Notes:
- *    This function will not return until the user's completion function
- *    has been called.  there is no timeout on this operation.  if the
- *    author of the low-level driver wishes this operation to be timed,
- *    they can provide this facility themselves.  helper functions in
- *    scsi_error.c can be supplied to make this easier to do.
- */
-static int scsi_try_to_abort_cmd(struct scsi_cmnd *scmd)
-{
-	/*
-	 * scsi_done was called just after the command timed out and before
-	 * we had a chance to process it. (db)
-	 */
-	if (scmd->serial_number == 0)
-		return SUCCESS;
-	return __scsi_try_to_abort_cmd(scmd);
-}
-
 static void scsi_abort_eh_cmnd(struct scsi_cmnd *scmd)
 {
-	if (__scsi_try_to_abort_cmd(scmd) != SUCCESS)
+	if (scsi_try_to_abort_cmd(scmd) != SUCCESS)
 		if (scsi_try_bus_device_reset(scmd) != SUCCESS)
 			if (scsi_try_target_reset(scmd) != SUCCESS)
 				if (scsi_try_bus_reset(scmd) != SUCCESS)
@@ -781,17 +751,15 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, unsigned char *cmnd,
 	struct Scsi_Host *shost = sdev->host;
 	DECLARE_COMPLETION_ONSTACK(done);
 	unsigned long timeleft;
-	unsigned long flags;
 	struct scsi_eh_save ses;
 	int rtn;
 
 	scsi_eh_prep_cmnd(scmd, &ses, cmnd, cmnd_size, sense_bytes);
 	shost->eh_action = &done;
 
-	spin_lock_irqsave(shost->host_lock, flags);
 	scsi_log_send(scmd);
-	shost->hostt->queuecommand(scmd, scsi_eh_done);
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	scmd->scsi_done = scsi_eh_done;
+	shost->hostt->queuecommand(shost, scmd);
 
 	timeleft = wait_for_completion_timeout(&done, timeout);
 

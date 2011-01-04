@@ -13,6 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
+#include <linux/sysdev.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -31,6 +32,7 @@
 #include <plat/ata.h>
 #include <plat/iic.h>
 #include <plat/keypad.h>
+#include <plat/pm.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define SMDKV210_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -103,6 +105,7 @@ static struct samsung_keypad_platdata smdkv210_keypad_data __initdata = {
 static struct platform_device *smdkv210_devices[] __initdata = {
 	&s5pv210_device_iis0,
 	&s5pv210_device_ac97,
+	&s5pv210_device_spdif,
 	&s3c_device_adc,
 	&s3c_device_cfcon,
 	&s3c_device_hsmmc0,
@@ -145,6 +148,8 @@ static void __init smdkv210_map_io(void)
 
 static void __init smdkv210_machine_init(void)
 {
+	s3c_pm_init();
+
 	samsung_keypad_set_platdata(&smdkv210_keypad_data);
 	s3c24xx_ts_set_platdata(&s3c_ts_platform);
 

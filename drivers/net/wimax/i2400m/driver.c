@@ -122,7 +122,7 @@ struct i2400m_work *__i2400m_work_setup(
  * works struct was already queued, but we have just allocated it, so
  * it should not happen.
  */
-int i2400m_schedule_work(struct i2400m *i2400m,
+static int i2400m_schedule_work(struct i2400m *i2400m,
 			 void (*fn)(struct work_struct *), gfp_t gfp_flags,
 			 const void *pl, size_t pl_size)
 {

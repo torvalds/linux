@@ -51,6 +51,7 @@ static ssize_t name## _read(struct file *file, char __user *userbuf,	\
 static const struct file_operations name## _ops = {			\
 	.read = name## _read,						\
 	.open = wl1271_open_file_generic,				\
+	.llseek	= generic_file_llseek,					\
 };
 
 #define DEBUGFS_ADD(name, parent)					\
@@ -87,6 +88,7 @@ static ssize_t sub## _ ##name## _read(struct file *file,		\
 static const struct file_operations sub## _ ##name## _ops = {		\
 	.read = sub## _ ##name## _read,					\
 	.open = wl1271_open_file_generic,				\
+	.llseek	= generic_file_llseek,					\
 };
 
 #define DEBUGFS_FWSTATS_ADD(sub, name)				\
@@ -237,6 +239,7 @@ static ssize_t tx_queue_len_read(struct file *file, char __user *userbuf,
 static const struct file_operations tx_queue_len_ops = {
 	.read = tx_queue_len_read,
 	.open = wl1271_open_file_generic,
+	.llseek = default_llseek,
 };
 
 static ssize_t gpio_power_read(struct file *file, char __user *user_buf,
@@ -291,7 +294,8 @@ out:
 static const struct file_operations gpio_power_ops = {
 	.read = gpio_power_read,
 	.write = gpio_power_write,
-	.open = wl1271_open_file_generic
+	.open = wl1271_open_file_generic,
+	.llseek = default_llseek,
 };
 
 static void wl1271_debugfs_delete_files(struct wl1271 *wl)

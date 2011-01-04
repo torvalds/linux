@@ -26,6 +26,7 @@
 #include <linux/stat.h>
 
 #include <linux/mmc/host.h>
+#include <linux/mmc/sdio.h>
 
 #include <mach/atmel-mci.h>
 #include <linux/atmel-mci.h>
@@ -532,12 +533,17 @@ static u32 atmci_prepare_command(struct mmc_host *mmc,
 	data = cmd->data;
 	if (data) {
 		cmdr |= MCI_CMDR_START_XFER;
-		if (data->flags & MMC_DATA_STREAM)
-			cmdr |= MCI_CMDR_STREAM;
-		else if (data->blocks > 1)
-			cmdr |= MCI_CMDR_MULTI_BLOCK;
-		else
-			cmdr |= MCI_CMDR_BLOCK;
+
+		if (cmd->opcode == SD_IO_RW_EXTENDED) {
+			cmdr |= MCI_CMDR_SDIO_BLOCK;
+		} else {
+			if (data->flags & MMC_DATA_STREAM)
+				cmdr |= MCI_CMDR_STREAM;
+			else if (data->blocks > 1)
+				cmdr |= MCI_CMDR_MULTI_BLOCK;
+			else
+				cmdr |= MCI_CMDR_BLOCK;
+		}
 
 		if (data->flags & MMC_DATA_READ)
 			cmdr |= MCI_CMDR_TRDIR_READ;
@@ -1618,8 +1624,7 @@ static int __init atmci_init_slot(struct atmel_mci *host,
 	if (slot_data->bus_width >= 4)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
-	mmc->max_hw_segs = 64;
-	mmc->max_phys_segs = 64;
+	mmc->max_segs = 64;
 	mmc->max_req_size = 32768 * 512;
 	mmc->max_blk_size = 32768;
 	mmc->max_blk_count = 512;
@@ -1777,7 +1782,7 @@ static int __init atmci_probe(struct platform_device *pdev)
 	}
 
 	ret = -ENOMEM;
-	host->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	host->regs = ioremap(regs->start, resource_size(regs));
 	if (!host->regs)
 		goto err_ioremap;
 

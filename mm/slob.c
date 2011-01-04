@@ -500,7 +500,9 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
 	} else {
 		unsigned int order = get_order(size);
 
-		ret = slob_new_pages(gfp | __GFP_COMP, get_order(size), node);
+		if (likely(order))
+			gfp |= __GFP_COMP;
+		ret = slob_new_pages(gfp, order, node);
 		if (ret) {
 			struct page *page;
 			page = virt_to_page(ret);

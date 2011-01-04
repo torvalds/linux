@@ -3,6 +3,9 @@
  * Author:	Sjur Brendeland/sjur.brandeland@stericsson.com
  * License terms: GNU General Public License (GPL) version 2
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
+
 #include <linux/stddef.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -190,7 +193,7 @@ static int cfmuxl_receive(struct cflayer *layr, struct cfpkt *pkt)
 	u8 id;
 	struct cflayer *up;
 	if (cfpkt_extr_head(pkt, &id, 1) < 0) {
-		pr_err("CAIF: %s(): erroneous Caif Packet\n", __func__);
+		pr_err("erroneous Caif Packet\n");
 		cfpkt_destroy(pkt);
 		return -EPROTO;
 	}
@@ -199,8 +202,8 @@ static int cfmuxl_receive(struct cflayer *layr, struct cfpkt *pkt)
 	up = get_up(muxl, id);
 	spin_unlock(&muxl->receive_lock);
 	if (up == NULL) {
-		pr_info("CAIF: %s():Received data on unknown link ID = %d "
-			"(0x%x)	 up == NULL", __func__, id, id);
+		pr_info("Received data on unknown link ID = %d (0x%x) up == NULL",
+			id, id);
 		cfpkt_destroy(pkt);
 		/*
 		 * Don't return ERROR, since modem misbehaves and sends out
@@ -223,9 +226,8 @@ static int cfmuxl_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	struct caif_payload_info *info = cfpkt_info(pkt);
 	dn = get_dn(muxl, cfpkt_info(pkt)->dev_info);
 	if (dn == NULL) {
-		pr_warning("CAIF: %s(): Send data on unknown phy "
-			   "ID = %d (0x%x)\n",
-			   __func__, info->dev_info->id, info->dev_info->id);
+		pr_warn("Send data on unknown phy ID = %d (0x%x)\n",
+			info->dev_info->id, info->dev_info->id);
 		return -ENOTCONN;
 	}
 	info->hdr_len += 1;

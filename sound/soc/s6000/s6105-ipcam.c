@@ -32,8 +32,8 @@ static int s6105_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret = 0;
 
 	/* set codec DAI configuration */
@@ -134,8 +134,10 @@ static const struct snd_kcontrol_new audio_out_mux = {
 };
 
 /* Logic for a aic3x as connected on the s6105 ip camera ref design */
-static int s6105_aic3x_init(struct snd_soc_codec *codec)
+static int s6105_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
+
 	/* Add s6105 specific widgets */
 	snd_soc_dapm_new_controls(codec, aic3x_dapm_widgets,
 				  ARRAY_SIZE(aic3x_dapm_widgets));
@@ -165,7 +167,7 @@ static int s6105_aic3x_init(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_sync(codec);
 
-	snd_ctl_add(codec->card, snd_ctl_new1(&audio_out_mux, codec));
+	snd_ctl_add(codec->card->snd_card, snd_ctl_new1(&audio_out_mux, codec));
 
 	return 0;
 }
@@ -174,8 +176,10 @@ static int s6105_aic3x_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link s6105_dai = {
 	.name = "TLV320AIC31",
 	.stream_name = "AIC31",
-	.cpu_dai = &s6000_i2s_dai,
-	.codec_dai = &aic3x_dai,
+	.cpu_dai_name = "s6000-i2s",
+	.codec_dai_name = "tlv320aic3x-hifi",
+	.platform_name = "s6000-pcm-audio",
+	.codec_name = "tlv320aic3x-codec.0-001a",
 	.init = s6105_aic3x_init,
 	.ops = &s6105_ops,
 };
@@ -183,20 +187,8 @@ static struct snd_soc_dai_link s6105_dai = {
 /* s6105 audio machine driver */
 static struct snd_soc_card snd_soc_card_s6105 = {
 	.name = "Stretch IP Camera",
-	.platform = &s6000_soc_platform,
 	.dai_link = &s6105_dai,
 	.num_links = 1,
-};
-
-/* s6105 audio private data */
-static struct aic3x_setup_data s6105_aic3x_setup = {
-};
-
-/* s6105 audio subsystem */
-static struct snd_soc_device s6105_snd_devdata = {
-	.card = &snd_soc_card_s6105,
-	.codec_dev = &soc_codec_dev_aic3x,
-	.codec_data = &s6105_aic3x_setup,
 };
 
 static struct s6000_snd_platform_data __initdata s6105_snd_data = {
@@ -227,8 +219,7 @@ static int __init s6105_init(void)
 	if (!s6105_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(s6105_snd_device, &s6105_snd_devdata);
-	s6105_snd_devdata.dev = &s6105_snd_device->dev;
+	platform_set_drvdata(s6105_snd_device, &snd_soc_card_s6105);
 	platform_device_add_data(s6105_snd_device, &s6105_snd_data,
 				 sizeof(s6105_snd_data));
 

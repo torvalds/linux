@@ -51,7 +51,7 @@ struct s3c_hwmon_attr {
  * @attr: The holders for the channel attributes.
 */
 struct s3c_hwmon {
-	struct semaphore	lock;
+	struct mutex		lock;
 	struct s3c_adc_client	*client;
 	struct device		*hwmon_dev;
 
@@ -73,14 +73,14 @@ static int s3c_hwmon_read_ch(struct device *dev,
 {
 	int ret;
 
-	ret = down_interruptible(&hwmon->lock);
+	ret = mutex_lock_interruptible(&hwmon->lock);
 	if (ret < 0)
 		return ret;
 
 	dev_dbg(dev, "reading channel %d\n", channel);
 
 	ret = s3c_adc_read(hwmon->client, channel);
-	up(&hwmon->lock);
+	mutex_unlock(&hwmon->lock);
 
 	return ret;
 }
@@ -296,7 +296,7 @@ static int __devinit s3c_hwmon_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, hwmon);
 
-	init_MUTEX(&hwmon->lock);
+	mutex_init(&hwmon->lock);
 
 	/* Register with the core ADC driver. */
 

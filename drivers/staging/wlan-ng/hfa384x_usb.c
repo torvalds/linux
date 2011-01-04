@@ -511,7 +511,7 @@ static void hfa384x_usb_defer(struct work_struct *data)
 * hfa384x_create
 *
 * Sets up the hfa384x_t data structure for use.  Note this
-* does _not_ intialize the actual hardware, just the data structures
+* does _not_ initialize the actual hardware, just the data structures
 * we use to keep track of its state.
 *
 * Arguments:

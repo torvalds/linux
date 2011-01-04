@@ -3179,8 +3179,7 @@ static int skge_poll(struct napi_struct *napi, int to_do)
 
 		skb = skge_rx_get(dev, e, control, rd->status, rd->csum2);
 		if (likely(skb)) {
-			netif_receive_skb(skb);
-
+			napi_gro_receive(napi, skb);
 			++work_done;
 		}
 	}
@@ -3193,6 +3192,7 @@ static int skge_poll(struct napi_struct *napi, int to_do)
 	if (work_done < to_do) {
 		unsigned long flags;
 
+		napi_gro_flush(napi);
 		spin_lock_irqsave(&hw->hw_lock, flags);
 		__napi_complete(napi);
 		hw->intr_mask |= napimask[skge->port];
@@ -3850,6 +3850,7 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 		skge->rx_csum = 1;
 	}
+	dev->features |= NETIF_F_GRO;
 
 	/* read the mac address */
 	memcpy_fromio(dev->dev_addr, hw->regs + B2_MAC_1 + port*8, ETH_ALEN);
@@ -3857,7 +3858,6 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 
 	/* device is off until link detection */
 	netif_carrier_off(dev);
-	netif_stop_queue(dev);
 
 	return dev;
 }

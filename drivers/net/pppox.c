@@ -36,9 +36,9 @@
 
 #include <asm/uaccess.h>
 
-static struct pppox_proto *pppox_protos[PX_MAX_PROTO + 1];
+static const struct pppox_proto *pppox_protos[PX_MAX_PROTO + 1];
 
-int register_pppox_proto(int proto_num, struct pppox_proto *pp)
+int register_pppox_proto(int proto_num, const struct pppox_proto *pp)
 {
 	if (proto_num < 0 || proto_num > PX_MAX_PROTO)
 		return -EINVAL;

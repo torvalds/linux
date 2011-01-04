@@ -139,16 +139,11 @@ int cxgb4_alloc_stid(struct tid_info *t, int family, void *data);
 void cxgb4_free_atid(struct tid_info *t, unsigned int atid);
 void cxgb4_free_stid(struct tid_info *t, unsigned int stid, int family);
 void cxgb4_remove_tid(struct tid_info *t, unsigned int qid, unsigned int tid);
-void cxgb4_queue_tid_release(struct tid_info *t, unsigned int chan,
-			     unsigned int tid);
 
 struct in6_addr;
 
 int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 			__be32 sip, __be16 sport, unsigned int queue);
-int cxgb4_create_server6(const struct net_device *dev, unsigned int stid,
-			 const struct in6_addr *sip, __be16 sport,
-			 unsigned int queue);
 
 static inline void set_wr_txq(struct sk_buff *skb, int prio, int queue)
 {
@@ -233,7 +228,6 @@ int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);
 unsigned int cxgb4_port_chan(const struct net_device *dev);
 unsigned int cxgb4_port_viid(const struct net_device *dev);
 unsigned int cxgb4_port_idx(const struct net_device *dev);
-struct net_device *cxgb4_netdev_by_hwid(struct pci_dev *pdev, unsigned int id);
 unsigned int cxgb4_best_mtu(const unsigned short *mtus, unsigned short mtu,
 			    unsigned int *idx);
 void cxgb4_get_tcp_stats(struct pci_dev *pdev, struct tp_tcp_stats *v4,
