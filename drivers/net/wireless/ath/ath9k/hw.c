@@ -436,9 +436,10 @@ static int ath9k_hw_init_macaddr(struct ath_hw *ah)
 
 static int ath9k_hw_post_init(struct ath_hw *ah)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
 	int ecode;
 
-	if (!AR_SREV_9271(ah)) {
+	if (common->bus_ops->ath_bus_type != ATH_USB) {
 		if (!ath9k_hw_chip_test(ah))
 			return -ENODEV;
 	}
