@@ -1264,9 +1264,14 @@ static int dcbnl_ieee_get(struct net_device *netdev, struct nlattr **tb,
 
 	spin_lock(&dcb_lock);
 	list_for_each_entry(itr, &dcb_app_list, list) {
-		if (strncmp(itr->name, netdev->name, IFNAMSIZ) == 0)
-			NLA_PUT(skb, DCB_ATTR_IEEE_APP,
-				sizeof(itr->app), &itr->app);
+		if (strncmp(itr->name, netdev->name, IFNAMSIZ) == 0) {
+			err = nla_put(skb, DCB_ATTR_IEEE_APP, sizeof(itr->app),
+					 &itr->app);
+			if (err) {
+				spin_unlock(&dcb_lock);
+				goto nla_put_failure;
+			}
+		}
 	}
 	spin_unlock(&dcb_lock);
 	nla_nest_end(skb, app);
