@@ -141,8 +141,8 @@ enum dibx000_adc_states {
 };
 
 #define BANDWIDTH_TO_KHZ(v) ( (v) == BANDWIDTH_8_MHZ  ? 8000 : \
-			     (v) == BANDWIDTH_7_MHZ  ? 7000 : \
-			     (v) == BANDWIDTH_6_MHZ  ? 6000 : 8000 )
+				(v) == BANDWIDTH_7_MHZ  ? 7000 : \
+				(v) == BANDWIDTH_6_MHZ  ? 6000 : 8000 )
 
 #define BANDWIDTH_TO_INDEX(v) ( \
 	(v) == 8000 ? BANDWIDTH_8_MHZ : \
@@ -158,53 +158,57 @@ enum dibx000_adc_states {
 #define OUTMODE_MPEG2_FIFO          5
 #define OUTMODE_ANALOG_ADC          6
 
-enum frontend_tune_state {
-    CT_TUNER_START = 10,
-    CT_TUNER_STEP_0,
-    CT_TUNER_STEP_1,
-    CT_TUNER_STEP_2,
-    CT_TUNER_STEP_3,
-    CT_TUNER_STEP_4,
-    CT_TUNER_STEP_5,
-    CT_TUNER_STEP_6,
-    CT_TUNER_STEP_7,
-    CT_TUNER_STOP,
+#define INPUT_MODE_OFF                0x11
+#define INPUT_MODE_DIVERSITY          0x12
+#define INPUT_MODE_MPEG               0x13
 
-    CT_AGC_START = 20,
-    CT_AGC_STEP_0,
-    CT_AGC_STEP_1,
-    CT_AGC_STEP_2,
-    CT_AGC_STEP_3,
-    CT_AGC_STEP_4,
-    CT_AGC_STOP,
+enum frontend_tune_state {
+	CT_TUNER_START = 10,
+	CT_TUNER_STEP_0,
+	CT_TUNER_STEP_1,
+	CT_TUNER_STEP_2,
+	CT_TUNER_STEP_3,
+	CT_TUNER_STEP_4,
+	CT_TUNER_STEP_5,
+	CT_TUNER_STEP_6,
+	CT_TUNER_STEP_7,
+	CT_TUNER_STOP,
+
+	CT_AGC_START = 20,
+	CT_AGC_STEP_0,
+	CT_AGC_STEP_1,
+	CT_AGC_STEP_2,
+	CT_AGC_STEP_3,
+	CT_AGC_STEP_4,
+	CT_AGC_STOP,
 
 	CT_DEMOD_START = 30,
-    CT_DEMOD_STEP_1,
-    CT_DEMOD_STEP_2,
-    CT_DEMOD_STEP_3,
-    CT_DEMOD_STEP_4,
-    CT_DEMOD_STEP_5,
-    CT_DEMOD_STEP_6,
-    CT_DEMOD_STEP_7,
-    CT_DEMOD_STEP_8,
-    CT_DEMOD_STEP_9,
-    CT_DEMOD_STEP_10,
-    CT_DEMOD_SEARCH_NEXT = 41,
-    CT_DEMOD_STEP_LOCKED,
-    CT_DEMOD_STOP,
+	CT_DEMOD_STEP_1,
+	CT_DEMOD_STEP_2,
+	CT_DEMOD_STEP_3,
+	CT_DEMOD_STEP_4,
+	CT_DEMOD_STEP_5,
+	CT_DEMOD_STEP_6,
+	CT_DEMOD_STEP_7,
+	CT_DEMOD_STEP_8,
+	CT_DEMOD_STEP_9,
+	CT_DEMOD_STEP_10,
+	CT_DEMOD_SEARCH_NEXT = 41,
+	CT_DEMOD_STEP_LOCKED,
+	CT_DEMOD_STOP,
 
-    CT_DONE = 100,
-    CT_SHUTDOWN,
+	CT_DONE = 100,
+	CT_SHUTDOWN,
 
 };
 
 struct dvb_frontend_parametersContext {
 #define CHANNEL_STATUS_PARAMETERS_UNKNOWN   0x01
 #define CHANNEL_STATUS_PARAMETERS_SET       0x02
-    u8 status;
-    u32 tune_time_estimation[2];
-    s32 tps_available;
-    u16 tps[9];
+	u8 status;
+	u32 tune_time_estimation[2];
+	s32 tps_available;
+	u16 tps[9];
 };
 
 #define FE_STATUS_TUNE_FAILED          0
