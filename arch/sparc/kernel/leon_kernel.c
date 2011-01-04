@@ -108,6 +108,7 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 	struct device_node *rootnp, *np;
 	struct property *pp;
 	int len;
+	int cpu, icsel;
 
 	leondebug_irq_disable = 0;
 	leon_debug_irqout = 0;
@@ -160,6 +161,19 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[1].ctrl, 0);
 # endif
 
+		/*
+		 * The IRQ controller may (if implemented) consist of multiple
+		 * IRQ controllers, each mapped on a 4Kb boundary.
+		 * Each CPU may be routed to different IRQCTRLs, however
+		 * we assume that all CPUs (in SMP system) is routed to the
+		 * same IRQ Controller, and for non-SMP only one IRQCTRL is
+		 * accessed anyway.
+		 * In AMP systems, Linux must run on CPU0 for the time being.
+		 */
+		cpu = sparc_leon3_cpuid();
+		icsel = LEON3_BYPASS_LOAD_PA(&leon3_irqctrl_regs->icsel[cpu/8]);
+		icsel = (icsel >> ((7 - (cpu&0x7)) * 4)) & 0xf;
+		leon3_irqctrl_regs += icsel;
 	} else {
 		goto bad;
 	}
