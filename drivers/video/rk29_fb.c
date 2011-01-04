@@ -1183,6 +1183,8 @@ static int fb0_set_par(struct fb_info *info)
 
 	CHK_SUSPEND(inf);
 
+    if((inf->video_mode == 1)&&(screen->y_res < var->yres))ypos_virtual += (var->yres-screen->y_res);
+
     switch(var->bits_per_pixel)
     {
     case 16:    // rgb565
@@ -1221,7 +1223,7 @@ static int fb0_set_par(struct fb_info *info)
         par->xpos = (screen->x_res >= var->xres)?((screen->x_res - var->xres)/2):0;              //visiable offset in panel
         par->ypos = (screen->y_res >= var->yres)?(screen->y_res - var->yres):0;
         par->xsize = var->xres;                                //visiable size in panel
-        par->ysize = var->yres;
+        par->ysize = (screen->y_res >= var->yres) ? var->yres : screen->y_res;
         win1_set_par(info);
     }
     else
@@ -1262,7 +1264,7 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
         return -EINVAL;
     }
 
-    par->y_offset = offset;
+//    par->y_offset = offset;
 
     if(inf->video_mode == 1)
     {
