@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009 Motorola, Inc.
+ * Copyright (C) 2009-2011 Motorola, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -40,6 +40,7 @@ struct cpcap_3mm5_data {
 	struct cpcap_device *cpcap;
 	struct switch_dev sdev;
 	unsigned int key_state;
+	unsigned int mb2_idle;
 	struct regulator *regulator;
 	unsigned char audio_low_pwr_det;
 	unsigned char audio_low_pwr_mac13;
@@ -132,8 +133,11 @@ static void hs_handler(enum cpcap_irqs irq, void *data)
 			/* Headset without mic and MFB is detected. (May also
 			 * be a headset with the MFB pressed.) */
 			new_state = HEADSET_WITHOUT_MIC;
-		} else
+		} else {
 			new_state = HEADSET_WITH_MIC;
+			data_3mm5->mb2_idle = cpcap_irq_sense(data_3mm5->cpcap,
+							      CPCAP_IRQ_MB2, 1);
+		}
 
 		cpcap_irq_clear(data_3mm5->cpcap, CPCAP_IRQ_MB2);
 		cpcap_irq_clear(data_3mm5->cpcap, CPCAP_IRQ_UC_PRIMACRO_5);
@@ -166,7 +170,7 @@ static void mb2_handler(enum cpcap_irqs irq, void *data)
 		return;
 	}
 
-	send_key_event(data_3mm5, 1);
+	send_key_event(data_3mm5, (data_3mm5->mb2_idle ? 1 : 0));
 	cpcap_irq_unmask(data_3mm5->cpcap, CPCAP_IRQ_MB2);
 }
 
@@ -183,7 +187,7 @@ static void mac5_handler(enum cpcap_irqs irq, void *data)
 		return;
 	}
 
-	send_key_event(data_3mm5, 0);
+	send_key_event(data_3mm5, (data_3mm5->mb2_idle ? 0 : 1));
 	cpcap_irq_unmask(data_3mm5->cpcap, CPCAP_IRQ_UC_PRIMACRO_5);
 }
 
@@ -329,6 +333,6 @@ static void __exit cpcap_3mm5_exit(void)
 module_exit(cpcap_3mm5_exit);
 
 MODULE_ALIAS("platform:cpcap_3mm5");
-MODULE_DESCRIPTION("CPCAP USB detection driver");
+MODULE_DESCRIPTION("CPCAP 3.5mm detection driver");
 MODULE_AUTHOR("Motorola");
 MODULE_LICENSE("GPL");
