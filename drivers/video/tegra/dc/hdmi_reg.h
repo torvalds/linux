@@ -57,16 +57,29 @@
 #define HDMI_NV_PDISP_RG_HDCP_AKSV_MSB				0x08
 #define HDMI_NV_PDISP_RG_HDCP_AKSV_LSB				0x09
 #define HDMI_NV_PDISP_RG_HDCP_BKSV_MSB				0x0a
+#define  REPEATER				(1 << 31)
 #define HDMI_NV_PDISP_RG_HDCP_BKSV_LSB				0x0b
 #define HDMI_NV_PDISP_RG_HDCP_CKSV_MSB				0x0c
 #define HDMI_NV_PDISP_RG_HDCP_CKSV_LSB				0x0d
 #define HDMI_NV_PDISP_RG_HDCP_DKSV_MSB				0x0e
 #define HDMI_NV_PDISP_RG_HDCP_DKSV_LSB				0x0f
 #define HDMI_NV_PDISP_RG_HDCP_CTRL				0x10
+#define  HDCP_RUN_YES				(1 << 0)
+#define  CRYPT_ENABLED				(1 << 1)
+#define  ONEONE_ENABLED				(1 << 3)
+#define  AN_VALID				(1 << 8)
+#define  R0_VALID				(1 << 9)
+#define  SPRIME_VALID				(1 << 10)
+#define  MPRIME_VALID				(1 << 11)
+#define  SROM_ERR				(1 << 13)
 #define HDMI_NV_PDISP_RG_HDCP_CMODE				0x11
+#define  TMDS0_LINK0				(1 << 4)
+#define  READ_S					(1 << 0)
+#define  READ_M					(2 << 0)
 #define HDMI_NV_PDISP_RG_HDCP_MPRIME_MSB			0x12
 #define HDMI_NV_PDISP_RG_HDCP_MPRIME_LSB			0x13
 #define HDMI_NV_PDISP_RG_HDCP_SPRIME_MSB			0x14
+#define  STATUS_CS				(1 << 6)
 #define HDMI_NV_PDISP_RG_HDCP_SPRIME_LSB2			0x15
 #define HDMI_NV_PDISP_RG_HDCP_SPRIME_LSB1			0x16
 #define HDMI_NV_PDISP_RG_HDCP_RI				0x17
@@ -417,6 +430,11 @@
 #define  PE_CURRENT3(x)				(((x) & 0xf) << 24)
 
 #define HDMI_NV_PDISP_KEY_CTRL					0x9a
+#define  LOCAL_KEYS				(1 << 0)
+#define  AUTOINC				(1 << 1)
+#define  WRITE16				(1 << 4)
+#define  PKEY_REQUEST_RELOAD_TRIGGER		(1 << 5)
+#define  PKEY_LOADED				(1 << 6)
 #define HDMI_NV_PDISP_KEY_DEBUG0				0x9b
 #define HDMI_NV_PDISP_KEY_DEBUG1				0x9c
 #define HDMI_NV_PDISP_KEY_DEBUG2				0x9d
