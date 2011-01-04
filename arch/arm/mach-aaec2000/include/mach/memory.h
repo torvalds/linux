@@ -12,6 +12,6 @@
 #define __ASM_ARCH_MEMORY_H
 
 
-#define PHYS_OFFSET	UL(0xf0000000)
+#define PLAT_PHYS_OFFSET	UL(0xf0000000)
 
 #endif /* __ASM_ARCH_MEMORY_H */

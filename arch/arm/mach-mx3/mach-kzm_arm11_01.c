@@ -27,6 +27,7 @@
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
+#include <asm/memory.h>
 #include <asm/setup.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
@@ -36,7 +37,6 @@
 #include <mach/clock.h>
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
-#include <mach/memory.h>
 
 #include "devices-imx31.h"
 #include "devices.h"

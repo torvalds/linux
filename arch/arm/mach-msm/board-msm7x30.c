@@ -26,11 +26,11 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/memory.h>
 #include <asm/setup.h>
 
 #include <mach/gpio.h>
 #include <mach/board.h>
-#include <mach/memory.h>
 #include <mach/msm_iomap.h>
 #include <mach/dma.h>
 

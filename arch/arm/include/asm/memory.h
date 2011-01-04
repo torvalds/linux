@@ -24,6 +24,8 @@
  */
 #define UL(x) _AC(x, UL)
 
+#define PHYS_OFFSET	PLAT_PHYS_OFFSET
+
 #ifdef CONFIG_MMU
 
 /*

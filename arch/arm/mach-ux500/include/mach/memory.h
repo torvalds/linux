@@ -12,7 +12,7 @@
 /*
  * Physical DRAM offset.
  */
-#define PHYS_OFFSET	UL(0x00000000)
+#define PLAT_PHYS_OFFSET	UL(0x00000000)
 #define BUS_OFFSET	UL(0x00000000)
 
 #endif
