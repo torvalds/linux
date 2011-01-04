@@ -1159,6 +1159,30 @@ static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 	}
 }
 
+static void assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+	bool enabled;
+
+	val = I915_READ(PCH_DREF_CONTROL);
+	enabled = !!(val & (DREF_SSC_SOURCE_MASK | DREF_NONSPREAD_SOURCE_MASK |
+			    DREF_SUPERSPREAD_SOURCE_MASK));
+	WARN(!enabled, "PCH refclk assertion failure, should be active but is disabled\n");
+}
+
+static void assert_transcoder_disabled(struct drm_i915_private *dev_priv,
+				       enum pipe pipe)
+{
+	int reg;
+	u32 val;
+	bool enabled;
+
+	reg = TRANSCONF(pipe);
+	val = I915_READ(reg);
+	enabled = !!(val & TRANS_ENABLE);
+	WARN(enabled, "transcoder assertion failed, should be off on pipe %c but is still active\n", pipe ? 'B' :'A');
+}
+
 /**
  * intel_enable_pll - enable a PLL
  * @dev_priv: i915 private structure
@@ -1224,6 +1248,54 @@ static void intel_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	val &= ~DPLL_VCO_ENABLE;
 	I915_WRITE(reg, val);
 	POSTING_READ(reg);
+}
+
+/**
+ * intel_enable_pch_pll - enable PCH PLL
+ * @dev_priv: i915 private structure
+ * @pipe: pipe PLL to enable
+ *
+ * The PCH PLL needs to be enabled before the PCH transcoder, since it
+ * drives the transcoder clock.
+ */
+static void intel_enable_pch_pll(struct drm_i915_private *dev_priv,
+				 enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	/* PCH only available on ILK+ */
+	BUG_ON(dev_priv->info->gen < 5);
+
+	/* PCH refclock must be enabled first */
+	assert_pch_refclk_enabled(dev_priv);
+
+	reg = PCH_DPLL(pipe);
+	val = I915_READ(reg);
+	val |= DPLL_VCO_ENABLE;
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
+	udelay(200);
+}
+
+static void intel_disable_pch_pll(struct drm_i915_private *dev_priv,
+				  enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	/* PCH only available on ILK+ */
+	BUG_ON(dev_priv->info->gen < 5);
+
+	/* Make sure transcoder isn't still depending on us */
+	assert_transcoder_disabled(dev_priv, pipe);
+
+	reg = PCH_DPLL(pipe);
+	val = I915_READ(reg);
+	val &= ~DPLL_VCO_ENABLE;
+	I915_WRITE(reg, val);
+	POSTING_READ(reg);
+	udelay(200);
 }
 
 /**
@@ -2360,14 +2432,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	else
 		ironlake_fdi_link_train(crtc);
 
-	/* enable PCH DPLL */
-	reg = PCH_DPLL(pipe);
-	temp = I915_READ(reg);
-	if ((temp & DPLL_VCO_ENABLE) == 0) {
-		I915_WRITE(reg, temp | DPLL_VCO_ENABLE);
-		POSTING_READ(reg);
-		udelay(200);
-	}
+	intel_enable_pch_pll(dev_priv, pipe);
 
 	if (HAS_PCH_CPT(dev)) {
 		/* Be sure PCH DPLL SEL is set */
@@ -2553,9 +2618,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	}
 
 	/* disable PCH DPLL */
-	reg = PCH_DPLL(pipe);
-	temp = I915_READ(reg);
-	I915_WRITE(reg, temp & ~DPLL_VCO_ENABLE);
+	intel_disable_pch_pll(dev_priv, pipe);
 
 	/* Switch from PCDclk to Rawclk */
 	reg = FDI_RX_CTL(pipe);

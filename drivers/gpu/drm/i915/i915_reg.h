@@ -2899,6 +2899,7 @@
 #define  DREF_NONSPREAD_SOURCE_MASK		(3<<9)
 #define  DREF_SUPERSPREAD_SOURCE_DISABLE        (0<<7)
 #define  DREF_SUPERSPREAD_SOURCE_ENABLE         (2<<7)
+#define  DREF_SUPERSPREAD_SOURCE_MASK		(3<<7)
 #define  DREF_SSC4_DOWNSPREAD                   (0<<6)
 #define  DREF_SSC4_CENTERSPREAD                 (1<<6)
 #define  DREF_SSC1_DISABLE                      (0<<1)
