@@ -517,6 +517,17 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 		return 0;
 	}
 
+	/* Try to flag /IRQ as a wake source; there are a number of
+	 * unconditional wake sources in the PMIC so this isn't
+	 * conditional but we don't actually care *too* much if it
+	 * fails.
+	 */
+	ret = enable_irq_wake(irq);
+	if (ret != 0) {
+		dev_warn(wm831x->dev, "Can't enable IRQ as wake source: %d\n",
+			 ret);
+	}
+
 	wm831x->irq = irq;
 	wm831x->irq_base = pdata->irq_base;
 
