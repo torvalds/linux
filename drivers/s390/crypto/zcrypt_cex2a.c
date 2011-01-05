@@ -41,7 +41,7 @@
 #define CEX2A_MIN_MOD_SIZE	  1	/*    8 bits	*/
 #define CEX2A_MAX_MOD_SIZE	256	/* 2048 bits	*/
 #define CEX3A_MIN_MOD_SIZE	CEX2A_MIN_MOD_SIZE
-#define CEX3A_MAX_MOD_SIZE	CEX2A_MAX_MOD_SIZE
+#define CEX3A_MAX_MOD_SIZE	512	/* 4096 bits	*/
 
 #define CEX2A_SPEED_RATING	970
 #define CEX3A_SPEED_RATING	900 /* Fixme: Needs finetuning */
@@ -49,8 +49,10 @@
 #define CEX2A_MAX_MESSAGE_SIZE	0x390	/* sizeof(struct type50_crb2_msg)    */
 #define CEX2A_MAX_RESPONSE_SIZE 0x110	/* max outputdatalength + type80_hdr */
 
-#define CEX3A_MAX_MESSAGE_SIZE	CEX2A_MAX_MESSAGE_SIZE
-#define CEX3A_MAX_RESPONSE_SIZE	CEX2A_MAX_RESPONSE_SIZE
+#define CEX3A_MAX_RESPONSE_SIZE	0x210	/* 512 bit modulus
+					 * (max outputdatalength) +
+					 * type80_hdr*/
+#define CEX3A_MAX_MESSAGE_SIZE	sizeof(struct type50_crb3_msg)
 
 #define CEX2A_CLEANUP_TIME	(15*HZ)
 #define CEX3A_CLEANUP_TIME	CEX2A_CLEANUP_TIME
@@ -110,7 +112,7 @@ static int ICAMEX_msg_to_type50MEX_msg(struct zcrypt_device *zdev,
 		mod = meb1->modulus + sizeof(meb1->modulus) - mod_len;
 		exp = meb1->exponent + sizeof(meb1->exponent) - mod_len;
 		inp = meb1->message + sizeof(meb1->message) - mod_len;
-	} else {
+	} else if (mod_len <= 256) {
 		struct type50_meb2_msg *meb2 = ap_msg->message;
 		memset(meb2, 0, sizeof(*meb2));
 		ap_msg->length = sizeof(*meb2);
@@ -120,6 +122,17 @@ static int ICAMEX_msg_to_type50MEX_msg(struct zcrypt_device *zdev,
 		mod = meb2->modulus + sizeof(meb2->modulus) - mod_len;
 		exp = meb2->exponent + sizeof(meb2->exponent) - mod_len;
 		inp = meb2->message + sizeof(meb2->message) - mod_len;
+	} else {
+		/* mod_len > 256 = 4096 bit RSA Key */
+		struct type50_meb3_msg *meb3 = ap_msg->message;
+		memset(meb3, 0, sizeof(*meb3));
+		ap_msg->length = sizeof(*meb3);
+		meb3->header.msg_type_code = TYPE50_TYPE_CODE;
+		meb3->header.msg_len = sizeof(*meb3);
+		meb3->keyblock_type = TYPE50_MEB3_FMT;
+		mod = meb3->modulus + sizeof(meb3->modulus) - mod_len;
+		exp = meb3->exponent + sizeof(meb3->exponent) - mod_len;
+		inp = meb3->message + sizeof(meb3->message) - mod_len;
 	}
 
 	if (copy_from_user(mod, mex->n_modulus, mod_len) ||
@@ -142,7 +155,7 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_device *zdev,
 				       struct ap_message *ap_msg,
 				       struct ica_rsa_modexpo_crt *crt)
 {
-	int mod_len, short_len, long_len, long_offset;
+	int mod_len, short_len, long_len, long_offset, limit;
 	unsigned char *p, *q, *dp, *dq, *u, *inp;
 
 	mod_len = crt->inputdatalength;
@@ -152,14 +165,20 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_device *zdev,
 	/*
 	 * CEX2A cannot handle p, dp, or U > 128 bytes.
 	 * If we have one of these, we need to do extra checking.
+	 * For CEX3A the limit is 256 bytes.
 	 */
-	if (long_len > 128) {
+	if (zdev->max_mod_size == CEX3A_MAX_MOD_SIZE)
+		limit = 256;
+	else
+		limit = 128;
+
+	if (long_len > limit) {
 		/*
 		 * zcrypt_rsa_crt already checked for the leading
 		 * zeroes of np_prime, bp_key and u_mult_inc.
 		 */
-		long_offset = long_len - 128;
-		long_len = 128;
+		long_offset = long_len - limit;
+		long_len = limit;
 	} else
 		long_offset = 0;
 
@@ -180,7 +199,7 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_device *zdev,
 		dq = crb1->dq + sizeof(crb1->dq) - short_len;
 		u = crb1->u + sizeof(crb1->u) - long_len;
 		inp = crb1->message + sizeof(crb1->message) - mod_len;
-	} else {
+	} else if (long_len <= 128) {
 		struct type50_crb2_msg *crb2 = ap_msg->message;
 		memset(crb2, 0, sizeof(*crb2));
 		ap_msg->length = sizeof(*crb2);
@@ -193,6 +212,20 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_device *zdev,
 		dq = crb2->dq + sizeof(crb2->dq) - short_len;
 		u = crb2->u + sizeof(crb2->u) - long_len;
 		inp = crb2->message + sizeof(crb2->message) - mod_len;
+	} else {
+		/* long_len >= 256 */
+		struct type50_crb3_msg *crb3 = ap_msg->message;
+		memset(crb3, 0, sizeof(*crb3));
+		ap_msg->length = sizeof(*crb3);
+		crb3->header.msg_type_code = TYPE50_TYPE_CODE;
+		crb3->header.msg_len = sizeof(*crb3);
+		crb3->keyblock_type = TYPE50_CRB3_FMT;
+		p = crb3->p + sizeof(crb3->p) - long_len;
+		q = crb3->q + sizeof(crb3->q) - short_len;
+		dp = crb3->dp + sizeof(crb3->dp) - long_len;
+		dq = crb3->dq + sizeof(crb3->dq) - short_len;
+		u = crb3->u + sizeof(crb3->u) - long_len;
+		inp = crb3->message + sizeof(crb3->message) - mod_len;
 	}
 
 	if (copy_from_user(p, crt->np_prime + long_offset, long_len) ||
@@ -202,7 +235,6 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_device *zdev,
 	    copy_from_user(u, crt->u_mult_inv + long_offset, long_len) ||
 	    copy_from_user(inp, crt->inputdata, mod_len))
 		return -EFAULT;
-
 
 	return 0;
 }
@@ -230,7 +262,10 @@ static int convert_type80(struct zcrypt_device *zdev,
 		zdev->online = 0;
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}
-	BUG_ON(t80h->len > CEX2A_MAX_RESPONSE_SIZE);
+	if (zdev->user_space_type == ZCRYPT_CEX2A)
+		BUG_ON(t80h->len > CEX2A_MAX_RESPONSE_SIZE);
+	else
+		BUG_ON(t80h->len > CEX3A_MAX_RESPONSE_SIZE);
 	data = reply->message + t80h->len - outputdatalength;
 	if (copy_to_user(outputdata, data, outputdatalength))
 		return -EFAULT;
@@ -282,7 +317,10 @@ static void zcrypt_cex2a_receive(struct ap_device *ap_dev,
 	}
 	t80h = reply->message;
 	if (t80h->type == TYPE80_RSP_CODE) {
-		length = min(CEX2A_MAX_RESPONSE_SIZE, (int) t80h->len);
+		if (ap_dev->device_type == AP_DEVICE_TYPE_CEX2A)
+			length = min(CEX2A_MAX_RESPONSE_SIZE, (int) t80h->len);
+		else
+			length = min(CEX3A_MAX_RESPONSE_SIZE, (int) t80h->len);
 		memcpy(msg->message, reply->message, length);
 	} else
 		memcpy(msg->message, reply->message, sizeof error_reply);
@@ -307,7 +345,10 @@ static long zcrypt_cex2a_modexpo(struct zcrypt_device *zdev,
 	int rc;
 
 	ap_init_message(&ap_msg);
-	ap_msg.message = kmalloc(CEX2A_MAX_MESSAGE_SIZE, GFP_KERNEL);
+	if (zdev->user_space_type == ZCRYPT_CEX2A)
+		ap_msg.message = kmalloc(CEX2A_MAX_MESSAGE_SIZE, GFP_KERNEL);
+	else
+		ap_msg.message = kmalloc(CEX3A_MAX_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
@@ -345,7 +386,10 @@ static long zcrypt_cex2a_modexpo_crt(struct zcrypt_device *zdev,
 	int rc;
 
 	ap_init_message(&ap_msg);
-	ap_msg.message = kmalloc(CEX2A_MAX_MESSAGE_SIZE, GFP_KERNEL);
+	if (zdev->user_space_type == ZCRYPT_CEX2A)
+		ap_msg.message = kmalloc(CEX2A_MAX_MESSAGE_SIZE, GFP_KERNEL);
+	else
+		ap_msg.message = kmalloc(CEX3A_MAX_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
 	ap_msg.psmid = (((unsigned long long) current->pid) << 32) +
@@ -404,8 +448,10 @@ static int zcrypt_cex2a_probe(struct ap_device *ap_dev)
 			return -ENOMEM;
 		zdev->user_space_type = ZCRYPT_CEX3A;
 		zdev->type_string = "CEX3A";
-		zdev->min_mod_size = CEX3A_MIN_MOD_SIZE;
-		zdev->max_mod_size = CEX3A_MAX_MOD_SIZE;
+		zdev->min_mod_size = CEX2A_MIN_MOD_SIZE;
+		zdev->max_mod_size = CEX2A_MAX_MOD_SIZE;
+		if (ap_4096_commands_available(ap_dev->qid))
+			zdev->max_mod_size = CEX3A_MAX_MOD_SIZE;
 		zdev->short_crt = 1;
 		zdev->speed_rating = CEX3A_SPEED_RATING;
 		break;
