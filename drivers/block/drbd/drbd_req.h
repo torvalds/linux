@@ -241,28 +241,11 @@ struct hlist_head *tl_hash_slot(struct drbd_conf *mdev, sector_t sector)
 }
 
 /* application reads (drbd_request objects) */
-static struct hlist_head *ar_hash_slot(struct drbd_conf *mdev, sector_t sector)
+static inline
+struct hlist_head *ar_hash_slot(struct drbd_conf *mdev, sector_t sector)
 {
 	return mdev->app_reads_hash
 		+ ((unsigned int)(sector) % APP_R_HSIZE);
-}
-
-/* when we receive the answer for a read request,
- * verify that we actually know about it */
-static inline struct drbd_request *_ar_id_to_req(struct drbd_conf *mdev,
-	u64 id, sector_t sector)
-{
-	struct hlist_head *slot = ar_hash_slot(mdev, sector);
-	struct hlist_node *n;
-	struct drbd_request *req;
-
-	hlist_for_each_entry(req, n, slot, collision) {
-		if ((unsigned long)req == (unsigned long)id) {
-			D_ASSERT(req->sector == sector);
-			return req;
-		}
-	}
-	return NULL;
 }
 
 static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bio *bio_src)
