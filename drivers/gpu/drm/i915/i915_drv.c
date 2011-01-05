@@ -357,6 +357,9 @@ static int i915_drm_thaw(struct drm_device *dev)
 		drm_helper_resume_force_mode(dev);
 	}
 
+	/* Clock gating state */
+	intel_enable_clock_gating(dev);
+
 	intel_opregion_init(dev);
 
 	dev_priv->modeset_on_lid = 0;

@@ -868,9 +868,6 @@ int i915_restore_state(struct drm_device *dev)
 		I915_WRITE (IMR,  dev_priv->saveIMR);
 	}
 
-	/* Clock gating state */
-	intel_enable_clock_gating(dev);
-
 	if (IS_IRONLAKE_M(dev)) {
 		ironlake_enable_drps(dev);
 		intel_init_emon(dev);
