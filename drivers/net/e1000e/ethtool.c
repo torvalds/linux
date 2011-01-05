@@ -684,20 +684,13 @@ static int e1000_set_ringparam(struct net_device *netdev,
 	rx_old = adapter->rx_ring;
 
 	err = -ENOMEM;
-	tx_ring = kzalloc(sizeof(struct e1000_ring), GFP_KERNEL);
+	tx_ring = kmemdup(tx_old, sizeof(struct e1000_ring), GFP_KERNEL);
 	if (!tx_ring)
 		goto err_alloc_tx;
-	/*
-	 * use a memcpy to save any previously configured
-	 * items like napi structs from having to be
-	 * reinitialized
-	 */
-	memcpy(tx_ring, tx_old, sizeof(struct e1000_ring));
 
-	rx_ring = kzalloc(sizeof(struct e1000_ring), GFP_KERNEL);
+	rx_ring = kmemdup(rx_old, sizeof(struct e1000_ring), GFP_KERNEL);
 	if (!rx_ring)
 		goto err_alloc_rx;
-	memcpy(rx_ring, rx_old, sizeof(struct e1000_ring));
 
 	adapter->tx_ring = tx_ring;
 	adapter->rx_ring = rx_ring;
