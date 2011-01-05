@@ -96,9 +96,27 @@ out:
 	return r;
 }
 
+static void radeon_set_filp_rights(struct drm_device *dev,
+				   struct drm_file **owner,
+				   struct drm_file *applier,
+				   uint32_t *value)
+{
+	mutex_lock(&dev->struct_mutex);
+	if (*value == 1) {
+		/* wants rights */
+		if (!*owner)
+			*owner = applier;
+	} else if (*value == 0) {
+		/* revokes rights */
+		if (*owner == applier)
+			*owner = NULL;
+	}
+	*value = *owner == applier ? 1 : 0;
+	mutex_unlock(&dev->struct_mutex);
+}
 
 /*
- * Userspace get informations ioctl
+ * Userspace get information ioctl
  */
 int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
@@ -173,18 +191,15 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			DRM_DEBUG_KMS("WANT_HYPERZ: invalid value %d\n", value);
 			return -EINVAL;
 		}
-		mutex_lock(&dev->struct_mutex);
-		if (value == 1) {
-			/* wants hyper-z */
-			if (!rdev->hyperz_filp)
-				rdev->hyperz_filp = filp;
-		} else if (value == 0) {
-			/* revokes hyper-z */
-			if (rdev->hyperz_filp == filp)
-				rdev->hyperz_filp = NULL;
+		radeon_set_filp_rights(dev, &rdev->hyperz_filp, filp, &value);
+		break;
+	case RADEON_INFO_WANT_CMASK:
+		/* The same logic as Hyper-Z. */
+		if (value >= 2) {
+			DRM_DEBUG_KMS("WANT_CMASK: invalid value %d\n", value);
+			return -EINVAL;
 		}
-		value = rdev->hyperz_filp == filp ?  1 : 0;
-		mutex_unlock(&dev->struct_mutex);
+		radeon_set_filp_rights(dev, &rdev->cmask_filp, filp, &value);
 		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);

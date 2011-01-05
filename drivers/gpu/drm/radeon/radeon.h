@@ -1168,8 +1168,9 @@ struct radeon_device {
 	uint8_t			audio_category_code;
 
 	struct notifier_block acpi_nb;
-	/* only one userspace can use Hyperz features at a time */
+	/* only one userspace can use Hyperz features or CMASK at a time */
 	struct drm_file *hyperz_filp;
+	struct drm_file *cmask_filp;
 	/* i2c buses */
 	struct radeon_i2c_chan *i2c_bus[RADEON_MAX_I2C_BUS];
 };

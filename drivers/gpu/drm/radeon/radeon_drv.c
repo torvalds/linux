@@ -48,7 +48,7 @@
  * - 2.5.0 - add get accel 2 to work around ddx breakage for evergreen
  * - 2.6.0 - add tiling config query (r6xx+), add initial HiZ support (r300->r500)
  *   2.7.0 - fixups for r600 2D tiling support. (no external ABI change), add eg dyn gpr regs
- *   2.8.0 - pageflip support, r500 US_FORMAT regs. r500 ARGB2101010 colorbuf
+ *   2.8.0 - pageflip support, r500 US_FORMAT regs. r500 ARGB2101010 colorbuf, r300->r500 CMASK
  */
 #define KMS_DRIVER_MAJOR	2
 #define KMS_DRIVER_MINOR	8

@@ -745,6 +745,11 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		break;
 	case 0x4E00:
 		/* RB3D_CCTL */
+		if ((idx_value & (1 << 10)) && /* CMASK_ENABLE */
+		    p->rdev->cmask_filp != p->filp) {
+			DRM_ERROR("Invalid RB3D_CCTL: Cannot enable CMASK.\n");
+			return -EINVAL;
+		}
 		track->num_cb = ((idx_value >> 5) & 0x3) + 1;
 		break;
 	case 0x4E38:
@@ -1204,6 +1209,10 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 	case PACKET3_3D_CLEAR_HIZ:
 	case PACKET3_3D_CLEAR_ZMASK:
 		if (p->rdev->hyperz_filp != p->filp)
+			return -EINVAL;
+		break;
+	case PACKET3_3D_CLEAR_CMASK:
+		if (p->rdev->cmask_filp != p->filp)
 			return -EINVAL;
 		break;
 	case PACKET3_NOP:
