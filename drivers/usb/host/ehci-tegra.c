@@ -259,8 +259,12 @@ static int tegra_usb_resume(struct usb_hcd *hcd)
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	tegra_ehci_power_up(ehci_to_hcd(tegra->ehci));
 
-	if (!context->valid)
+	if (!context->valid) {
+		/* Wait for the phy to detect new devices
+		 * before we restart the controller */
+		msleep(10);
 		goto restart;
+	}
 
 	/* Restore register context */
 	writel(TEGRA_USB_USBMODE_HOST, &hw->reserved[19]);
