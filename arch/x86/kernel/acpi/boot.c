@@ -915,13 +915,13 @@ static int __init acpi_parse_madt_lapic_entries(void)
 	acpi_register_lapic_address(acpi_lapic_addr);
 
 	count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_SAPIC,
-				      acpi_parse_sapic, MAX_APICS);
+				      acpi_parse_sapic, MAX_LOCAL_APIC);
 
 	if (!count) {
 		x2count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_X2APIC,
-						acpi_parse_x2apic, MAX_APICS);
+					acpi_parse_x2apic, MAX_LOCAL_APIC);
 		count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_APIC,
-					      acpi_parse_lapic, MAX_APICS);
+					acpi_parse_lapic, MAX_LOCAL_APIC);
 	}
 	if (!count && !x2count) {
 		printk(KERN_ERR PREFIX "No LAPIC entries present\n");

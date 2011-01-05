@@ -4109,7 +4109,8 @@ void __init pre_init_apic_IRQ0(void)
 
 	printk(KERN_INFO "Early APIC setup for system timer0\n");
 #ifndef CONFIG_SMP
-	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
+	physid_set_mask_of_physid(boot_cpu_physical_apicid,
+					 &phys_cpu_present_map);
 #endif
 	/* Make sure the irq descriptor is set up */
 	cfg = alloc_irq_and_cfg_at(0, 0);

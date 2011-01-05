@@ -5,6 +5,7 @@
 
 #include <asm/mpspec_def.h>
 #include <asm/x86_init.h>
+#include <asm/apicdef.h>
 
 extern int apic_version[];
 extern int pic_mode;
@@ -107,7 +108,7 @@ extern int mp_register_gsi(struct device *dev, u32 gsi, int edge_level,
 				 int active_high_low);
 #endif /* CONFIG_ACPI */
 
-#define PHYSID_ARRAY_SIZE	BITS_TO_LONGS(MAX_APICS)
+#define PHYSID_ARRAY_SIZE	BITS_TO_LONGS(MAX_LOCAL_APIC)
 
 struct physid_mask {
 	unsigned long mask[PHYSID_ARRAY_SIZE];
@@ -122,31 +123,31 @@ typedef struct physid_mask physid_mask_t;
 	test_and_set_bit(physid, (map).mask)
 
 #define physids_and(dst, src1, src2)					\
-	bitmap_and((dst).mask, (src1).mask, (src2).mask, MAX_APICS)
+	bitmap_and((dst).mask, (src1).mask, (src2).mask, MAX_LOCAL_APIC)
 
 #define physids_or(dst, src1, src2)					\
-	bitmap_or((dst).mask, (src1).mask, (src2).mask, MAX_APICS)
+	bitmap_or((dst).mask, (src1).mask, (src2).mask, MAX_LOCAL_APIC)
 
 #define physids_clear(map)					\
-	bitmap_zero((map).mask, MAX_APICS)
+	bitmap_zero((map).mask, MAX_LOCAL_APIC)
 
 #define physids_complement(dst, src)				\
-	bitmap_complement((dst).mask, (src).mask, MAX_APICS)
+	bitmap_complement((dst).mask, (src).mask, MAX_LOCAL_APIC)
 
 #define physids_empty(map)					\
-	bitmap_empty((map).mask, MAX_APICS)
+	bitmap_empty((map).mask, MAX_LOCAL_APIC)
 
 #define physids_equal(map1, map2)				\
-	bitmap_equal((map1).mask, (map2).mask, MAX_APICS)
+	bitmap_equal((map1).mask, (map2).mask, MAX_LOCAL_APIC)
 
 #define physids_weight(map)					\
-	bitmap_weight((map).mask, MAX_APICS)
+	bitmap_weight((map).mask, MAX_LOCAL_APIC)
 
 #define physids_shift_right(d, s, n)				\
-	bitmap_shift_right((d).mask, (s).mask, n, MAX_APICS)
+	bitmap_shift_right((d).mask, (s).mask, n, MAX_LOCAL_APIC)
 
 #define physids_shift_left(d, s, n)				\
-	bitmap_shift_left((d).mask, (s).mask, n, MAX_APICS)
+	bitmap_shift_left((d).mask, (s).mask, n, MAX_LOCAL_APIC)
 
 static inline unsigned long physids_coerce(physid_mask_t *map)
 {
@@ -158,14 +159,6 @@ static inline void physids_promote(unsigned long physids, physid_mask_t *map)
 	physids_clear(*map);
 	map->mask[0] = physids;
 }
-
-/* Note: will create very large stack frames if physid_mask_t is big */
-#define physid_mask_of_physid(physid)					\
-	({								\
-		physid_mask_t __physid_mask = PHYSID_MASK_NONE;		\
-		physid_set(physid, __physid_mask);			\
-		__physid_mask;						\
-	})
 
 static inline void physid_set_mask_of_physid(int physid, physid_mask_t *map)
 {
