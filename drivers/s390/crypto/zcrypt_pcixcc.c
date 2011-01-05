@@ -45,12 +45,12 @@
 #define PCIXCC_MIN_MOD_SIZE_OLD	 64	/*  512 bits	*/
 #define PCIXCC_MAX_MOD_SIZE	256	/* 2048 bits	*/
 #define CEX3C_MIN_MOD_SIZE	PCIXCC_MIN_MOD_SIZE
-#define CEX3C_MAX_MOD_SIZE	PCIXCC_MAX_MOD_SIZE
+#define CEX3C_MAX_MOD_SIZE	512	/* 4096 bits	*/
 
 #define PCIXCC_MCL2_SPEED_RATING	7870
 #define PCIXCC_MCL3_SPEED_RATING	7870
 #define CEX2C_SPEED_RATING		7000
-#define CEX3C_SPEED_RATING		6500	/* FIXME: needs finetuning */
+#define CEX3C_SPEED_RATING		6500
 
 #define PCIXCC_MAX_ICA_MESSAGE_SIZE 0x77c  /* max size type6 v2 crt message */
 #define PCIXCC_MAX_ICA_RESPONSE_SIZE 0x77c /* max size type86 v2 reply	    */
