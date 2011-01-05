@@ -86,8 +86,8 @@ config MEMORY_SIZE
 	hex "Physical memory size"
 	default "0x08000000" if MACH_G3EVM
 	default "0x08000000" if MACH_G4EVM
-	default "0x10000000" if MACH_AP4EVB
 	default "0x20000000" if MACH_AG5EVM
+	default "0x10000000" if MACH_AP4EVB || MACH_MACKEREL
 	default "0x04000000"
 	help
 	  This sets the default memory size assumed by your kernel. It can

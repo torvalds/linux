@@ -31,6 +31,10 @@
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
+#include <linux/mfd/sh_mobile_sdhi.h>
+#include <linux/mfd/tmio.h>
+#include <linux/mmc/host.h>
+#include <linux/mmc/sh_mmcif.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
@@ -40,7 +44,9 @@
 #include <linux/usb/r8a66597.h>
 
 #include <video/sh_mobile_lcdc.h>
-
+#include <media/sh_mobile_ceu.h>
+#include <media/soc_camera.h>
+#include <media/soc_camera_platform.h>
 #include <sound/sh_fsi.h>
 
 #include <mach/common.h>
@@ -136,6 +142,42 @@
  *
  * *1
  * CN31 is used as Host in Linux.
+ */
+
+/*
+ * SDHI0 (CN12)
+ *
+ * SW56 : OFF
+ *
+ */
+
+/* MMC /SDHI1 (CN7)
+ *
+ * I/O voltage : 1.8v
+ *
+ * Power voltage : 1.8v or 3.3v
+ *  J22 : select power voltage *1
+ *	1-2 pin : 1.8v
+ *	2-3 pin : 3.3v
+ *
+ * *1
+ * Please change J22 depends the card to be used.
+ * MMC's OCR field set to support either voltage for the card inserted.
+ *
+ *	SW1	|	SW33
+ *		| bit1 | bit2 | bit3 | bit4
+ * -------------+------+------+------+-------
+ * MMC0	  OFF	|  OFF |  ON  |  ON  |  X
+ * MMC1	  ON	|  OFF |  ON  |  X   | ON
+ * SDHI1  OFF	|  ON  |   X  |  OFF | ON
+ *
+ */
+
+/*
+ * SDHI2 (CN23)
+ *
+ * microSD card sloct
+ *
  */
 
 /*
@@ -404,6 +446,262 @@ static struct platform_device fsi_ak4643_device = {
 	.name		= "sh_fsi2_a_ak4643",
 };
 
+/*
+ * The card detect pin of the top SD/MMC slot (CN7) is active low and is
+ * connected to GPIO A22 of SH7372 (GPIO_PORT41).
+ */
+static int slot_cn7_get_cd(struct platform_device *pdev)
+{
+	if (gpio_is_valid(GPIO_PORT41))
+		return !gpio_get_value(GPIO_PORT41);
+	else
+		return -ENXIO;
+}
+
+/* SDHI0 */
+static struct sh_mobile_sdhi_info sdhi0_info = {
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
+};
+
+static struct resource sdhi0_resources[] = {
+	[0] = {
+		.name	= "SDHI0",
+		.start	= 0xe6850000,
+		.end	= 0xe68501ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= evt2irq(0x0e00) /* SDHI0 */,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi0_device = {
+	.name		= "sh_mobile_sdhi",
+	.num_resources	= ARRAY_SIZE(sdhi0_resources),
+	.resource	= sdhi0_resources,
+	.id		= 0,
+	.dev	= {
+		.platform_data	= &sdhi0_info,
+	},
+};
+
+#if !defined(CONFIG_MMC_SH_MMCIF)
+/* SDHI1 */
+static struct sh_mobile_sdhi_info sdhi1_info = {
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI1_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI1_RX,
+	.tmio_ocr_mask	= MMC_VDD_165_195,
+	.tmio_flags	= TMIO_MMC_WRPROTECT_DISABLE,
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED |
+			  MMC_CAP_NEEDS_POLL,
+	.get_cd		= slot_cn7_get_cd,
+};
+
+static struct resource sdhi1_resources[] = {
+	[0] = {
+		.name	= "SDHI1",
+		.start	= 0xe6860000,
+		.end	= 0xe68601ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= evt2irq(0x0e80),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi1_device = {
+	.name		= "sh_mobile_sdhi",
+	.num_resources	= ARRAY_SIZE(sdhi1_resources),
+	.resource	= sdhi1_resources,
+	.id		= 1,
+	.dev	= {
+		.platform_data	= &sdhi1_info,
+	},
+};
+#endif
+
+/* SDHI2 */
+static struct sh_mobile_sdhi_info sdhi2_info = {
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI2_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI2_RX,
+	.tmio_flags	= TMIO_MMC_WRPROTECT_DISABLE,
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED |
+			  MMC_CAP_NEEDS_POLL,
+};
+
+static struct resource sdhi2_resources[] = {
+	[0] = {
+		.name	= "SDHI2",
+		.start	= 0xe6870000,
+		.end	= 0xe68701ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= evt2irq(0x1200),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi2_device = {
+	.name	= "sh_mobile_sdhi",
+	.num_resources	= ARRAY_SIZE(sdhi2_resources),
+	.resource	= sdhi2_resources,
+	.id		= 2,
+	.dev	= {
+		.platform_data	= &sdhi2_info,
+	},
+};
+
+/* SH_MMCIF */
+static struct resource sh_mmcif_resources[] = {
+	[0] = {
+		.name	= "MMCIF",
+		.start	= 0xE6BD0000,
+		.end	= 0xE6BD00FF,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		/* MMC ERR */
+		.start	= evt2irq(0x1ac0),
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		/* MMC NOR */
+		.start	= evt2irq(0x1ae0),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct sh_mmcif_plat_data sh_mmcif_plat = {
+	.sup_pclk	= 0,
+	.ocr		= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
+	.caps		= MMC_CAP_4_BIT_DATA |
+			  MMC_CAP_8_BIT_DATA |
+			  MMC_CAP_NEEDS_POLL,
+	.get_cd		= slot_cn7_get_cd,
+};
+
+static struct platform_device sh_mmcif_device = {
+	.name		= "sh_mmcif",
+	.id		= 0,
+	.dev		= {
+		.dma_mask		= NULL,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &sh_mmcif_plat,
+	},
+	.num_resources	= ARRAY_SIZE(sh_mmcif_resources),
+	.resource	= sh_mmcif_resources,
+};
+
+
+static int mackerel_camera_add(struct soc_camera_link *icl, struct device *dev);
+static void mackerel_camera_del(struct soc_camera_link *icl);
+
+static int camera_set_capture(struct soc_camera_platform_info *info,
+			      int enable)
+{
+	return 0; /* camera sensor always enabled */
+}
+
+static struct soc_camera_platform_info camera_info = {
+	.format_name = "UYVY",
+	.format_depth = 16,
+	.format = {
+		.code = V4L2_MBUS_FMT_UYVY8_2X8,
+		.colorspace = V4L2_COLORSPACE_SMPTE170M,
+		.field = V4L2_FIELD_NONE,
+		.width = 640,
+		.height = 480,
+	},
+	.bus_param = SOCAM_PCLK_SAMPLE_RISING | SOCAM_HSYNC_ACTIVE_HIGH |
+	SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_MASTER | SOCAM_DATAWIDTH_8 |
+	SOCAM_DATA_ACTIVE_HIGH,
+	.set_capture = camera_set_capture,
+};
+
+static struct soc_camera_link camera_link = {
+	.bus_id		= 0,
+	.add_device	= mackerel_camera_add,
+	.del_device	= mackerel_camera_del,
+	.module_name	= "soc_camera_platform",
+	.priv		= &camera_info,
+};
+
+static void dummy_release(struct device *dev)
+{
+}
+
+static struct platform_device camera_device = {
+	.name		= "soc_camera_platform",
+	.dev		= {
+		.platform_data	= &camera_info,
+		.release	= dummy_release,
+	},
+};
+
+static int mackerel_camera_add(struct soc_camera_link *icl,
+			       struct device *dev)
+{
+	if (icl != &camera_link)
+		return -ENODEV;
+
+	camera_info.dev = dev;
+
+	return platform_device_register(&camera_device);
+}
+
+static void mackerel_camera_del(struct soc_camera_link *icl)
+{
+	if (icl != &camera_link)
+		return;
+
+	platform_device_unregister(&camera_device);
+	memset(&camera_device.dev.kobj, 0,
+	       sizeof(camera_device.dev.kobj));
+}
+
+static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
+	.flags = SH_CEU_FLAG_USE_8BIT_BUS,
+};
+
+static struct resource ceu_resources[] = {
+	[0] = {
+		.name	= "CEU",
+		.start	= 0xfe910000,
+		.end	= 0xfe91009f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = intcs_evt2irq(0x880),
+		.flags  = IORESOURCE_IRQ,
+	},
+	[2] = {
+		/* place holder for contiguous memory */
+	},
+};
+
+static struct platform_device ceu_device = {
+	.name		= "sh_mobile_ceu",
+	.id             = 0, /* "ceu0" clock */
+	.num_resources	= ARRAY_SIZE(ceu_resources),
+	.resource	= ceu_resources,
+	.dev		= {
+		.platform_data	= &sh_mobile_ceu_info,
+	},
+};
+
+static struct platform_device mackerel_camera = {
+	.name	= "soc-camera-pdrv",
+	.id	= 0,
+	.dev	= {
+		.platform_data = &camera_link,
+	},
+};
+
 static struct platform_device *mackerel_devices[] __initdata = {
 	&nor_flash_device,
 	&smc911x_device,
@@ -412,6 +710,14 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&leds_device,
 	&fsi_device,
 	&fsi_ak4643_device,
+	&sdhi0_device,
+#if !defined(CONFIG_MMC_SH_MMCIF)
+	&sdhi1_device,
+#endif
+	&sdhi2_device,
+	&sh_mmcif_device,
+	&ceu_device,
+	&mackerel_camera,
 };
 
 /* Keypad Initialization */
@@ -542,7 +848,7 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_OVCN2_1,    NULL);
 
 	/* setup USB phy */
-	__raw_writew(0x8a0a, 0xE6058130);	/* USBCR2 */
+	__raw_writew(0x8a0a, 0xE6058130);	/* USBCR4 */
 
 	/* enable FSI2 port A (ak4643) */
 	gpio_request(GPIO_FN_FSIAIBT,	NULL);
@@ -566,6 +872,68 @@ static void __init mackerel_init(void)
 	/* enable Accelerometer */
 	gpio_request(GPIO_FN_IRQ21,	NULL);
 	set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
+
+	/* enable SDHI0 */
+	gpio_request(GPIO_FN_SDHICD0, NULL);
+	gpio_request(GPIO_FN_SDHIWP0, NULL);
+	gpio_request(GPIO_FN_SDHICMD0, NULL);
+	gpio_request(GPIO_FN_SDHICLK0, NULL);
+	gpio_request(GPIO_FN_SDHID0_3, NULL);
+	gpio_request(GPIO_FN_SDHID0_2, NULL);
+	gpio_request(GPIO_FN_SDHID0_1, NULL);
+	gpio_request(GPIO_FN_SDHID0_0, NULL);
+
+#if !defined(CONFIG_MMC_SH_MMCIF)
+	/* enable SDHI1 */
+	gpio_request(GPIO_FN_SDHICMD1, NULL);
+	gpio_request(GPIO_FN_SDHICLK1, NULL);
+	gpio_request(GPIO_FN_SDHID1_3, NULL);
+	gpio_request(GPIO_FN_SDHID1_2, NULL);
+	gpio_request(GPIO_FN_SDHID1_1, NULL);
+	gpio_request(GPIO_FN_SDHID1_0, NULL);
+#endif
+	/* card detect pin for MMC slot (CN7) */
+	gpio_request(GPIO_PORT41, NULL);
+	gpio_direction_input(GPIO_PORT41);
+
+	/* enable SDHI2 */
+	gpio_request(GPIO_FN_SDHICMD2, NULL);
+	gpio_request(GPIO_FN_SDHICLK2, NULL);
+	gpio_request(GPIO_FN_SDHID2_3, NULL);
+	gpio_request(GPIO_FN_SDHID2_2, NULL);
+	gpio_request(GPIO_FN_SDHID2_1, NULL);
+	gpio_request(GPIO_FN_SDHID2_0, NULL);
+
+	/* MMCIF */
+	gpio_request(GPIO_FN_MMCD0_0, NULL);
+	gpio_request(GPIO_FN_MMCD0_1, NULL);
+	gpio_request(GPIO_FN_MMCD0_2, NULL);
+	gpio_request(GPIO_FN_MMCD0_3, NULL);
+	gpio_request(GPIO_FN_MMCD0_4, NULL);
+	gpio_request(GPIO_FN_MMCD0_5, NULL);
+	gpio_request(GPIO_FN_MMCD0_6, NULL);
+	gpio_request(GPIO_FN_MMCD0_7, NULL);
+	gpio_request(GPIO_FN_MMCCMD0, NULL);
+	gpio_request(GPIO_FN_MMCCLK0, NULL);
+
+	/* enable GPS module (GT-720F) */
+	gpio_request(GPIO_FN_SCIFA2_TXD1, NULL);
+	gpio_request(GPIO_FN_SCIFA2_RXD1, NULL);
+
+	/* CEU */
+	gpio_request(GPIO_FN_VIO_CLK, NULL);
+	gpio_request(GPIO_FN_VIO_VD, NULL);
+	gpio_request(GPIO_FN_VIO_HD, NULL);
+	gpio_request(GPIO_FN_VIO_FIELD, NULL);
+	gpio_request(GPIO_FN_VIO_CKO, NULL);
+	gpio_request(GPIO_FN_VIO_D7, NULL);
+	gpio_request(GPIO_FN_VIO_D6, NULL);
+	gpio_request(GPIO_FN_VIO_D5, NULL);
+	gpio_request(GPIO_FN_VIO_D4, NULL);
+	gpio_request(GPIO_FN_VIO_D3, NULL);
+	gpio_request(GPIO_FN_VIO_D2, NULL);
+	gpio_request(GPIO_FN_VIO_D1, NULL);
+	gpio_request(GPIO_FN_VIO_D0, NULL);
 
 	i2c_register_board_info(0, i2c0_devices,
 				ARRAY_SIZE(i2c0_devices));
