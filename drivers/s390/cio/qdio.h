@@ -91,6 +91,12 @@ enum qdio_irq_states {
 #define AC1_SC_QEBSM_AVAILABLE		0x02	/* available for subchannel */
 #define AC1_SC_QEBSM_ENABLED		0x01	/* enabled for subchannel */
 
+/* SIGA flags */
+#define QDIO_SIGA_WRITE		0x00
+#define QDIO_SIGA_READ		0x01
+#define QDIO_SIGA_SYNC		0x02
+#define QDIO_SIGA_QEBSM_FLAG	0x80
+
 #ifdef CONFIG_64BIT
 static inline int do_sqbs(u64 token, unsigned char state, int queue,
 			  int *start, int *count)
