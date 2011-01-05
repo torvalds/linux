@@ -745,10 +745,6 @@ struct dasd_ccw_req *dasd_smalloc_request(int magic, int cplength,
 	char *data;
 	int size;
 
-	/* Sanity checks */
-	BUG_ON(datasize > PAGE_SIZE ||
-	     (cplength*sizeof(struct ccw1)) > PAGE_SIZE);
-
 	size = (sizeof(struct dasd_ccw_req) + 7L) & -8L;
 	if (cplength > 0)
 		size += cplength * sizeof(struct ccw1);

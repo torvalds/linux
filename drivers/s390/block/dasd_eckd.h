@@ -57,6 +57,10 @@
  */
 #define LV_COMPAT_CYL 0xFFFE
 
+
+#define FCX_MAX_DATA_FACTOR 65536
+
+
 /*****************************************************************************
  * SECTION: Type Definitions
  ****************************************************************************/
@@ -455,6 +459,8 @@ struct dasd_eckd_private {
 	struct alias_pav_group *pavgroup;
 	struct alias_lcu *lcu;
 	int count;
+
+	u32 fcx_max_data;
 };
 
 

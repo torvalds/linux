@@ -1105,6 +1105,37 @@ static void dasd_eckd_validate_server(struct dasd_device *device)
 			"returned rc=%d", private->uid.ssid, rc);
 }
 
+static u32 get_fcx_max_data(struct dasd_device *device)
+{
+#if defined(CONFIG_64BIT)
+	int tpm, mdc;
+	int fcx_in_css, fcx_in_gneq, fcx_in_features;
+	struct dasd_eckd_private *private;
+
+	if (dasd_nofcx)
+		return 0;
+	/* is transport mode supported? */
+	private = (struct dasd_eckd_private *) device->private;
+	fcx_in_css = css_general_characteristics.fcx;
+	fcx_in_gneq = private->gneq->reserved2[7] & 0x04;
+	fcx_in_features = private->features.feature[40] & 0x80;
+	tpm = fcx_in_css && fcx_in_gneq && fcx_in_features;
+
+	if (!tpm)
+		return 0;
+
+	mdc = ccw_device_get_mdc(device->cdev, 0);
+	if (mdc < 0) {
+		dev_warn(&device->cdev->dev, "Detecting the maximum supported"
+			 " data size for zHPF requests failed\n");
+		return 0;
+	} else
+		return mdc * FCX_MAX_DATA_FACTOR;
+#else
+	return 0;
+#endif
+}
+
 /*
  * Check device characteristics.
  * If the device is accessible using ECKD discipline, the device is enabled.
@@ -1222,6 +1253,8 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 		private->real_cyl = private->rdc_data.long_no_cyl;
 	else
 		private->real_cyl = private->rdc_data.no_cyl;
+
+	private->fcx_max_data = get_fcx_max_data(device);
 
 	readonly = dasd_device_is_ro(device);
 	if (readonly)
@@ -2326,6 +2359,12 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 	struct tidaw *last_tidaw = NULL;
 	int itcw_op;
 	size_t itcw_size;
+	u8 tidaw_flags;
+	unsigned int seg_len, part_len, len_to_track_end;
+	unsigned char new_track;
+	sector_t recid, trkid;
+	unsigned int offs;
+	unsigned int count, count_to_trk_end;
 
 	basedev = block->base;
 	private = (struct dasd_eckd_private *) basedev->private;
@@ -2341,27 +2380,22 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 	/* trackbased I/O needs address all memory via TIDAWs,
 	 * not just for 64 bit addresses. This allows us to map
 	 * each segment directly to one tidaw.
+	 * In the case of write requests, additional tidaws may
+	 * be needed when a segment crosses a track boundary.
 	 */
 	trkcount = last_trk - first_trk + 1;
 	ctidaw = 0;
 	rq_for_each_segment(bv, req, iter) {
 		++ctidaw;
 	}
+	if (rq_data_dir(req) == WRITE)
+		ctidaw += (last_trk - first_trk);
 
 	/* Allocate the ccw request. */
 	itcw_size = itcw_calc_size(0, ctidaw, 0);
 	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 0, itcw_size, startdev);
 	if (IS_ERR(cqr))
 		return cqr;
-
-	cqr->cpmode = 1;
-	cqr->startdev = startdev;
-	cqr->memdev = startdev;
-	cqr->block = block;
-	cqr->expires = 100*HZ;
-	cqr->buildclk = get_clock();
-	cqr->status = DASD_CQR_FILLED;
-	cqr->retries = 10;
 
 	/* transfer length factor: how many bytes to read from the last track */
 	if (first_trk == last_trk)
@@ -2371,8 +2405,11 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 	tlf *= blksize;
 
 	itcw = itcw_init(cqr->data, itcw_size, itcw_op, 0, ctidaw, 0);
+	if (IS_ERR(itcw)) {
+		dasd_sfree_request(cqr, startdev);
+		return ERR_PTR(-EINVAL);
+	}
 	cqr->cpaddr = itcw_get_tcw(itcw);
-
 	if (prepare_itcw(itcw, first_trk, last_trk,
 			 cmd, basedev, startdev,
 			 first_offs + 1,
@@ -2385,26 +2422,64 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 		dasd_sfree_request(cqr, startdev);
 		return ERR_PTR(-EAGAIN);
 	}
-
 	/*
 	 * A tidaw can address 4k of memory, but must not cross page boundaries
 	 * We can let the block layer handle this by setting
 	 * blk_queue_segment_boundary to page boundaries and
 	 * blk_max_segment_size to page size when setting up the request queue.
+	 * For write requests, a TIDAW must not cross track boundaries, because
+	 * we have to set the CBC flag on the last tidaw for each track.
 	 */
-	rq_for_each_segment(bv, req, iter) {
-		dst = page_address(bv->bv_page) + bv->bv_offset;
-		last_tidaw = itcw_add_tidaw(itcw, 0x00, dst, bv->bv_len);
-		if (IS_ERR(last_tidaw))
-			return (struct dasd_ccw_req *)last_tidaw;
+	if (rq_data_dir(req) == WRITE) {
+		new_track = 1;
+		recid = first_rec;
+		rq_for_each_segment(bv, req, iter) {
+			dst = page_address(bv->bv_page) + bv->bv_offset;
+			seg_len = bv->bv_len;
+			while (seg_len) {
+				if (new_track) {
+					trkid = recid;
+					offs = sector_div(trkid, blk_per_trk);
+					count_to_trk_end = blk_per_trk - offs;
+					count = min((last_rec - recid + 1),
+						    (sector_t)count_to_trk_end);
+					len_to_track_end = count * blksize;
+					recid += count;
+					new_track = 0;
+				}
+				part_len = min(seg_len, len_to_track_end);
+				seg_len -= part_len;
+				len_to_track_end -= part_len;
+				/* We need to end the tidaw at track end */
+				if (!len_to_track_end) {
+					new_track = 1;
+					tidaw_flags = TIDAW_FLAGS_INSERT_CBC;
+				} else
+					tidaw_flags = 0;
+				last_tidaw = itcw_add_tidaw(itcw, tidaw_flags,
+							    dst, part_len);
+				if (IS_ERR(last_tidaw))
+					return ERR_PTR(-EINVAL);
+				dst += part_len;
+			}
+		}
+	} else {
+		rq_for_each_segment(bv, req, iter) {
+			dst = page_address(bv->bv_page) + bv->bv_offset;
+			last_tidaw = itcw_add_tidaw(itcw, 0x00,
+						    dst, bv->bv_len);
+			if (IS_ERR(last_tidaw))
+				return ERR_PTR(-EINVAL);
+		}
 	}
-
-	last_tidaw->flags |= 0x80;
+	last_tidaw->flags |= TIDAW_FLAGS_LAST;
+	last_tidaw->flags &= ~TIDAW_FLAGS_INSERT_CBC;
 	itcw_finalize(itcw);
 
 	if (blk_noretry_request(req) ||
 	    block->base->features & DASD_FEATURE_FAILFAST)
 		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
+	cqr->cpmode = 1;
 	cqr->startdev = startdev;
 	cqr->memdev = startdev;
 	cqr->block = block;
@@ -2420,11 +2495,9 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 					       struct dasd_block *block,
 					       struct request *req)
 {
-	int tpm, cmdrtd, cmdwtd;
+	int cmdrtd, cmdwtd;
 	int use_prefix;
-#if defined(CONFIG_64BIT)
-	int fcx_in_css, fcx_in_gneq, fcx_in_features;
-#endif
+	int fcx_multitrack;
 	struct dasd_eckd_private *private;
 	struct dasd_device *basedev;
 	sector_t first_rec, last_rec;
@@ -2432,6 +2505,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 	unsigned int first_offs, last_offs;
 	unsigned int blk_per_trk, blksize;
 	int cdlspecial;
+	unsigned int data_size;
 	struct dasd_ccw_req *cqr;
 
 	basedev = block->base;
@@ -2450,15 +2524,11 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 	last_offs = sector_div(last_trk, blk_per_trk);
 	cdlspecial = (private->uses_cdl && first_rec < 2*blk_per_trk);
 
-	/* is transport mode supported? */
-#if defined(CONFIG_64BIT)
-	fcx_in_css = css_general_characteristics.fcx;
-	fcx_in_gneq = private->gneq->reserved2[7] & 0x04;
-	fcx_in_features = private->features.feature[40] & 0x80;
-	tpm = fcx_in_css && fcx_in_gneq && fcx_in_features;
-#else
-	tpm = 0;
-#endif
+	fcx_multitrack = private->features.feature[40] & 0x20;
+	data_size = blk_rq_bytes(req);
+	/* tpm write request add CBC data on each track boundary */
+	if (rq_data_dir(req) == WRITE)
+		data_size += (last_trk - first_trk) * 4;
 
 	/* is read track data and write track data in command mode supported? */
 	cmdrtd = private->features.feature[9] & 0x20;
@@ -2468,13 +2538,15 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 	cqr = NULL;
 	if (cdlspecial || dasd_page_cache) {
 		/* do nothing, just fall through to the cmd mode single case */
-	} else if (!dasd_nofcx && tpm && (first_trk == last_trk)) {
+	} else if ((data_size <= private->fcx_max_data)
+		   && (fcx_multitrack || (first_trk == last_trk))) {
 		cqr = dasd_eckd_build_cp_tpm_track(startdev, block, req,
 						    first_rec, last_rec,
 						    first_trk, last_trk,
 						    first_offs, last_offs,
 						    blk_per_trk, blksize);
-		if (IS_ERR(cqr) && PTR_ERR(cqr) != -EAGAIN)
+		if (IS_ERR(cqr) && (PTR_ERR(cqr) != -EAGAIN) &&
+		    (PTR_ERR(cqr) != -ENOMEM))
 			cqr = NULL;
 	} else if (use_prefix &&
 		   (((rq_data_dir(req) == READ) && cmdrtd) ||
@@ -2484,7 +2556,8 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 						   first_trk, last_trk,
 						   first_offs, last_offs,
 						   blk_per_trk, blksize);
-		if (IS_ERR(cqr) && PTR_ERR(cqr) != -EAGAIN)
+		if (IS_ERR(cqr) && (PTR_ERR(cqr) != -EAGAIN) &&
+		    (PTR_ERR(cqr) != -ENOMEM))
 			cqr = NULL;
 	}
 	if (!cqr)
@@ -3279,10 +3352,8 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 {
 	char *page;
 	int len, sl, sct, residual;
-
 	struct tsb *tsb;
-	u8 *sense;
-
+	u8 *sense, *rcq;
 
 	page = (char *) get_zeroed_page(GFP_ATOMIC);
 	if (page == NULL) {
@@ -3348,12 +3419,15 @@ static void dasd_eckd_dump_sense_tcw(struct dasd_device *device,
 		case 2: /* ts_ddpc */
 			len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 			       " tsb->tsa.ddpc.rc %d\n", tsb->tsa.ddpc.rc);
-			len += sprintf(page + len, KERN_ERR PRINTK_HEADER
-			       " tsb->tsa.ddpc.rcq:  ");
-			for (sl = 0; sl < 16; sl++) {
+			for (sl = 0; sl < 2; sl++) {
+				len += sprintf(page + len,
+					       KERN_ERR PRINTK_HEADER
+					       " tsb->tsa.ddpc.rcq %2d-%2d: ",
+					       (8 * sl), ((8 * sl) + 7));
+				rcq = tsb->tsa.ddpc.rcq;
 				for (sct = 0; sct < 8; sct++) {
 					len += sprintf(page + len, " %02x",
-						       tsb->tsa.ddpc.rcq[sl]);
+						       rcq[8 * sl + sct]);
 				}
 				len += sprintf(page + len, "\n");
 			}
@@ -3573,7 +3647,7 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.owner = THIS_MODULE,
 	.name = "ECKD",
 	.ebcname = "ECKD",
-	.max_blocks = 240,
+	.max_blocks = 190,
 	.check_device = dasd_eckd_check_characteristics,
 	.uncheck_device = dasd_eckd_uncheck_device,
 	.do_analysis = dasd_eckd_do_analysis,
