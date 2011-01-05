@@ -59,9 +59,6 @@ typedef u16 kprobe_opcode_t;
 struct arch_specific_insn {
 	/* copy of original instruction */
 	kprobe_opcode_t *insn;
-	int fixup;
-	int ilen;
-	int reg;
 };
 
 struct prev_kprobe {
@@ -83,8 +80,6 @@ struct kprobe_ctlblk {
 
 void arch_remove_kprobe(struct kprobe *p);
 void kretprobe_trampoline(void);
-int  is_prohibited_opcode(kprobe_opcode_t *instruction);
-void get_instruction_type(struct arch_specific_insn *ainsn);
 
 int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 int kprobe_exceptions_notify(struct notifier_block *self,

@@ -37,29 +37,9 @@ DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 struct kretprobe_blackpoint kretprobe_blacklist[] = {{NULL, NULL}};
 
-int __kprobes arch_prepare_kprobe(struct kprobe *p)
+static int __kprobes is_prohibited_opcode(kprobe_opcode_t *insn)
 {
-	/* Make sure the probe isn't going on a difficult instruction */
-	if (is_prohibited_opcode((kprobe_opcode_t *) p->addr))
-		return -EINVAL;
-
-	if ((unsigned long)p->addr & 0x01)
-		return -EINVAL;
-
-	/* Use the get_insn_slot() facility for correctness */
-	if (!(p->ainsn.insn = get_insn_slot()))
-		return -ENOMEM;
-
-	memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
-
-	get_instruction_type(&p->ainsn);
-	p->opcode = *p->addr;
-	return 0;
-}
-
-int __kprobes is_prohibited_opcode(kprobe_opcode_t *instruction)
-{
-	switch (*(__u8 *) instruction) {
+	switch (insn[0] >> 8) {
 	case 0x0c:	/* bassm */
 	case 0x0b:	/* bsm	 */
 	case 0x83:	/* diag  */
@@ -68,7 +48,7 @@ int __kprobes is_prohibited_opcode(kprobe_opcode_t *instruction)
 	case 0xad:	/* stosm */
 		return -EINVAL;
 	}
-	switch (*(__u16 *) instruction) {
+	switch (insn[0]) {
 	case 0x0101:	/* pr	 */
 	case 0xb25a:	/* bsa	 */
 	case 0xb240:	/* bakr  */
@@ -81,80 +61,79 @@ int __kprobes is_prohibited_opcode(kprobe_opcode_t *instruction)
 	return 0;
 }
 
-void __kprobes get_instruction_type(struct arch_specific_insn *ainsn)
+static int __kprobes get_fixup_type(kprobe_opcode_t *insn)
 {
 	/* default fixup method */
-	ainsn->fixup = FIXUP_PSW_NORMAL;
+	int fixup = FIXUP_PSW_NORMAL;
 
-	/* save r1 operand */
-	ainsn->reg = (*ainsn->insn & 0xf0) >> 4;
-
-	/* save the instruction length (pop 5-5) in bytes */
-	switch (*(__u8 *) (ainsn->insn) >> 6) {
-	case 0:
-		ainsn->ilen = 2;
-		break;
-	case 1:
-	case 2:
-		ainsn->ilen = 4;
-		break;
-	case 3:
-		ainsn->ilen = 6;
-		break;
-	}
-
-	switch (*(__u8 *) ainsn->insn) {
+	switch (insn[0] >> 8) {
 	case 0x05:	/* balr	*/
 	case 0x0d:	/* basr */
-		ainsn->fixup = FIXUP_RETURN_REGISTER;
+		fixup = FIXUP_RETURN_REGISTER;
 		/* if r2 = 0, no branch will be taken */
-		if ((*ainsn->insn & 0x0f) == 0)
-			ainsn->fixup |= FIXUP_BRANCH_NOT_TAKEN;
+		if ((insn[0] & 0x0f) == 0)
+			fixup |= FIXUP_BRANCH_NOT_TAKEN;
 		break;
 	case 0x06:	/* bctr	*/
 	case 0x07:	/* bcr	*/
-		ainsn->fixup = FIXUP_BRANCH_NOT_TAKEN;
+		fixup = FIXUP_BRANCH_NOT_TAKEN;
 		break;
 	case 0x45:	/* bal	*/
 	case 0x4d:	/* bas	*/
-		ainsn->fixup = FIXUP_RETURN_REGISTER;
+		fixup = FIXUP_RETURN_REGISTER;
 		break;
 	case 0x47:	/* bc	*/
 	case 0x46:	/* bct	*/
 	case 0x86:	/* bxh	*/
 	case 0x87:	/* bxle	*/
-		ainsn->fixup = FIXUP_BRANCH_NOT_TAKEN;
+		fixup = FIXUP_BRANCH_NOT_TAKEN;
 		break;
 	case 0x82:	/* lpsw	*/
-		ainsn->fixup = FIXUP_NOT_REQUIRED;
+		fixup = FIXUP_NOT_REQUIRED;
 		break;
 	case 0xb2:	/* lpswe */
-		if (*(((__u8 *) ainsn->insn) + 1) == 0xb2) {
-			ainsn->fixup = FIXUP_NOT_REQUIRED;
-		}
+		if ((insn[0] & 0xff) == 0xb2)
+			fixup = FIXUP_NOT_REQUIRED;
 		break;
 	case 0xa7:	/* bras	*/
-		if ((*ainsn->insn & 0x0f) == 0x05) {
-			ainsn->fixup |= FIXUP_RETURN_REGISTER;
-		}
+		if ((insn[0] & 0x0f) == 0x05)
+			fixup |= FIXUP_RETURN_REGISTER;
 		break;
 	case 0xc0:
-		if ((*ainsn->insn & 0x0f) == 0x00  /* larl  */
-			|| (*ainsn->insn & 0x0f) == 0x05) /* brasl */
-		ainsn->fixup |= FIXUP_RETURN_REGISTER;
+		if ((insn[0] & 0x0f) == 0x00 ||	/* larl  */
+		    (insn[0] & 0x0f) == 0x05)	/* brasl */
+		fixup |= FIXUP_RETURN_REGISTER;
 		break;
 	case 0xeb:
-		if (*(((__u8 *) ainsn->insn) + 5 ) == 0x44 ||	/* bxhg  */
-			*(((__u8 *) ainsn->insn) + 5) == 0x45) {/* bxleg */
-			ainsn->fixup = FIXUP_BRANCH_NOT_TAKEN;
-		}
+		if ((insn[2] & 0xff) == 0x44 ||	/* bxhg  */
+		    (insn[2] & 0xff) == 0x45)	/* bxleg */
+			fixup = FIXUP_BRANCH_NOT_TAKEN;
 		break;
 	case 0xe3:	/* bctg	*/
-		if (*(((__u8 *) ainsn->insn) + 5) == 0x46) {
-			ainsn->fixup = FIXUP_BRANCH_NOT_TAKEN;
-		}
+		if ((insn[2] & 0xff) == 0x46)
+			fixup = FIXUP_BRANCH_NOT_TAKEN;
 		break;
 	}
+	return fixup;
+}
+
+int __kprobes arch_prepare_kprobe(struct kprobe *p)
+{
+	if ((unsigned long) p->addr & 0x01)
+		return -EINVAL;
+
+	/* Make sure the probe isn't going on a difficult instruction */
+	if (is_prohibited_opcode((kprobe_opcode_t *) p->addr))
+		return -EINVAL;
+
+	/* Use the get_insn_slot() facility for correctness */
+	if (!(p->ainsn.insn = get_insn_slot()))
+		return -ENOMEM;
+
+	p->opcode = *p->addr;
+	memcpy(p->ainsn.insn, p->addr, ((p->opcode >> 14) + 3) & -2);
+
+	return 0;
 }
 
 struct ins_replace_args {
@@ -444,17 +423,22 @@ static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 	unsigned long ip = regs->psw.addr & PSW_ADDR_INSN;
+	int fixup = get_fixup_type(p->ainsn.insn);
 
-	if (p->ainsn.fixup & FIXUP_PSW_NORMAL)
+	if (fixup & FIXUP_PSW_NORMAL)
 		ip += (unsigned long) p->addr - (unsigned long) p->ainsn.insn;
 
-	if (p->ainsn.fixup & FIXUP_BRANCH_NOT_TAKEN)
-		if (ip - (unsigned long) p->ainsn.insn == p->ainsn.ilen)
-			ip = (unsigned long) p->addr + p->ainsn.ilen;
+	if (fixup & FIXUP_BRANCH_NOT_TAKEN) {
+		int ilen = ((p->ainsn.insn[0] >> 14) + 3) & -2;
+		if (ip - (unsigned long) p->ainsn.insn == ilen)
+			ip = (unsigned long) p->addr + ilen;
+	}
 
-	if (p->ainsn.fixup & FIXUP_RETURN_REGISTER)
-		regs->gprs[p->ainsn.reg] += (unsigned long) p->addr -
-					    (unsigned long) p->ainsn.insn;
+	if (fixup & FIXUP_RETURN_REGISTER) {
+		int reg = (p->ainsn.insn[0] & 0xf0) >> 4;
+		regs->gprs[reg] += (unsigned long) p->addr -
+				   (unsigned long) p->ainsn.insn;
+	}
 
 	disable_singlestep(kcb, regs, ip);
 }
