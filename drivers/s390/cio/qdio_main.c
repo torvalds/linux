@@ -298,7 +298,7 @@ static inline int qdio_siga_sync(struct qdio_q *q, unsigned int output,
 	}
 
 	cc = do_siga_sync(schid, output, input, fc);
-	if (cc)
+	if (unlikely(cc))
 		DBF_ERROR("%4x SIGA-S:%2d", SCH_NO(q), cc);
 	return cc;
 }
@@ -328,9 +328,6 @@ static int qdio_siga_output(struct qdio_q *q, unsigned int *busy_bit)
 	u64 start_time = 0;
 	int cc;
 
-	if (q->u.out.use_enh_siga)
-		fc = 3;
-
 	if (is_qebsm(q)) {
 		schid = q->irq_ptr->sch_token;
 		fc |= QDIO_SIGA_QEBSM_FLAG;
@@ -339,7 +336,7 @@ again:
 	cc = do_siga_output(schid, q->mask, busy_bit, fc);
 
 	/* hipersocket busy condition */
-	if (*busy_bit) {
+	if (unlikely(*busy_bit)) {
 		WARN_ON(queue_type(q) != QDIO_IQDIO_QFMT || cc != 2);
 
 		if (!start_time) {
@@ -367,7 +364,7 @@ static inline int qdio_siga_input(struct qdio_q *q)
 	}
 
 	cc = do_siga_input(schid, q->mask, fc);
-	if (cc)
+	if (unlikely(cc))
 		DBF_ERROR("%4x SIGA-R:%2d", SCH_NO(q), cc);
 	return cc;
 }
@@ -1288,7 +1285,6 @@ int qdio_establish(struct qdio_initialize *init_data)
 	}
 
 	qdio_setup_ssqd_info(irq_ptr);
-	DBF_EVENT("qDmmwc:%2x", irq_ptr->ssqd_desc.mmwc);
 	DBF_EVENT("qib ac:%4x", irq_ptr->qib.ac);
 
 	/* qebsm is now setup if available, initialize buffer states */
@@ -1466,48 +1462,25 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 	if (callflags & QDIO_FLAG_PCI_OUT) {
 		q->u.out.pci_out_enabled = 1;
 		qperf_inc(q, pci_request_int);
-	}
-	else
+	} else
 		q->u.out.pci_out_enabled = 0;
 
 	if (queue_type(q) == QDIO_IQDIO_QFMT) {
-		if (multicast_outbound(q))
+		/* One SIGA-W per buffer required for unicast HiperSockets. */
+		WARN_ON_ONCE(count > 1 && !multicast_outbound(q));
+
+		rc = qdio_kick_outbound_q(q);
+	} else if (unlikely(need_siga_sync(q))) {
+		rc = qdio_siga_sync_q(q);
+	} else {
+		/* try to fast requeue buffers */
+		get_buf_state(q, prev_buf(bufnr), &state, 0);
+		if (state != SLSB_CU_OUTPUT_PRIMED)
 			rc = qdio_kick_outbound_q(q);
 		else
-			if ((q->irq_ptr->ssqd_desc.mmwc > 1) &&
-			    (count > 1) &&
-			    (count <= q->irq_ptr->ssqd_desc.mmwc)) {
-				/* exploit enhanced SIGA */
-				q->u.out.use_enh_siga = 1;
-				rc = qdio_kick_outbound_q(q);
-			} else {
-				/*
-				* One siga-w per buffer required for unicast
-				* HiperSockets.
-				*/
-				q->u.out.use_enh_siga = 0;
-				while (count--) {
-					rc = qdio_kick_outbound_q(q);
-					if (rc)
-						goto out;
-				}
-			}
-		goto out;
+			qperf_inc(q, fast_requeue);
 	}
 
-	if (need_siga_sync(q)) {
-		qdio_siga_sync_q(q);
-		goto out;
-	}
-
-	/* try to fast requeue buffers */
-	get_buf_state(q, prev_buf(bufnr), &state, 0);
-	if (state != SLSB_CU_OUTPUT_PRIMED)
-		rc = qdio_kick_outbound_q(q);
-	else
-		qperf_inc(q, fast_requeue);
-
-out:
 	/* in case of SIGA errors we must process the error immediately */
 	if (used >= q->u.out.scan_threshold || rc)
 		tasklet_schedule(&q->tasklet);
