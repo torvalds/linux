@@ -46,7 +46,7 @@
 #include "base.h"
 #include "reg.h"
 
-extern int modparam_nohwcrypt;
+extern int ath5k_modparam_nohwcrypt;
 
 /* functions used from base.c */
 void set_beacon_filter(struct ieee80211_hw *hw, bool enable);
@@ -485,7 +485,7 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct ath_common *common = ath5k_hw_common(ah);
 	int ret = 0;
 
-	if (modparam_nohwcrypt)
+	if (ath5k_modparam_nohwcrypt)
 		return -EOPNOTSUPP;
 
 	switch (key->cipher) {
