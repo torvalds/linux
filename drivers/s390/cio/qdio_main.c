@@ -1447,6 +1447,9 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 	used = atomic_add_return(count, &q->nr_buf_used);
 	BUG_ON(used > QDIO_MAX_BUFFERS_PER_Q);
 
+	if (used == QDIO_MAX_BUFFERS_PER_Q)
+		qperf_inc(q, outbound_queue_full);
+
 	if (callflags & QDIO_FLAG_PCI_OUT) {
 		q->u.out.pci_out_enabled = 1;
 		qperf_inc(q, pci_request_int);

@@ -202,6 +202,7 @@ struct qdio_dev_perf_stat {
 	unsigned int inbound_queue_full;
 	unsigned int outbound_call;
 	unsigned int outbound_handler;
+	unsigned int outbound_queue_full;
 	unsigned int fast_requeue;
 	unsigned int target_full;
 	unsigned int eqbs;
