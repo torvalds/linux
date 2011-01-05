@@ -75,6 +75,7 @@
 
 #include <asm/tlb.h>
 #include <asm/irq_regs.h>
+#include <asm/mutex.h>
 
 #include "sched_cpupri.h"
 #include "workqueue_sched.h"
@@ -4214,7 +4215,7 @@ int mutex_spin_on_owner(struct mutex *lock, struct thread_info *owner)
 		if (task_thread_info(rq->curr) != owner || need_resched())
 			return 0;
 
-		cpu_relax();
+		arch_mutex_cpu_relax();
 	}
 
 	return 1;
