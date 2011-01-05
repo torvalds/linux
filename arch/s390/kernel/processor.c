@@ -35,17 +35,6 @@ void __cpuinit cpu_init(void)
 }
 
 /*
- * print_cpu_info - print basic information about a cpu
- */
-void __cpuinit print_cpu_info(void)
-{
-	struct cpuid *id = &per_cpu(cpu_id, smp_processor_id());
-
-	pr_info("Processor %d started, address %d, identification %06X\n",
-		S390_lowcore.cpu_nr, stap(), id->ident);
-}
-
-/*
  * show_cpuinfo - Get information on one CPU for use by procfs.
  */
 static int show_cpuinfo(struct seq_file *m, void *v)

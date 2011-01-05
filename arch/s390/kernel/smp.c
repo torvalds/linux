@@ -471,8 +471,6 @@ int __cpuinit start_secondary(void *cpuvoid)
 	ipi_call_unlock();
 	/* Switch on interrupts */
 	local_irq_enable();
-	/* Print info about this processor */
-	print_cpu_info();
 	/* cpu_idle will call schedule for us */
 	cpu_idle();
 	return 0;
@@ -681,7 +679,6 @@ void __cpu_die(unsigned int cpu)
 		udelay(10);
 	smp_free_lowcore(cpu);
 	atomic_dec(&init_mm.context.attach_count);
-	pr_info("Processor %d stopped\n", cpu);
 }
 
 void cpu_die(void)
@@ -707,7 +704,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	/* request the 0x1201 emergency signal external interrupt */
 	if (register_external_interrupt(0x1201, do_ext_call_interrupt) != 0)
 		panic("Couldn't request external interrupt 0x1201");
-	print_cpu_info();
 
 	/* Reallocate current lowcore, but keep its contents. */
 	lowcore = (void *) __get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
