@@ -66,8 +66,8 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 	struct buffer_head **bh, int b, int offset, int length, int srclength,
 	int pages)
 {
-	int zlib_err = 0, zlib_init = 0;
-	int avail, bytes, k = 0, page = 0;
+	int zlib_err, zlib_init = 0;
+	int k = 0, page = 0;
 	z_stream *stream = msblk->stream;
 
 	mutex_lock(&msblk->read_data_mutex);
@@ -75,11 +75,10 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 	stream->avail_out = 0;
 	stream->avail_in = 0;
 
-	bytes = length;
 	do {
 		if (stream->avail_in == 0 && k < b) {
-			avail = min(bytes, msblk->devblksize - offset);
-			bytes -= avail;
+			int avail = min(length, msblk->devblksize - offset);
+			length -= avail;
 			wait_on_buffer(bh[k]);
 			if (!buffer_uptodate(bh[k]))
 				goto release_mutex;
