@@ -846,7 +846,7 @@ static void iwl_setup_rx_handlers(struct iwl_priv *priv)
  * the appropriate handlers, including command responses,
  * frame-received notifications, and other notifications.
  */
-void iwl_rx_handle(struct iwl_priv *priv)
+static void iwl_rx_handle(struct iwl_priv *priv)
 {
 	struct iwl_rx_mem_buffer *rxb;
 	struct iwl_rx_packet *pkt;
