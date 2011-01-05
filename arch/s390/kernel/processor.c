@@ -13,7 +13,7 @@
 #include <linux/smp.h>
 #include <linux/seq_file.h>
 #include <linux/delay.h>
-
+#include <linux/cpu.h>
 #include <asm/elf.h>
 #include <asm/lowcore.h>
 #include <asm/param.h>
@@ -47,7 +47,6 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	int i;
 
 	s390_adjust_jiffies();
-	preempt_disable();
 	if (!n) {
 		seq_printf(m, "vendor_id       : IBM/S390\n"
 			   "# processors    : %i\n"
@@ -60,7 +59,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 				seq_printf(m, "%s ", hwcap_str[i]);
 		seq_puts(m, "\n");
 	}
-
+	get_online_cpus();
 	if (cpu_online(n)) {
 		struct cpuid *id = &per_cpu(cpu_id, n);
 		seq_printf(m, "processor %li: "
@@ -69,7 +68,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			   "machine = %04X\n",
 			   n, id->version, id->ident, id->machine);
 	}
-	preempt_enable();
+	put_online_cpus();
 	return 0;
 }
 
