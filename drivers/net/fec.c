@@ -1372,8 +1372,10 @@ fec_suspend(struct device *dev)
 
 	if (ndev) {
 		fep = netdev_priv(ndev);
-		if (netif_running(ndev))
-			fec_enet_close(ndev);
+		if (netif_running(ndev)) {
+			fec_stop(ndev);
+			netif_device_detach(ndev);
+		}
 		clk_disable(fep->clk);
 	}
 	return 0;
@@ -1388,8 +1390,10 @@ fec_resume(struct device *dev)
 	if (ndev) {
 		fep = netdev_priv(ndev);
 		clk_enable(fep->clk);
-		if (netif_running(ndev))
-			fec_enet_open(ndev);
+		if (netif_running(ndev)) {
+			fec_restart(ndev, fep->full_duplex);
+			netif_device_attach(ndev);
+		}
 	}
 	return 0;
 }
