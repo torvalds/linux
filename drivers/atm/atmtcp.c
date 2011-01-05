@@ -392,7 +392,10 @@ static int atmtcp_attach(struct atm_vcc *vcc,int itf)
 			atm_dev_put(dev);
 			return -EMEDIUMTYPE;
 		}
-		if (PRIV(dev)->vcc) return -EBUSY;
+		if (PRIV(dev)->vcc) {
+			atm_dev_put(dev);
+			return -EBUSY;
+		}
 	}
 	else {
 		int error;

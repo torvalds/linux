@@ -1013,6 +1013,7 @@ static __devinit int wm8960_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8960);
+	wm8960->control_type = SND_SOC_I2C;
 	wm8960->control_data = i2c;
 
 	ret = snd_soc_register_codec(&i2c->dev,

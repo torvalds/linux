@@ -2394,7 +2394,8 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 			ASSERT(!VALID_PAGE(root));
 			spin_lock(&vcpu->kvm->mmu_lock);
 			kvm_mmu_free_some_pages(vcpu);
-			sp = kvm_mmu_get_page(vcpu, i << 30, i << 30,
+			sp = kvm_mmu_get_page(vcpu, i << (30 - PAGE_SHIFT),
+					      i << 30,
 					      PT32_ROOT_LEVEL, 1, ACC_ALL,
 					      NULL);
 			root = __pa(sp->spt);

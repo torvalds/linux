@@ -141,7 +141,6 @@ static const u16 wm9090_reg_defaults[] = {
 /* This struct is used to save the context */
 struct wm9090_priv {
 	struct mutex mutex;
-	u16 reg_cache[WM9090_MAX_REGISTER + 1];
 	struct wm9090_platform_data pdata;
 	void *control_data;
 };
@@ -552,6 +551,7 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 static int wm9090_probe(struct snd_soc_codec *codec)
 {
 	struct wm9090_priv *wm9090 = snd_soc_codec_get_drvdata(codec);
+	u16 *reg_cache = codec->reg_cache;
 	int ret;
 
 	codec->control_data = wm9090->control_data;
@@ -576,22 +576,22 @@ static int wm9090_probe(struct snd_soc_codec *codec)
 	/* Configure some defaults; they will be written out when we
 	 * bring the bias up.
 	 */
-	wm9090->reg_cache[WM9090_IN1_LINE_INPUT_A_VOLUME] |= WM9090_IN1_VU
+	reg_cache[WM9090_IN1_LINE_INPUT_A_VOLUME] |= WM9090_IN1_VU
 		| WM9090_IN1A_ZC;
-	wm9090->reg_cache[WM9090_IN1_LINE_INPUT_B_VOLUME] |= WM9090_IN1_VU
+	reg_cache[WM9090_IN1_LINE_INPUT_B_VOLUME] |= WM9090_IN1_VU
 		| WM9090_IN1B_ZC;
-	wm9090->reg_cache[WM9090_IN2_LINE_INPUT_A_VOLUME] |= WM9090_IN2_VU
+	reg_cache[WM9090_IN2_LINE_INPUT_A_VOLUME] |= WM9090_IN2_VU
 		| WM9090_IN2A_ZC;
-	wm9090->reg_cache[WM9090_IN2_LINE_INPUT_B_VOLUME] |= WM9090_IN2_VU
+	reg_cache[WM9090_IN2_LINE_INPUT_B_VOLUME] |= WM9090_IN2_VU
 		| WM9090_IN2B_ZC;
-	wm9090->reg_cache[WM9090_SPEAKER_VOLUME_LEFT] |=
+	reg_cache[WM9090_SPEAKER_VOLUME_LEFT] |=
 		WM9090_SPKOUT_VU | WM9090_SPKOUTL_ZC;
-	wm9090->reg_cache[WM9090_LEFT_OUTPUT_VOLUME] |=
+	reg_cache[WM9090_LEFT_OUTPUT_VOLUME] |=
 		WM9090_HPOUT1_VU | WM9090_HPOUT1L_ZC;
-	wm9090->reg_cache[WM9090_RIGHT_OUTPUT_VOLUME] |=
+	reg_cache[WM9090_RIGHT_OUTPUT_VOLUME] |=
 		WM9090_HPOUT1_VU | WM9090_HPOUT1R_ZC;
 
-	wm9090->reg_cache[WM9090_CLOCKING_1] |= WM9090_TOCLK_ENA;
+	reg_cache[WM9090_CLOCKING_1] |= WM9090_TOCLK_ENA;
 
 	wm9090_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
