@@ -1829,7 +1829,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int ret = 0;
 
-	if (modparam_nohwcrypt)
+	if (ath9k_modparam_nohwcrypt)
 		return -ENOSPC;
 
 	mutex_lock(&sc->mutex);
