@@ -2611,49 +2611,21 @@ static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
 	return true;
 }
 
-static void ironlake_crtc_enable(struct drm_crtc *crtc)
+/*
+ * Enable PCH resources required for PCH ports:
+ *   - PCH PLLs
+ *   - FDI training & RX/TX
+ *   - update transcoder timings
+ *   - DP transcoding bits
+ *   - transcoder
+ */
+static void ironlake_pch_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	int plane = intel_crtc->plane;
 	u32 reg, temp;
-	bool is_pch_port;
-
-	if (intel_crtc->active)
-		return;
-
-	intel_crtc->active = true;
-	intel_update_watermarks(dev);
-
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-		temp = I915_READ(PCH_LVDS);
-		if ((temp & LVDS_PORT_EN) == 0)
-			I915_WRITE(PCH_LVDS, temp | LVDS_PORT_EN);
-	}
-
-	ironlake_fdi_enable(crtc);
-
-	/* Enable panel fitting for LVDS */
-	if (dev_priv->pch_pf_size &&
-	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) || HAS_eDP)) {
-		/* Force use of hard-coded filter coefficients
-		 * as some pre-programmed values are broken,
-		 * e.g. x201.
-		 */
-		I915_WRITE(pipe ? PFB_CTL_1 : PFA_CTL_1,
-			   PF_ENABLE | PF_FILTER_MED_3x3);
-		I915_WRITE(pipe ? PFB_WIN_POS : PFA_WIN_POS,
-			   dev_priv->pch_pf_pos);
-		I915_WRITE(pipe ? PFB_WIN_SZ : PFA_WIN_SZ,
-			   dev_priv->pch_pf_size);
-	}
-
-	is_pch_port = intel_crtc_driving_pch(crtc);
-
-	intel_enable_pipe(dev_priv, pipe, is_pch_port);
-	intel_enable_plane(dev_priv, plane, pipe);
 
 	/* For PCH output, training FDI link */
 	if (IS_GEN6(dev))
@@ -2722,6 +2694,57 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	}
 
 	intel_enable_transcoder(dev_priv, pipe);
+}
+
+static void ironlake_crtc_enable(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	int plane = intel_crtc->plane;
+	u32 temp;
+	bool is_pch_port;
+
+	if (intel_crtc->active)
+		return;
+
+	intel_crtc->active = true;
+	intel_update_watermarks(dev);
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+		temp = I915_READ(PCH_LVDS);
+		if ((temp & LVDS_PORT_EN) == 0)
+			I915_WRITE(PCH_LVDS, temp | LVDS_PORT_EN);
+	}
+
+	is_pch_port = intel_crtc_driving_pch(crtc);
+
+	if (is_pch_port)
+		ironlake_fdi_enable(crtc);
+	else
+		ironlake_fdi_disable(crtc);
+
+	/* Enable panel fitting for LVDS */
+	if (dev_priv->pch_pf_size &&
+	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) || HAS_eDP)) {
+		/* Force use of hard-coded filter coefficients
+		 * as some pre-programmed values are broken,
+		 * e.g. x201.
+		 */
+		I915_WRITE(pipe ? PFB_CTL_1 : PFA_CTL_1,
+			   PF_ENABLE | PF_FILTER_MED_3x3);
+		I915_WRITE(pipe ? PFB_WIN_POS : PFA_WIN_POS,
+			   dev_priv->pch_pf_pos);
+		I915_WRITE(pipe ? PFB_WIN_SZ : PFA_WIN_SZ,
+			   dev_priv->pch_pf_size);
+	}
+
+	intel_enable_pipe(dev_priv, pipe, is_pch_port);
+	intel_enable_plane(dev_priv, plane, pipe);
+
+	if (is_pch_port)
+		ironlake_pch_enable(crtc);
 
 	intel_crtc_load_lut(crtc);
 	intel_update_fbc(dev);
