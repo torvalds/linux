@@ -3921,18 +3921,18 @@ static int selinux_socket_shutdown(struct socket *sock, int how)
 	return sock_has_perm(current, sock->sk, SOCKET__SHUTDOWN);
 }
 
-static int selinux_socket_unix_stream_connect(struct socket *sock,
-					      struct socket *other,
+static int selinux_socket_unix_stream_connect(struct sock *sock,
+					      struct sock *other,
 					      struct sock *newsk)
 {
-	struct sk_security_struct *sksec_sock = sock->sk->sk_security;
-	struct sk_security_struct *sksec_other = other->sk->sk_security;
+	struct sk_security_struct *sksec_sock = sock->sk_security;
+	struct sk_security_struct *sksec_other = other->sk_security;
 	struct sk_security_struct *sksec_new = newsk->sk_security;
 	struct common_audit_data ad;
 	int err;
 
 	COMMON_AUDIT_DATA_INIT(&ad, NET);
-	ad.u.net.sk = other->sk;
+	ad.u.net.sk = other;
 
 	err = avc_has_perm(sksec_sock->sid, sksec_other->sid,
 			   sksec_other->sclass,
