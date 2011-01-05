@@ -315,9 +315,9 @@ static int cpio_mkfile(const char *name, const char *location,
 		goto error;
 	}
 
-	retval = fstat (file, &buf);
+	retval = fstat(file, &buf);
 	if (retval) {
-		fprintf (stderr, "File %s could not be stat()'ed\n", location);
+		fprintf(stderr, "File %s could not be stat()'ed\n", location);
 		goto error;
 	}
 
