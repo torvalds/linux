@@ -2177,6 +2177,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	int num_stripes = 1;
 	int min_stripes = 1;
 	int sub_stripes = 0;
+	int ncopies = 1;
 	int looped = 0;
 	int ret;
 	int index;
@@ -2197,12 +2198,14 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	if (type & (BTRFS_BLOCK_GROUP_DUP)) {
 		num_stripes = 2;
 		min_stripes = 2;
+		ncopies = 2;
 	}
 	if (type & (BTRFS_BLOCK_GROUP_RAID1)) {
 		if (fs_devices->rw_devices < 2)
 			return -ENOSPC;
 		num_stripes = 2;
 		min_stripes = 2;
+		ncopies = 2;
 	}
 	if (type & (BTRFS_BLOCK_GROUP_RAID10)) {
 		num_stripes = fs_devices->rw_devices;
@@ -2210,6 +2213,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 			return -ENOSPC;
 		num_stripes &= ~(u32)1;
 		sub_stripes = 2;
+		ncopies = 2;
 		min_stripes = 4;
 	}
 
@@ -2239,8 +2243,8 @@ again:
 		map->num_stripes = num_stripes;
 	}
 
-	if (calc_size * num_stripes > max_chunk_size) {
-		calc_size = max_chunk_size;
+	if (calc_size * num_stripes > max_chunk_size * ncopies) {
+		calc_size = max_chunk_size * ncopies;
 		do_div(calc_size, num_stripes);
 		do_div(calc_size, stripe_len);
 		calc_size *= stripe_len;
@@ -2321,6 +2325,8 @@ again:
 		if (!looped && max_avail > 0) {
 			looped = 1;
 			calc_size = max_avail;
+			if (type & BTRFS_BLOCK_GROUP_DUP)
+				do_div(calc_size, 2);
 			goto again;
 		}
 		kfree(map);
