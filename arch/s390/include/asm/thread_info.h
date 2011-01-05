@@ -74,7 +74,7 @@ struct thread_info {
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
 {
-	return (struct thread_info *)(S390_lowcore.kernel_stack - THREAD_SIZE);
+	return (struct thread_info *) S390_lowcore.thread_info;
 }
 
 #define THREAD_SIZE_ORDER THREAD_ORDER
