@@ -1808,6 +1808,8 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 			if (!fwd_skb && net_ratelimit())
 				printk(KERN_DEBUG "%s: failed to clone mesh frame\n",
 						   sdata->name);
+			if (!fwd_skb)
+				goto out;
 
 			fwd_hdr =  (struct ieee80211_hdr *) fwd_skb->data;
 			memcpy(fwd_hdr->addr2, sdata->vif.addr, ETH_ALEN);
@@ -1845,6 +1847,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 		}
 	}
 
+ out:
 	if (is_multicast_ether_addr(hdr->addr1) ||
 	    sdata->dev->flags & IFF_PROMISC)
 		return RX_CONTINUE;
