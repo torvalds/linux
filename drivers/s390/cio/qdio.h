@@ -423,9 +423,9 @@ struct indicator_t {
 
 extern struct indicator_t *q_indicators;
 
-static inline int shared_ind(struct qdio_irq *irq_ptr)
+static inline int shared_ind(u32 *dsci)
 {
-	return irq_ptr->dsci == &q_indicators[TIQDIO_SHARED_IND].ind;
+	return dsci == &q_indicators[TIQDIO_SHARED_IND].ind;
 }
 
 /* prototypes for thin interrupt */

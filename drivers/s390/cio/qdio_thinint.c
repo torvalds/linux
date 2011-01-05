@@ -36,21 +36,7 @@ static u8 *tiqdio_alsi;
 
 struct indicator_t *q_indicators;
 
-static int css_qdio_omit_svs;
-
 static u64 last_ai_time;
-
-static inline unsigned long do_clear_global_summary(void)
-{
-	register unsigned long __fn asm("1") = 3;
-	register unsigned long __tmp asm("2");
-	register unsigned long __time asm("3");
-
-	asm volatile(
-		"	.insn	rre,0xb2650000,2,0"
-		: "+d" (__fn), "=d" (__tmp), "=d" (__time));
-	return __time;
-}
 
 /* returns addr for the device state change indicator */
 static u32 *get_indicator(void)
@@ -84,10 +70,6 @@ void tiqdio_add_input_queues(struct qdio_irq *irq_ptr)
 	struct qdio_q *q;
 	int i;
 
-	/* No TDD facility? If we must use SIGA-s we can also omit SVS. */
-	if (!css_qdio_omit_svs && irq_ptr->siga_flag.sync)
-		css_qdio_omit_svs = 1;
-
 	mutex_lock(&tiq_list_lock);
 	for_each_input_queue(irq_ptr, q, i)
 		list_add_rcu(&q->entry, &tiq_list);
@@ -113,9 +95,9 @@ void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
 	}
 }
 
-static inline int shared_ind_used(void)
+static inline u32 shared_ind_set(void)
 {
-	return atomic_read(&q_indicators[TIQDIO_SHARED_IND].count);
+	return q_indicators[TIQDIO_SHARED_IND].ind;
 }
 
 /**
@@ -125,21 +107,11 @@ static inline int shared_ind_used(void)
  */
 static void tiqdio_thinint_handler(void *alsi, void *data)
 {
+	u32 si_used = shared_ind_set();
 	struct qdio_q *q;
 
 	last_ai_time = S390_lowcore.int_clock;
 	kstat_cpu(smp_processor_id()).irqs[IOINT_QAI]++;
-
-	/*
-	 * SVS only when needed: issue SVS to benefit from iqdio interrupt
-	 * avoidance (SVS clears adapter interrupt suppression overwrite).
-	 */
-	if (!css_qdio_omit_svs)
-		do_clear_global_summary();
-
-	/* reset local summary indicator */
-	if (shared_ind_used())
-		xchg(tiqdio_alsi, 0);
 
 	/* protect tiq_list entries, only changed in activate or shutdown */
 	rcu_read_lock();
@@ -148,7 +120,10 @@ static void tiqdio_thinint_handler(void *alsi, void *data)
 	list_for_each_entry_rcu(q, &tiq_list, entry) {
 
 		/* only process queues from changed sets */
-		if (!*q->irq_ptr->dsci)
+		if (unlikely(shared_ind(q->irq_ptr->dsci))) {
+			if (!si_used)
+				continue;
+		} else if (!*q->irq_ptr->dsci)
 			continue;
 
 		if (q->u.in.queue_start_poll) {
@@ -164,7 +139,7 @@ static void tiqdio_thinint_handler(void *alsi, void *data)
 						 q->irq_ptr->int_parm);
 		} else {
 			/* only clear it if the indicator is non-shared */
-			if (!shared_ind(q->irq_ptr))
+			if (!shared_ind(q->irq_ptr->dsci))
 				xchg(q->irq_ptr->dsci, 0);
 			/*
 			 * Call inbound processing but not directly
@@ -180,13 +155,8 @@ static void tiqdio_thinint_handler(void *alsi, void *data)
 	 * If the shared indicator was used clear it now after all queues
 	 * were processed.
 	 */
-	if (shared_ind_used()) {
+	if (si_used && shared_ind_set())
 		xchg(&q_indicators[TIQDIO_SHARED_IND].ind, 0);
-
-		/* prevent racing */
-		if (*tiqdio_alsi)
-			xchg(&q_indicators[TIQDIO_SHARED_IND].ind, 1 << 7);
-	}
 }
 
 static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
@@ -271,12 +241,6 @@ int qdio_establish_thinint(struct qdio_irq *irq_ptr)
 {
 	if (!is_thinint_irq(irq_ptr))
 		return 0;
-
-	/* Check for aif time delay disablement. If installed,
-	 * omit SVS even under LPAR
-	 */
-	if (css_general_characteristics.aif_tdd)
-		css_qdio_omit_svs = 1;
 	return set_subchannel_ind(irq_ptr, 0);
 }
 

@@ -1552,7 +1552,7 @@ int qdio_start_irq(struct ccw_device *cdev, int nr)
 
 	WARN_ON(queue_irqs_enabled(q));
 
-	if (!shared_ind(q->irq_ptr))
+	if (!shared_ind(q->irq_ptr->dsci))
 		xchg(q->irq_ptr->dsci, 0);
 
 	qdio_stop_polling(q);
@@ -1562,7 +1562,7 @@ int qdio_start_irq(struct ccw_device *cdev, int nr)
 	 * We need to check again to not lose initiative after
 	 * resetting the ACK state.
 	 */
-	if (!shared_ind(q->irq_ptr) && *q->irq_ptr->dsci)
+	if (!shared_ind(q->irq_ptr->dsci) && *q->irq_ptr->dsci)
 		goto rescan;
 	if (!qdio_inbound_q_done(q))
 		goto rescan;
