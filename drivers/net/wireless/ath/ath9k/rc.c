@@ -400,7 +400,7 @@ static void ath_rc_sort_validrates(const struct ath_rate_table *rate_table,
 	}
 }
 
-static void ath_rc_init_valid_txmask(struct ath_rate_priv *ath_rc_priv)
+static void ath_rc_init_valid_rate_idx(struct ath_rate_priv *ath_rc_priv)
 {
 	u8 i;
 
@@ -408,7 +408,7 @@ static void ath_rc_init_valid_txmask(struct ath_rate_priv *ath_rc_priv)
 		ath_rc_priv->valid_rate_index[i] = 0;
 }
 
-static inline void ath_rc_set_valid_txmask(struct ath_rate_priv *ath_rc_priv,
+static inline void ath_rc_set_valid_rate_idx(struct ath_rate_priv *ath_rc_priv,
 					   u8 index, int valid_tx_rate)
 {
 	BUG_ON(index > ath_rc_priv->rate_table_size);
@@ -489,7 +489,7 @@ static u8 ath_rc_init_validrates(struct ath_rate_priv *ath_rc_priv,
 
 			ath_rc_priv->valid_phy_rateidx[phy][valid_rate_count] = i;
 			ath_rc_priv->valid_phy_ratecnt[phy] += 1;
-			ath_rc_set_valid_txmask(ath_rc_priv, i, 1);
+			ath_rc_set_valid_rate_idx(ath_rc_priv, i, 1);
 			hi = i;
 		}
 	}
@@ -532,7 +532,7 @@ static u8 ath_rc_setvalid_rates(struct ath_rate_priv *ath_rc_priv,
 				ath_rc_priv->valid_phy_rateidx[phy]
 					[valid_rate_count] = j;
 				ath_rc_priv->valid_phy_ratecnt[phy] += 1;
-				ath_rc_set_valid_txmask(ath_rc_priv, j, 1);
+				ath_rc_set_valid_rate_idx(ath_rc_priv, j, 1);
 				hi = A_MAX(hi, j);
 			}
 		}
@@ -568,7 +568,7 @@ static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv,
 			ath_rc_priv->valid_phy_rateidx[phy]
 				[ath_rc_priv->valid_phy_ratecnt[phy]] = j;
 			ath_rc_priv->valid_phy_ratecnt[phy] += 1;
-			ath_rc_set_valid_txmask(ath_rc_priv, j, 1);
+			ath_rc_set_valid_rate_idx(ath_rc_priv, j, 1);
 			hi = A_MAX(hi, j);
 		}
 	}
@@ -1210,7 +1210,7 @@ static void ath_rc_init(struct ath_softc *sc,
 	}
 
 	/* Determine the valid rates */
-	ath_rc_init_valid_txmask(ath_rc_priv);
+	ath_rc_init_valid_rate_idx(ath_rc_priv);
 
 	for (i = 0; i < WLAN_RC_PHY_MAX; i++) {
 		for (j = 0; j < MAX_TX_RATE_PHY; j++)
@@ -1321,7 +1321,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr;
-	int final_ts_idx = 0, tx_status = 0, is_underrun = 0;
+	int final_ts_idx = 0, tx_status = 0;
 	int long_retry = 0;
 	__le16 fc;
 	int i;
@@ -1358,7 +1358,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		tx_status = 1;
 
 	ath_rc_tx_status(sc, ath_rc_priv, tx_info, final_ts_idx, tx_status,
-			 (is_underrun) ? sc->hw->max_rate_tries : long_retry);
+			 long_retry);
 
 	/* Check if aggregation has to be enabled for this tid */
 	if (conf_is_ht(&sc->hw->conf) &&

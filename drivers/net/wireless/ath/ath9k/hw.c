@@ -1615,7 +1615,9 @@ bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
 	 * simply keep the ATH_DBG_WARN_ON_ONCE() but make
 	 * ath9k_hw_setpower() return type void.
 	 */
-	ATH_DBG_WARN_ON_ONCE(!status);
+
+	if (!(ah->ah_flags & AH_UNPLUGGED))
+		ATH_DBG_WARN_ON_ONCE(!status);
 
 	return status;
 }

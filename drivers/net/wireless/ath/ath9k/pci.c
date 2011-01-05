@@ -96,7 +96,7 @@ static void ath_pci_bt_coex_prep(struct ath_common *common)
 	struct pci_dev *pdev = to_pci_dev(sc->dev);
 	u8 aspm;
 
-	if (!pdev->is_pcie)
+	if (!pci_is_pcie(pdev))
 		return;
 
 	pci_read_config_byte(pdev, ATH_PCIE_CAP_LINK_CTRL, &aspm);
@@ -264,6 +264,8 @@ static void ath_pci_remove(struct pci_dev *pdev)
 	struct ath_softc *sc = aphy->sc;
 	void __iomem *mem = sc->mem;
 
+	if (!is_ath9k_unloaded)
+		sc->sc_ah->ah_flags |= AH_UNPLUGGED;
 	ath9k_deinit_device(sc);
 	free_irq(sc->irq, sc);
 	ieee80211_free_hw(sc->hw);
@@ -309,7 +311,16 @@ static int ath_pci_resume(struct device *device)
 			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 1);
 
+	  /*
+	   * Reset key cache to sane defaults (all entries cleared) instead of
+	   * semi-random values after suspend/resume.
+	   */
+	ath9k_ps_wakeup(sc);
+	ath9k_init_crypto(sc);
+	ath9k_ps_restore(sc);
+
 	sc->ps_idle = true;
+	ath9k_set_wiphy_idle(aphy, true);
 	ath_radio_disable(sc, hw);
 
 	return 0;

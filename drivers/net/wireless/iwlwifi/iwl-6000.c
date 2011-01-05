@@ -596,12 +596,7 @@ struct iwl_cfg iwl6005_2bg_cfg = {
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
 	.led_mode = IWL_LED_RF_STATE,				\
-	.adv_pm = true,						\
-	/*							\
-	 *Due to bluetooth, we transmit 2.4 GHz probes		\
-	 * only on antenna A					\
-	 */							\
-	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A
+	.adv_pm = true						\
 
 struct iwl_cfg iwl6030_2agn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6230 AGN",

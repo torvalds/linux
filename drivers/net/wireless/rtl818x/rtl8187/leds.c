@@ -20,7 +20,7 @@
 #include <linux/eeprom_93cx6.h>
 
 #include "rtl8187.h"
-#include "rtl8187_leds.h"
+#include "leds.h"
 
 static void led_turn_on(struct work_struct *work)
 {

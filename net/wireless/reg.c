@@ -752,7 +752,7 @@ static void chan_reg_rule_print_dbg(struct ieee80211_channel *chan,
 		snprintf(max_antenna_gain, 32, "%d", power_rule->max_antenna_gain);
 
 	REG_DBG_PRINT("Updating information on frequency %d MHz "
-		      "for %d a MHz width channel with regulatory rule:\n",
+		      "for a %d MHz width channel with regulatory rule:\n",
 		      chan->center_freq,
 		      KHZ_TO_MHZ(desired_bw_khz));
 

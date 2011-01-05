@@ -61,8 +61,8 @@
 #include "debug.h"
 #include "ani.h"
 
-static int modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
+int ath5k_modparam_nohwcrypt;
+module_param_named(nohwcrypt, ath5k_modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
 static int modparam_all_channels;
@@ -79,9 +79,8 @@ MODULE_LICENSE("Dual BSD/GPL");
 static int ath5k_init(struct ieee80211_hw *hw);
 static int ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 								bool skip_pcu);
-static int ath5k_beacon_update(struct ieee80211_hw *hw,
-		struct ieee80211_vif *vif);
-static void ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf);
+int ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+void ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf);
 
 /* Known SREVs */
 static const struct ath5k_srev_name srev_names[] = {
@@ -176,38 +175,6 @@ static const struct ieee80211_rate ath5k_rates[] = {
 	  .flags = 0 },
 	/* XR missing */
 };
-
-static inline void ath5k_txbuf_free_skb(struct ath5k_softc *sc,
-				struct ath5k_buf *bf)
-{
-	BUG_ON(!bf);
-	if (!bf->skb)
-		return;
-	dma_unmap_single(sc->dev, bf->skbaddr, bf->skb->len,
-			DMA_TO_DEVICE);
-	dev_kfree_skb_any(bf->skb);
-	bf->skb = NULL;
-	bf->skbaddr = 0;
-	bf->desc->ds_data = 0;
-}
-
-static inline void ath5k_rxbuf_free_skb(struct ath5k_softc *sc,
-				struct ath5k_buf *bf)
-{
-	struct ath5k_hw *ah = sc->ah;
-	struct ath_common *common = ath5k_hw_common(ah);
-
-	BUG_ON(!bf);
-	if (!bf->skb)
-		return;
-	dma_unmap_single(sc->dev, bf->skbaddr, common->rx_bufsize,
-			DMA_FROM_DEVICE);
-	dev_kfree_skb_any(bf->skb);
-	bf->skb = NULL;
-	bf->skbaddr = 0;
-	bf->desc->ds_data = 0;
-}
-
 
 static inline u64 ath5k_extend_tsf(struct ath5k_hw *ah, u32 rstamp)
 {
@@ -462,7 +429,7 @@ ath5k_setup_bands(struct ieee80211_hw *hw)
  *
  * Called with sc->lock.
  */
-static int
+int
 ath5k_chan_set(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 {
 	ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
@@ -537,8 +504,9 @@ static void ath_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 			iter_data->opmode = avf->opmode;
 }
 
-static void ath5k_update_bssid_mask_and_opmode(struct ath5k_softc *sc,
-					       struct ieee80211_vif *vif)
+void
+ath5k_update_bssid_mask_and_opmode(struct ath5k_softc *sc,
+				   struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath5k_hw_common(sc->ah);
 	struct ath_vif_iter_data iter_data;
@@ -577,7 +545,7 @@ static void ath5k_update_bssid_mask_and_opmode(struct ath5k_softc *sc,
 		ath5k_hw_set_bssid_mask(sc->ah, sc->bssidmask);
 }
 
-static void
+void
 ath5k_mode_setup(struct ath5k_softc *sc, struct ieee80211_vif *vif)
 {
 	struct ath5k_hw *ah = sc->ah;
@@ -885,6 +853,37 @@ err_free:
 err:
 	sc->desc = NULL;
 	return ret;
+}
+
+void
+ath5k_txbuf_free_skb(struct ath5k_softc *sc, struct ath5k_buf *bf)
+{
+	BUG_ON(!bf);
+	if (!bf->skb)
+		return;
+	dma_unmap_single(sc->dev, bf->skbaddr, bf->skb->len,
+			DMA_TO_DEVICE);
+	dev_kfree_skb_any(bf->skb);
+	bf->skb = NULL;
+	bf->skbaddr = 0;
+	bf->desc->ds_data = 0;
+}
+
+void
+ath5k_rxbuf_free_skb(struct ath5k_softc *sc, struct ath5k_buf *bf)
+{
+	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
+
+	BUG_ON(!bf);
+	if (!bf->skb)
+		return;
+	dma_unmap_single(sc->dev, bf->skbaddr, common->rx_bufsize,
+			DMA_FROM_DEVICE);
+	dev_kfree_skb_any(bf->skb);
+	bf->skb = NULL;
+	bf->skbaddr = 0;
+	bf->desc->ds_data = 0;
 }
 
 static void
@@ -1534,8 +1533,9 @@ unlock:
 * TX Handling *
 \*************/
 
-static int ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
-			  struct ath5k_txq *txq)
+int
+ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
+	       struct ath5k_txq *txq)
 {
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_buf *bf;
@@ -1801,7 +1801,7 @@ err_unmap:
  *
  * Called with the beacon lock.
  */
-static int
+int
 ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	int ret;
@@ -1947,7 +1947,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
  * when we otherwise know we have to update the timers, but we keep it in this
  * function to have it all together in one place.
  */
-static void
+void
 ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf)
 {
 	struct ath5k_hw *ah = sc->ah;
@@ -2049,7 +2049,7 @@ ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf)
  * In IBSS mode we use a self-linked tx descriptor if possible. We enable SWBA
  * interrupts to detect TSF updates only.
  */
-static void
+void
 ath5k_beacon_config(struct ath5k_softc *sc)
 {
 	struct ath5k_hw *ah = sc->ah;
@@ -2525,7 +2525,7 @@ ath5k_stop_locked(struct ath5k_softc *sc)
 	return 0;
 }
 
-static int
+int
 ath5k_init_hw(struct ath5k_softc *sc)
 {
 	struct ath5k_hw *ah = sc->ah;
@@ -2601,7 +2601,7 @@ static void stop_tasklets(struct ath5k_softc *sc)
  * if another thread does a system call and the thread doing the
  * stop is preempted).
  */
-static int
+int
 ath5k_stop_hw(struct ath5k_softc *sc)
 {
 	int ret;
@@ -2703,11 +2703,11 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 
 	/* clear survey data and cycle counters */
 	memset(&sc->survey, 0, sizeof(sc->survey));
-	spin_lock(&common->cc_lock);
+	spin_lock_bh(&common->cc_lock);
 	ath_hw_cycle_counters_update(common);
 	memset(&common->cc_survey, 0, sizeof(common->cc_survey));
 	memset(&common->cc_ani, 0, sizeof(common->cc_ani));
-	spin_unlock(&common->cc_lock);
+	spin_unlock_bh(&common->cc_lock);
 
 	/*
 	 * Change channels and update the h/w rate map if we're switching;
@@ -2939,230 +2939,8 @@ ath5k_deinit_softc(struct ath5k_softc *sc)
 	free_irq(sc->irq, sc);
 }
 
-/********************\
-* Mac80211 functions *
-\********************/
-
-static int
-ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-	struct ath5k_softc *sc = hw->priv;
-	u16 qnum = skb_get_queue_mapping(skb);
-
-	if (WARN_ON(qnum >= sc->ah->ah_capabilities.cap_queues.q_tx_num)) {
-		dev_kfree_skb_any(skb);
-		return 0;
-	}
-
-	return ath5k_tx_queue(hw, skb, &sc->txqs[qnum]);
-}
-
-static int ath5k_start(struct ieee80211_hw *hw)
-{
-	return ath5k_init_hw(hw->priv);
-}
-
-static void ath5k_stop(struct ieee80211_hw *hw)
-{
-	ath5k_stop_hw(hw->priv);
-}
-
-static int ath5k_add_interface(struct ieee80211_hw *hw,
-		struct ieee80211_vif *vif)
-{
-	struct ath5k_softc *sc = hw->priv;
-	int ret;
-	struct ath5k_vif *avf = (void *)vif->drv_priv;
-
-	mutex_lock(&sc->lock);
-
-	if ((vif->type == NL80211_IFTYPE_AP ||
-	     vif->type == NL80211_IFTYPE_ADHOC)
-	    && (sc->num_ap_vifs + sc->num_adhoc_vifs) >= ATH_BCBUF) {
-		ret = -ELNRNG;
-		goto end;
-	}
-
-	/* Don't allow other interfaces if one ad-hoc is configured.
-	 * TODO: Fix the problems with ad-hoc and multiple other interfaces.
-	 * We would need to operate the HW in ad-hoc mode to allow TSF updates
-	 * for the IBSS, but this breaks with additional AP or STA interfaces
-	 * at the moment. */
-	if (sc->num_adhoc_vifs ||
-	    (sc->nvifs && vif->type == NL80211_IFTYPE_ADHOC)) {
-		ATH5K_ERR(sc, "Only one single ad-hoc interface is allowed.\n");
-		ret = -ELNRNG;
-		goto end;
-	}
-
-	switch (vif->type) {
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_MESH_POINT:
-		avf->opmode = vif->type;
-		break;
-	default:
-		ret = -EOPNOTSUPP;
-		goto end;
-	}
-
-	sc->nvifs++;
-	ATH5K_DBG(sc, ATH5K_DEBUG_MODE, "add interface mode %d\n", avf->opmode);
-
-	/* Assign the vap/adhoc to a beacon xmit slot. */
-	if ((avf->opmode == NL80211_IFTYPE_AP) ||
-	    (avf->opmode == NL80211_IFTYPE_ADHOC) ||
-	    (avf->opmode == NL80211_IFTYPE_MESH_POINT)) {
-		int slot;
-
-		WARN_ON(list_empty(&sc->bcbuf));
-		avf->bbuf = list_first_entry(&sc->bcbuf, struct ath5k_buf,
-					     list);
-		list_del(&avf->bbuf->list);
-
-		avf->bslot = 0;
-		for (slot = 0; slot < ATH_BCBUF; slot++) {
-			if (!sc->bslot[slot]) {
-				avf->bslot = slot;
-				break;
-			}
-		}
-		BUG_ON(sc->bslot[avf->bslot] != NULL);
-		sc->bslot[avf->bslot] = vif;
-		if (avf->opmode == NL80211_IFTYPE_AP)
-			sc->num_ap_vifs++;
-		else if (avf->opmode == NL80211_IFTYPE_ADHOC)
-			sc->num_adhoc_vifs++;
-	}
-
-	/* Any MAC address is fine, all others are included through the
-	 * filter.
-	 */
-	memcpy(&sc->lladdr, vif->addr, ETH_ALEN);
-	ath5k_hw_set_lladdr(sc->ah, vif->addr);
-
-	memcpy(&avf->lladdr, vif->addr, ETH_ALEN);
-
-	ath5k_mode_setup(sc, vif);
-
-	ret = 0;
-end:
-	mutex_unlock(&sc->lock);
-	return ret;
-}
-
-static void
-ath5k_remove_interface(struct ieee80211_hw *hw,
-			struct ieee80211_vif *vif)
-{
-	struct ath5k_softc *sc = hw->priv;
-	struct ath5k_vif *avf = (void *)vif->drv_priv;
-	unsigned int i;
-
-	mutex_lock(&sc->lock);
-	sc->nvifs--;
-
-	if (avf->bbuf) {
-		ath5k_txbuf_free_skb(sc, avf->bbuf);
-		list_add_tail(&avf->bbuf->list, &sc->bcbuf);
-		for (i = 0; i < ATH_BCBUF; i++) {
-			if (sc->bslot[i] == vif) {
-				sc->bslot[i] = NULL;
-				break;
-			}
-		}
-		avf->bbuf = NULL;
-	}
-	if (avf->opmode == NL80211_IFTYPE_AP)
-		sc->num_ap_vifs--;
-	else if (avf->opmode == NL80211_IFTYPE_ADHOC)
-		sc->num_adhoc_vifs--;
-
-	ath5k_update_bssid_mask_and_opmode(sc, NULL);
-	mutex_unlock(&sc->lock);
-}
-
-/*
- * TODO: Phy disable/diversity etc
- */
-static int
-ath5k_config(struct ieee80211_hw *hw, u32 changed)
-{
-	struct ath5k_softc *sc = hw->priv;
-	struct ath5k_hw *ah = sc->ah;
-	struct ieee80211_conf *conf = &hw->conf;
-	int ret = 0;
-
-	mutex_lock(&sc->lock);
-
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		ret = ath5k_chan_set(sc, conf->channel);
-		if (ret < 0)
-			goto unlock;
-	}
-
-	if ((changed & IEEE80211_CONF_CHANGE_POWER) &&
-	(sc->power_level != conf->power_level)) {
-		sc->power_level = conf->power_level;
-
-		/* Half dB steps */
-		ath5k_hw_set_txpower_limit(ah, (conf->power_level * 2));
-	}
-
-	/* TODO:
-	 * 1) Move this on config_interface and handle each case
-	 * separately eg. when we have only one STA vif, use
-	 * AR5K_ANTMODE_SINGLE_AP
-	 *
-	 * 2) Allow the user to change antenna mode eg. when only
-	 * one antenna is present
-	 *
-	 * 3) Allow the user to set default/tx antenna when possible
-	 *
-	 * 4) Default mode should handle 90% of the cases, together
-	 * with fixed a/b and single AP modes we should be able to
-	 * handle 99%. Sectored modes are extreme cases and i still
-	 * haven't found a usage for them. If we decide to support them,
-	 * then we must allow the user to set how many tx antennas we
-	 * have available
-	 */
-	ath5k_hw_set_antenna_mode(ah, ah->ah_ant_mode);
-
-unlock:
-	mutex_unlock(&sc->lock);
-	return ret;
-}
-
-static u64 ath5k_prepare_multicast(struct ieee80211_hw *hw,
-				   struct netdev_hw_addr_list *mc_list)
-{
-	u32 mfilt[2], val;
-	u8 pos;
-	struct netdev_hw_addr *ha;
-
-	mfilt[0] = 0;
-	mfilt[1] = 1;
-
-	netdev_hw_addr_list_for_each(ha, mc_list) {
-		/* calculate XOR of eight 6-bit values */
-		val = get_unaligned_le32(ha->addr + 0);
-		pos = (val >> 18) ^ (val >> 12) ^ (val >> 6) ^ val;
-		val = get_unaligned_le32(ha->addr + 3);
-		pos ^= (val >> 18) ^ (val >> 12) ^ (val >> 6) ^ val;
-		pos &= 0x3f;
-		mfilt[pos / 32] |= (1 << (pos % 32));
-		/* XXX: we might be able to just do this instead,
-		* but not sure, needs testing, if we do use this we'd
-		* neet to inform below to not reset the mcast */
-		/* ath5k_hw_set_mcast_filterindex(ah,
-		 *      ha->addr[5]); */
-	}
-
-	return ((u64)(mfilt[1]) << 32) | mfilt[0];
-}
-
-static bool ath_any_vif_assoc(struct ath5k_softc *sc)
+bool
+ath_any_vif_assoc(struct ath5k_softc *sc)
 {
 	struct ath_vif_iter_data iter_data;
 	iter_data.hw_macaddr = NULL;
@@ -3175,262 +2953,7 @@ static bool ath_any_vif_assoc(struct ath5k_softc *sc)
 	return iter_data.any_assoc;
 }
 
-#define SUPPORTED_FIF_FLAGS \
-	FIF_PROMISC_IN_BSS |  FIF_ALLMULTI | FIF_FCSFAIL | \
-	FIF_PLCPFAIL | FIF_CONTROL | FIF_OTHER_BSS | \
-	FIF_BCN_PRBRESP_PROMISC
-/*
- * o always accept unicast, broadcast, and multicast traffic
- * o multicast traffic for all BSSIDs will be enabled if mac80211
- *   says it should be
- * o maintain current state of phy ofdm or phy cck error reception.
- *   If the hardware detects any of these type of errors then
- *   ath5k_hw_get_rx_filter() will pass to us the respective
- *   hardware filters to be able to receive these type of frames.
- * o probe request frames are accepted only when operating in
- *   hostap, adhoc, or monitor modes
- * o enable promiscuous mode according to the interface state
- * o accept beacons:
- *   - when operating in adhoc mode so the 802.11 layer creates
- *     node table entries for peers,
- *   - when operating in station mode for collecting rssi data when
- *     the station is otherwise quiet, or
- *   - when scanning
- */
-static void ath5k_configure_filter(struct ieee80211_hw *hw,
-		unsigned int changed_flags,
-		unsigned int *new_flags,
-		u64 multicast)
-{
-	struct ath5k_softc *sc = hw->priv;
-	struct ath5k_hw *ah = sc->ah;
-	u32 mfilt[2], rfilt;
-
-	mutex_lock(&sc->lock);
-
-	mfilt[0] = multicast;
-	mfilt[1] = multicast >> 32;
-
-	/* Only deal with supported flags */
-	changed_flags &= SUPPORTED_FIF_FLAGS;
-	*new_flags &= SUPPORTED_FIF_FLAGS;
-
-	/* If HW detects any phy or radar errors, leave those filters on.
-	 * Also, always enable Unicast, Broadcasts and Multicast
-	 * XXX: move unicast, bssid broadcasts and multicast to mac80211 */
-	rfilt = (ath5k_hw_get_rx_filter(ah) & (AR5K_RX_FILTER_PHYERR)) |
-		(AR5K_RX_FILTER_UCAST | AR5K_RX_FILTER_BCAST |
-		AR5K_RX_FILTER_MCAST);
-
-	if (changed_flags & (FIF_PROMISC_IN_BSS | FIF_OTHER_BSS)) {
-		if (*new_flags & FIF_PROMISC_IN_BSS) {
-			__set_bit(ATH_STAT_PROMISC, sc->status);
-		} else {
-			__clear_bit(ATH_STAT_PROMISC, sc->status);
-		}
-	}
-
-	if (test_bit(ATH_STAT_PROMISC, sc->status))
-		rfilt |= AR5K_RX_FILTER_PROM;
-
-	/* Note, AR5K_RX_FILTER_MCAST is already enabled */
-	if (*new_flags & FIF_ALLMULTI) {
-		mfilt[0] =  ~0;
-		mfilt[1] =  ~0;
-	}
-
-	/* This is the best we can do */
-	if (*new_flags & (FIF_FCSFAIL | FIF_PLCPFAIL))
-		rfilt |= AR5K_RX_FILTER_PHYERR;
-
-	/* FIF_BCN_PRBRESP_PROMISC really means to enable beacons
-	* and probes for any BSSID */
-	if ((*new_flags & FIF_BCN_PRBRESP_PROMISC) || (sc->nvifs > 1))
-		rfilt |= AR5K_RX_FILTER_BEACON;
-
-	/* FIF_CONTROL doc says that if FIF_PROMISC_IN_BSS is not
-	 * set we should only pass on control frames for this
-	 * station. This needs testing. I believe right now this
-	 * enables *all* control frames, which is OK.. but
-	 * but we should see if we can improve on granularity */
-	if (*new_flags & FIF_CONTROL)
-		rfilt |= AR5K_RX_FILTER_CONTROL;
-
-	/* Additional settings per mode -- this is per ath5k */
-
-	/* XXX move these to mac80211, and add a beacon IFF flag to mac80211 */
-
-	switch (sc->opmode) {
-	case NL80211_IFTYPE_MESH_POINT:
-		rfilt |= AR5K_RX_FILTER_CONTROL |
-			 AR5K_RX_FILTER_BEACON |
-			 AR5K_RX_FILTER_PROBEREQ |
-			 AR5K_RX_FILTER_PROM;
-		break;
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_ADHOC:
-		rfilt |= AR5K_RX_FILTER_PROBEREQ |
-			 AR5K_RX_FILTER_BEACON;
-		break;
-	case NL80211_IFTYPE_STATION:
-		if (sc->assoc)
-			rfilt |= AR5K_RX_FILTER_BEACON;
-	default:
-		break;
-	}
-
-	/* Set filters */
-	ath5k_hw_set_rx_filter(ah, rfilt);
-
-	/* Set multicast bits */
-	ath5k_hw_set_mcast_filter(ah, mfilt[0], mfilt[1]);
-	/* Set the cached hw filter flags, this will later actually
-	 * be set in HW */
-	sc->filter_flags = rfilt;
-
-	mutex_unlock(&sc->lock);
-}
-
-static int
-ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-	      struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-	      struct ieee80211_key_conf *key)
-{
-	struct ath5k_softc *sc = hw->priv;
-	struct ath5k_hw *ah = sc->ah;
-	struct ath_common *common = ath5k_hw_common(ah);
-	int ret = 0;
-
-	if (modparam_nohwcrypt)
-		return -EOPNOTSUPP;
-
-	switch (key->cipher) {
-	case WLAN_CIPHER_SUITE_WEP40:
-	case WLAN_CIPHER_SUITE_WEP104:
-	case WLAN_CIPHER_SUITE_TKIP:
-		break;
-	case WLAN_CIPHER_SUITE_CCMP:
-		if (common->crypt_caps & ATH_CRYPT_CAP_CIPHER_AESCCM)
-			break;
-		return -EOPNOTSUPP;
-	default:
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
-	mutex_lock(&sc->lock);
-
-	switch (cmd) {
-	case SET_KEY:
-		ret = ath_key_config(common, vif, sta, key);
-		if (ret >= 0) {
-			key->hw_key_idx = ret;
-			/* push IV and Michael MIC generation to stack */
-			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-			if (key->cipher == WLAN_CIPHER_SUITE_TKIP)
-				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
-			if (key->cipher == WLAN_CIPHER_SUITE_CCMP)
-				key->flags |= IEEE80211_KEY_FLAG_SW_MGMT;
-			ret = 0;
-		}
-		break;
-	case DISABLE_KEY:
-		ath_key_delete(common, key);
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	mmiowb();
-	mutex_unlock(&sc->lock);
-	return ret;
-}
-
-static int
-ath5k_get_stats(struct ieee80211_hw *hw,
-		struct ieee80211_low_level_stats *stats)
-{
-	struct ath5k_softc *sc = hw->priv;
-
-	/* Force update */
-	ath5k_hw_update_mib_counters(sc->ah);
-
-	stats->dot11ACKFailureCount = sc->stats.ack_fail;
-	stats->dot11RTSFailureCount = sc->stats.rts_fail;
-	stats->dot11RTSSuccessCount = sc->stats.rts_ok;
-	stats->dot11FCSErrorCount = sc->stats.fcs_error;
-
-	return 0;
-}
-
-static int ath5k_get_survey(struct ieee80211_hw *hw, int idx,
-		struct survey_info *survey)
-{
-	struct ath5k_softc *sc = hw->priv;
-	struct ieee80211_conf *conf = &hw->conf;
-	struct ath_common *common = ath5k_hw_common(sc->ah);
-	struct ath_cycle_counters *cc = &common->cc_survey;
-	unsigned int div = common->clockrate * 1000;
-
-	if (idx != 0)
-		return -ENOENT;
-
-	spin_lock_bh(&common->cc_lock);
-	ath_hw_cycle_counters_update(common);
-	if (cc->cycles > 0) {
-		sc->survey.channel_time += cc->cycles / div;
-		sc->survey.channel_time_busy += cc->rx_busy / div;
-		sc->survey.channel_time_rx += cc->rx_frame / div;
-		sc->survey.channel_time_tx += cc->tx_frame / div;
-	}
-	memset(cc, 0, sizeof(*cc));
-	spin_unlock_bh(&common->cc_lock);
-
-	memcpy(survey, &sc->survey, sizeof(*survey));
-
-	survey->channel = conf->channel;
-	survey->noise = sc->ah->ah_noise_floor;
-	survey->filled = SURVEY_INFO_NOISE_DBM |
-			SURVEY_INFO_CHANNEL_TIME |
-			SURVEY_INFO_CHANNEL_TIME_BUSY |
-			SURVEY_INFO_CHANNEL_TIME_RX |
-			SURVEY_INFO_CHANNEL_TIME_TX;
-
-	return 0;
-}
-
-static u64
-ath5k_get_tsf(struct ieee80211_hw *hw)
-{
-	struct ath5k_softc *sc = hw->priv;
-
-	return ath5k_hw_get_tsf64(sc->ah);
-}
-
-static void
-ath5k_set_tsf(struct ieee80211_hw *hw, u64 tsf)
-{
-	struct ath5k_softc *sc = hw->priv;
-
-	ath5k_hw_set_tsf64(sc->ah, tsf);
-}
-
-static void
-ath5k_reset_tsf(struct ieee80211_hw *hw)
-{
-	struct ath5k_softc *sc = hw->priv;
-
-	/*
-	 * in IBSS mode we need to update the beacon timers too.
-	 * this will also reset the TSF if we call it with 0
-	 */
-	if (sc->opmode == NL80211_IFTYPE_ADHOC)
-		ath5k_beacon_update_timers(sc, 0);
-	else
-		ath5k_hw_reset_tsf(sc->ah);
-}
-
-static void
+void
 set_beacon_filter(struct ieee80211_hw *hw, bool enable)
 {
 	struct ath5k_softc *sc = hw->priv;
@@ -3444,189 +2967,3 @@ set_beacon_filter(struct ieee80211_hw *hw, bool enable)
 	ath5k_hw_set_rx_filter(ah, rfilt);
 	sc->filter_flags = rfilt;
 }
-
-static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_bss_conf *bss_conf,
-				    u32 changes)
-{
-	struct ath5k_vif *avf = (void *)vif->drv_priv;
-	struct ath5k_softc *sc = hw->priv;
-	struct ath5k_hw *ah = sc->ah;
-	struct ath_common *common = ath5k_hw_common(ah);
-	unsigned long flags;
-
-	mutex_lock(&sc->lock);
-
-	if (changes & BSS_CHANGED_BSSID) {
-		/* Cache for later use during resets */
-		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
-		common->curaid = 0;
-		ath5k_hw_set_bssid(ah);
-		mmiowb();
-	}
-
-	if (changes & BSS_CHANGED_BEACON_INT)
-		sc->bintval = bss_conf->beacon_int;
-
-	if (changes & BSS_CHANGED_ASSOC) {
-		avf->assoc = bss_conf->assoc;
-		if (bss_conf->assoc)
-			sc->assoc = bss_conf->assoc;
-		else
-			sc->assoc = ath_any_vif_assoc(sc);
-
-		if (sc->opmode == NL80211_IFTYPE_STATION)
-			set_beacon_filter(hw, sc->assoc);
-		ath5k_hw_set_ledstate(sc->ah, sc->assoc ?
-			AR5K_LED_ASSOC : AR5K_LED_INIT);
-		if (bss_conf->assoc) {
-			ATH5K_DBG(sc, ATH5K_DEBUG_ANY,
-				  "Bss Info ASSOC %d, bssid: %pM\n",
-				  bss_conf->aid, common->curbssid);
-			common->curaid = bss_conf->aid;
-			ath5k_hw_set_bssid(ah);
-			/* Once ANI is available you would start it here */
-		}
-	}
-
-	if (changes & BSS_CHANGED_BEACON) {
-		spin_lock_irqsave(&sc->block, flags);
-		ath5k_beacon_update(hw, vif);
-		spin_unlock_irqrestore(&sc->block, flags);
-	}
-
-	if (changes & BSS_CHANGED_BEACON_ENABLED)
-		sc->enable_beacon = bss_conf->enable_beacon;
-
-	if (changes & (BSS_CHANGED_BEACON | BSS_CHANGED_BEACON_ENABLED |
-		       BSS_CHANGED_BEACON_INT))
-		ath5k_beacon_config(sc);
-
-	mutex_unlock(&sc->lock);
-}
-
-static void ath5k_sw_scan_start(struct ieee80211_hw *hw)
-{
-	struct ath5k_softc *sc = hw->priv;
-	if (!sc->assoc)
-		ath5k_hw_set_ledstate(sc->ah, AR5K_LED_SCAN);
-}
-
-static void ath5k_sw_scan_complete(struct ieee80211_hw *hw)
-{
-	struct ath5k_softc *sc = hw->priv;
-	ath5k_hw_set_ledstate(sc->ah, sc->assoc ?
-		AR5K_LED_ASSOC : AR5K_LED_INIT);
-}
-
-/**
- * ath5k_set_coverage_class - Set IEEE 802.11 coverage class
- *
- * @hw: struct ieee80211_hw pointer
- * @coverage_class: IEEE 802.11 coverage class number
- *
- * Mac80211 callback. Sets slot time, ACK timeout and CTS timeout for given
- * coverage class. The values are persistent, they are restored after device
- * reset.
- */
-static void ath5k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
-{
-	struct ath5k_softc *sc = hw->priv;
-
-	mutex_lock(&sc->lock);
-	ath5k_hw_set_coverage_class(sc->ah, coverage_class);
-	mutex_unlock(&sc->lock);
-}
-
-static int ath5k_conf_tx(struct ieee80211_hw *hw, u16 queue,
-			 const struct ieee80211_tx_queue_params *params)
-{
-	struct ath5k_softc *sc = hw->priv;
-	struct ath5k_hw *ah = sc->ah;
-	struct ath5k_txq_info qi;
-	int ret = 0;
-
-	if (queue >= ah->ah_capabilities.cap_queues.q_tx_num)
-		return 0;
-
-	mutex_lock(&sc->lock);
-
-	ath5k_hw_get_tx_queueprops(ah, queue, &qi);
-
-	qi.tqi_aifs = params->aifs;
-	qi.tqi_cw_min = params->cw_min;
-	qi.tqi_cw_max = params->cw_max;
-	qi.tqi_burst_time = params->txop;
-
-	ATH5K_DBG(sc, ATH5K_DEBUG_ANY,
-		  "Configure tx [queue %d],  "
-		  "aifs: %d, cw_min: %d, cw_max: %d, txop: %d\n",
-		  queue, params->aifs, params->cw_min,
-		  params->cw_max, params->txop);
-
-	if (ath5k_hw_set_tx_queueprops(ah, queue, &qi)) {
-		ATH5K_ERR(sc,
-			  "Unable to update hardware queue %u!\n", queue);
-		ret = -EIO;
-	} else
-		ath5k_hw_reset_tx_queue(ah, queue);
-
-	mutex_unlock(&sc->lock);
-
-	return ret;
-}
-
-static int ath5k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
-{
-	struct ath5k_softc *sc = hw->priv;
-
-	if (tx_ant == 1 && rx_ant == 1)
-		ath5k_hw_set_antenna_mode(sc->ah, AR5K_ANTMODE_FIXED_A);
-	else if (tx_ant == 2 && rx_ant == 2)
-		ath5k_hw_set_antenna_mode(sc->ah, AR5K_ANTMODE_FIXED_B);
-	else if ((tx_ant & 3) == 3 && (rx_ant & 3) == 3)
-		ath5k_hw_set_antenna_mode(sc->ah, AR5K_ANTMODE_DEFAULT);
-	else
-		return -EINVAL;
-	return 0;
-}
-
-static int ath5k_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
-{
-	struct ath5k_softc *sc = hw->priv;
-
-	switch (sc->ah->ah_ant_mode) {
-	case AR5K_ANTMODE_FIXED_A:
-		*tx_ant = 1; *rx_ant = 1; break;
-	case AR5K_ANTMODE_FIXED_B:
-		*tx_ant = 2; *rx_ant = 2; break;
-	case AR5K_ANTMODE_DEFAULT:
-		*tx_ant = 3; *rx_ant = 3; break;
-	}
-	return 0;
-}
-
-const struct ieee80211_ops ath5k_hw_ops = {
-	.tx 		= ath5k_tx,
-	.start 		= ath5k_start,
-	.stop 		= ath5k_stop,
-	.add_interface 	= ath5k_add_interface,
-	.remove_interface = ath5k_remove_interface,
-	.config 	= ath5k_config,
-	.prepare_multicast = ath5k_prepare_multicast,
-	.configure_filter = ath5k_configure_filter,
-	.set_key 	= ath5k_set_key,
-	.get_stats 	= ath5k_get_stats,
-	.get_survey	= ath5k_get_survey,
-	.conf_tx	= ath5k_conf_tx,
-	.get_tsf 	= ath5k_get_tsf,
-	.set_tsf 	= ath5k_set_tsf,
-	.reset_tsf 	= ath5k_reset_tsf,
-	.bss_info_changed = ath5k_bss_info_changed,
-	.sw_scan_start	= ath5k_sw_scan_start,
-	.sw_scan_complete = ath5k_sw_scan_complete,
-	.set_coverage_class = ath5k_set_coverage_class,
-	.set_antenna	= ath5k_set_antenna,
-	.get_antenna	= ath5k_get_antenna,
-};

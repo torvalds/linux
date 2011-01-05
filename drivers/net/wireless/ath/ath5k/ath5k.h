@@ -154,10 +154,6 @@
 		udelay(1);						\
 } while (0)
 
-/* Register dumps are done per operation mode */
-#define AR5K_INI_RFGAIN_5GHZ		0
-#define AR5K_INI_RFGAIN_2GHZ		1
-
 /*
  * Some tuneable values (these should be changeable by the user)
  * TODO: Make use of them and add more options OR use debug/configfs
@@ -1107,12 +1103,14 @@ struct ath5k_hw {
 		/* Values in 0.25dB units */
 		s16		txp_min_pwr;
 		s16		txp_max_pwr;
+		s16		txp_cur_pwr;
 		/* Values in 0.5dB units */
 		s16		txp_offset;
 		s16		txp_ofdm;
 		s16		txp_cck_ofdm_gainf_delta;
 		/* Value in dB units */
 		s16		txp_cck_ofdm_pwr_delta;
+		bool		txp_setup;
 	} ah_txpower;
 
 	struct {
@@ -1320,7 +1318,7 @@ void ath5k_hw_set_antenna_switch(struct ath5k_hw *ah, u8 ee_mode);
 int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower);
 /* Init function */
 int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
-				u8 mode, u8 ee_mode, u8 freq, bool fast);
+				u8 mode, bool fast);
 
 /*
  * Functions used internaly

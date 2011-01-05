@@ -23,8 +23,6 @@
 #include <net/cfg80211.h>
 #include "ar9003_eeprom.h"
 
-#define AH_USE_EEPROM   0x1
-
 #ifdef __BIG_ENDIAN
 #define AR5416_EEPROM_MAGIC 0x5aa5
 #else

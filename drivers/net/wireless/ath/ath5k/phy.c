@@ -609,10 +609,10 @@ done:
 /* Write initial RF gain table to set the RF sensitivity
  * this one works on all RF chips and has nothing to do
  * with gain_F calibration */
-static int ath5k_hw_rfgain_init(struct ath5k_hw *ah, unsigned int freq)
+static int ath5k_hw_rfgain_init(struct ath5k_hw *ah, enum ieee80211_band band)
 {
 	const struct ath5k_ini_rfgain *ath5k_rfg;
-	unsigned int i, size;
+	unsigned int i, size, index;
 
 	switch (ah->ah_radio) {
 	case AR5K_RF5111:
@@ -644,17 +644,11 @@ static int ath5k_hw_rfgain_init(struct ath5k_hw *ah, unsigned int freq)
 		return -EINVAL;
 	}
 
-	switch (freq) {
-	case AR5K_INI_RFGAIN_2GHZ:
-	case AR5K_INI_RFGAIN_5GHZ:
-		break;
-	default:
-		return -EINVAL;
-	}
+	index = (band == IEEE80211_BAND_2GHZ) ? 1 : 0;
 
 	for (i = 0; i < size; i++) {
 		AR5K_REG_WAIT(i);
-		ath5k_hw_reg_write(ah, ath5k_rfg[i].rfg_value[freq],
+		ath5k_hw_reg_write(ah, ath5k_rfg[i].rfg_value[index],
 			(u32)ath5k_rfg[i].rfg_register);
 	}
 
@@ -1361,20 +1355,7 @@ void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 		return;
 	}
 
-	switch (ah->ah_current_channel->hw_value & CHANNEL_MODES) {
-	case CHANNEL_A:
-	case CHANNEL_XR:
-		ee_mode = AR5K_EEPROM_MODE_11A;
-		break;
-	case CHANNEL_G:
-		ee_mode = AR5K_EEPROM_MODE_11G;
-		break;
-	default:
-	case CHANNEL_B:
-		ee_mode = AR5K_EEPROM_MODE_11B;
-		break;
-	}
-
+	ee_mode = ath5k_eeprom_mode_from_channel(ah->ah_current_channel);
 
 	/* completed NF calibration, test threshold */
 	nf = ath5k_hw_read_measured_noise_floor(ah);
@@ -1935,7 +1916,8 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 	struct ieee80211_channel *channel = ah->ah_current_channel;
 	bool use_def_for_tx, update_def_on_tx, use_def_for_rts, fast_div;
 	bool use_def_for_sg;
-	u8 def_ant, tx_ant, ee_mode;
+	int ee_mode;
+	u8 def_ant, tx_ant;
 	u32 sta_id1 = 0;
 
 	/* if channel is not initialized yet we can't set the antennas
@@ -1947,18 +1929,8 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 
 	def_ant = ah->ah_def_ant;
 
-	switch (channel->hw_value & CHANNEL_MODES) {
-	case CHANNEL_A:
-	case CHANNEL_XR:
-		ee_mode = AR5K_EEPROM_MODE_11A;
-		break;
-	case CHANNEL_G:
-		ee_mode = AR5K_EEPROM_MODE_11G;
-		break;
-	case CHANNEL_B:
-		ee_mode = AR5K_EEPROM_MODE_11B;
-		break;
-	default:
+	ee_mode = ath5k_eeprom_mode_from_channel(channel);
+	if (ee_mode < 0) {
 		ATH5K_ERR(ah->ah_sc,
 			"invalid channel: %d\n", channel->center_freq);
 		return;
@@ -2593,7 +2565,7 @@ ath5k_combine_linear_pcdac_curves(struct ath5k_hw *ah, s16* table_min,
 
 /* Write PCDAC values on hw */
 static void
-ath5k_setup_pcdac_table(struct ath5k_hw *ah)
+ath5k_write_pcdac_table(struct ath5k_hw *ah)
 {
 	u8 	*pcdac_out = ah->ah_txpower.txp_pd_table;
 	int	i;
@@ -2742,7 +2714,7 @@ ath5k_combine_pwr_to_pdadc_curves(struct ath5k_hw *ah,
 
 /* Write PDADC values on hw */
 static void
-ath5k_setup_pwr_to_pdadc_table(struct ath5k_hw *ah, u8 ee_mode)
+ath5k_write_pwr_to_pdadc_table(struct ath5k_hw *ah, u8 ee_mode)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	u8 *pdadc_out = ah->ah_txpower.txp_pd_table;
@@ -2957,8 +2929,7 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 					(s16) pcinfo_R->freq,
 					pcinfo_L->max_pwr, pcinfo_R->max_pwr);
 
-	/* We are ready to go, fill PCDAC/PDADC
-	 * table and write settings on hardware */
+	/* Fill PCDAC/PDADC table */
 	switch (type) {
 	case AR5K_PWRTABLE_LINEAR_PCDAC:
 		/* For RF5112 we can have one or two curves
@@ -2971,9 +2942,6 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 		 * match max power value with max
 		 * table index */
 		ah->ah_txpower.txp_offset = 64 - (table_max[0] / 2);
-
-		/* Write settings on hw */
-		ath5k_setup_pcdac_table(ah);
 		break;
 	case AR5K_PWRTABLE_PWR_TO_PCDAC:
 		/* We are done for RF5111 since it has only
@@ -2983,18 +2951,12 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 		/* No rate powertable adjustment for RF5111 */
 		ah->ah_txpower.txp_min_idx = 0;
 		ah->ah_txpower.txp_offset = 0;
-
-		/* Write settings on hw */
-		ath5k_setup_pcdac_table(ah);
 		break;
 	case AR5K_PWRTABLE_PWR_TO_PDADC:
 		/* Set PDADC boundaries and fill
 		 * final PDADC table */
 		ath5k_combine_pwr_to_pdadc_curves(ah, table_min, table_max,
 						ee->ee_pd_gains[ee_mode]);
-
-		/* Write settings on hw */
-		ath5k_setup_pwr_to_pdadc_table(ah, ee_mode);
 
 		/* Set txp.offset, note that table_min
 		 * can be negative */
@@ -3004,9 +2966,20 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 		return -EINVAL;
 	}
 
+	ah->ah_txpower.txp_setup = true;
+
 	return 0;
 }
 
+/* Write power table for current channel to hw */
+static void
+ath5k_write_channel_powertable(struct ath5k_hw *ah, u8 ee_mode, u8 type)
+{
+	if (type == AR5K_PWRTABLE_PWR_TO_PDADC)
+		ath5k_write_pwr_to_pdadc_table(ah, ee_mode);
+	else
+		ath5k_write_pcdac_table(ah);
+}
 
 /*
  * Per-rate tx power setting
@@ -3095,7 +3068,7 @@ ath5k_setup_rate_powertable(struct ath5k_hw *ah, u16 max_pwr,
 
 	/* Min/max in 0.25dB units */
 	ah->ah_txpower.txp_min_pwr = 2 * rates[7];
-	ah->ah_txpower.txp_max_pwr = 2 * rates[0];
+	ah->ah_txpower.txp_cur_pwr = 2 * rates[0];
 	ah->ah_txpower.txp_ofdm = rates[7];
 }
 
@@ -3105,14 +3078,23 @@ ath5k_setup_rate_powertable(struct ath5k_hw *ah, u16 max_pwr,
  */
 static int
 ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
-		u8 ee_mode, u8 txpower, bool fast)
+		 u8 txpower)
 {
 	struct ath5k_rate_pcal_info rate_info;
+	struct ieee80211_channel *curr_channel = ah->ah_current_channel;
+	int ee_mode;
 	u8 type;
 	int ret;
 
 	if (txpower > AR5K_TUNE_MAX_TXPOWER) {
 		ATH5K_ERR(ah->ah_sc, "invalid tx power: %u\n", txpower);
+		return -EINVAL;
+	}
+
+	ee_mode = ath5k_eeprom_mode_from_channel(channel);
+	if (ee_mode < 0) {
+		ATH5K_ERR(ah->ah_sc,
+			"invalid channel: %d\n", channel->center_freq);
 		return -EINVAL;
 	}
 
@@ -3138,28 +3120,26 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		return -EINVAL;
 	}
 
-	/* If fast is set it means we are on the same channel/mode
-	 * so there is no need to recalculate the powertable, we 'll
-	 * just use the cached one */
-	if (!fast) {
+	/*
+	 * If we don't change channel/mode skip tx powertable calculation
+	 * and use the cached one.
+	 */
+	if (!ah->ah_txpower.txp_setup ||
+	    (channel->hw_value != curr_channel->hw_value) ||
+	    (channel->center_freq != curr_channel->center_freq)) {
 		/* Reset TX power values */
 		memset(&ah->ah_txpower, 0, sizeof(ah->ah_txpower));
 		ah->ah_txpower.txp_tpc = AR5K_TUNE_TPC_TXPOWER;
-		ah->ah_txpower.txp_min_pwr = 0;
-		ah->ah_txpower.txp_max_pwr = AR5K_TUNE_MAX_TXPOWER;
 
 		/* Calculate the powertable */
 		ret = ath5k_setup_channel_powertable(ah, channel,
 							ee_mode, type);
 		if (ret)
 			return ret;
-	/* Write cached table on hw */
-	} else if (type == AR5K_PWRTABLE_PWR_TO_PDADC)
-		ath5k_setup_pwr_to_pdadc_table(ah, ee_mode);
-	else
-		ath5k_setup_pcdac_table(ah);
+	}
 
-
+	/* Write table on hw */
+	ath5k_write_channel_powertable(ah, ee_mode, type);
 
 	/* Limit max power if we have a CTL available */
 	ath5k_get_max_ctl_power(ah, channel);
@@ -3214,31 +3194,10 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 
 int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 {
-	/*Just a try M.F.*/
-	struct ieee80211_channel *channel = ah->ah_current_channel;
-	u8 ee_mode;
-
-	switch (channel->hw_value & CHANNEL_MODES) {
-	case CHANNEL_A:
-	case CHANNEL_XR:
-		ee_mode = AR5K_EEPROM_MODE_11A;
-		break;
-	case CHANNEL_G:
-		ee_mode = AR5K_EEPROM_MODE_11G;
-		break;
-	case CHANNEL_B:
-		ee_mode = AR5K_EEPROM_MODE_11B;
-		break;
-	default:
-		ATH5K_ERR(ah->ah_sc,
-			"invalid channel: %d\n", channel->center_freq);
-		return -EINVAL;
-	}
-
 	ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_TXPOWER,
 		"changing txpower to %d\n", txpower);
 
-	return ath5k_hw_txpower(ah, channel, ee_mode, txpower, true);
+	return ath5k_hw_txpower(ah, ah->ah_current_channel, txpower);
 }
 
 /*************\
@@ -3246,12 +3205,11 @@ int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 \*************/
 
 int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
-				u8 mode, u8 ee_mode, u8 freq, bool fast)
+		      u8 mode, bool fast)
 {
 	struct ieee80211_channel *curr_channel;
 	int ret, i;
 	u32 phy_tst1;
-	bool fast_txp;
 	ret = 0;
 
 	/*
@@ -3282,26 +3240,14 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	}
 
 	/*
-	 * If we don't change channel/mode skip
-	 * tx powertable calculation and use the
-	 * cached one.
-	 */
-	if ((channel->hw_value == curr_channel->hw_value) &&
-	(channel->center_freq == curr_channel->center_freq))
-		fast_txp = true;
-	else
-		fast_txp = false;
-
-	/*
 	 * Set TX power
 	 *
 	 * Note: We need to do that before we set
 	 * RF buffer settings on 5211/5212+ so that we
 	 * properly set curve indices.
 	 */
-	ret = ath5k_hw_txpower(ah, channel, ee_mode,
-				ah->ah_txpower.txp_max_pwr / 2,
-				fast_txp);
+	ret = ath5k_hw_txpower(ah, channel, ah->ah_txpower.txp_cur_pwr ?
+			ah->ah_txpower.txp_cur_pwr / 2 : AR5K_TUNE_MAX_TXPOWER);
 	if (ret)
 		return ret;
 
@@ -3317,7 +3263,7 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		 * Write initial RF gain settings
 		 * This should work for both 5111/5112
 		 */
-		ret = ath5k_hw_rfgain_init(ah, freq);
+		ret = ath5k_hw_rfgain_init(ah, channel->band);
 		if (ret)
 			return ret;
 

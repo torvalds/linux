@@ -5053,7 +5053,7 @@ L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
-F:	drivers/net/wireless/rtl818x/rtl8180*
+F:	drivers/net/wireless/rtl818x/rtl8180/
 
 RTL8187 WIRELESS DRIVER
 M:	Herton Ronaldo Krzesinski <herton@mandriva.com.br>
@@ -5063,7 +5063,7 @@ L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
-F:	drivers/net/wireless/rtl818x/rtl8187*
+F:	drivers/net/wireless/rtl818x/rtl8187/
 
 RTL8192CE WIRELESS DRIVER
 M:	Larry Finger <Larry.Finger@lwfinger.net>

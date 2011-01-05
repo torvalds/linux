@@ -30,19 +30,20 @@
  * keys and per-station keys. Since each station belongs to an interface,
  * each station key also belongs to that interface.
  *
- * Hardware acceleration is done on a best-effort basis, for each key
- * that is eligible the hardware is asked to enable that key but if
- * it cannot do that they key is simply kept for software encryption.
- * There is currently no way of knowing this except by looking into
- * debugfs.
+ * Hardware acceleration is done on a best-effort basis for algorithms
+ * that are implemented in software,  for each key the hardware is asked
+ * to enable that key for offloading but if it cannot do that the key is
+ * simply kept for software encryption (unless it is for an algorithm
+ * that isn't implemented in software).
+ * There is currently no way of knowing whether a key is handled in SW
+ * or HW except by looking into debugfs.
  *
- * All key operations are protected internally.
- *
- * Within mac80211, key references are, just as STA structure references,
- * protected by RCU. Note, however, that some things are unprotected,
- * namely the key->sta dereferences within the hardware acceleration
- * functions. This means that sta_info_destroy() must remove the key
- * which waits for an RCU grace period.
+ * All key management is internally protected by a mutex. Within all
+ * other parts of mac80211, key references are, just as STA structure
+ * references, protected by RCU. Note, however, that some things are
+ * unprotected, namely the key->sta dereferences within the hardware
+ * acceleration functions. This means that sta_info_destroy() must
+ * remove the key which waits for an RCU grace period.
  */
 
 static const u8 bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
@@ -279,13 +280,8 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 							 new->conf.keyidx);
 	}
 
-	if (old) {
-		/*
-		 * We'll use an empty list to indicate that the key
-		 * has already been removed.
-		 */
-		list_del_init(&old->list);
-	}
+	if (old)
+		list_del(&old->list);
 }
 
 struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
@@ -379,6 +375,12 @@ static void __ieee80211_key_destroy(struct ieee80211_key *key)
 	if (!key)
 		return;
 
+	/*
+	 * Synchronize so the TX path can no longer be using
+	 * this key before we free/remove it.
+	 */
+	synchronize_rcu();
+
 	if (key->local)
 		ieee80211_key_disable_hw_accel(key);
 
@@ -420,8 +422,8 @@ int ieee80211_key_link(struct ieee80211_key *key,
 			struct sta_info *ap;
 
 			/*
-			 * We're getting a sta pointer in,
-			 * so must be under RCU read lock.
+			 * We're getting a sta pointer in, so must be under
+			 * appropriate locking for sta_info_get().
 			 */
 
 			/* same here, the AP could be using QoS */

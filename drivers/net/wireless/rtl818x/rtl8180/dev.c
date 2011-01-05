@@ -24,10 +24,10 @@
 #include <net/mac80211.h>
 
 #include "rtl8180.h"
-#include "rtl8180_rtl8225.h"
-#include "rtl8180_sa2400.h"
-#include "rtl8180_max2820.h"
-#include "rtl8180_grf5101.h"
+#include "rtl8225.h"
+#include "sa2400.h"
+#include "max2820.h"
+#include "grf5101.h"
 
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
 MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");

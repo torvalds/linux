@@ -1029,8 +1029,6 @@ static int carl9170_init_rf_bank4_pwr(struct ar9170 *ar, bool band5ghz,
 	if (err)
 		return err;
 
-	msleep(20);
-
 	return 0;
 }
 
@@ -1660,12 +1658,6 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 			return err;
 
 		cmd = CARL9170_CMD_RF_INIT;
-
-		msleep(100);
-
-		err = carl9170_echo_test(ar, 0xaabbccdd);
-		if (err)
-			return err;
 	} else {
 		cmd = CARL9170_CMD_FREQUENCY;
 	}
@@ -1676,6 +1668,8 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 
 	err = carl9170_write_reg(ar, AR9170_PHY_REG_HEAVY_CLIP_ENABLE,
 				 0x200);
+	if (err)
+		return err;
 
 	err = carl9170_init_rf_bank4_pwr(ar,
 		channel->band == IEEE80211_BAND_5GHZ,

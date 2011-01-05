@@ -142,7 +142,7 @@ static void ath9k_deinit_priv(struct ath9k_htc_priv *priv)
 {
 	ath9k_htc_exit_debug(priv->ah);
 	ath9k_hw_deinit(priv->ah);
-	tasklet_kill(&priv->wmi_tasklet);
+	tasklet_kill(&priv->swba_tasklet);
 	tasklet_kill(&priv->rx_tasklet);
 	tasklet_kill(&priv->tx_tasklet);
 	kfree(priv->ah);
@@ -647,13 +647,15 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	spin_lock_init(&priv->tx_lock);
 	mutex_init(&priv->mutex);
 	mutex_init(&priv->htc_pm_lock);
-	tasklet_init(&priv->wmi_tasklet, ath9k_wmi_tasklet,
+	tasklet_init(&priv->swba_tasklet, ath9k_swba_tasklet,
 		     (unsigned long)priv);
 	tasklet_init(&priv->rx_tasklet, ath9k_rx_tasklet,
 		     (unsigned long)priv);
-	tasklet_init(&priv->tx_tasklet, ath9k_tx_tasklet, (unsigned long)priv);
+	tasklet_init(&priv->tx_tasklet, ath9k_tx_tasklet,
+		     (unsigned long)priv);
 	INIT_DELAYED_WORK(&priv->ath9k_ani_work, ath9k_ani_work);
 	INIT_WORK(&priv->ps_work, ath9k_ps_work);
+	INIT_WORK(&priv->fatal_work, ath9k_fatal_work);
 
 	/*
 	 * Cache line size is used to size and align various
@@ -714,8 +716,7 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 		IEEE80211_HW_HAS_RATE_CONTROL |
 		IEEE80211_HW_RX_INCLUDES_FCS |
 		IEEE80211_HW_SUPPORTS_PS |
-		IEEE80211_HW_PS_NULLFUNC_STACK |
-		IEEE80211_HW_NEED_DTIM_PERIOD;
+		IEEE80211_HW_PS_NULLFUNC_STACK;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
@@ -851,9 +852,6 @@ int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
 	if (ret)
 		goto err_init;
 
-	/* The device may have been unplugged earlier. */
-	priv->op_flags &= ~OP_UNPLUGGED;
-
 	ret = ath9k_init_device(priv, devid, product, drv_info);
 	if (ret)
 		goto err_init;
@@ -873,7 +871,7 @@ void ath9k_htc_disconnect_device(struct htc_target *htc_handle, bool hotunplug)
 
 		/* Check if the device has been yanked out. */
 		if (hotunplug)
-			htc_handle->drv_priv->op_flags |= OP_UNPLUGGED;
+			htc_handle->drv_priv->ah->ah_flags |= AH_UNPLUGGED;
 
 		ath9k_deinit_device(htc_handle->drv_priv);
 		ath9k_deinit_wmi(htc_handle->drv_priv);

@@ -62,13 +62,13 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 	 * This will prevent the device being confused when it wants
 	 * to ACK frames or consideres itself associated.
 	 */
-	memset(&conf.mac, 0, sizeof(conf.mac));
+	memset(conf.mac, 0, sizeof(conf.mac));
 	if (mac)
-		memcpy(&conf.mac, mac, ETH_ALEN);
+		memcpy(conf.mac, mac, ETH_ALEN);
 
-	memset(&conf.bssid, 0, sizeof(conf.bssid));
+	memset(conf.bssid, 0, sizeof(conf.bssid));
 	if (bssid)
-		memcpy(&conf.bssid, bssid, ETH_ALEN);
+		memcpy(conf.bssid, bssid, ETH_ALEN);
 
 	flags |= CONFIG_UPDATE_TYPE;
 	if (mac || (!rt2x00dev->intf_ap_count && !rt2x00dev->intf_sta_count))

@@ -18,7 +18,7 @@
 #include <net/mac80211.h>
 
 #include "rtl8187.h"
-#include "rtl8187_rfkill.h"
+#include "rfkill.h"
 
 static bool rtl8187_is_radio_enabled(struct rtl8187_priv *priv)
 {

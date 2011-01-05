@@ -168,6 +168,7 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
  * @IEEE80211_RX_FRAGMENTED: fragmented frame
  * @IEEE80211_RX_AMSDU: a-MSDU packet
  * @IEEE80211_RX_MALFORMED_ACTION_FRM: action frame is malformed
+ * @IEEE80211_RX_DEFERRED_RELEASE: frame was subjected to receive reordering
  *
  * These are per-frame flags that are attached to a frame in the
  * @rx_flags field of &struct ieee80211_rx_status.
@@ -178,6 +179,7 @@ enum ieee80211_packet_rx_flags {
 	IEEE80211_RX_FRAGMENTED			= BIT(2),
 	IEEE80211_RX_AMSDU			= BIT(3),
 	IEEE80211_RX_MALFORMED_ACTION_FRM	= BIT(4),
+	IEEE80211_RX_DEFERRED_RELEASE		= BIT(5),
 };
 
 /**
@@ -773,6 +775,15 @@ struct ieee80211_local {
 	struct tasklet_struct tasklet;
 	struct sk_buff_head skb_queue;
 	struct sk_buff_head skb_queue_unreliable;
+
+	/*
+	 * Internal FIFO queue which is shared between multiple rx path
+	 * stages. Its main task is to provide a serialization mechanism,
+	 * so all rx handlers can enjoy having exclusive access to their
+	 * private data structures.
+	 */
+	struct sk_buff_head rx_skb_queue;
+	bool running_rx_handler;	/* protected by rx_skb_queue.lock */
 
 	/* Station data */
 	/*
