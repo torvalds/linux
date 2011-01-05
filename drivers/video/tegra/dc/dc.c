@@ -369,7 +369,7 @@ static int get_topmost_window(u32 *depths, unsigned long *wins)
 {
 	int idx, best = -1;
 
-	for_each_set_bit(idx, wins, sizeof(*wins)) {
+	for_each_set_bit(idx, wins, DC_N_WINDOWS) {
 		if (best == -1 || depths[idx] < depths[best])
 			best = idx;
 	}
@@ -406,13 +406,15 @@ static u32 blend_2win(int idx, unsigned long behind_mask, u32* flags, int xy)
 static u32 blend_3win(int idx, unsigned long behind_mask, u32* flags)
 {
 	unsigned long infront_mask;
+	int first;
 
 	infront_mask = ~(behind_mask | BIT(idx));
 	infront_mask &= (BIT(DC_N_WINDOWS) - 1);
+	first = ffs(infront_mask) - 1;
 
 	if (!infront_mask)
 		return blend_topwin(flags[idx]);
-	else if (behind_mask && flags[ffs(infront_mask)])
+	else if (behind_mask && first != -1 && flags[first])
 		return BLEND(NOKEY, DEPENDANT, 0x00, 0x00);
 	else
 		return BLEND(NOKEY, FIX, 0x0, 0x0);
