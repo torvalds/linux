@@ -108,20 +108,6 @@ struct io_reg CN400_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR6A, 0xFF, 0x40},
 {VIACR, CR6B, 0xFF, 0x00},
 {VIACR, CR6C, 0xFF, 0x00},
-{VIACR, CR7A, 0xFF, 0x01},	/* LCD Scaling Parameter 1             */
-{VIACR, CR7B, 0xFF, 0x02},	/* LCD Scaling Parameter 2             */
-{VIACR, CR7C, 0xFF, 0x03},	/* LCD Scaling Parameter 3             */
-{VIACR, CR7D, 0xFF, 0x04},	/* LCD Scaling Parameter 4             */
-{VIACR, CR7E, 0xFF, 0x07},	/* LCD Scaling Parameter 5             */
-{VIACR, CR7F, 0xFF, 0x0A},	/* LCD Scaling Parameter 6             */
-{VIACR, CR80, 0xFF, 0x0D},	/* LCD Scaling Parameter 7             */
-{VIACR, CR81, 0xFF, 0x13},	/* LCD Scaling Parameter 8             */
-{VIACR, CR82, 0xFF, 0x16},	/* LCD Scaling Parameter 9             */
-{VIACR, CR83, 0xFF, 0x19},	/* LCD Scaling Parameter 10            */
-{VIACR, CR84, 0xFF, 0x1C},	/* LCD Scaling Parameter 11            */
-{VIACR, CR85, 0xFF, 0x1D},	/* LCD Scaling Parameter 12            */
-{VIACR, CR86, 0xFF, 0x1E},	/* LCD Scaling Parameter 13            */
-{VIACR, CR87, 0xFF, 0x1F},	/* LCD Scaling Parameter 14            */
 {VIACR, CR88, 0xFF, 0x40},	/* LCD Panel Type                      */
 {VIACR, CR89, 0xFF, 0x00},	/* LCD Timing Control 0                */
 {VIACR, CR8A, 0xFF, 0x88},	/* LCD Timing Control 1                */
@@ -172,20 +158,6 @@ struct io_reg CN700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR78, 0xFF, 0x00},	/* LCD scaling Factor */
 {VIACR, CR79, 0xFF, 0x00},	/* LCD scaling Factor */
 {VIACR, CR9F, 0x03, 0x00},	/* LCD scaling Factor */
-{VIACR, CR7A, 0xFF, 0x01},	/* LCD Scaling Parameter 1 */
-{VIACR, CR7B, 0xFF, 0x02},	/* LCD Scaling Parameter 2 */
-{VIACR, CR7C, 0xFF, 0x03},	/* LCD Scaling Parameter 3 */
-{VIACR, CR7D, 0xFF, 0x04},	/* LCD Scaling Parameter 4 */
-{VIACR, CR7E, 0xFF, 0x07},	/* LCD Scaling Parameter 5 */
-{VIACR, CR7F, 0xFF, 0x0A},	/* LCD Scaling Parameter 6 */
-{VIACR, CR80, 0xFF, 0x0D},	/* LCD Scaling Parameter 7 */
-{VIACR, CR81, 0xFF, 0x13},	/* LCD Scaling Parameter 8 */
-{VIACR, CR82, 0xFF, 0x16},	/* LCD Scaling Parameter 9 */
-{VIACR, CR83, 0xFF, 0x19},	/* LCD Scaling Parameter 10 */
-{VIACR, CR84, 0xFF, 0x1C},	/* LCD Scaling Parameter 11 */
-{VIACR, CR85, 0xFF, 0x1D},	/* LCD Scaling Parameter 12 */
-{VIACR, CR86, 0xFF, 0x1E},	/* LCD Scaling Parameter 13 */
-{VIACR, CR87, 0xFF, 0x1F},	/* LCD Scaling Parameter 14 */
 {VIACR, CR88, 0xFF, 0x40},	/* LCD Panel Type */
 {VIACR, CR89, 0xFF, 0x00},	/* LCD Timing Control 0 */
 {VIACR, CR8A, 0xFF, 0x88},	/* LCD Timing Control 1 */
@@ -229,20 +201,6 @@ struct io_reg KM400_ModeXregs[] = {
 	{VIACR, CR36, 0xFF, 0x01},	/* Power Mangement 3                  */
 	{VIACR, CR68, 0xFF, 0x67},	/* Default FIFO For IGA2              */
 	{VIACR, CR6A, 0x20, 0x20},	/* Extended FIFO On                   */
-	{VIACR, CR7A, 0xFF, 0x01},	/* LCD Scaling Parameter 1            */
-	{VIACR, CR7B, 0xFF, 0x02},	/* LCD Scaling Parameter 2            */
-	{VIACR, CR7C, 0xFF, 0x03},	/* LCD Scaling Parameter 3            */
-	{VIACR, CR7D, 0xFF, 0x04},	/* LCD Scaling Parameter 4            */
-	{VIACR, CR7E, 0xFF, 0x07},	/* LCD Scaling Parameter 5            */
-	{VIACR, CR7F, 0xFF, 0x0A},	/* LCD Scaling Parameter 6            */
-	{VIACR, CR80, 0xFF, 0x0D},	/* LCD Scaling Parameter 7            */
-	{VIACR, CR81, 0xFF, 0x13},	/* LCD Scaling Parameter 8            */
-	{VIACR, CR82, 0xFF, 0x16},	/* LCD Scaling Parameter 9            */
-	{VIACR, CR83, 0xFF, 0x19},	/* LCD Scaling Parameter 10           */
-	{VIACR, CR84, 0xFF, 0x1C},	/* LCD Scaling Parameter 11           */
-	{VIACR, CR85, 0xFF, 0x1D},	/* LCD Scaling Parameter 12           */
-	{VIACR, CR86, 0xFF, 0x1E},	/* LCD Scaling Parameter 13           */
-	{VIACR, CR87, 0xFF, 0x1F},	/* LCD Scaling Parameter 14           */
 	{VIACR, CR88, 0xFF, 0x40},	/* LCD Panel Type                     */
 	{VIACR, CR89, 0xFF, 0x00},	/* LCD Timing Control 0               */
 	{VIACR, CR8A, 0xFF, 0x88},	/* LCD Timing Control 1               */
@@ -283,20 +241,6 @@ struct io_reg CX700_ModeXregs[] = { {VIASR, SR10, 0xFF, 0x01},
 {VIACR, CR6A, 0xFF, 0x40},
 {VIACR, CR6B, 0xFF, 0x00},
 {VIACR, CR6C, 0xFF, 0x00},
-{VIACR, CR7A, 0xFF, 0x01},	/* LCD Scaling Parameter 1             */
-{VIACR, CR7B, 0xFF, 0x02},	/* LCD Scaling Parameter 2             */
-{VIACR, CR7C, 0xFF, 0x03},	/* LCD Scaling Parameter 3             */
-{VIACR, CR7D, 0xFF, 0x04},	/* LCD Scaling Parameter 4             */
-{VIACR, CR7E, 0xFF, 0x07},	/* LCD Scaling Parameter 5             */
-{VIACR, CR7F, 0xFF, 0x0A},	/* LCD Scaling Parameter 6             */
-{VIACR, CR80, 0xFF, 0x0D},	/* LCD Scaling Parameter 7             */
-{VIACR, CR81, 0xFF, 0x13},	/* LCD Scaling Parameter 8             */
-{VIACR, CR82, 0xFF, 0x16},	/* LCD Scaling Parameter 9             */
-{VIACR, CR83, 0xFF, 0x19},	/* LCD Scaling Parameter 10            */
-{VIACR, CR84, 0xFF, 0x1C},	/* LCD Scaling Parameter 11            */
-{VIACR, CR85, 0xFF, 0x1D},	/* LCD Scaling Parameter 12            */
-{VIACR, CR86, 0xFF, 0x1E},	/* LCD Scaling Parameter 13            */
-{VIACR, CR87, 0xFF, 0x1F},	/* LCD Scaling Parameter 14            */
 {VIACR, CR88, 0xFF, 0x40},	/* LCD Panel Type                      */
 {VIACR, CR89, 0xFF, 0x00},	/* LCD Timing Control 0                */
 {VIACR, CR8A, 0xFF, 0x88},	/* LCD Timing Control 1                */
@@ -342,20 +286,6 @@ struct io_reg VX855_ModeXregs[] = {
 {VIACR, CR6A, 0xFD, 0x60},
 {VIACR, CR6B, 0xFF, 0x00},
 {VIACR, CR6C, 0xFF, 0x00},
-{VIACR, CR7A, 0xFF, 0x01},          /* LCD Scaling Parameter 1             */
-{VIACR, CR7B, 0xFF, 0x02},          /* LCD Scaling Parameter 2             */
-{VIACR, CR7C, 0xFF, 0x03},          /* LCD Scaling Parameter 3             */
-{VIACR, CR7D, 0xFF, 0x04},          /* LCD Scaling Parameter 4             */
-{VIACR, CR7E, 0xFF, 0x07},          /* LCD Scaling Parameter 5             */
-{VIACR, CR7F, 0xFF, 0x0A},          /* LCD Scaling Parameter 6             */
-{VIACR, CR80, 0xFF, 0x0D},          /* LCD Scaling Parameter 7             */
-{VIACR, CR81, 0xFF, 0x13},          /* LCD Scaling Parameter 8             */
-{VIACR, CR82, 0xFF, 0x16},          /* LCD Scaling Parameter 9             */
-{VIACR, CR83, 0xFF, 0x19},          /* LCD Scaling Parameter 10            */
-{VIACR, CR84, 0xFF, 0x1C},          /* LCD Scaling Parameter 11            */
-{VIACR, CR85, 0xFF, 0x1D},          /* LCD Scaling Parameter 12            */
-{VIACR, CR86, 0xFF, 0x1E},          /* LCD Scaling Parameter 13            */
-{VIACR, CR87, 0xFF, 0x1F},          /* LCD Scaling Parameter 14            */
 {VIACR, CR88, 0xFF, 0x40},          /* LCD Panel Type                      */
 {VIACR, CR89, 0xFF, 0x00},          /* LCD Timing Control 0                */
 {VIACR, CR8A, 0xFF, 0x88},          /* LCD Timing Control 1                */
@@ -390,21 +320,6 @@ struct io_reg CLE266_ModeXregs[] = { {VIASR, SR1E, 0xF0, 0x00},
 {VIAGR, GR20, 0xFF, 0x00},
 {VIAGR, GR21, 0xFF, 0x00},
 {VIAGR, GR22, 0xFF, 0x00},
-	/* LCD Parameters */
-{VIACR, CR7A, 0xFF, 0x01},	/* LCD Parameter 1 */
-{VIACR, CR7B, 0xFF, 0x02},	/* LCD Parameter 2 */
-{VIACR, CR7C, 0xFF, 0x03},	/* LCD Parameter 3 */
-{VIACR, CR7D, 0xFF, 0x04},	/* LCD Parameter 4 */
-{VIACR, CR7E, 0xFF, 0x07},	/* LCD Parameter 5 */
-{VIACR, CR7F, 0xFF, 0x0A},	/* LCD Parameter 6 */
-{VIACR, CR80, 0xFF, 0x0D},	/* LCD Parameter 7 */
-{VIACR, CR81, 0xFF, 0x13},	/* LCD Parameter 8 */
-{VIACR, CR82, 0xFF, 0x16},	/* LCD Parameter 9 */
-{VIACR, CR83, 0xFF, 0x19},	/* LCD Parameter 10 */
-{VIACR, CR84, 0xFF, 0x1C},	/* LCD Parameter 11 */
-{VIACR, CR85, 0xFF, 0x1D},	/* LCD Parameter 12 */
-{VIACR, CR86, 0xFF, 0x1E},	/* LCD Parameter 13 */
-{VIACR, CR87, 0xFF, 0x1F},	/* LCD Parameter 14 */
 
 };
 

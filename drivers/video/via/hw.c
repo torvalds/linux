@@ -360,6 +360,24 @@ static struct pll_map pll_value[] = {
 		{208, 5, 2} }
 };
 
+/* according to VIA Technologies these values are based on experiment */
+static struct io_reg scaling_parameters[] = {
+	{VIACR, CR7A, 0xFF, 0x01},	/* LCD Scaling Parameter 1 */
+	{VIACR, CR7B, 0xFF, 0x02},	/* LCD Scaling Parameter 2 */
+	{VIACR, CR7C, 0xFF, 0x03},	/* LCD Scaling Parameter 3 */
+	{VIACR, CR7D, 0xFF, 0x04},	/* LCD Scaling Parameter 4 */
+	{VIACR, CR7E, 0xFF, 0x07},	/* LCD Scaling Parameter 5 */
+	{VIACR, CR7F, 0xFF, 0x0A},	/* LCD Scaling Parameter 6 */
+	{VIACR, CR80, 0xFF, 0x0D},	/* LCD Scaling Parameter 7 */
+	{VIACR, CR81, 0xFF, 0x13},	/* LCD Scaling Parameter 8 */
+	{VIACR, CR82, 0xFF, 0x16},	/* LCD Scaling Parameter 9 */
+	{VIACR, CR83, 0xFF, 0x19},	/* LCD Scaling Parameter 10 */
+	{VIACR, CR84, 0xFF, 0x1C},	/* LCD Scaling Parameter 11 */
+	{VIACR, CR85, 0xFF, 0x1D},	/* LCD Scaling Parameter 12 */
+	{VIACR, CR86, 0xFF, 0x1E},	/* LCD Scaling Parameter 13 */
+	{VIACR, CR87, 0xFF, 0x1F},	/* LCD Scaling Parameter 14 */
+};
+
 static struct fifo_depth_select display_fifo_depth_reg = {
 	/* IGA1 FIFO Depth_Select */
 	{IGA1_FIFO_DEPTH_SELECT_REG_NUM, {{SR17, 0, 7} } },
@@ -2419,6 +2437,7 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 		break;
 	}
 
+	viafb_write_regx(scaling_parameters, ARRAY_SIZE(scaling_parameters));
 	device_off();
 	via_set_state(devices, VIA_STATE_OFF);
 
