@@ -1259,9 +1259,6 @@ find_codec:
 		if (!strcmp(codec->name, dai_link->codec_name)) {
 			rtd->codec = codec;
 
-			if (!try_module_get(codec->dev->driver->owner))
-				return -ENODEV;
-
 			/* CODEC found, so find CODEC DAI from registered DAIs from this CODEC*/
 			list_for_each_entry(codec_dai, &dai_list, list) {
 				if (codec->dev == codec_dai->dev &&
@@ -1287,10 +1284,6 @@ find_platform:
 	/* no, then find CPU DAI from registered DAIs*/
 	list_for_each_entry(platform, &platform_list, list) {
 		if (!strcmp(platform->name, dai_link->platform_name)) {
-
-			if (!try_module_get(platform->dev->driver->owner))
-				return -ENODEV;
-
 			rtd->platform = platform;
 			goto out;
 		}
@@ -1425,6 +1418,9 @@ static int soc_probe_codec(struct snd_soc_card *card,
 	soc_init_codec_debugfs(codec);
 
 	/* mark codec as probed and add to card codec list */
+	if (!try_module_get(codec->dev->driver->owner))
+		return -ENODEV;
+
 	codec->probed = 1;
 	list_add(&codec->card_list, &card->codec_dev_list);
 	list_add(&codec->dapm.list, &card->dapm_list);
@@ -1556,6 +1552,10 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num)
 			}
 		}
 		/* mark platform as probed and add to card platform list */
+
+		if (!try_module_get(platform->dev->driver->owner))
+			return -ENODEV;
+
 		platform->probed = 1;
 		list_add(&platform->card_list, &card->platform_dev_list);
 	}
