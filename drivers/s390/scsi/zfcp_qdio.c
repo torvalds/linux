@@ -292,6 +292,8 @@ static void zfcp_qdio_setup_init_data(struct qdio_initialize *id,
 	id->int_parm = (unsigned long) qdio;
 	id->input_sbal_addr_array = (void **) (qdio->res_q);
 	id->output_sbal_addr_array = (void **) (qdio->req_q);
+	id->scan_threshold =
+		QDIO_MAX_BUFFERS_PER_Q - ZFCP_QDIO_MAX_SBALS_PER_REQ * 2;
 }
 
 /**

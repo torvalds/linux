@@ -249,6 +249,8 @@ struct qdio_output_q {
 	int use_enh_siga;
 	/* timer to check for more outbound work */
 	struct timer_list timer;
+	/* used SBALs before tasklet schedule */
+	int scan_threshold;
 };
 
 /*

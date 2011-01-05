@@ -3831,6 +3831,8 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	init_data.int_parm               = (unsigned long) card;
 	init_data.input_sbal_addr_array  = (void **) in_sbal_ptrs;
 	init_data.output_sbal_addr_array = (void **) out_sbal_ptrs;
+	init_data.scan_threshold =
+		(card->info.type == QETH_CARD_TYPE_IQD) ? 8 : 32;
 
 	if (atomic_cmpxchg(&card->qdio.state, QETH_QDIO_ALLOCATED,
 		QETH_QDIO_ESTABLISHED) == QETH_QDIO_ALLOCATED) {

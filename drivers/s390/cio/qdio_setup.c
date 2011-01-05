@@ -178,6 +178,7 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 		setup_queues_misc(q, irq_ptr, qdio_init->output_handler, i);
 
 		q->is_input_q = 0;
+		q->u.out.scan_threshold = qdio_init->scan_threshold;
 		setup_storage_lists(q, irq_ptr, output_sbal_array, i);
 		output_sbal_array += QDIO_MAX_BUFFERS_PER_Q;
 

@@ -1492,7 +1492,13 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 		qperf_inc(q, fast_requeue);
 
 out:
-	tasklet_schedule(&q->tasklet);
+	/* in case of SIGA errors we must process the error immediately */
+	if (used >= q->u.out.scan_threshold || rc)
+		tasklet_schedule(&q->tasklet);
+	else
+		/* free the SBALs in case of no further traffic */
+		if (!timer_pending(&q->u.out.timer))
+			mod_timer(&q->u.out.timer, jiffies + HZ);
 	return rc;
 }
 
