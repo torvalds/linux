@@ -756,8 +756,10 @@ static int gpio_irq_type(unsigned irq, unsigned type)
 	spin_lock_irqsave(&bank->lock, flags);
 	retval = _set_gpio_triggering(bank, get_gpio_index(gpio), type);
 	if (retval == 0) {
-		irq_desc[irq].status &= ~IRQ_TYPE_SENSE_MASK;
-		irq_desc[irq].status |= type;
+		struct irq_desc *d = irq_to_desc(irq);
+
+		d->status &= ~IRQ_TYPE_SENSE_MASK;
+		d->status |= type;
 	}
 	spin_unlock_irqrestore(&bank->lock, flags);
 
@@ -1671,7 +1673,9 @@ static void __init omap_gpio_chip_init(struct gpio_bank *bank)
 
 	for (j = bank->virtual_irq_start;
 		     j < bank->virtual_irq_start + bank_width; j++) {
-		lockdep_set_class(&irq_desc[j].lock, &gpio_lock_class);
+		struct irq_desc *d = irq_to_desc(j);
+
+		lockdep_set_class(&d->lock, &gpio_lock_class);
 		set_irq_chip_data(j, bank);
 		if (bank_is_mpuio(bank))
 			set_irq_chip(j, &mpuio_irq_chip);
