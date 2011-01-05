@@ -62,7 +62,7 @@
 #define PMEM_GPU_SIZE       SZ_64M
 #define PMEM_UI_SIZE        SZ_32M
 #define PMEM_VPU_SIZE       SZ_64M
-#define PMEM_CAM_SIZE       0x00c00000
+#define PMEM_CAM_SIZE       0x01300000
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
 #define MEM_CAMIPP_SIZE     SZ_4M
 #else
@@ -80,45 +80,8 @@
 
 extern struct sys_timer rk29_timer;
 
-#define NAND_CS_MAX_NUM     1  /*form 0 to 8, it is 0 when no nand flash */
 int rk29_nand_io_init(void)
 {
-#if (NAND_CS_MAX_NUM == 2)
-    rk29_mux_api_set(GPIO0D2_FLASHCSN1_NAME, GPIO0H_FLASH_CSN1);
-#elif (NAND_CS_MAX_NUM == 3)
-    rk29_mux_api_set(GPIO0D2_FLASHCSN1_NAME, GPIO0H_FLASH_CSN1);
-    rk29_mux_api_set(GPIO0D3_FLASHCSN2_NAME, GPIO0H_FLASH_CSN2);
-#elif (NAND_CS_MAX_NUM == 4)
-    rk29_mux_api_set(GPIO0D2_FLASHCSN1_NAME, GPIO0H_FLASH_CSN1);
-    rk29_mux_api_set(GPIO0D3_FLASHCSN2_NAME, GPIO0H_FLASH_CSN2);
-    rk29_mux_api_set(GPIO0D4_FLASHCSN3_NAME, GPIO0H_FLASH_CSN3);
-#elif (NAND_CS_MAX_NUM == 5) 
-    rk29_mux_api_set(GPIO0D2_FLASHCSN1_NAME, GPIO0H_FLASH_CSN1);
-    rk29_mux_api_set(GPIO0D3_FLASHCSN2_NAME, GPIO0H_FLASH_CSN2);
-    rk29_mux_api_set(GPIO0D4_FLASHCSN3_NAME, GPIO0H_FLASH_CSN3);
-    rk29_mux_api_set(GPIO0D5_FLASHCSN4_NAME, GPIO0H_FLASH_CSN4);  
-#elif (NAND_CS_MAX_NUM == 6)
-    rk29_mux_api_set(GPIO0D2_FLASHCSN1_NAME, GPIO0H_FLASH_CSN1);
-    rk29_mux_api_set(GPIO0D3_FLASHCSN2_NAME, GPIO0H_FLASH_CSN2);
-    rk29_mux_api_set(GPIO0D4_FLASHCSN3_NAME, GPIO0H_FLASH_CSN3);
-    rk29_mux_api_set(GPIO0D5_FLASHCSN4_NAME, GPIO0H_FLASH_CSN4); 
-    rk29_mux_api_set(GPIO0D6_FLASHCSN5_NAME, GPIO0H_FLASH_CSN5); 	
-#elif (NAND_CS_MAX_NUM == 7)
-    rk29_mux_api_set(GPIO0D2_FLASHCSN1_NAME, GPIO0H_FLASH_CSN1);
-    rk29_mux_api_set(GPIO0D3_FLASHCSN2_NAME, GPIO0H_FLASH_CSN2);
-    rk29_mux_api_set(GPIO0D4_FLASHCSN3_NAME, GPIO0H_FLASH_CSN3);
-    rk29_mux_api_set(GPIO0D5_FLASHCSN4_NAME, GPIO0H_FLASH_CSN4);  
-    rk29_mux_api_set(GPIO0D6_FLASHCSN5_NAME, GPIO0H_FLASH_CSN5); 
-    rk29_mux_api_set(GPIO0D7_FLASHCSN6_NAME, GPIO0H_FLASH_CSN6); 
-#elif (NAND_CS_MAX_NUM == 8)
-    rk29_mux_api_set(GPIO0D2_FLASHCSN1_NAME, GPIO0H_FLASH_CSN1);
-    rk29_mux_api_set(GPIO0D3_FLASHCSN2_NAME, GPIO0H_FLASH_CSN2);
-    rk29_mux_api_set(GPIO0D4_FLASHCSN3_NAME, GPIO0H_FLASH_CSN3);
-    rk29_mux_api_set(GPIO0D5_FLASHCSN4_NAME, GPIO0H_FLASH_CSN4);  
-    rk29_mux_api_set(GPIO0D6_FLASHCSN5_NAME, GPIO0H_FLASH_CSN5); 
-    rk29_mux_api_set(GPIO0D7_FLASHCSN6_NAME, GPIO0H_FLASH_CSN6);  
-    rk29_mux_api_set(GPIO1A0_FLASHCS7_MDDRTQ_NAME, GPIO1L_FLASH_CS7);      
-#endif
     return 0;
 }
 
@@ -437,7 +400,7 @@ int it7260_init_platform_hw(void)
     gpio_direction_output(TOUCH_INT_PIN, 0);	
     gpio_set_value(TOUCH_INT_PIN,GPIO_LOW);	
  
-    msleep(100); //msleep(3000);    
+    msleep(100);  
     gpio_set_value(TOUCH_PWR_PIN,GPIO_HIGH);	
     msleep(100);	
 
@@ -794,6 +757,7 @@ static int rk29_sensor_power(struct device *dev, int on)
 		} else {
 			gpio_set_value(camera_power, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
 			//printk("\n%s..%s..PowerPin=%d ..PinLevel = %x   \n",__FUNCTION__,dev_name(dev), camera_power, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
+			msleep(100);
 		}
 	}
 
@@ -1672,12 +1636,21 @@ static void __init machine_rk29_init_irq(void)
 	rk29_gpio_irq_setup();
 }
 #define POWER_ON_PIN RK29_PIN4_PA4
+static void rk29_pm_power_off(void)
+{
+	printk(KERN_ERR "rk29_pm_power_off start...\n");
+	
+	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
+	while(1);
+}
+
 static void __init machine_rk29_board_init(void)
 {
         rk29_board_iomux_init();
 	gpio_request(POWER_ON_PIN,"poweronpin");	
 	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
+	pm_power_off = rk29_pm_power_off;
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
                 rk29sdk_wifi_bt_gpio_control_init();
