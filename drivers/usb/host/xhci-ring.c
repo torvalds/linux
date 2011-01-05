@@ -2414,7 +2414,7 @@ static void check_trb_math(struct urb *urb, int num_trbs, int running_total)
 
 static void giveback_first_trb(struct xhci_hcd *xhci, int slot_id,
 		unsigned int ep_index, unsigned int stream_id, int start_cycle,
-		struct xhci_generic_trb *start_trb, struct xhci_td *td)
+		struct xhci_generic_trb *start_trb)
 {
 	/*
 	 * Pass all the TRBs to the hardware at once and make sure this write
@@ -2625,7 +2625,7 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	check_trb_math(urb, num_trbs, running_total);
 	giveback_first_trb(xhci, slot_id, ep_index, urb->stream_id,
-			start_cycle, start_trb, td);
+			start_cycle, start_trb);
 	return 0;
 }
 
@@ -2757,7 +2757,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	check_trb_math(urb, num_trbs, running_total);
 	giveback_first_trb(xhci, slot_id, ep_index, urb->stream_id,
-			start_cycle, start_trb, td);
+			start_cycle, start_trb);
 	return 0;
 }
 
@@ -2859,7 +2859,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			field | TRB_IOC | TRB_TYPE(TRB_STATUS) | ep_ring->cycle_state);
 
 	giveback_first_trb(xhci, slot_id, ep_index, 0,
-			start_cycle, start_trb, td);
+			start_cycle, start_trb);
 	return 0;
 }
 
@@ -3006,10 +3006,8 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		}
 	}
 
-	wmb();
-	start_trb->field[3] |= start_cycle;
-
-	xhci_ring_ep_doorbell(xhci, slot_id, ep_index, urb->stream_id);
+	giveback_first_trb(xhci, slot_id, ep_index, urb->stream_id,
+			start_cycle, start_trb);
 	return 0;
 }
 
