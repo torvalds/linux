@@ -161,6 +161,7 @@ static void do_ext_call_interrupt(unsigned int ext_int_code,
 {
 	unsigned long bits;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_IPI]++;
 	/*
 	 * handle bit signal external calls
 	 *

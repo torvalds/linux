@@ -7,6 +7,7 @@
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
+#include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/spinlock.h>
@@ -18,8 +19,9 @@
 #include <linux/suspend.h>
 #include <linux/completion.h>
 #include <linux/platform_device.h>
-#include <asm/types.h>
 #include <asm/s390_ext.h>
+#include <asm/types.h>
+#include <asm/irq.h>
 
 #include "sclp.h"
 
@@ -402,6 +404,7 @@ static void sclp_interrupt_handler(unsigned int ext_int_code,
 	u32 finished_sccb;
 	u32 evbuf_pending;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_SCP]++;
 	spin_lock(&sclp_lock);
 	finished_sccb = param32 & 0xfffffff8;
 	evbuf_pending = param32 & 0x3;
@@ -824,6 +827,7 @@ static void sclp_check_handler(unsigned int ext_int_code,
 {
 	u32 finished_sccb;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_SCP]++;
 	finished_sccb = param32 & 0xfffffff8;
 	/* Is this the interrupt we are waiting for? */
 	if (finished_sccb == 0)

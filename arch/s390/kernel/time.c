@@ -15,6 +15,7 @@
 #define KMSG_COMPONENT "time"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/kernel_stat.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -160,6 +161,7 @@ static void clock_comparator_interrupt(unsigned int ext_int_code,
 				       unsigned int param32,
 				       unsigned long param64)
 {
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_CLK]++;
 	if (S390_lowcore.clock_comparator == -1ULL)
 		set_clock_comparator(S390_lowcore.clock_comparator);
 }
@@ -170,6 +172,7 @@ static void stp_timing_alert(struct stp_irq_parm *);
 static void timing_alert_interrupt(unsigned int ext_int_code,
 				   unsigned int param32, unsigned long param64)
 {
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_TLA]++;
 	if (param32 & 0x00c40000)
 		etr_timing_alert((struct etr_irq_parm *) &param32);
 	if (param32 & 0x00038000)

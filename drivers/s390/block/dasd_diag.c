@@ -10,6 +10,7 @@
 
 #define KMSG_COMPONENT "dasd"
 
+#include <linux/kernel_stat.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -238,6 +239,7 @@ static void dasd_ext_handler(unsigned int ext_int_code,
 	addr_t ip;
 	int rc;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_DSD]++;
 	switch (ext_int_code >> 24) {
 	case DASD_DIAG_CODE_31BIT:
 		ip = (addr_t) param32;

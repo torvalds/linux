@@ -10,6 +10,7 @@
  *    Copyright (C) 1995  Linus Torvalds
  */
 
+#include <linux/kernel_stat.h>
 #include <linux/perf_event.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -543,6 +544,7 @@ static void pfault_interrupt(unsigned int ext_int_code,
 	struct task_struct *tsk;
 	__u16 subcode;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_PFL]++;
 	/*
 	 * Get the external interruption subcode & pfault
 	 * initial/completion signal bit. VM stores this 

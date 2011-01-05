@@ -324,6 +324,7 @@ static void do_cpu_timer_interrupt(unsigned int ext_int_code,
 	struct list_head cb_list;	/* the callback queue */
 	__u64 elapsed, next;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_TMR]++;
 	INIT_LIST_HEAD(&cb_list);
 	vq = &__get_cpu_var(virt_cpu_timer);
 
