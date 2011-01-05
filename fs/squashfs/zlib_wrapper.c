@@ -127,6 +127,11 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void **buffer,
 		goto release_mutex;
 	}
 
+	if (k < b) {
+		ERROR("zlib_uncompress error, data remaining\n");
+		goto release_mutex;
+	}
+
 	length = stream->total_out;
 	mutex_unlock(&msblk->read_data_mutex);
 	return length;
