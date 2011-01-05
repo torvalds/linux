@@ -733,6 +733,7 @@ static const struct scsi_dh_devlist alua_dev_list[] = {
 	{"Intel", "Multi-Flex"},
 	{"NETAPP", "LUN"},
 	{"AIX", "NVDISK"},
+	{"Promise", "VTrak"},
 	{NULL, NULL}
 };
 
