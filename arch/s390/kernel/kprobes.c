@@ -157,17 +157,21 @@ void __kprobes get_instruction_type(struct arch_specific_insn *ainsn)
 	}
 }
 
+struct ins_replace_args {
+	kprobe_opcode_t *ptr;
+	kprobe_opcode_t opcode;
+};
+
 static int __kprobes swap_instruction(void *aref)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 	unsigned long status = kcb->kprobe_status;
 	struct ins_replace_args *args = aref;
-	int rc;
 
 	kcb->kprobe_status = KPROBE_SWAP_INST;
-	rc = probe_kernel_write(args->ptr, &args->new, sizeof(args->new));
+	probe_kernel_write(args->ptr, &args->opcode, sizeof(args->opcode));
 	kcb->kprobe_status = status;
-	return rc;
+	return 0;
 }
 
 void __kprobes arch_arm_kprobe(struct kprobe *p)
@@ -175,8 +179,7 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 	struct ins_replace_args args;
 
 	args.ptr = p->addr;
-	args.old = p->opcode;
-	args.new = BREAKPOINT_INSTRUCTION;
+	args.opcode = BREAKPOINT_INSTRUCTION;
 	stop_machine(swap_instruction, &args, NULL);
 }
 
@@ -185,8 +188,7 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 	struct ins_replace_args args;
 
 	args.ptr = p->addr;
-	args.old = BREAKPOINT_INSTRUCTION;
-	args.new = p->opcode;
+	args.opcode = p->opcode;
 	stop_machine(swap_instruction, &args, NULL);
 }
 

@@ -64,11 +64,6 @@ struct arch_specific_insn {
 	int reg;
 };
 
-struct ins_replace_args {
-	kprobe_opcode_t *ptr;
-	kprobe_opcode_t old;
-	kprobe_opcode_t new;
-};
 struct prev_kprobe {
 	struct kprobe *kp;
 	unsigned long status;
