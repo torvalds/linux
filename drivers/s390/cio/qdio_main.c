@@ -286,9 +286,6 @@ static inline int qdio_siga_sync(struct qdio_q *q, unsigned int output,
 	unsigned int fc = QDIO_SIGA_SYNC;
 	int cc;
 
-	if (!need_siga_sync(q))
-		return 0;
-
 	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-s:%1d", q->nr);
 	qperf_inc(q, siga_sync);
 
@@ -309,16 +306,6 @@ static inline int qdio_siga_sync_q(struct qdio_q *q)
 		return qdio_siga_sync(q, 0, q->mask);
 	else
 		return qdio_siga_sync(q, q->mask, 0);
-}
-
-static inline int qdio_siga_sync_out(struct qdio_q *q)
-{
-	return qdio_siga_sync(q, ~0U, 0);
-}
-
-static inline int qdio_siga_sync_all(struct qdio_q *q)
-{
-	return qdio_siga_sync(q, ~0U, ~0U);
 }
 
 static int qdio_siga_output(struct qdio_q *q, unsigned int *busy_bit)
@@ -369,21 +356,23 @@ static inline int qdio_siga_input(struct qdio_q *q)
 	return cc;
 }
 
-static inline void qdio_sync_after_thinint(struct qdio_q *q)
+#define qdio_siga_sync_out(q) qdio_siga_sync(q, ~0U, 0)
+#define qdio_siga_sync_all(q) qdio_siga_sync(q, ~0U, ~0U)
+
+static inline void qdio_sync_queues(struct qdio_q *q)
 {
-	if (pci_out_supported(q)) {
-		if (need_siga_sync_thinint(q))
-			qdio_siga_sync_all(q);
-		else if (need_siga_sync_out_thinint(q))
-			qdio_siga_sync_out(q);
-	} else
+	/* PCI capable outbound queues will also be scanned so sync them too */
+	if (pci_out_supported(q))
+		qdio_siga_sync_all(q);
+	else
 		qdio_siga_sync_q(q);
 }
 
 int debug_get_buf_state(struct qdio_q *q, unsigned int bufnr,
 			unsigned char *state)
 {
-	qdio_siga_sync_q(q);
+	if (need_siga_sync(q))
+		qdio_siga_sync_q(q);
 	return get_buf_states(q, bufnr, state, 1, 0);
 }
 
@@ -560,7 +549,8 @@ static inline int qdio_inbound_q_done(struct qdio_q *q)
 	if (!atomic_read(&q->nr_buf_used))
 		return 1;
 
-	qdio_siga_sync_q(q);
+	if (need_siga_sync(q))
+		qdio_siga_sync_q(q);
 	get_buf_state(q, q->first_to_check, &state, 0);
 
 	if (state == SLSB_P_INPUT_PRIMED || state == SLSB_P_INPUT_ERROR)
@@ -655,9 +645,12 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 	int count, stop;
 	unsigned char state;
 
-	if (((queue_type(q) != QDIO_IQDIO_QFMT) && !pci_out_supported(q)) ||
-	    (queue_type(q) == QDIO_IQDIO_QFMT && multicast_outbound(q)))
-		qdio_siga_sync_q(q);
+	if (need_siga_sync(q))
+		if (((queue_type(q) != QDIO_IQDIO_QFMT) &&
+		    !pci_out_supported(q)) ||
+		    (queue_type(q) == QDIO_IQDIO_QFMT &&
+		    multicast_outbound(q)))
+			qdio_siga_sync_q(q);
 
 	/*
 	 * Don't check 128 buffers, as otherwise qdio_inbound_q_moved
@@ -829,7 +822,8 @@ static inline void qdio_check_outbound_after_thinint(struct qdio_q *q)
 static void __tiqdio_inbound_processing(struct qdio_q *q)
 {
 	qperf_inc(q, tasklet_inbound);
-	qdio_sync_after_thinint(q);
+	if (need_siga_sync(q) && need_siga_sync_after_ai(q))
+		qdio_sync_queues(q);
 
 	/*
 	 * The interrupt could be caused by a PCI request. Check the
@@ -909,16 +903,14 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 			tasklet_schedule(&q->tasklet);
 	}
 
-	if (!(irq_ptr->qib.ac & QIB_AC_OUTBOUND_PCI_SUPPORTED))
+	if (!pci_out_supported(q))
 		return;
 
 	for_each_output_queue(irq_ptr, q, i) {
 		if (qdio_outbound_q_done(q))
 			continue;
-
-		if (!siga_syncs_out_pci(q))
+		if (need_siga_sync(q) && need_siga_sync_out_after_pci(q))
 			qdio_siga_sync_q(q);
-
 		tasklet_schedule(&q->tasklet);
 	}
 }
@@ -1470,7 +1462,7 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 		WARN_ON_ONCE(count > 1 && !multicast_outbound(q));
 
 		rc = qdio_kick_outbound_q(q);
-	} else if (unlikely(need_siga_sync(q))) {
+	} else if (need_siga_sync(q)) {
 		rc = qdio_siga_sync_q(q);
 	} else {
 		/* try to fast requeue buffers */
@@ -1597,12 +1589,14 @@ int qdio_get_next_buffers(struct ccw_device *cdev, int nr, int *bufnr,
 	q = irq_ptr->input_qs[nr];
 	WARN_ON(queue_irqs_enabled(q));
 
-	qdio_sync_after_thinint(q);
-
 	/*
-	 * The interrupt could be caused by a PCI request. Check the
-	 * PCI capable outbound queues.
+	 * Cannot rely on automatic sync after interrupt since queues may
+	 * also be examined without interrupt.
 	 */
+	if (need_siga_sync(q))
+		qdio_sync_queues(q);
+
+	/* check the PCI capable outbound queues. */
 	qdio_check_outbound_after_thinint(q);
 
 	if (!qdio_inbound_q_moved(q))

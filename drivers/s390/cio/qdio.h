@@ -148,10 +148,9 @@ struct siga_flag {
 	u8 input:1;
 	u8 output:1;
 	u8 sync:1;
-	u8 no_sync_ti:1;
-	u8 no_sync_out_ti:1;
-	u8 no_sync_out_pci:1;
-	u8:2;
+	u8 sync_after_ai:1;
+	u8 sync_out_after_pci:1;
+	u8:3;
 } __attribute__ ((packed));
 
 struct chsc_ssqd_area {
@@ -390,12 +389,13 @@ static inline int multicast_outbound(struct qdio_q *q)
 	(q->irq_ptr->qib.ac & QIB_AC_OUTBOUND_PCI_SUPPORTED)
 #define is_qebsm(q)			(q->irq_ptr->sch_token != 0)
 
-#define need_siga_sync_thinint(q)	(!q->irq_ptr->siga_flag.no_sync_ti)
-#define need_siga_sync_out_thinint(q)	(!q->irq_ptr->siga_flag.no_sync_out_ti)
 #define need_siga_in(q)			(q->irq_ptr->siga_flag.input)
 #define need_siga_out(q)		(q->irq_ptr->siga_flag.output)
-#define need_siga_sync(q)		(q->irq_ptr->siga_flag.sync)
-#define siga_syncs_out_pci(q)		(q->irq_ptr->siga_flag.no_sync_out_pci)
+#define need_siga_sync(q)		(unlikely(q->irq_ptr->siga_flag.sync))
+#define need_siga_sync_after_ai(q)	\
+	(unlikely(q->irq_ptr->siga_flag.sync_after_ai))
+#define need_siga_sync_out_after_pci(q)	\
+	(unlikely(q->irq_ptr->siga_flag.sync_out_after_pci))
 
 #define for_each_input_queue(irq_ptr, q, i)	\
 	for (i = 0, q = irq_ptr->input_qs[0];	\
