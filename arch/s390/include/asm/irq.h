@@ -21,6 +21,7 @@ enum interruption_class {
 	IOINT_C15,
 	IOINT_C70,
 	IOINT_TAP,
+	IOINT_VMR,
 	NMI_NMI,
 	NR_IRQS,
 };
