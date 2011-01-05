@@ -118,7 +118,7 @@ static char mma845x_read_reg(struct i2c_client *client,int addr)
 	int ret = 0;
 
 	tmp = addr;
-	ret = mma8452_tx_data(client, &tmp, 1);
+//	ret = mma8452_tx_data(client, &tmp, 1);
 	ret = mma8452_rx_data(client, &tmp, 1);
 	return tmp;
 }
