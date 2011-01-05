@@ -17,6 +17,7 @@ enum interruption_class {
 	EXTINT_IUC,
 	IOINT_QAI,
 	IOINT_QDI,
+	IOINT_DAS,
 	NMI_NMI,
 	NR_IRQS,
 };

@@ -34,6 +34,7 @@ static const struct irq_class intrclass_names[] = {
 	{.name = "IUC", .desc = "[EXT] IUCV" },
 	{.name = "QAI", .desc = "[I/O] QDIO Adapter Interrupt" },
 	{.name = "QDI", .desc = "[I/O] QDIO Interrupt" },
+	{.name = "DAS", .desc = "[I/O] DASD" },
 	{.name = "NMI", .desc = "[NMI] Machine Check" },
 };
 
