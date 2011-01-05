@@ -790,11 +790,10 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(found, head, list) {
-		if (found->flags & (BTRFS_BLOCK_GROUP_METADATA |
-				    BTRFS_BLOCK_GROUP_SYSTEM))
-			total_used_data += found->disk_total;
-		else
+		if (found->flags & BTRFS_BLOCK_GROUP_DATA)
 			total_used_data += found->disk_used;
+		else
+			total_used_data += found->disk_total;
 		total_used += found->disk_used;
 	}
 	rcu_read_unlock();
