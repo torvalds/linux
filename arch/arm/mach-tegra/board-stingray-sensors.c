@@ -172,8 +172,7 @@ struct bmp085_platform_data stingray_barom_pdata = {
 
 static int stingray_kxtf9_gpio_level(void)
 {
-	/* TO DO: Fill in with GPIO level check functions */
-	return 0;
+	return gpio_get_value(KXTF9_IRQ_GPIO);
 }
 
 
@@ -181,7 +180,7 @@ struct kxtf9_platform_data stingray_kxtf9_pdata = {
 	.min_interval	= 2,
 	.poll_interval	= 200,
 
-	.g_range	= KXTF9_G_8G,
+	.g_range	= KXTF9_G_2G,
 
 	.axis_map_x	= 0,
 	.axis_map_y	= 1,
@@ -192,7 +191,7 @@ struct kxtf9_platform_data stingray_kxtf9_pdata = {
 	.negate_z	= 0,
 
 
-	.data_odr_init		= ODR12_5,
+	.data_odr_init		= ODR100,
 	.ctrl_reg1_init		= RES_12BIT | KXTF9_G_2G | WUFE,
 	.int_ctrl_init		= IEA | IEN,
 	.tilt_timer_init	= 0x03,
@@ -292,28 +291,21 @@ struct l3g4200d_platform_data stingray_gyro_pdata = {
 	.poll_interval = 200,
 	.min_interval = 20,
 
-	.ctrl_reg_1 = 0x3f,
-	.ctrl_reg_2 = 0x00,
-	.ctrl_reg_3 = 0x00,
-	.ctrl_reg_4 = 0x20,
-	.ctrl_reg_5 = 0x00,
-	.int_config = 0x00,
-	.int_source = 0x00,
-	.int_th_x_h = 0x00,
-	.int_th_x_l = 0x00,
-	.int_th_y_h = 0x00,
-	.int_th_y_l = 0x00,
-	.int_th_z_h = 0x00,
-	.int_th_z_l = 0x00,
-	.int_duration = 0x00,
-
-	.axis_map_x = 0,
-	.axis_map_y = 1,
-	.axis_map_z = 2,
-
-	.negate_x = 0,
-	.negate_y = 0,
-	.negate_z = 0,
+	.ctrl_reg1 = 0xff,	/* ODR800 */
+	.ctrl_reg2 = 0x00,
+	.ctrl_reg3 = 0x00,
+	.ctrl_reg4 = 0x20,	/* 2000 dps */
+	.ctrl_reg5 = 0x00,
+	.reference = 0x00,
+	.fifo_ctrl_reg = 0x00,
+	.int1_cfg = 0x00,
+	.int1_tsh_xh = 0x00,
+	.int1_tsh_xl = 0x00,
+	.int1_tsh_yh = 0x00,
+	.int1_tsh_yl = 0x00,
+	.int1_tsh_zh = 0x00,
+	.int1_tsh_zl = 0x00,
+	.int1_duration = 0x00,
 };
 
 static int stingray_akm8975_init(void)
