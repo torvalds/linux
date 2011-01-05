@@ -70,6 +70,7 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	{ "emc",	NULL,		0,		true },
 	{ "csite",	NULL,		0,		true },
 	{ "timer", 	NULL,		0,		true },
+	{ "kfuse",	NULL,		0,		true },
 	{ "rtc",	NULL,		0,		true },
 
 	/* set frequencies of some device clocks */
