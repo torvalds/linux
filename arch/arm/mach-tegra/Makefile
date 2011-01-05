@@ -11,6 +11,7 @@ obj-y                                   += delay.o
 obj-y                                   += powergate.o
 obj-y					+= suspend.o
 obj-y					+= fuse.o
+obj-y                                   += kfuse.o
 obj-y					+= tegra_i2s_audio.o
 obj-y					+= tegra_spdif_audio.o
 obj-y					+= mc.o
