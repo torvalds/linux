@@ -42,6 +42,7 @@
 #include <asm/irq.h>
 #include <asm/timer.h>
 #include <asm/nmi.h>
+#include <asm/smp.h>
 #include "entry.h"
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
@@ -76,13 +77,8 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
  */
 static void default_idle(void)
 {
-	/* CPU is going idle. */
-#ifdef CONFIG_HOTPLUG_CPU
-	if (cpu_is_offline(smp_processor_id())) {
-		preempt_enable_no_resched();
+	if (cpu_is_offline(smp_processor_id()))
 		cpu_die();
-	}
-#endif
 	local_irq_disable();
 	if (need_resched()) {
 		local_irq_enable();

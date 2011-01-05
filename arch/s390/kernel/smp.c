@@ -575,6 +575,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 		idle = c_idle.idle;
 		current_set[cpu] = c_idle.idle;
 	}
+	init_idle(idle, cpu);
 	if (smp_alloc_lowcore(cpu))
 		return -ENOMEM;
 	do {
