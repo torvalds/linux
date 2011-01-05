@@ -25,6 +25,7 @@ enum interruption_class {
 	IOINT_LCS,
 	IOINT_CLW,
 	IOINT_CTC,
+	IOINT_APB,
 	NMI_NMI,
 	NR_IRQS,
 };

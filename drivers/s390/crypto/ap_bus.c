@@ -27,6 +27,7 @@
 #define KMSG_COMPONENT "ap"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -1042,6 +1043,7 @@ out:
 
 static void ap_interrupt_handler(void *unused1, void *unused2)
 {
+	kstat_cpu(smp_processor_id()).irqs[IOINT_APB]++;
 	tasklet_schedule(&ap_tasklet);
 }
 
