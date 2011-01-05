@@ -323,6 +323,7 @@ static const struct rtc_class_ops hym8563_rtc_ops = {
 static int __devinit  hym8563_probe(struct i2c_client *client,const struct i2c_device_id *id)
 {
 	int rc = 0;
+	u8 reg = 0;
 	struct hym8563 *hym8563;
 	struct rtc_device *rtc = NULL;
 	struct rtc_time tm_read, tm = {
@@ -352,6 +353,14 @@ static int __devinit  hym8563_probe(struct i2c_client *client,const struct i2c_d
 	}
 	hym8563->client = client;
 	hym8563_init_device(client);
+
+	// check power down 
+	hym8563_i2c_read_regs(client,RTC_SEC,&reg,1);
+	if (reg&0x80) {
+		dev_info(&client->dev, "clock/calendar information is no longer guaranteed\n");
+		hym8563_set_time(client, &tm);
+	}
+
 	hym8563_read_datetime(client, &tm_read);	//read time from hym8563
 	
 	if(((tm_read.tm_year < 70) | (tm_read.tm_year > 137 )) | (tm_read.tm_mon == -1) | (rtc_valid_tm(&tm_read) != 0)) //if the hym8563 haven't initialized
