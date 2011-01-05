@@ -385,3 +385,12 @@ Documentation/filesystems/vfs.txt for more details.
 on many or all directory inodes on the way down a path walk (to check for
 exec permission). These must now be rcu-walk aware (flags & IPERM_RCU). See
 Documentation/filesystems/vfs.txt for more details.
+ 
+--
+[mandatory]
+	In ->fallocate() you must check the mode option passed in.  If your
+filesystem does not support hole punching (deallocating space in the middle of a
+file) you must return -EOPNOTSUPP if FALLOC_FL_PUNCH_HOLE is set in mode.
+Currently you can only have FALLOC_FL_PUNCH_HOLE with FALLOC_FL_KEEP_SIZE set,
+so the i_size should not change when hole punching, even when puching the end of
+a file off.
