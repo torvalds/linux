@@ -65,9 +65,6 @@ struct voltagedomain {
 	char *name;
 };
 
-/* API to get the voltagedomain pointer */
-struct voltagedomain *omap_voltage_domain_lookup(char *name);
-
 /**
  * struct omap_volt_data - Omap voltage specific data.
  * @voltage_nominal:	The possible voltage value in uV
@@ -131,6 +128,9 @@ int omap_voltage_register_pmic(struct voltagedomain *voltdm,
 		struct omap_volt_pmic_info *pmic_info);
 void omap_change_voltscale_method(struct voltagedomain *voltdm,
 		int voltscale_method);
+/* API to get the voltagedomain pointer */
+struct voltagedomain *omap_voltage_domain_lookup(char *name);
+
 int omap_voltage_late_init(void);
 #else
 static inline int omap_voltage_register_pmic(struct voltagedomain *voltdm,
@@ -143,6 +143,10 @@ static inline  void omap_change_voltscale_method(struct voltagedomain *voltdm,
 static inline int omap_voltage_late_init(void)
 {
 	return -EINVAL;
+}
+static inline struct voltagedomain *omap_voltage_domain_lookup(char *name)
+{
+	return ERR_PTR(-EINVAL);
 }
 #endif
 
