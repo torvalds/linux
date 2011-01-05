@@ -37,6 +37,18 @@ void kref_get(struct kref *kref)
 }
 
 /**
+ * kref_test_and_get - increment refcount for object only if refcount is not
+ * zero.
+ * @kref: object.
+ *
+ * Return non-zero if the refcount was incremented, 0 otherwise
+ */
+int kref_test_and_get(struct kref *kref)
+{
+	return atomic_inc_not_zero(&kref->refcount);
+}
+
+/**
  * kref_put - decrement refcount for object.
  * @kref: object.
  * @release: pointer to the function that will clean up the object when the
