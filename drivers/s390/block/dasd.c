@@ -855,7 +855,6 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 		rc = ccw_device_clear(device->cdev, (long) cqr);
 		switch (rc) {
 		case 0:	/* termination successful */
-			cqr->retries--;
 			cqr->status = DASD_CQR_CLEAR_PENDING;
 			cqr->stopclk = get_clock();
 			cqr->starttime = 0;
