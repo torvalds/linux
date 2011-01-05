@@ -46,8 +46,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	unsigned long n = (unsigned long) v - 1;
 	int i;
 
-	s390_adjust_jiffies();
 	if (!n) {
+		s390_adjust_jiffies();
 		seq_printf(m, "vendor_id       : IBM/S390\n"
 			   "# processors    : %i\n"
 			   "bogomips per cpu: %lu.%02lu\n",
