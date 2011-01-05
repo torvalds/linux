@@ -76,7 +76,7 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 	#define SENSOR_TR(format, ...)
 #endif
 
-#define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |\
+#define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_FALLING|\
                           SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |\
                           SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ)
 
@@ -143,6 +143,7 @@ static struct reginfo sensor_init_data[] =
 	{0x3a14, 0x02},
 	{0x3a15, 0x28},
 
+		{0x4708,0x00},
 
 	{0x3623, 0x00},
 	{0x3634, 0x76},
@@ -1325,6 +1326,7 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
 {
     int err, cnt;
     int i = 0;
+	char val00;
 
 	cnt = 0;
     while (regarray[i].reg != 0)
@@ -1340,6 +1342,10 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
                 SENSOR_TR("%s..write array failed!!!\n", SENSOR_NAME_STRING());
                 return -EPERM;
             }
+        } else {
+			sensor_read(client, regarray[i].reg, &val00);
+			if (val00 != regarray[i].val)
+				SENSOR_TR("%s Reg:0x%x write(0x%x, 0x%x) fail\n",SENSOR_NAME_STRING(), regarray[i].reg, regarray[i].val, val00);
         }
         i++;
     }
@@ -1358,7 +1364,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
 
     /* soft reset */
-    ret = sensor_write(client, 0x3012, 0x80);
+    ret = sensor_write(client, 0x0103, 0x01);
     if (ret != 0)
     {
         SENSOR_TR("%s soft reset sensor failed\n",SENSOR_NAME_STRING());
@@ -1465,9 +1471,12 @@ static int sensor_deactivate(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = sd->priv;
 	u8 reg_val;
+	int ret;
 
-	SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
+	ret = sensor_write(client, 0x0103, 0x01);
 
+	SENSOR_DG("\n%s..%s enter, reset ret:0x%x \n",SENSOR_NAME_STRING(),__FUNCTION__,ret);
+	msleep(5);
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
 	sensor_read(client,0x3000,&reg_val);
     sensor_write(client, 0x3000, reg_val&0xfc);
@@ -2399,7 +2408,7 @@ static int sensor_video_probe(struct soc_camera_device *icd,
 		return -ENODEV;
 
     /* soft reset */
-    ret = sensor_write(client, 0x3012, 0x80);
+    ret = sensor_write(client, 0x0103, 0x01);
     if (ret != 0)
     {
         SENSOR_TR("soft reset %s failed\n",SENSOR_NAME_STRING());

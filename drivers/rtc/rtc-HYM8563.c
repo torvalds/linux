@@ -108,6 +108,7 @@ static int hym8563_read_datetime(struct i2c_client *client, struct rtc_time *tm)
 	if(tm->tm_year < 0)
 		tm->tm_year = 0;	
 	tm->tm_isdst = 0;	
+	DBG("%s [%d]tm_wday=%d \n",__FUNCTION__,__LINE__,tm->tm_wday);
 	DBG("%s [%d]tm_sec=%d \n",__FUNCTION__,__LINE__,tm->tm_sec);
 	DBG("%s [%d]tm_min=%d \n",__FUNCTION__,__LINE__,tm->tm_min);
 	DBG("%s [%d]tm_hour=%d \n",__FUNCTION__,__LINE__,tm->tm_hour);
@@ -128,6 +129,7 @@ static int hym8563_set_time(struct i2c_client *client, struct rtc_time *tm)
 	u8 mon_day,i;
 	u8 ret = 0;
 	
+	DBG("%s [%d]tm_wday=%d \n",__FUNCTION__,__LINE__,tm->tm_wday);
 	DBG("%s [%d]tm_sec=%d \n",__FUNCTION__,__LINE__,tm->tm_sec);
 	DBG("%s [%d]tm_min=%d \n",__FUNCTION__,__LINE__,tm->tm_min);
 	DBG("%s [%d]tm_hour=%d \n",__FUNCTION__,__LINE__,tm->tm_hour);
@@ -324,13 +326,13 @@ static int __devinit  hym8563_probe(struct i2c_client *client,const struct i2c_d
 	struct hym8563 *hym8563;
 	struct rtc_device *rtc = NULL;
 	struct rtc_time tm_read, tm = {
-	.tm_wday = 4,
-	.tm_year = 109,
-	.tm_mon = 9,
-	.tm_mday = 1,
-	.tm_hour = 12, 
-	.tm_min = 10,
-	.tm_sec = 58
+		.tm_wday = 6,
+		.tm_year = 111,
+		.tm_mon = 0,
+		.tm_mday = 1,
+		.tm_hour = 12,
+		.tm_min = 0,
+		.tm_sec = 0,
 	};	
 	
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
@@ -352,7 +354,7 @@ static int __devinit  hym8563_probe(struct i2c_client *client,const struct i2c_d
 	hym8563_init_device(client);
 	hym8563_read_datetime(client, &tm_read);	//read time from hym8563
 	
-	if(((tm_read.tm_year < 70) | (tm_read.tm_year > 137 )) | (tm_read.tm_mon == -1))	//if the hym8563 haven't initialized
+	if(((tm_read.tm_year < 70) | (tm_read.tm_year > 137 )) | (tm_read.tm_mon == -1) | (rtc_valid_tm(&tm_read) != 0)) //if the hym8563 haven't initialized
 	{
 		hym8563_set_time(client, &tm);	//initialize the hym8563 
 	}	
@@ -366,7 +368,7 @@ static int __devinit  hym8563_probe(struct i2c_client *client,const struct i2c_d
 	
 	hym8563->irq_num = gpio_to_irq(client->irq);
 	gpio_pull_updown(client->irq,GPIOPullUp);
-	if(request_irq(hym8563->irq_num, hym8563_wakeup_irq,IRQF_TRIGGER_FALLING,NULL,hym8563) <0)	
+	if (request_irq(hym8563->irq_num, hym8563_wakeup_irq, IRQF_TRIGGER_FALLING, client->dev.driver->name, hym8563) < 0)
 	{
 		printk("unable to request rtc irq\n");
 		goto exit;
