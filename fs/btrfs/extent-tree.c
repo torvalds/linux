@@ -8099,7 +8099,7 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 	mutex_lock(&root->fs_info->chunk_mutex);
 	list_for_each_entry(device, &fs_devices->alloc_list, dev_alloc_list) {
 		u64 min_free = btrfs_block_group_used(&block_group->item);
-		u64 dev_offset, max_avail;
+		u64 dev_offset;
 
 		/*
 		 * check to make sure we can actually find a chunk with enough
@@ -8107,7 +8107,7 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 		 */
 		if (device->total_bytes > device->bytes_used + min_free) {
 			ret = find_free_dev_extent(NULL, device, min_free,
-						   &dev_offset, &max_avail);
+						   &dev_offset, NULL);
 			if (!ret)
 				break;
 			ret = -1;

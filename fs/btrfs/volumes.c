@@ -729,58 +729,82 @@ error:
 }
 
 /*
+ * find_free_dev_extent - find free space in the specified device
+ * @trans:	transaction handler
+ * @device:	the device which we search the free space in
+ * @num_bytes:	the size of the free space that we need
+ * @start:	store the start of the free space.
+ * @len:	the size of the free space. that we find, or the size of the max
+ * 		free space if we don't find suitable free space
+ *
  * this uses a pretty simple search, the expectation is that it is
  * called very infrequently and that a given device has a small number
  * of extents
+ *
+ * @start is used to store the start of the free space if we find. But if we
+ * don't find suitable free space, it will be used to store the start position
+ * of the max free space.
+ *
+ * @len is used to store the size of the free space that we find.
+ * But if we don't find suitable free space, it is used to store the size of
+ * the max free space.
  */
 int find_free_dev_extent(struct btrfs_trans_handle *trans,
 			 struct btrfs_device *device, u64 num_bytes,
-			 u64 *start, u64 *max_avail)
+			 u64 *start, u64 *len)
 {
 	struct btrfs_key key;
 	struct btrfs_root *root = device->dev_root;
-	struct btrfs_dev_extent *dev_extent = NULL;
+	struct btrfs_dev_extent *dev_extent;
 	struct btrfs_path *path;
-	u64 hole_size = 0;
-	u64 last_byte = 0;
-	u64 search_start = 0;
+	u64 hole_size;
+	u64 max_hole_start;
+	u64 max_hole_size;
+	u64 extent_end;
+	u64 search_start;
 	u64 search_end = device->total_bytes;
 	int ret;
-	int slot = 0;
-	int start_found;
+	int slot;
 	struct extent_buffer *l;
-
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-	path->reada = 2;
-	start_found = 0;
 
 	/* FIXME use last free of some kind */
 
 	/* we don't want to overwrite the superblock on the drive,
 	 * so we make sure to start at an offset of at least 1MB
 	 */
-	search_start = max((u64)1024 * 1024, search_start);
+	search_start = 1024 * 1024;
 
-	if (root->fs_info->alloc_start + num_bytes <= device->total_bytes)
+	if (root->fs_info->alloc_start + num_bytes <= search_end)
 		search_start = max(root->fs_info->alloc_start, search_start);
+
+	max_hole_start = search_start;
+	max_hole_size = 0;
+
+	if (search_start >= search_end) {
+		ret = -ENOSPC;
+		goto error;
+	}
+
+	path = btrfs_alloc_path();
+	if (!path) {
+		ret = -ENOMEM;
+		goto error;
+	}
+	path->reada = 2;
 
 	key.objectid = device->devid;
 	key.offset = search_start;
 	key.type = BTRFS_DEV_EXTENT_KEY;
+
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 0);
 	if (ret < 0)
-		goto error;
+		goto out;
 	if (ret > 0) {
 		ret = btrfs_previous_item(root, path, key.objectid, key.type);
 		if (ret < 0)
-			goto error;
-		if (ret > 0)
-			start_found = 1;
+			goto out;
 	}
-	l = path->nodes[0];
-	btrfs_item_key_to_cpu(l, &key, path->slots[0]);
+
 	while (1) {
 		l = path->nodes[0];
 		slot = path->slots[0];
@@ -789,24 +813,9 @@ int find_free_dev_extent(struct btrfs_trans_handle *trans,
 			if (ret == 0)
 				continue;
 			if (ret < 0)
-				goto error;
-no_more_items:
-			if (!start_found) {
-				if (search_start >= search_end) {
-					ret = -ENOSPC;
-					goto error;
-				}
-				*start = search_start;
-				start_found = 1;
-				goto check_pending;
-			}
-			*start = last_byte > search_start ?
-				last_byte : search_start;
-			if (search_end <= *start) {
-				ret = -ENOSPC;
-				goto error;
-			}
-			goto check_pending;
+				goto out;
+
+			break;
 		}
 		btrfs_item_key_to_cpu(l, &key, slot);
 
@@ -814,48 +823,62 @@ no_more_items:
 			goto next;
 
 		if (key.objectid > device->devid)
-			goto no_more_items;
+			break;
 
-		if (key.offset >= search_start && key.offset > last_byte &&
-		    start_found) {
-			if (last_byte < search_start)
-				last_byte = search_start;
-			hole_size = key.offset - last_byte;
-
-			if (hole_size > *max_avail)
-				*max_avail = hole_size;
-
-			if (key.offset > last_byte &&
-			    hole_size >= num_bytes) {
-				*start = last_byte;
-				goto check_pending;
-			}
-		}
 		if (btrfs_key_type(&key) != BTRFS_DEV_EXTENT_KEY)
 			goto next;
 
-		start_found = 1;
+		if (key.offset > search_start) {
+			hole_size = key.offset - search_start;
+
+			if (hole_size > max_hole_size) {
+				max_hole_start = search_start;
+				max_hole_size = hole_size;
+			}
+
+			/*
+			 * If this free space is greater than which we need,
+			 * it must be the max free space that we have found
+			 * until now, so max_hole_start must point to the start
+			 * of this free space and the length of this free space
+			 * is stored in max_hole_size. Thus, we return
+			 * max_hole_start and max_hole_size and go back to the
+			 * caller.
+			 */
+			if (hole_size >= num_bytes) {
+				ret = 0;
+				goto out;
+			}
+		}
+
 		dev_extent = btrfs_item_ptr(l, slot, struct btrfs_dev_extent);
-		last_byte = key.offset + btrfs_dev_extent_length(l, dev_extent);
+		extent_end = key.offset + btrfs_dev_extent_length(l,
+								  dev_extent);
+		if (extent_end > search_start)
+			search_start = extent_end;
 next:
 		path->slots[0]++;
 		cond_resched();
 	}
-check_pending:
-	/* we have to make sure we didn't find an extent that has already
-	 * been allocated by the map tree or the original allocation
-	 */
-	BUG_ON(*start < search_start);
 
-	if (*start + num_bytes > search_end) {
-		ret = -ENOSPC;
-		goto error;
+	hole_size = search_end- search_start;
+	if (hole_size > max_hole_size) {
+		max_hole_start = search_start;
+		max_hole_size = hole_size;
 	}
-	/* check for pending inserts here */
-	ret = 0;
 
-error:
+	/* See above. */
+	if (hole_size < num_bytes)
+		ret = -ENOSPC;
+	else
+		ret = 0;
+
+out:
 	btrfs_free_path(path);
+error:
+	*start = max_hole_start;
+	if (len && max_hole_size > *len)
+		*len = max_hole_size;
 	return ret;
 }
 
