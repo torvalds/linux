@@ -31,7 +31,6 @@
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
 
-#define  __ARCH_WANT_KPROBES_INSN_SLOT
 struct pt_regs;
 struct kprobe;
 
@@ -58,7 +57,7 @@ typedef u16 kprobe_opcode_t;
 /* Architecture specific copy of original instruction */
 struct arch_specific_insn {
 	/* copy of original instruction */
-	kprobe_opcode_t *insn;
+	kprobe_opcode_t insn[MAX_INSN_SIZE];
 };
 
 struct prev_kprobe {

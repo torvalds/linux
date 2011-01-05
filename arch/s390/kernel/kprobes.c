@@ -126,10 +126,6 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	if (is_prohibited_opcode((kprobe_opcode_t *) p->addr))
 		return -EINVAL;
 
-	/* Use the get_insn_slot() facility for correctness */
-	if (!(p->ainsn.insn = get_insn_slot()))
-		return -ENOMEM;
-
 	p->opcode = *p->addr;
 	memcpy(p->ainsn.insn, p->addr, ((p->opcode >> 14) + 3) & -2);
 
@@ -173,10 +169,6 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
-	if (p->ainsn.insn) {
-		free_insn_slot(p->ainsn.insn, 0);
-		p->ainsn.insn = NULL;
-	}
 }
 
 static void __kprobes enable_singlestep(struct kprobe_ctlblk *kcb,
