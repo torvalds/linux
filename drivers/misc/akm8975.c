@@ -151,16 +151,16 @@ static void akm8975_ecs_report_value(struct akm8975_data *akm, short *rbuf)
 	mutex_lock(&akm->flags_lock);
 	/* Report magnetic sensor information */
 	if (m_flag) {
-		input_report_abs(data->input_dev, ABS_RX, rbuf[0]);
-		input_report_abs(data->input_dev, ABS_RY, rbuf[1]);
-		input_report_abs(data->input_dev, ABS_RZ, rbuf[2]);
-		input_report_abs(data->input_dev, ABS_RUDDER, rbuf[4]);
+		input_report_rel(data->input_dev, REL_RX, rbuf[0]);
+		input_report_rel(data->input_dev, REL_RY, rbuf[1]);
+		input_report_rel(data->input_dev, REL_RZ, rbuf[2]);
+		input_report_rel(data->input_dev, REL_WHEEL, rbuf[4]);
 	}
 
 	if (mv_flag) {
-		input_report_abs(data->input_dev, ABS_HAT0X, rbuf[9]);
-		input_report_abs(data->input_dev, ABS_HAT0Y, rbuf[10]);
-		input_report_abs(data->input_dev, ABS_BRAKE, rbuf[11]);
+		input_report_rel(data->input_dev, REL_DIAL, rbuf[9]);
+		input_report_rel(data->input_dev, REL_HWHEEL, rbuf[10]);
+		input_report_rel(data->input_dev, REL_MISC, rbuf[11]);
 	}
 	mutex_unlock(&akm->flags_lock);
 
@@ -457,7 +457,7 @@ static int akm8975_init_client(struct i2c_client *client)
 
 	return 0;
 err:
-  return ret;
+	return ret;
 }
 
 static const struct file_operations akmd_fops = {
@@ -513,7 +513,8 @@ int akm8975_probe(struct i2c_client *client,
 
 	akm->regulator = regulator_get(&client->dev, "vcc");
 	if (IS_ERR_OR_NULL(akm->regulator)) {
-		dev_err(&client->dev, "unable to get regulator %s\n", dev_name(&client->dev));
+		dev_err(&client->dev, "unable to get regulator %s\n",
+				 dev_name(&client->dev));
 		akm->regulator = NULL;
 	} else {
 		regulator_enable(akm->regulator);
@@ -531,24 +532,22 @@ int akm8975_probe(struct i2c_client *client,
 		goto exit_input_dev_alloc_failed;
 	}
 
-	set_bit(EV_ABS, akm->input_dev->evbit);
-
 	/* orientation: yaw */
-	input_set_abs_params(akm->input_dev, ABS_RX, 0, 23040, 0, 0);
+	input_set_capability(akm->input_dev, EV_REL, REL_RX);
 	/* orientation: pitch */
-	input_set_abs_params(akm->input_dev, ABS_RY, -11520, 11520, 0, 0);
+	input_set_capability(akm->input_dev, EV_REL, REL_RY);
 	/* orientation: roll */
-	input_set_abs_params(akm->input_dev, ABS_RZ, -5760, 5760, 0, 0);
+	input_set_capability(akm->input_dev, EV_REL, REL_RZ);
 
 	/* status of orientation sensor */
-	input_set_abs_params(akm->input_dev, ABS_RUDDER, 0, 3, 0, 0);
+	input_set_capability(akm->input_dev, EV_REL, REL_WHEEL);
 
 	/* x-axis of raw magnetic vector */
-	input_set_abs_params(akm->input_dev, ABS_HAT0X, -20480, 20479, 0, 0);
+	input_set_capability(akm->input_dev, EV_REL, REL_DIAL);
 	/* y-axis of raw magnetic vector */
-	input_set_abs_params(akm->input_dev, ABS_HAT0Y, -20480, 20479, 0, 0);
+	input_set_capability(akm->input_dev, EV_REL, REL_HWHEEL);
 	/* z-axis of raw magnetic vector */
-	input_set_abs_params(akm->input_dev, ABS_BRAKE, -20480, 20479, 0, 0);
+	input_set_capability(akm->input_dev, EV_REL, REL_MISC);
 
 	akm->input_dev->name = "compass";
 
