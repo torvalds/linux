@@ -146,10 +146,8 @@ static s32 ixgbe_dcb_config_tx_desc_arbiter_82598(struct ixgbe_hw *hw,
 
 	/* Enable arbiter */
 	reg &= ~IXGBE_DPMCS_ARBDIS;
-	if (!(dcb_config->round_robin_enable)) {
-		/* Enable DFP and Recycle mode */
-		reg |= (IXGBE_DPMCS_TDPAC | IXGBE_DPMCS_TRM);
-	}
+	/* Enable DFP and Recycle mode */
+	reg |= (IXGBE_DPMCS_TDPAC | IXGBE_DPMCS_TRM);
 	reg |= IXGBE_DPMCS_TSOEF;
 	/* Configure Max TSO packet size 34KB including payload and headers */
 	reg |= (0x4 << IXGBE_DPMCS_MTSOS_SHIFT);

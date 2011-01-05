@@ -139,7 +139,6 @@ struct ixgbe_dcb_config {
 	struct tc_configuration tc_config[MAX_TRAFFIC_CLASS];
 	u8     bw_percentage[2][MAX_BW_GROUP]; /* One each for Tx/Rx */
 	bool   pfc_mode_enable;
-	bool   round_robin_enable;
 
 	enum dcb_rx_pba_cfg rx_pba_cfg;
 
