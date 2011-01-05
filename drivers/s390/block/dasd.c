@@ -2769,6 +2769,10 @@ int dasd_generic_pm_freeze(struct ccw_device *cdev)
 
 	if (IS_ERR(device))
 		return PTR_ERR(device);
+
+	if (device->discipline->freeze)
+		rc = device->discipline->freeze(device);
+
 	/* disallow new I/O  */
 	dasd_device_set_stop_bits(device, DASD_STOPPED_PM);
 	/* clear active requests */
@@ -2804,9 +2808,6 @@ int dasd_generic_pm_freeze(struct ccw_device *cdev)
 	spin_lock_irq(get_ccwdev_lock(cdev));
 	list_splice_tail(&freeze_queue, &device->ccw_queue);
 	spin_unlock_irq(get_ccwdev_lock(cdev));
-
-	if (device->discipline->freeze)
-		rc = device->discipline->freeze(device);
 
 	dasd_put_device(device);
 	return rc;
