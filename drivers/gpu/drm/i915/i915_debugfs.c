@@ -896,7 +896,7 @@ static int i915_drpc_info(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 rgvmodectl = I915_READ(MEMMODECTL);
-	u32 rstdbyctl = I915_READ(MCHBAR_RENDER_STANDBY);
+	u32 rstdbyctl = I915_READ(RSTDBYCTL);
 	u16 crstandvid = I915_READ16(CRSTANDVID);
 
 	seq_printf(m, "HD boost: %s\n", (rgvmodectl & MEMMODE_BOOST_EN) ?
@@ -919,6 +919,30 @@ static int i915_drpc_info(struct seq_file *m, void *unused)
 	seq_printf(m, "RS2 VID: %d\n", ((crstandvid >> 8) & 0x3f));
 	seq_printf(m, "Render standby enabled: %s\n",
 		   (rstdbyctl & RCX_SW_EXIT) ? "no" : "yes");
+	seq_printf(m, "Current RS state: ");
+	switch (rstdbyctl & RSX_STATUS_MASK) {
+	case RSX_STATUS_ON:
+		seq_printf(m, "on\n");
+		break;
+	case RSX_STATUS_RC1:
+		seq_printf(m, "RC1\n");
+		break;
+	case RSX_STATUS_RC1E:
+		seq_printf(m, "RC1E\n");
+		break;
+	case RSX_STATUS_RS1:
+		seq_printf(m, "RS1\n");
+		break;
+	case RSX_STATUS_RS2:
+		seq_printf(m, "RS2 (RC6)\n");
+		break;
+	case RSX_STATUS_RS3:
+		seq_printf(m, "RC3 (RC6+)\n");
+		break;
+	default:
+		seq_printf(m, "unknown\n");
+		break;
+	}
 
 	return 0;
 }

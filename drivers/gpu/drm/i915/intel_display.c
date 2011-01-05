@@ -6420,35 +6420,37 @@ void intel_enable_clock_gating(struct drm_device *dev)
 	 * GPU can automatically power down the render unit if given a page
 	 * to save state.
 	 */
-	if (IS_IRONLAKE_M(dev) && 0) { /* XXX causes a failure during suspend */
+	if (IS_IRONLAKE_M(dev)) {
 		if (dev_priv->renderctx == NULL)
 			dev_priv->renderctx = intel_alloc_context_page(dev);
 		if (dev_priv->renderctx) {
 			struct drm_i915_gem_object *obj = dev_priv->renderctx;
-			if (BEGIN_LP_RING(4) == 0) {
-				OUT_RING(MI_SET_CONTEXT);
-				OUT_RING(obj->gtt_offset |
-					 MI_MM_SPACE_GTT |
-					 MI_SAVE_EXT_STATE_EN |
-					 MI_RESTORE_EXT_STATE_EN |
-					 MI_RESTORE_INHIBIT);
-				OUT_RING(MI_NOOP);
-				OUT_RING(MI_FLUSH);
-				ADVANCE_LP_RING();
+			if (BEGIN_LP_RING(6) != 0) {
+				i915_gem_object_unpin(obj);
+				drm_gem_object_unreference(&obj->base);
+				dev_priv->renderctx = NULL;
+				return;
 			}
+			OUT_RING(MI_SUSPEND_FLUSH | MI_SUSPEND_FLUSH_EN);
+			OUT_RING(MI_SET_CONTEXT);
+			OUT_RING(obj->gtt_offset |
+				 MI_MM_SPACE_GTT |
+				 MI_SAVE_EXT_STATE_EN |
+				 MI_RESTORE_EXT_STATE_EN |
+				 MI_RESTORE_INHIBIT);
+			OUT_RING(MI_SUSPEND_FLUSH);
+			OUT_RING(MI_NOOP);
+			OUT_RING(MI_FLUSH);
+			ADVANCE_LP_RING();
 		} else
 			DRM_DEBUG_KMS("Failed to allocate render context."
 				       "Disable RC6\n");
-	}
 
-	if (IS_GEN4(dev) && IS_MOBILE(dev)) {
 		if (dev_priv->pwrctx == NULL)
 			dev_priv->pwrctx = intel_alloc_context_page(dev);
 		if (dev_priv->pwrctx) {
 			struct drm_i915_gem_object *obj = dev_priv->pwrctx;
 			I915_WRITE(PWRCTXA, obj->gtt_offset | PWRCTX_EN);
-			I915_WRITE(MCHBAR_RENDER_STANDBY,
-				   I915_READ(MCHBAR_RENDER_STANDBY) & ~RCX_SW_EXIT);
 		}
 	}
 }

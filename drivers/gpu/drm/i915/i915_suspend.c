@@ -740,7 +740,7 @@ void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(PCH_PP_OFF_DELAYS, dev_priv->savePP_OFF_DELAYS);
 		I915_WRITE(PCH_PP_DIVISOR, dev_priv->savePP_DIVISOR);
 		I915_WRITE(PCH_PP_CONTROL, dev_priv->savePP_CONTROL);
-		I915_WRITE(MCHBAR_RENDER_STANDBY,
+		I915_WRITE(RSTDBYCTL,
 			   dev_priv->saveMCHBAR_RENDER_STANDBY);
 	} else {
 		I915_WRITE(PFIT_PGM_RATIOS, dev_priv->savePFIT_PGM_RATIOS);
@@ -811,7 +811,7 @@ int i915_save_state(struct drm_device *dev)
 		dev_priv->saveFDI_RXA_IMR = I915_READ(FDI_RXA_IMR);
 		dev_priv->saveFDI_RXB_IMR = I915_READ(FDI_RXB_IMR);
 		dev_priv->saveMCHBAR_RENDER_STANDBY =
-			I915_READ(MCHBAR_RENDER_STANDBY);
+			I915_READ(RSTDBYCTL);
 	} else {
 		dev_priv->saveIER = I915_READ(IER);
 		dev_priv->saveIMR = I915_READ(IMR);
