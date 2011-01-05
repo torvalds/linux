@@ -33,12 +33,12 @@
 #include "devices-imx51.h"
 #include "devices.h"
 
-#define MBIMX51_TSC2007_GPIO	(2*32 + 30)
+#define MBIMX51_TSC2007_GPIO	IMX_GPIO_NR(3, 30)
 #define MBIMX51_TSC2007_IRQ	(MXC_INTERNAL_IRQS + MBIMX51_TSC2007_GPIO)
-#define MBIMX51_LED0		(2*32 + 5)
-#define MBIMX51_LED1		(2*32 + 6)
-#define MBIMX51_LED2		(2*32 + 7)
-#define MBIMX51_LED3		(2*32 + 8)
+#define MBIMX51_LED0		IMX_GPIO_NR(3, 5)
+#define MBIMX51_LED1		IMX_GPIO_NR(3, 6)
+#define MBIMX51_LED2		IMX_GPIO_NR(3, 7)
+#define MBIMX51_LED3		IMX_GPIO_NR(3, 8)
 
 static struct gpio_led mbimx51_leds[] = {
 	{
@@ -84,7 +84,7 @@ static struct platform_device *devices[] __initdata = {
 	&mbimx51_leds_gpio,
 };
 
-static struct pad_desc mbimx51_pads[] = {
+static iomux_v3_cfg_t mbimx51_pads[] = {
 	/* UART2 */
 	MX51_PAD_UART2_RXD__UART2_RXD,
 	MX51_PAD_UART2_TXD__UART2_TXD,
@@ -96,13 +96,13 @@ static struct pad_desc mbimx51_pads[] = {
 	MX51_PAD_KEY_COL5__UART3_CTS,
 
 	/* TSC2007 IRQ */
-	MX51_PAD_NANDF_D10__GPIO_3_30,
+	MX51_PAD_NANDF_D10__GPIO3_30,
 
 	/* LEDS */
-	MX51_PAD_DISPB2_SER_DIN__GPIO_3_5,
-	MX51_PAD_DISPB2_SER_DIO__GPIO_3_6,
-	MX51_PAD_DISPB2_SER_CLK__GPIO_3_7,
-	MX51_PAD_DISPB2_SER_RS__GPIO_3_8,
+	MX51_PAD_DISPB2_SER_DIN__GPIO3_5,
+	MX51_PAD_DISPB2_SER_DIO__GPIO3_6,
+	MX51_PAD_DISPB2_SER_CLK__GPIO3_7,
+	MX51_PAD_DISPB2_SER_RS__GPIO3_8,
 
 	/* KPP */
 	MX51_PAD_KEY_ROW0__KEY_ROW0,
@@ -217,6 +217,6 @@ void __init eukrea_mbimx51_baseboard_init(void)
 	i2c_register_board_info(1, mbimx51_i2c_devices,
 				ARRAY_SIZE(mbimx51_i2c_devices));
 
-	imx51_add_esdhc(0, NULL);
-	imx51_add_esdhc(1, NULL);
+	imx51_add_sdhci_esdhc_imx(0, NULL);
+	imx51_add_sdhci_esdhc_imx(1, NULL);
 }

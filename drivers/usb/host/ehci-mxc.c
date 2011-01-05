@@ -28,7 +28,7 @@
 #define ULPI_VIEWPORT_OFFSET	0x170
 
 struct ehci_mxc_priv {
-	struct clk *usbclk, *ahbclk;
+	struct clk *usbclk, *ahbclk, *phy1clk;
 	struct usb_hcd *hcd;
 };
 
@@ -168,17 +168,6 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 		goto err_ioremap;
 	}
 
-	/* call platform specific init function */
-	if (pdata->init) {
-		ret = pdata->init(pdev);
-		if (ret) {
-			dev_err(dev, "platform init failed\n");
-			goto err_init;
-		}
-		/* platforms need some time to settle changed IO settings */
-		mdelay(10);
-	}
-
 	/* enable clocks */
 	priv->usbclk = clk_get(dev, "usb");
 	if (IS_ERR(priv->usbclk)) {
@@ -194,6 +183,28 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 			goto err_clk_ahb;
 		}
 		clk_enable(priv->ahbclk);
+	}
+
+	/* "dr" device has its own clock */
+	if (pdev->id == 0) {
+		priv->phy1clk = clk_get(dev, "usb_phy1");
+		if (IS_ERR(priv->phy1clk)) {
+			ret = PTR_ERR(priv->phy1clk);
+			goto err_clk_phy;
+		}
+		clk_enable(priv->phy1clk);
+	}
+
+
+	/* call platform specific init function */
+	if (pdata->init) {
+		ret = pdata->init(pdev);
+		if (ret) {
+			dev_err(dev, "platform init failed\n");
+			goto err_init;
+		}
+		/* platforms need some time to settle changed IO settings */
+		mdelay(10);
 	}
 
 	/* setup specific usb hw */
@@ -230,6 +241,11 @@ err_add:
 	if (pdata && pdata->exit)
 		pdata->exit(pdev);
 err_init:
+	if (priv->phy1clk) {
+		clk_disable(priv->phy1clk);
+		clk_put(priv->phy1clk);
+	}
+err_clk_phy:
 	if (priv->ahbclk) {
 		clk_disable(priv->ahbclk);
 		clk_put(priv->ahbclk);
@@ -272,6 +288,10 @@ static int __exit ehci_mxc_drv_remove(struct platform_device *pdev)
 	if (priv->ahbclk) {
 		clk_disable(priv->ahbclk);
 		clk_put(priv->ahbclk);
+	}
+	if (priv->phy1clk) {
+		clk_disable(priv->phy1clk);
+		clk_put(priv->phy1clk);
 	}
 
 	kfree(priv);
