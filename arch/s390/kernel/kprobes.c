@@ -238,25 +238,44 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 	regs->gprs[14] = (unsigned long)&kretprobe_trampoline;
 }
 
+static void __kprobes kprobe_reenter_check(struct kprobe_ctlblk *kcb,
+					   struct kprobe *p)
+{
+	switch (kcb->kprobe_status) {
+	case KPROBE_HIT_SSDONE:
+	case KPROBE_HIT_ACTIVE:
+		kprobes_inc_nmissed_count(p);
+		break;
+	case KPROBE_HIT_SS:
+	case KPROBE_REENTER:
+	default:
+		/*
+		 * A kprobe on the code path to single step an instruction
+		 * is a BUG. The code path resides in the .kprobes.text
+		 * section and is executed with interrupts disabled.
+		 */
+		printk(KERN_EMERG "Invalid kprobe detected at %p.\n", p->addr);
+		dump_kprobe(p);
+		BUG();
+	}
+}
+
 static int __kprobes kprobe_handler(struct pt_regs *regs)
 {
-	struct kprobe *p;
-	int ret = 0;
-	unsigned long *addr = (unsigned long *)
-		((regs->psw.addr & PSW_ADDR_INSN) - 2);
 	struct kprobe_ctlblk *kcb;
+	struct kprobe *p;
 
 	/*
-	 * We don't want to be preempted for the entire
-	 * duration of kprobe processing
+	 * We want to disable preemption for the entire duration of kprobe
+	 * processing. That includes the calls to the pre/post handlers
+	 * and single stepping the kprobe instruction.
 	 */
 	preempt_disable();
 	kcb = get_kprobe_ctlblk();
+	p = get_kprobe((void *)((regs->psw.addr & PSW_ADDR_INSN) - 2));
 
-	/* Check we're not actually recursing */
-	if (kprobe_running()) {
-		p = get_kprobe(addr);
-		if (p) {
+	if (p) {
+		if (kprobe_running()) {
 			/*
 			 * We have hit a kprobe while another is still
 			 * active. This can happen in the pre and post
@@ -266,45 +285,54 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			 * push_kprobe and pop_kprobe saves and restores
 			 * the currently active kprobe.
 			 */
+			kprobe_reenter_check(kcb, p);
 			push_kprobe(kcb, p);
-			kprobes_inc_nmissed_count(p);
+			kcb->kprobe_status = KPROBE_REENTER;
+		} else {
+			/*
+			 * If we have no pre-handler or it returned 0, we
+			 * continue with single stepping. If we have a
+			 * pre-handler and it returned non-zero, it prepped
+			 * for calling the break_handler below on re-entry
+			 * for jprobe processing, so get out doing nothing
+			 * more here.
+			 */
+			push_kprobe(kcb, p);
+			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
+			if (p->pre_handler && p->pre_handler(p, regs))
+				return 1;
+			kcb->kprobe_status = KPROBE_HIT_SS;
+		}
+		enable_singlestep(kcb, regs, (unsigned long) p->ainsn.insn);
+		return 1;
+	} else if (kprobe_running()) {
+		p = __get_cpu_var(current_kprobe);
+		if (p->break_handler && p->break_handler(p, regs)) {
+			/*
+			 * Continuation after the jprobe completed and
+			 * caused the jprobe_return trap. The jprobe
+			 * break_handler "returns" to the original
+			 * function that still has the kprobe breakpoint
+			 * installed. We continue with single stepping.
+			 */
+			kcb->kprobe_status = KPROBE_HIT_SS;
 			enable_singlestep(kcb, regs,
 					  (unsigned long) p->ainsn.insn);
-			kcb->kprobe_status = KPROBE_REENTER;
 			return 1;
-		} else {
-			p = __get_cpu_var(current_kprobe);
-			if (p->break_handler && p->break_handler(p, regs)) {
-				goto ss_probe;
-			}
-		}
-		goto no_kprobe;
-	}
-
-	p = get_kprobe(addr);
-	if (!p)
-		/*
-		 * No kprobe at this address. The fault has not been
-		 * caused by a kprobe breakpoint. The race of breakpoint
-		 * vs. kprobe remove does not exist because on s390 we
-		 * use stop_machine to arm/disarm the breakpoints.
-		 */
-		goto no_kprobe;
-
-	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
-	push_kprobe(kcb, p);
-	if (p->pre_handler && p->pre_handler(p, regs))
-		/* handler has already set things up, so skip ss setup */
-		return 1;
-
-ss_probe:
-	enable_singlestep(kcb, regs, (unsigned long) p->ainsn.insn);
-	kcb->kprobe_status = KPROBE_HIT_SS;
-	return 1;
-
-no_kprobe:
+		} /* else:
+		   * No kprobe at this address and the current kprobe
+		   * has no break handler (no jprobe!). The kernel just
+		   * exploded, let the standard trap handler pick up the
+		   * pieces.
+		   */
+	} /* else:
+	   * No kprobe at this address and no active kprobe. The trap has
+	   * not been caused by a kprobe breakpoint. The race of breakpoint
+	   * vs. kprobe remove does not exist because on s390 as we use
+	   * stop_machine to arm/disarm the breakpoints.
+	   */
 	preempt_enable_no_resched();
-	return ret;
+	return 0;
 }
 
 /*
