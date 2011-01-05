@@ -351,9 +351,11 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 	reason = (reason & 0xf) | 8;
 	outb(reason, 0x61);
 
-	i = 2000;
-	while (--i)
-		udelay(1000);
+	i = 20000;
+	while (--i) {
+		touch_nmi_watchdog();
+		udelay(100);
+	}
 
 	reason &= ~8;
 	outb(reason, 0x61);
