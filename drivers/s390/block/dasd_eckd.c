@@ -817,6 +817,7 @@ static int dasd_eckd_read_conf_immediately(struct dasd_device *device,
 
 	dasd_eckd_fill_rcd_cqr(device, cqr, rcd_buffer, lpm);
 	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
+	set_bit(DASD_CQR_ALLOW_SLOCK, &cqr->flags);
 	cqr->retries = 5;
 	rc = dasd_sleep_on_immediatly(cqr);
 	return rc;
@@ -1947,9 +1948,9 @@ dasd_eckd_erp_postaction(struct dasd_ccw_req * cqr)
 	return dasd_default_erp_postaction;
 }
 
-
-static void dasd_eckd_handle_unsolicited_interrupt(struct dasd_device *device,
-						   struct irb *irb)
+static void dasd_eckd_check_for_device_change(struct dasd_device *device,
+					      struct dasd_ccw_req *cqr,
+					      struct irb *irb)
 {
 	char mask;
 	char *sense = NULL;
@@ -1973,40 +1974,41 @@ static void dasd_eckd_handle_unsolicited_interrupt(struct dasd_device *device,
 			/* schedule worker to reload device */
 			dasd_reload_device(device);
 		}
-
 		dasd_generic_handle_state_change(device);
 		return;
 	}
 
-	/* summary unit check */
 	sense = dasd_get_sense(irb);
-	if (sense && (sense[7] == 0x0D) &&
+	if (!sense)
+		return;
+
+	/* summary unit check */
+	if ((sense[7] == 0x0D) &&
 	    (scsw_dstat(&irb->scsw) & DEV_STAT_UNIT_CHECK)) {
 		dasd_alias_handle_summary_unit_check(device, irb);
 		return;
 	}
 
 	/* service information message SIM */
-	if (sense && !(sense[27] & DASD_SENSE_BIT_0) &&
+	if (!cqr && !(sense[27] & DASD_SENSE_BIT_0) &&
 	    ((sense[6] & DASD_SIM_SENSE) == DASD_SIM_SENSE)) {
 		dasd_3990_erp_handle_sim(device, sense);
-		dasd_schedule_device_bh(device);
 		return;
 	}
 
-	if ((scsw_cc(&irb->scsw) == 1) && !sense &&
-	    (scsw_fctl(&irb->scsw) == SCSW_FCTL_START_FUNC) &&
-	    (scsw_actl(&irb->scsw) == SCSW_ACTL_START_PEND) &&
-	    (scsw_stctl(&irb->scsw) == SCSW_STCTL_STATUS_PEND)) {
-		/* fake irb do nothing, they are handled elsewhere */
-		dasd_schedule_device_bh(device);
-		return;
+	/* loss of device reservation is handled via base devices only
+	 * as alias devices may be used with several bases
+	 */
+	if (device->block && (sense[7] == 0x3F) &&
+	    (scsw_dstat(&irb->scsw) & DEV_STAT_UNIT_CHECK) &&
+	    test_bit(DASD_FLAG_IS_RESERVED, &device->flags)) {
+		if (device->features & DASD_FEATURE_FAILONSLCK)
+			set_bit(DASD_FLAG_LOCK_STOLEN, &device->flags);
+		clear_bit(DASD_FLAG_IS_RESERVED, &device->flags);
+		dev_err(&device->cdev->dev,
+			"The device reservation was lost\n");
 	}
-
-	dasd_schedule_device_bh(device);
-	return;
-};
-
+}
 
 static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_single(
 					       struct dasd_device *startdev,
@@ -2931,6 +2933,8 @@ dasd_eckd_release(struct dasd_device *device)
 	cqr->status = DASD_CQR_FILLED;
 
 	rc = dasd_sleep_on_immediatly(cqr);
+	if (!rc)
+		clear_bit(DASD_FLAG_IS_RESERVED, &device->flags);
 
 	if (useglobal)
 		mutex_unlock(&dasd_reserve_mutex);
@@ -2984,6 +2988,8 @@ dasd_eckd_reserve(struct dasd_device *device)
 	cqr->status = DASD_CQR_FILLED;
 
 	rc = dasd_sleep_on_immediatly(cqr);
+	if (!rc)
+		set_bit(DASD_FLAG_IS_RESERVED, &device->flags);
 
 	if (useglobal)
 		mutex_unlock(&dasd_reserve_mutex);
@@ -3036,6 +3042,8 @@ dasd_eckd_steal_lock(struct dasd_device *device)
 	cqr->status = DASD_CQR_FILLED;
 
 	rc = dasd_sleep_on_immediatly(cqr);
+	if (!rc)
+		set_bit(DASD_FLAG_IS_RESERVED, &device->flags);
 
 	if (useglobal)
 		mutex_unlock(&dasd_reserve_mutex);
@@ -3088,6 +3096,7 @@ static int dasd_eckd_snid(struct dasd_device *device,
 	cqr->memdev = device;
 	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
 	set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
+	set_bit(DASD_CQR_ALLOW_SLOCK, &cqr->flags);
 	cqr->retries = 5;
 	cqr->expires = 10 * HZ;
 	cqr->buildclk = get_clock();
@@ -3832,7 +3841,7 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.format_device = dasd_eckd_format_device,
 	.erp_action = dasd_eckd_erp_action,
 	.erp_postaction = dasd_eckd_erp_postaction,
-	.handle_unsolicited_interrupt = dasd_eckd_handle_unsolicited_interrupt,
+	.check_for_device_change = dasd_eckd_check_for_device_change,
 	.build_cp = dasd_eckd_build_alias_cp,
 	.free_cp = dasd_eckd_free_alias_cp,
 	.dump_sense = dasd_eckd_dump_sense,

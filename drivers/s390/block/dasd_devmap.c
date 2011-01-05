@@ -1127,6 +1127,103 @@ dasd_expires_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(expires, 0644, dasd_expires_show, dasd_expires_store);
 
+static ssize_t dasd_reservation_policy_show(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	struct dasd_devmap *devmap;
+	int rc = 0;
+
+	devmap = dasd_find_busid(dev_name(dev));
+	if (IS_ERR(devmap)) {
+		rc = snprintf(buf, PAGE_SIZE, "ignore\n");
+	} else {
+		spin_lock(&dasd_devmap_lock);
+		if (devmap->features & DASD_FEATURE_FAILONSLCK)
+			rc = snprintf(buf, PAGE_SIZE, "fail\n");
+		else
+			rc = snprintf(buf, PAGE_SIZE, "ignore\n");
+		spin_unlock(&dasd_devmap_lock);
+	}
+	return rc;
+}
+
+static ssize_t dasd_reservation_policy_store(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf, size_t count)
+{
+	struct dasd_devmap *devmap;
+	int rc;
+
+	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(devmap))
+		return PTR_ERR(devmap);
+	rc = 0;
+	spin_lock(&dasd_devmap_lock);
+	if (sysfs_streq("ignore", buf))
+		devmap->features &= ~DASD_FEATURE_FAILONSLCK;
+	else if (sysfs_streq("fail", buf))
+		devmap->features |= DASD_FEATURE_FAILONSLCK;
+	else
+		rc = -EINVAL;
+	if (devmap->device)
+		devmap->device->features = devmap->features;
+	spin_unlock(&dasd_devmap_lock);
+	if (rc)
+		return rc;
+	else
+		return count;
+}
+
+static DEVICE_ATTR(reservation_policy, 0644,
+		   dasd_reservation_policy_show, dasd_reservation_policy_store);
+
+static ssize_t dasd_reservation_state_show(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct dasd_device *device;
+	int rc = 0;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return snprintf(buf, PAGE_SIZE, "none\n");
+
+	if (test_bit(DASD_FLAG_IS_RESERVED, &device->flags))
+		rc = snprintf(buf, PAGE_SIZE, "reserved\n");
+	else if (test_bit(DASD_FLAG_LOCK_STOLEN, &device->flags))
+		rc = snprintf(buf, PAGE_SIZE, "lost\n");
+	else
+		rc = snprintf(buf, PAGE_SIZE, "none\n");
+	dasd_put_device(device);
+	return rc;
+}
+
+static ssize_t dasd_reservation_state_store(struct device *dev,
+					    struct device_attribute *attr,
+					    const char *buf, size_t count)
+{
+	struct dasd_device *device;
+	int rc = 0;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+	if (sysfs_streq("reset", buf))
+		clear_bit(DASD_FLAG_LOCK_STOLEN, &device->flags);
+	else
+		rc = -EINVAL;
+	dasd_put_device(device);
+
+	if (rc)
+		return rc;
+	else
+		return count;
+}
+
+static DEVICE_ATTR(last_known_reservation_state, 0644,
+		   dasd_reservation_state_show, dasd_reservation_state_store);
+
 static struct attribute * dasd_attrs[] = {
 	&dev_attr_readonly.attr,
 	&dev_attr_discipline.attr,
@@ -1139,6 +1236,8 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_erplog.attr,
 	&dev_attr_failfast.attr,
 	&dev_attr_expires.attr,
+	&dev_attr_reservation_policy.attr,
+	&dev_attr_last_known_reservation_state.attr,
 	NULL,
 };
 

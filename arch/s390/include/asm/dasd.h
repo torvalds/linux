@@ -80,6 +80,7 @@ typedef struct dasd_information2_t {
 #define DASD_FEATURE_INITIAL_ONLINE  0x04
 #define DASD_FEATURE_ERPLOG	     0x08
 #define DASD_FEATURE_FAILFAST	     0x10
+#define DASD_FEATURE_FAILONSLCK      0x20
 
 #define DASD_PARTN_BITS 2
 

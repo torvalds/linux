@@ -233,24 +233,16 @@ dasd_fba_erp_postaction(struct dasd_ccw_req * cqr)
 	return NULL;
 }
 
-static void dasd_fba_handle_unsolicited_interrupt(struct dasd_device *device,
-						   struct irb *irb)
+static void dasd_fba_check_for_device_change(struct dasd_device *device,
+					     struct dasd_ccw_req *cqr,
+					     struct irb *irb)
 {
 	char mask;
 
 	/* first of all check for state change pending interrupt */
 	mask = DEV_STAT_ATTENTION | DEV_STAT_DEV_END | DEV_STAT_UNIT_EXCEP;
-	if ((irb->scsw.cmd.dstat & mask) == mask) {
+	if ((irb->scsw.cmd.dstat & mask) == mask)
 		dasd_generic_handle_state_change(device);
-		return;
-	}
-
-	/* check for unsolicited interrupts */
-	DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-		    "unsolicited interrupt received");
-	device->discipline->dump_sense_dbf(device, irb, "unsolicited");
-	dasd_schedule_device_bh(device);
-	return;
 };
 
 static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device * memdev,
@@ -605,7 +597,7 @@ static struct dasd_discipline dasd_fba_discipline = {
 	.handle_terminated_request = dasd_fba_handle_terminated_request,
 	.erp_action = dasd_fba_erp_action,
 	.erp_postaction = dasd_fba_erp_postaction,
-	.handle_unsolicited_interrupt = dasd_fba_handle_unsolicited_interrupt,
+	.check_for_device_change = dasd_fba_check_for_device_change,
 	.build_cp = dasd_fba_build_cp,
 	.free_cp = dasd_fba_free_cp,
 	.dump_sense = dasd_fba_dump_sense,
