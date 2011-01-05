@@ -72,9 +72,6 @@ struct ins_replace_args {
 struct prev_kprobe {
 	struct kprobe *kp;
 	unsigned long status;
-	unsigned long saved_psw;
-	unsigned long kprobe_saved_imask;
-	unsigned long kprobe_saved_ctl[3];
 };
 
 /* per-cpu kprobe control block */

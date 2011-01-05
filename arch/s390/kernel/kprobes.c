@@ -198,51 +198,58 @@ void __kprobes arch_remove_kprobe(struct kprobe *p)
 	}
 }
 
-static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes enable_singlestep(struct kprobe_ctlblk *kcb,
+					struct pt_regs *regs,
+					unsigned long ip)
 {
 	per_cr_bits kprobe_per_regs[1];
 
-	memset(kprobe_per_regs, 0, sizeof(per_cr_bits));
-	regs->psw.addr = (unsigned long)p->ainsn.insn | PSW_ADDR_AMODE;
-
 	/* Set up the per control reg info, will pass to lctl */
+	memset(kprobe_per_regs, 0, sizeof(per_cr_bits));
 	kprobe_per_regs[0].em_instruction_fetch = 1;
-	kprobe_per_regs[0].starting_addr = (unsigned long)p->ainsn.insn;
-	kprobe_per_regs[0].ending_addr = (unsigned long)p->ainsn.insn + 1;
+	kprobe_per_regs[0].starting_addr = ip;
+	kprobe_per_regs[0].ending_addr = ip;
 
-	/* Set the PER control regs, turns on single step for this address */
+	/* Save control regs and psw mask */
+	__ctl_store(kcb->kprobe_saved_ctl, 9, 11);
+	kcb->kprobe_saved_imask = regs->psw.mask &
+		(PSW_MASK_PER | PSW_MASK_IO | PSW_MASK_EXT);
+
+	/* Set PER control regs, turns on single step for the given address */
 	__ctl_load(kprobe_per_regs, 9, 11);
 	regs->psw.mask |= PSW_MASK_PER;
 	regs->psw.mask &= ~(PSW_MASK_IO | PSW_MASK_EXT);
+	regs->psw.addr = ip | PSW_ADDR_AMODE;
 }
+
+static void __kprobes disable_singlestep(struct kprobe_ctlblk *kcb,
+					 struct pt_regs *regs,
+					 unsigned long ip)
+{
+	/* Restore control regs and psw mask, set new psw address */
+	__ctl_load(kcb->kprobe_saved_ctl, 9, 11);
+	regs->psw.mask &= ~PSW_MASK_PER;
+	regs->psw.mask |= kcb->kprobe_saved_imask;
+	regs->psw.addr = ip | PSW_ADDR_AMODE;
+}
+
 
 static void __kprobes save_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	kcb->prev_kprobe.kp = kprobe_running();
 	kcb->prev_kprobe.status = kcb->kprobe_status;
-	kcb->prev_kprobe.kprobe_saved_imask = kcb->kprobe_saved_imask;
-	memcpy(kcb->prev_kprobe.kprobe_saved_ctl, kcb->kprobe_saved_ctl,
-					sizeof(kcb->kprobe_saved_ctl));
 }
 
 static void __kprobes restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	__get_cpu_var(current_kprobe) = kcb->prev_kprobe.kp;
 	kcb->kprobe_status = kcb->prev_kprobe.status;
-	kcb->kprobe_saved_imask = kcb->prev_kprobe.kprobe_saved_imask;
-	memcpy(kcb->kprobe_saved_ctl, kcb->prev_kprobe.kprobe_saved_ctl,
-					sizeof(kcb->kprobe_saved_ctl));
 }
 
 static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 						struct kprobe_ctlblk *kcb)
 {
 	__get_cpu_var(current_kprobe) = p;
-	/* Save the interrupt and per flags */
-	kcb->kprobe_saved_imask = regs->psw.mask &
-		(PSW_MASK_PER | PSW_MASK_IO | PSW_MASK_EXT);
-	/* Save the control regs that govern PER */
-	__ctl_store(kcb->kprobe_saved_ctl, 9, 11);
 }
 
 void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
@@ -282,7 +289,8 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			save_previous_kprobe(kcb);
 			set_current_kprobe(p, regs, kcb);
 			kprobes_inc_nmissed_count(p);
-			prepare_singlestep(p, regs);
+			enable_singlestep(kcb, regs,
+					  (unsigned long) p->ainsn.insn);
 			kcb->kprobe_status = KPROBE_REENTER;
 			return 1;
 		} else {
@@ -311,7 +319,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		return 1;
 
 ss_probe:
-	prepare_singlestep(p, regs);
+	enable_singlestep(kcb, regs, (unsigned long) p->ainsn.insn);
 	kcb->kprobe_status = KPROBE_HIT_SS;
 	return 1;
 
@@ -433,31 +441,20 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-
-	regs->psw.addr &= PSW_ADDR_INSN;
+	unsigned long ip = regs->psw.addr & PSW_ADDR_INSN;
 
 	if (p->ainsn.fixup & FIXUP_PSW_NORMAL)
-		regs->psw.addr = (unsigned long)p->addr +
-				((unsigned long)regs->psw.addr -
-				 (unsigned long)p->ainsn.insn);
+		ip += (unsigned long) p->addr - (unsigned long) p->ainsn.insn;
 
 	if (p->ainsn.fixup & FIXUP_BRANCH_NOT_TAKEN)
-		if ((unsigned long)regs->psw.addr -
-		    (unsigned long)p->ainsn.insn == p->ainsn.ilen)
-			regs->psw.addr = (unsigned long)p->addr + p->ainsn.ilen;
+		if (ip - (unsigned long) p->ainsn.insn == p->ainsn.ilen)
+			ip = (unsigned long) p->addr + p->ainsn.ilen;
 
 	if (p->ainsn.fixup & FIXUP_RETURN_REGISTER)
-		regs->gprs[p->ainsn.reg] = ((unsigned long)p->addr +
-						(regs->gprs[p->ainsn.reg] -
-						(unsigned long)p->ainsn.insn))
-						| PSW_ADDR_AMODE;
+		regs->gprs[p->ainsn.reg] += (unsigned long) p->addr -
+					    (unsigned long) p->ainsn.insn;
 
-	regs->psw.addr |= PSW_ADDR_AMODE;
-	/* turn off PER mode */
-	regs->psw.mask &= ~PSW_MASK_PER;
-	/* Restore the original per control regs */
-	__ctl_load(kcb->kprobe_saved_ctl, 9, 11);
-	regs->psw.mask |= kcb->kprobe_saved_imask;
+	disable_singlestep(kcb, regs, ip);
 }
 
 static int __kprobes post_kprobe_handler(struct pt_regs *regs)
@@ -515,9 +512,7 @@ static int __kprobes kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		 * and allow the page fault handler to continue as a
 		 * normal page fault.
 		 */
-		regs->psw.addr = (unsigned long)cur->addr | PSW_ADDR_AMODE;
-		regs->psw.mask &= ~PSW_MASK_PER;
-		regs->psw.mask |= kcb->kprobe_saved_imask;
+		disable_singlestep(kcb, regs, (unsigned long) cur->addr);
 		if (kcb->kprobe_status == KPROBE_REENTER)
 			restore_previous_kprobe(kcb);
 		else {
