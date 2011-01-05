@@ -34,6 +34,7 @@
 
 #include <linux/pci.h> /* for struct pci_device_id */
 #include <linux/kernel.h>
+#include <linux/wait.h>
 #include <net/ieee80211_radiotap.h>
 
 #include "iwl-eeprom.h"
@@ -1139,6 +1140,33 @@ struct iwl_force_reset {
  */
 #define IWLAGN_EXT_BEACON_TIME_POS	22
 
+/**
+ * struct iwl_notification_wait - notification wait entry
+ * @list: list head for global list
+ * @fn: function called with the notification
+ * @cmd: command ID
+ *
+ * This structure is not used directly, to wait for a
+ * notification declare it on the stack, and call
+ * iwlagn_init_notification_wait() with appropriate
+ * parameters. Then do whatever will cause the ucode
+ * to notify the driver, and to wait for that then
+ * call iwlagn_wait_notification().
+ *
+ * Each notification is one-shot. If at some point we
+ * need to support multi-shot notifications (which
+ * can't be allocated on the stack) we need to modify
+ * the code for them.
+ */
+struct iwl_notification_wait {
+	struct list_head list;
+
+	void (*fn)(struct iwl_priv *priv, struct iwl_rx_packet *pkt);
+
+	u8 cmd;
+	bool triggered;
+};
+
 enum iwl_rxon_context_id {
 	IWL_RXON_CTX_BSS,
 	IWL_RXON_CTX_PAN,
@@ -1463,6 +1491,11 @@ struct iwl_priv {
 			struct iwl_bt_notif_statistics delta_statistics_bt;
 			struct iwl_bt_notif_statistics max_delta_bt;
 #endif
+
+			/* notification wait support */
+			struct list_head notif_waits;
+			spinlock_t notif_wait_lock;
+			wait_queue_head_t notif_waitq;
 		} _agn;
 #endif
 	};
