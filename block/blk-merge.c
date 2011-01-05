@@ -351,11 +351,12 @@ static void blk_account_io_merge(struct request *req)
 		int cpu;
 
 		cpu = part_stat_lock();
-		part = disk_map_sector_rcu(req->rq_disk, blk_rq_pos(req));
+		part = req->part;
 
 		part_round_stats(cpu, part);
 		part_dec_in_flight(part, rq_data_dir(req));
 
+		kref_put(&part->ref, __delete_partition);
 		part_stat_unlock();
 	}
 }
