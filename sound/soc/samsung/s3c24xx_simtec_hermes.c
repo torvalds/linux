@@ -21,8 +21,6 @@
 #include "s3c24xx-i2s.h"
 #include "s3c24xx_simtec.h"
 
-#include "../codecs/tlv320aic3x.h"
-
 static const struct snd_soc_dapm_widget dapm_widgets[] = {
 	SND_SOC_DAPM_LINE("GSM Out", NULL),
 	SND_SOC_DAPM_LINE("GSM In", NULL),

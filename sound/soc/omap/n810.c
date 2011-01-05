@@ -35,7 +35,6 @@
 
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
-#include "../codecs/tlv320aic3x.h"
 
 #define N810_HEADSET_AMP_GPIO	10
 #define N810_SPEAKER_AMP_GPIO	101

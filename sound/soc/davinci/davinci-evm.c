@@ -26,7 +26,6 @@
 #include <mach/edma.h>
 #include <mach/mux.h>
 
-#include "../codecs/tlv320aic3x.h"
 #include "davinci-pcm.h"
 #include "davinci-i2s.h"
 #include "davinci-mcasp.h"

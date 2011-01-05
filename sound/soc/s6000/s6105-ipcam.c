@@ -21,7 +21,6 @@
 
 #include <variant/dmac.h>
 
-#include "../codecs/tlv320aic3x.h"
 #include "s6000-pcm.h"
 #include "s6000-i2s.h"
 
