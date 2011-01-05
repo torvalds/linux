@@ -197,6 +197,8 @@ _TIF_SYSCALL = (_TIF_SYSCALL_TRACE>>8 | _TIF_SYSCALL_AUDIT>>8 | \
 	ssm	__SF_EMPTY(%r15)
 	.endm
 
+	.section .kprobes.text, "ax"
+
 /*
  * Scheduler resume function, called by switch_to
  *  gpr2 = (task_struct *) prev
@@ -867,6 +869,8 @@ restart_crash:
 	.long  0x000a0000,0x00000000,0x00000000,0x00000000
 restart_go:
 #endif
+
+	.section .kprobes.text, "ax"
 
 #ifdef CONFIG_CHECK_STACK
 /*

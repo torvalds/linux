@@ -451,8 +451,8 @@ static inline void do_fp_trap(struct pt_regs *regs, void __user *location,
 		"floating point exception", regs, &si);
 }
 
-static void illegal_op(struct pt_regs *regs, long pgm_int_code,
-		       unsigned long trans_exc_code)
+static void __kprobes illegal_op(struct pt_regs *regs, long pgm_int_code,
+				 unsigned long trans_exc_code)
 {
 	siginfo_t info;
         __u8 opcode[6];
@@ -688,7 +688,7 @@ static void space_switch_exception(struct pt_regs *regs, long pgm_int_code,
 	do_trap(pgm_int_code, SIGILL, "space switch event", regs, &info);
 }
 
-asmlinkage void kernel_stack_overflow(struct pt_regs * regs)
+asmlinkage void __kprobes kernel_stack_overflow(struct pt_regs * regs)
 {
 	bust_spinlocks(1);
 	printk("Kernel stack overflow.\n");

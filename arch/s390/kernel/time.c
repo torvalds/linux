@@ -37,6 +37,7 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/gfp.h>
+#include <linux/kprobes.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
 #include <asm/s390_ext.h>
@@ -60,7 +61,7 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
-unsigned long long notrace sched_clock(void)
+unsigned long long notrace __kprobes sched_clock(void)
 {
 	return (get_clock_monotonic() * 125) >> 9;
 }

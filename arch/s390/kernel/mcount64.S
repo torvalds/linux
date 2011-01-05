@@ -7,6 +7,8 @@
 
 #include <asm/asm-offsets.h>
 
+	.section .kprobes.text, "ax"
+
 	.globl ftrace_stub
 ftrace_stub:
 	br	%r14

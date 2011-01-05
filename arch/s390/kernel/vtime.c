@@ -20,6 +20,7 @@
 #include <linux/rcupdate.h>
 #include <linux/posix-timers.h>
 #include <linux/cpu.h>
+#include <linux/kprobes.h>
 
 #include <asm/s390_ext.h>
 #include <asm/timer.h>
@@ -122,7 +123,7 @@ void account_system_vtime(struct task_struct *tsk)
 }
 EXPORT_SYMBOL_GPL(account_system_vtime);
 
-void vtime_start_cpu(__u64 int_clock, __u64 enter_timer)
+void __kprobes vtime_start_cpu(__u64 int_clock, __u64 enter_timer)
 {
 	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
 	struct vtimer_queue *vq = &__get_cpu_var(virt_cpu_timer);
@@ -162,7 +163,7 @@ void vtime_start_cpu(__u64 int_clock, __u64 enter_timer)
 	idle->sequence++;
 }
 
-void vtime_stop_cpu(void)
+void __kprobes vtime_stop_cpu(void)
 {
 	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
 	struct vtimer_queue *vq = &__get_cpu_var(virt_cpu_timer);

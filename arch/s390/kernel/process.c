@@ -32,6 +32,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/syscalls.h>
 #include <linux/compat.h>
+#include <linux/kprobes.h>
 #include <asm/compat.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -116,15 +117,17 @@ void cpu_idle(void)
 	}
 }
 
-extern void kernel_thread_starter(void);
+extern void __kprobes kernel_thread_starter(void);
 
 asm(
-	".align 4\n"
+	".section .kprobes.text, \"ax\"\n"
+	".global kernel_thread_starter\n"
 	"kernel_thread_starter:\n"
 	"    la    2,0(10)\n"
 	"    basr  14,9\n"
 	"    la    2,0\n"
-	"    br    11\n");
+	"    br    11\n"
+	".previous\n");
 
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 {
