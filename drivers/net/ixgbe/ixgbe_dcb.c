@@ -141,6 +141,59 @@ out:
 	return ret_val;
 }
 
+void ixgbe_dcb_unpack_pfc(struct ixgbe_dcb_config *cfg, u8 *pfc_en)
+{
+	int i;
+
+	*pfc_en = 0;
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
+		*pfc_en |= (cfg->tc_config[i].dcb_pfc & 0xF) << i;
+}
+
+void ixgbe_dcb_unpack_refill(struct ixgbe_dcb_config *cfg, int direction,
+			     u16 *refill)
+{
+	struct tc_bw_alloc *p;
+	int i;
+
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		p = &cfg->tc_config[i].path[direction];
+		refill[i] = p->data_credits_refill;
+	}
+}
+
+void ixgbe_dcb_unpack_max(struct ixgbe_dcb_config *cfg, u16 *max)
+{
+	int i;
+
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
+		max[i] = cfg->tc_config[i].desc_credits_max;
+}
+
+void ixgbe_dcb_unpack_bwgid(struct ixgbe_dcb_config *cfg, int direction,
+			    u8 *bwgid)
+{
+	struct tc_bw_alloc *p;
+	int i;
+
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		p = &cfg->tc_config[i].path[direction];
+		bwgid[i] = p->bwg_id;
+	}
+}
+
+void ixgbe_dcb_unpack_prio(struct ixgbe_dcb_config *cfg, int direction,
+			    u8 *ptype)
+{
+	struct tc_bw_alloc *p;
+	int i;
+
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		p = &cfg->tc_config[i].path[direction];
+		ptype[i] = p->prio_type;
+	}
+}
+
 /**
  * ixgbe_dcb_hw_config - Config and enable DCB
  * @hw: pointer to hardware structure
@@ -152,13 +205,30 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
                         struct ixgbe_dcb_config *dcb_config)
 {
 	s32 ret = 0;
+	u8 pfc_en;
+	u8 ptype[MAX_TRAFFIC_CLASS];
+	u8 bwgid[MAX_TRAFFIC_CLASS];
+	u16 refill[MAX_TRAFFIC_CLASS];
+	u16 max[MAX_TRAFFIC_CLASS];
+
+	/* Unpack CEE standard containers */
+	ixgbe_dcb_unpack_pfc(dcb_config, &pfc_en);
+	ixgbe_dcb_unpack_refill(dcb_config, DCB_TX_CONFIG, refill);
+	ixgbe_dcb_unpack_max(dcb_config, max);
+	ixgbe_dcb_unpack_bwgid(dcb_config, DCB_TX_CONFIG, bwgid);
+	ixgbe_dcb_unpack_prio(dcb_config, DCB_TX_CONFIG, ptype);
+
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
-		ret = ixgbe_dcb_hw_config_82598(hw, dcb_config);
+		ret = ixgbe_dcb_hw_config_82598(hw, dcb_config->rx_pba_cfg,
+						pfc_en, refill, max, bwgid,
+						ptype);
 		break;
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
-		ret = ixgbe_dcb_hw_config_82599(hw, dcb_config);
+		ret = ixgbe_dcb_hw_config_82599(hw, dcb_config->rx_pba_cfg,
+						pfc_en, refill, max, bwgid,
+						ptype);
 		break;
 	default:
 		break;

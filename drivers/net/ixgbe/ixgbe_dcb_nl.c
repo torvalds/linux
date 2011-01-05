@@ -422,12 +422,13 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 		}
 		ret = DCB_HW_CHG_RST;
 	} else if (adapter->dcb_set_bitmap & BIT_PFC) {
+		u8 pfc_en;
+		ixgbe_dcb_unpack_pfc(&adapter->dcb_cfg, &pfc_en);
+
 		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
-			ixgbe_dcb_config_pfc_82598(&adapter->hw,
-			                           &adapter->dcb_cfg);
+			ixgbe_dcb_config_pfc_82598(&adapter->hw, pfc_en);
 		else if (adapter->hw.mac.type == ixgbe_mac_82599EB)
-			ixgbe_dcb_config_pfc_82599(&adapter->hw,
-			                           &adapter->dcb_cfg);
+			ixgbe_dcb_config_pfc_82599(&adapter->hw, pfc_en);
 		ret = DCB_HW_CHG;
 	}
 	if (adapter->dcb_cfg.pfc_mode_enable)

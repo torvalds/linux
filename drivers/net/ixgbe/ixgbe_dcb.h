@@ -147,6 +147,7 @@ struct ixgbe_dcb_config {
 };
 
 /* DCB driver APIs */
+void ixgbe_dcb_unpack_pfc(struct ixgbe_dcb_config *cfg, u8 *pfc_en);
 
 /* DCB credits calculation */
 s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *,
