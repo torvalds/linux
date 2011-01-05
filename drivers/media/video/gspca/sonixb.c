@@ -1027,7 +1027,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 		desired_avg_lum = 5000;
 	} else {
 		deadzone = 1500;
-		desired_avg_lum = 18000;
+		desired_avg_lum = 13000;
 	}
 
 	if (sensor_data[sd->sensor].flags & F_COARSE_EXPO)
@@ -1135,7 +1135,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	} else {
 		regs[0x1a] = 0x1d; /* HO_SIZE 960, makes no sense */
 		regs[0x1b] = 0x10; /* VO_SIZE 512, makes no sense */
-		regs[0x1c] = 0x02; /* AE H-start 64 */
+		regs[0x1c] = 0x05; /* AE H-start 160 */
 		regs[0x1d] = 0x03; /* AE V-start 96 */
 		regs[0x1e] = 0x0f; /* AE H-end 480 */
 		regs[0x1f] = 0x0c; /* AE V-end 384 */
