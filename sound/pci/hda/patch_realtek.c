@@ -5200,7 +5200,8 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec,
 {
 	struct alc_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, err, idx, type, type_idx = 0;
+	int i, err, idx, type_idx = 0;
+	const char *prev_label = NULL;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t pin;
@@ -5210,12 +5211,13 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec,
 		if (!alc_is_input_pin(codec, pin))
 			continue;
 
-		type = cfg->inputs[i].type;
-		if (i > 0 && type == cfg->inputs[i - 1].type)
+		label = hda_get_autocfg_input_label(codec, cfg, i);
+		if (prev_label && !strcmp(label, prev_label))
 			type_idx++;
 		else
 			type_idx = 0;
-		label = hda_get_autocfg_input_label(codec, cfg, i);
+		prev_label = label;
+
 		if (mixer) {
 			idx = get_connection_index(codec, mixer, pin);
 			if (idx >= 0) {
@@ -10819,25 +10821,30 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i, err, type;
+	int i, err;
 	int type_idx = 0;
 	hda_nid_t nid;
+	const char *prev_label = NULL;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		if (cfg->inputs[i].type > AUTO_PIN_MIC)
 			break;
 		nid = cfg->inputs[i].pin;
 		if (get_wcaps(codec, nid) & AC_WCAP_IN_AMP) {
-			char label[32];
-			type = cfg->inputs[i].type;
-			if (i > 0 && type == cfg->inputs[i - 1].type)
+			const char *label;
+			char boost_label[32];
+
+			label = hda_get_autocfg_input_label(codec, cfg, i);
+			if (prev_label && !strcmp(label, prev_label))
 				type_idx++;
 			else
 				type_idx = 0;
-			snprintf(label, sizeof(label), "%s Boost Volume",
-				 hda_get_autocfg_input_label(codec, cfg, i));
-			err = add_control(spec, ALC_CTL_WIDGET_VOL, label,
-					  type_idx,
+			prev_label = label;
+
+			snprintf(boost_label, sizeof(boost_label),
+				 "%s Boost Volume", label);
+			err = add_control(spec, ALC_CTL_WIDGET_VOL,
+					  boost_label, type_idx,
 				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
 			if (err < 0)
 				return err;
