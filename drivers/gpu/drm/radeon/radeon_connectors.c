@@ -1219,7 +1219,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		if (ASIC_IS_AVIVO(rdev)) {
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.underscan_property,
-						      UNDERSCAN_AUTO);
+						      UNDERSCAN_OFF);
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.underscan_hborder_property,
 						      0);
@@ -1259,7 +1259,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		if (ASIC_IS_AVIVO(rdev)) {
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.underscan_property,
-						      UNDERSCAN_AUTO);
+						      UNDERSCAN_OFF);
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.underscan_hborder_property,
 						      0);
@@ -1302,7 +1302,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		if (ASIC_IS_AVIVO(rdev)) {
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.underscan_property,
-						      UNDERSCAN_AUTO);
+						      UNDERSCAN_OFF);
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.underscan_hborder_property,
 						      0);
