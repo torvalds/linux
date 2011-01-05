@@ -114,6 +114,8 @@ static struct symbol *__find_kernel_function_by_name(const char *name,
 const char *kernel_get_module_path(const char *module)
 {
 	struct dso *dso;
+	struct map *map;
+	const char *vmlinux_name;
 
 	if (module) {
 		list_for_each_entry(dso, &machine.kernel_dsos, node) {
@@ -123,10 +125,17 @@ const char *kernel_get_module_path(const char *module)
 		}
 		pr_debug("Failed to find module %s.\n", module);
 		return NULL;
+	}
+
+	map = machine.vmlinux_maps[MAP__FUNCTION];
+	dso = map->dso;
+
+	vmlinux_name = symbol_conf.vmlinux_name;
+	if (vmlinux_name) {
+		if (dso__load_vmlinux(dso, map, vmlinux_name, NULL) <= 0)
+			return NULL;
 	} else {
-		dso = machine.vmlinux_maps[MAP__FUNCTION]->dso;
-		if (dso__load_vmlinux_path(dso,
-			 machine.vmlinux_maps[MAP__FUNCTION], NULL) < 0) {
+		if (dso__load_vmlinux_path(dso, map, NULL) <= 0) {
 			pr_debug("Failed to load kernel map.\n");
 			return NULL;
 		}

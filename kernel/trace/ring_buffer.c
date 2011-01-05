@@ -3853,6 +3853,13 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 
 		/* Need to copy one event at a time */
 		do {
+			/* We need the size of one event, because
+			 * rb_advance_reader only advances by one event,
+			 * whereas rb_event_ts_length may include the size of
+			 * one or two events.
+			 * We have already ensured there's enough space if this
+			 * is a time extend. */
+			size = rb_event_length(event);
 			memcpy(bpage->data + pos, rpage->data + rpos, size);
 
 			len -= size;
@@ -3867,7 +3874,7 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 			event = rb_reader_event(cpu_buffer);
 			/* Always keep the time extend and data together */
 			size = rb_event_ts_length(event);
-		} while (len > size);
+		} while (len >= size);
 
 		/* update bpage */
 		local_set(&bpage->commit, pos);

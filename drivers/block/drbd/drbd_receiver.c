@@ -3627,15 +3627,17 @@ static void drbdd(struct drbd_conf *mdev)
 		}
 
 		shs = drbd_cmd_handler[cmd].pkt_size - sizeof(union p_header);
-		rv = drbd_recv(mdev, &header->h80.payload, shs);
-		if (unlikely(rv != shs)) {
-			dev_err(DEV, "short read while reading sub header: rv=%d\n", rv);
-			goto err_out;
-		}
-
 		if (packet_size - shs > 0 && !drbd_cmd_handler[cmd].expect_payload) {
 			dev_err(DEV, "No payload expected %s l:%d\n", cmdname(cmd), packet_size);
 			goto err_out;
+		}
+
+		if (shs) {
+			rv = drbd_recv(mdev, &header->h80.payload, shs);
+			if (unlikely(rv != shs)) {
+				dev_err(DEV, "short read while reading sub header: rv=%d\n", rv);
+				goto err_out;
+			}
 		}
 
 		rv = drbd_cmd_handler[cmd].function(mdev, cmd, packet_size - shs);

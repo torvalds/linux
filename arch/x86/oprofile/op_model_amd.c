@@ -630,21 +630,29 @@ static int __init_ibs_nmi(void)
 	return 0;
 }
 
-/* initialize the APIC for the IBS interrupts if available */
+/*
+ * check and reserve APIC extended interrupt LVT offset for IBS if
+ * available
+ *
+ * init_ibs() preforms implicitly cpu-local operations, so pin this
+ * thread to its current CPU
+ */
+
 static void init_ibs(void)
 {
+	preempt_disable();
+
 	ibs_caps = get_ibs_caps();
-
 	if (!ibs_caps)
-		return;
+		goto out;
 
-	if (__init_ibs_nmi()) {
+	if (__init_ibs_nmi() < 0)
 		ibs_caps = 0;
-		return;
-	}
+	else
+		printk(KERN_INFO "oprofile: AMD IBS detected (0x%08x)\n", ibs_caps);
 
-	printk(KERN_INFO "oprofile: AMD IBS detected (0x%08x)\n",
-	       (unsigned)ibs_caps);
+out:
+	preempt_enable();
 }
 
 static int (*create_arch_files)(struct super_block *sb, struct dentry *root);

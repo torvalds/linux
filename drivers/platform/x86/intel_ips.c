@@ -75,6 +75,7 @@
 #include <drm/i915_drm.h>
 #include <asm/msr.h>
 #include <asm/processor.h>
+#include "intel_ips.h"
 
 #define PCI_DEVICE_ID_INTEL_THERMAL_SENSOR 0x3b32
 
@@ -245,6 +246,7 @@
 #define thm_writel(off, val) writel((val), ips->regmap + (off))
 
 static const int IPS_ADJUST_PERIOD = 5000; /* ms */
+static bool late_i915_load = false;
 
 /* For initial average collection */
 static const int IPS_SAMPLE_PERIOD = 200; /* ms */
@@ -338,6 +340,9 @@ struct ips_driver {
 	u64 orig_turbo_limit;
 	u64 orig_turbo_ratios;
 };
+
+static bool
+ips_gpu_turbo_enabled(struct ips_driver *ips);
 
 /**
  * ips_cpu_busy - is CPU busy?
@@ -517,7 +522,7 @@ static void ips_disable_cpu_turbo(struct ips_driver *ips)
  */
 static bool ips_gpu_busy(struct ips_driver *ips)
 {
-	if (!ips->gpu_turbo_enabled)
+	if (!ips_gpu_turbo_enabled(ips))
 		return false;
 
 	return ips->gpu_busy();
@@ -532,7 +537,7 @@ static bool ips_gpu_busy(struct ips_driver *ips)
  */
 static void ips_gpu_raise(struct ips_driver *ips)
 {
-	if (!ips->gpu_turbo_enabled)
+	if (!ips_gpu_turbo_enabled(ips))
 		return;
 
 	if (!ips->gpu_raise())
@@ -549,7 +554,7 @@ static void ips_gpu_raise(struct ips_driver *ips)
  */
 static void ips_gpu_lower(struct ips_driver *ips)
 {
-	if (!ips->gpu_turbo_enabled)
+	if (!ips_gpu_turbo_enabled(ips))
 		return;
 
 	if (!ips->gpu_lower())
@@ -1453,6 +1458,31 @@ out_put_mch:
 out_err:
 	return false;
 }
+
+static bool
+ips_gpu_turbo_enabled(struct ips_driver *ips)
+{
+	if (!ips->gpu_busy && late_i915_load) {
+		if (ips_get_i915_syms(ips)) {
+			dev_info(&ips->dev->dev,
+				 "i915 driver attached, reenabling gpu turbo\n");
+			ips->gpu_turbo_enabled = !(thm_readl(THM_HTS) & HTS_GTD_DIS);
+		}
+	}
+
+	return ips->gpu_turbo_enabled;
+}
+
+void
+ips_link_to_i915_driver()
+{
+	/* We can't cleanly get at the various ips_driver structs from
+	 * this caller (the i915 driver), so just set a flag saying
+	 * that it's time to try getting the symbols again.
+	 */
+	late_i915_load = true;
+}
+EXPORT_SYMBOL_GPL(ips_link_to_i915_driver);
 
 static DEFINE_PCI_DEVICE_TABLE(ips_id_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL,

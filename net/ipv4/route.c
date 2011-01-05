@@ -2585,9 +2585,10 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 			goto out;
 
 		/* RACE: Check return value of inet_select_addr instead. */
-		if (rcu_dereference(dev_out->ip_ptr) == NULL)
-			goto out;	/* Wrong error code */
-
+		if (!(dev_out->flags & IFF_UP) || !__in_dev_get_rcu(dev_out)) {
+			err = -ENETUNREACH;
+			goto out;
+		}
 		if (ipv4_is_local_multicast(oldflp->fl4_dst) ||
 		    ipv4_is_lbcast(oldflp->fl4_dst)) {
 			if (!fl.fl4_src)
@@ -2648,8 +2649,12 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 	}
 
 	if (res.type == RTN_LOCAL) {
-		if (!fl.fl4_src)
-			fl.fl4_src = fl.fl4_dst;
+		if (!fl.fl4_src) {
+			if (res.fi->fib_prefsrc)
+				fl.fl4_src = res.fi->fib_prefsrc;
+			else
+				fl.fl4_src = fl.fl4_dst;
+		}
 		dev_out = net->loopback_dev;
 		fl.oif = dev_out->ifindex;
 		res.fi = NULL;

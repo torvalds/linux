@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
+#include <linux/highmem.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cachetype.h>
@@ -180,10 +181,10 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
 			__cpuc_flush_dcache_area(addr, PAGE_SIZE);
 			kunmap_high(page);
 		} else if (cache_is_vipt()) {
-			pte_t saved_pte;
-			addr = kmap_high_l1_vipt(page, &saved_pte);
+			/* unmapped pages might still be cached */
+			addr = kmap_atomic(page);
 			__cpuc_flush_dcache_area(addr, PAGE_SIZE);
-			kunmap_high_l1_vipt(page, saved_pte);
+			kunmap_atomic(addr);
 		}
 	}
 

@@ -18,7 +18,6 @@ prototypes:
 	char *(*d_dname)((struct dentry *dentry, char *buffer, int buflen);
 
 locking rules:
-	none have BKL
 		dcache_lock	rename_lock	->d_lock	may block
 d_revalidate:	no		no		no		yes
 d_hash		no		no		no		yes
@@ -42,18 +41,23 @@ ata *);
 	int (*rename) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *);
 	int (*readlink) (struct dentry *, char __user *,int);
-	int (*follow_link) (struct dentry *, struct nameidata *);
+	void * (*follow_link) (struct dentry *, struct nameidata *);
+	void (*put_link) (struct dentry *, struct nameidata *, void *);
 	void (*truncate) (struct inode *);
 	int (*permission) (struct inode *, int, struct nameidata *);
+	int (*check_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *, struct dentry *, struct kstat *);
 	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
 	ssize_t (*getxattr) (struct dentry *, const char *, void *, size_t);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	int (*removexattr) (struct dentry *, const char *);
+	void (*truncate_range)(struct inode *, loff_t, loff_t);
+	long (*fallocate)(struct inode *inode, int mode, loff_t offset, loff_t len);
+	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start, u64 len);
 
 locking rules:
-	all may block, none have BKL
+	all may block
 		i_mutex(inode)
 lookup:		yes
 create:		yes
@@ -66,19 +70,24 @@ rmdir:		yes (both)	(see below)
 rename:		yes (all)	(see below)
 readlink:	no
 follow_link:	no
+put_link:	no
 truncate:	yes		(see below)
 setattr:	yes
 permission:	no
+check_acl:	no
 getattr:	no
 setxattr:	yes
 getxattr:	no
 listxattr:	no
 removexattr:	yes
+truncate_range:	yes
+fallocate:	no
+fiemap:		no
 	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_mutex on
 victim.
 	cross-directory ->rename() has (per-superblock) ->s_vfs_rename_sem.
 	->truncate() is never called directly - it's a callback, not a
-method. It's called by vmtruncate() - library function normally used by
+method. It's called by vmtruncate() - deprecated library function used by
 ->setattr(). Locking information above applies to that call (i.e. is
 inherited from ->setattr() - vmtruncate() is used when ATTR_SIZE had been
 passed).
@@ -91,7 +100,7 @@ prototypes:
 	struct inode *(*alloc_inode)(struct super_block *sb);
 	void (*destroy_inode)(struct inode *);
 	void (*dirty_inode) (struct inode *);
-	int (*write_inode) (struct inode *, int);
+	int (*write_inode) (struct inode *, struct writeback_control *wbc);
 	int (*drop_inode) (struct inode *);
 	void (*evict_inode) (struct inode *);
 	void (*put_super) (struct super_block *);
@@ -105,10 +114,10 @@ prototypes:
 	int (*show_options)(struct seq_file *, struct vfsmount *);
 	ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
 	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
+	int (*bdev_try_to_free_page)(struct super_block*, struct page*, gfp_t);
 
 locking rules:
 	All may block [not true, see below]
-	None have BKL
 			s_umount
 alloc_inode:
 destroy_inode:
@@ -127,6 +136,7 @@ umount_begin:		no
 show_options:		no		(namespace_sem)
 quota_read:		no		(see below)
 quota_write:		no		(see below)
+bdev_try_to_free_page:	no		(see below)
 
 ->statfs() has s_umount (shared) when called by ustat(2) (native or
 compat), but that's an accident of bad API; s_umount is used to pin
@@ -139,19 +149,25 @@ be the only ones operating on the quota file by the quota code (via
 dqio_sem) (unless an admin really wants to screw up something and
 writes to quota files with quotas on). For other details about locking
 see also dquot_operations section.
+->bdev_try_to_free_page is called from the ->releasepage handler of
+the block device inode.  See there for more details.
 
 --------------------------- file_system_type ---------------------------
 prototypes:
 	int (*get_sb) (struct file_system_type *, int,
 		       const char *, void *, struct vfsmount *);
+	struct dentry *(*mount) (struct file_system_type *, int,
+		       const char *, void *);
 	void (*kill_sb) (struct super_block *);
 locking rules:
-		may block	BKL
-get_sb		yes		no
-kill_sb		yes		no
+		may block
+get_sb		yes
+mount		yes
+kill_sb		yes
 
 ->get_sb() returns error or 0 with locked superblock attached to the vfsmount
 (exclusive on ->s_umount).
+->mount() returns ERR_PTR or the root dentry.
 ->kill_sb() takes a write-locked superblock, does all shutdown work on it,
 unlocks and drops the reference.
 
@@ -176,27 +192,35 @@ prototypes:
 	void (*freepage)(struct page *);
 	int (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs);
-	int (*launder_page) (struct page *);
+	int (*get_xip_mem)(struct address_space *, pgoff_t, int, void **,
+				unsigned long *);
+	int (*migratepage)(struct address_space *, struct page *, struct page *);
+	int (*launder_page)(struct page *);
+	int (*is_partially_uptodate)(struct page *, read_descriptor_t *, unsigned long);
+	int (*error_remove_page)(struct address_space *, struct page *);
 
 locking rules:
 	All except set_page_dirty and freepage may block
 
-			BKL	PageLocked(page)	i_mutex
-writepage:		no	yes, unlocks (see below)
-readpage:		no	yes, unlocks
-sync_page:		no	maybe
-writepages:		no
-set_page_dirty		no	no
-readpages:		no
-write_begin:		no	locks the page		yes
-write_end:		no	yes, unlocks		yes
-perform_write:		no	n/a			yes
-bmap:			no
-invalidatepage:		no	yes
-releasepage:		no	yes
-freepage:		no	yes
-direct_IO:		no
-launder_page:		no	yes
+			PageLocked(page)	i_mutex
+writepage:		yes, unlocks (see below)
+readpage:		yes, unlocks
+sync_page:		maybe
+writepages:
+set_page_dirty		no
+readpages:
+write_begin:		locks the page		yes
+write_end:		yes, unlocks		yes
+bmap:
+invalidatepage:		yes
+releasepage:		yes
+freepage:		yes
+direct_IO:
+get_xip_mem:					maybe
+migratepage:		yes (both)
+launder_page:		yes
+is_partially_uptodate:	yes
+error_remove_page:	yes
 
 	->write_begin(), ->write_end(), ->sync_page() and ->readpage()
 may be called from the request handler (/dev/loop).
@@ -276,9 +300,8 @@ under spinlock (it cannot block) and is sometimes called with the page
 not locked.
 
 	->bmap() is currently used by legacy ioctl() (FIBMAP) provided by some
-filesystems and by the swapper. The latter will eventually go away. All
-instances do not actually need the BKL. Please, keep it that way and don't
-breed new callers.
+filesystems and by the swapper. The latter will eventually go away.  Please,
+keep it that way and don't breed new callers.
 
 	->invalidatepage() is called when the filesystem must attempt to drop
 some or all of the buffers from the page when it is being truncated.  It
@@ -299,47 +322,37 @@ cleaned, or an error value if not. Note that in order to prevent the page
 getting mapped back in and redirtied, it needs to be kept locked
 across the entire operation.
 
-	Note: currently almost all instances of address_space methods are
-using BKL for internal serialization and that's one of the worst sources
-of contention. Normally they are calling library functions (in fs/buffer.c)
-and pass foo_get_block() as a callback (on local block-based filesystems,
-indeed). BKL is not needed for library stuff and is usually taken by
-foo_get_block(). It's an overkill, since block bitmaps can be protected by
-internal fs locking and real critical areas are much smaller than the areas
-filesystems protect now.
-
 ----------------------- file_lock_operations ------------------------------
 prototypes:
-	void (*fl_insert)(struct file_lock *);	/* lock insertion callback */
-	void (*fl_remove)(struct file_lock *);	/* lock removal callback */
 	void (*fl_copy_lock)(struct file_lock *, struct file_lock *);
 	void (*fl_release_private)(struct file_lock *);
 
 
 locking rules:
-			BKL	may block
-fl_insert:		yes	no
-fl_remove:		yes	no
-fl_copy_lock:		yes	no
-fl_release_private:	yes	yes
+			file_lock_lock	may block
+fl_copy_lock:		yes		no
+fl_release_private:	maybe		no
 
 ----------------------- lock_manager_operations ---------------------------
 prototypes:
 	int (*fl_compare_owner)(struct file_lock *, struct file_lock *);
 	void (*fl_notify)(struct file_lock *);  /* unblock callback */
+	int (*fl_grant)(struct file_lock *, struct file_lock *, int);
 	void (*fl_release_private)(struct file_lock *);
 	void (*fl_break)(struct file_lock *); /* break_lease callback */
+	int (*fl_mylease)(struct file_lock *, struct file_lock *);
+	int (*fl_change)(struct file_lock **, int);
 
 locking rules:
-			BKL	may block
-fl_compare_owner:	yes	no
-fl_notify:		yes	no
-fl_release_private:	yes	yes
-fl_break:		yes	no
+			file_lock_lock	may block
+fl_compare_owner:	yes		no
+fl_notify:		yes		no
+fl_grant:		no		no
+fl_release_private:	maybe		no
+fl_break:		yes		no
+fl_mylease:		yes		no
+fl_change		yes		no
 
-	Currently only NFSD and NLM provide instances of this class. None of the
-them block. If you have out-of-tree instances - please, show up. Locking
-in that area will change.
 --------------------------- buffer_head -----------------------------------
 prototypes:
 	void (*b_end_io)(struct buffer_head *bh, int uptodate);
@@ -364,17 +377,17 @@ prototypes:
 	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
 
 locking rules:
-			BKL	bd_mutex
-open:			no	yes
-release:		no	yes
-ioctl:			no	no
-compat_ioctl:		no	no
-direct_access:		no	no
-media_changed:		no	no
-unlock_native_capacity:	no	no
-revalidate_disk:	no	no
-getgeo:			no	no
-swap_slot_free_notify:	no	no	(see below)
+			bd_mutex
+open:			yes
+release:		yes
+ioctl:			no
+compat_ioctl:		no
+direct_access:		no
+media_changed:		no
+unlock_native_capacity:	no
+revalidate_disk:	no
+getgeo:			no
+swap_slot_free_notify:	no	(see below)
 
 media_changed, unlock_native_capacity and revalidate_disk are called only from
 check_disk_change().
@@ -413,34 +426,21 @@ prototypes:
 	unsigned long (*get_unmapped_area)(struct file *, unsigned long,
 			unsigned long, unsigned long, unsigned long);
 	int (*check_flags)(int);
+	int (*flock) (struct file *, int, struct file_lock *);
+	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, loff_t *,
+			size_t, unsigned int);
+	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *,
+			size_t, unsigned int);
+	int (*setlease)(struct file *, long, struct file_lock **);
 };
 
 locking rules:
-	All may block.
-			BKL
-llseek:			no	(see below)
-read:			no
-aio_read:		no
-write:			no
-aio_write:		no
-readdir: 		no
-poll:			no
-unlocked_ioctl:		no
-compat_ioctl:		no
-mmap:			no
-open:			no
-flush:			no
-release:		no
-fsync:			no	(see below)
-aio_fsync:		no
-fasync:			no
-lock:			yes
-readv:			no
-writev:			no
-sendfile:		no
-sendpage:		no
-get_unmapped_area:	no
-check_flags:		no
+	All may block except for ->setlease.
+	No VFS locks held on entry except for ->fsync and ->setlease.
+
+->fsync() has i_mutex on inode.
+
+->setlease has the file_list_lock held and must not sleep.
 
 ->llseek() locking has moved from llseek to the individual llseek
 implementations.  If your fs is not using generic_file_llseek, you
@@ -450,17 +450,10 @@ mutex or just to use i_size_read() instead.
 Note: this does not protect the file->f_pos against concurrent modifications
 since this is something the userspace has to take care about.
 
-Note: ext2_release() was *the* source of contention on fs-intensive
-loads and dropping BKL on ->release() helps to get rid of that (we still
-grab BKL for cases when we close a file that had been opened r/w, but that
-can and should be done using the internal locking with smaller critical areas).
-Current worst offender is ext2_get_block()...
-
-->fasync() is called without BKL protection, and is responsible for
-maintaining the FASYNC bit in filp->f_flags.  Most instances call
-fasync_helper(), which does that maintenance, so it's not normally
-something one needs to worry about.  Return values > 0 will be mapped to
-zero in the VFS layer.
+->fasync() is responsible for maintaining the FASYNC bit in filp->f_flags.
+Most instances call fasync_helper(), which does that maintenance, so it's
+not normally something one needs to worry about.  Return values > 0 will be
+mapped to zero in the VFS layer.
 
 ->readdir() and ->ioctl() on directories must be changed. Ideally we would
 move ->readdir() to inode_operations and use a separate method for directory
@@ -470,8 +463,6 @@ components. And there are other reasons why the current interface is a mess...
 
 ->read on directories probably must go away - we should just enforce -EISDIR
 in sys_read() and friends.
-
-->fsync() has i_mutex on inode.
 
 --------------------------- dquot_operations -------------------------------
 prototypes:
@@ -507,12 +498,12 @@ prototypes:
 	int (*access)(struct vm_area_struct *, unsigned long, void*, int, int);
 
 locking rules:
-		BKL	mmap_sem	PageLocked(page)
-open:		no	yes
-close:		no	yes
-fault:		no	yes		can return with page locked
-page_mkwrite:	no	yes		can return with page locked
-access:		no	yes
+		mmap_sem	PageLocked(page)
+open:		yes
+close:		yes
+fault:		yes		can return with page locked
+page_mkwrite:	yes		can return with page locked
+access:		yes
 
 	->fault() is called when a previously not present pte is about
 to be faulted in. The filesystem must find and return the page associated
@@ -539,6 +530,3 @@ VM_IO | VM_PFNMAP VMAs.
 
 (if you break something or notice that it is broken and do not fix it yourself
 - at least put it here)
-
-ipc/shm.c::shm_delete() - may need BKL.
-->read() and ->write() in many drivers are (probably) missing BKL.

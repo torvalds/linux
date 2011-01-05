@@ -5053,7 +5053,7 @@ static int sctp_getsockopt_partial_delivery_point(struct sock *sk, int len,
 	if (copy_to_user(optval, &val, len))
 		return -EFAULT;
 
-	return -ENOTSUPP;
+	return 0;
 }
 
 /*
