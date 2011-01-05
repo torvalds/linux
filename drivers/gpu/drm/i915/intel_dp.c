@@ -1334,16 +1334,23 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool channel_eq = false;
-	int tries;
+	int tries, cr_tries;
 	u32 reg;
 	uint32_t DP = intel_dp->DP;
 
 	/* channel equalization */
 	tries = 0;
+	cr_tries = 0;
 	channel_eq = false;
 	for (;;) {
 		/* Use intel_dp->train_set[0] to set the voltage and pre emphasis values */
 		uint32_t    signal_levels;
+
+		if (cr_tries > 5) {
+			DRM_ERROR("failed to train DP, aborting\n");
+			intel_dp_link_down(intel_dp);
+			break;
+		}
 
 		if (IS_GEN6(dev) && is_edp(intel_dp)) {
 			signal_levels = intel_gen6_edp_signal_levels(intel_dp->train_set[0]);
@@ -1367,14 +1374,26 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 		if (!intel_dp_get_link_status(intel_dp))
 			break;
 
+		/* Make sure clock is still ok */
+		if (!intel_clock_recovery_ok(intel_dp->link_status, intel_dp->lane_count)) {
+			intel_dp_start_link_train(intel_dp);
+			cr_tries++;
+			continue;
+		}
+
 		if (intel_channel_eq_ok(intel_dp)) {
 			channel_eq = true;
 			break;
 		}
 
-		/* Try 5 times */
-		if (tries > 5)
-			break;
+		/* Try 5 times, then try clock recovery if that fails */
+		if (tries > 5) {
+			intel_dp_link_down(intel_dp);
+			intel_dp_start_link_train(intel_dp);
+			tries = 0;
+			cr_tries++;
+			continue;
+		}
 
 		/* Compute new intel_dp->train_set as requested by target */
 		intel_get_adjust_train(intel_dp);
