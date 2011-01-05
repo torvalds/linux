@@ -50,12 +50,9 @@
 #include <mach/clkdev.h>
 #include <mach/platform.h>
 #include <mach/irqs.h>
-#include <plat/timer-sp.h>
+#include <asm/hardware/timer-sp.h>
 
 #include "core.h"
-
-/* used by entry-macro.S and platsmp.c */
-void __iomem *gic_cpu_base_addr;
 
 #ifdef CONFIG_ZONE_DMA
 /*

@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/plat-versatile/timer-sp.c
+ *  linux/arch/arm/common/timer-sp.c
  *
  *  Copyright (C) 1999 - 2003 ARM Limited
  *  Copyright (C) 2000 Deep Blue Solutions Ltd
@@ -25,8 +25,6 @@
 #include <linux/io.h>
 
 #include <asm/hardware/arm_timer.h>
-
-#include <plat/timer-sp.h>
 
 /*
  * These timers are currently always setup to be clocked at 1MHz.

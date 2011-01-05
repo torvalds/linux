@@ -294,8 +294,8 @@ static inline void omap44xx_map_common_io(void)
 extern void omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 				 struct omap_sdrc_params *sdrc_cs1);
 
-#define __arch_ioremap(p,s,t)	omap_ioremap(p,s,t)
-#define __arch_iounmap(v)	omap_iounmap(v)
+#define __arch_ioremap	omap_ioremap
+#define __arch_iounmap	omap_iounmap
 
 void __iomem *omap_ioremap(unsigned long phys, size_t size, unsigned int type);
 void omap_iounmap(volatile void __iomem *addr);

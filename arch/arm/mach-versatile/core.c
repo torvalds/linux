@@ -49,7 +49,7 @@
 #include <mach/clkdev.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <plat/timer-sp.h>
+#include <asm/hardware/timer-sp.h>
 
 #include "core.h"
 
