@@ -777,6 +777,127 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
+/*
+ * The helper to calc the free space on the devices that can be used to store
+ * file data.
+ */
+static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_device_info *devices_info;
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
+	struct btrfs_device *device;
+	u64 skip_space;
+	u64 type;
+	u64 avail_space;
+	u64 used_space;
+	u64 min_stripe_size;
+	int min_stripes = 1;
+	int i = 0, nr_devices;
+	int ret;
+
+	nr_devices = fs_info->fs_devices->rw_devices;
+	BUG_ON(!nr_devices);
+
+	devices_info = kmalloc(sizeof(*devices_info) * nr_devices,
+			       GFP_NOFS);
+	if (!devices_info)
+		return -ENOMEM;
+
+	/* calc min stripe number for data space alloction */
+	type = btrfs_get_alloc_profile(root, 1);
+	if (type & BTRFS_BLOCK_GROUP_RAID0)
+		min_stripes = 2;
+	else if (type & BTRFS_BLOCK_GROUP_RAID1)
+		min_stripes = 2;
+	else if (type & BTRFS_BLOCK_GROUP_RAID10)
+		min_stripes = 4;
+
+	if (type & BTRFS_BLOCK_GROUP_DUP)
+		min_stripe_size = 2 * BTRFS_STRIPE_LEN;
+	else
+		min_stripe_size = BTRFS_STRIPE_LEN;
+
+	list_for_each_entry(device, &fs_devices->alloc_list, dev_alloc_list) {
+		if (!device->in_fs_metadata)
+			continue;
+
+		avail_space = device->total_bytes - device->bytes_used;
+
+		/* align with stripe_len */
+		do_div(avail_space, BTRFS_STRIPE_LEN);
+		avail_space *= BTRFS_STRIPE_LEN;
+
+		/*
+		 * In order to avoid overwritting the superblock on the drive,
+		 * btrfs starts at an offset of at least 1MB when doing chunk
+		 * allocation.
+		 */
+		skip_space = 1024 * 1024;
+
+		/* user can set the offset in fs_info->alloc_start. */
+		if (fs_info->alloc_start + BTRFS_STRIPE_LEN <=
+		    device->total_bytes)
+			skip_space = max(fs_info->alloc_start, skip_space);
+
+		/*
+		 * btrfs can not use the free space in [0, skip_space - 1],
+		 * we must subtract it from the total. In order to implement
+		 * it, we account the used space in this range first.
+		 */
+		ret = btrfs_account_dev_extents_size(device, 0, skip_space - 1,
+						     &used_space);
+		if (ret) {
+			kfree(devices_info);
+			return ret;
+		}
+
+		/* calc the free space in [0, skip_space - 1] */
+		skip_space -= used_space;
+
+		/*
+		 * we can use the free space in [0, skip_space - 1], subtract
+		 * it from the total.
+		 */
+		if (avail_space && avail_space >= skip_space)
+			avail_space -= skip_space;
+		else
+			avail_space = 0;
+
+		if (avail_space < min_stripe_size)
+			continue;
+
+		devices_info[i].dev = device;
+		devices_info[i].max_avail = avail_space;
+
+		i++;
+	}
+
+	nr_devices = i;
+
+	btrfs_descending_sort_devices(devices_info, nr_devices);
+
+	i = nr_devices - 1;
+	avail_space = 0;
+	while (nr_devices >= min_stripes) {
+		if (devices_info[i].max_avail >= min_stripe_size) {
+			int j;
+			u64 alloc_size;
+
+			avail_space += devices_info[i].max_avail * min_stripes;
+			alloc_size = devices_info[i].max_avail;
+			for (j = i + 1 - min_stripes; j <= i; j++)
+				devices_info[j].max_avail -= alloc_size;
+		}
+		i--;
+		nr_devices--;
+	}
+
+	kfree(devices_info);
+	*free_bytes = avail_space;
+	return 0;
+}
+
 static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct btrfs_root *root = btrfs_sb(dentry->d_sb);
@@ -784,16 +905,21 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct list_head *head = &root->fs_info->space_info;
 	struct btrfs_space_info *found;
 	u64 total_used = 0;
-	u64 total_used_data = 0;
+	u64 total_free_data = 0;
 	int bits = dentry->d_sb->s_blocksize_bits;
 	__be32 *fsid = (__be32 *)root->fs_info->fsid;
+	int ret;
 
+	/* holding chunk_muext to avoid allocating new chunks */
+	mutex_lock(&root->fs_info->chunk_mutex);
 	rcu_read_lock();
 	list_for_each_entry_rcu(found, head, list) {
-		if (found->flags & BTRFS_BLOCK_GROUP_DATA)
-			total_used_data += found->disk_used;
-		else
-			total_used_data += found->disk_total;
+		if (found->flags & BTRFS_BLOCK_GROUP_DATA) {
+			total_free_data += found->disk_total - found->disk_used;
+			total_free_data -=
+				btrfs_account_ro_block_groups_free_space(found);
+		}
+
 		total_used += found->disk_used;
 	}
 	rcu_read_unlock();
@@ -801,9 +927,17 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_namelen = BTRFS_NAME_LEN;
 	buf->f_blocks = btrfs_super_total_bytes(disk_super) >> bits;
 	buf->f_bfree = buf->f_blocks - (total_used >> bits);
-	buf->f_bavail = buf->f_blocks - (total_used_data >> bits);
 	buf->f_bsize = dentry->d_sb->s_blocksize;
 	buf->f_type = BTRFS_SUPER_MAGIC;
+	buf->f_bavail = total_free_data;
+	ret = btrfs_calc_avail_data_space(root, &total_free_data);
+	if (ret) {
+		mutex_unlock(&root->fs_info->chunk_mutex);
+		return ret;
+	}
+	buf->f_bavail += total_free_data;
+	buf->f_bavail = buf->f_bavail >> bits;
+	mutex_unlock(&root->fs_info->chunk_mutex);
 
 	/* We treat it as constant endianness (it doesn't matter _which_)
 	   because we want the fsid to come out the same whether mounted

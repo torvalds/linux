@@ -3090,7 +3090,7 @@ static u64 get_alloc_profile(struct btrfs_root *root, u64 flags)
 	return btrfs_reduce_alloc_profile(root, flags);
 }
 
-static u64 btrfs_get_alloc_profile(struct btrfs_root *root, int data)
+u64 btrfs_get_alloc_profile(struct btrfs_root *root, int data)
 {
 	u64 flags;
 
@@ -8017,6 +8017,62 @@ int btrfs_set_block_group_ro(struct btrfs_root *root,
 out:
 	btrfs_end_transaction(trans, root);
 	return ret;
+}
+
+/*
+ * helper to account the unused space of all the readonly block group in the
+ * list. takes mirrors into account.
+ */
+static u64 __btrfs_get_ro_block_group_free_space(struct list_head *groups_list)
+{
+	struct btrfs_block_group_cache *block_group;
+	u64 free_bytes = 0;
+	int factor;
+
+	list_for_each_entry(block_group, groups_list, list) {
+		spin_lock(&block_group->lock);
+
+		if (!block_group->ro) {
+			spin_unlock(&block_group->lock);
+			continue;
+		}
+
+		if (block_group->flags & (BTRFS_BLOCK_GROUP_RAID1 |
+					  BTRFS_BLOCK_GROUP_RAID10 |
+					  BTRFS_BLOCK_GROUP_DUP))
+			factor = 2;
+		else
+			factor = 1;
+
+		free_bytes += (block_group->key.offset -
+			       btrfs_block_group_used(&block_group->item)) *
+			       factor;
+
+		spin_unlock(&block_group->lock);
+	}
+
+	return free_bytes;
+}
+
+/*
+ * helper to account the unused space of all the readonly block group in the
+ * space_info. takes mirrors into account.
+ */
+u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo)
+{
+	int i;
+	u64 free_bytes = 0;
+
+	spin_lock(&sinfo->lock);
+
+	for(i = 0; i < BTRFS_NR_RAID_TYPES; i++)
+		if (!list_empty(&sinfo->block_groups[i]))
+			free_bytes += __btrfs_get_ro_block_group_free_space(
+						&sinfo->block_groups[i]);
+
+	spin_unlock(&sinfo->lock);
+
+	return free_bytes;
 }
 
 int btrfs_set_block_group_rw(struct btrfs_root *root,

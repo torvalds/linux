@@ -2158,6 +2158,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root, u64 group_start);
 u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags);
+u64 btrfs_get_alloc_profile(struct btrfs_root *root, int data);
 void btrfs_set_inode_space_info(struct btrfs_root *root, struct inode *ionde);
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
 int btrfs_check_data_free_space(struct inode *inode, u64 bytes);
@@ -2201,6 +2202,7 @@ int btrfs_set_block_group_ro(struct btrfs_root *root,
 int btrfs_set_block_group_rw(struct btrfs_root *root,
 			     struct btrfs_block_group_cache *cache);
 void btrfs_put_block_group_cache(struct btrfs_fs_info *info);
+u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo);
 /* ctree.c */
 int btrfs_bin_search(struct extent_buffer *eb, struct btrfs_key *key,
 		     int level, int *slot);

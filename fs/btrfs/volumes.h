@@ -161,6 +161,9 @@ static inline void btrfs_descending_sort_devices(
 	     btrfs_cmp_device_free_bytes, NULL);
 }
 
+int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
+				   u64 end, u64 *length);
+
 #define btrfs_multi_bio_size(n) (sizeof(struct btrfs_multi_bio) + \
 			    (sizeof(struct btrfs_bio_stripe) * (n)))
 
