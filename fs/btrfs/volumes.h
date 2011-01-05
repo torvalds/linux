@@ -20,7 +20,10 @@
 #define __BTRFS_VOLUMES_
 
 #include <linux/bio.h>
+#include <linux/sort.h>
 #include "async-thread.h"
+
+#define BTRFS_STRIPE_LEN	(64 * 1024)
 
 struct buffer_head;
 struct btrfs_pending_bios {
@@ -136,6 +139,27 @@ struct btrfs_multi_bio {
 	int num_stripes;
 	struct btrfs_bio_stripe stripes[];
 };
+
+struct btrfs_device_info {
+	struct btrfs_device *dev;
+	u64 dev_offset;
+	u64 max_avail;
+};
+
+/* Used to sort the devices by max_avail(descending sort) */
+int btrfs_cmp_device_free_bytes(const void *dev_info1, const void *dev_info2);
+
+/*
+ * sort the devices by max_avail, in which max free extent size of each device
+ * is stored.(Descending Sort)
+ */
+static inline void btrfs_descending_sort_devices(
+					struct btrfs_device_info *devices,
+					size_t nr_devices)
+{
+	sort(devices, nr_devices, sizeof(struct btrfs_device_info),
+	     btrfs_cmp_device_free_bytes, NULL);
+}
 
 #define btrfs_multi_bio_size(n) (sizeof(struct btrfs_multi_bio) + \
 			    (sizeof(struct btrfs_bio_stripe) * (n)))
