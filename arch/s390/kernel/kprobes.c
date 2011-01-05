@@ -273,12 +273,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	if (kprobe_running()) {
 		p = get_kprobe(addr);
 		if (p) {
-			if (kcb->kprobe_status == KPROBE_HIT_SS &&
-			    *p->ainsn.insn == BREAKPOINT_INSTRUCTION) {
-				regs->psw.mask &= ~PSW_MASK_PER;
-				regs->psw.mask |= kcb->kprobe_saved_imask;
-				goto no_kprobe;
-			}
 			/* We have reentered the kprobe_handler(), since
 			 * another probe was hit while within the handler.
 			 * We here save the original kprobes variables and
