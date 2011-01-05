@@ -214,23 +214,27 @@ static void __kprobes disable_singlestep(struct kprobe_ctlblk *kcb,
 	regs->psw.addr = ip | PSW_ADDR_AMODE;
 }
 
-
-static void __kprobes save_previous_kprobe(struct kprobe_ctlblk *kcb)
+/*
+ * Activate a kprobe by storing its pointer to current_kprobe. The
+ * previous kprobe is stored in kcb->prev_kprobe. A stack of up to
+ * two kprobes can be active, see KPROBE_REENTER.
+ */
+static void __kprobes push_kprobe(struct kprobe_ctlblk *kcb, struct kprobe *p)
 {
-	kcb->prev_kprobe.kp = kprobe_running();
+	kcb->prev_kprobe.kp = __get_cpu_var(current_kprobe);
 	kcb->prev_kprobe.status = kcb->kprobe_status;
+	__get_cpu_var(current_kprobe) = p;
 }
 
-static void __kprobes restore_previous_kprobe(struct kprobe_ctlblk *kcb)
+/*
+ * Deactivate a kprobe by backing up to the previous state. If the
+ * current state is KPROBE_REENTER prev_kprobe.kp will be non-NULL,
+ * for any other state prev_kprobe.kp will be NULL.
+ */
+static void __kprobes pop_kprobe(struct kprobe_ctlblk *kcb)
 {
 	__get_cpu_var(current_kprobe) = kcb->prev_kprobe.kp;
 	kcb->kprobe_status = kcb->prev_kprobe.status;
-}
-
-static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
-						struct kprobe_ctlblk *kcb)
-{
-	__get_cpu_var(current_kprobe) = p;
 }
 
 void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
@@ -261,14 +265,16 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	if (kprobe_running()) {
 		p = get_kprobe(addr);
 		if (p) {
-			/* We have reentered the kprobe_handler(), since
-			 * another probe was hit while within the handler.
-			 * We here save the original kprobes variables and
-			 * just single step on the instruction of the new probe
-			 * without calling any user handlers.
+			/*
+			 * We have hit a kprobe while another is still
+			 * active. This can happen in the pre and post
+			 * handler. Single step the instruction of the
+			 * new probe but do not call any handler function
+			 * of this secondary kprobe.
+			 * push_kprobe and pop_kprobe saves and restores
+			 * the currently active kprobe.
 			 */
-			save_previous_kprobe(kcb);
-			set_current_kprobe(p, regs, kcb);
+			push_kprobe(kcb, p);
 			kprobes_inc_nmissed_count(p);
 			enable_singlestep(kcb, regs,
 					  (unsigned long) p->ainsn.insn);
@@ -294,7 +300,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		goto no_kprobe;
 
 	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
-	set_current_kprobe(p, regs, kcb);
+	push_kprobe(kcb, p);
 	if (p->pre_handler && p->pre_handler(p, regs))
 		/* handler has already set things up, so skip ss setup */
 		return 1;
@@ -395,7 +401,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 
 	regs->psw.addr = orig_ret_address | PSW_ADDR_AMODE;
 
-	reset_current_kprobe();
+	pop_kprobe(get_kprobe_ctlblk());
 	kretprobe_hash_unlock(current, &flags);
 	preempt_enable_no_resched();
 
@@ -457,14 +463,7 @@ static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 	}
 
 	resume_execution(cur, regs);
-
-	/*Restore back the original saved kprobes variables and continue. */
-	if (kcb->kprobe_status == KPROBE_REENTER) {
-		restore_previous_kprobe(kcb);
-		goto out;
-	}
-	reset_current_kprobe();
-out:
+	pop_kprobe(kcb);
 	preempt_enable_no_resched();
 
 	/*
@@ -499,11 +498,7 @@ static int __kprobes kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		 * normal page fault.
 		 */
 		disable_singlestep(kcb, regs, (unsigned long) cur->addr);
-		if (kcb->kprobe_status == KPROBE_REENTER)
-			restore_previous_kprobe(kcb);
-		else {
-			reset_current_kprobe();
-		}
+		pop_kprobe(kcb);
 		preempt_enable_no_resched();
 		break;
 	case KPROBE_HIT_ACTIVE:
