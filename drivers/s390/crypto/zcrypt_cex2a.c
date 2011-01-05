@@ -441,6 +441,7 @@ static int zcrypt_cex2a_probe(struct ap_device *ap_dev)
 		zdev->max_mod_size = CEX2A_MAX_MOD_SIZE;
 		zdev->short_crt = 1;
 		zdev->speed_rating = CEX2A_SPEED_RATING;
+		zdev->max_exp_bit_length = CEX2A_MAX_MOD_SIZE;
 		break;
 	case AP_DEVICE_TYPE_CEX3A:
 		zdev = zcrypt_device_alloc(CEX3A_MAX_RESPONSE_SIZE);
@@ -450,8 +451,11 @@ static int zcrypt_cex2a_probe(struct ap_device *ap_dev)
 		zdev->type_string = "CEX3A";
 		zdev->min_mod_size = CEX2A_MIN_MOD_SIZE;
 		zdev->max_mod_size = CEX2A_MAX_MOD_SIZE;
-		if (ap_4096_commands_available(ap_dev->qid))
+		zdev->max_exp_bit_length = CEX2A_MAX_MOD_SIZE;
+		if (ap_4096_commands_available(ap_dev->qid)) {
 			zdev->max_mod_size = CEX3A_MAX_MOD_SIZE;
+			zdev->max_exp_bit_length = CEX3A_MAX_MOD_SIZE;
+		}
 		zdev->short_crt = 1;
 		zdev->speed_rating = CEX3A_SPEED_RATING;
 		break;
