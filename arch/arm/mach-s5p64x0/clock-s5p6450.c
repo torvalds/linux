@@ -181,7 +181,7 @@ static struct clksrc_clk clk_pclk_low = {
  * recommended to keep the following clocks disabled until the driver requests
  * for enabling the clock.
  */
-static struct clk init_clocks_disable[] = {
+static struct clk init_clocks_off[] = {
 	{
 		.name		= "usbhost",
 		.id		= -1,
@@ -651,8 +651,6 @@ void __init_or_cpufreq s5p6450_setup_clocks(void)
 
 void __init s5p6450_register_clocks(void)
 {
-	struct clk *clkp;
-	int ret;
 	int ptr;
 
 	for (ptr = 0; ptr < ARRAY_SIZE(sysclks); ptr++)
@@ -661,16 +659,8 @@ void __init s5p6450_register_clocks(void)
 	s3c_register_clksrc(clksrcs, ARRAY_SIZE(clksrcs));
 	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));
 
-	clkp = init_clocks_disable;
-	for (ptr = 0; ptr < ARRAY_SIZE(init_clocks_disable); ptr++, clkp++) {
-
-		ret = s3c24xx_register_clock(clkp);
-		if (ret < 0) {
-			printk(KERN_ERR "Failed to register clock %s (%d)\n",
-			       clkp->name, ret);
-		}
-		(clkp->enable)(clkp, 0);
-	}
+	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
+	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 
 	s3c_pwmclk_init();
 }
