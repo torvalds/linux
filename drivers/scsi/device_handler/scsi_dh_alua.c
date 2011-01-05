@@ -253,13 +253,15 @@ static void stpg_endio(struct request *req, int error)
 {
 	struct alua_dh_data *h = req->end_io_data;
 	struct scsi_sense_hdr sense_hdr;
-	unsigned err = SCSI_DH_IO;
+	unsigned err = SCSI_DH_OK;
 
 	if (error || host_byte(req->errors) != DID_OK ||
-			msg_byte(req->errors) != COMMAND_COMPLETE)
+			msg_byte(req->errors) != COMMAND_COMPLETE) {
+		err = SCSI_DH_IO;
 		goto done;
+	}
 
-	if (err == SCSI_DH_IO && h->senselen > 0) {
+	if (h->senselen > 0) {
 		err = scsi_normalize_sense(h->sense, SCSI_SENSE_BUFFERSIZE,
 					   &sense_hdr);
 		if (!err) {
