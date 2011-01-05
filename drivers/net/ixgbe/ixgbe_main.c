@@ -6102,7 +6102,10 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 			       (link_speed == IXGBE_LINK_SPEED_10GB_FULL ?
 			       "10 Gbps" :
 			       (link_speed == IXGBE_LINK_SPEED_1GB_FULL ?
-			       "1 Gbps" : "unknown speed")),
+			       "1 Gbps" :
+			       (link_speed == IXGBE_LINK_SPEED_100_FULL ?
+			       "100 Mbps" :
+			       "unknown speed"))),
 			       ((flow_rx && flow_tx) ? "RX/TX" :
 			       (flow_rx ? "RX" :
 			       (flow_tx ? "TX" : "None"))));
