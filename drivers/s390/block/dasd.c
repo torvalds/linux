@@ -369,6 +369,11 @@ dasd_state_ready_to_online(struct dasd_device * device)
 	device->state = DASD_STATE_ONLINE;
 	if (device->block) {
 		dasd_schedule_block_bh(device->block);
+		if ((device->features & DASD_FEATURE_USERAW)) {
+			disk = device->block->gdp;
+			kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);
+			return 0;
+		}
 		disk = device->block->bdev->bd_disk;
 		disk_part_iter_init(&piter, disk, DISK_PITER_INCL_PART0);
 		while ((part = disk_part_iter_next(&piter)))
@@ -394,7 +399,7 @@ static int dasd_state_online_to_ready(struct dasd_device *device)
 			return rc;
 	}
 	device->state = DASD_STATE_READY;
-	if (device->block) {
+	if (device->block && !(device->features & DASD_FEATURE_USERAW)) {
 		disk = device->block->bdev->bd_disk;
 		disk_part_iter_init(&piter, disk, DISK_PITER_INCL_PART0);
 		while ((part = disk_part_iter_next(&piter)))
@@ -2258,8 +2263,20 @@ static void dasd_setup_queue(struct dasd_block *block)
 {
 	int max;
 
-	blk_queue_logical_block_size(block->request_queue, block->bp_block);
-	max = block->base->discipline->max_blocks << block->s2b_shift;
+	if (block->base->features & DASD_FEATURE_USERAW) {
+		/*
+		 * the max_blocks value for raw_track access is 256
+		 * it is higher than the native ECKD value because we
+		 * only need one ccw per track
+		 * so the max_hw_sectors are
+		 * 2048 x 512B = 1024kB = 16 tracks
+		 */
+		max = 2048;
+	} else {
+		max = block->base->discipline->max_blocks << block->s2b_shift;
+	}
+	blk_queue_logical_block_size(block->request_queue,
+				     block->bp_block);
 	blk_queue_max_hw_sectors(block->request_queue, max);
 	blk_queue_max_segments(block->request_queue, -1L);
 	/* with page sized segments we can translate each segement into

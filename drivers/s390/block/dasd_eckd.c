@@ -54,6 +54,15 @@
 #define ECKD_F7(i) (i->factor7)
 #define ECKD_F8(i) (i->factor8)
 
+/*
+ * raw track access always map to 64k in memory
+ * so it maps to 16 blocks of 4k per track
+ */
+#define DASD_RAW_BLOCK_PER_TRACK 16
+#define DASD_RAW_BLOCKSIZE 4096
+/* 64k are 128 x 512 byte sectors  */
+#define DASD_RAW_SECTORS_PER_TRACK 128
+
 MODULE_LICENSE("GPL");
 
 static struct dasd_discipline dasd_eckd_discipline;
@@ -385,6 +394,23 @@ static void fill_LRE_data(struct LRE_eckd_data *data, unsigned int trk,
 		data->length = reclen;
 		data->operation.operation = 0x03;
 		break;
+	case DASD_ECKD_CCW_WRITE_FULL_TRACK:
+		data->operation.orientation = 0x0;
+		data->operation.operation = 0x3F;
+		data->extended_operation = 0x11;
+		data->length = 0;
+		data->extended_parameter_length = 0x02;
+		if (data->count > 8) {
+			data->extended_parameter[0] = 0xFF;
+			data->extended_parameter[1] = 0xFF;
+			data->extended_parameter[1] <<= (16 - count);
+		} else {
+			data->extended_parameter[0] = 0xFF;
+			data->extended_parameter[0] <<= (8 - count);
+			data->extended_parameter[1] = 0x00;
+		}
+		data->sector = 0xFF;
+		break;
 	case DASD_ECKD_CCW_WRITE_TRACK_DATA:
 		data->auxiliary.length_valid = 0x1;
 		data->length = reclen;	/* not tlf, as one might think */
@@ -407,6 +433,12 @@ static void fill_LRE_data(struct LRE_eckd_data *data, unsigned int trk,
 		break;
 	case DASD_ECKD_CCW_READ_COUNT:
 		data->operation.operation = 0x06;
+		break;
+	case DASD_ECKD_CCW_READ_TRACK:
+		data->operation.orientation = 0x1;
+		data->operation.operation = 0x0C;
+		data->extended_parameter_length = 0;
+		data->sector = 0xFF;
 		break;
 	case DASD_ECKD_CCW_READ_TRACK_DATA:
 		data->auxiliary.length_valid = 0x1;
@@ -451,10 +483,16 @@ static int prefix_LRE(struct ccw1 *ccw, struct PFX_eckd_data *pfxdata,
 
 	ccw->cmd_code = DASD_ECKD_CCW_PFX;
 	ccw->flags = 0;
-	ccw->count = sizeof(*pfxdata);
-	ccw->cda = (__u32) __pa(pfxdata);
+	if (cmd == DASD_ECKD_CCW_WRITE_FULL_TRACK) {
+		ccw->count = sizeof(*pfxdata) + 2;
+		ccw->cda = (__u32) __pa(pfxdata);
+		memset(pfxdata, 0, sizeof(*pfxdata) + 2);
+	} else {
+		ccw->count = sizeof(*pfxdata);
+		ccw->cda = (__u32) __pa(pfxdata);
+		memset(pfxdata, 0, sizeof(*pfxdata));
+	}
 
-	memset(pfxdata, 0, sizeof(*pfxdata));
 	/* prefix data */
 	if (format > 1) {
 		DBF_DEV_EVENT(DBF_ERR, basedev,
@@ -488,6 +526,7 @@ static int prefix_LRE(struct ccw1 *ccw, struct PFX_eckd_data *pfxdata,
 		dedata->mask.perm = 0x1;
 		dedata->attributes.operation = basepriv->attrib.operation;
 		break;
+	case DASD_ECKD_CCW_READ_TRACK:
 	case DASD_ECKD_CCW_READ_TRACK_DATA:
 		dedata->mask.perm = 0x1;
 		dedata->attributes.operation = basepriv->attrib.operation;
@@ -513,6 +552,11 @@ static int prefix_LRE(struct ccw1 *ccw, struct PFX_eckd_data *pfxdata,
 		dedata->mask.auth = 0x1;
 		dedata->attributes.operation = DASD_BYPASS_CACHE;
 		rc = check_XRC_on_prefix(pfxdata, basedev);
+		break;
+	case DASD_ECKD_CCW_WRITE_FULL_TRACK:
+		dedata->mask.perm = 0x03;
+		dedata->attributes.operation = basepriv->attrib.operation;
+		dedata->blk_size = 0;
 		break;
 	case DASD_ECKD_CCW_WRITE_TRACK_DATA:
 		dedata->mask.perm = 0x02;
@@ -1607,6 +1651,13 @@ static int dasd_eckd_end_analysis(struct dasd_block *block)
 		dasd_sfree_request(init_cqr, device);
 	}
 
+	if (device->features & DASD_FEATURE_USERAW) {
+		block->bp_block = DASD_RAW_BLOCKSIZE;
+		blk_per_trk = DASD_RAW_BLOCK_PER_TRACK;
+		block->s2b_shift = 3;
+		goto raw;
+	}
+
 	if (status == INIT_CQR_UNFORMATTED) {
 		dev_warn(&device->cdev->dev, "The DASD is not formatted\n");
 		return -EMEDIUMTYPE;
@@ -1644,6 +1695,7 @@ static int dasd_eckd_end_analysis(struct dasd_block *block)
 			dev_warn(&device->cdev->dev,
 				 "Track 0 has no records following the VTOC\n");
 	}
+
 	if (count_area != NULL && count_area->kl == 0) {
 		/* we found notthing violating our disk layout */
 		if (dasd_check_blocksize(count_area->dl) == 0)
@@ -1659,6 +1711,8 @@ static int dasd_eckd_end_analysis(struct dasd_block *block)
 		block->s2b_shift++;
 
 	blk_per_trk = recs_per_track(&private->rdc_data, 0, block->bp_block);
+
+raw:
 	block->blocks = (private->real_cyl *
 			  private->rdc_data.trk_per_cyl *
 			  blk_per_trk);
@@ -2741,6 +2795,135 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 	return cqr;
 }
 
+static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
+					       struct dasd_block *block,
+					       struct request *req)
+{
+	struct dasd_eckd_private *private;
+	unsigned long *idaws;
+	struct dasd_device *basedev;
+	struct dasd_ccw_req *cqr;
+	struct ccw1 *ccw;
+	struct req_iterator iter;
+	struct bio_vec *bv;
+	char *dst;
+	unsigned char cmd;
+	unsigned int trkcount;
+	unsigned int seg_len, len_to_track_end;
+	unsigned int first_offs;
+	unsigned int cidaw, cplength, datasize;
+	sector_t first_trk, last_trk;
+	unsigned int pfx_datasize;
+
+	/*
+	 * raw track access needs to be mutiple of 64k and on 64k boundary
+	 */
+	if ((blk_rq_pos(req) % DASD_RAW_SECTORS_PER_TRACK) != 0) {
+		cqr = ERR_PTR(-EINVAL);
+		goto out;
+	}
+	if (((blk_rq_pos(req) + blk_rq_sectors(req)) %
+	     DASD_RAW_SECTORS_PER_TRACK) != 0) {
+		cqr = ERR_PTR(-EINVAL);
+		goto out;
+	}
+
+	first_trk = blk_rq_pos(req) / DASD_RAW_SECTORS_PER_TRACK;
+	last_trk = (blk_rq_pos(req) + blk_rq_sectors(req) - 1) /
+		DASD_RAW_SECTORS_PER_TRACK;
+	trkcount = last_trk - first_trk + 1;
+	first_offs = 0;
+	basedev = block->base;
+	private = (struct dasd_eckd_private *) basedev->private;
+
+	if (rq_data_dir(req) == READ)
+		cmd = DASD_ECKD_CCW_READ_TRACK;
+	else if (rq_data_dir(req) == WRITE)
+		cmd = DASD_ECKD_CCW_WRITE_FULL_TRACK;
+	else {
+		cqr = ERR_PTR(-EINVAL);
+		goto out;
+	}
+
+	/*
+	 * Raw track based I/O needs IDAWs for each page,
+	 * and not just for 64 bit addresses.
+	 */
+	cidaw = trkcount * DASD_RAW_BLOCK_PER_TRACK;
+
+	/* 1x prefix + one read/write ccw per track */
+	cplength = 1 + trkcount;
+
+	/*
+	 * struct PFX_eckd_data has up to 2 byte as extended parameter
+	 * this is needed for write full track and has to be mentioned
+	 * seperately
+	 * add 8 instead of 2 to keep 8 byte boundary
+	 */
+	pfx_datasize = sizeof(struct PFX_eckd_data) + 8;
+
+	datasize = pfx_datasize + cidaw * sizeof(unsigned long long);
+
+	/* Allocate the ccw request. */
+	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, cplength,
+				   datasize, startdev);
+	if (IS_ERR(cqr))
+		goto out;
+	ccw = cqr->cpaddr;
+
+	if (prefix_LRE(ccw++, cqr->data, first_trk, last_trk, cmd,
+		       basedev, startdev, 1 /* format */, first_offs + 1,
+		       trkcount, 0, 0) == -EAGAIN) {
+		/* Clock not in sync and XRC is enabled.
+		 * Try again later.
+		 */
+		dasd_sfree_request(cqr, startdev);
+		cqr = ERR_PTR(-EAGAIN);
+		goto out;
+	}
+
+	idaws = (unsigned long *)(cqr->data + pfx_datasize);
+
+	len_to_track_end = 0;
+
+	rq_for_each_segment(bv, req, iter) {
+		dst = page_address(bv->bv_page) + bv->bv_offset;
+		seg_len = bv->bv_len;
+		if (!len_to_track_end) {
+			ccw[-1].flags |= CCW_FLAG_CC;
+			ccw->cmd_code = cmd;
+			/* maximum 3390 track size */
+			ccw->count = 57326;
+			/* 64k map to one track */
+			len_to_track_end = 65536;
+			ccw->cda = (__u32)(addr_t)idaws;
+			ccw->flags |= CCW_FLAG_IDA;
+			ccw->flags |= CCW_FLAG_SLI;
+			ccw++;
+		}
+		len_to_track_end -= seg_len;
+		idaws = idal_create_words(idaws, dst, seg_len);
+	}
+
+	if (blk_noretry_request(req) ||
+	    block->base->features & DASD_FEATURE_FAILFAST)
+		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
+	cqr->startdev = startdev;
+	cqr->memdev = startdev;
+	cqr->block = block;
+	cqr->expires = startdev->default_expires * HZ;
+	cqr->lpm = startdev->path_data.ppm;
+	cqr->retries = 256;
+	cqr->buildclk = get_clock();
+	cqr->status = DASD_CQR_FILLED;
+
+	if (IS_ERR(cqr) && PTR_ERR(cqr) != -EAGAIN)
+		cqr = NULL;
+out:
+	return cqr;
+}
+
+
 static int
 dasd_eckd_free_cp(struct dasd_ccw_req *cqr, struct request *req)
 {
@@ -2845,7 +3028,10 @@ static struct dasd_ccw_req *dasd_eckd_build_alias_cp(struct dasd_device *base,
 
 	spin_lock_irqsave(get_ccwdev_lock(startdev->cdev), flags);
 	private->count++;
-	cqr = dasd_eckd_build_cp(startdev, block, req);
+	if ((base->features & DASD_FEATURE_USERAW))
+		cqr = dasd_raw_build_cp(startdev, block, req);
+	else
+		cqr = dasd_eckd_build_cp(startdev, block, req);
 	if (IS_ERR(cqr))
 		private->count--;
 	spin_unlock_irqrestore(get_ccwdev_lock(startdev->cdev), flags);

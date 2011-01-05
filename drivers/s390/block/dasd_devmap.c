@@ -208,6 +208,8 @@ dasd_feature_list(char *str, char **endp)
 			features |= DASD_FEATURE_READONLY;
 		else if (len == 4 && !strncmp(str, "diag", 4))
 			features |= DASD_FEATURE_USEDIAG;
+		else if (len == 3 && !strncmp(str, "raw", 3))
+			features |= DASD_FEATURE_USERAW;
 		else if (len == 6 && !strncmp(str, "erplog", 6))
 			features |= DASD_FEATURE_ERPLOG;
 		else if (len == 8 && !strncmp(str, "failfast", 8))
@@ -857,7 +859,7 @@ dasd_use_diag_store(struct device *dev, struct device_attribute *attr,
 	spin_lock(&dasd_devmap_lock);
 	/* Changing diag discipline flag is only allowed in offline state. */
 	rc = count;
-	if (!devmap->device) {
+	if (!devmap->device && !(devmap->features & DASD_FEATURE_USERAW)) {
 		if (val)
 			devmap->features |= DASD_FEATURE_USEDIAG;
 		else
@@ -869,6 +871,56 @@ dasd_use_diag_store(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(use_diag, 0644, dasd_use_diag_show, dasd_use_diag_store);
+
+/*
+ * use_raw controls whether the driver should give access to raw eckd data or
+ * operate in standard mode
+ */
+static ssize_t
+dasd_use_raw_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dasd_devmap *devmap;
+	int use_raw;
+
+	devmap = dasd_find_busid(dev_name(dev));
+	if (!IS_ERR(devmap))
+		use_raw = (devmap->features & DASD_FEATURE_USERAW) != 0;
+	else
+		use_raw = (DASD_FEATURE_DEFAULT & DASD_FEATURE_USERAW) != 0;
+	return sprintf(buf, use_raw ? "1\n" : "0\n");
+}
+
+static ssize_t
+dasd_use_raw_store(struct device *dev, struct device_attribute *attr,
+		    const char *buf, size_t count)
+{
+	struct dasd_devmap *devmap;
+	ssize_t rc;
+	unsigned long val;
+
+	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(devmap))
+		return PTR_ERR(devmap);
+
+	if ((strict_strtoul(buf, 10, &val) != 0) || val > 1)
+		return -EINVAL;
+
+	spin_lock(&dasd_devmap_lock);
+	/* Changing diag discipline flag is only allowed in offline state. */
+	rc = count;
+	if (!devmap->device && !(devmap->features & DASD_FEATURE_USEDIAG)) {
+		if (val)
+			devmap->features |= DASD_FEATURE_USERAW;
+		else
+			devmap->features &= ~DASD_FEATURE_USERAW;
+	} else
+		rc = -EPERM;
+	spin_unlock(&dasd_devmap_lock);
+	return rc;
+}
+
+static DEVICE_ATTR(raw_track_access, 0644, dasd_use_raw_show,
+		   dasd_use_raw_store);
 
 static ssize_t
 dasd_discipline_show(struct device *dev, struct device_attribute *attr,
@@ -1232,6 +1284,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_vendor.attr,
 	&dev_attr_uid.attr,
 	&dev_attr_use_diag.attr,
+	&dev_attr_raw_track_access.attr,
 	&dev_attr_eer_enabled.attr,
 	&dev_attr_erplog.attr,
 	&dev_attr_failfast.attr,
