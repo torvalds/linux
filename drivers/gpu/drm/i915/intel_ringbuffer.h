@@ -55,6 +55,7 @@ struct  intel_ring_buffer {
 	int		effective_size;
 	struct intel_hw_status_page status_page;
 
+	spinlock_t	irq_lock;
 	u32		irq_refcount;
 	u32		irq_mask;
 	u32		irq_seqno;		/* last seq seem at irq time */

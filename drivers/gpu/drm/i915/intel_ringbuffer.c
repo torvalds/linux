@@ -526,7 +526,7 @@ render_ring_get_irq(struct intel_ring_buffer *ring)
 	if (!dev->irq_enabled)
 		return false;
 
-	spin_lock(&dev_priv->irq_lock);
+	spin_lock(&ring->irq_lock);
 	if (ring->irq_refcount++ == 0) {
 		if (HAS_PCH_SPLIT(dev))
 			ironlake_enable_irq(dev_priv,
@@ -534,7 +534,7 @@ render_ring_get_irq(struct intel_ring_buffer *ring)
 		else
 			i915_enable_irq(dev_priv, I915_USER_INTERRUPT);
 	}
-	spin_unlock(&dev_priv->irq_lock);
+	spin_unlock(&ring->irq_lock);
 
 	return true;
 }
@@ -545,7 +545,7 @@ render_ring_put_irq(struct intel_ring_buffer *ring)
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	spin_lock(&dev_priv->irq_lock);
+	spin_lock(&ring->irq_lock);
 	if (--ring->irq_refcount == 0) {
 		if (HAS_PCH_SPLIT(dev))
 			ironlake_disable_irq(dev_priv,
@@ -554,7 +554,7 @@ render_ring_put_irq(struct intel_ring_buffer *ring)
 		else
 			i915_disable_irq(dev_priv, I915_USER_INTERRUPT);
 	}
-	spin_unlock(&dev_priv->irq_lock);
+	spin_unlock(&ring->irq_lock);
 }
 
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
@@ -620,10 +620,10 @@ ring_get_irq(struct intel_ring_buffer *ring, u32 flag)
 	if (!dev->irq_enabled)
 	       return false;
 
-	spin_lock(&dev_priv->irq_lock);
+	spin_lock(&ring->irq_lock);
 	if (ring->irq_refcount++ == 0)
 		ironlake_enable_irq(dev_priv, flag);
-	spin_unlock(&dev_priv->irq_lock);
+	spin_unlock(&ring->irq_lock);
 
 	return true;
 }
@@ -634,10 +634,10 @@ ring_put_irq(struct intel_ring_buffer *ring, u32 flag)
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	spin_lock(&dev_priv->irq_lock);
+	spin_lock(&ring->irq_lock);
 	if (--ring->irq_refcount == 0)
 		ironlake_disable_irq(dev_priv, flag);
-	spin_unlock(&dev_priv->irq_lock);
+	spin_unlock(&ring->irq_lock);
 }
 
 static bool
@@ -649,13 +649,13 @@ gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 	if (!dev->irq_enabled)
 	       return false;
 
-	spin_lock(&dev_priv->irq_lock);
+	spin_lock(&ring->irq_lock);
 	if (ring->irq_refcount++ == 0) {
 		ring->irq_mask &= ~rflag;
 		I915_WRITE_IMR(ring, ring->irq_mask);
 		ironlake_enable_irq(dev_priv, gflag);
 	}
-	spin_unlock(&dev_priv->irq_lock);
+	spin_unlock(&ring->irq_lock);
 
 	return true;
 }
@@ -666,13 +666,13 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	spin_lock(&dev_priv->irq_lock);
+	spin_lock(&ring->irq_lock);
 	if (--ring->irq_refcount == 0) {
 		ring->irq_mask |= rflag;
 		I915_WRITE_IMR(ring, ring->irq_mask);
 		ironlake_disable_irq(dev_priv, gflag);
 	}
-	spin_unlock(&dev_priv->irq_lock);
+	spin_unlock(&ring->irq_lock);
 }
 
 static bool
@@ -814,6 +814,8 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
 	INIT_LIST_HEAD(&ring->gpu_write_list);
+
+	spin_lock_init(&ring->irq_lock);
 	ring->irq_mask = ~0;
 
 	if (I915_NEED_GFX_HWS(dev)) {
