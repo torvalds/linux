@@ -101,11 +101,9 @@ extern void account_vtime(struct task_struct *, struct task_struct *);
 extern void account_tick_vtime(struct task_struct *);
 
 #ifdef CONFIG_PFAULT
-extern void pfault_irq_init(void);
 extern int pfault_init(void);
 extern void pfault_fini(void);
 #else /* CONFIG_PFAULT */
-#define pfault_irq_init()	do { } while (0)
 #define pfault_init()		({-1;})
 #define pfault_fini()		do { } while (0)
 #endif /* CONFIG_PFAULT */

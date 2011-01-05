@@ -481,8 +481,7 @@ int __handle_fault(unsigned long uaddr, unsigned long pgm_int_code, int write)
 /*
  * 'pfault' pseudo page faults routines.
  */
-static ext_int_info_t ext_int_pfault;
-static int pfault_disable = 0;
+static int pfault_disable;
 
 static int __init nopfault(char *str)
 {
@@ -594,24 +593,28 @@ static void pfault_interrupt(unsigned int ext_int_code,
 	}
 }
 
-void __init pfault_irq_init(void)
+static int __init pfault_irq_init(void)
 {
-	if (!MACHINE_IS_VM)
-		return;
+	int rc;
 
+	if (!MACHINE_IS_VM)
+		return 0;
 	/*
 	 * Try to get pfault pseudo page faults going.
 	 */
-	if (register_early_external_interrupt(0x2603, pfault_interrupt,
-					      &ext_int_pfault) != 0)
-		panic("Couldn't request external interrupt 0x2603");
-
+	rc = register_external_interrupt(0x2603, pfault_interrupt);
+	if (rc) {
+		pfault_disable = 1;
+		return rc;
+	}
 	if (pfault_init() == 0)
-		return;
+		return 0;
 
 	/* Tough luck, no pfault. */
 	pfault_disable = 1;
-	unregister_early_external_interrupt(0x2603, pfault_interrupt,
-					    &ext_int_pfault);
+	unregister_external_interrupt(0x2603, pfault_interrupt);
+	return 0;
 }
+early_initcall(pfault_irq_init);
+
 #endif
