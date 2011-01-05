@@ -195,7 +195,6 @@ static struct clocksource clocksource_gpt = {
 	.rating		= 300,
 	.read		= clocksource_read_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 24,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -220,9 +219,7 @@ static void __init omap2_gp_clocksource_init(void)
 
 	omap_dm_timer_set_load_start(gpt, 1, 0);
 
-	clocksource_gpt.mult =
-		clocksource_khz2mult(tick_rate/1000, clocksource_gpt.shift);
-	if (clocksource_register(&clocksource_gpt))
+	if (clocksource_register_hz(&clocksource_gpt, tick_rate))
 		printk(err2, clocksource_gpt.name);
 }
 #endif

@@ -16,9 +16,7 @@
 #include <linux/pm.h>
 #include <linux/cpufreq.h>
 #include <linux/ioport.h>
-#include <linux/sched.h>	/* just for sched_clock() - funny that */
 #include <linux/platform_device.h>
-#include <linux/cnt32_to_63.h>
 
 #include <asm/div64.h>
 #include <mach/hardware.h>
@@ -107,27 +105,6 @@ unsigned int sa11x0_getspeed(unsigned int cpu)
 	if (cpu)
 		return 0;
 	return cclk_frequency_100khz[PPCR & 0xf] * 100;
-}
-
-/*
- * This is the SA11x0 sched_clock implementation.  This has
- * a resolution of 271ns, and a maximum value of 32025597s (370 days).
- *
- * The return value is guaranteed to be monotonic in that range as
- * long as there is always less than 582 seconds between successive
- * calls to this function.
- *
- *  ( * 1E9 / 3686400 => * 78125 / 288)
- */
-unsigned long long sched_clock(void)
-{
-	unsigned long long v = cnt32_to_63(OSCR);
-
-	/* the <<1 gets rid of the cnt_32_to_63 top bit saving on a bic insn */
-	v *= 78125<<1;
-	do_div(v, 288<<1);
-
-	return v;
 }
 
 /*

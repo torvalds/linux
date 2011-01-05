@@ -49,6 +49,8 @@ endchoice
 
 config MSM_SOC_REV_A
 	bool
+config  ARCH_MSM_SCORPIONMP
+	bool
 
 config  ARCH_MSM_ARM11
 	bool

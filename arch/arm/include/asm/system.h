@@ -63,6 +63,11 @@
 #include <asm/outercache.h>
 
 #define __exception	__attribute__((section(".exception.text")))
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+#define __exception_irq_entry	__irq_entry
+#else
+#define __exception_irq_entry	__exception
+#endif
 
 struct thread_info;
 struct task_struct;
