@@ -51,7 +51,7 @@ STACK_SHIFT = PAGE_SHIFT + THREAD_ORDER
 STACK_SIZE  = 1 << STACK_SHIFT
 
 _TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
-		 _TIF_MCCK_PENDING | _TIF_RESTART_SVC | _TIF_SINGLE_STEP )
+		 _TIF_MCCK_PENDING | _TIF_RESTART_SVC | _TIF_PER_TRAP )
 _TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 		 _TIF_MCCK_PENDING)
 _TIF_SYSCALL = (_TIF_SYSCALL_TRACE>>8 | _TIF_SYSCALL_AUDIT>>8 | \
@@ -208,30 +208,21 @@ _TIF_SYSCALL = (_TIF_SYSCALL_TRACE>>8 | _TIF_SYSCALL_AUDIT>>8 | \
  */
 	.globl	__switch_to
 __switch_to:
-	tm	__THREAD_per+4(%r3),0xe8 # is the new process using per ?
-	jz	__switch_to_noper		# if not we're fine
-	stctg	%c9,%c11,__SF_EMPTY(%r15)# We are using per stuff
-	clc	__THREAD_per(24,%r3),__SF_EMPTY(%r15)
-	je	__switch_to_noper	     # we got away without bashing TLB's
-	lctlg	%c9,%c11,__THREAD_per(%r3)	# Nope we didn't
-__switch_to_noper:
-	lg	%r4,__THREAD_info(%r2)		    # get thread_info of prev
+	lg	%r4,__THREAD_info(%r2)		# get thread_info of prev
+	lg	%r5,__THREAD_info(%r3)		# get thread_info of next
 	tm	__TI_flags+7(%r4),_TIF_MCCK_PENDING # machine check pending?
-	jz	__switch_to_no_mcck
-	ni	__TI_flags+7(%r4),255-_TIF_MCCK_PENDING # clear flag in prev
-	lg	%r4,__THREAD_info(%r3)		    # get thread_info of next
-	oi	__TI_flags+7(%r4),_TIF_MCCK_PENDING # set it in next
-__switch_to_no_mcck:
-	stmg	%r6,%r15,__SF_GPRS(%r15)# store __switch_to registers of prev task
-	stg	%r15,__THREAD_ksp(%r2)	# store kernel stack to prev->tss.ksp
-	lg	%r15,__THREAD_ksp(%r3)	# load kernel stack from next->tss.ksp
-	lmg	%r6,%r15,__SF_GPRS(%r15)# load __switch_to registers of next task
-	stg	%r3,__LC_CURRENT	# __LC_CURRENT = current task struct
-	lctl	%c4,%c4,__TASK_pid(%r3) # load pid to control reg. 4
-	lg	%r3,__THREAD_info(%r3)	# load thread_info from task struct
-	stg	%r3,__LC_THREAD_INFO
-	aghi	%r3,STACK_SIZE
-	stg	%r3,__LC_KERNEL_STACK	# __LC_KERNEL_STACK = new kernel stack
+	jz	0f
+	ni	__TI_flags+7(%r4),255-_TIF_MCCK_PENDING	# clear flag in prev
+	oi	__TI_flags+7(%r5),_TIF_MCCK_PENDING	# set it in next
+0:	stmg	%r6,%r15,__SF_GPRS(%r15)	# store gprs of prev task
+	stg	%r15,__THREAD_ksp(%r2)		# store kernel stack of prev
+	lg	%r15,__THREAD_ksp(%r3)		# load kernel stack of next
+	lctl	%c4,%c4,__TASK_pid(%r3)		# load pid to control reg. 4
+	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
+	stg	%r3,__LC_CURRENT		# store task struct of next
+	stg	%r5,__LC_THREAD_INFO		# store thread info of next
+	aghi	%r5,STACK_SIZE			# end of kernel stack of next
+	stg	%r5,__LC_KERNEL_STACK		# store end of kernel stack
 	br	%r14
 
 __critical_start:
@@ -311,7 +302,7 @@ sysc_work_tif:
 	jo	sysc_notify_resume
 	tm	__TI_flags+7(%r12),_TIF_RESTART_SVC
 	jo	sysc_restart
-	tm	__TI_flags+7(%r12),_TIF_SINGLE_STEP
+	tm	__TI_flags+7(%r12),_TIF_PER_TRAP
 	jo	sysc_singlestep
 	j	sysc_return		# beware of critical section cleanup
 
@@ -333,12 +324,12 @@ sysc_mcck_pending:
 # _TIF_SIGPENDING is set, call do_signal
 #
 sysc_sigpending:
-	ni	__TI_flags+7(%r12),255-_TIF_SINGLE_STEP # clear TIF_SINGLE_STEP
+	ni	__TI_flags+7(%r12),255-_TIF_PER_TRAP # clear TIF_PER_TRAP
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	brasl	%r14,do_signal		# call do_signal
 	tm	__TI_flags+7(%r12),_TIF_RESTART_SVC
 	jo	sysc_restart
-	tm	__TI_flags+7(%r12),_TIF_SINGLE_STEP
+	tm	__TI_flags+7(%r12),_TIF_PER_TRAP
 	jo	sysc_singlestep
 	j	sysc_return
 
@@ -363,14 +354,14 @@ sysc_restart:
 	j	sysc_nr_ok		# restart svc
 
 #
-# _TIF_SINGLE_STEP is set, call do_single_step
+# _TIF_PER_TRAP is set, call do_per_trap
 #
 sysc_singlestep:
-	ni	__TI_flags+7(%r12),255-_TIF_SINGLE_STEP	# clear TIF_SINGLE_STEP
+	ni	__TI_flags+7(%r12),255-_TIF_PER_TRAP	# clear TIF_PER_TRAP
 	xc	SP_SVCNR(2,%r15),SP_SVCNR(%r15)		# clear svc number
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	larl	%r14,sysc_return	# load adr. of system return
-	jg	do_single_step		# branch to do_sigtrap
+	jg	do_per_trap
 
 #
 # call tracehook_report_syscall_entry/tracehook_report_syscall_exit before
@@ -526,10 +517,10 @@ pgm_no_vtime2:
 	lg	%r1,__TI_task(%r12)
 	tm	SP_PSW+1(%r15),0x01	# kernel per event ?
 	jz	kernel_per
-	mvc	__THREAD_per+__PER_atmid(2,%r1),__LC_PER_ATMID
-	mvc	__THREAD_per+__PER_address(8,%r1),__LC_PER_ADDRESS
-	mvc	__THREAD_per+__PER_access_id(1,%r1),__LC_PER_ACCESS_ID
-	oi	__TI_flags+7(%r12),_TIF_SINGLE_STEP # set TIF_SINGLE_STEP
+	mvc	__THREAD_per_cause(2,%r1),__LC_PER_CAUSE
+	mvc	__THREAD_per_address(8,%r1),__LC_PER_ADDRESS
+	mvc	__THREAD_per_paid(1,%r1),__LC_PER_PAID
+	oi	__TI_flags+7(%r12),_TIF_PER_TRAP # set TIF_PER_TRAP
 	lgf	%r3,__LC_PGM_ILC	# load program interruption code
 	lg	%r4,__LC_TRANS_EXC_CODE
 	REENABLE_IRQS
@@ -558,10 +549,10 @@ pgm_svcper:
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
 	LAST_BREAK
 	lg	%r8,__TI_task(%r12)
-	mvc	__THREAD_per+__PER_atmid(2,%r8),__LC_PER_ATMID
-	mvc	__THREAD_per+__PER_address(8,%r8),__LC_PER_ADDRESS
-	mvc	__THREAD_per+__PER_access_id(1,%r8),__LC_PER_ACCESS_ID
-	oi	__TI_flags+7(%r12),_TIF_SINGLE_STEP # set TIF_SINGLE_STEP
+	mvc	__THREAD_per_cause(2,%r8),__LC_PER_CAUSE
+	mvc	__THREAD_per_address(8,%r8),__LC_PER_ADDRESS
+	mvc	__THREAD_per_paid(1,%r8),__LC_PER_PAID
+	oi	__TI_flags+7(%r12),_TIF_PER_TRAP # set TIF_PER_TRAP
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
 	lmg	%r2,%r6,SP_R2(%r15)	# load svc arguments
 	j	sysc_do_svc
@@ -573,7 +564,7 @@ kernel_per:
 	REENABLE_IRQS
 	xc	SP_SVCNR(2,%r15),SP_SVCNR(%r15)	# clear svc number
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
-	brasl	%r14,do_single_step
+	brasl	%r14,do_per_trap
 	j	pgm_exit
 
 /*

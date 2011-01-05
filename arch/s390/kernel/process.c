@@ -213,8 +213,10 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 	/* start new process with ar4 pointing to the correct address space */
 	p->thread.mm_segment = get_fs();
 	/* Don't copy debug registers */
-	memset(&p->thread.per_info, 0, sizeof(p->thread.per_info));
+	memset(&p->thread.per_user, 0, sizeof(p->thread.per_user));
+	memset(&p->thread.per_event, 0, sizeof(p->thread.per_event));
 	clear_tsk_thread_flag(p, TIF_SINGLE_STEP);
+	clear_tsk_thread_flag(p, TIF_PER_TRAP);
 	/* Initialize per thread user and system timer values */
 	ti = task_thread_info(p);
 	ti->user_timer = 0;

@@ -235,13 +235,13 @@ static noinline int signal_return(struct pt_regs *regs, long int_code,
 	rc = __get_user(instruction, (u16 __user *) regs->psw.addr);
 
 	if (!rc && instruction == 0x0a77) {
-		clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
+		clear_tsk_thread_flag(current, TIF_PER_TRAP);
 		if (is_compat_task())
 			sys32_sigreturn();
 		else
 			sys_sigreturn();
 	} else if (!rc && instruction == 0x0aad) {
-		clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
+		clear_tsk_thread_flag(current, TIF_PER_TRAP);
 		if (is_compat_task())
 			sys32_rt_sigreturn();
 		else
@@ -379,7 +379,7 @@ static inline int do_exception(struct pt_regs *regs, int access,
 	 * The instruction that caused the program check will
 	 * be repeated. Don't signal single step via SIGTRAP.
 	 */
-	clear_tsk_thread_flag(tsk, TIF_SINGLE_STEP);
+	clear_tsk_thread_flag(tsk, TIF_PER_TRAP);
 	fault = 0;
 out_up:
 	up_read(&mm->mmap_sem);

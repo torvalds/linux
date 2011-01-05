@@ -175,13 +175,12 @@ static void __kprobes enable_singlestep(struct kprobe_ctlblk *kcb,
 					struct pt_regs *regs,
 					unsigned long ip)
 {
-	per_cr_bits kprobe_per_regs[1];
+	struct per_regs per_kprobe;
 
-	/* Set up the per control reg info, will pass to lctl */
-	memset(kprobe_per_regs, 0, sizeof(per_cr_bits));
-	kprobe_per_regs[0].em_instruction_fetch = 1;
-	kprobe_per_regs[0].starting_addr = ip;
-	kprobe_per_regs[0].ending_addr = ip;
+	/* Set up the PER control registers %cr9-%cr11 */
+	per_kprobe.control = PER_EVENT_IFETCH;
+	per_kprobe.start = ip;
+	per_kprobe.end = ip;
 
 	/* Save control regs and psw mask */
 	__ctl_store(kcb->kprobe_saved_ctl, 9, 11);
@@ -189,7 +188,7 @@ static void __kprobes enable_singlestep(struct kprobe_ctlblk *kcb,
 		(PSW_MASK_PER | PSW_MASK_IO | PSW_MASK_EXT);
 
 	/* Set PER control regs, turns on single step for the given address */
-	__ctl_load(kprobe_per_regs, 9, 11);
+	__ctl_load(per_kprobe, 9, 11);
 	regs->psw.mask |= PSW_MASK_PER;
 	regs->psw.mask &= ~(PSW_MASK_IO | PSW_MASK_EXT);
 	regs->psw.addr = ip | PSW_ADDR_AMODE;

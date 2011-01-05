@@ -81,7 +81,8 @@ struct thread_struct {
 	mm_segment_t mm_segment;
         unsigned long prot_addr;        /* address of protection-excep.     */
         unsigned int trap_no;
-        per_struct per_info;
+	struct per_regs per_user;	/* User specified PER registers */
+	struct per_event per_event;	/* Cause of the last PER trap */
         /* pfault_wait is used to block the process on a pfault event */
 	unsigned long pfault_wait;
 };
