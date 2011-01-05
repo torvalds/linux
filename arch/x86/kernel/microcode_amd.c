@@ -77,7 +77,6 @@ static int collect_cpu_info_amd(int cpu, struct cpu_signature *csig)
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	u32 dummy;
 
-	memset(csig, 0, sizeof(*csig));
 	if (c->x86_vendor != X86_VENDOR_AMD || c->x86 < 0x10) {
 		pr_warning("microcode: CPU%d: AMD CPU family 0x%x not "
 			   "supported\n", cpu, c->x86);
