@@ -27,9 +27,6 @@
 
 #define SCLP_HEADER		"sclp: "
 
-/* Structure for register_early_external_interrupt. */
-static ext_int_info_t ext_int_info_hwc;
-
 /* Lock to protect internal data consistency. */
 static DEFINE_SPINLOCK(sclp_lock);
 
@@ -870,8 +867,7 @@ sclp_check_interface(void)
 
 	spin_lock_irqsave(&sclp_lock, flags);
 	/* Prepare init mask command */
-	rc = register_early_external_interrupt(0x2401, sclp_check_handler,
-					       &ext_int_info_hwc);
+	rc = register_external_interrupt(0x2401, sclp_check_handler);
 	if (rc) {
 		spin_unlock_irqrestore(&sclp_lock, flags);
 		return rc;
@@ -904,8 +900,7 @@ sclp_check_interface(void)
 		} else
 			rc = -EBUSY;
 	}
-	unregister_early_external_interrupt(0x2401, sclp_check_handler,
-					    &ext_int_info_hwc);
+	unregister_external_interrupt(0x2401, sclp_check_handler);
 	spin_unlock_irqrestore(&sclp_lock, flags);
 	return rc;
 }
@@ -1068,8 +1063,7 @@ sclp_init(void)
 	if (rc)
 		goto fail_init_state_uninitialized;
 	/* Register interrupt handler */
-	rc = register_early_external_interrupt(0x2401, sclp_interrupt_handler,
-					       &ext_int_info_hwc);
+	rc = register_external_interrupt(0x2401, sclp_interrupt_handler);
 	if (rc)
 		goto fail_unregister_reboot_notifier;
 	sclp_init_state = sclp_init_state_initialized;
