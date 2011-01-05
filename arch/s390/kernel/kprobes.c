@@ -32,10 +32,10 @@
 #include <linux/slab.h>
 #include <linux/hardirq.h>
 
-DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
+DEFINE_PER_CPU(struct kprobe *, current_kprobe);
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
-struct kretprobe_blackpoint kretprobe_blacklist[] = {{NULL, NULL}};
+struct kretprobe_blackpoint kretprobe_blacklist[] = { };
 
 static int __kprobes is_prohibited_opcode(kprobe_opcode_t *insn)
 {
@@ -123,7 +123,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 		return -EINVAL;
 
 	/* Make sure the probe isn't going on a difficult instruction */
-	if (is_prohibited_opcode((kprobe_opcode_t *) p->addr))
+	if (is_prohibited_opcode(p->addr))
 		return -EINVAL;
 
 	p->opcode = *p->addr;
@@ -235,7 +235,7 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 	ri->ret_addr = (kprobe_opcode_t *) regs->gprs[14];
 
 	/* Replace the return addr with trampoline addr */
-	regs->gprs[14] = (unsigned long)&kretprobe_trampoline;
+	regs->gprs[14] = (unsigned long) &kretprobe_trampoline;
 }
 
 static void __kprobes kprobe_reenter_check(struct kprobe_ctlblk *kcb,
@@ -353,12 +353,12 @@ static void __used kretprobe_trampoline_holder(void)
 static int __kprobes trampoline_probe_handler(struct kprobe *p,
 					      struct pt_regs *regs)
 {
-	struct kretprobe_instance *ri = NULL;
+	struct kretprobe_instance *ri;
 	struct hlist_head *head, empty_rp;
 	struct hlist_node *node, *tmp;
-	unsigned long flags, orig_ret_address = 0;
-	unsigned long trampoline_address = (unsigned long)&kretprobe_trampoline;
-	kprobe_opcode_t *correct_ret_addr = NULL;
+	unsigned long flags, orig_ret_address;
+	unsigned long trampoline_address;
+	kprobe_opcode_t *correct_ret_addr;
 
 	INIT_HLIST_HEAD(&empty_rp);
 	kretprobe_hash_lock(current, &head, &flags);
@@ -376,12 +376,16 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	 *	 real return address, and all the rest will point to
 	 *	 kretprobe_trampoline
 	 */
+	ri = NULL;
+	orig_ret_address = 0;
+	correct_ret_addr = NULL;
+	trampoline_address = (unsigned long) &kretprobe_trampoline;
 	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
 		if (ri->task != current)
 			/* another task is sharing our hash bucket */
 			continue;
 
-		orig_ret_address = (unsigned long)ri->ret_addr;
+		orig_ret_address = (unsigned long) ri->ret_addr;
 
 		if (orig_ret_address != trampoline_address)
 			/*
@@ -400,7 +404,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 			/* another task is sharing our hash bucket */
 			continue;
 
-		orig_ret_address = (unsigned long)ri->ret_addr;
+		orig_ret_address = (unsigned long) ri->ret_addr;
 
 		if (ri->rp && ri->rp->handler) {
 			ri->ret_addr = correct_ret_addr;
@@ -409,14 +413,13 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 
 		recycle_rp_inst(ri, &empty_rp);
 
-		if (orig_ret_address != trampoline_address) {
+		if (orig_ret_address != trampoline_address)
 			/*
 			 * This is the real return address. Any other
 			 * instances associated with this task are for
 			 * other calls deeper on the call stack
 			 */
 			break;
-		}
 	}
 
 	regs->psw.addr = orig_ret_address | PSW_ADDR_AMODE;
@@ -471,18 +474,18 @@ static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 
 static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 {
-	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+	struct kprobe *p = kprobe_running();
 
-	if (!cur)
+	if (!p)
 		return 0;
 
-	if ((kcb->kprobe_status != KPROBE_REENTER) && cur->post_handler) {
+	if (kcb->kprobe_status != KPROBE_REENTER && p->post_handler) {
 		kcb->kprobe_status = KPROBE_HIT_SSDONE;
-		cur->post_handler(cur, regs, 0);
+		p->post_handler(p, regs, 0);
 	}
 
-	resume_execution(cur, regs);
+	resume_execution(p, regs);
 	pop_kprobe(kcb);
 	preempt_enable_no_resched();
 
@@ -491,17 +494,16 @@ static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 	 * will have PER set, in which case, continue the remaining processing
 	 * of do_single_step, as if this is not a probe hit.
 	 */
-	if (regs->psw.mask & PSW_MASK_PER) {
+	if (regs->psw.mask & PSW_MASK_PER)
 		return 0;
-	}
 
 	return 1;
 }
 
 static int __kprobes kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 {
-	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+	struct kprobe *p = kprobe_running();
 	const struct exception_table_entry *entry;
 
 	switch(kcb->kprobe_status) {
@@ -517,7 +519,7 @@ static int __kprobes kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		 * and allow the page fault handler to continue as a
 		 * normal page fault.
 		 */
-		disable_singlestep(kcb, regs, (unsigned long) cur->addr);
+		disable_singlestep(kcb, regs, (unsigned long) p->addr);
 		pop_kprobe(kcb);
 		preempt_enable_no_resched();
 		break;
@@ -528,7 +530,7 @@ static int __kprobes kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		 * we can also use npre/npostfault count for accouting
 		 * these specific fault cases.
 		 */
-		kprobes_inc_nmissed_count(cur);
+		kprobes_inc_nmissed_count(p);
 
 		/*
 		 * We come here because instructions in the pre/post
@@ -537,7 +539,7 @@ static int __kprobes kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		 * copy_from_user(), get_user() etc. Let the
 		 * user-specified handler try to fix it first.
 		 */
-		if (cur->fault_handler && cur->fault_handler(cur, regs, trapnr))
+		if (p->fault_handler && p->fault_handler(p, regs, trapnr))
 			return 1;
 
 		/*
@@ -579,7 +581,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 				       unsigned long val, void *data)
 {
-	struct die_args *args = (struct die_args *)data;
+	struct die_args *args = (struct die_args *) data;
 	struct pt_regs *regs = args->regs;
 	int ret = NOTIFY_DONE;
 
@@ -588,16 +590,16 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 
 	switch (val) {
 	case DIE_BPT:
-		if (kprobe_handler(args->regs))
+		if (kprobe_handler(regs))
 			ret = NOTIFY_STOP;
 		break;
 	case DIE_SSTEP:
-		if (post_kprobe_handler(args->regs))
+		if (post_kprobe_handler(regs))
 			ret = NOTIFY_STOP;
 		break;
 	case DIE_TRAP:
 		if (!preemptible() && kprobe_running() &&
-		    kprobe_trap_handler(args->regs, args->trapnr))
+		    kprobe_trap_handler(regs, args->trapnr))
 			ret = NOTIFY_STOP;
 		break;
 	default:
@@ -619,7 +621,7 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	memcpy(&kcb->jprobe_saved_regs, regs, sizeof(struct pt_regs));
 
 	/* setup return addr to the jprobe handler routine */
-	regs->psw.addr = (unsigned long)(jp->entry) | PSW_ADDR_AMODE;
+	regs->psw.addr = (unsigned long) jp->entry | PSW_ADDR_AMODE;
 	regs->psw.mask &= ~(PSW_MASK_IO | PSW_MASK_EXT);
 
 	/* r15 is the stack pointer */
@@ -654,19 +656,17 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	return 1;
 }
 
-static struct kprobe trampoline_p = {
-	.addr = (kprobe_opcode_t *) & kretprobe_trampoline,
+static struct kprobe trampoline = {
+	.addr = (kprobe_opcode_t *) &kretprobe_trampoline,
 	.pre_handler = trampoline_probe_handler
 };
 
 int __init arch_init_kprobes(void)
 {
-	return register_kprobe(&trampoline_p);
+	return register_kprobe(&trampoline);
 }
 
 int __kprobes arch_trampoline_kprobe(struct kprobe *p)
 {
-	if (p->addr == (kprobe_opcode_t *) & kretprobe_trampoline)
-		return 1;
-	return 0;
+	return p->addr == (kprobe_opcode_t *) &kretprobe_trampoline;
 }
