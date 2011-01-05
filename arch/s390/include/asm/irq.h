@@ -15,6 +15,8 @@ enum interruption_class {
 	EXTINT_VRT,
 	EXTINT_SCP,
 	EXTINT_IUC,
+	IOINT_QAI,
+	IOINT_QDI,
 	NMI_NMI,
 	NR_IRQS,
 };
