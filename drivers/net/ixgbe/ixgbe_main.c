@@ -4863,16 +4863,13 @@ static int ixgbe_alloc_q_vectors(struct ixgbe_adapter *adapter)
 {
 	int q_idx, num_q_vectors;
 	struct ixgbe_q_vector *q_vector;
-	int napi_vectors;
 	int (*poll)(struct napi_struct *, int);
 
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
 		num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
-		napi_vectors = adapter->num_rx_queues;
 		poll = &ixgbe_clean_rxtx_many;
 	} else {
 		num_q_vectors = 1;
-		napi_vectors = 1;
 		poll = &ixgbe_poll;
 	}
 
