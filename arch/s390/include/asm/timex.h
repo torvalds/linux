@@ -59,12 +59,14 @@ static inline unsigned long long local_tick_disable(void)
 
 	old = S390_lowcore.clock_comparator;
 	S390_lowcore.clock_comparator = -1ULL;
+	set_clock_comparator(S390_lowcore.clock_comparator);
 	return old;
 }
 
 static inline void local_tick_enable(unsigned long long comp)
 {
 	S390_lowcore.clock_comparator = comp;
+	set_clock_comparator(S390_lowcore.clock_comparator);
 }
 
 #define CLOCK_TICK_RATE	1193180 /* Underlying HZ */
