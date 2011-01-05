@@ -3162,8 +3162,12 @@ alloc:
 					     bytes + 2 * 1024 * 1024,
 					     alloc_target, 0);
 			btrfs_end_transaction(trans, root);
-			if (ret < 0)
-				return ret;
+			if (ret < 0) {
+				if (ret != -ENOSPC)
+					return ret;
+				else
+					goto commit_trans;
+			}
 
 			if (!data_sinfo) {
 				btrfs_set_inode_space_info(root, inode);
@@ -3174,6 +3178,7 @@ alloc:
 		spin_unlock(&data_sinfo->lock);
 
 		/* commit the current transaction and try again */
+commit_trans:
 		if (!committed && !root->fs_info->open_ioctl_trans) {
 			committed = 1;
 			trans = btrfs_join_transaction(root, 1);
