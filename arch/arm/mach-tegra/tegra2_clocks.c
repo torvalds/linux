@@ -1475,7 +1475,7 @@ static struct clk tegra_pll_a = {
 	.ops       = &tegra_pll_ops,
 	.reg       = 0xb0,
 	.parent    = &tegra_pll_p_out1,
-	.max_rate  = 56448000,
+	.max_rate  = 73728000,
 	.u.pll = {
 		.input_min = 2000000,
 		.input_max = 31000000,
@@ -1495,7 +1495,7 @@ static struct clk tegra_pll_a_out0 = {
 	.parent    = &tegra_pll_a,
 	.reg       = 0xb4,
 	.reg_shift = 0,
-	.max_rate  = 56448000,
+	.max_rate  = 73728000,
 };
 
 static struct clk_pll_freq_table tegra_pll_d_freq_table[] = {
@@ -1694,7 +1694,7 @@ static struct clk tegra_clk_audio = {
 	.name      = "audio",
 	.inputs    = mux_audio_sync_clk,
 	.reg       = 0x38,
-	.max_rate  = 24000000,
+	.max_rate  = 73728000,
 	.ops       = &tegra_audio_sync_clk_ops
 };
 
