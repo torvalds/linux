@@ -222,6 +222,69 @@ ap_queue_interruption_control(ap_qid_t qid, void *ind)
 }
 #endif
 
+static inline struct ap_queue_status __ap_4096_commands_available(ap_qid_t qid,
+								  int *support)
+{
+	register unsigned long reg0 asm ("0") = 0UL | qid | (1UL << 23);
+	register struct ap_queue_status reg1 asm ("1");
+	register unsigned long reg2 asm ("2") = 0UL;
+
+	asm volatile(
+		".long 0xb2af0000\n"
+		"0: la    %1,0\n"
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: "+d" (reg0), "=d" (reg1), "=d" (reg2)
+		:
+		: "cc");
+
+	if (reg2 & 0x6000000000000000ULL)
+		*support = 1;
+	else
+		*support = 0;
+
+	return reg1;
+}
+
+/**
+ * ap_4096_commands_availablen(): Check for availability of 4096 bit RSA
+ * support.
+ * @qid: The AP queue number
+ *
+ * Returns 1 if 4096 bit RSA keys are support fo the AP, returns 0 if not.
+ */
+int ap_4096_commands_available(ap_qid_t qid)
+{
+	struct ap_queue_status status;
+	int i, support = 0;
+	status = __ap_4096_commands_available(qid, &support);
+
+	for (i = 0; i < AP_MAX_RESET; i++) {
+		switch (status.response_code) {
+		case AP_RESPONSE_NORMAL:
+			return support;
+		case AP_RESPONSE_RESET_IN_PROGRESS:
+		case AP_RESPONSE_BUSY:
+			break;
+		case AP_RESPONSE_Q_NOT_AVAIL:
+		case AP_RESPONSE_DECONFIGURED:
+		case AP_RESPONSE_CHECKSTOPPED:
+		case AP_RESPONSE_INVALID_ADDRESS:
+			return 0;
+		case AP_RESPONSE_OTHERWISE_CHANGED:
+			break;
+		default:
+			break;
+		}
+		if (i < AP_MAX_RESET - 1) {
+			udelay(5);
+			status = __ap_4096_commands_available(qid, &support);
+		}
+	}
+	return support;
+}
+EXPORT_SYMBOL(ap_4096_commands_available);
+
 /**
  * ap_queue_enable_interruption(): Enable interruption on an AP.
  * @qid: The AP queue number
