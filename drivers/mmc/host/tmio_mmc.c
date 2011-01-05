@@ -39,6 +39,8 @@
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
+#include <linux/workqueue.h>
+#include <linux/spinlock.h>
 
 #define CTL_SD_CMD 0x00
 #define CTL_ARG_REG 0x04
@@ -154,6 +156,11 @@ struct tmio_mmc_host {
 	u8			bounce_buf[PAGE_CACHE_SIZE] __attribute__((aligned(MAX_ALIGN)));
 	struct scatterlist	bounce_sg;
 #endif
+
+	/* Track lost interrupts */
+	struct delayed_work	delayed_reset_work;
+	spinlock_t		lock;
+	unsigned long		last_req_ts;
 };
 
 static void tmio_check_bounce_buffer(struct tmio_mmc_host *host);
@@ -345,14 +352,59 @@ static void reset(struct tmio_mmc_host *host)
 	msleep(10);
 }
 
+static void tmio_mmc_reset_work(struct work_struct *work)
+{
+	struct tmio_mmc_host *host = container_of(work, struct tmio_mmc_host,
+						  delayed_reset_work.work);
+	struct mmc_request *mrq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+	mrq = host->mrq;
+
+	/* request already finished */
+	if (!mrq
+	    || time_is_after_jiffies(host->last_req_ts +
+		msecs_to_jiffies(2000))) {
+		spin_unlock_irqrestore(&host->lock, flags);
+		return;
+	}
+
+	dev_warn(&host->pdev->dev,
+		"timeout waiting for hardware interrupt (CMD%u)\n",
+		mrq->cmd->opcode);
+
+	if (host->data)
+		host->data->error = -ETIMEDOUT;
+	else if (host->cmd)
+		host->cmd->error = -ETIMEDOUT;
+	else
+		mrq->cmd->error = -ETIMEDOUT;
+
+	host->cmd = NULL;
+	host->data = NULL;
+	host->mrq = NULL;
+
+	spin_unlock_irqrestore(&host->lock, flags);
+
+	reset(host);
+
+	mmc_request_done(host->mmc, mrq);
+}
+
 static void
 tmio_mmc_finish_request(struct tmio_mmc_host *host)
 {
 	struct mmc_request *mrq = host->mrq;
 
+	if (!mrq)
+		return;
+
 	host->mrq = NULL;
 	host->cmd = NULL;
 	host->data = NULL;
+
+	cancel_delayed_work(&host->delayed_reset_work);
 
 	mmc_request_done(host->mmc, mrq);
 }
@@ -463,6 +515,7 @@ static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 	return;
 }
 
+/* needs to be called with host->lock held */
 static void tmio_mmc_do_data_irq(struct tmio_mmc_host *host)
 {
 	struct mmc_data *data = host->data;
@@ -519,10 +572,12 @@ static void tmio_mmc_do_data_irq(struct tmio_mmc_host *host)
 
 static void tmio_mmc_data_irq(struct tmio_mmc_host *host)
 {
-	struct mmc_data *data = host->data;
+	struct mmc_data *data;
+	spin_lock(&host->lock);
+	data = host->data;
 
 	if (!data)
-		return;
+		goto out;
 
 	if (host->chan_tx && (data->flags & MMC_DATA_WRITE)) {
 		/*
@@ -543,6 +598,8 @@ static void tmio_mmc_data_irq(struct tmio_mmc_host *host)
 	} else {
 		tmio_mmc_do_data_irq(host);
 	}
+out:
+	spin_unlock(&host->lock);
 }
 
 static void tmio_mmc_cmd_irq(struct tmio_mmc_host *host,
@@ -551,9 +608,11 @@ static void tmio_mmc_cmd_irq(struct tmio_mmc_host *host,
 	struct mmc_command *cmd = host->cmd;
 	int i, addr;
 
+	spin_lock(&host->lock);
+
 	if (!host->cmd) {
 		pr_debug("Spurious CMD irq\n");
-		return;
+		goto out;
 	}
 
 	host->cmd = NULL;
@@ -597,6 +656,9 @@ static void tmio_mmc_cmd_irq(struct tmio_mmc_host *host,
 	} else {
 		tmio_mmc_finish_request(host);
 	}
+
+out:
+	spin_unlock(&host->lock);
 
 	return;
 }
@@ -906,6 +968,12 @@ static void tmio_issue_tasklet_fn(unsigned long priv)
 static void tmio_tasklet_fn(unsigned long arg)
 {
 	struct tmio_mmc_host *host = (struct tmio_mmc_host *)arg;
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	if (!host->data)
+		goto out;
 
 	if (host->data->flags & MMC_DATA_READ)
 		dma_unmap_sg(&host->pdev->dev, host->sg_ptr, host->dma_sglen,
@@ -915,6 +983,8 @@ static void tmio_tasklet_fn(unsigned long arg)
 			     DMA_TO_DEVICE);
 
 	tmio_mmc_do_data_irq(host);
+out:
+	spin_unlock_irqrestore(&host->lock, flags);
 }
 
 /* It might be necessary to make filter MFD specific */
@@ -1037,6 +1107,8 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (host->mrq)
 		pr_debug("request not null\n");
 
+	host->last_req_ts = jiffies;
+	wmb();
 	host->mrq = mrq;
 
 	if (mrq->data) {
@@ -1046,10 +1118,14 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 
 	ret = tmio_mmc_start_command(host, mrq->cmd);
-	if (!ret)
+	if (!ret) {
+		schedule_delayed_work(&host->delayed_reset_work,
+				      msecs_to_jiffies(2000));
 		return;
+	}
 
 fail:
+	host->mrq = NULL;
 	mrq->cmd->error = ret;
 	mmc_request_done(mmc, mrq);
 }
@@ -1247,6 +1323,11 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 	if (ret)
 		goto cell_disable;
 
+	spin_lock_init(&host->lock);
+
+	/* Init delayed work for request timeouts */
+	INIT_DELAYED_WORK(&host->delayed_reset_work, tmio_mmc_reset_work);
+
 	/* See if we also get DMA */
 	tmio_mmc_request_dma(host, pdata);
 
@@ -1285,6 +1366,7 @@ static int __devexit tmio_mmc_remove(struct platform_device *dev)
 	if (mmc) {
 		struct tmio_mmc_host *host = mmc_priv(mmc);
 		mmc_remove_host(mmc);
+		cancel_delayed_work_sync(&host->delayed_reset_work);
 		tmio_mmc_release_dma(host);
 		free_irq(host->irq, host);
 		if (cell->disable)
