@@ -619,6 +619,7 @@ static struct dasd_discipline dasd_diag_discipline = {
 	.ebcname = "DIAG",
 	.max_blocks = DIAG_MAX_BLOCKS,
 	.check_device = dasd_diag_check_device,
+	.verify_path = dasd_generic_verify_path,
 	.fill_geometry = dasd_diag_fill_geometry,
 	.start_IO = dasd_start_diag,
 	.term_IO = dasd_diag_term_IO,

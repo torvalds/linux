@@ -231,6 +231,7 @@ struct dasd_ccw_req {
 /* per dasd_ccw_req flags */
 #define DASD_CQR_FLAGS_USE_ERP   0	/* use ERP for this request */
 #define DASD_CQR_FLAGS_FAILFAST  1	/* FAILFAST */
+#define DASD_CQR_VERIFY_PATH	 2	/* path verification request */
 
 /* Signature for error recovery functions. */
 typedef struct dasd_ccw_req *(*dasd_erp_fn_t) (struct dasd_ccw_req *);
@@ -285,6 +286,14 @@ struct dasd_discipline {
 	 * before the analysis may be repeated.
 	 */
 	int (*do_analysis) (struct dasd_block *);
+
+	/*
+	 * This function is called, when new paths become available.
+	 * Disciplins may use this callback to do necessary setup work,
+	 * e.g. verify that new path is compatible with the current
+	 * configuration.
+	 */
+	int (*verify_path)(struct dasd_device *, __u8);
 
 	/*
 	 * Last things to do when a device is set online, and first things
@@ -362,6 +371,13 @@ extern struct dasd_discipline *dasd_diag_discipline_pointer;
 #define DASD_EER_STATECHANGE 3
 #define DASD_EER_PPRCSUSPEND 4
 
+struct dasd_path {
+	__u8 opm;
+	__u8 tbvpm;
+	__u8 ppm;
+	__u8 npm;
+};
+
 struct dasd_device {
 	/* Block device stuff. */
 	struct dasd_block *block;
@@ -377,6 +393,7 @@ struct dasd_device {
 	struct dasd_discipline *discipline;
 	struct dasd_discipline *base_discipline;
 	char *private;
+	struct dasd_path path_data;
 
 	/* Device state and target state. */
 	int state, target;
@@ -620,10 +637,15 @@ void dasd_generic_remove (struct ccw_device *cdev);
 int dasd_generic_set_online(struct ccw_device *, struct dasd_discipline *);
 int dasd_generic_set_offline (struct ccw_device *cdev);
 int dasd_generic_notify(struct ccw_device *, int);
+int dasd_generic_last_path_gone(struct dasd_device *);
+int dasd_generic_path_operational(struct dasd_device *);
+
 void dasd_generic_handle_state_change(struct dasd_device *);
 int dasd_generic_pm_freeze(struct ccw_device *);
 int dasd_generic_restore_device(struct ccw_device *);
 enum uc_todo dasd_generic_uc_handler(struct ccw_device *, struct irb *);
+void dasd_generic_path_event(struct ccw_device *, int *);
+int dasd_generic_verify_path(struct dasd_device *, __u8);
 
 int dasd_generic_read_dev_chars(struct dasd_device *, int, void *, int);
 char *dasd_get_sense(struct irb *);

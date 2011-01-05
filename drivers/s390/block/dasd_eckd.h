@@ -45,6 +45,7 @@
 #define DASD_ECKD_CCW_PFX		 0xE7
 #define DASD_ECKD_CCW_PFX_READ		 0xEA
 #define DASD_ECKD_CCW_RSCK		 0xF9
+#define DASD_ECKD_CCW_RCD		 0xFA
 
 /*
  * Perform Subsystem Function / Sub-Orders
@@ -59,6 +60,7 @@
 
 
 #define FCX_MAX_DATA_FACTOR 65536
+#define DASD_ECKD_RCD_DATA_SIZE 256
 
 
 /*****************************************************************************
@@ -335,12 +337,6 @@ struct dasd_gneq {
 	__u8 reserved2[22];
 } __attribute__ ((packed));
 
-struct dasd_eckd_path {
-	__u8 opm;
-	__u8 ppm;
-	__u8 npm;
-};
-
 struct dasd_rssd_features {
 	char feature[256];
 } __attribute__((packed));
@@ -446,7 +442,6 @@ struct dasd_eckd_private {
 	struct vd_sneq *vdsneq;
 	struct dasd_gneq *gneq;
 
-	struct dasd_eckd_path path_data;
 	struct eckd_count count_area[5];
 	int init_cqr_status;
 	int uses_cdl;

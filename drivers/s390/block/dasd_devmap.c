@@ -639,6 +639,7 @@ dasd_put_device_wake(struct dasd_device *device)
 {
 	wake_up(&dasd_delete_wq);
 }
+EXPORT_SYMBOL_GPL(dasd_put_device_wake);
 
 /*
  * Return dasd_device structure associated with cdev.
