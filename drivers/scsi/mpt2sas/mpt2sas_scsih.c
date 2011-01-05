@@ -819,7 +819,7 @@ _scsih_is_end_device(u32 device_info)
 }
 
 /**
- * mptscsih_get_scsi_lookup - returns scmd entry
+ * _scsih_scsi_lookup_get - returns scmd entry
  * @ioc: per adapter object
  * @smid: system request message index
  *
@@ -829,6 +829,28 @@ static struct scsi_cmnd *
 _scsih_scsi_lookup_get(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 {
 	return ioc->scsi_lookup[smid - 1].scmd;
+}
+
+/**
+ * _scsih_scsi_lookup_get_clear - returns scmd entry
+ * @ioc: per adapter object
+ * @smid: system request message index
+ *
+ * Returns the smid stored scmd pointer.
+ * Then will derefrence the stored scmd pointer.
+ */
+static inline struct scsi_cmnd *
+_scsih_scsi_lookup_get_clear(struct MPT2SAS_ADAPTER *ioc, u16 smid)
+{
+	unsigned long flags;
+	struct scsi_cmnd *scmd;
+
+	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+	scmd = ioc->scsi_lookup[smid - 1].scmd;
+	ioc->scsi_lookup[smid - 1].scmd = NULL;
+	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+
+	return scmd;
 }
 
 /**
@@ -3207,7 +3229,7 @@ _scsih_flush_running_cmds(struct MPT2SAS_ADAPTER *ioc)
 	u16 count = 0;
 
 	for (smid = 1; smid <= ioc->scsiio_depth; smid++) {
-		scmd = _scsih_scsi_lookup_get(ioc, smid);
+		scmd = _scsih_scsi_lookup_get_clear(ioc, smid);
 		if (!scmd)
 			continue;
 		count++;
@@ -3801,7 +3823,7 @@ _scsih_io_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 	u32 response_code = 0;
 
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
-	scmd = _scsih_scsi_lookup_get(ioc, smid);
+	scmd = _scsih_scsi_lookup_get_clear(ioc, smid);
 	if (scmd == NULL)
 		return 1;
 
@@ -5102,6 +5124,7 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
     struct fw_event_work *fw_event)
 {
 	struct scsi_cmnd *scmd;
+	struct scsi_device *sdev;
 	u16 smid, handle;
 	u32 lun;
 	struct MPT2SAS_DEVICE *sas_device_priv_data;
@@ -5112,12 +5135,17 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 	Mpi2EventDataSasBroadcastPrimitive_t *event_data = fw_event->event_data;
 #endif
 	u16 ioc_status;
+	unsigned long flags;
+	int r;
+
 	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "broadcast primative: "
 	    "phy number(%d), width(%d)\n", ioc->name, event_data->PhyNum,
 	    event_data->PortWidth));
 	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter\n", ioc->name,
 	    __func__));
 
+	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+	ioc->broadcast_aen_busy = 0;
 	termination_count = 0;
 	query_count = 0;
 	mpi_reply = ioc->tm_cmds.reply;
@@ -5125,7 +5153,8 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 		scmd = _scsih_scsi_lookup_get(ioc, smid);
 		if (!scmd)
 			continue;
-		sas_device_priv_data = scmd->device->hostdata;
+		sdev = scmd->device;
+		sas_device_priv_data = sdev->hostdata;
 		if (!sas_device_priv_data || !sas_device_priv_data->sas_target)
 			continue;
 		 /* skip hidden raid components */
@@ -5141,6 +5170,7 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 		lun = sas_device_priv_data->lun;
 		query_count++;
 
+		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 		mpt2sas_scsih_issue_tm(ioc, handle, 0, 0, lun,
 		    MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK, smid, 30, NULL);
 		ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
@@ -5150,14 +5180,20 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 		    (mpi_reply->ResponseCode ==
 		     MPI2_SCSITASKMGMT_RSP_TM_SUCCEEDED ||
 		     mpi_reply->ResponseCode ==
-		     MPI2_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC))
+		     MPI2_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC)) {
+			spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 			continue;
-
-		mpt2sas_scsih_issue_tm(ioc, handle, 0, 0, lun,
-		    MPI2_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET, 0, 30, NULL);
+		}
+		r = mpt2sas_scsih_issue_tm(ioc, handle, sdev->channel, sdev->id,
+		    sdev->lun, MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK, smid, 30,
+		    scmd);
+		if (r == FAILED)
+			sdev_printk(KERN_WARNING, sdev, "task abort: FAILED "
+			    "scmd(%p)\n", scmd);
 		termination_count += le32_to_cpu(mpi_reply->TerminationCount);
+		spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 	}
-	ioc->broadcast_aen_busy = 0;
+	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 
 	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT
 	    "%s - exit, query_count = %d termination_count = %d\n",
