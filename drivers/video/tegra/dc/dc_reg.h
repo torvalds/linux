@@ -396,7 +396,7 @@
 #define  BLEND_WEIGHT1(x)		(((x) & 0xff) << 16)
 #define  BLEND(key, control, weight0, weight1)			\
 	  (CKEY_ ## key | BLEND_CONTROL_ ## control |		\
-	   BLEND_WEIGHT0(weight0) | BLEND_WEIGHT0(weight1))
+	   BLEND_WEIGHT0(weight0) | BLEND_WEIGHT1(weight1))
 
 
 #define DC_WIN_HP_FETCH_CONTROL			0x714

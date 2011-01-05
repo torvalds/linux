@@ -512,13 +512,16 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		int stop = (i == (num - 1)) ? 1  : 0;
 		ret = tegra_i2c_xfer_msg(i2c_bus, &msgs[i], stop);
 		if (ret)
-			break;
+			goto out;
 	}
+	ret = i;
+
+out:
 	clk_disable(i2c_dev->clk);
 
 	rt_mutex_unlock(&i2c_dev->dev_lock);
 
-	return i;
+	return ret;
 }
 
 static u32 tegra_i2c_func(struct i2c_adapter *adap)
