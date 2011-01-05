@@ -585,8 +585,8 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct jprobe *jp = container_of(p, struct jprobe, kp);
-	unsigned long addr;
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+	unsigned long stack;
 
 	memcpy(&kcb->jprobe_saved_regs, regs, sizeof(struct pt_regs));
 
@@ -594,14 +594,10 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	regs->psw.addr = (unsigned long)(jp->entry) | PSW_ADDR_AMODE;
 	regs->psw.mask &= ~(PSW_MASK_IO | PSW_MASK_EXT);
 
-	/* r14 is the function return address */
-	kcb->jprobe_saved_r14 = (unsigned long)regs->gprs[14];
 	/* r15 is the stack pointer */
-	kcb->jprobe_saved_r15 = (unsigned long)regs->gprs[15];
-	addr = (unsigned long)kcb->jprobe_saved_r15;
+	stack = (unsigned long) regs->gprs[15];
 
-	memcpy(kcb->jprobes_stack, (kprobe_opcode_t *) addr,
-	       MIN_STACK_SIZE(addr));
+	memcpy(kcb->jprobes_stack, (void *) stack, MIN_STACK_SIZE(stack));
 	return 1;
 }
 
@@ -618,13 +614,14 @@ void __kprobes jprobe_return_end(void)
 int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	unsigned long stack_addr = (unsigned long)(kcb->jprobe_saved_r15);
+	unsigned long stack;
+
+	stack = (unsigned long) kcb->jprobe_saved_regs.gprs[15];
 
 	/* Put the regs back */
 	memcpy(regs, &kcb->jprobe_saved_regs, sizeof(struct pt_regs));
 	/* put the stack back */
-	memcpy((kprobe_opcode_t *) stack_addr, kcb->jprobes_stack,
-	       MIN_STACK_SIZE(stack_addr));
+	memcpy((void *) stack, kcb->jprobes_stack, MIN_STACK_SIZE(stack));
 	preempt_enable_no_resched();
 	return 1;
 }
