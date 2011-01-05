@@ -2516,6 +2516,9 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_assert_tree_locked(path->nodes[1]);
 
 	right = read_node_slot(root, upper, slot + 1);
+	if (right == NULL)
+		return 1;
+
 	btrfs_tree_lock(right);
 	btrfs_set_lock_blocking(right);
 
@@ -2766,6 +2769,9 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_assert_tree_locked(path->nodes[1]);
 
 	left = read_node_slot(root, path->nodes[1], slot - 1);
+	if (left == NULL)
+		return 1;
+
 	btrfs_tree_lock(left);
 	btrfs_set_lock_blocking(left);
 

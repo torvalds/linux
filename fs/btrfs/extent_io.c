@@ -3075,6 +3075,8 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 #endif
 
 	eb = kmem_cache_zalloc(extent_buffer_cache, mask);
+	if (eb == NULL)
+		return NULL;
 	eb->start = start;
 	eb->len = len;
 	spin_lock_init(&eb->lock);

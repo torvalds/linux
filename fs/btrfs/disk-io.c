@@ -353,6 +353,10 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	WARN_ON(len == 0);
 
 	eb = alloc_extent_buffer(tree, start, len, page, GFP_NOFS);
+	if (eb == NULL) {
+		WARN_ON(1);
+		goto out;
+	}
 	ret = btree_read_extent_buffer_pages(root, eb, start + PAGE_CACHE_SIZE,
 					     btrfs_header_generation(eb));
 	BUG_ON(ret);
@@ -427,6 +431,10 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	WARN_ON(len == 0);
 
 	eb = alloc_extent_buffer(tree, start, len, page, GFP_NOFS);
+	if (eb == NULL) {
+		ret = -EIO;
+		goto out;
+	}
 
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
