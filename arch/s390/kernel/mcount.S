@@ -18,22 +18,12 @@ _mcount:
 #ifdef CONFIG_DYNAMIC_FTRACE
 	br	%r14
 
-	.data
-	.globl	ftrace_dyn_func
-ftrace_dyn_func:
-	.long	ftrace_stub
-	.previous
-
 	.globl ftrace_caller
 ftrace_caller:
 #endif
 	stm	%r2,%r5,16(%r15)
 	bras	%r1,2f
-#ifdef CONFIG_DYNAMIC_FTRACE
-0:	.long	ftrace_dyn_func
-#else
 0:	.long	ftrace_trace_function
-#endif
 1:	.long	function_trace_stop
 2:	l	%r2,1b-0b(%r1)
 	icm	%r2,0xf,0(%r2)
@@ -49,21 +39,15 @@ ftrace_caller:
 	l	%r14,0(%r14)
 	basr	%r14,%r14
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-#ifdef CONFIG_DYNAMIC_FTRACE
+	l	%r2,100(%r15)
+	l	%r3,152(%r15)
 	.globl	ftrace_graph_caller
 ftrace_graph_caller:
-	# This unconditional branch gets runtime patched. Change only if
-	# you know what you are doing. See ftrace_enable_graph_caller().
-	j	1f
-#endif
-	bras	%r1,0f
-	.long	prepare_ftrace_return
-0:	l	%r2,152(%r15)
-	l	%r4,0(%r1)
-	l	%r3,100(%r15)
-	basr	%r14,%r4
-	st	%r2,100(%r15)
-1:
+# The bras instruction gets runtime patched to call prepare_ftrace_return.
+# See ftrace_enable_ftrace_graph_caller. The patched instruction is:
+#	bras	%r14,prepare_ftrace_return
+	bras	%r14,0f
+0:	st	%r2,100(%r15)
 #endif
 	ahi	%r15,96
 	l	%r14,56(%r15)
