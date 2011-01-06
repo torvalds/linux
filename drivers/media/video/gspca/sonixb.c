@@ -525,10 +525,18 @@ static const __u8 initTas5110d[] = {
 	0x00, 0x00, 0x00, 0x41, 0x09, 0x0a,
 	0x16, 0x12, 0x60, 0x86, 0x2b,
 };
-static const __u8 tas5110_sensor_init[][8] = {
+/* tas5110c is 3 wire, tas5110d is 2 wire (regular i2c) */
+static const __u8 tas5110c_sensor_init[][8] = {
 	{0x30, 0x11, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x10},
 	{0x30, 0x11, 0x02, 0x20, 0xa9, 0x00, 0x00, 0x10},
-	{0xa0, 0x61, 0x9a, 0xca, 0x00, 0x00, 0x00, 0x17},
+};
+/* Known TAS5110D registers
+ * reg02: gain, bit order reversed!! 0 == max gain, 255 == min gain
+ * reg03: bit3: vflip, bit4: ~hflip, bit7: ~gainboost (~ == inverted)
+ *        Note: writing reg03 seems to only work when written together with 02
+ */
+static const __u8 tas5110d_sensor_init[][8] = {
+	{0xa0, 0x61, 0x9a, 0xca, 0x00, 0x00, 0x00, 0x17}, /* reset */
 };
 
 static const __u8 initTas5130[] = {
@@ -552,9 +560,9 @@ SENS(initOv6650, ov6650_sensor_init, F_GAIN|F_SIF, 0, 0x60),
 SENS(initOv7630, ov7630_sensor_init, F_GAIN, 0, 0x21),
 SENS(initPas106, pas106_sensor_init, F_GAIN|F_SIF, NO_FREQ, 0),
 SENS(initPas202, pas202_sensor_init, F_GAIN, NO_FREQ, 0),
-SENS(initTas5110c, tas5110_sensor_init, F_GAIN|F_SIF|F_COARSE_EXPO,
+SENS(initTas5110c, tas5110c_sensor_init, F_GAIN|F_SIF|F_COARSE_EXPO,
 	NO_BRIGHTNESS|NO_FREQ, 0),
-SENS(initTas5110d, tas5110_sensor_init, F_GAIN|F_SIF|F_COARSE_EXPO,
+SENS(initTas5110d, tas5110d_sensor_init, F_GAIN|F_SIF|F_COARSE_EXPO,
 	NO_BRIGHTNESS|NO_FREQ, 0),
 SENS(initTas5130, tas5130_sensor_init, 0, NO_EXPO|NO_FREQ, 0),
 };
@@ -705,12 +713,28 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 			goto err;
 		break;
 	    }
-	case SENSOR_TAS5110C:
-	case SENSOR_TAS5110D: {
+	case SENSOR_TAS5110C: {
 		__u8 i2c[] =
 			{0x30, 0x11, 0x02, 0x20, 0x70, 0x00, 0x00, 0x10};
 
 		i2c[4] = 255 - gain;
+		if (i2c_w(gspca_dev, i2c) < 0)
+			goto err;
+		break;
+	    }
+	case SENSOR_TAS5110D: {
+		__u8 i2c[] = {
+			0xb0, 0x61, 0x02, 0x00, 0x10, 0x00, 0x00, 0x17 };
+		gain = 255 - gain;
+		/* The bits in the register are the wrong way around!! */
+		i2c[3] |= (gain & 0x80) >> 7;
+		i2c[3] |= (gain & 0x40) >> 5;
+		i2c[3] |= (gain & 0x20) >> 3;
+		i2c[3] |= (gain & 0x10) >> 1;
+		i2c[3] |= (gain & 0x08) << 1;
+		i2c[3] |= (gain & 0x04) << 3;
+		i2c[3] |= (gain & 0x02) << 5;
+		i2c[3] |= (gain & 0x01) << 7;
 		if (i2c_w(gspca_dev, i2c) < 0)
 			goto err;
 		break;
