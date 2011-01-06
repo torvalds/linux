@@ -1388,7 +1388,6 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 	struct acpi_bus_ops *ops = context;
 	int type;
 	unsigned long long sta;
-	struct acpi_device_wakeup wakeup;
 	struct acpi_device *device;
 	acpi_status status;
 	int result;
@@ -1399,7 +1398,13 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 
 	if (!(sta & ACPI_STA_DEVICE_PRESENT) &&
 	    !(sta & ACPI_STA_DEVICE_FUNCTIONING)) {
-		acpi_bus_extract_wakeup_device_power_package(handle, &wakeup);
+		struct acpi_device_wakeup wakeup;
+		acpi_handle temp;
+
+		status = acpi_get_handle(handle, "_PRW", &temp);
+		if (ACPI_SUCCESS(status))
+			acpi_bus_extract_wakeup_device_power_package(handle,
+								     &wakeup);
 		return AE_CTRL_DEPTH;
 	}
 
