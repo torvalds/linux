@@ -15,6 +15,7 @@
 #include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/irq.h>
+#include <linux/ftrace.h>
 
 #include <asm/machdep.h>
 #include <asm/prom.h>
@@ -82,7 +83,13 @@ void arch_crash_save_vmcoreinfo(void)
  */
 void machine_kexec(struct kimage *image)
 {
+	int save_ftrace_enabled;
+
+	save_ftrace_enabled = __ftrace_enabled_save();
+
 	default_machine_kexec(image);
+
+	__ftrace_enabled_restore(save_ftrace_enabled);
 
 	/* Fall back to normal restart if we're still alive. */
 	machine_restart(NULL);
