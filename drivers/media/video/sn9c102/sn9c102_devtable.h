@@ -47,8 +47,8 @@ static const struct usb_device_id sn9c102_id_table[] = {
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6009, BRIDGE_SN9C102), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x600d, BRIDGE_SN9C102), },
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x6011, BRIDGE_SN9C102), }, OV6650 */
-#endif
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6019, BRIDGE_SN9C102), },
+#endif
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6024, BRIDGE_SN9C102), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6025, BRIDGE_SN9C102), },
 #if !defined CONFIG_USB_GSPCA_SONIXB && !defined CONFIG_USB_GSPCA_SONIXB_MODULE
@@ -66,15 +66,14 @@ static const struct usb_device_id sn9c102_id_table[] = {
 	/* SN9C103 */
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x6080, BRIDGE_SN9C103), }, non existent ? */
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6082, BRIDGE_SN9C103), }, /* not in sonixb */
+#if !defined CONFIG_USB_GSPCA_SONIXB && !defined CONFIG_USB_GSPCA_SONIXB_MODULE
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x6083, BRIDGE_SN9C103), }, HY7131D/E */
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x6088, BRIDGE_SN9C103), }, non existent ? */
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x608a, BRIDGE_SN9C103), }, non existent ? */
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x608b, BRIDGE_SN9C103), }, non existent ? */
 	{ SN9C102_USB_DEVICE(0x0c45, 0x608c, BRIDGE_SN9C103), },
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x608e, BRIDGE_SN9C103), }, CISVF10 */
-#if !defined CONFIG_USB_GSPCA_SONIXB && !defined CONFIG_USB_GSPCA_SONIXB_MODULE
 	{ SN9C102_USB_DEVICE(0x0c45, 0x608f, BRIDGE_SN9C103), },
-#endif
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x60a0, BRIDGE_SN9C103), }, non existent ? */
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x60a2, BRIDGE_SN9C103), }, non existent ? */
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x60a3, BRIDGE_SN9C103), }, non existent ? */
@@ -84,9 +83,7 @@ static const struct usb_device_id sn9c102_id_table[] = {
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x60ac, BRIDGE_SN9C103), }, non existent ? */
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x60ae, BRIDGE_SN9C103), }, non existent ? */
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60af, BRIDGE_SN9C103), },
-#if !defined CONFIG_USB_GSPCA_SONIXB && !defined CONFIG_USB_GSPCA_SONIXB_MODULE
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60b0, BRIDGE_SN9C103), },
-#endif
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x60b2, BRIDGE_SN9C103), }, non existent ? */
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x60b3, BRIDGE_SN9C103), }, non existent ? */
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x60b8, BRIDGE_SN9C103), }, non existent ? */
@@ -94,6 +91,7 @@ static const struct usb_device_id sn9c102_id_table[] = {
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x60bb, BRIDGE_SN9C103), }, non existent ? */
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x60bc, BRIDGE_SN9C103), }, non existent ? */
 /*	{ SN9C102_USB_DEVICE(0x0c45, 0x60be, BRIDGE_SN9C103), }, non existent ? */
+#endif
 	/* SN9C105 */
 #if !defined CONFIG_USB_GSPCA_SONIXJ && !defined CONFIG_USB_GSPCA_SONIXJ_MODULE
 	{ SN9C102_USB_DEVICE(0x045e, 0x00f5, BRIDGE_SN9C105), },
