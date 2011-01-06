@@ -138,6 +138,8 @@ extern __be32 nfs4_callback_recallslot(struct cb_recallslotargs *args,
 					 void *dummy,
 					 struct cb_process_state *cps);
 
+extern void nfs4_check_drain_bc_complete(struct nfs4_session *ses);
+extern void nfs4_cb_take_slot(struct nfs_client *clp);
 #endif /* CONFIG_NFS_V4_1 */
 
 extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
@@ -145,7 +147,6 @@ extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
 				    struct cb_process_state *cps);
 extern __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy,
 				   struct cb_process_state *cps);
-
 #ifdef CONFIG_NFS_V4
 extern int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt);
 extern void nfs_callback_down(int minorversion);

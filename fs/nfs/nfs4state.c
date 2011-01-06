@@ -142,6 +142,11 @@ static int nfs41_setup_state_renewal(struct nfs_client *clp)
 	return status;
 }
 
+/*
+ * Back channel returns NFS4ERR_DELAY for new requests when
+ * NFS4_SESSION_DRAINING is set so there is no work to be done when draining
+ * is ended.
+ */
 static void nfs4_end_drain_session(struct nfs_client *clp)
 {
 	struct nfs4_session *ses = clp->cl_session;
@@ -165,20 +170,30 @@ static void nfs4_end_drain_session(struct nfs_client *clp)
 	}
 }
 
-static int nfs4_begin_drain_session(struct nfs_client *clp)
+static int nfs4_wait_on_slot_tbl(struct nfs4_slot_table *tbl)
 {
-	struct nfs4_session *ses = clp->cl_session;
-	struct nfs4_slot_table *tbl = &ses->fc_slot_table;
-
 	spin_lock(&tbl->slot_tbl_lock);
-	set_bit(NFS4_SESSION_DRAINING, &ses->session_state);
 	if (tbl->highest_used_slotid != -1) {
-		INIT_COMPLETION(ses->complete);
+		INIT_COMPLETION(tbl->complete);
 		spin_unlock(&tbl->slot_tbl_lock);
-		return wait_for_completion_interruptible(&ses->complete);
+		return wait_for_completion_interruptible(&tbl->complete);
 	}
 	spin_unlock(&tbl->slot_tbl_lock);
 	return 0;
+}
+
+static int nfs4_begin_drain_session(struct nfs_client *clp)
+{
+	struct nfs4_session *ses = clp->cl_session;
+	int ret = 0;
+
+	set_bit(NFS4_SESSION_DRAINING, &ses->session_state);
+	/* back channel */
+	ret = nfs4_wait_on_slot_tbl(&ses->bc_slot_table);
+	if (ret)
+		return ret;
+	/* fore channel */
+	return nfs4_wait_on_slot_tbl(&ses->fc_slot_table);
 }
 
 int nfs41_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)

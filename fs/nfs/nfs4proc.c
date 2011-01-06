@@ -356,9 +356,9 @@ nfs4_free_slot(struct nfs4_slot_table *tbl, struct nfs4_slot *free_slot)
 }
 
 /*
- * Signal state manager thread if session is drained
+ * Signal state manager thread if session fore channel is drained
  */
-static void nfs41_check_drain_session_complete(struct nfs4_session *ses)
+static void nfs4_check_drain_fc_complete(struct nfs4_session *ses)
 {
 	struct rpc_task *task;
 
@@ -372,8 +372,20 @@ static void nfs41_check_drain_session_complete(struct nfs4_session *ses)
 	if (ses->fc_slot_table.highest_used_slotid != -1)
 		return;
 
-	dprintk("%s COMPLETE: Session Drained\n", __func__);
-	complete(&ses->complete);
+	dprintk("%s COMPLETE: Session Fore Channel Drained\n", __func__);
+	complete(&ses->fc_slot_table.complete);
+}
+
+/*
+ * Signal state manager thread if session back channel is drained
+ */
+void nfs4_check_drain_bc_complete(struct nfs4_session *ses)
+{
+	if (!test_bit(NFS4_SESSION_DRAINING, &ses->session_state) ||
+	    ses->bc_slot_table.highest_used_slotid != -1)
+		return;
+	dprintk("%s COMPLETE: Session Back Channel Drained\n", __func__);
+	complete(&ses->bc_slot_table.complete);
 }
 
 static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
@@ -390,7 +402,7 @@ static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
 
 	spin_lock(&tbl->slot_tbl_lock);
 	nfs4_free_slot(tbl, res->sr_slot);
-	nfs41_check_drain_session_complete(res->sr_session);
+	nfs4_check_drain_fc_complete(res->sr_session);
 	spin_unlock(&tbl->slot_tbl_lock);
 	res->sr_slot = NULL;
 }
@@ -4777,17 +4789,17 @@ struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
 	if (!session)
 		return NULL;
 
-	init_completion(&session->complete);
-
 	tbl = &session->fc_slot_table;
 	tbl->highest_used_slotid = -1;
 	spin_lock_init(&tbl->slot_tbl_lock);
 	rpc_init_priority_wait_queue(&tbl->slot_tbl_waitq, "ForeChannel Slot table");
+	init_completion(&tbl->complete);
 
 	tbl = &session->bc_slot_table;
 	tbl->highest_used_slotid = -1;
 	spin_lock_init(&tbl->slot_tbl_lock);
 	rpc_init_wait_queue(&tbl->slot_tbl_waitq, "BackChannel Slot table");
+	init_completion(&tbl->complete);
 
 	session->session_state = 1<<NFS4_SESSION_INITING;
 

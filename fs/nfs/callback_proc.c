@@ -253,6 +253,12 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	if (clp == NULL)
 		goto out;
 
+	/* state manager is resetting the session */
+	if (test_bit(NFS4_SESSION_DRAINING, &clp->cl_session->session_state)) {
+		status = NFS4ERR_DELAY;
+		goto out;
+	}
+
 	status = validate_seqid(&clp->cl_session->bc_slot_table, args);
 	if (status)
 		goto out;
@@ -273,6 +279,7 @@ __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 	res->csr_slotid = args->csa_slotid;
 	res->csr_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
 	res->csr_target_highestslotid = NFS41_BC_MAX_CALLBACKS - 1;
+	nfs4_cb_take_slot(clp);
 	cps->clp = clp; /* put in nfs4_callback_compound */
 
 out:
