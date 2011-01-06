@@ -94,6 +94,7 @@ int r600_mc_wait_for_idle(struct radeon_device *rdev);
 void r600_gpu_init(struct radeon_device *rdev);
 void r600_fini(struct radeon_device *rdev);
 void r600_irq_disable(struct radeon_device *rdev);
+static void r600_pcie_gen2_enable(struct radeon_device *rdev);
 
 /* get temperature in millidegrees */
 u32 rv6xx_get_temp(struct radeon_device *rdev)
@@ -2379,6 +2380,9 @@ int r600_startup(struct radeon_device *rdev)
 {
 	int r;
 
+	/* enable pcie gen2 link */
+	r600_pcie_gen2_enable(rdev);
+
 	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
 		r = r600_init_microcode(rdev);
 		if (r) {
@@ -3649,3 +3653,101 @@ int r600_get_pcie_lanes(struct radeon_device *rdev)
 	}
 }
 
+static void r600_pcie_gen2_enable(struct radeon_device *rdev)
+{
+	u32 link_width_cntl, lanes, speed_cntl, training_cntl, tmp;
+	u16 link_cntl2;
+
+	if (rdev->flags & RADEON_IS_IGP)
+		return;
+
+	if (!(rdev->flags & RADEON_IS_PCIE))
+		return;
+
+	/* x2 cards have a special sequence */
+	if (ASIC_IS_X2(rdev))
+		return;
+
+	/* only RV6xx+ chips are supported */
+	if (rdev->family <= CHIP_R600)
+		return;
+
+	/* 55 nm r6xx asics */
+	if ((rdev->family == CHIP_RV670) ||
+	    (rdev->family == CHIP_RV620) ||
+	    (rdev->family == CHIP_RV635)) {
+		/* advertise upconfig capability */
+		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		link_width_cntl &= ~LC_UPCONFIGURE_DIS;
+		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		if (link_width_cntl & LC_RENEGOTIATION_SUPPORT) {
+			lanes = (link_width_cntl & LC_LINK_WIDTH_RD_MASK) >> LC_LINK_WIDTH_RD_SHIFT;
+			link_width_cntl &= ~(LC_LINK_WIDTH_MASK |
+					     LC_RECONFIG_ARC_MISSING_ESCAPE);
+			link_width_cntl |= lanes | LC_RECONFIG_NOW | LC_RENEGOTIATE_EN;
+			WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+		} else {
+			link_width_cntl |= LC_UPCONFIGURE_DIS;
+			WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+		}
+	}
+
+	speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+	if ((speed_cntl & LC_OTHER_SIDE_EVER_SENT_GEN2) &&
+	    (speed_cntl & LC_OTHER_SIDE_SUPPORTS_GEN2)) {
+
+		/* 55 nm r6xx asics */
+		if ((rdev->family == CHIP_RV670) ||
+		    (rdev->family == CHIP_RV620) ||
+		    (rdev->family == CHIP_RV635)) {
+			WREG32(MM_CFGREGS_CNTL, 0x8);
+			link_cntl2 = RREG32(0x4088);
+			WREG32(MM_CFGREGS_CNTL, 0);
+			/* not supported yet */
+			if (link_cntl2 & SELECTABLE_DEEMPHASIS)
+				return;
+		}
+
+		speed_cntl &= ~LC_SPEED_CHANGE_ATTEMPTS_ALLOWED_MASK;
+		speed_cntl |= (0x3 << LC_SPEED_CHANGE_ATTEMPTS_ALLOWED_SHIFT);
+		speed_cntl &= ~LC_VOLTAGE_TIMER_SEL_MASK;
+		speed_cntl &= ~LC_FORCE_DIS_HW_SPEED_CHANGE;
+		speed_cntl |= LC_FORCE_EN_HW_SPEED_CHANGE;
+		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+
+		tmp = RREG32(0x541c);
+		WREG32(0x541c, tmp | 0x8);
+		WREG32(MM_CFGREGS_CNTL, MM_WR_TO_CFG_EN);
+		link_cntl2 = RREG16(0x4088);
+		link_cntl2 &= ~TARGET_LINK_SPEED_MASK;
+		link_cntl2 |= 0x2;
+		WREG16(0x4088, link_cntl2);
+		WREG32(MM_CFGREGS_CNTL, 0);
+
+		if ((rdev->family == CHIP_RV670) ||
+		    (rdev->family == CHIP_RV620) ||
+		    (rdev->family == CHIP_RV635)) {
+			training_cntl = RREG32_PCIE_P(PCIE_LC_TRAINING_CNTL);
+			training_cntl &= ~LC_POINT_7_PLUS_EN;
+			WREG32_PCIE_P(PCIE_LC_TRAINING_CNTL, training_cntl);
+		} else {
+			speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+			speed_cntl &= ~LC_TARGET_LINK_SPEED_OVERRIDE_EN;
+			WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		}
+
+		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl |= LC_GEN2_EN_STRAP;
+		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+
+	} else {
+		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		/* XXX: only disable it if gen1 bridge vendor == 0x111d or 0x1106 */
+		if (1)
+			link_width_cntl |= LC_UPCONFIGURE_DIS;
+		else
+			link_width_cntl &= ~LC_UPCONFIGURE_DIS;
+		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+	}
+}

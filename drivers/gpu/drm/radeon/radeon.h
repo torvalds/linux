@@ -1244,6 +1244,8 @@ static inline void r100_io_wreg(struct radeon_device *rdev, u32 reg, u32 v)
  */
 #define RREG8(reg) readb(((void __iomem *)rdev->rmmio) + (reg))
 #define WREG8(reg, v) writeb(v, ((void __iomem *)rdev->rmmio) + (reg))
+#define RREG16(reg) readw(((void __iomem *)rdev->rmmio) + (reg))
+#define WREG16(reg, v) writew(v, ((void __iomem *)rdev->rmmio) + (reg))
 #define RREG32(reg) r100_mm_rreg(rdev, (reg))
 #define DREG32(reg) printk(KERN_INFO "REGISTER: " #reg " : 0x%08X\n", r100_mm_rreg(rdev, (reg)))
 #define WREG32(reg, v) r100_mm_wreg(rdev, (reg), (v))
