@@ -92,20 +92,4 @@ struct dlfb_data {
 #define DL_ALIGN_UP(x, a) ALIGN(x, a)
 #define DL_ALIGN_DOWN(x, a) ALIGN(x-(a-1), a)
 
-/*
- * udlfb is both a usb device, and a framebuffer device.
- * They may exist at the same time, but during various stages
- * inactivity, teardown, or "virtual" operation, only one or the
- * other will exist (one will outlive the other).  So we can't
- * call the dev_*() macros, because we don't have a stable dev object.
- */
-#define dl_err(format, arg...) \
-	pr_err("udlfb: " format, ## arg)
-#define dl_warn(format, arg...) \
-	pr_warning("udlfb: " format, ## arg)
-#define dl_notice(format, arg...) \
-	pr_notice("udlfb: " format, ## arg)
-#define dl_info(format, arg...) \
-	pr_info("udlfb: " format, ## arg)
-
 #endif
