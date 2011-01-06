@@ -1980,7 +1980,7 @@ static int __devinit sh_mobile_ceu_probe(struct platform_device *pdev)
 		 * we complete the completion.
 		 */
 
-		if (!csi2->driver || !csi2->driver->owner) {
+		if (!csi2->driver) {
 			complete(&wait.completion);
 			/* Either too late, or probing failed */
 			bus_unregister_notifier(&platform_bus_type, &wait.notifier);

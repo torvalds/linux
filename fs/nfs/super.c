@@ -1069,12 +1069,10 @@ static int nfs_parse_mount_options(char *raw,
 			mnt->flags |= NFS_MOUNT_VER3;
 			mnt->version = 3;
 			break;
-#ifdef CONFIG_NFS_V4
 		case Opt_v4:
 			mnt->flags &= ~NFS_MOUNT_VER3;
 			mnt->version = 4;
 			break;
-#endif
 		case Opt_udp:
 			mnt->flags &= ~NFS_MOUNT_TCP;
 			mnt->nfs_server.protocol = XPRT_TRANSPORT_UDP;
@@ -1286,12 +1284,10 @@ static int nfs_parse_mount_options(char *raw,
 				mnt->flags |= NFS_MOUNT_VER3;
 				mnt->version = 3;
 				break;
-#ifdef CONFIG_NFS_V4
 			case NFS4_VERSION:
 				mnt->flags &= ~NFS_MOUNT_VER3;
 				mnt->version = 4;
 				break;
-#endif
 			default:
 				goto out_invalid_value;
 			}

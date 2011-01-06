@@ -1436,6 +1436,8 @@ static struct wacom_features wacom_features_0xD2 =
 	{ "Wacom Bamboo Craft",   WACOM_PKGLEN_BBFUN,     14720,  9200, 1023, 63, BAMBOO_PT };
 static struct wacom_features wacom_features_0xD3 =
 	{ "Wacom Bamboo 2FG 6x8", WACOM_PKGLEN_BBFUN,     21648, 13530, 1023, 63, BAMBOO_PT };
+static const struct wacom_features wacom_features_0xD4 =
+	{ "Wacom Bamboo Pen",     WACOM_PKGLEN_BBFUN,     14720,  9200,  255, 63, BAMBOO_PT };
 static struct wacom_features wacom_features_0xD8 =
 	{ "Wacom Bamboo Comic 2FG", WACOM_PKGLEN_BBFUN,   21648, 13530, 1023, 63, BAMBOO_PT };
 static struct wacom_features wacom_features_0xDA =
@@ -1510,6 +1512,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xD1) },
 	{ USB_DEVICE_WACOM(0xD2) },
 	{ USB_DEVICE_WACOM(0xD3) },
+	{ USB_DEVICE_WACOM(0xD4) },
 	{ USB_DEVICE_WACOM(0xD8) },
 	{ USB_DEVICE_WACOM(0xDA) },
 	{ USB_DEVICE_WACOM(0xDB) },

@@ -27,6 +27,7 @@ config S3C2416_DMA
 
 config S3C2416_PM
 	bool
+	select S3C2412_PM_SLEEP
 	help
 	  Internal config node to apply S3C2416 power management
 

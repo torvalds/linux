@@ -2669,7 +2669,9 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	ASSERT_RTNL();
 
-	rt6_ifdown(net, dev);
+	/* Flush routes if device is being removed or it is not loopback */
+	if (how || !(dev->flags & IFF_LOOPBACK))
+		rt6_ifdown(net, dev);
 	neigh_ifdown(&nd_tbl, dev);
 
 	idev = __in6_dev_get(dev);
@@ -4021,11 +4023,11 @@ void inet6_ifinfo_notify(int event, struct inet6_dev *idev)
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, net, 0, RTNLGRP_IPV6_IFADDR, NULL, GFP_ATOMIC);
+	rtnl_notify(skb, net, 0, RTNLGRP_IPV6_IFINFO, NULL, GFP_ATOMIC);
 	return;
 errout:
 	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV6_IFADDR, err);
+		rtnl_set_sk_err(net, RTNLGRP_IPV6_IFINFO, err);
 }
 
 static inline size_t inet6_prefix_nlmsg_size(void)

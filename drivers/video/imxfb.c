@@ -53,11 +53,8 @@
 #define LCDC_SIZE	0x04
 #define SIZE_XMAX(x)	((((x) >> 4) & 0x3f) << 20)
 
-#ifdef CONFIG_ARCH_MX1
-#define SIZE_YMAX(y)	((y) & 0x1ff)
-#else
-#define SIZE_YMAX(y)	((y) & 0x3ff)
-#endif
+#define YMAX_MASK       (cpu_is_mx1() ? 0x1ff : 0x3ff)
+#define SIZE_YMAX(y)	((y) & YMAX_MASK)
 
 #define LCDC_VPW	0x08
 #define VPW_VPW(x)	((x) & 0x3ff)
@@ -623,7 +620,7 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 	if (var->right_margin > 255)
 		printk(KERN_ERR "%s: invalid right_margin %d\n",
 			info->fix.id, var->right_margin);
-	if (var->yres < 1 || var->yres > 511)
+	if (var->yres < 1 || var->yres > YMAX_MASK)
 		printk(KERN_ERR "%s: invalid yres %d\n",
 			info->fix.id, var->yres);
 	if (var->vsync_len > 100)

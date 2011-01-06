@@ -1788,9 +1788,11 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 
 			fwd_skb = skb_copy(skb, GFP_ATOMIC);
 
-			if (!fwd_skb && net_ratelimit())
+			if (!fwd_skb && net_ratelimit()) {
 				printk(KERN_DEBUG "%s: failed to clone mesh frame\n",
 						   sdata->name);
+				goto out;
+			}
 
 			fwd_hdr =  (struct ieee80211_hdr *) fwd_skb->data;
 			memcpy(fwd_hdr->addr2, sdata->vif.addr, ETH_ALEN);
@@ -1828,6 +1830,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 		}
 	}
 
+ out:
 	if (is_multicast_ether_addr(hdr->addr1) ||
 	    sdata->dev->flags & IFF_PROMISC)
 		return RX_CONTINUE;
@@ -2247,6 +2250,10 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 		break;
 	case cpu_to_le16(IEEE80211_STYPE_DEAUTH):
 	case cpu_to_le16(IEEE80211_STYPE_DISASSOC):
+		if (is_multicast_ether_addr(mgmt->da) &&
+		    !is_broadcast_ether_addr(mgmt->da))
+			return RX_DROP_MONITOR;
+
 		/* process only for station */
 		if (sdata->vif.type != NL80211_IFTYPE_STATION)
 			return RX_DROP_MONITOR;
@@ -2741,6 +2748,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 			if (ieee80211_prepare_and_rx_handle(&rx, skb, true))
 				return;
+			goto out;
 		}
 	}
 
@@ -2780,6 +2788,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 			return;
 	}
 
+ out:
 	dev_kfree_skb(skb);
 }
 

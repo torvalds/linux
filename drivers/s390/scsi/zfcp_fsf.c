@@ -851,7 +851,7 @@ struct zfcp_fsf_req *zfcp_fsf_abort_fcp_cmnd(struct scsi_cmnd *scmnd)
 
 	zfcp_qdio_set_sbale_last(qdio, &req->qdio_req);
 
-	req->data = zfcp_sdev;
+	req->data = sdev;
 	req->handler = zfcp_fsf_abort_fcp_command_handler;
 	req->qtcb->header.lun_handle = zfcp_sdev->lun_handle;
 	req->qtcb->header.port_handle = zfcp_sdev->port->handle;
@@ -2069,8 +2069,6 @@ static void zfcp_fsf_fcp_cmnd_handler(struct zfcp_fsf_req *req)
 	struct fcp_resp_with_ext *fcp_rsp;
 	unsigned long flags;
 
-	zfcp_fsf_fcp_handler_common(req);
-
 	read_lock_irqsave(&req->adapter->abort_lock, flags);
 
 	scpnt = req->data;
@@ -2078,6 +2076,8 @@ static void zfcp_fsf_fcp_cmnd_handler(struct zfcp_fsf_req *req)
 		read_unlock_irqrestore(&req->adapter->abort_lock, flags);
 		return;
 	}
+
+	zfcp_fsf_fcp_handler_common(req);
 
 	if (unlikely(req->status & ZFCP_STATUS_FSFREQ_ERROR)) {
 		set_host_byte(scpnt, DID_TRANSPORT_DISRUPTED);
@@ -2170,12 +2170,13 @@ int zfcp_fsf_fcp_cmnd(struct scsi_cmnd *scsi_cmnd)
 	struct zfcp_adapter *adapter = zfcp_sdev->port->adapter;
 	struct zfcp_qdio *qdio = adapter->qdio;
 	struct fsf_qtcb_bottom_io *io;
+	unsigned long flags;
 
 	if (unlikely(!(atomic_read(&zfcp_sdev->status) &
 		       ZFCP_STATUS_COMMON_UNBLOCKED)))
 		return -EBUSY;
 
-	spin_lock(&qdio->req_q_lock);
+	spin_lock_irqsave(&qdio->req_q_lock, flags);
 	if (atomic_read(&qdio->req_q_free) <= 0) {
 		atomic_inc(&qdio->req_q_full);
 		goto out;
@@ -2239,7 +2240,7 @@ failed_scsi_cmnd:
 	zfcp_fsf_req_free(req);
 	scsi_cmnd->host_scribble = NULL;
 out:
-	spin_unlock(&qdio->req_q_lock);
+	spin_unlock_irqrestore(&qdio->req_q_lock, flags);
 	return retval;
 }
 

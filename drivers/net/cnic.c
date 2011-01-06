@@ -940,7 +940,7 @@ static int cnic_alloc_uio_rings(struct cnic_dev *dev, int pages)
 					   &udev->l2_ring_map,
 					   GFP_KERNEL | __GFP_COMP);
 	if (!udev->l2_ring)
-		return -ENOMEM;
+		goto err_udev;
 
 	udev->l2_buf_size = (cp->l2_rx_ring_size + 1) * cp->l2_single_buf_size;
 	udev->l2_buf_size = PAGE_ALIGN(udev->l2_buf_size);
@@ -948,7 +948,7 @@ static int cnic_alloc_uio_rings(struct cnic_dev *dev, int pages)
 					  &udev->l2_buf_map,
 					  GFP_KERNEL | __GFP_COMP);
 	if (!udev->l2_buf)
-		return -ENOMEM;
+		goto err_dma;
 
 	write_lock(&cnic_dev_lock);
 	list_add(&udev->list, &cnic_udev_list);
@@ -959,6 +959,12 @@ static int cnic_alloc_uio_rings(struct cnic_dev *dev, int pages)
 	cp->udev = udev;
 
 	return 0;
+ err_dma:
+	dma_free_coherent(&udev->pdev->dev, udev->l2_ring_size,
+			  udev->l2_ring, udev->l2_ring_map);
+ err_udev:
+	kfree(udev);
+	return -ENOMEM;
 }
 
 static int cnic_init_uio(struct cnic_dev *dev)

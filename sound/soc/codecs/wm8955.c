@@ -42,8 +42,6 @@ static const char *wm8955_supply_names[WM8955_NUM_SUPPLIES] = {
 struct wm8955_priv {
 	enum snd_soc_control_type control_type;
 
-	u16 reg_cache[WM8955_MAX_REGISTER + 1];
-
 	unsigned int mclk_rate;
 
 	int deemph;
@@ -380,7 +378,8 @@ static int wm8955_get_deemph(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
 
-	return wm8955->deemph;
+	ucontrol->value.enumerated.item[0] = wm8955->deemph;
+	return 0;
 }
 
 static int wm8955_put_deemph(struct snd_kcontrol *kcontrol,
@@ -767,6 +766,7 @@ static int wm8955_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
 	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
+	u16 *reg_cache = codec->reg_cache;
 	int ret, i;
 
 	switch (level) {
@@ -799,14 +799,14 @@ static int wm8955_set_bias_level(struct snd_soc_codec *codec,
 			/* Sync back cached values if they're
 			 * different from the hardware default.
 			 */
-			for (i = 0; i < ARRAY_SIZE(wm8955->reg_cache); i++) {
+			for (i = 0; i < codec->driver->reg_cache_size; i++) {
 				if (i == WM8955_RESET)
 					continue;
 
-				if (wm8955->reg_cache[i] == wm8955_reg[i])
+				if (reg_cache[i] == wm8955_reg[i])
 					continue;
 
-				snd_soc_write(codec, i, wm8955->reg_cache[i]);
+				snd_soc_write(codec, i, reg_cache[i]);
 			}
 
 			/* Enable VREF and VMID */
@@ -901,6 +901,7 @@ static int wm8955_probe(struct snd_soc_codec *codec)
 {
 	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
 	struct wm8955_pdata *pdata = dev_get_platdata(codec->dev);
+	u16 *reg_cache = codec->reg_cache;
 	int ret, i;
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8955->control_type);
@@ -933,25 +934,25 @@ static int wm8955_probe(struct snd_soc_codec *codec)
 	}
 
 	/* Change some default settings - latch VU and enable ZC */
-	wm8955->reg_cache[WM8955_LEFT_DAC_VOLUME] |= WM8955_LDVU;
-	wm8955->reg_cache[WM8955_RIGHT_DAC_VOLUME] |= WM8955_RDVU;
-	wm8955->reg_cache[WM8955_LOUT1_VOLUME] |= WM8955_LO1VU | WM8955_LO1ZC;
-	wm8955->reg_cache[WM8955_ROUT1_VOLUME] |= WM8955_RO1VU | WM8955_RO1ZC;
-	wm8955->reg_cache[WM8955_LOUT2_VOLUME] |= WM8955_LO2VU | WM8955_LO2ZC;
-	wm8955->reg_cache[WM8955_ROUT2_VOLUME] |= WM8955_RO2VU | WM8955_RO2ZC;
-	wm8955->reg_cache[WM8955_MONOOUT_VOLUME] |= WM8955_MOZC;
+	reg_cache[WM8955_LEFT_DAC_VOLUME] |= WM8955_LDVU;
+	reg_cache[WM8955_RIGHT_DAC_VOLUME] |= WM8955_RDVU;
+	reg_cache[WM8955_LOUT1_VOLUME] |= WM8955_LO1VU | WM8955_LO1ZC;
+	reg_cache[WM8955_ROUT1_VOLUME] |= WM8955_RO1VU | WM8955_RO1ZC;
+	reg_cache[WM8955_LOUT2_VOLUME] |= WM8955_LO2VU | WM8955_LO2ZC;
+	reg_cache[WM8955_ROUT2_VOLUME] |= WM8955_RO2VU | WM8955_RO2ZC;
+	reg_cache[WM8955_MONOOUT_VOLUME] |= WM8955_MOZC;
 
 	/* Also enable adaptive bass boost by default */
-	wm8955->reg_cache[WM8955_BASS_CONTROL] |= WM8955_BB;
+	reg_cache[WM8955_BASS_CONTROL] |= WM8955_BB;
 
 	/* Set platform data values */
 	if (pdata) {
 		if (pdata->out2_speaker)
-			wm8955->reg_cache[WM8955_ADDITIONAL_CONTROL_2]
+			reg_cache[WM8955_ADDITIONAL_CONTROL_2]
 				|= WM8955_ROUT2INV;
 
 		if (pdata->monoin_diff)
-			wm8955->reg_cache[WM8955_MONO_OUT_MIX_1]
+			reg_cache[WM8955_MONO_OUT_MIX_1]
 				|= WM8955_DMEN;
 	}
 
@@ -1002,6 +1003,7 @@ static __devinit int wm8955_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8955);
+	wm8955->control_type = SND_SOC_I2C;
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8955, &wm8955_dai, 1);

@@ -13,13 +13,9 @@
  */
 
 #include <linux/init.h>
+#include <linux/highmem.h>
 #include <asm/cacheflush.h>
-#include <asm/kmap_types.h>
-#include <asm/fixmap.h>
-#include <asm/pgtable.h>
-#include <asm/tlbflush.h>
 #include <plat/cache-feroceon-l2.h>
-#include "mm.h"
 
 /*
  * Low-level cache maintenance operations.
@@ -39,24 +35,27 @@
  * between which we don't want to be preempted.
  */
 
-static inline unsigned long l2_start_va(unsigned long paddr)
+static inline unsigned long l2_get_va(unsigned long paddr)
 {
 #ifdef CONFIG_HIGHMEM
 	/*
-	 * Let's do our own fixmap stuff in a minimal way here.
 	 * Because range ops can't be done on physical addresses,
 	 * we simply install a virtual mapping for it only for the
 	 * TLB lookup to occur, hence no need to flush the untouched
-	 * memory mapping.  This is protected with the disabling of
-	 * interrupts by the caller.
+	 * memory mapping afterwards (note: a cache flush may happen
+	 * in some circumstances depending on the path taken in kunmap_atomic).
 	 */
-	unsigned long idx = KM_L2_CACHE + KM_TYPE_NR * smp_processor_id();
-	unsigned long vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
-	set_pte_ext(TOP_PTE(vaddr), pfn_pte(paddr >> PAGE_SHIFT, PAGE_KERNEL), 0);
-	local_flush_tlb_kernel_page(vaddr);
-	return vaddr + (paddr & ~PAGE_MASK);
+	void *vaddr = kmap_atomic_pfn(paddr >> PAGE_SHIFT);
+	return (unsigned long)vaddr + (paddr & ~PAGE_MASK);
 #else
 	return __phys_to_virt(paddr);
+#endif
+}
+
+static inline void l2_put_va(unsigned long vaddr)
+{
+#ifdef CONFIG_HIGHMEM
+	kunmap_atomic((void *)vaddr);
 #endif
 }
 
@@ -76,13 +75,14 @@ static inline void l2_clean_pa_range(unsigned long start, unsigned long end)
 	 */
 	BUG_ON((start ^ end) >> PAGE_SHIFT);
 
-	raw_local_irq_save(flags);
-	va_start = l2_start_va(start);
+	va_start = l2_get_va(start);
 	va_end = va_start + (end - start);
+	raw_local_irq_save(flags);
 	__asm__("mcr p15, 1, %0, c15, c9, 4\n\t"
 		"mcr p15, 1, %1, c15, c9, 5"
 		: : "r" (va_start), "r" (va_end));
 	raw_local_irq_restore(flags);
+	l2_put_va(va_start);
 }
 
 static inline void l2_clean_inv_pa(unsigned long addr)
@@ -106,13 +106,14 @@ static inline void l2_inv_pa_range(unsigned long start, unsigned long end)
 	 */
 	BUG_ON((start ^ end) >> PAGE_SHIFT);
 
-	raw_local_irq_save(flags);
-	va_start = l2_start_va(start);
+	va_start = l2_get_va(start);
 	va_end = va_start + (end - start);
+	raw_local_irq_save(flags);
 	__asm__("mcr p15, 1, %0, c15, c11, 4\n\t"
 		"mcr p15, 1, %1, c15, c11, 5"
 		: : "r" (va_start), "r" (va_end));
 	raw_local_irq_restore(flags);
+	l2_put_va(va_start);
 }
 
 static inline void l2_inv_all(void)

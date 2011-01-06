@@ -2677,7 +2677,7 @@ static int be_ctrl_init(struct be_adapter *adapter)
 	}
 	memset(mc_cmd_mem->va, 0, mc_cmd_mem->size);
 
-	spin_lock_init(&adapter->mbox_lock);
+	mutex_init(&adapter->mbox_lock);
 	spin_lock_init(&adapter->mcc_lock);
 	spin_lock_init(&adapter->mcc_cq_lock);
 

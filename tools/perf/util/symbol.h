@@ -166,6 +166,8 @@ void dso__sort_by_name(struct dso *self, enum map_type type);
 struct dso *__dsos__findnew(struct list_head *head, const char *name);
 
 int dso__load(struct dso *self, struct map *map, symbol_filter_t filter);
+int dso__load_vmlinux(struct dso *self, struct map *map,
+		      const char *vmlinux, symbol_filter_t filter);
 int dso__load_vmlinux_path(struct dso *self, struct map *map,
 			   symbol_filter_t filter);
 int dso__load_kallsyms(struct dso *self, const char *filename, struct map *map,

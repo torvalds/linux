@@ -166,7 +166,9 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!(rcv->flags & IFF_UP))
 		goto tx_drop;
 
-	if (dev->features & NETIF_F_NO_CSUM)
+	/* don't change ip_summed == CHECKSUM_PARTIAL, as that
+	   will cause bad checksum on forwarded packets */
+	if (skb->ip_summed == CHECKSUM_NONE)
 		skb->ip_summed = rcv_priv->ip_summed;
 
 	length = skb->len + ETH_HLEN;
