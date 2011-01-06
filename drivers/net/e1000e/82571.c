@@ -121,29 +121,36 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 
 	/* This can only be done after all function pointers are setup. */
 	ret_val = e1000_get_phy_id_82571(hw);
+	if (ret_val) {
+		e_dbg("Error getting PHY ID\n");
+		return ret_val;
+	}
 
 	/* Verify phy id */
 	switch (hw->mac.type) {
 	case e1000_82571:
 	case e1000_82572:
 		if (phy->id != IGP01E1000_I_PHY_ID)
-			return -E1000_ERR_PHY;
+			ret_val = -E1000_ERR_PHY;
 		break;
 	case e1000_82573:
 		if (phy->id != M88E1111_I_PHY_ID)
-			return -E1000_ERR_PHY;
+			ret_val = -E1000_ERR_PHY;
 		break;
 	case e1000_82574:
 	case e1000_82583:
 		if (phy->id != BME1000_E_PHY_ID_R2)
-			return -E1000_ERR_PHY;
+			ret_val = -E1000_ERR_PHY;
 		break;
 	default:
-		return -E1000_ERR_PHY;
+		ret_val = -E1000_ERR_PHY;
 		break;
 	}
 
-	return 0;
+	if (ret_val)
+		e_dbg("PHY ID unknown: type = 0x%08x\n", phy->id);
+
+	return ret_val;
 }
 
 /**
@@ -956,7 +963,7 @@ static s32 e1000_set_d0_lplu_state_82571(struct e1000_hw *hw, bool active)
  **/
 static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 {
-	u32 ctrl, ctrl_ext, icr;
+	u32 ctrl, ctrl_ext;
 	s32 ret_val;
 
 	/*
@@ -1040,7 +1047,7 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 
 	/* Clear any pending interrupt events. */
 	ew32(IMC, 0xffffffff);
-	icr = er32(ICR);
+	er32(ICR);
 
 	if (hw->mac.type == e1000_82571) {
 		/* Install any alternate MAC address into RAR0 */
