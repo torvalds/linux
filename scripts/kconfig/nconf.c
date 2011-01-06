@@ -1266,9 +1266,13 @@ static void conf_choice(struct menu *menu)
 			if (child->sym == sym_get_choice_value(menu->sym))
 				item_make(child, ':', "<X> %s",
 						_(menu_get_prompt(child)));
-			else
+			else if (child->sym)
 				item_make(child, ':', "    %s",
 						_(menu_get_prompt(child)));
+			else
+				item_make(child, ':', "*** %s ***",
+						_(menu_get_prompt(child)));
+
 			if (child->sym == active){
 				last_top_row = top_row(curses_menu);
 				selected_index = i;
@@ -1334,7 +1338,7 @@ static void conf_choice(struct menu *menu)
 			break;
 
 		child = item_data();
-		if (!child || !menu_is_visible(child))
+		if (!child || !menu_is_visible(child) || !child->sym)
 			continue;
 		switch (res) {
 		case ' ':
