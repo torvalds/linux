@@ -66,7 +66,6 @@ static int __init pseries_kexec_setup(void)
 {
 	ppc_md.machine_kexec = default_machine_kexec;
 	ppc_md.machine_kexec_prepare = default_machine_kexec_prepare;
-	ppc_md.machine_crash_shutdown = default_machine_crash_shutdown;
 
 	return 0;
 }

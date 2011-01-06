@@ -234,12 +234,6 @@ struct machdep_calls {
 #ifdef CONFIG_KEXEC
 	void (*kexec_cpu_down)(int crash_shutdown, int secondary);
 
-	/* Called to do the minimal shutdown needed to run a kexec'd kernel
-	 * to run successfully.
-	 * XXX Should we move this one out of kexec scope?
-	 */
-	void (*machine_crash_shutdown)(struct pt_regs *regs);
-
 	/* Called to do what every setup is needed on image and the
 	 * reboot code buffer. Returns 0 on success.
 	 * Provide your own (maybe dummy) implementation if your platform
