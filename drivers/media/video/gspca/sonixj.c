@@ -1822,43 +1822,45 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	PDEBUG(D_PROBE, "Sonix chip id: %02x", regF1);
 	switch (sd->bridge) {
 	case BRIDGE_SN9C102P:
-		if (regF1 != 0x11)
-			return -ENODEV;
-		reg_w1(gspca_dev, 0x02, regGpio[1]);
-		break;
 	case BRIDGE_SN9C105:
 		if (regF1 != 0x11)
 			return -ENODEV;
-		if (sd->sensor == SENSOR_MI0360)
-			mi0360_probe(gspca_dev);
-		reg_w(gspca_dev, 0x01, regGpio, 2);
-		break;
-	case BRIDGE_SN9C120:
-		if (regF1 != 0x12)
-			return -ENODEV;
-		switch (sd->sensor) {
-		case SENSOR_MI0360:
-			mi0360_probe(gspca_dev);
-			break;
-		case SENSOR_OV7630:
-			ov7630_probe(gspca_dev);
-			break;
-		case SENSOR_OV7648:
-			ov7648_probe(gspca_dev);
-			break;
-		case SENSOR_PO2030N:
-			po2030n_probe(gspca_dev);
-			break;
-		}
-		regGpio[1] = 0x70;		/* no audio */
-		reg_w(gspca_dev, 0x01, regGpio, 2);
 		break;
 	default:
 /*	case BRIDGE_SN9C110: */
-/*	case BRIDGE_SN9C325: */
+/*	case BRIDGE_SN9C120: */
 		if (regF1 != 0x12)
 			return -ENODEV;
+	}
+
+	switch (sd->sensor) {
+	case SENSOR_MI0360:
+		mi0360_probe(gspca_dev);
+		break;
+	case SENSOR_OV7630:
+		ov7630_probe(gspca_dev);
+		break;
+	case SENSOR_OV7648:
+		ov7648_probe(gspca_dev);
+		break;
+	case SENSOR_PO2030N:
+		po2030n_probe(gspca_dev);
+		break;
+	}
+
+	switch (sd->bridge) {
+	case BRIDGE_SN9C102P:
+		reg_w1(gspca_dev, 0x02, regGpio[1]);
+		break;
+	case BRIDGE_SN9C105:
+		reg_w(gspca_dev, 0x01, regGpio, 2);
+		break;
+	case BRIDGE_SN9C110:
 		reg_w1(gspca_dev, 0x02, 0x62);
+		break;
+	case BRIDGE_SN9C120:
+		regGpio[1] = 0x70;		/* no audio */
+		reg_w(gspca_dev, 0x01, regGpio, 2);
 		break;
 	}
 
@@ -2935,9 +2937,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 /*	{USB_DEVICE(0x0c45, 0x60f2), BS(SN9C105, OV7660)}, */
 	{USB_DEVICE(0x0c45, 0x60fb), BS(SN9C105, OV7660)},
 	{USB_DEVICE(0x0c45, 0x60fc), BS(SN9C105, HV7131R)},
-#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x60fe), BS(SN9C105, OV7630)},
-#endif
 	{USB_DEVICE(0x0c45, 0x6100), BS(SN9C120, MI0360)},	/*sn9c128*/
 	{USB_DEVICE(0x0c45, 0x6102), BS(SN9C120, PO2030N)},	/* /GC0305*/
 /*	{USB_DEVICE(0x0c45, 0x6108), BS(SN9C120, OM6802)}, */
