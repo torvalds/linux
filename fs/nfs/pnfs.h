@@ -31,10 +31,10 @@
 #define FS_NFS_PNFS_H
 
 struct pnfs_layout_segment {
-	struct list_head fi_list;
-	struct pnfs_layout_range range;
-	struct kref kref;
-	struct pnfs_layout_hdr *layout;
+	struct list_head pls_list;
+	struct pnfs_layout_range pls_range;
+	struct kref pls_refcount;
+	struct pnfs_layout_hdr *pls_layout;
 };
 
 #ifdef CONFIG_NFS_V4_1
@@ -65,7 +65,7 @@ struct pnfs_layout_hdr {
 	struct list_head	segs;      /* layout segments list */
 	seqlock_t		seqlock;   /* Protects the stateid */
 	nfs4_stateid		stateid;
-	unsigned long		state;
+	unsigned long		plh_flags;
 	struct inode		*inode;
 };
 
