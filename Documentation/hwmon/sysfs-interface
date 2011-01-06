@@ -505,6 +505,15 @@ energy[1-*]_input		Cumulative energy use
 				RO
 
 
+************
+* Humidity *
+************
+
+humidity[1-*]_input		Humidity
+				Unit: milli-percent (per cent mille, pcm)
+				RO
+
+
 **********
 * Alarms *
 **********
