@@ -23,6 +23,8 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/input.h>
+#include <linux/gpio_keys.h>
 #include <linux/pwm_backlight.h>
 #include <linux/i2c.h>
 #include <video/platform_lcd.h>
@@ -362,7 +364,44 @@ static struct i2c_board_info h1940_i2c_devices[] = {
 	},
 };
 
+#define DECLARE_BUTTON(p, k, n, w)	\
+	{				\
+		.gpio		= p,	\
+		.code		= k,	\
+		.desc		= n,	\
+		.wakeup		= w,	\
+		.active_low	= 1,	\
+	}
+
+static struct gpio_keys_button h1940_buttons[] = {
+	DECLARE_BUTTON(S3C2410_GPF(0),       KEY_POWER,          "Power", 1),
+	DECLARE_BUTTON(S3C2410_GPF(6),       KEY_ENTER,         "Select", 1),
+	DECLARE_BUTTON(S3C2410_GPF(7),      KEY_RECORD,         "Record", 0),
+	DECLARE_BUTTON(S3C2410_GPG(0),         KEY_F11,       "Calendar", 0),
+	DECLARE_BUTTON(S3C2410_GPG(2),         KEY_F12,       "Contacts", 0),
+	DECLARE_BUTTON(S3C2410_GPG(3),        KEY_MAIL,           "Mail", 0),
+	DECLARE_BUTTON(S3C2410_GPG(6),        KEY_LEFT,     "Left_arrow", 0),
+	DECLARE_BUTTON(S3C2410_GPG(7),    KEY_HOMEPAGE,           "Home", 0),
+	DECLARE_BUTTON(S3C2410_GPG(8),       KEY_RIGHT,    "Right_arrow", 0),
+	DECLARE_BUTTON(S3C2410_GPG(9),          KEY_UP,       "Up_arrow", 0),
+	DECLARE_BUTTON(S3C2410_GPG(10),       KEY_DOWN,     "Down_arrow", 0),
+};
+
+static struct gpio_keys_platform_data h1940_buttons_data = {
+	.buttons	= h1940_buttons,
+	.nbuttons	= ARRAY_SIZE(h1940_buttons),
+};
+
+static struct platform_device h1940_dev_buttons = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.dev		= {
+		.platform_data  = &h1940_buttons_data,
+	}
+};
+
 static struct platform_device *h1940_devices[] __initdata = {
+	&h1940_dev_buttons,
 	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
