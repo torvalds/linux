@@ -1798,7 +1798,7 @@ encode_layoutget(struct xdr_stream *xdr,
 	p = xdr_encode_hyper(p, args->range.offset);
 	p = xdr_encode_hyper(p, args->range.length);
 	p = xdr_encode_hyper(p, args->minlength);
-	pnfs_get_layout_stateid(&stateid, NFS_I(args->inode)->layout,
+	pnfs_choose_layoutget_stateid(&stateid, NFS_I(args->inode)->layout,
 				args->ctx->state);
 	p = xdr_encode_opaque_fixed(p, &stateid.data, NFS4_STATEID_SIZE);
 	*p = cpu_to_be32(args->maxcount);

@@ -44,7 +44,6 @@ struct pnfs_layout_segment {
 enum {
 	NFS_LAYOUT_RO_FAILED = 0,	/* get ro layout failed stop trying */
 	NFS_LAYOUT_RW_FAILED,		/* get rw layout failed stop trying */
-	NFS_LAYOUT_STATEID_SET,		/* have a valid layout stateid */
 };
 
 /* Per-layout driver specific registration structure */
@@ -63,7 +62,6 @@ struct pnfs_layout_hdr {
 	unsigned long		plh_refcount;
 	struct list_head	plh_layouts;   /* other client layouts */
 	struct list_head	plh_segs;      /* layout segments list */
-	seqlock_t		plh_seqlock;   /* Protects the stateid */
 	nfs4_stateid		plh_stateid;
 	unsigned long		plh_flags;
 	struct inode		*plh_inode;
@@ -143,8 +141,9 @@ int pnfs_layout_process(struct nfs4_layoutget *lgp);
 void pnfs_destroy_layout(struct nfs_inode *);
 void pnfs_destroy_all_layouts(struct nfs_client *);
 void put_layout_hdr(struct inode *inode);
-void pnfs_get_layout_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
-			     struct nfs4_state *open_state);
+int pnfs_choose_layoutget_stateid(nfs4_stateid *dst,
+				  struct pnfs_layout_hdr *lo,
+				  struct nfs4_state *open_state);
 
 
 static inline int lo_fail_bit(u32 iomode)

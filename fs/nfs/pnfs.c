@@ -258,9 +258,6 @@ pnfs_clear_lseg_list(struct pnfs_layout_hdr *lo, struct list_head *tmp_list)
 	/* List does not take a reference, so no need for put here */
 	list_del_init(&lo->plh_layouts);
 	spin_unlock(&clp->cl_lock);
-	write_seqlock(&lo->plh_seqlock);
-	clear_bit(NFS_LAYOUT_STATEID_SET, &lo->plh_flags);
-	write_sequnlock(&lo->plh_seqlock);
 
 	dprintk("%s:Return\n", __func__);
 }
@@ -319,69 +316,40 @@ pnfs_destroy_all_layouts(struct nfs_client *clp)
 	}
 }
 
-/* update lo->plh_stateid with new if is more recent
- *
- * lo->plh_stateid could be the open stateid, in which case we just use what given.
- */
+/* update lo->plh_stateid with new if is more recent */
 static void
 pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo,
 			const nfs4_stateid *new)
 {
-	nfs4_stateid *old = &lo->plh_stateid;
-	bool overwrite = false;
+	u32 oldseq, newseq;
 
-	write_seqlock(&lo->plh_seqlock);
-	if (!test_bit(NFS_LAYOUT_STATEID_SET, &lo->plh_flags) ||
-	    memcmp(old->stateid.other, new->stateid.other, sizeof(new->stateid.other)))
-		overwrite = true;
-	else {
-		u32 oldseq, newseq;
-
-		oldseq = be32_to_cpu(old->stateid.seqid);
-		newseq = be32_to_cpu(new->stateid.seqid);
-		if ((int)(newseq - oldseq) > 0)
-			overwrite = true;
-	}
-	if (overwrite)
-		memcpy(&old->stateid, &new->stateid, sizeof(new->stateid));
-	write_sequnlock(&lo->plh_seqlock);
+	oldseq = be32_to_cpu(lo->plh_stateid.stateid.seqid);
+	newseq = be32_to_cpu(new->stateid.seqid);
+	if ((int)(newseq - oldseq) > 0)
+		memcpy(&lo->plh_stateid, &new->stateid, sizeof(new->stateid));
 }
 
-static void
-pnfs_layout_from_open_stateid(struct pnfs_layout_hdr *lo,
-			      struct nfs4_state *state)
+int
+pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
+			      struct nfs4_state *open_state)
 {
-	int seq;
+	int status = 0;
 
 	dprintk("--> %s\n", __func__);
-	write_seqlock(&lo->plh_seqlock);
-	do {
-		seq = read_seqbegin(&state->seqlock);
-		memcpy(lo->plh_stateid.data, state->stateid.data,
-		       sizeof(state->stateid.data));
-	} while (read_seqretry(&state->seqlock, seq));
-	set_bit(NFS_LAYOUT_STATEID_SET, &lo->plh_flags);
-	write_sequnlock(&lo->plh_seqlock);
-	dprintk("<-- %s\n", __func__);
-}
+	spin_lock(&lo->plh_inode->i_lock);
+	if (list_empty(&lo->plh_segs)) {
+		int seq;
 
-void
-pnfs_get_layout_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
-			struct nfs4_state *open_state)
-{
-	int seq;
-
-	dprintk("--> %s\n", __func__);
-	do {
-		seq = read_seqbegin(&lo->plh_seqlock);
-		if (!test_bit(NFS_LAYOUT_STATEID_SET, &lo->plh_flags)) {
-			/* This will trigger retry of the read */
-			pnfs_layout_from_open_stateid(lo, open_state);
-		} else
-			memcpy(dst->data, lo->plh_stateid.data,
-			       sizeof(lo->plh_stateid.data));
-	} while (read_seqretry(&lo->plh_seqlock, seq));
+		do {
+			seq = read_seqbegin(&open_state->seqlock);
+			memcpy(dst->data, open_state->stateid.data,
+			       sizeof(open_state->stateid.data));
+		} while (read_seqretry(&open_state->seqlock, seq));
+	} else
+		memcpy(dst->data, lo->plh_stateid.data, sizeof(lo->plh_stateid.data));
+	spin_unlock(&lo->plh_inode->i_lock);
 	dprintk("<-- %s\n", __func__);
+	return status;
 }
 
 /*
@@ -496,7 +464,6 @@ alloc_init_layout_hdr(struct inode *ino)
 	lo->plh_refcount = 1;
 	INIT_LIST_HEAD(&lo->plh_layouts);
 	INIT_LIST_HEAD(&lo->plh_segs);
-	seqlock_init(&lo->plh_seqlock);
 	lo->plh_inode = ino;
 	return lo;
 }
