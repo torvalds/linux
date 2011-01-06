@@ -364,6 +364,14 @@ config ARCH_MXC
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
+config ARCH_MXS
+	bool "Freescale MXS-based"
+	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
+	select COMMON_CLKDEV
+	help
+	  Support for Freescale MXS-based family of processors
+
 config ARCH_STMP3XXX
 	bool "Freescale STMP3xxx"
 	select CPU_ARM926T
@@ -817,6 +825,7 @@ config ARCH_U8500
 	select GENERIC_CLOCKEVENTS
 	select CLKDEV_LOOKUP
 	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_CPUFREQ
 	help
 	  Support for ST-Ericsson's Ux500 architecture
 
@@ -923,6 +932,8 @@ source "arch/arm/mach-mv78xx0/Kconfig"
 
 source "arch/arm/plat-mxc/Kconfig"
 
+source "arch/arm/mach-mxs/Kconfig"
+
 source "arch/arm/mach-netx/Kconfig"
 
 source "arch/arm/mach-nomadik/Kconfig"
@@ -1022,8 +1033,8 @@ source arch/arm/mm/Kconfig
 
 config IWMMXT
 	bool "Enable iWMMXt support"
-	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK
-	default y if PXA27x || PXA3xx || ARCH_MMP
+	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_PJ4
+	default y if PXA27x || PXA3xx || PXA95x || ARCH_MMP
 	help
 	  Enable support for iWMMXt context switching at run time if
 	  running on a CPU that supports it.

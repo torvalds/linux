@@ -291,12 +291,12 @@ xscale1pmu_enable_event(struct hw_perf_event *hwc, int idx)
 		return;
 	}
 
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	val = xscale1pmu_read_pmnc();
 	val &= ~mask;
 	val |= evt;
 	xscale1pmu_write_pmnc(val);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static void
@@ -322,12 +322,12 @@ xscale1pmu_disable_event(struct hw_perf_event *hwc, int idx)
 		return;
 	}
 
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	val = xscale1pmu_read_pmnc();
 	val &= ~mask;
 	val |= evt;
 	xscale1pmu_write_pmnc(val);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static int
@@ -355,11 +355,11 @@ xscale1pmu_start(void)
 {
 	unsigned long flags, val;
 
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	val = xscale1pmu_read_pmnc();
 	val |= XSCALE_PMU_ENABLE;
 	xscale1pmu_write_pmnc(val);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static void
@@ -367,11 +367,11 @@ xscale1pmu_stop(void)
 {
 	unsigned long flags, val;
 
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	val = xscale1pmu_read_pmnc();
 	val &= ~XSCALE_PMU_ENABLE;
 	xscale1pmu_write_pmnc(val);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static inline u32
@@ -428,7 +428,7 @@ static const struct arm_pmu xscale1pmu = {
 	.max_period	= (1LLU << 32) - 1,
 };
 
-const struct arm_pmu *__init xscale1pmu_init(void)
+static const struct arm_pmu *__init xscale1pmu_init(void)
 {
 	return &xscale1pmu;
 }
@@ -635,10 +635,10 @@ xscale2pmu_enable_event(struct hw_perf_event *hwc, int idx)
 		return;
 	}
 
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	xscale2pmu_write_event_select(evtsel);
 	xscale2pmu_write_int_enable(ien);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static void
@@ -678,10 +678,10 @@ xscale2pmu_disable_event(struct hw_perf_event *hwc, int idx)
 		return;
 	}
 
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	xscale2pmu_write_event_select(evtsel);
 	xscale2pmu_write_int_enable(ien);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static int
@@ -705,11 +705,11 @@ xscale2pmu_start(void)
 {
 	unsigned long flags, val;
 
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	val = xscale2pmu_read_pmnc() & ~XSCALE_PMU_CNT64;
 	val |= XSCALE_PMU_ENABLE;
 	xscale2pmu_write_pmnc(val);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static void
@@ -717,11 +717,11 @@ xscale2pmu_stop(void)
 {
 	unsigned long flags, val;
 
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	val = xscale2pmu_read_pmnc();
 	val &= ~XSCALE_PMU_ENABLE;
 	xscale2pmu_write_pmnc(val);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static inline u32
@@ -790,17 +790,17 @@ static const struct arm_pmu xscale2pmu = {
 	.max_period	= (1LLU << 32) - 1,
 };
 
-const struct arm_pmu *__init xscale2pmu_init(void)
+static const struct arm_pmu *__init xscale2pmu_init(void)
 {
 	return &xscale2pmu;
 }
 #else
-const struct arm_pmu *__init xscale1pmu_init(void)
+static const struct arm_pmu *__init xscale1pmu_init(void)
 {
 	return NULL;
 }
 
-const struct arm_pmu *__init xscale2pmu_init(void)
+static const struct arm_pmu *__init xscale2pmu_init(void)
 {
 	return NULL;
 }

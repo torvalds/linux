@@ -400,7 +400,7 @@ armv6pmu_write_counter(int counter,
 		WARN_ONCE(1, "invalid counter number (%d)\n", counter);
 }
 
-void
+static void
 armv6pmu_enable_event(struct hw_perf_event *hwc,
 		      int idx)
 {
@@ -426,12 +426,12 @@ armv6pmu_enable_event(struct hw_perf_event *hwc,
 	 * Mask out the current event and set the counter to count the event
 	 * that we're interested in.
 	 */
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	val = armv6_pmcr_read();
 	val &= ~mask;
 	val |= evt;
 	armv6_pmcr_write(val);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static irqreturn_t
@@ -500,11 +500,11 @@ armv6pmu_start(void)
 {
 	unsigned long flags, val;
 
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	val = armv6_pmcr_read();
 	val |= ARMV6_PMCR_ENABLE;
 	armv6_pmcr_write(val);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static void
@@ -512,11 +512,11 @@ armv6pmu_stop(void)
 {
 	unsigned long flags, val;
 
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	val = armv6_pmcr_read();
 	val &= ~ARMV6_PMCR_ENABLE;
 	armv6_pmcr_write(val);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static int
@@ -570,12 +570,12 @@ armv6pmu_disable_event(struct hw_perf_event *hwc,
 	 * of ETM bus signal assertion cycles. The external reporting should
 	 * be disabled and so this should never increment.
 	 */
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	val = armv6_pmcr_read();
 	val &= ~mask;
 	val |= evt;
 	armv6_pmcr_write(val);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static void
@@ -599,12 +599,12 @@ armv6mpcore_pmu_disable_event(struct hw_perf_event *hwc,
 	 * Unlike UP ARMv6, we don't have a way of stopping the counters. We
 	 * simply disable the interrupt reporting.
 	 */
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	val = armv6_pmcr_read();
 	val &= ~mask;
 	val |= evt;
 	armv6_pmcr_write(val);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static const struct arm_pmu armv6pmu = {
@@ -625,7 +625,7 @@ static const struct arm_pmu armv6pmu = {
 	.max_period		= (1LLU << 32) - 1,
 };
 
-const struct arm_pmu *__init armv6pmu_init(void)
+static const struct arm_pmu *__init armv6pmu_init(void)
 {
 	return &armv6pmu;
 }
@@ -655,17 +655,17 @@ static const struct arm_pmu armv6mpcore_pmu = {
 	.max_period		= (1LLU << 32) - 1,
 };
 
-const struct arm_pmu *__init armv6mpcore_pmu_init(void)
+static const struct arm_pmu *__init armv6mpcore_pmu_init(void)
 {
 	return &armv6mpcore_pmu;
 }
 #else
-const struct arm_pmu *__init armv6pmu_init(void)
+static const struct arm_pmu *__init armv6pmu_init(void)
 {
 	return NULL;
 }
 
-const struct arm_pmu *__init armv6mpcore_pmu_init(void)
+static const struct arm_pmu *__init armv6mpcore_pmu_init(void)
 {
 	return NULL;
 }

@@ -19,6 +19,12 @@
 #include <mach/hardware.h>
 #include "clock.h"
 
+#ifdef CONFIG_DEBUG_FS
+#include <linux/debugfs.h>
+#include <linux/uaccess.h>	/* for copy_from_user */
+static LIST_HEAD(clk_list);
+#endif
+
 #define PRCC_PCKEN		0x00
 #define PRCC_PCKDIS		0x04
 #define PRCC_KCKEN		0x08
@@ -132,7 +138,7 @@ static unsigned long clk_mtu_get_rate(struct clk *clk)
 {
 	void __iomem *addr = __io_address(UX500_PRCMU_BASE)
 		+ PRCM_TCR;
-	u32 tcr = readl(addr);
+	u32 tcr;
 	int mtu = (int) clk->data;
 	/*
 	 * One of these is selected eventually
@@ -143,6 +149,14 @@ static unsigned long clk_mtu_get_rate(struct clk *clk)
 	unsigned long mturate;
 	unsigned long retclk;
 
+	/*
+	 * On a startup, always conifgure the TCR to the doze mode;
+	 * bootloaders do it for us. Do this in the kernel too.
+	 */
+	writel(PRCM_TCR_DOZE_MODE, addr);
+
+	tcr = readl(addr);
+
 	/* Get the rate from the parent as a default */
 	if (clk->parent_periph)
 		mturate = clk_get_rate(clk->parent_periph);
@@ -151,45 +165,6 @@ static unsigned long clk_mtu_get_rate(struct clk *clk)
 	else
 		/* We need to be connected SOMEWHERE */
 		BUG();
-
-	/*
-	 * Are we in doze mode?
-	 * In this mode the parent peripheral or the fixed 32768 Hz
-	 * clock is fed into the block.
-	 */
-	if (!(tcr & PRCM_TCR_DOZE_MODE)) {
-		/*
-		 * Here we're using the clock input from the APE ULP
-		 * clock domain. But first: are the timers stopped?
-		 */
-		if (tcr & PRCM_TCR_STOPPED) {
-			clk32k = 0;
-			mturate = 0;
-		} else {
-			/* Else default mode: 0 and 2.4 MHz */
-			clk32k = 0;
-			if (cpu_is_u5500())
-				/* DB5500 divides by 8 */
-				mturate /= 8;
-			else if (cpu_is_u8500ed()) {
-				/*
-				 * This clocking setting must not be used
-				 * in the ED chip, it is simply not
-				 * connected anywhere!
-				 */
-				mturate = 0;
-				BUG();
-			} else
-				/*
-				 * In this mode the ulp38m4 clock is divided
-				 * by a factor 16, on the DB8500 typically
-				 * 38400000 / 16 ~ 2.4 MHz.
-				 * TODO: Replace the constant with a reference
-				 * to the ULP source once this is modeled.
-				 */
-				mturate = 38400000 / 16;
-		}
-	}
 
 	/* Return the clock selected for this MTU */
 	if (tcr & (1 << mtu))
@@ -316,6 +291,7 @@ static struct clkops clk_prcc_ops = {
 };
 
 static struct clk clk_32khz = {
+	.name =  "clk_32khz",
 	.rate = 32000,
 };
 
@@ -365,94 +341,96 @@ static DEFINE_PRCMU_CLK(uiccclk,	0x4, 1, UICCCLK); /* v1 */
  */
 
 /* Peripheral Cluster #1 */
-static DEFINE_PRCC_CLK(1, i2c4, 	10, 9, &clk_i2cclk);
+static DEFINE_PRCC_CLK(1, i2c4,		10, 9, &clk_i2cclk);
 static DEFINE_PRCC_CLK(1, gpio0,	9, -1, NULL);
-static DEFINE_PRCC_CLK(1, slimbus0, 	8,  8, &clk_slimclk);
-static DEFINE_PRCC_CLK(1, spi3_ed, 	7,  7, NULL);
-static DEFINE_PRCC_CLK(1, spi3_v1, 	7, -1, NULL);
-static DEFINE_PRCC_CLK(1, i2c2, 	6,  6, &clk_i2cclk);
+static DEFINE_PRCC_CLK(1, slimbus0,	8,  8, &clk_slimclk);
+static DEFINE_PRCC_CLK(1, spi3_ed,	7,  7, NULL);
+static DEFINE_PRCC_CLK(1, spi3_v1,	7, -1, NULL);
+static DEFINE_PRCC_CLK(1, i2c2,		6,  6, &clk_i2cclk);
 static DEFINE_PRCC_CLK(1, sdi0,		5,  5, &clk_sdmmcclk);
-static DEFINE_PRCC_CLK(1, msp1_ed, 	4,  4, &clk_msp02clk);
-static DEFINE_PRCC_CLK(1, msp1_v1, 	4,  4, &clk_msp1clk);
-static DEFINE_PRCC_CLK(1, msp0, 	3,  3, &clk_msp02clk);
-static DEFINE_PRCC_CLK(1, i2c1, 	2,  2, &clk_i2cclk);
-static DEFINE_PRCC_CLK(1, uart1, 	1,  1, &clk_uartclk);
-static DEFINE_PRCC_CLK(1, uart0, 	0,  0, &clk_uartclk);
+static DEFINE_PRCC_CLK(1, msp1_ed,	4,  4, &clk_msp02clk);
+static DEFINE_PRCC_CLK(1, msp1_v1,	4,  4, &clk_msp1clk);
+static DEFINE_PRCC_CLK(1, msp0,		3,  3, &clk_msp02clk);
+static DEFINE_PRCC_CLK(1, i2c1,		2,  2, &clk_i2cclk);
+static DEFINE_PRCC_CLK(1, uart1,	1,  1, &clk_uartclk);
+static DEFINE_PRCC_CLK(1, uart0,	0,  0, &clk_uartclk);
 
 /* Peripheral Cluster #2 */
 
 static DEFINE_PRCC_CLK(2, gpio1_ed,	12, -1, NULL);
-static DEFINE_PRCC_CLK(2, ssitx_ed, 	11, -1, NULL);
-static DEFINE_PRCC_CLK(2, ssirx_ed, 	10, -1, NULL);
-static DEFINE_PRCC_CLK(2, spi0_ed, 	 9, -1, NULL);
-static DEFINE_PRCC_CLK(2, sdi3_ed, 	 8,  6, &clk_sdmmcclk);
-static DEFINE_PRCC_CLK(2, sdi1_ed, 	 7,  5, &clk_sdmmcclk);
-static DEFINE_PRCC_CLK(2, msp2_ed, 	 6,  4, &clk_msp02clk);
-static DEFINE_PRCC_CLK(2, sdi4_ed, 	 4,  2, &clk_sdmmcclk);
+static DEFINE_PRCC_CLK(2, ssitx_ed,	11, -1, NULL);
+static DEFINE_PRCC_CLK(2, ssirx_ed,	10, -1, NULL);
+static DEFINE_PRCC_CLK(2, spi0_ed,	 9, -1, NULL);
+static DEFINE_PRCC_CLK(2, sdi3_ed,	 8,  6, &clk_sdmmcclk);
+static DEFINE_PRCC_CLK(2, sdi1_ed,	 7,  5, &clk_sdmmcclk);
+static DEFINE_PRCC_CLK(2, msp2_ed,	 6,  4, &clk_msp02clk);
+static DEFINE_PRCC_CLK(2, sdi4_ed,	 4,  2, &clk_sdmmcclk);
 static DEFINE_PRCC_CLK(2, pwl_ed,	 3,  1, NULL);
-static DEFINE_PRCC_CLK(2, spi1_ed, 	 2, -1, NULL);
-static DEFINE_PRCC_CLK(2, spi2_ed, 	 1, -1, NULL);
-static DEFINE_PRCC_CLK(2, i2c3_ed, 	 0,  0, &clk_i2cclk);
+static DEFINE_PRCC_CLK(2, spi1_ed,	 2, -1, NULL);
+static DEFINE_PRCC_CLK(2, spi2_ed,	 1, -1, NULL);
+static DEFINE_PRCC_CLK(2, i2c3_ed,	 0,  0, &clk_i2cclk);
 
 static DEFINE_PRCC_CLK(2, gpio1_v1,	11, -1, NULL);
-static DEFINE_PRCC_CLK(2, ssitx_v1, 	10,  7, NULL);
-static DEFINE_PRCC_CLK(2, ssirx_v1, 	 9,  6, NULL);
-static DEFINE_PRCC_CLK(2, spi0_v1, 	 8, -1, NULL);
-static DEFINE_PRCC_CLK(2, sdi3_v1, 	 7,  5, &clk_sdmmcclk);
-static DEFINE_PRCC_CLK(2, sdi1_v1, 	 6,  4, &clk_sdmmcclk);
-static DEFINE_PRCC_CLK(2, msp2_v1, 	 5,  3, &clk_msp02clk);
-static DEFINE_PRCC_CLK(2, sdi4_v1, 	 4,  2, &clk_sdmmcclk);
+static DEFINE_PRCC_CLK(2, ssitx_v1,	10,  7, NULL);
+static DEFINE_PRCC_CLK(2, ssirx_v1,	 9,  6, NULL);
+static DEFINE_PRCC_CLK(2, spi0_v1,	 8, -1, NULL);
+static DEFINE_PRCC_CLK(2, sdi3_v1,	 7,  5, &clk_sdmmcclk);
+static DEFINE_PRCC_CLK(2, sdi1_v1,	 6,  4, &clk_sdmmcclk);
+static DEFINE_PRCC_CLK(2, msp2_v1,	 5,  3, &clk_msp02clk);
+static DEFINE_PRCC_CLK(2, sdi4_v1,	 4,  2, &clk_sdmmcclk);
 static DEFINE_PRCC_CLK(2, pwl_v1,	 3,  1, NULL);
-static DEFINE_PRCC_CLK(2, spi1_v1, 	 2, -1, NULL);
-static DEFINE_PRCC_CLK(2, spi2_v1, 	 1, -1, NULL);
-static DEFINE_PRCC_CLK(2, i2c3_v1, 	 0,  0, &clk_i2cclk);
+static DEFINE_PRCC_CLK(2, spi1_v1,	 2, -1, NULL);
+static DEFINE_PRCC_CLK(2, spi2_v1,	 1, -1, NULL);
+static DEFINE_PRCC_CLK(2, i2c3_v1,	 0,  0, &clk_i2cclk);
 
 /* Peripheral Cluster #3 */
-static DEFINE_PRCC_CLK(3, gpio2, 	8, -1, NULL);
-static DEFINE_PRCC_CLK(3, sdi5, 	7,  7, &clk_sdmmcclk);
-static DEFINE_PRCC_CLK(3, uart2, 	6,  6, &clk_uartclk);
-static DEFINE_PRCC_CLK(3, ske, 		5,  5, &clk_32khz);
-static DEFINE_PRCC_CLK(3, sdi2, 	4,  4, &clk_sdmmcclk);
-static DEFINE_PRCC_CLK(3, i2c0, 	3,  3, &clk_i2cclk);
-static DEFINE_PRCC_CLK(3, ssp1_ed, 	2,  2, &clk_i2cclk);
-static DEFINE_PRCC_CLK(3, ssp0_ed, 	1,  1, &clk_i2cclk);
-static DEFINE_PRCC_CLK(3, ssp1_v1, 	2,  2, &clk_sspclk);
-static DEFINE_PRCC_CLK(3, ssp0_v1, 	1,  1, &clk_sspclk);
-static DEFINE_PRCC_CLK(3, fsmc, 	0, -1, NULL);
+static DEFINE_PRCC_CLK(3, gpio2,	8, -1, NULL);
+static DEFINE_PRCC_CLK(3, sdi5,		7,  7, &clk_sdmmcclk);
+static DEFINE_PRCC_CLK(3, uart2,	6,  6, &clk_uartclk);
+static DEFINE_PRCC_CLK(3, ske,		5,  5, &clk_32khz);
+static DEFINE_PRCC_CLK(3, sdi2,		4,  4, &clk_sdmmcclk);
+static DEFINE_PRCC_CLK(3, i2c0,		3,  3, &clk_i2cclk);
+static DEFINE_PRCC_CLK(3, ssp1_ed,	2,  2, &clk_i2cclk);
+static DEFINE_PRCC_CLK(3, ssp0_ed,	1,  1, &clk_i2cclk);
+static DEFINE_PRCC_CLK(3, ssp1_v1,	2,  2, &clk_sspclk);
+static DEFINE_PRCC_CLK(3, ssp0_v1,	1,  1, &clk_sspclk);
+static DEFINE_PRCC_CLK(3, fsmc,		0, -1, NULL);
 
 /* Peripheral Cluster #4 is in the always on domain */
 
 /* Peripheral Cluster #5 */
-static DEFINE_PRCC_CLK(5, gpio3, 	1, -1, NULL);
-static DEFINE_PRCC_CLK(5, usb_ed, 	0,  0, &clk_i2cclk);
-static DEFINE_PRCC_CLK(5, usb_v1, 	0,  0, NULL);
+static DEFINE_PRCC_CLK(5, gpio3,	1, -1, NULL);
+static DEFINE_PRCC_CLK(5, usb_ed,	0,  0, &clk_i2cclk);
+static DEFINE_PRCC_CLK(5, usb_v1,	0,  0, NULL);
 
 /* Peripheral Cluster #6 */
 
 /* MTU ID in data */
 static DEFINE_PRCC_CLK_CUSTOM(6, mtu1_v1, 8, -1, NULL, clk_mtu_get_rate, 1);
 static DEFINE_PRCC_CLK_CUSTOM(6, mtu0_v1, 7, -1, NULL, clk_mtu_get_rate, 0);
-static DEFINE_PRCC_CLK(6, cfgreg_v1, 	6,  6, NULL);
-static DEFINE_PRCC_CLK(6, dmc_ed, 	6,  6, NULL);
-static DEFINE_PRCC_CLK(6, hash1, 	5, -1, NULL);
-static DEFINE_PRCC_CLK(6, unipro_v1, 	4,  1, &clk_uniproclk);
-static DEFINE_PRCC_CLK(6, cryp1_ed, 	4, -1, NULL);
-static DEFINE_PRCC_CLK(6, pka, 		3, -1, NULL);
-static DEFINE_PRCC_CLK(6, hash0, 	2, -1, NULL);
-static DEFINE_PRCC_CLK(6, cryp0, 	1, -1, NULL);
-static DEFINE_PRCC_CLK(6, rng_ed, 	0,  0, &clk_i2cclk);
-static DEFINE_PRCC_CLK(6, rng_v1, 	0,  0, &clk_rngclk);
+static DEFINE_PRCC_CLK(6, cfgreg_v1,	6,  6, NULL);
+static DEFINE_PRCC_CLK(6, dmc_ed,	6,  6, NULL);
+static DEFINE_PRCC_CLK(6, hash1,	5, -1, NULL);
+static DEFINE_PRCC_CLK(6, unipro_v1,	4,  1, &clk_uniproclk);
+static DEFINE_PRCC_CLK(6, cryp1_ed,	4, -1, NULL);
+static DEFINE_PRCC_CLK(6, pka,		3, -1, NULL);
+static DEFINE_PRCC_CLK(6, hash0,	2, -1, NULL);
+static DEFINE_PRCC_CLK(6, cryp0,	1, -1, NULL);
+static DEFINE_PRCC_CLK(6, rng_ed,	0,  0, &clk_i2cclk);
+static DEFINE_PRCC_CLK(6, rng_v1,	0,  0, &clk_rngclk);
 
 /* Peripheral Cluster #7 */
 
-static DEFINE_PRCC_CLK(7, tzpc0_ed, 	4, -1, NULL);
+static DEFINE_PRCC_CLK(7, tzpc0_ed,	4, -1, NULL);
 /* MTU ID in data */
 static DEFINE_PRCC_CLK_CUSTOM(7, mtu1_ed, 3, -1, NULL, clk_mtu_get_rate, 1);
 static DEFINE_PRCC_CLK_CUSTOM(7, mtu0_ed, 2, -1, NULL, clk_mtu_get_rate, 0);
-static DEFINE_PRCC_CLK(7, wdg_ed, 	1, -1, NULL);
-static DEFINE_PRCC_CLK(7, cfgreg_ed, 	0, -1, NULL);
+static DEFINE_PRCC_CLK(7, wdg_ed,	1, -1, NULL);
+static DEFINE_PRCC_CLK(7, cfgreg_ed,	0, -1, NULL);
 
-static struct clk clk_dummy_apb_pclk;
+static struct clk clk_dummy_apb_pclk = {
+	.name = "apb_pclk",
+};
 
 static struct clk_lookup u8500_common_clks[] = {
 	CLK(dummy_apb_pclk, NULL,	"apb_pclk"),
@@ -553,7 +531,7 @@ static struct clk_lookup u8500_ed_clks[] = {
 
 static struct clk_lookup u8500_v1_clks[] = {
 	/* Peripheral Cluster #1 */
-	CLK(i2c4,	"nmk-i2c.4", 	NULL),
+	CLK(i2c4,	"nmk-i2c.4",	NULL),
 	CLK(spi3_v1,	"spi3",		NULL),
 	CLK(msp1_v1,	"msp1",		NULL),
 
@@ -598,6 +576,183 @@ static struct clk_lookup u8500_v1_clks[] = {
 	CLK(uiccclk,	"uicc",		NULL),
 };
 
+#ifdef CONFIG_DEBUG_FS
+/*
+ *	debugfs support to trace clock tree hierarchy and attributes with
+ *	powerdebug
+ */
+static struct dentry *clk_debugfs_root;
+
+void __init clk_debugfs_add_table(struct clk_lookup *cl, size_t num)
+{
+	while (num--) {
+		/* Check that the clock has not been already registered */
+		if (!(cl->clk->list.prev != cl->clk->list.next))
+			list_add_tail(&cl->clk->list, &clk_list);
+
+		cl++;
+	}
+}
+
+static ssize_t usecount_dbg_read(struct file *file, char __user *buf,
+						  size_t size, loff_t *off)
+{
+	struct clk *clk = file->f_dentry->d_inode->i_private;
+	char cusecount[128];
+	unsigned int len;
+
+	len = sprintf(cusecount, "%u\n", clk->enabled);
+	return simple_read_from_buffer(buf, size, off, cusecount, len);
+}
+
+static ssize_t rate_dbg_read(struct file *file, char __user *buf,
+					  size_t size, loff_t *off)
+{
+	struct clk *clk = file->f_dentry->d_inode->i_private;
+	char crate[128];
+	unsigned int rate;
+	unsigned int len;
+
+	rate = clk_get_rate(clk);
+	len = sprintf(crate, "%u\n", rate);
+	return simple_read_from_buffer(buf, size, off, crate, len);
+}
+
+static const struct file_operations usecount_fops = {
+	.read = usecount_dbg_read,
+};
+
+static const struct file_operations set_rate_fops = {
+	.read = rate_dbg_read,
+};
+
+static struct dentry *clk_debugfs_register_dir(struct clk *c,
+						struct dentry *p_dentry)
+{
+	struct dentry *d, *clk_d, *child, *child_tmp;
+	char s[255];
+	char *p = s;
+
+	if (c->name == NULL)
+		p += sprintf(p, "BUG");
+	else
+		p += sprintf(p, "%s", c->name);
+
+	clk_d = debugfs_create_dir(s, p_dentry);
+	if (!clk_d)
+		return NULL;
+
+	d = debugfs_create_file("usecount", S_IRUGO,
+				clk_d, c, &usecount_fops);
+	if (!d)
+		goto err_out;
+	d = debugfs_create_file("rate", S_IRUGO,
+				clk_d, c, &set_rate_fops);
+	if (!d)
+		goto err_out;
+	/*
+	 * TODO : not currently available in ux500
+	 * d = debugfs_create_x32("flags", S_IRUGO, clk_d, (u32 *)&c->flags);
+	 * if (!d)
+	 *	goto err_out;
+	 */
+
+	return clk_d;
+
+err_out:
+	d = clk_d;
+	list_for_each_entry_safe(child, child_tmp, &d->d_subdirs, d_u.d_child)
+		debugfs_remove(child);
+	debugfs_remove(clk_d);
+	return NULL;
+}
+
+static void clk_debugfs_remove_dir(struct dentry *cdentry)
+{
+	struct dentry *d, *child, *child_tmp;
+
+	d = cdentry;
+	list_for_each_entry_safe(child, child_tmp, &d->d_subdirs, d_u.d_child)
+		debugfs_remove(child);
+	debugfs_remove(cdentry);
+	return ;
+}
+
+static int clk_debugfs_register_one(struct clk *c)
+{
+	struct clk *pa = c->parent_periph;
+	struct clk *bpa = c->parent_cluster;
+
+	if (!(bpa && !pa)) {
+		c->dent = clk_debugfs_register_dir(c,
+				pa ? pa->dent : clk_debugfs_root);
+		if (!c->dent)
+			return -ENOMEM;
+	}
+
+	if (bpa) {
+		c->dent_bus = clk_debugfs_register_dir(c,
+				bpa->dent_bus ? bpa->dent_bus : bpa->dent);
+		if ((!c->dent_bus) &&  (c->dent)) {
+			clk_debugfs_remove_dir(c->dent);
+			c->dent = NULL;
+			return -ENOMEM;
+		}
+	}
+	return 0;
+}
+
+static int clk_debugfs_register(struct clk *c)
+{
+	int err;
+	struct clk *pa = c->parent_periph;
+	struct clk *bpa = c->parent_cluster;
+
+	if (pa && (!pa->dent && !pa->dent_bus)) {
+		err = clk_debugfs_register(pa);
+		if (err)
+			return err;
+	}
+
+	if (bpa && (!bpa->dent && !bpa->dent_bus)) {
+		err = clk_debugfs_register(bpa);
+		if (err)
+			return err;
+	}
+
+	if ((!c->dent) && (!c->dent_bus)) {
+		err = clk_debugfs_register_one(c);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+static int __init clk_debugfs_init(void)
+{
+	struct clk *c;
+	struct dentry *d;
+	int err;
+
+	d = debugfs_create_dir("clock", NULL);
+	if (!d)
+		return -ENOMEM;
+	clk_debugfs_root = d;
+
+	list_for_each_entry(c, &clk_list, list) {
+		err = clk_debugfs_register(c);
+		if (err)
+			goto err_out;
+	}
+	return 0;
+err_out:
+	debugfs_remove_recursive(clk_debugfs_root);
+	return err;
+}
+
+late_initcall(clk_debugfs_init);
+#endif /* defined(CONFIG_DEBUG_FS) */
+
 int __init clk_init(void)
 {
 	if (cpu_is_u8500ed()) {
@@ -608,7 +763,8 @@ int __init clk_init(void)
 		/* Clock tree for U5500 not implemented yet */
 		clk_prcc_ops.enable = clk_prcc_ops.disable = NULL;
 		clk_prcmu_ops.enable = clk_prcmu_ops.disable = NULL;
-		clk_per6clk.rate = 26000000;
+		clk_uartclk.rate = 36360000;
+		clk_sdmmcclk.rate = 99900000;
 	}
 
 	clkdev_add_table(u8500_common_clks, ARRAY_SIZE(u8500_common_clks));
@@ -617,5 +773,12 @@ int __init clk_init(void)
 	else
 		clkdev_add_table(u8500_v1_clks, ARRAY_SIZE(u8500_v1_clks));
 
+#ifdef CONFIG_DEBUG_FS
+	clk_debugfs_add_table(u8500_common_clks, ARRAY_SIZE(u8500_common_clks));
+	if (cpu_is_u8500ed())
+		clk_debugfs_add_table(u8500_ed_clks, ARRAY_SIZE(u8500_ed_clks));
+	else
+		clk_debugfs_add_table(u8500_v1_clks, ARRAY_SIZE(u8500_v1_clks));
+#endif
 	return 0;
 }

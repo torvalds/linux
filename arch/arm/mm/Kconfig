@@ -382,6 +382,12 @@ config CPU_FEROCEON_OLD_ID
 	  for which the CPU ID is equal to the ARM926 ID.
 	  Relevant for Feroceon-1850 and early Feroceon-2850.
 
+# Marvell PJ4
+config CPU_PJ4
+	bool
+	select CPU_V7
+	select ARM_THUMBEE
+
 # ARMv6
 config CPU_V6
 	bool "Support ARM V6 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX || ARCH_DOVE
@@ -824,7 +830,7 @@ config CACHE_PL310
 
 config CACHE_TAUROS2
 	bool "Enable the Tauros2 L2 cache controller"
-	depends on (ARCH_DOVE || ARCH_MMP)
+	depends on (ARCH_DOVE || ARCH_MMP || CPU_PJ4)
 	default y
 	select OUTER_CACHE
 	help

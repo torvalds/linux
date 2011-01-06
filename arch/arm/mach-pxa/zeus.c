@@ -47,6 +47,7 @@
 #include <mach/audio.h>
 #include <mach/arcom-pcmcia.h>
 #include <mach/zeus.h>
+#include <mach/smemc.h>
 
 #include "generic.h"
 
@@ -823,13 +824,16 @@ static mfp_cfg_t zeus_pin_config[] __initdata = {
 static void __init zeus_init(void)
 {
 	u16 dm9000_msc = DM9K_MSC_VALUE;
+	u32 msc0, msc1;
 
 	system_rev = __raw_readw(ZEUS_CPLD_VERSION);
 	pr_info("Zeus CPLD V%dI%d\n", (system_rev & 0xf0) >> 4, (system_rev & 0x0f));
 
 	/* Fix timings for dm9000s (CS1/CS2)*/
-	MSC0 = (MSC0 & 0xffff) | (dm9000_msc << 16);
-	MSC1 = (MSC1 & 0xffff0000) | dm9000_msc;
+	msc0 = __raw_readl(MSC0) & 0x0000ffff | (dm9000_msc << 16);
+	msc1 = __raw_readl(MSC1) & 0xffff0000 | dm9000_msc;
+	__raw_writel(msc0, MSC0);
+	__raw_writel(msc1, MSC1);
 
 	pm_power_off = zeus_power_off;
 	zeus_setup_apm();
@@ -883,7 +887,7 @@ static struct map_desc zeus_io_desc[] __initdata = {
 
 static void __init zeus_map_io(void)
 {
-	pxa_map_io();
+	pxa27x_map_io();
 
 	iotable_init(zeus_io_desc, ARRAY_SIZE(zeus_io_desc));
 

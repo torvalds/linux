@@ -35,33 +35,18 @@ static struct map_desc imx21_io_desc[] __initdata = {
 	 * - ROM Patch
 	 * - and some reserved space
 	 */
-	{
-		.virtual = MX21_AIPI_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX21_AIPI_BASE_ADDR),
-		.length = MX21_AIPI_SIZE,
-		.type = MT_DEVICE
-	},
+	imx_map_entry(MX21, AIPI, MT_DEVICE),
 	/*
 	 * this fixed mapping covers:
 	 * - CSI
 	 * - ATA
 	 */
-	{
-		.virtual = MX21_SAHB1_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX21_SAHB1_BASE_ADDR),
-		.length = MX21_SAHB1_SIZE,
-		.type = MT_DEVICE
-	},
+	imx_map_entry(MX21, SAHB1, MT_DEVICE),
 	/*
 	 * this fixed mapping covers:
 	 * - EMI
 	 */
-	{
-		.virtual = MX21_X_MEMC_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX21_X_MEMC_BASE_ADDR),
-		.length = MX21_X_MEMC_SIZE,
-		.type = MT_DEVICE
-	},
+	imx_map_entry(MX21, X_MEMC, MT_DEVICE),
 };
 
 /*

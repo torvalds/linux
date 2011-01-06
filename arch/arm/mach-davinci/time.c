@@ -272,12 +272,33 @@ static cycle_t read_cycles(struct clocksource *cs)
 	return (cycles_t)timer32_read(t);
 }
 
+/*
+ * Kernel assumes that sched_clock can be called early but may not have
+ * things ready yet.
+ */
+static cycle_t read_dummy(struct clocksource *cs)
+{
+	return 0;
+}
+
+
 static struct clocksource clocksource_davinci = {
 	.rating		= 300,
-	.read		= read_cycles,
+	.read		= read_dummy,
 	.mask		= CLOCKSOURCE_MASK(32),
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
+
+/*
+ * Overwrite weak default sched_clock with something more precise
+ */
+unsigned long long notrace sched_clock(void)
+{
+	const cycle_t cyc = clocksource_davinci.read(&clocksource_davinci);
+
+	return clocksource_cyc2ns(cyc, clocksource_davinci.mult,
+				clocksource_davinci.shift);
+}
 
 /*
  * clockevent
@@ -376,6 +397,7 @@ static void __init davinci_timer_init(void)
 	davinci_clock_tick_rate = clk_get_rate(timer_clk);
 
 	/* setup clocksource */
+	clocksource_davinci.read = read_cycles;
 	clocksource_davinci.name = id_to_name[clocksource_id];
 	if (clocksource_register_hz(&clocksource_davinci,
 				    davinci_clock_tick_rate))

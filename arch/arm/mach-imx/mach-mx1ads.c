@@ -30,7 +30,6 @@
 #include <mach/irqs.h>
 
 #include "devices-imx1.h"
-#include "devices.h"
 
 static const int mx1ads_pins[] __initconst = {
 	/* UART1 */

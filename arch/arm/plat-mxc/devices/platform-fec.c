@@ -16,22 +16,22 @@
 		.irq = soc ## _INT_FEC,					\
 	}
 
-#ifdef CONFIG_ARCH_MX25
+#ifdef CONFIG_SOC_IMX25
 const struct imx_fec_data imx25_fec_data __initconst =
 	imx_fec_data_entry_single(MX25);
-#endif /* ifdef CONFIG_ARCH_MX25 */
+#endif /* ifdef CONFIG_SOC_IMX25 */
 
 #ifdef CONFIG_SOC_IMX27
 const struct imx_fec_data imx27_fec_data __initconst =
 	imx_fec_data_entry_single(MX27);
 #endif /* ifdef CONFIG_SOC_IMX27 */
 
-#ifdef CONFIG_ARCH_MX35
+#ifdef CONFIG_SOC_IMX35
 const struct imx_fec_data imx35_fec_data __initconst =
 	imx_fec_data_entry_single(MX35);
 #endif
 
-#ifdef CONFIG_ARCH_MX51
+#ifdef CONFIG_SOC_IMX51
 const struct imx_fec_data imx51_fec_data __initconst =
 	imx_fec_data_entry_single(MX51);
 #endif

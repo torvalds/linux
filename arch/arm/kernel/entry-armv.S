@@ -178,6 +178,7 @@ __dabt_svc:
 	@
 	@ set desired IRQ state, then call main handler
 	@
+	debug_entry r1
 	msr	cpsr_c, r9
 	mov	r2, sp
 	bl	do_DataAbort
@@ -304,6 +305,7 @@ __pabt_svc:
 #else
 	bl	CPU_PABORT_HANDLER
 #endif
+	debug_entry r1
 	msr	cpsr_c, r9			@ Maybe enable interrupts
 	mov	r2, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
@@ -419,6 +421,7 @@ __dabt_usr:
 	@
 	@ IRQs on, then call the main handler
 	@
+	debug_entry r1
 	enable_irq
 	mov	r2, sp
 	adr	lr, BSYM(ret_from_exception)
@@ -683,6 +686,7 @@ __pabt_usr:
 #else
 	bl	CPU_PABORT_HANDLER
 #endif
+	debug_entry r1
 	enable_irq				@ Enable interrupts
 	mov	r2, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler

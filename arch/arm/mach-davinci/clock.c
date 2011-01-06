@@ -336,7 +336,7 @@ int davinci_set_sysclk_rate(struct clk *clk, unsigned long rate)
 		ratio--;
 	}
 
-	if (ratio > PLLDIV_RATIO_MASK)
+	if (ratio > pll->div_ratio_mask)
 		return -EINVAL;
 
 	do {
@@ -344,7 +344,7 @@ int davinci_set_sysclk_rate(struct clk *clk, unsigned long rate)
 	} while (v & PLLSTAT_GOSTAT);
 
 	v = __raw_readl(pll->base + clk->div_reg);
-	v &= ~PLLDIV_RATIO_MASK;
+	v &= ~pll->div_ratio_mask;
 	v |= ratio | PLLDIV_EN;
 	__raw_writel(v, pll->base + clk->div_reg);
 

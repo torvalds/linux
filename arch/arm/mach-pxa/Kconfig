@@ -50,6 +50,10 @@ config MACH_SAAR
 	select PXA3xx
 	select CPU_PXA930
 
+config MACH_SAARB
+	bool "PXA955 Handheld Platform (aka SAARB)"
+	select CPU_PXA955
+
 comment "Third Party Dev Platforms (sorted by vendor name)"
 
 config ARCH_PXA_IDP
@@ -233,10 +237,6 @@ config MACH_COLIBRI
 	bool "Toradex Colibri PXA270"
 	select PXA27x
 
-config MACH_COLIBRI_PXA270_EVALBOARD
-	bool "Toradex Colibri Evaluation Carrier Board support (PXA270)"
-	depends on MACH_COLIBRI
-
 config MACH_COLIBRI_PXA270_INCOME
 	bool "Income s.r.o. PXA270 SBC"
 	depends on MACH_COLIBRI
@@ -253,6 +253,10 @@ config MACH_COLIBRI320
 	bool "Toradex Colibri PXA320"
 	select PXA3xx
 	select CPU_PXA320
+
+config MACH_COLIBRI_EVALBOARD
+	bool "Toradex Colibri Evaluation Carrier Board support"
+	depends on MACH_COLIBRI || MACH_COLIBRI300 || MACH_COLIBRI320
 
 config MACH_VPAC270
 	bool "Voipac PXA270"
@@ -653,11 +657,17 @@ config CPU_PXA935
 	help
 	  PXA935 (codename Tavor-P65)
 
-config CPU_PXA950
+config PXA95x
 	bool
-	select CPU_PXA930
+	select CPU_PJ4
 	help
-	  PXA950 (codename Tavor-PV2)
+	  Select code specific to PXA95x variants
+
+config CPU_PXA955
+	bool
+	select PXA95x
+	help
+	  PXA950 (codename MG1)
 
 config PXA_SHARP_C7xx
 	bool
