@@ -4370,6 +4370,11 @@ int iwl_agn_check_rxon_cmd(struct iwl_priv *priv);
  * REPLY_WIPAN_PARAMS = 0xb2 (Commands and Notification)
  */
 
+/*
+ * Minimum slot time in TU
+ */
+#define IWL_MIN_SLOT_TIME	20
+
 /**
  * struct iwl_wipan_slot
  * @width: Time in TU

@@ -308,7 +308,7 @@ static int iwlagn_set_pan_params(struct iwl_priv *priv)
 	if (priv->_agn.hw_roc_channel) {
 		/* both contexts must be used for this to happen */
 		slot1 = priv->_agn.hw_roc_duration;
-		slot0 = 20;
+		slot0 = IWL_MIN_SLOT_TIME;
 	} else if (ctx_bss->vif && ctx_pan->vif) {
 		int bcnint = ctx_pan->vif->bss_conf.beacon_int;
 		int dtim = ctx_pan->vif->bss_conf.dtim_period ?: 1;
@@ -334,12 +334,12 @@ static int iwlagn_set_pan_params(struct iwl_priv *priv)
 		if (test_bit(STATUS_SCAN_HW, &priv->status) ||
 		    (!ctx_bss->vif->bss_conf.idle &&
 		     !ctx_bss->vif->bss_conf.assoc)) {
-			slot0 = dtim * bcnint * 3 - 20;
-			slot1 = 20;
+			slot0 = dtim * bcnint * 3 - IWL_MIN_SLOT_TIME;
+			slot1 = IWL_MIN_SLOT_TIME;
 		} else if (!ctx_pan->vif->bss_conf.idle &&
 			   !ctx_pan->vif->bss_conf.assoc) {
-			slot1 = bcnint * 3 - 20;
-			slot0 = 20;
+			slot1 = bcnint * 3 - IWL_MIN_SLOT_TIME;
+			slot0 = IWL_MIN_SLOT_TIME;
 		}
 	} else if (ctx_pan->vif) {
 		slot0 = 0;
@@ -348,8 +348,8 @@ static int iwlagn_set_pan_params(struct iwl_priv *priv)
 		slot1 = max_t(int, DEFAULT_BEACON_INTERVAL, slot1);
 
 		if (test_bit(STATUS_SCAN_HW, &priv->status)) {
-			slot0 = slot1 * 3 - 20;
-			slot1 = 20;
+			slot0 = slot1 * 3 - IWL_MIN_SLOT_TIME;
+			slot1 = IWL_MIN_SLOT_TIME;
 		}
 	}
 

@@ -3792,7 +3792,7 @@ static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 	queue_delayed_work(priv->workqueue, &priv->_agn.hw_roc_work,
 			   msecs_to_jiffies(duration + 20));
 
-	msleep(20);
+	msleep(IWL_MIN_SLOT_TIME); /* TU is almost ms */
 	ieee80211_ready_on_channel(priv->hw);
 
  out:
