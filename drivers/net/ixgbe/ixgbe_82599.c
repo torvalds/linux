@@ -1331,6 +1331,96 @@ static u32 ixgbe_atr_compute_hash_82599(union ixgbe_atr_input *atr_input,
 	return hash_result & IXGBE_ATR_HASH_MASK;
 }
 
+/*
+ * These defines allow us to quickly generate all of the necessary instructions
+ * in the function below by simply calling out IXGBE_COMPUTE_SIG_HASH_ITERATION
+ * for values 0 through 15
+ */
+#define IXGBE_ATR_COMMON_HASH_KEY \
+		(IXGBE_ATR_BUCKET_HASH_KEY & IXGBE_ATR_SIGNATURE_HASH_KEY)
+#define IXGBE_COMPUTE_SIG_HASH_ITERATION(_n) \
+do { \
+	u32 n = (_n); \
+	if (IXGBE_ATR_COMMON_HASH_KEY & (0x01 << n)) \
+		common_hash ^= lo_hash_dword >> n; \
+	else if (IXGBE_ATR_BUCKET_HASH_KEY & (0x01 << n)) \
+		bucket_hash ^= lo_hash_dword >> n; \
+	else if (IXGBE_ATR_SIGNATURE_HASH_KEY & (0x01 << n)) \
+		sig_hash ^= lo_hash_dword << (16 - n); \
+	if (IXGBE_ATR_COMMON_HASH_KEY & (0x01 << (n + 16))) \
+		common_hash ^= hi_hash_dword >> n; \
+	else if (IXGBE_ATR_BUCKET_HASH_KEY & (0x01 << (n + 16))) \
+		bucket_hash ^= hi_hash_dword >> n; \
+	else if (IXGBE_ATR_SIGNATURE_HASH_KEY & (0x01 << (n + 16))) \
+		sig_hash ^= hi_hash_dword << (16 - n); \
+} while (0);
+
+/**
+ *  ixgbe_atr_compute_sig_hash_82599 - Compute the signature hash
+ *  @stream: input bitstream to compute the hash on
+ *
+ *  This function is almost identical to the function above but contains
+ *  several optomizations such as unwinding all of the loops, letting the
+ *  compiler work out all of the conditional ifs since the keys are static
+ *  defines, and computing two keys at once since the hashed dword stream
+ *  will be the same for both keys.
+ **/
+static u32 ixgbe_atr_compute_sig_hash_82599(union ixgbe_atr_hash_dword input,
+					    union ixgbe_atr_hash_dword common)
+{
+	u32 hi_hash_dword, lo_hash_dword, flow_vm_vlan;
+	u32 sig_hash = 0, bucket_hash = 0, common_hash = 0;
+
+	/* record the flow_vm_vlan bits as they are a key part to the hash */
+	flow_vm_vlan = ntohl(input.dword);
+
+	/* generate common hash dword */
+	hi_hash_dword = ntohl(common.dword);
+
+	/* low dword is word swapped version of common */
+	lo_hash_dword = (hi_hash_dword >> 16) | (hi_hash_dword << 16);
+
+	/* apply flow ID/VM pool/VLAN ID bits to hash words */
+	hi_hash_dword ^= flow_vm_vlan ^ (flow_vm_vlan >> 16);
+
+	/* Process bits 0 and 16 */
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(0);
+
+	/*
+	 * apply flow ID/VM pool/VLAN ID bits to lo hash dword, we had to
+	 * delay this because bit 0 of the stream should not be processed
+	 * so we do not add the vlan until after bit 0 was processed
+	 */
+	lo_hash_dword ^= flow_vm_vlan ^ (flow_vm_vlan << 16);
+
+	/* Process remaining 30 bit of the key */
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(1);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(2);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(3);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(4);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(5);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(6);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(7);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(8);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(9);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(10);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(11);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(12);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(13);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(14);
+	IXGBE_COMPUTE_SIG_HASH_ITERATION(15);
+
+	/* combine common_hash result with signature and bucket hashes */
+	bucket_hash ^= common_hash;
+	bucket_hash &= IXGBE_ATR_HASH_MASK;
+
+	sig_hash ^= common_hash << 16;
+	sig_hash &= IXGBE_ATR_HASH_MASK << 16;
+
+	/* return completed signature hash */
+	return sig_hash ^ bucket_hash;
+}
+
 /**
  *  ixgbe_atr_set_vlan_id_82599 - Sets the VLAN id in the ATR input stream
  *  @input: input stream to modify
@@ -1539,22 +1629,23 @@ static s32 ixgbe_atr_get_l4type_82599(union ixgbe_atr_input *input,
 /**
  *  ixgbe_atr_add_signature_filter_82599 - Adds a signature hash filter
  *  @hw: pointer to hardware structure
- *  @stream: input bitstream
+ *  @input: unique input dword
+ *  @common: compressed common input dword
  *  @queue: queue index to direct traffic to
  **/
 s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
-                                          union ixgbe_atr_input *input,
+                                          union ixgbe_atr_hash_dword input,
+                                          union ixgbe_atr_hash_dword common,
                                           u8 queue)
 {
 	u64  fdirhashcmd;
 	u32  fdircmd;
-	u32  bucket_hash, sig_hash;
 
 	/*
 	 * Get the flow_type in order to program FDIRCMD properly
 	 * lowest 2 bits are FDIRCMD.L4TYPE, third lowest bit is FDIRCMD.IPV6
 	 */
-	switch (input->formatted.flow_type) {
+	switch (input.formatted.flow_type) {
 	case IXGBE_ATR_FLOW_TYPE_TCPV4:
 	case IXGBE_ATR_FLOW_TYPE_UDPV4:
 	case IXGBE_ATR_FLOW_TYPE_SCTPV4:
@@ -1570,7 +1661,7 @@ s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
 	/* configure FDIRCMD register */
 	fdircmd = IXGBE_FDIRCMD_CMD_ADD_FLOW | IXGBE_FDIRCMD_FILTER_UPDATE |
 	          IXGBE_FDIRCMD_LAST | IXGBE_FDIRCMD_QUEUE_EN;
-	fdircmd |= input->formatted.flow_type << IXGBE_FDIRCMD_FLOW_TYPE_SHIFT;
+	fdircmd |= input.formatted.flow_type << IXGBE_FDIRCMD_FLOW_TYPE_SHIFT;
 	fdircmd |= (u32)queue << IXGBE_FDIRCMD_RX_QUEUE_SHIFT;
 
 	/*
@@ -1578,16 +1669,11 @@ s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
 	 * is for FDIRCMD.  Then do a 64-bit register write from FDIRHASH.
 	 */
 	fdirhashcmd = (u64)fdircmd << 32;
-
-	sig_hash = ixgbe_atr_compute_hash_82599(input,
-	                                        IXGBE_ATR_SIGNATURE_HASH_KEY);
-	fdirhashcmd |= sig_hash << IXGBE_FDIRHASH_SIG_SW_INDEX_SHIFT;
-
-	bucket_hash = ixgbe_atr_compute_hash_82599(input,
-	                                           IXGBE_ATR_BUCKET_HASH_KEY);
-	fdirhashcmd |= bucket_hash;
+	fdirhashcmd |= ixgbe_atr_compute_sig_hash_82599(input, common);
 
 	IXGBE_WRITE_REG64(hw, IXGBE_FDIRHASH, fdirhashcmd);
+
+	hw_dbg(hw, "Tx Queue=%x hash=%x\n", queue, (u32)fdirhashcmd);
 
 	return 0;
 }

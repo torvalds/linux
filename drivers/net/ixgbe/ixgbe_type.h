@@ -2198,6 +2198,22 @@ union ixgbe_atr_input {
 	__be32 dword_stream[11];
 };
 
+/* Flow Director compressed ATR hash input struct */
+union ixgbe_atr_hash_dword {
+	struct {
+		u8 vm_pool;
+		u8 flow_type;
+		__be16 vlan_id;
+	} formatted;
+	__be32 ip;
+	struct {
+		__be16 src;
+		__be16 dst;
+	} port;
+	__be16 flex_bytes;
+	__be32 dword;
+};
+
 struct ixgbe_atr_input_masks {
 	__be32 src_ip_mask;
 	__be32 dst_ip_mask;
