@@ -1004,6 +1004,10 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	/* validate resources */
 	error = -ENODEV;
 
+	/* init these to -1, as 0 is valid for both */
+	dev->hw_io = -1;
+	dev->irq = -1;
+
 	if (!pnp_port_valid(pnp_dev, 0) ||
 	    pnp_port_len(pnp_dev, 0) < ENE_IO_SIZE)
 		goto error;
@@ -1072,6 +1076,8 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 		rdev->input_name = "ENE eHome Infrared Remote Transceiver";
 	}
 
+	dev->rdev = rdev;
+
 	ene_rx_setup_hw_buffer(dev);
 	ene_setup_default_settings(dev);
 	ene_setup_hw_settings(dev);
@@ -1083,7 +1089,6 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	if (error < 0)
 		goto error;
 
-	dev->rdev = rdev;
 	ene_notice("driver has been succesfully loaded");
 	return 0;
 error:
