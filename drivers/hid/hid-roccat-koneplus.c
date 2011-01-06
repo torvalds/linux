@@ -258,6 +258,9 @@ static ssize_t koneplus_sysfs_read(struct file *fp, struct kobject *kobj,
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
 	int retval;
 
+	if (off >= real_size)
+		return 0;
+
 	if (off != 0 || count != real_size)
 		return -EINVAL;
 
