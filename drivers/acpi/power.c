@@ -219,7 +219,7 @@ static int acpi_power_on(acpi_handle handle)
 	return result;
 }
 
-static int acpi_power_off_device(acpi_handle handle)
+static int acpi_power_off(acpi_handle handle)
 {
 	int result = 0;
 	acpi_status status = AE_OK;
@@ -268,7 +268,7 @@ static void __acpi_power_off_list(struct acpi_handle_list *list, int num_res)
 	int i;
 
 	for (i = num_res - 1; i >= 0 ; i--)
-		acpi_power_off_device(list->handles[i]);
+		acpi_power_off(list->handles[i]);
 }
 
 static void acpi_power_off_list(struct acpi_handle_list *list)
@@ -430,8 +430,7 @@ int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 
 	/* Close power resource */
 	for (i = 0; i < dev->wakeup.resources.count; i++) {
-		int ret = acpi_power_off_device(
-				dev->wakeup.resources.handles[i]);
+		int ret = acpi_power_off(dev->wakeup.resources.handles[i]);
 		if (ret) {
 			printk(KERN_ERR PREFIX "Transition power state\n");
 			dev->wakeup.flags.valid = 0;
