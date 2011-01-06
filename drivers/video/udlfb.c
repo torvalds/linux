@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <video/udlfb.h>
+#include "edid.h"
 
 static struct fb_fix_screeninfo dlfb_fix = {
 	.id =           "udlfb",
@@ -1169,7 +1170,7 @@ static int dlfb_setup_modes(struct dlfb_data *dev,
 	if (info->dev) /* only use mutex if info has been registered */
 		mutex_lock(&info->lock);
 
-	edid = kmalloc(MAX_EDID_SIZE, GFP_KERNEL);
+	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
 	if (!edid) {
 		result = -ENOMEM;
 		goto error;
@@ -1185,9 +1186,9 @@ static int dlfb_setup_modes(struct dlfb_data *dev,
 	 */
 	while (tries--) {
 
-		i = dlfb_get_edid(dev, edid, MAX_EDID_SIZE);
+		i = dlfb_get_edid(dev, edid, EDID_LENGTH);
 
-		if (i >= MIN_EDID_SIZE)
+		if (i >= EDID_LENGTH)
 			fb_edid_to_monspecs(edid, &info->monspecs);
 
 		if (info->monspecs.modedb_len > 0) {
@@ -1211,7 +1212,7 @@ static int dlfb_setup_modes(struct dlfb_data *dev,
 
 	/* If that fails, use the default EDID we were handed */
 	if (info->monspecs.modedb_len == 0) {
-		if (default_edid_size >= MIN_EDID_SIZE) {
+		if (default_edid_size >= EDID_LENGTH) {
 			fb_edid_to_monspecs(default_edid, &info->monspecs);
 			if (info->monspecs.modedb_len > 0) {
 				memcpy(edid, default_edid, default_edid_size);
@@ -1360,9 +1361,7 @@ static ssize_t edid_store(
 	struct dlfb_data *dev = fb_info->par;
 
 	/* We only support write of entire EDID at once, no offset*/
-	if ((src_size < MIN_EDID_SIZE) ||
-	    (src_size > MAX_EDID_SIZE) ||
-	    (src_off != 0))
+	if ((src_size != EDID_LENGTH) || (src_off != 0))
 		return 0;
 
 	dlfb_setup_modes(dev, fb_info, src, src_size);
@@ -1393,7 +1392,7 @@ static ssize_t metrics_reset_store(struct device *fbdev,
 static struct bin_attribute edid_attr = {
 	.attr.name = "edid",
 	.attr.mode = 0666,
-	.size = MAX_EDID_SIZE,
+	.size = EDID_LENGTH,
 	.read = edid_show,
 	.write = edid_store
 };
