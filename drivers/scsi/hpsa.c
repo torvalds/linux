@@ -3571,7 +3571,7 @@ static void __devinit hpsa_wait_for_mode_change_ack(struct ctlr_info *h)
 		if (!doorbell_value & CFGTBL_ChangeReq)
 			break;
 		/* delay and try again */
-		msleep(10);
+		usleep_range(10000, 20000);
 	}
 }
 
