@@ -337,6 +337,9 @@ static int mma8452_get_data(struct i2c_client *client)
 		axis.y = -axis.y;
 		swap(axis.x,axis.y);		
 	}
+	#if defined(CONFIG_MACH_RK29_AIGO)
+	   axis.x = -axis.x;
+	#endif
 	
    // mmaprintk( "%s: ------------------mma8452_GetData axis = %d  %d  %d--------------\n",
     //       __func__, axis.x, axis.y, axis.z); 
