@@ -584,7 +584,7 @@ nvc0_graph_init_ctxctl(struct drm_device *dev)
 	r000260 = nv_mask(dev, 0x000260, 0x00000001, 0x00000000);
 	ret = nvc0_fuc_load_fw(dev, 0x409000, "fuc409c", "fuc409d");
 	if (ret == 0)
-		nvc0_fuc_load_fw(dev, 0x41a000, "fuc41ac", "fuc41ad");
+		ret = nvc0_fuc_load_fw(dev, 0x41a000, "fuc41ac", "fuc41ad");
 	nv_wr32(dev, 0x000260, r000260);
 
 	if (ret)
@@ -686,10 +686,8 @@ nvc0_graph_init(struct drm_device *dev)
 	nv_wr32(dev, 0x400054, 0x34ce3464);
 
 	ret = nvc0_graph_init_ctxctl(dev);
-	if (ret)
-		return ret;
-
-	dev_priv->engine.graph.accel_blocked = false;
+	if (ret == 0)
+		dev_priv->engine.graph.accel_blocked = false;
 	return 0;
 }
 
