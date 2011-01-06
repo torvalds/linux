@@ -988,7 +988,6 @@ static int imon_ir_change_protocol(struct rc_dev *rc, u64 rc_type)
 	int retval;
 	struct imon_context *ictx = rc->priv;
 	struct device *dev = ictx->dev;
-	bool pad_mouse;
 	unsigned char ir_proto_packet[] = {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x86 };
 
@@ -1000,29 +999,20 @@ static int imon_ir_change_protocol(struct rc_dev *rc, u64 rc_type)
 	case RC_TYPE_RC6:
 		dev_dbg(dev, "Configuring IR receiver for MCE protocol\n");
 		ir_proto_packet[0] = 0x01;
-		pad_mouse = false;
 		break;
 	case RC_TYPE_UNKNOWN:
 	case RC_TYPE_OTHER:
 		dev_dbg(dev, "Configuring IR receiver for iMON protocol\n");
-		if (pad_stabilize && !nomouse)
-			pad_mouse = true;
-		else {
+		if (!pad_stabilize)
 			dev_dbg(dev, "PAD stabilize functionality disabled\n");
-			pad_mouse = false;
-		}
 		/* ir_proto_packet[0] = 0x00; // already the default */
 		rc_type = RC_TYPE_OTHER;
 		break;
 	default:
 		dev_warn(dev, "Unsupported IR protocol specified, overriding "
 			 "to iMON IR protocol\n");
-		if (pad_stabilize && !nomouse)
-			pad_mouse = true;
-		else {
+		if (!pad_stabilize)
 			dev_dbg(dev, "PAD stabilize functionality disabled\n");
-			pad_mouse = false;
-		}
 		/* ir_proto_packet[0] = 0x00; // already the default */
 		rc_type = RC_TYPE_OTHER;
 		break;
@@ -1035,7 +1025,7 @@ static int imon_ir_change_protocol(struct rc_dev *rc, u64 rc_type)
 		goto out;
 
 	ictx->rc_type = rc_type;
-	ictx->pad_mouse = pad_mouse;
+	ictx->pad_mouse = false;
 
 out:
 	return retval;
@@ -1517,7 +1507,7 @@ static void imon_incoming_packet(struct imon_context *ictx,
 			spin_unlock_irqrestore(&ictx->kc_lock, flags);
 			return;
 		} else {
-			ictx->pad_mouse = 0;
+			ictx->pad_mouse = false;
 			dev_dbg(dev, "mouse mode disabled, passing key value\n");
 		}
 	}
