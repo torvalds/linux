@@ -469,14 +469,6 @@ pnfs_insert_layout(struct pnfs_layout_hdr *lo,
 	dprintk("%s:Begin\n", __func__);
 
 	assert_spin_locked(&lo->plh_inode->i_lock);
-	if (list_empty(&lo->plh_segs)) {
-		struct nfs_client *clp = NFS_SERVER(lo->plh_inode)->nfs_client;
-
-		spin_lock(&clp->cl_lock);
-		BUG_ON(!list_empty(&lo->plh_layouts));
-		list_add_tail(&lo->plh_layouts, &clp->cl_layouts);
-		spin_unlock(&clp->cl_lock);
-	}
 	list_for_each_entry(lp, &lo->plh_segs, pls_list) {
 		if (cmp_layout(lp->pls_range.iomode, lseg->pls_range.iomode) > 0)
 			continue;
@@ -597,6 +589,7 @@ pnfs_update_layout(struct inode *ino,
 		   enum pnfs_iomode iomode)
 {
 	struct nfs_inode *nfsi = NFS_I(ino);
+	struct nfs_client *clp = NFS_SERVER(ino)->nfs_client;
 	struct pnfs_layout_hdr *lo;
 	struct pnfs_layout_segment *lseg = NULL;
 
@@ -626,9 +619,27 @@ pnfs_update_layout(struct inode *ino,
 	atomic_inc(&lo->plh_outstanding);
 
 	get_layout_hdr_locked(lo);
+	if (list_empty(&lo->plh_segs)) {
+		/* The lo must be on the clp list if there is any
+		 * chance of a CB_LAYOUTRECALL(FILE) coming in.
+		 */
+		spin_lock(&clp->cl_lock);
+		BUG_ON(!list_empty(&lo->plh_layouts));
+		list_add_tail(&lo->plh_layouts, &clp->cl_layouts);
+		spin_unlock(&clp->cl_lock);
+	}
 	spin_unlock(&ino->i_lock);
 
 	lseg = send_layoutget(lo, ctx, iomode);
+	if (!lseg) {
+		spin_lock(&ino->i_lock);
+		if (list_empty(&lo->plh_segs)) {
+			spin_lock(&clp->cl_lock);
+			list_del_init(&lo->plh_layouts);
+			spin_unlock(&clp->cl_lock);
+		}
+		spin_unlock(&ino->i_lock);
+	}
 	atomic_dec(&lo->plh_outstanding);
 	put_layout_hdr(ino);
 out:
