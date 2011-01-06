@@ -6509,21 +6509,20 @@ static void ixgbe_tx_queue(struct ixgbe_ring *tx_ring,
 static void ixgbe_atr(struct ixgbe_adapter *adapter, struct sk_buff *skb,
 		      u8 queue, u32 tx_flags, __be16 protocol)
 {
-	struct ixgbe_atr_input atr_input;
+	union ixgbe_atr_input atr_input;
 	struct iphdr *iph = ip_hdr(skb);
 	struct ethhdr *eth = (struct ethhdr *)skb->data;
 	struct tcphdr *th;
-	u16 vlan_id;
+	__be16 vlan_id;
 
 	/* Right now, we support IPv4 w/ TCP only */
 	if (protocol != htons(ETH_P_IP) ||
 	    iph->protocol != IPPROTO_TCP)
 		return;
 
-	memset(&atr_input, 0, sizeof(struct ixgbe_atr_input));
+	memset(&atr_input, 0, sizeof(union ixgbe_atr_input));
 
-	vlan_id = (tx_flags & IXGBE_TX_FLAGS_VLAN_MASK) >>
-		   IXGBE_TX_FLAGS_VLAN_SHIFT;
+	vlan_id = htons(tx_flags >> IXGBE_TX_FLAGS_VLAN_SHIFT);
 
 	th = tcp_hdr(skb);
 
@@ -6531,7 +6530,7 @@ static void ixgbe_atr(struct ixgbe_adapter *adapter, struct sk_buff *skb,
 	ixgbe_atr_set_src_port_82599(&atr_input, th->dest);
 	ixgbe_atr_set_dst_port_82599(&atr_input, th->source);
 	ixgbe_atr_set_flex_byte_82599(&atr_input, eth->h_proto);
-	ixgbe_atr_set_l4type_82599(&atr_input, IXGBE_ATR_L4TYPE_TCP);
+	ixgbe_atr_set_l4type_82599(&atr_input, IXGBE_ATR_FLOW_TYPE_TCPV4);
 	/* src and dst are inverted, think how the receiver sees them */
 	ixgbe_atr_set_src_ipv4_82599(&atr_input, iph->daddr);
 	ixgbe_atr_set_dst_ipv4_82599(&atr_input, iph->saddr);

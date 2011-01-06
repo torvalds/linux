@@ -2278,7 +2278,7 @@ static int ixgbe_set_rx_ntuple(struct net_device *dev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ethtool_rx_ntuple_flow_spec fs = cmd->fs;
-	struct ixgbe_atr_input input_struct;
+	union ixgbe_atr_input input_struct;
 	struct ixgbe_atr_input_masks input_masks;
 	int target_queue;
 
@@ -2293,7 +2293,7 @@ static int ixgbe_set_rx_ntuple(struct net_device *dev,
 	    (fs.action < ETHTOOL_RXNTUPLE_ACTION_DROP))
 		return -EINVAL;
 
-	memset(&input_struct, 0, sizeof(struct ixgbe_atr_input));
+	memset(&input_struct, 0, sizeof(union ixgbe_atr_input));
 	memset(&input_masks, 0, sizeof(struct ixgbe_atr_input_masks));
 
 	input_masks.src_ip_mask = fs.m_u.tcp_ip4_spec.ip4src;
