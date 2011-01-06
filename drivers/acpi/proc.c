@@ -341,7 +341,6 @@ acpi_system_write_wakeup_device(struct file *file,
 	char strbuf[5];
 	char str[5] = "";
 	unsigned int len = count;
-	struct acpi_device *found_dev = NULL;
 
 	if (len > 4)
 		len = 4;
@@ -363,31 +362,8 @@ acpi_system_write_wakeup_device(struct file *file,
 		if (!strncmp(dev->pnp.bus_id, str, 4)) {
 			dev->wakeup.state.enabled =
 			    dev->wakeup.state.enabled ? 0 : 1;
-			found_dev = dev;
+			physical_device_enable_wakeup(dev);
 			break;
-		}
-	}
-	if (found_dev) {
-		physical_device_enable_wakeup(found_dev);
-		list_for_each_safe(node, next, &acpi_wakeup_device_list) {
-			struct acpi_device *dev = container_of(node,
-							       struct
-							       acpi_device,
-							       wakeup_list);
-
-			if ((dev != found_dev) &&
-			    (dev->wakeup.gpe_number ==
-			     found_dev->wakeup.gpe_number)
-			    && (dev->wakeup.gpe_device ==
-				found_dev->wakeup.gpe_device)) {
-				printk(KERN_WARNING
-				       "ACPI: '%s' and '%s' have the same GPE, "
-				       "can't disable/enable one separately\n",
-				       dev->pnp.bus_id, found_dev->pnp.bus_id);
-				dev->wakeup.state.enabled =
-				    found_dev->wakeup.state.enabled;
-				physical_device_enable_wakeup(dev);
-			}
 		}
 	}
 	mutex_unlock(&acpi_device_lock);
