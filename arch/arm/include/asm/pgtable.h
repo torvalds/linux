@@ -10,6 +10,7 @@
 #ifndef _ASMARM_PGTABLE_H
 #define _ASMARM_PGTABLE_H
 
+#include <linux/const.h>
 #include <asm-generic/4level-fixup.h>
 #include <asm/proc-fns.h>
 
@@ -54,7 +55,7 @@
  * Therefore, we tweak the implementation slightly - we tell Linux that we
  * have 2048 entries in the first level, each of which is 8 bytes (iow, two
  * hardware pointers to the second level.)  The second level contains two
- * hardware PTE tables arranged contiguously, followed by Linux versions
+ * hardware PTE tables arranged contiguously, preceded by Linux versions
  * which contain the state information Linux needs.  We, therefore, end up
  * with 512 entries in the "PTE" level.
  *
@@ -62,15 +63,15 @@
  *
  *    pgd             pte
  * |        |
- * +--------+ +0
- * |        |-----> +------------+ +0
- * +- - - - + +4    |  h/w pt 0  |
- * |        |-----> +------------+ +1024
- * +--------+ +8    |  h/w pt 1  |
- * |        |       +------------+ +2048
+ * +--------+
+ * |        |       +------------+ +0
  * +- - - - +       | Linux pt 0 |
- * |        |       +------------+ +3072
- * +--------+       | Linux pt 1 |
+ * |        |       +------------+ +1024
+ * +--------+ +0    | Linux pt 1 |
+ * |        |-----> +------------+ +2048
+ * +- - - - + +4    |  h/w pt 0  |
+ * |        |-----> +------------+ +3072
+ * +--------+ +8    |  h/w pt 1  |
  * |        |       +------------+ +4096
  *
  * See L_PTE_xxx below for definitions of bits in the "Linux pt", and
@@ -102,6 +103,10 @@
 #define PTRS_PER_PMD		1
 #define PTRS_PER_PGD		2048
 
+#define PTE_HWTABLE_PTRS	(PTRS_PER_PTE)
+#define PTE_HWTABLE_OFF		(PTE_HWTABLE_PTRS * sizeof(pte_t))
+#define PTE_HWTABLE_SIZE	(PTRS_PER_PTE * sizeof(u32))
+
 /*
  * PMD_SHIFT determines the size of the area a second-level page table can map
  * PGDIR_SHIFT determines what a third-level page table entry can map
@@ -112,13 +117,13 @@
 #define LIBRARY_TEXT_START	0x0c000000
 
 #ifndef __ASSEMBLY__
-extern void __pte_error(const char *file, int line, unsigned long val);
-extern void __pmd_error(const char *file, int line, unsigned long val);
-extern void __pgd_error(const char *file, int line, unsigned long val);
+extern void __pte_error(const char *file, int line, pte_t);
+extern void __pmd_error(const char *file, int line, pmd_t);
+extern void __pgd_error(const char *file, int line, pgd_t);
 
-#define pte_ERROR(pte)		__pte_error(__FILE__, __LINE__, pte_val(pte))
-#define pmd_ERROR(pmd)		__pmd_error(__FILE__, __LINE__, pmd_val(pmd))
-#define pgd_ERROR(pgd)		__pgd_error(__FILE__, __LINE__, pgd_val(pgd))
+#define pte_ERROR(pte)		__pte_error(__FILE__, __LINE__, pte)
+#define pmd_ERROR(pmd)		__pmd_error(__FILE__, __LINE__, pmd)
+#define pgd_ERROR(pgd)		__pgd_error(__FILE__, __LINE__, pgd)
 #endif /* !__ASSEMBLY__ */
 
 #define PMD_SIZE		(1UL << PMD_SHIFT)
@@ -133,8 +138,7 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
  */
 #define FIRST_USER_ADDRESS	PAGE_SIZE
 
-#define FIRST_USER_PGD_NR	1
-#define USER_PTRS_PER_PGD	((TASK_SIZE/PGDIR_SIZE) - FIRST_USER_PGD_NR)
+#define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
 
 /*
  * section address mask and size definitions.
@@ -161,30 +165,30 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
  * The PTE table pointer refers to the hardware entries; the "Linux"
  * entries are stored 1024 bytes below.
  */
-#define L_PTE_PRESENT		(1 << 0)
-#define L_PTE_YOUNG		(1 << 1)
-#define L_PTE_FILE		(1 << 2)	/* only when !PRESENT */
-#define L_PTE_DIRTY		(1 << 6)
-#define L_PTE_WRITE		(1 << 7)
-#define L_PTE_USER		(1 << 8)
-#define L_PTE_EXEC		(1 << 9)
-#define L_PTE_SHARED		(1 << 10)	/* shared(v6), coherent(xsc3) */
+#define L_PTE_PRESENT		(_AT(pteval_t, 1) << 0)
+#define L_PTE_YOUNG		(_AT(pteval_t, 1) << 1)
+#define L_PTE_FILE		(_AT(pteval_t, 1) << 2)	/* only when !PRESENT */
+#define L_PTE_DIRTY		(_AT(pteval_t, 1) << 6)
+#define L_PTE_RDONLY		(_AT(pteval_t, 1) << 7)
+#define L_PTE_USER		(_AT(pteval_t, 1) << 8)
+#define L_PTE_XN		(_AT(pteval_t, 1) << 9)
+#define L_PTE_SHARED		(_AT(pteval_t, 1) << 10)	/* shared(v6), coherent(xsc3) */
 
 /*
  * These are the memory types, defined to be compatible with
  * pre-ARMv6 CPUs cacheable and bufferable bits:   XXCB
  */
-#define L_PTE_MT_UNCACHED	(0x00 << 2)	/* 0000 */
-#define L_PTE_MT_BUFFERABLE	(0x01 << 2)	/* 0001 */
-#define L_PTE_MT_WRITETHROUGH	(0x02 << 2)	/* 0010 */
-#define L_PTE_MT_WRITEBACK	(0x03 << 2)	/* 0011 */
-#define L_PTE_MT_MINICACHE	(0x06 << 2)	/* 0110 (sa1100, xscale) */
-#define L_PTE_MT_WRITEALLOC	(0x07 << 2)	/* 0111 */
-#define L_PTE_MT_DEV_SHARED	(0x04 << 2)	/* 0100 */
-#define L_PTE_MT_DEV_NONSHARED	(0x0c << 2)	/* 1100 */
-#define L_PTE_MT_DEV_WC		(0x09 << 2)	/* 1001 */
-#define L_PTE_MT_DEV_CACHED	(0x0b << 2)	/* 1011 */
-#define L_PTE_MT_MASK		(0x0f << 2)
+#define L_PTE_MT_UNCACHED	(_AT(pteval_t, 0x00) << 2)	/* 0000 */
+#define L_PTE_MT_BUFFERABLE	(_AT(pteval_t, 0x01) << 2)	/* 0001 */
+#define L_PTE_MT_WRITETHROUGH	(_AT(pteval_t, 0x02) << 2)	/* 0010 */
+#define L_PTE_MT_WRITEBACK	(_AT(pteval_t, 0x03) << 2)	/* 0011 */
+#define L_PTE_MT_MINICACHE	(_AT(pteval_t, 0x06) << 2)	/* 0110 (sa1100, xscale) */
+#define L_PTE_MT_WRITEALLOC	(_AT(pteval_t, 0x07) << 2)	/* 0111 */
+#define L_PTE_MT_DEV_SHARED	(_AT(pteval_t, 0x04) << 2)	/* 0100 */
+#define L_PTE_MT_DEV_NONSHARED	(_AT(pteval_t, 0x0c) << 2)	/* 1100 */
+#define L_PTE_MT_DEV_WC		(_AT(pteval_t, 0x09) << 2)	/* 1001 */
+#define L_PTE_MT_DEV_CACHED	(_AT(pteval_t, 0x0b) << 2)	/* 1011 */
+#define L_PTE_MT_MASK		(_AT(pteval_t, 0x0f) << 2)
 
 #ifndef __ASSEMBLY__
 
@@ -201,23 +205,44 @@ extern pgprot_t		pgprot_kernel;
 
 #define _MOD_PROT(p, b)	__pgprot(pgprot_val(p) | (b))
 
-#define PAGE_NONE		pgprot_user
-#define PAGE_SHARED		_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_WRITE)
-#define PAGE_SHARED_EXEC	_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_WRITE | L_PTE_EXEC)
-#define PAGE_COPY		_MOD_PROT(pgprot_user, L_PTE_USER)
-#define PAGE_COPY_EXEC		_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_EXEC)
-#define PAGE_READONLY		_MOD_PROT(pgprot_user, L_PTE_USER)
-#define PAGE_READONLY_EXEC	_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_EXEC)
-#define PAGE_KERNEL		pgprot_kernel
-#define PAGE_KERNEL_EXEC	_MOD_PROT(pgprot_kernel, L_PTE_EXEC)
+#define PAGE_NONE		_MOD_PROT(pgprot_user, L_PTE_XN | L_PTE_RDONLY)
+#define PAGE_SHARED		_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_XN)
+#define PAGE_SHARED_EXEC	_MOD_PROT(pgprot_user, L_PTE_USER)
+#define PAGE_COPY		_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_RDONLY | L_PTE_XN)
+#define PAGE_COPY_EXEC		_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_RDONLY)
+#define PAGE_READONLY		_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_RDONLY | L_PTE_XN)
+#define PAGE_READONLY_EXEC	_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_RDONLY)
+#define PAGE_KERNEL		_MOD_PROT(pgprot_kernel, L_PTE_XN)
+#define PAGE_KERNEL_EXEC	pgprot_kernel
 
-#define __PAGE_NONE		__pgprot(_L_PTE_DEFAULT)
-#define __PAGE_SHARED		__pgprot(_L_PTE_DEFAULT | L_PTE_USER | L_PTE_WRITE)
-#define __PAGE_SHARED_EXEC	__pgprot(_L_PTE_DEFAULT | L_PTE_USER | L_PTE_WRITE | L_PTE_EXEC)
-#define __PAGE_COPY		__pgprot(_L_PTE_DEFAULT | L_PTE_USER)
-#define __PAGE_COPY_EXEC	__pgprot(_L_PTE_DEFAULT | L_PTE_USER | L_PTE_EXEC)
-#define __PAGE_READONLY		__pgprot(_L_PTE_DEFAULT | L_PTE_USER)
-#define __PAGE_READONLY_EXEC	__pgprot(_L_PTE_DEFAULT | L_PTE_USER | L_PTE_EXEC)
+#define __PAGE_NONE		__pgprot(_L_PTE_DEFAULT | L_PTE_RDONLY | L_PTE_XN)
+#define __PAGE_SHARED		__pgprot(_L_PTE_DEFAULT | L_PTE_USER | L_PTE_XN)
+#define __PAGE_SHARED_EXEC	__pgprot(_L_PTE_DEFAULT | L_PTE_USER)
+#define __PAGE_COPY		__pgprot(_L_PTE_DEFAULT | L_PTE_USER | L_PTE_RDONLY | L_PTE_XN)
+#define __PAGE_COPY_EXEC	__pgprot(_L_PTE_DEFAULT | L_PTE_USER | L_PTE_RDONLY)
+#define __PAGE_READONLY		__pgprot(_L_PTE_DEFAULT | L_PTE_USER | L_PTE_RDONLY | L_PTE_XN)
+#define __PAGE_READONLY_EXEC	__pgprot(_L_PTE_DEFAULT | L_PTE_USER | L_PTE_RDONLY)
+
+#define __pgprot_modify(prot,mask,bits)		\
+	__pgprot((pgprot_val(prot) & ~(mask)) | (bits))
+
+#define pgprot_noncached(prot) \
+	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_UNCACHED)
+
+#define pgprot_writecombine(prot) \
+	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_BUFFERABLE)
+
+#ifdef CONFIG_ARM_DMA_MEM_BUFFERABLE
+#define pgprot_dmacoherent(prot) \
+	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_BUFFERABLE | L_PTE_XN)
+#define __HAVE_PHYS_MEM_ACCESS_PROT
+struct file;
+extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+				     unsigned long size, pgprot_t vma_prot);
+#else
+#define pgprot_dmacoherent(prot) \
+	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_UNCACHED | L_PTE_XN)
+#endif
 
 #endif /* __ASSEMBLY__ */
 
@@ -255,94 +280,31 @@ extern pgprot_t		pgprot_kernel;
 extern struct page *empty_zero_page;
 #define ZERO_PAGE(vaddr)	(empty_zero_page)
 
-#define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
-#define pfn_pte(pfn,prot)	(__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot)))
 
-#define pte_none(pte)		(!pte_val(pte))
-#define pte_clear(mm,addr,ptep)	set_pte_ext(ptep, __pte(0), 0)
-#define pte_page(pte)		(pfn_to_page(pte_pfn(pte)))
-#define pte_offset_kernel(dir,addr)	(pmd_page_vaddr(*(dir)) + __pte_index(addr))
+extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
-#define pte_offset_map(dir,addr)	(__pte_map(dir) + __pte_index(addr))
-#define pte_unmap(pte)			__pte_unmap(pte)
+/* to find an entry in a page-table-directory */
+#define pgd_index(addr)		((addr) >> PGDIR_SHIFT)
 
-#ifndef CONFIG_HIGHPTE
-#define __pte_map(dir)		pmd_page_vaddr(*(dir))
-#define __pte_unmap(pte)	do { } while (0)
-#else
-#define __pte_map(dir)		((pte_t *)kmap_atomic(pmd_page(*(dir))) + PTRS_PER_PTE)
-#define __pte_unmap(pte)	kunmap_atomic((pte - PTRS_PER_PTE))
-#endif
+#define pgd_offset(mm, addr)	((mm)->pgd + pgd_index(addr))
 
-#define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
-
-#if __LINUX_ARM_ARCH__ < 6
-static inline void __sync_icache_dcache(pte_t pteval)
-{
-}
-#else
-extern void __sync_icache_dcache(pte_t pteval);
-#endif
-
-static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep, pte_t pteval)
-{
-	if (addr >= TASK_SIZE)
-		set_pte_ext(ptep, pteval, 0);
-	else {
-		__sync_icache_dcache(pteval);
-		set_pte_ext(ptep, pteval, PTE_EXT_NG);
-	}
-}
+/* to find an entry in a kernel page-table-directory */
+#define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
 
 /*
- * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * The "pgd_xxx()" functions here are trivial for a folded two-level
+ * setup: the pgd is never bad, and a pmd always exists (as it's folded
+ * into the pgd entry)
  */
-#define pte_present(pte)	(pte_val(pte) & L_PTE_PRESENT)
-#define pte_write(pte)		(pte_val(pte) & L_PTE_WRITE)
-#define pte_dirty(pte)		(pte_val(pte) & L_PTE_DIRTY)
-#define pte_young(pte)		(pte_val(pte) & L_PTE_YOUNG)
-#define pte_exec(pte)		(pte_val(pte) & L_PTE_EXEC)
-#define pte_special(pte)	(0)
+#define pgd_none(pgd)		(0)
+#define pgd_bad(pgd)		(0)
+#define pgd_present(pgd)	(1)
+#define pgd_clear(pgdp)		do { } while (0)
+#define set_pgd(pgd,pgdp)	do { } while (0)
 
-#define pte_present_user(pte) \
-	((pte_val(pte) & (L_PTE_PRESENT | L_PTE_USER)) == \
-	 (L_PTE_PRESENT | L_PTE_USER))
 
-#define PTE_BIT_FUNC(fn,op) \
-static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
-
-PTE_BIT_FUNC(wrprotect, &= ~L_PTE_WRITE);
-PTE_BIT_FUNC(mkwrite,   |= L_PTE_WRITE);
-PTE_BIT_FUNC(mkclean,   &= ~L_PTE_DIRTY);
-PTE_BIT_FUNC(mkdirty,   |= L_PTE_DIRTY);
-PTE_BIT_FUNC(mkold,     &= ~L_PTE_YOUNG);
-PTE_BIT_FUNC(mkyoung,   |= L_PTE_YOUNG);
-
-static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
-
-#define __pgprot_modify(prot,mask,bits)		\
-	__pgprot((pgprot_val(prot) & ~(mask)) | (bits))
-
-/*
- * Mark the prot value as uncacheable and unbufferable.
- */
-#define pgprot_noncached(prot) \
-	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_UNCACHED)
-#define pgprot_writecombine(prot) \
-	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_BUFFERABLE)
-#ifdef CONFIG_ARM_DMA_MEM_BUFFERABLE
-#define pgprot_dmacoherent(prot) \
-	__pgprot_modify(prot, L_PTE_MT_MASK|L_PTE_EXEC, L_PTE_MT_BUFFERABLE)
-#define __HAVE_PHYS_MEM_ACCESS_PROT
-struct file;
-extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
-				     unsigned long size, pgprot_t vma_prot);
-#else
-#define pgprot_dmacoherent(prot) \
-	__pgprot_modify(prot, L_PTE_MT_MASK|L_PTE_EXEC, L_PTE_MT_UNCACHED)
-#endif
+/* Find an entry in the second-level page table.. */
+#define pmd_offset(dir, addr)	((pmd_t *)(dir))
 
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define pmd_present(pmd)	(pmd_val(pmd))
@@ -364,12 +326,7 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 
 static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 {
-	unsigned long ptr;
-
-	ptr = pmd_val(pmd) & ~(PTRS_PER_PTE * sizeof(void *) - 1);
-	ptr += PTRS_PER_PTE * sizeof(void *);
-
-	return __va(ptr);
+	return __va(pmd_val(pmd) & PAGE_MASK);
 }
 
 #define pmd_page(pmd)		pfn_to_page(__phys_to_pfn(pmd_val(pmd)))
@@ -377,45 +334,80 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 /* we don't need complex calculations here as the pmd is folded into the pgd */
 #define pmd_addr_end(addr,end)	(end)
 
-/*
- * Conversion functions: convert a page and protection to a page entry,
- * and a page entry and page directory to the page they refer to.
- */
-#define mk_pte(page,prot)	pfn_pte(page_to_pfn(page),prot)
 
-/*
- * The "pgd_xxx()" functions here are trivial for a folded two-level
- * setup: the pgd is never bad, and a pmd always exists (as it's folded
- * into the pgd entry)
- */
-#define pgd_none(pgd)		(0)
-#define pgd_bad(pgd)		(0)
-#define pgd_present(pgd)	(1)
-#define pgd_clear(pgdp)		do { } while (0)
-#define set_pgd(pgd,pgdp)	do { } while (0)
+#ifndef CONFIG_HIGHPTE
+#define __pte_map(pmd)		pmd_page_vaddr(*(pmd))
+#define __pte_unmap(pte)	do { } while (0)
+#else
+#define __pte_map(pmd)		(pte_t *)kmap_atomic(pmd_page(*(pmd)))
+#define __pte_unmap(pte)	kunmap_atomic(pte)
+#endif
 
-/* to find an entry in a page-table-directory */
-#define pgd_index(addr)		((addr) >> PGDIR_SHIFT)
+#define pte_index(addr)		(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 
-#define pgd_offset(mm, addr)	((mm)->pgd+pgd_index(addr))
+#define pte_offset_kernel(pmd,addr)	(pmd_page_vaddr(*(pmd)) + pte_index(addr))
 
-/* to find an entry in a kernel page-table-directory */
-#define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
+#define pte_offset_map(pmd,addr)	(__pte_map(pmd) + pte_index(addr))
+#define pte_unmap(pte)			__pte_unmap(pte)
 
-/* Find an entry in the second-level page table.. */
-#define pmd_offset(dir, addr)	((pmd_t *)(dir))
+#define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
+#define pfn_pte(pfn,prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
 
-/* Find an entry in the third-level page table.. */
-#define __pte_index(addr)	(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
+#define pte_page(pte)		pfn_to_page(pte_pfn(pte))
+#define mk_pte(page,prot)	pfn_pte(page_to_pfn(page), prot)
+
+#define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
+#define pte_clear(mm,addr,ptep)	set_pte_ext(ptep, __pte(0), 0)
+
+#if __LINUX_ARM_ARCH__ < 6
+static inline void __sync_icache_dcache(pte_t pteval)
+{
+}
+#else
+extern void __sync_icache_dcache(pte_t pteval);
+#endif
+
+static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
+			      pte_t *ptep, pte_t pteval)
+{
+	if (addr >= TASK_SIZE)
+		set_pte_ext(ptep, pteval, 0);
+	else {
+		__sync_icache_dcache(pteval);
+		set_pte_ext(ptep, pteval, PTE_EXT_NG);
+	}
+}
+
+#define pte_none(pte)		(!pte_val(pte))
+#define pte_present(pte)	(pte_val(pte) & L_PTE_PRESENT)
+#define pte_write(pte)		(!(pte_val(pte) & L_PTE_RDONLY))
+#define pte_dirty(pte)		(pte_val(pte) & L_PTE_DIRTY)
+#define pte_young(pte)		(pte_val(pte) & L_PTE_YOUNG)
+#define pte_exec(pte)		(!(pte_val(pte) & L_PTE_XN))
+#define pte_special(pte)	(0)
+
+#define pte_present_user(pte) \
+	((pte_val(pte) & (L_PTE_PRESENT | L_PTE_USER)) == \
+	 (L_PTE_PRESENT | L_PTE_USER))
+
+#define PTE_BIT_FUNC(fn,op) \
+static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
+
+PTE_BIT_FUNC(wrprotect, |= L_PTE_RDONLY);
+PTE_BIT_FUNC(mkwrite,   &= ~L_PTE_RDONLY);
+PTE_BIT_FUNC(mkclean,   &= ~L_PTE_DIRTY);
+PTE_BIT_FUNC(mkdirty,   |= L_PTE_DIRTY);
+PTE_BIT_FUNC(mkold,     &= ~L_PTE_YOUNG);
+PTE_BIT_FUNC(mkyoung,   |= L_PTE_YOUNG);
+
+static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
-	const unsigned long mask = L_PTE_EXEC | L_PTE_WRITE | L_PTE_USER;
+	const pteval_t mask = L_PTE_XN | L_PTE_RDONLY | L_PTE_USER;
 	pte_val(pte) = (pte_val(pte) & ~mask) | (pgprot_val(newprot) & mask);
 	return pte;
 }
-
-extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 /*
  * Encode and decode a swap entry.  Swap entries are stored in the Linux
@@ -480,6 +472,9 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 		remap_pfn_range(vma, from, pfn, size, prot)
 
 #define pgtable_cache_init() do { } while (0)
+
+void identity_mapping_add(pgd_t *, unsigned long, unsigned long);
+void identity_mapping_del(pgd_t *, unsigned long, unsigned long);
 
 #endif /* !__ASSEMBLY__ */
 

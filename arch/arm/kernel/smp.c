@@ -55,42 +55,6 @@ enum ipi_msg_type {
 	IPI_CPU_STOP,
 };
 
-static inline void identity_mapping_add(pgd_t *pgd, unsigned long start,
-	unsigned long end)
-{
-	unsigned long addr, prot;
-	pmd_t *pmd;
-
-	prot = PMD_TYPE_SECT | PMD_SECT_AP_WRITE;
-	if (cpu_architecture() <= CPU_ARCH_ARMv5TEJ && !cpu_is_xscale())
-		prot |= PMD_BIT4;
-
-	for (addr = start & PGDIR_MASK; addr < end;) {
-		pmd = pmd_offset(pgd + pgd_index(addr), addr);
-		pmd[0] = __pmd(addr | prot);
-		addr += SECTION_SIZE;
-		pmd[1] = __pmd(addr | prot);
-		addr += SECTION_SIZE;
-		flush_pmd_entry(pmd);
-		outer_clean_range(__pa(pmd), __pa(pmd + 1));
-	}
-}
-
-static inline void identity_mapping_del(pgd_t *pgd, unsigned long start,
-	unsigned long end)
-{
-	unsigned long addr;
-	pmd_t *pmd;
-
-	for (addr = start & PGDIR_MASK; addr < end; addr += PGDIR_SIZE) {
-		pmd = pmd_offset(pgd + pgd_index(addr), addr);
-		pmd[0] = __pmd(0);
-		pmd[1] = __pmd(0);
-		clean_pmd_entry(pmd);
-		outer_clean_range(__pa(pmd), __pa(pmd + 1));
-	}
-}
-
 int __cpuinit __cpu_up(unsigned int cpu)
 {
 	struct cpuinfo_arm *ci = &per_cpu(cpu_data, cpu);

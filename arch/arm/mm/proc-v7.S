@@ -124,15 +124,13 @@ ENDPROC(cpu_v7_switch_mm)
  *	Set a level 2 translation table entry.
  *
  *	- ptep  - pointer to level 2 translation table entry
- *		  (hardware version is stored at -1024 bytes)
+ *		  (hardware version is stored at +2048 bytes)
  *	- pte   - PTE value to store
  *	- ext	- value for extended PTE bits
  */
 ENTRY(cpu_v7_set_pte_ext)
 #ifdef CONFIG_MMU
- ARM(	str	r1, [r0], #-2048	)	@ linux version
- THUMB(	str	r1, [r0]		)	@ linux version
- THUMB(	sub	r0, r0, #2048		)
+	str	r1, [r0]			@ linux version
 
 	bic	r3, r1, #0x000003f0
 	bic	r3, r3, #PTE_TYPE_MASK
@@ -142,9 +140,9 @@ ENTRY(cpu_v7_set_pte_ext)
 	tst	r1, #1 << 4
 	orrne	r3, r3, #PTE_EXT_TEX(1)
 
-	tst	r1, #L_PTE_WRITE
-	tstne	r1, #L_PTE_DIRTY
-	orreq	r3, r3, #PTE_EXT_APX
+	eor	r1, r1, #L_PTE_DIRTY
+	tst	r1, #L_PTE_RDONLY | L_PTE_DIRTY
+	orrne	r3, r3, #PTE_EXT_APX
 
 	tst	r1, #L_PTE_USER
 	orrne	r3, r3, #PTE_EXT_AP1
@@ -154,14 +152,14 @@ ENTRY(cpu_v7_set_pte_ext)
 	bicne	r3, r3, #PTE_EXT_APX | PTE_EXT_AP0
 #endif
 
-	tst	r1, #L_PTE_EXEC
-	orreq	r3, r3, #PTE_EXT_XN
+	tst	r1, #L_PTE_XN
+	orrne	r3, r3, #PTE_EXT_XN
 
 	tst	r1, #L_PTE_YOUNG
 	tstne	r1, #L_PTE_PRESENT
 	moveq	r3, #0
 
-	str	r3, [r0]
+	str	r3, [r0, #2048]!
 	mcr	p15, 0, r0, c7, c10, 1		@ flush_pte
 #endif
 	mov	pc, lr

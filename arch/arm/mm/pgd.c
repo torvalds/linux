@@ -17,12 +17,10 @@
 
 #include "mm.h"
 
-#define FIRST_KERNEL_PGD_NR	(FIRST_USER_PGD_NR + USER_PTRS_PER_PGD)
-
 /*
  * need to get a 16k page for level 1
  */
-pgd_t *get_pgd_slow(struct mm_struct *mm)
+pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *new_pgd, *init_pgd;
 	pmd_t *new_pmd, *init_pmd;
@@ -32,14 +30,14 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 	if (!new_pgd)
 		goto no_pgd;
 
-	memset(new_pgd, 0, FIRST_KERNEL_PGD_NR * sizeof(pgd_t));
+	memset(new_pgd, 0, USER_PTRS_PER_PGD * sizeof(pgd_t));
 
 	/*
 	 * Copy over the kernel and IO PGD entries
 	 */
 	init_pgd = pgd_offset_k(0);
-	memcpy(new_pgd + FIRST_KERNEL_PGD_NR, init_pgd + FIRST_KERNEL_PGD_NR,
-		       (PTRS_PER_PGD - FIRST_KERNEL_PGD_NR) * sizeof(pgd_t));
+	memcpy(new_pgd + USER_PTRS_PER_PGD, init_pgd + USER_PTRS_PER_PGD,
+		       (PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
 
 	clean_dcache_area(new_pgd, PTRS_PER_PGD * sizeof(pgd_t));
 
@@ -73,28 +71,29 @@ no_pgd:
 	return NULL;
 }
 
-void free_pgd_slow(struct mm_struct *mm, pgd_t *pgd)
+void pgd_free(struct mm_struct *mm, pgd_t *pgd_base)
 {
+	pgd_t *pgd;
 	pmd_t *pmd;
 	pgtable_t pte;
 
-	if (!pgd)
+	if (!pgd_base)
 		return;
 
-	/* pgd is always present and good */
-	pmd = pmd_off(pgd, 0);
-	if (pmd_none(*pmd))
-		goto free;
-	if (pmd_bad(*pmd)) {
-		pmd_ERROR(*pmd);
-		pmd_clear(pmd);
-		goto free;
-	}
+	pgd = pgd_base + pgd_index(0);
+	if (pgd_none_or_clear_bad(pgd))
+		goto no_pgd;
+
+	pmd = pmd_offset(pgd, 0);
+	if (pmd_none_or_clear_bad(pmd))
+		goto no_pmd;
 
 	pte = pmd_pgtable(*pmd);
 	pmd_clear(pmd);
 	pte_free(mm, pte);
+no_pmd:
+	pgd_clear(pgd);
 	pmd_free(mm, pmd);
-free:
-	free_pages((unsigned long) pgd, 2);
+no_pgd:
+	free_pages((unsigned long) pgd_base, 2);
 }
