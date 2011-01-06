@@ -1395,22 +1395,6 @@ void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw)
 	}
 }
 
-static u32 e1000_calc_rx_da_crc(u8 mac[])
-{
-	u32 poly = 0xEDB88320;	/* Polynomial for 802.3 CRC calculation */
-	u32 i, j, mask, crc;
-
-	crc = 0xffffffff;
-	for (i = 0; i < 6; i++) {
-		crc = crc ^ mac[i];
-		for (j = 8; j > 0; j--) {
-			mask = (crc & 1) * (-1);
-			crc = (crc >> 1) ^ (poly & mask);
-		}
-	}
-	return ~crc;
-}
-
 /**
  *  e1000_lv_jumbo_workaround_ich8lan - required for jumbo frame operation
  *  with 82579 PHY
@@ -1453,8 +1437,7 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 			mac_addr[4] = (addr_high & 0xFF);
 			mac_addr[5] = ((addr_high >> 8) & 0xFF);
 
-			ew32(PCH_RAICC(i),
-					e1000_calc_rx_da_crc(mac_addr));
+			ew32(PCH_RAICC(i), ~ether_crc_le(ETH_ALEN, mac_addr));
 		}
 
 		/* Write Rx addresses to the PHY */

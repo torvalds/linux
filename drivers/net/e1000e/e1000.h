@@ -38,6 +38,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
+#include <linux/crc32.h>
 
 #include "hw.h"
 
