@@ -699,8 +699,8 @@ static int netconsole_netdev_event(struct notifier_block *this,
 	}
 	spin_unlock_irqrestore(&target_list_lock, flags);
 	if (stopped && (event == NETDEV_UNREGISTER || event == NETDEV_BONDING_DESLAVE))
-		printk(KERN_INFO "netconsole: network logging stopped, "
-			"interface %s %s\n",  dev->name,
+		printk(KERN_INFO "netconsole: network logging stopped on "
+			"interface %s as it %s\n",  dev->name,
 			event == NETDEV_UNREGISTER ? "unregistered" : "released slaves");
 
 done:
