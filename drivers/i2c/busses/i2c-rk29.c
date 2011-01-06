@@ -469,10 +469,10 @@ static int rk29_xfer_msg(struct i2c_adapter *adap,
 	}
 	
 exit:	
-	//if(stop || ret < 0)
-	//{
+	if(stop || ret < 0)
+	{
 		rk29_i2c_stop(i2c);			
-	//}
+	}
 	return ret;
 
 }
