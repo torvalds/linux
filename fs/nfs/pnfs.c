@@ -371,6 +371,14 @@ pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo,
 		memcpy(&lo->plh_stateid, &new->stateid, sizeof(new->stateid));
 }
 
+/* lget is set to 1 if called from inside send_layoutget call chain */
+static bool
+pnfs_layoutgets_blocked(struct pnfs_layout_hdr *lo, int lget)
+{
+	return (list_empty(&lo->plh_segs) &&
+		 (atomic_read(&lo->plh_outstanding) > lget));
+}
+
 int
 pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 			      struct nfs4_state *open_state)
@@ -379,7 +387,9 @@ pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 
 	dprintk("--> %s\n", __func__);
 	spin_lock(&lo->plh_inode->i_lock);
-	if (list_empty(&lo->plh_segs)) {
+	if (pnfs_layoutgets_blocked(lo, 1)) {
+		status = -EAGAIN;
+	} else if (list_empty(&lo->plh_segs)) {
 		int seq;
 
 		do {
@@ -414,10 +424,8 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 
 	BUG_ON(ctx == NULL);
 	lgp = kzalloc(sizeof(*lgp), GFP_KERNEL);
-	if (lgp == NULL) {
-		put_layout_hdr(lo->plh_inode);
+	if (lgp == NULL)
 		return NULL;
-	}
 	lgp->args.minlength = NFS4_MAX_UINT64;
 	lgp->args.maxcount = PNFS_LAYOUT_MAXSIZE;
 	lgp->args.range.iomode = iomode;
@@ -613,10 +621,16 @@ pnfs_update_layout(struct inode *ino,
 	if (test_bit(lo_fail_bit(iomode), &nfsi->layout->plh_flags))
 		goto out_unlock;
 
-	get_layout_hdr_locked(lo); /* Matched in nfs4_layoutget_release */
+	if (pnfs_layoutgets_blocked(lo, 0))
+		goto out_unlock;
+	atomic_inc(&lo->plh_outstanding);
+
+	get_layout_hdr_locked(lo);
 	spin_unlock(&ino->i_lock);
 
 	lseg = send_layoutget(lo, ctx, iomode);
+	atomic_dec(&lo->plh_outstanding);
+	put_layout_hdr(ino);
 out:
 	dprintk("%s end, state 0x%lx lseg %p\n", __func__,
 		nfsi->layout->plh_flags, lseg);

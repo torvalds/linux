@@ -208,6 +208,7 @@ struct nfs4_layoutget_args {
 	struct inode *inode;
 	struct nfs_open_context *ctx;
 	struct nfs4_sequence_args seq_args;
+	nfs4_stateid stateid;
 };
 
 struct nfs4_layoutget_res {

@@ -69,6 +69,7 @@ struct pnfs_layout_hdr {
 	struct list_head	plh_layouts;   /* other client layouts */
 	struct list_head	plh_segs;      /* layout segments list */
 	nfs4_stateid		plh_stateid;
+	atomic_t		plh_outstanding; /* number of RPCs out */
 	unsigned long		plh_flags;
 	struct inode		*plh_inode;
 };
