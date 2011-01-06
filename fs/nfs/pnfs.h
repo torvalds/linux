@@ -60,13 +60,13 @@ struct pnfs_layoutdriver_type {
 };
 
 struct pnfs_layout_hdr {
-	unsigned long		refcount;
-	struct list_head	layouts;   /* other client layouts */
-	struct list_head	segs;      /* layout segments list */
-	seqlock_t		seqlock;   /* Protects the stateid */
-	nfs4_stateid		stateid;
+	unsigned long		plh_refcount;
+	struct list_head	plh_layouts;   /* other client layouts */
+	struct list_head	plh_segs;      /* layout segments list */
+	seqlock_t		plh_seqlock;   /* Protects the stateid */
+	nfs4_stateid		plh_stateid;
 	unsigned long		plh_flags;
-	struct inode		*inode;
+	struct inode		*plh_inode;
 };
 
 struct pnfs_device {
