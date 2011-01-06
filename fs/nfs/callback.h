@@ -138,6 +138,25 @@ extern __be32 nfs4_callback_recallslot(struct cb_recallslotargs *args,
 					 void *dummy,
 					 struct cb_process_state *cps);
 
+struct cb_layoutrecallargs {
+	struct sockaddr		*cbl_addr;
+	uint32_t		cbl_recall_type;
+	uint32_t		cbl_layout_type;
+	uint32_t		cbl_layoutchanged;
+	union {
+		struct {
+			struct nfs_fh		cbl_fh;
+			struct pnfs_layout_range cbl_range;
+			nfs4_stateid		cbl_stateid;
+		};
+		struct nfs_fsid		cbl_fsid;
+	};
+};
+
+extern unsigned nfs4_callback_layoutrecall(
+	struct cb_layoutrecallargs *args,
+	void *dummy, struct cb_process_state *cps);
+
 extern void nfs4_check_drain_bc_complete(struct nfs4_session *ses);
 extern void nfs4_cb_take_slot(struct nfs_client *clp);
 #endif /* CONFIG_NFS_V4_1 */

@@ -107,6 +107,12 @@ int nfs4_validate_delegation_stateid(struct nfs_delegation *delegation, const nf
 
 #if defined(CONFIG_NFS_V4_1)
 
+__be32 nfs4_callback_layoutrecall(struct cb_layoutrecallargs *args,
+				  void *dummy, struct cb_process_state *cps)
+{
+	return cpu_to_be32(NFS4ERR_NOTSUPP); /* STUB */
+}
+
 int nfs41_validate_delegation_stateid(struct nfs_delegation *delegation, const nfs4_stateid *stateid)
 {
 	if (delegation == NULL)
