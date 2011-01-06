@@ -200,7 +200,6 @@ static int android_setup_config(struct usb_configuration *c,
 
 static struct usb_configuration android_config_driver = {
 	.label		= "android",
-	.bind		= android_bind_config,
 	.setup		= android_setup_config,
 	.bConfigurationValue = 1,
 	.bmAttributes	= USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
@@ -301,7 +300,7 @@ static int android_bind(struct usb_composite_dev *cdev)
 	device_desc.iSerialNumber = id;
 
 	/* register our configuration */
-	ret = usb_add_config(cdev, &android_config_driver);
+	ret = usb_add_config(cdev, &android_config_driver, android_bind_config);
 	if (ret) {
 		printk(KERN_ERR "usb_add_config failed\n");
 		return ret;
@@ -336,7 +335,6 @@ static struct usb_composite_driver android_usb_driver = {
 	.name		= "android_usb",
 	.dev		= &device_desc,
 	.strings	= dev_strings,
-	.bind		= android_bind,
 	.enable_function = android_enable_function,
 };
 
@@ -458,7 +456,7 @@ static int android_probe(struct platform_device *pdev)
 			strings_dev[STRING_SERIAL_IDX].s = pdata->serial_number;
 	}
 
-	return usb_composite_register(&android_usb_driver);
+	return usb_composite_probe(&android_usb_driver, android_bind);
 }
 
 static struct platform_driver android_platform_driver = {
