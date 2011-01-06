@@ -660,6 +660,17 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	struct inode *ino = lo->plh_inode;
 	int status = 0;
 
+	/* Verify we got what we asked for.
+	 * Note that because the xdr parsing only accepts a single
+	 * element array, this can fail even if the server is behaving
+	 * correctly.
+	 */
+	if (lgp->args.range.iomode > res->range.iomode ||
+	    res->range.offset != 0 ||
+	    res->range.length != NFS4_MAX_UINT64) {
+		status = -EINVAL;
+		goto out;
+	}
 	/* Inject layout blob into I/O device driver */
 	lseg = NFS_SERVER(ino)->pnfs_curr_ld->alloc_lseg(lo, res);
 	if (!lseg || IS_ERR(lseg)) {
