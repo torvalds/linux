@@ -1045,10 +1045,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	init_apic_mappings();
-	ioapic_init_mappings();
-
-	/* need to wait for io_apic is mapped */
-	probe_nr_irqs_gsi();
+	ioapic_and_gsi_init();
 
 	kvm_guest_init();
 
