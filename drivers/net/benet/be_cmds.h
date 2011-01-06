@@ -309,7 +309,7 @@ struct be_cmd_req_pmac_del {
 /******************** Create CQ ***************************/
 /* Pseudo amap definition in which each bit of the actual structure is defined
  * as a byte: used to calculate offset/shift/mask of each field */
-struct amap_cq_context {
+struct amap_cq_context_be {
 	u8 cidx[11];		/* dword 0*/
 	u8 rsvd0;		/* dword 0*/
 	u8 coalescwm[2];	/* dword 0*/
@@ -332,13 +332,31 @@ struct amap_cq_context {
 	u8 rsvd5[32];		/* dword 3*/
 } __packed;
 
+struct amap_cq_context_lancer {
+	u8 rsvd0[12];		/* dword 0*/
+	u8 coalescwm[2];	/* dword 0*/
+	u8 nodelay;		/* dword 0*/
+	u8 rsvd1[12];		/* dword 0*/
+	u8 count[2];		/* dword 0*/
+	u8 valid;		/* dword 0*/
+	u8 rsvd2;		/* dword 0*/
+	u8 eventable;		/* dword 0*/
+	u8 eqid[16];		/* dword 1*/
+	u8 rsvd3[15];		/* dword 1*/
+	u8 armed;		/* dword 1*/
+	u8 rsvd4[32];		/* dword 2*/
+	u8 rsvd5[32];		/* dword 3*/
+} __packed;
+
 struct be_cmd_req_cq_create {
 	struct be_cmd_req_hdr hdr;
 	u16 num_pages;
-	u16 rsvd0;
-	u8 context[sizeof(struct amap_cq_context) / 8];
+	u8 page_size;
+	u8 rsvd0;
+	u8 context[sizeof(struct amap_cq_context_be) / 8];
 	struct phys_addr pages[8];
 } __packed;
+
 
 struct be_cmd_resp_cq_create {
 	struct be_cmd_resp_hdr hdr;
@@ -349,7 +367,7 @@ struct be_cmd_resp_cq_create {
 /******************** Create MCCQ ***************************/
 /* Pseudo amap definition in which each bit of the actual structure is defined
  * as a byte: used to calculate offset/shift/mask of each field */
-struct amap_mcc_context {
+struct amap_mcc_context_be {
 	u8 con_index[14];
 	u8 rsvd0[2];
 	u8 ring_size[4];
@@ -364,12 +382,23 @@ struct amap_mcc_context {
 	u8 rsvd2[32];
 } __packed;
 
+struct amap_mcc_context_lancer {
+	u8 async_cq_id[16];
+	u8 ring_size[4];
+	u8 rsvd0[12];
+	u8 rsvd1[31];
+	u8 valid;
+	u8 async_cq_valid[1];
+	u8 rsvd2[31];
+	u8 rsvd3[32];
+} __packed;
+
 struct be_cmd_req_mcc_create {
 	struct be_cmd_req_hdr hdr;
 	u16 num_pages;
-	u16 rsvd0;
+	u16 cq_id;
 	u32 async_event_bitmap[1];
-	u8 context[sizeof(struct amap_mcc_context) / 8];
+	u8 context[sizeof(struct amap_mcc_context_be) / 8];
 	struct phys_addr pages[8];
 } __packed;
 
@@ -605,6 +634,7 @@ struct be_hw_stats {
 	struct be_rxf_stats rxf;
 	u32 rsvd[48];
 	struct be_erx_stats erx;
+	u32 rsvd1[6];
 };
 
 struct be_cmd_req_get_stats {

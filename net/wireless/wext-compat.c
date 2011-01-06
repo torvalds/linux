@@ -548,8 +548,8 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 				__cfg80211_leave_ibss(rdev, wdev->netdev, true);
 				rejoin = true;
 			}
-			err = rdev->ops->set_default_key(&rdev->wiphy,
-							 dev, idx);
+			err = rdev->ops->set_default_key(&rdev->wiphy, dev,
+							 idx, true, true);
 		}
 		if (!err) {
 			wdev->wext.default_key = idx;
@@ -627,8 +627,8 @@ int cfg80211_wext_siwencode(struct net_device *dev,
 		err = 0;
 		wdev_lock(wdev);
 		if (wdev->current_bss)
-			err = rdev->ops->set_default_key(&rdev->wiphy,
-							 dev, idx);
+			err = rdev->ops->set_default_key(&rdev->wiphy, dev,
+							 idx, true, true);
 		if (!err)
 			wdev->wext.default_key = idx;
 		wdev_unlock(wdev);

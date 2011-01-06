@@ -37,12 +37,50 @@
 #ifndef _TIPC_BEARER_H
 #define _TIPC_BEARER_H
 
-#include "core.h"
 #include "bcast.h"
 
 #define MAX_BEARERS 8
 #define MAX_MEDIA 4
 
+/*
+ * Identifiers of supported TIPC media types
+ */
+#define TIPC_MEDIA_TYPE_ETH	1
+
+/*
+ * Destination address structure used by TIPC bearers when sending messages
+ *
+ * IMPORTANT: The fields of this structure MUST be stored using the specified
+ * byte order indicated below, as the structure is exchanged between nodes
+ * as part of a link setup process.
+ */
+struct tipc_media_addr {
+	__be32  type;			/* bearer type (network byte order) */
+	union {
+		__u8   eth_addr[6];	/* 48 bit Ethernet addr (byte array) */
+	} dev_addr;
+};
+
+/**
+ * struct tipc_bearer - TIPC bearer info available to media code
+ * @usr_handle: pointer to additional media-specific information about bearer
+ * @mtu: max packet size bearer can support
+ * @blocked: non-zero if bearer is blocked
+ * @lock: spinlock for controlling access to bearer
+ * @addr: media-specific address associated with bearer
+ * @name: bearer name (format = media:interface)
+ *
+ * Note: TIPC initializes "name" and "lock" fields; media code is responsible
+ * for initialization all other fields when a bearer is enabled.
+ */
+struct tipc_bearer {
+	void *usr_handle;
+	u32 mtu;
+	int blocked;
+	spinlock_t lock;
+	struct tipc_media_addr addr;
+	char name[TIPC_MAX_BEARER_NAME];
+};
 
 /**
  * struct media - TIPC media information available to internal users
@@ -55,7 +93,7 @@
  * @priority: default link (and bearer) priority
  * @tolerance: default time (in ms) before declaring link failure
  * @window: default window (in packets) before declaring link congestion
- * @type_id: TIPC media identifier [defined in tipc_bearer.h]
+ * @type_id: TIPC media identifier
  * @name: media name
  */
 
@@ -116,6 +154,34 @@ struct link;
 
 extern struct bearer tipc_bearers[];
 
+/*
+ * TIPC routines available to supported media types
+ */
+int tipc_register_media(u32 media_type,
+		 char *media_name, int (*enable)(struct tipc_bearer *),
+		 void (*disable)(struct tipc_bearer *),
+		 int (*send_msg)(struct sk_buff *,
+			struct tipc_bearer *, struct tipc_media_addr *),
+		 char *(*addr2str)(struct tipc_media_addr *a,
+			char *str_buf, int str_size),
+		 struct tipc_media_addr *bcast_addr, const u32 bearer_priority,
+		 const u32 link_tolerance,  /* [ms] */
+		 const u32 send_window_limit);
+
+void tipc_recv_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr);
+
+int  tipc_block_bearer(const char *name);
+void tipc_continue(struct tipc_bearer *tb_ptr);
+
+int tipc_enable_bearer(const char *bearer_name, u32 bcast_scope, u32 priority);
+int tipc_disable_bearer(const char *name);
+
+/*
+ * Routines made available to TIPC by supported media types
+ */
+int  tipc_eth_media_start(void);
+void tipc_eth_media_stop(void);
+
 void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a);
 struct sk_buff *tipc_media_get_names(void);
 
@@ -126,7 +192,6 @@ void tipc_bearer_schedule(struct bearer *b_ptr, struct link *l_ptr);
 struct bearer *tipc_bearer_find_interface(const char *if_name);
 int tipc_bearer_resolve_congestion(struct bearer *b_ptr, struct link *l_ptr);
 int tipc_bearer_congested(struct bearer *b_ptr, struct link *l_ptr);
-int tipc_bearer_init(void);
 void tipc_bearer_stop(void);
 void tipc_bearer_lock_push(struct bearer *b_ptr);
 

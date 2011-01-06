@@ -49,7 +49,6 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 
 		/* Set supported modes */
 		__set_bit(AR5K_MODE_11A, ah->ah_capabilities.cap_mode);
-		__set_bit(AR5K_MODE_11A_TURBO, ah->ah_capabilities.cap_mode);
 	} else {
 		/*
 		 * XXX The tranceiver supports frequencies from 4920 to 6100GHz
@@ -74,11 +73,6 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 			/* Set supported modes */
 			__set_bit(AR5K_MODE_11A,
 					ah->ah_capabilities.cap_mode);
-			__set_bit(AR5K_MODE_11A_TURBO,
-					ah->ah_capabilities.cap_mode);
-			if (ah->ah_version == AR5K_AR5212)
-				__set_bit(AR5K_MODE_11G_TURBO,
-						ah->ah_capabilities.cap_mode);
 		}
 
 		/* Enable  802.11b if a 2GHz capable radio (2111/5112) is

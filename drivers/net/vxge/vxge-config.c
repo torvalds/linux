@@ -19,343 +19,95 @@
 
 #include "vxge-traffic.h"
 #include "vxge-config.h"
+#include "vxge-main.h"
 
-static enum vxge_hw_status
-__vxge_hw_fifo_create(
-	struct __vxge_hw_vpath_handle *vpath_handle,
-	struct vxge_hw_fifo_attr *attr);
-
-static enum vxge_hw_status
-__vxge_hw_fifo_abort(
-	struct __vxge_hw_fifo *fifoh);
-
-static enum vxge_hw_status
-__vxge_hw_fifo_reset(
-	struct __vxge_hw_fifo *ringh);
-
-static enum vxge_hw_status
-__vxge_hw_fifo_delete(
-	struct __vxge_hw_vpath_handle *vpath_handle);
-
-static struct __vxge_hw_blockpool_entry *
-__vxge_hw_blockpool_block_allocate(struct __vxge_hw_device *hldev,
-			u32 size);
-
-static void
-__vxge_hw_blockpool_block_free(struct __vxge_hw_device *hldev,
-			struct __vxge_hw_blockpool_entry *entry);
-
-static void vxge_hw_blockpool_block_add(struct __vxge_hw_device *devh,
-					void *block_addr,
-					u32 length,
-					struct pci_dev *dma_h,
-					struct pci_dev *acc_handle);
-
-static enum vxge_hw_status
-__vxge_hw_blockpool_create(struct __vxge_hw_device *hldev,
-			struct __vxge_hw_blockpool  *blockpool,
-			u32 pool_size,
-			u32 pool_max);
-
-static void
-__vxge_hw_blockpool_destroy(struct __vxge_hw_blockpool  *blockpool);
-
-static void *
-__vxge_hw_blockpool_malloc(struct __vxge_hw_device *hldev,
-			u32 size,
-			struct vxge_hw_mempool_dma *dma_object);
-
-static void
-__vxge_hw_blockpool_free(struct __vxge_hw_device *hldev,
-			void *memblock,
-			u32 size,
-			struct vxge_hw_mempool_dma *dma_object);
-
-
-static struct __vxge_hw_channel*
-__vxge_hw_channel_allocate(struct __vxge_hw_vpath_handle *vph,
-			enum __vxge_hw_channel_type type, u32 length,
-			u32 per_dtr_space, void *userdata);
-
-static void
-__vxge_hw_channel_free(
-	struct __vxge_hw_channel *channel);
-
-static enum vxge_hw_status
-__vxge_hw_channel_initialize(
-	struct __vxge_hw_channel *channel);
-
-static enum vxge_hw_status
-__vxge_hw_channel_reset(
-	struct __vxge_hw_channel *channel);
-
-static enum vxge_hw_status __vxge_hw_ring_delete(struct __vxge_hw_vpath_handle *vp);
-
-static enum vxge_hw_status
-__vxge_hw_device_fifo_config_check(struct vxge_hw_fifo_config *fifo_config);
-
-static enum vxge_hw_status
-__vxge_hw_device_config_check(struct vxge_hw_device_config *new_config);
-
-static void
-__vxge_hw_device_id_get(struct __vxge_hw_device *hldev);
-
-static void
-__vxge_hw_device_host_info_get(struct __vxge_hw_device *hldev);
-
-static enum vxge_hw_status
-__vxge_hw_vpath_card_info_get(
-	u32 vp_id,
-	struct vxge_hw_vpath_reg __iomem *vpath_reg,
-	struct vxge_hw_device_hw_info *hw_info);
-
-static enum vxge_hw_status
-__vxge_hw_device_initialize(struct __vxge_hw_device *hldev);
-
-static void
-__vxge_hw_device_pci_e_init(struct __vxge_hw_device *hldev);
-
-static enum vxge_hw_status
-__vxge_hw_device_reg_addr_get(struct __vxge_hw_device *hldev);
-
-static enum vxge_hw_status
-__vxge_hw_device_register_poll(
-	void __iomem	*reg,
-	u64 mask, u32 max_millis);
-
-static inline enum vxge_hw_status
-__vxge_hw_pio_mem_write64(u64 val64, void __iomem *addr,
-			  u64 mask, u32 max_millis)
-{
-	__vxge_hw_pio_mem_write32_lower((u32)vxge_bVALn(val64, 32, 32), addr);
-	wmb();
-
-	__vxge_hw_pio_mem_write32_upper((u32)vxge_bVALn(val64, 0, 32), addr);
-	wmb();
-
-	return  __vxge_hw_device_register_poll(addr, mask, max_millis);
+#define VXGE_HW_VPATH_STATS_PIO_READ(offset) {				\
+	status = __vxge_hw_vpath_stats_access(vpath,			\
+					      VXGE_HW_STATS_OP_READ,	\
+					      offset,			\
+					      &val64);			\
+	if (status != VXGE_HW_OK)					\
+		return status;						\
 }
 
-static struct vxge_hw_mempool*
-__vxge_hw_mempool_create(struct __vxge_hw_device *devh, u32 memblock_size,
-			 u32 item_size,	u32 private_size, u32 items_initial,
-			 u32 items_max,	struct vxge_hw_mempool_cbs *mp_callback,
-			 void *userdata);
-static void __vxge_hw_mempool_destroy(struct vxge_hw_mempool *mempool);
-
-static enum vxge_hw_status
-__vxge_hw_vpath_stats_get(struct __vxge_hw_virtualpath *vpath,
-			  struct vxge_hw_vpath_stats_hw_info *hw_stats);
-
-static enum vxge_hw_status
-vxge_hw_vpath_stats_enable(struct __vxge_hw_vpath_handle *vpath_handle);
-
-static enum vxge_hw_status
-__vxge_hw_legacy_swapper_set(struct vxge_hw_legacy_reg __iomem *legacy_reg);
-
-static u64
-__vxge_hw_vpath_pci_func_mode_get(u32  vp_id,
-				  struct vxge_hw_vpath_reg __iomem *vpath_reg);
-
-static u32
-__vxge_hw_vpath_func_id_get(u32 vp_id, struct vxge_hw_vpmgmt_reg __iomem *vpmgmt_reg);
-
-static enum vxge_hw_status
-__vxge_hw_vpath_addr_get(u32 vp_id, struct vxge_hw_vpath_reg __iomem *vpath_reg,
-			 u8 (macaddr)[ETH_ALEN], u8 (macaddr_mask)[ETH_ALEN]);
-
-static enum vxge_hw_status
-__vxge_hw_vpath_reset_check(struct __vxge_hw_virtualpath *vpath);
-
-
-static enum vxge_hw_status
-__vxge_hw_vpath_sw_reset(struct __vxge_hw_device *devh, u32 vp_id);
-
-static enum vxge_hw_status
-__vxge_hw_vpath_fw_ver_get(u32 vp_id, struct vxge_hw_vpath_reg __iomem *vpath_reg,
-			   struct vxge_hw_device_hw_info *hw_info);
-
-static enum vxge_hw_status
-__vxge_hw_vpath_mac_configure(struct __vxge_hw_device *devh, u32 vp_id);
-
 static void
-__vxge_hw_vp_terminate(struct __vxge_hw_device *devh, u32 vp_id);
-
-static enum vxge_hw_status
-__vxge_hw_vpath_stats_access(struct __vxge_hw_virtualpath *vpath,
-			     u32 operation, u32 offset,	u64 *stat);
-
-static enum vxge_hw_status
-__vxge_hw_vpath_xmac_tx_stats_get(struct __vxge_hw_virtualpath	*vpath,
-				  struct vxge_hw_xmac_vpath_tx_stats *vpath_tx_stats);
-
-static enum vxge_hw_status
-__vxge_hw_vpath_xmac_rx_stats_get(struct __vxge_hw_virtualpath	*vpath,
-				  struct vxge_hw_xmac_vpath_rx_stats *vpath_rx_stats);
-
-/*
- * __vxge_hw_channel_allocate - Allocate memory for channel
- * This function allocates required memory for the channel and various arrays
- * in the channel
- */
-struct __vxge_hw_channel*
-__vxge_hw_channel_allocate(struct __vxge_hw_vpath_handle *vph,
-			   enum __vxge_hw_channel_type type,
-	u32 length, u32 per_dtr_space, void *userdata)
+vxge_hw_vpath_set_zero_rx_frm_len(struct vxge_hw_vpath_reg __iomem *vp_reg)
 {
-	struct __vxge_hw_channel *channel;
-	struct __vxge_hw_device *hldev;
-	int size = 0;
-	u32 vp_id;
+	u64 val64;
 
-	hldev = vph->vpath->hldev;
-	vp_id = vph->vpath->vp_id;
-
-	switch (type) {
-	case VXGE_HW_CHANNEL_TYPE_FIFO:
-		size = sizeof(struct __vxge_hw_fifo);
-		break;
-	case VXGE_HW_CHANNEL_TYPE_RING:
-		size = sizeof(struct __vxge_hw_ring);
-		break;
-	default:
-		break;
-	}
-
-	channel = kzalloc(size, GFP_KERNEL);
-	if (channel == NULL)
-		goto exit0;
-	INIT_LIST_HEAD(&channel->item);
-
-	channel->common_reg = hldev->common_reg;
-	channel->first_vp_id = hldev->first_vp_id;
-	channel->type = type;
-	channel->devh = hldev;
-	channel->vph = vph;
-	channel->userdata = userdata;
-	channel->per_dtr_space = per_dtr_space;
-	channel->length = length;
-	channel->vp_id = vp_id;
-
-	channel->work_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
-	if (channel->work_arr == NULL)
-		goto exit1;
-
-	channel->free_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
-	if (channel->free_arr == NULL)
-		goto exit1;
-	channel->free_ptr = length;
-
-	channel->reserve_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
-	if (channel->reserve_arr == NULL)
-		goto exit1;
-	channel->reserve_ptr = length;
-	channel->reserve_top = 0;
-
-	channel->orig_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
-	if (channel->orig_arr == NULL)
-		goto exit1;
-
-	return channel;
-exit1:
-	__vxge_hw_channel_free(channel);
-
-exit0:
-	return NULL;
+	val64 = readq(&vp_reg->rxmac_vcfg0);
+	val64 &= ~VXGE_HW_RXMAC_VCFG0_RTS_MAX_FRM_LEN(0x3fff);
+	writeq(val64, &vp_reg->rxmac_vcfg0);
+	val64 = readq(&vp_reg->rxmac_vcfg0);
 }
 
 /*
- * __vxge_hw_channel_free - Free memory allocated for channel
- * This function deallocates memory from the channel and various arrays
- * in the channel
+ * vxge_hw_vpath_wait_receive_idle - Wait for Rx to become idle
  */
-void __vxge_hw_channel_free(struct __vxge_hw_channel *channel)
+int vxge_hw_vpath_wait_receive_idle(struct __vxge_hw_device *hldev, u32 vp_id)
 {
-	kfree(channel->work_arr);
-	kfree(channel->free_arr);
-	kfree(channel->reserve_arr);
-	kfree(channel->orig_arr);
-	kfree(channel);
-}
-
-/*
- * __vxge_hw_channel_initialize - Initialize a channel
- * This function initializes a channel by properly setting the
- * various references
- */
-enum vxge_hw_status
-__vxge_hw_channel_initialize(struct __vxge_hw_channel *channel)
-{
-	u32 i;
+	struct vxge_hw_vpath_reg __iomem *vp_reg;
 	struct __vxge_hw_virtualpath *vpath;
+	u64 val64, rxd_count, rxd_spat;
+	int count = 0, total_count = 0;
 
-	vpath = channel->vph->vpath;
+	vpath = &hldev->virtual_paths[vp_id];
+	vp_reg = vpath->vp_reg;
 
-	if ((channel->reserve_arr != NULL) && (channel->orig_arr != NULL)) {
-		for (i = 0; i < channel->length; i++)
-			channel->orig_arr[i] = channel->reserve_arr[i];
-	}
+	vxge_hw_vpath_set_zero_rx_frm_len(vp_reg);
 
-	switch (channel->type) {
-	case VXGE_HW_CHANNEL_TYPE_FIFO:
-		vpath->fifoh = (struct __vxge_hw_fifo *)channel;
-		channel->stats = &((struct __vxge_hw_fifo *)
-				channel)->stats->common_stats;
-		break;
-	case VXGE_HW_CHANNEL_TYPE_RING:
-		vpath->ringh = (struct __vxge_hw_ring *)channel;
-		channel->stats = &((struct __vxge_hw_ring *)
-				channel)->stats->common_stats;
-		break;
-	default:
-		break;
-	}
+	/* Check that the ring controller for this vpath has enough free RxDs
+	 * to send frames to the host.  This is done by reading the
+	 * PRC_RXD_DOORBELL_VPn register and comparing the read value to the
+	 * RXD_SPAT value for the vpath.
+	 */
+	val64 = readq(&vp_reg->prc_cfg6);
+	rxd_spat = VXGE_HW_PRC_CFG6_GET_RXD_SPAT(val64) + 1;
+	/* Use a factor of 2 when comparing rxd_count against rxd_spat for some
+	 * leg room.
+	 */
+	rxd_spat *= 2;
 
-	return VXGE_HW_OK;
+	do {
+		mdelay(1);
+
+		rxd_count = readq(&vp_reg->prc_rxd_doorbell);
+
+		/* Check that the ring controller for this vpath does
+		 * not have any frame in its pipeline.
+		 */
+		val64 = readq(&vp_reg->frm_in_progress_cnt);
+		if ((rxd_count <= rxd_spat) || (val64 > 0))
+			count = 0;
+		else
+			count++;
+		total_count++;
+	} while ((count < VXGE_HW_MIN_SUCCESSIVE_IDLE_COUNT) &&
+			(total_count < VXGE_HW_MAX_POLLING_COUNT));
+
+	if (total_count >= VXGE_HW_MAX_POLLING_COUNT)
+		printk(KERN_ALERT "%s: Still Receiving traffic. Abort wait\n",
+			__func__);
+
+	return total_count;
 }
 
-/*
- * __vxge_hw_channel_reset - Resets a channel
- * This function resets a channel by properly setting the various references
+/* vxge_hw_device_wait_receive_idle - This function waits until all frames
+ * stored in the frame buffer for each vpath assigned to the given
+ * function (hldev) have been sent to the host.
  */
-enum vxge_hw_status
-__vxge_hw_channel_reset(struct __vxge_hw_channel *channel)
+void vxge_hw_device_wait_receive_idle(struct __vxge_hw_device *hldev)
 {
-	u32 i;
+	int i, total_count = 0;
 
-	for (i = 0; i < channel->length; i++) {
-		if (channel->reserve_arr != NULL)
-			channel->reserve_arr[i] = channel->orig_arr[i];
-		if (channel->free_arr != NULL)
-			channel->free_arr[i] = NULL;
-		if (channel->work_arr != NULL)
-			channel->work_arr[i] = NULL;
+	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
+		if (!(hldev->vpaths_deployed & vxge_mBIT(i)))
+			continue;
+
+		total_count += vxge_hw_vpath_wait_receive_idle(hldev, i);
+		if (total_count >= VXGE_HW_MAX_POLLING_COUNT)
+			break;
 	}
-	channel->free_ptr = channel->length;
-	channel->reserve_ptr = channel->length;
-	channel->reserve_top = 0;
-	channel->post_index = 0;
-	channel->compl_index = 0;
-
-	return VXGE_HW_OK;
-}
-
-/*
- * __vxge_hw_device_pci_e_init
- * Initialize certain PCI/PCI-X configuration registers
- * with recommended values. Save config space for future hw resets.
- */
-void
-__vxge_hw_device_pci_e_init(struct __vxge_hw_device *hldev)
-{
-	u16 cmd = 0;
-
-	/* Set the PErr Repconse bit and SERR in PCI command register. */
-	pci_read_config_word(hldev->pdev, PCI_COMMAND, &cmd);
-	cmd |= 0x140;
-	pci_write_config_word(hldev->pdev, PCI_COMMAND, cmd);
-
-	pci_save_state(hldev->pdev);
 }
 
 /*
@@ -390,7 +142,360 @@ __vxge_hw_device_register_poll(void __iomem *reg, u64 mask, u32 max_millis)
 	return ret;
 }
 
- /* __vxge_hw_device_vpath_reset_in_prog_check - Check if vpath reset
+static inline enum vxge_hw_status
+__vxge_hw_pio_mem_write64(u64 val64, void __iomem *addr,
+			  u64 mask, u32 max_millis)
+{
+	__vxge_hw_pio_mem_write32_lower((u32)vxge_bVALn(val64, 32, 32), addr);
+	wmb();
+	__vxge_hw_pio_mem_write32_upper((u32)vxge_bVALn(val64, 0, 32), addr);
+	wmb();
+
+	return __vxge_hw_device_register_poll(addr, mask, max_millis);
+}
+
+static enum vxge_hw_status
+vxge_hw_vpath_fw_api(struct __vxge_hw_virtualpath *vpath, u32 action,
+		     u32 fw_memo, u32 offset, u64 *data0, u64 *data1,
+		     u64 *steer_ctrl)
+{
+	struct vxge_hw_vpath_reg __iomem *vp_reg;
+	enum vxge_hw_status status;
+	u64 val64;
+	u32 retry = 0, max_retry = 100;
+
+	vp_reg = vpath->vp_reg;
+
+	if (vpath->vp_open) {
+		max_retry = 3;
+		spin_lock(&vpath->lock);
+	}
+
+	writeq(*data0, &vp_reg->rts_access_steer_data0);
+	writeq(*data1, &vp_reg->rts_access_steer_data1);
+	wmb();
+
+	val64 = VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION(action) |
+		VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL(fw_memo) |
+		VXGE_HW_RTS_ACCESS_STEER_CTRL_OFFSET(offset) |
+		VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE |
+		*steer_ctrl;
+
+	status = __vxge_hw_pio_mem_write64(val64,
+					   &vp_reg->rts_access_steer_ctrl,
+					   VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE,
+					   VXGE_HW_DEF_DEVICE_POLL_MILLIS);
+
+	/* The __vxge_hw_device_register_poll can udelay for a significant
+	 * amount of time, blocking other proccess from the CPU.  If it delays
+	 * for ~5secs, a NMI error can occur.  A way around this is to give up
+	 * the processor via msleep, but this is not allowed is under lock.
+	 * So, only allow it to sleep for ~4secs if open.  Otherwise, delay for
+	 * 1sec and sleep for 10ms until the firmware operation has completed
+	 * or timed-out.
+	 */
+	while ((status != VXGE_HW_OK) && retry++ < max_retry) {
+		if (!vpath->vp_open)
+			msleep(20);
+		status = __vxge_hw_device_register_poll(
+					&vp_reg->rts_access_steer_ctrl,
+					VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE,
+					VXGE_HW_DEF_DEVICE_POLL_MILLIS);
+	}
+
+	if (status != VXGE_HW_OK)
+		goto out;
+
+	val64 = readq(&vp_reg->rts_access_steer_ctrl);
+	if (val64 & VXGE_HW_RTS_ACCESS_STEER_CTRL_RMACJ_STATUS) {
+		*data0 = readq(&vp_reg->rts_access_steer_data0);
+		*data1 = readq(&vp_reg->rts_access_steer_data1);
+		*steer_ctrl = val64;
+	} else
+		status = VXGE_HW_FAIL;
+
+out:
+	if (vpath->vp_open)
+		spin_unlock(&vpath->lock);
+	return status;
+}
+
+enum vxge_hw_status
+vxge_hw_upgrade_read_version(struct __vxge_hw_device *hldev, u32 *major,
+			     u32 *minor, u32 *build)
+{
+	u64 data0 = 0, data1 = 0, steer_ctrl = 0;
+	struct __vxge_hw_virtualpath *vpath;
+	enum vxge_hw_status status;
+
+	vpath = &hldev->virtual_paths[hldev->first_vp_id];
+
+	status = vxge_hw_vpath_fw_api(vpath,
+				      VXGE_HW_FW_UPGRADE_ACTION,
+				      VXGE_HW_FW_UPGRADE_MEMO,
+				      VXGE_HW_FW_UPGRADE_OFFSET_READ,
+				      &data0, &data1, &steer_ctrl);
+	if (status != VXGE_HW_OK)
+		return status;
+
+	*major = VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MAJOR(data0);
+	*minor = VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MINOR(data0);
+	*build = VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_BUILD(data0);
+
+	return status;
+}
+
+enum vxge_hw_status vxge_hw_flash_fw(struct __vxge_hw_device *hldev)
+{
+	u64 data0 = 0, data1 = 0, steer_ctrl = 0;
+	struct __vxge_hw_virtualpath *vpath;
+	enum vxge_hw_status status;
+	u32 ret;
+
+	vpath = &hldev->virtual_paths[hldev->first_vp_id];
+
+	status = vxge_hw_vpath_fw_api(vpath,
+				      VXGE_HW_FW_UPGRADE_ACTION,
+				      VXGE_HW_FW_UPGRADE_MEMO,
+				      VXGE_HW_FW_UPGRADE_OFFSET_COMMIT,
+				      &data0, &data1, &steer_ctrl);
+	if (status != VXGE_HW_OK) {
+		vxge_debug_init(VXGE_ERR, "%s: FW upgrade failed", __func__);
+		goto exit;
+	}
+
+	ret = VXGE_HW_RTS_ACCESS_STEER_CTRL_GET_ACTION(steer_ctrl) & 0x7F;
+	if (ret != 1) {
+		vxge_debug_init(VXGE_ERR, "%s: FW commit failed with error %d",
+				__func__, ret);
+		status = VXGE_HW_FAIL;
+	}
+
+exit:
+	return status;
+}
+
+enum vxge_hw_status
+vxge_update_fw_image(struct __vxge_hw_device *hldev, const u8 *fwdata, int size)
+{
+	u64 data0 = 0, data1 = 0, steer_ctrl = 0;
+	struct __vxge_hw_virtualpath *vpath;
+	enum vxge_hw_status status;
+	int ret_code, sec_code;
+
+	vpath = &hldev->virtual_paths[hldev->first_vp_id];
+
+	/* send upgrade start command */
+	status = vxge_hw_vpath_fw_api(vpath,
+				      VXGE_HW_FW_UPGRADE_ACTION,
+				      VXGE_HW_FW_UPGRADE_MEMO,
+				      VXGE_HW_FW_UPGRADE_OFFSET_START,
+				      &data0, &data1, &steer_ctrl);
+	if (status != VXGE_HW_OK) {
+		vxge_debug_init(VXGE_ERR, " %s: Upgrade start cmd failed",
+				__func__);
+		return status;
+	}
+
+	/* Transfer fw image to adapter 16 bytes at a time */
+	for (; size > 0; size -= VXGE_HW_FW_UPGRADE_BLK_SIZE) {
+		steer_ctrl = 0;
+
+		/* The next 128bits of fwdata to be loaded onto the adapter */
+		data0 = *((u64 *)fwdata);
+		data1 = *((u64 *)fwdata + 1);
+
+		status = vxge_hw_vpath_fw_api(vpath,
+					      VXGE_HW_FW_UPGRADE_ACTION,
+					      VXGE_HW_FW_UPGRADE_MEMO,
+					      VXGE_HW_FW_UPGRADE_OFFSET_SEND,
+					      &data0, &data1, &steer_ctrl);
+		if (status != VXGE_HW_OK) {
+			vxge_debug_init(VXGE_ERR, "%s: Upgrade send failed",
+					__func__);
+			goto out;
+		}
+
+		ret_code = VXGE_HW_UPGRADE_GET_RET_ERR_CODE(data0);
+		switch (ret_code) {
+		case VXGE_HW_FW_UPGRADE_OK:
+			/* All OK, send next 16 bytes. */
+			break;
+		case VXGE_FW_UPGRADE_BYTES2SKIP:
+			/* skip bytes in the stream */
+			fwdata += (data0 >> 8) & 0xFFFFFFFF;
+			break;
+		case VXGE_HW_FW_UPGRADE_DONE:
+			goto out;
+		case VXGE_HW_FW_UPGRADE_ERR:
+			sec_code = VXGE_HW_UPGRADE_GET_SEC_ERR_CODE(data0);
+			switch (sec_code) {
+			case VXGE_HW_FW_UPGRADE_ERR_CORRUPT_DATA_1:
+			case VXGE_HW_FW_UPGRADE_ERR_CORRUPT_DATA_7:
+				printk(KERN_ERR
+				       "corrupted data from .ncf file\n");
+				break;
+			case VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_3:
+			case VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_4:
+			case VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_5:
+			case VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_6:
+			case VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_8:
+				printk(KERN_ERR "invalid .ncf file\n");
+				break;
+			case VXGE_HW_FW_UPGRADE_ERR_BUFFER_OVERFLOW:
+				printk(KERN_ERR "buffer overflow\n");
+				break;
+			case VXGE_HW_FW_UPGRADE_ERR_FAILED_TO_FLASH:
+				printk(KERN_ERR "failed to flash the image\n");
+				break;
+			case VXGE_HW_FW_UPGRADE_ERR_GENERIC_ERROR_UNKNOWN:
+				printk(KERN_ERR
+				       "generic error. Unknown error type\n");
+				break;
+			default:
+				printk(KERN_ERR "Unknown error of type %d\n",
+				       sec_code);
+				break;
+			}
+			status = VXGE_HW_FAIL;
+			goto out;
+		default:
+			printk(KERN_ERR "Unknown FW error: %d\n", ret_code);
+			status = VXGE_HW_FAIL;
+			goto out;
+		}
+		/* point to next 16 bytes */
+		fwdata += VXGE_HW_FW_UPGRADE_BLK_SIZE;
+	}
+out:
+	return status;
+}
+
+enum vxge_hw_status
+vxge_hw_vpath_eprom_img_ver_get(struct __vxge_hw_device *hldev,
+				struct eprom_image *img)
+{
+	u64 data0 = 0, data1 = 0, steer_ctrl = 0;
+	struct __vxge_hw_virtualpath *vpath;
+	enum vxge_hw_status status;
+	int i;
+
+	vpath = &hldev->virtual_paths[hldev->first_vp_id];
+
+	for (i = 0; i < VXGE_HW_MAX_ROM_IMAGES; i++) {
+		data0 = VXGE_HW_RTS_ACCESS_STEER_ROM_IMAGE_INDEX(i);
+		data1 = steer_ctrl = 0;
+
+		status = vxge_hw_vpath_fw_api(vpath,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO,
+			VXGE_HW_FW_API_GET_EPROM_REV,
+			0, &data0, &data1, &steer_ctrl);
+		if (status != VXGE_HW_OK)
+			break;
+
+		img[i].is_valid = VXGE_HW_GET_EPROM_IMAGE_VALID(data0);
+		img[i].index = VXGE_HW_GET_EPROM_IMAGE_INDEX(data0);
+		img[i].type = VXGE_HW_GET_EPROM_IMAGE_TYPE(data0);
+		img[i].version = VXGE_HW_GET_EPROM_IMAGE_REV(data0);
+	}
+
+	return status;
+}
+
+/*
+ * __vxge_hw_channel_free - Free memory allocated for channel
+ * This function deallocates memory from the channel and various arrays
+ * in the channel
+ */
+static void __vxge_hw_channel_free(struct __vxge_hw_channel *channel)
+{
+	kfree(channel->work_arr);
+	kfree(channel->free_arr);
+	kfree(channel->reserve_arr);
+	kfree(channel->orig_arr);
+	kfree(channel);
+}
+
+/*
+ * __vxge_hw_channel_initialize - Initialize a channel
+ * This function initializes a channel by properly setting the
+ * various references
+ */
+static enum vxge_hw_status
+__vxge_hw_channel_initialize(struct __vxge_hw_channel *channel)
+{
+	u32 i;
+	struct __vxge_hw_virtualpath *vpath;
+
+	vpath = channel->vph->vpath;
+
+	if ((channel->reserve_arr != NULL) && (channel->orig_arr != NULL)) {
+		for (i = 0; i < channel->length; i++)
+			channel->orig_arr[i] = channel->reserve_arr[i];
+	}
+
+	switch (channel->type) {
+	case VXGE_HW_CHANNEL_TYPE_FIFO:
+		vpath->fifoh = (struct __vxge_hw_fifo *)channel;
+		channel->stats = &((struct __vxge_hw_fifo *)
+				channel)->stats->common_stats;
+		break;
+	case VXGE_HW_CHANNEL_TYPE_RING:
+		vpath->ringh = (struct __vxge_hw_ring *)channel;
+		channel->stats = &((struct __vxge_hw_ring *)
+				channel)->stats->common_stats;
+		break;
+	default:
+		break;
+	}
+
+	return VXGE_HW_OK;
+}
+
+/*
+ * __vxge_hw_channel_reset - Resets a channel
+ * This function resets a channel by properly setting the various references
+ */
+static enum vxge_hw_status
+__vxge_hw_channel_reset(struct __vxge_hw_channel *channel)
+{
+	u32 i;
+
+	for (i = 0; i < channel->length; i++) {
+		if (channel->reserve_arr != NULL)
+			channel->reserve_arr[i] = channel->orig_arr[i];
+		if (channel->free_arr != NULL)
+			channel->free_arr[i] = NULL;
+		if (channel->work_arr != NULL)
+			channel->work_arr[i] = NULL;
+	}
+	channel->free_ptr = channel->length;
+	channel->reserve_ptr = channel->length;
+	channel->reserve_top = 0;
+	channel->post_index = 0;
+	channel->compl_index = 0;
+
+	return VXGE_HW_OK;
+}
+
+/*
+ * __vxge_hw_device_pci_e_init
+ * Initialize certain PCI/PCI-X configuration registers
+ * with recommended values. Save config space for future hw resets.
+ */
+static void __vxge_hw_device_pci_e_init(struct __vxge_hw_device *hldev)
+{
+	u16 cmd = 0;
+
+	/* Set the PErr Repconse bit and SERR in PCI command register. */
+	pci_read_config_word(hldev->pdev, PCI_COMMAND, &cmd);
+	cmd |= 0x140;
+	pci_write_config_word(hldev->pdev, PCI_COMMAND, cmd);
+
+	pci_save_state(hldev->pdev);
+}
+
+/* __vxge_hw_device_vpath_reset_in_prog_check - Check if vpath reset
  * in progress
  * This routine checks the vpath reset in progress register is turned zero
  */
@@ -401,6 +506,60 @@ __vxge_hw_device_vpath_reset_in_prog_check(u64 __iomem *vpath_rst_in_prog)
 	status = __vxge_hw_device_register_poll(vpath_rst_in_prog,
 			VXGE_HW_VPATH_RST_IN_PROG_VPATH_RST_IN_PROG(0x1ffff),
 			VXGE_HW_DEF_DEVICE_POLL_MILLIS);
+	return status;
+}
+
+/*
+ * _hw_legacy_swapper_set - Set the swapper bits for the legacy secion.
+ * Set the swapper bits appropriately for the lagacy section.
+ */
+static enum vxge_hw_status
+__vxge_hw_legacy_swapper_set(struct vxge_hw_legacy_reg __iomem *legacy_reg)
+{
+	u64 val64;
+	enum vxge_hw_status status = VXGE_HW_OK;
+
+	val64 = readq(&legacy_reg->toc_swapper_fb);
+
+	wmb();
+
+	switch (val64) {
+	case VXGE_HW_SWAPPER_INITIAL_VALUE:
+		return status;
+
+	case VXGE_HW_SWAPPER_BYTE_SWAPPED_BIT_FLIPPED:
+		writeq(VXGE_HW_SWAPPER_READ_BYTE_SWAP_ENABLE,
+			&legacy_reg->pifm_rd_swap_en);
+		writeq(VXGE_HW_SWAPPER_READ_BIT_FLAP_ENABLE,
+			&legacy_reg->pifm_rd_flip_en);
+		writeq(VXGE_HW_SWAPPER_WRITE_BYTE_SWAP_ENABLE,
+			&legacy_reg->pifm_wr_swap_en);
+		writeq(VXGE_HW_SWAPPER_WRITE_BIT_FLAP_ENABLE,
+			&legacy_reg->pifm_wr_flip_en);
+		break;
+
+	case VXGE_HW_SWAPPER_BYTE_SWAPPED:
+		writeq(VXGE_HW_SWAPPER_READ_BYTE_SWAP_ENABLE,
+			&legacy_reg->pifm_rd_swap_en);
+		writeq(VXGE_HW_SWAPPER_WRITE_BYTE_SWAP_ENABLE,
+			&legacy_reg->pifm_wr_swap_en);
+		break;
+
+	case VXGE_HW_SWAPPER_BIT_FLIPPED:
+		writeq(VXGE_HW_SWAPPER_READ_BIT_FLAP_ENABLE,
+			&legacy_reg->pifm_rd_flip_en);
+		writeq(VXGE_HW_SWAPPER_WRITE_BIT_FLAP_ENABLE,
+			&legacy_reg->pifm_wr_flip_en);
+		break;
+	}
+
+	wmb();
+
+	val64 = readq(&legacy_reg->toc_swapper_fb);
+
+	if (val64 != VXGE_HW_SWAPPER_INITIAL_VALUE)
+		status = VXGE_HW_ERR_SWAPPER_CTRL;
+
 	return status;
 }
 
@@ -435,7 +594,7 @@ exit:
  * register location pointers in the device object. It waits until the ric is
  * completed initializing registers.
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 __vxge_hw_device_reg_addr_get(struct __vxge_hw_device *hldev)
 {
 	u64 val64;
@@ -496,26 +655,6 @@ exit:
 }
 
 /*
- * __vxge_hw_device_id_get
- * This routine returns sets the device id and revision numbers into the device
- * structure
- */
-void __vxge_hw_device_id_get(struct __vxge_hw_device *hldev)
-{
-	u64 val64;
-
-	val64 = readq(&hldev->common_reg->titan_asic_id);
-	hldev->device_id =
-		(u16)VXGE_HW_TITAN_ASIC_ID_GET_INITIAL_DEVICE_ID(val64);
-
-	hldev->major_revision =
-		(u8)VXGE_HW_TITAN_ASIC_ID_GET_INITIAL_MAJOR_REVISION(val64);
-
-	hldev->minor_revision =
-		(u8)VXGE_HW_TITAN_ASIC_ID_GET_INITIAL_MINOR_REVISION(val64);
-}
-
-/*
  * __vxge_hw_device_access_rights_get: Get Access Rights of the driver
  * This routine returns the Access Rights of the driver
  */
@@ -568,10 +707,25 @@ __vxge_hw_device_is_privilaged(u32 host_type, u32 func_id)
 }
 
 /*
+ * __vxge_hw_vpath_func_id_get - Get the function id of the vpath.
+ * Returns the function number of the vpath.
+ */
+static u32
+__vxge_hw_vpath_func_id_get(struct vxge_hw_vpmgmt_reg __iomem *vpmgmt_reg)
+{
+	u64 val64;
+
+	val64 = readq(&vpmgmt_reg->vpath_to_func_map_cfg1);
+
+	return
+	 (u32)VXGE_HW_VPATH_TO_FUNC_MAP_CFG1_GET_VPATH_TO_FUNC_MAP_CFG1(val64);
+}
+
+/*
  * __vxge_hw_device_host_info_get
  * This routine returns the host type assignments
  */
-void __vxge_hw_device_host_info_get(struct __vxge_hw_device *hldev)
+static void __vxge_hw_device_host_info_get(struct __vxge_hw_device *hldev)
 {
 	u64 val64;
 	u32 i;
@@ -584,15 +738,17 @@ void __vxge_hw_device_host_info_get(struct __vxge_hw_device *hldev)
 	hldev->vpath_assignments = readq(&hldev->common_reg->vpath_assignments);
 
 	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
-
 		if (!(hldev->vpath_assignments & vxge_mBIT(i)))
 			continue;
 
 		hldev->func_id =
-			__vxge_hw_vpath_func_id_get(i, hldev->vpmgmt_reg[i]);
+			__vxge_hw_vpath_func_id_get(hldev->vpmgmt_reg[i]);
 
 		hldev->access_rights = __vxge_hw_device_access_rights_get(
 			hldev->host_type, hldev->func_id);
+
+		hldev->virtual_paths[i].vp_open = VXGE_HW_VP_NOT_OPEN;
+		hldev->virtual_paths[i].vp_reg = hldev->vpath_reg[i];
 
 		hldev->first_vp_id = i;
 		break;
@@ -634,7 +790,8 @@ __vxge_hw_verify_pci_e_info(struct __vxge_hw_device *hldev)
  * __vxge_hw_device_initialize
  * Initialize Titan-V hardware.
  */
-enum vxge_hw_status __vxge_hw_device_initialize(struct __vxge_hw_device *hldev)
+static enum vxge_hw_status
+__vxge_hw_device_initialize(struct __vxge_hw_device *hldev)
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
 
@@ -646,6 +803,196 @@ enum vxge_hw_status __vxge_hw_device_initialize(struct __vxge_hw_device *hldev)
 			goto exit;
 	}
 
+exit:
+	return status;
+}
+
+/*
+ * __vxge_hw_vpath_fw_ver_get - Get the fw version
+ * Returns FW Version
+ */
+static enum vxge_hw_status
+__vxge_hw_vpath_fw_ver_get(struct __vxge_hw_virtualpath *vpath,
+			   struct vxge_hw_device_hw_info *hw_info)
+{
+	struct vxge_hw_device_version *fw_version = &hw_info->fw_version;
+	struct vxge_hw_device_date *fw_date = &hw_info->fw_date;
+	struct vxge_hw_device_version *flash_version = &hw_info->flash_version;
+	struct vxge_hw_device_date *flash_date = &hw_info->flash_date;
+	u64 data0, data1 = 0, steer_ctrl = 0;
+	enum vxge_hw_status status;
+
+	status = vxge_hw_vpath_fw_api(vpath,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_READ_ENTRY,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO,
+			0, &data0, &data1, &steer_ctrl);
+	if (status != VXGE_HW_OK)
+		goto exit;
+
+	fw_date->day =
+	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_DAY(data0);
+	fw_date->month =
+	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MONTH(data0);
+	fw_date->year =
+	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_YEAR(data0);
+
+	snprintf(fw_date->date, VXGE_HW_FW_STRLEN, "%2.2d/%2.2d/%4.4d",
+		 fw_date->month, fw_date->day, fw_date->year);
+
+	fw_version->major =
+	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MAJOR(data0);
+	fw_version->minor =
+	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MINOR(data0);
+	fw_version->build =
+	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_BUILD(data0);
+
+	snprintf(fw_version->version, VXGE_HW_FW_STRLEN, "%d.%d.%d",
+		 fw_version->major, fw_version->minor, fw_version->build);
+
+	flash_date->day =
+	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_DAY(data1);
+	flash_date->month =
+	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_MONTH(data1);
+	flash_date->year =
+	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_YEAR(data1);
+
+	snprintf(flash_date->date, VXGE_HW_FW_STRLEN, "%2.2d/%2.2d/%4.4d",
+		 flash_date->month, flash_date->day, flash_date->year);
+
+	flash_version->major =
+	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_MAJOR(data1);
+	flash_version->minor =
+	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_MINOR(data1);
+	flash_version->build =
+	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_BUILD(data1);
+
+	snprintf(flash_version->version, VXGE_HW_FW_STRLEN, "%d.%d.%d",
+		 flash_version->major, flash_version->minor,
+		 flash_version->build);
+
+exit:
+	return status;
+}
+
+/*
+ * __vxge_hw_vpath_card_info_get - Get the serial numbers,
+ * part number and product description.
+ */
+static enum vxge_hw_status
+__vxge_hw_vpath_card_info_get(struct __vxge_hw_virtualpath *vpath,
+			      struct vxge_hw_device_hw_info *hw_info)
+{
+	enum vxge_hw_status status;
+	u64 data0, data1 = 0, steer_ctrl = 0;
+	u8 *serial_number = hw_info->serial_number;
+	u8 *part_number = hw_info->part_number;
+	u8 *product_desc = hw_info->product_desc;
+	u32 i, j = 0;
+
+	data0 = VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_SERIAL_NUMBER;
+
+	status = vxge_hw_vpath_fw_api(vpath,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_READ_MEMO_ENTRY,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO,
+			0, &data0, &data1, &steer_ctrl);
+	if (status != VXGE_HW_OK)
+		return status;
+
+	((u64 *)serial_number)[0] = be64_to_cpu(data0);
+	((u64 *)serial_number)[1] = be64_to_cpu(data1);
+
+	data0 = VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_PART_NUMBER;
+	data1 = steer_ctrl = 0;
+
+	status = vxge_hw_vpath_fw_api(vpath,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_READ_MEMO_ENTRY,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO,
+			0, &data0, &data1, &steer_ctrl);
+	if (status != VXGE_HW_OK)
+		return status;
+
+	((u64 *)part_number)[0] = be64_to_cpu(data0);
+	((u64 *)part_number)[1] = be64_to_cpu(data1);
+
+	for (i = VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_DESC_0;
+	     i <= VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_DESC_3; i++) {
+		data0 = i;
+		data1 = steer_ctrl = 0;
+
+		status = vxge_hw_vpath_fw_api(vpath,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_READ_MEMO_ENTRY,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO,
+			0, &data0, &data1, &steer_ctrl);
+		if (status != VXGE_HW_OK)
+			return status;
+
+		((u64 *)product_desc)[j++] = be64_to_cpu(data0);
+		((u64 *)product_desc)[j++] = be64_to_cpu(data1);
+	}
+
+	return status;
+}
+
+/*
+ * __vxge_hw_vpath_pci_func_mode_get - Get the pci mode
+ * Returns pci function mode
+ */
+static enum vxge_hw_status
+__vxge_hw_vpath_pci_func_mode_get(struct __vxge_hw_virtualpath *vpath,
+				  struct vxge_hw_device_hw_info *hw_info)
+{
+	u64 data0, data1 = 0, steer_ctrl = 0;
+	enum vxge_hw_status status;
+
+	data0 = 0;
+
+	status = vxge_hw_vpath_fw_api(vpath,
+			VXGE_HW_FW_API_GET_FUNC_MODE,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO,
+			0, &data0, &data1, &steer_ctrl);
+	if (status != VXGE_HW_OK)
+		return status;
+
+	hw_info->function_mode = VXGE_HW_GET_FUNC_MODE_VAL(data0);
+	return status;
+}
+
+/*
+ * __vxge_hw_vpath_addr_get - Get the hw address entry for this vpath
+ *               from MAC address table.
+ */
+static enum vxge_hw_status
+__vxge_hw_vpath_addr_get(struct __vxge_hw_virtualpath *vpath,
+			 u8 *macaddr, u8 *macaddr_mask)
+{
+	u64 action = VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_LIST_FIRST_ENTRY,
+	    data0 = 0, data1 = 0, steer_ctrl = 0;
+	enum vxge_hw_status status;
+	int i;
+
+	do {
+		status = vxge_hw_vpath_fw_api(vpath, action,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_DA,
+			0, &data0, &data1, &steer_ctrl);
+		if (status != VXGE_HW_OK)
+			goto exit;
+
+		data0 = VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_DA_MAC_ADDR(data0);
+		data1 = VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_DA_MAC_ADDR_MASK(
+									data1);
+
+		for (i = ETH_ALEN; i > 0; i--) {
+			macaddr[i - 1] = (u8) (data0 & 0xFF);
+			data0 >>= 8;
+
+			macaddr_mask[i - 1] = (u8) (data1 & 0xFF);
+			data1 >>= 8;
+		}
+
+		action = VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_LIST_NEXT_ENTRY;
+		data0 = 0, data1 = 0, steer_ctrl = 0;
+
+	} while (!is_valid_ether_addr(macaddr));
 exit:
 	return status;
 }
@@ -665,9 +1012,9 @@ vxge_hw_device_hw_info_get(void __iomem *bar0,
 	struct vxge_hw_toc_reg __iomem *toc;
 	struct vxge_hw_mrpcim_reg __iomem *mrpcim_reg;
 	struct vxge_hw_common_reg __iomem *common_reg;
-	struct vxge_hw_vpath_reg __iomem *vpath_reg;
 	struct vxge_hw_vpmgmt_reg __iomem *vpmgmt_reg;
 	enum vxge_hw_status status;
+	struct __vxge_hw_virtualpath vpath;
 
 	memset(hw_info, 0, sizeof(struct vxge_hw_device_hw_info));
 
@@ -693,7 +1040,6 @@ vxge_hw_device_hw_info_get(void __iomem *bar0,
 	   (u32)VXGE_HW_HOST_TYPE_ASSIGNMENTS_GET_HOST_TYPE_ASSIGNMENTS(val64);
 
 	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
-
 		if (!((hw_info->vpath_mask) & vxge_mBIT(i)))
 			continue;
 
@@ -702,7 +1048,7 @@ vxge_hw_device_hw_info_get(void __iomem *bar0,
 		vpmgmt_reg = (struct vxge_hw_vpmgmt_reg __iomem *)
 				(bar0 + val64);
 
-		hw_info->func_id = __vxge_hw_vpath_func_id_get(i, vpmgmt_reg);
+		hw_info->func_id = __vxge_hw_vpath_func_id_get(vpmgmt_reg);
 		if (__vxge_hw_device_access_rights_get(hw_info->host_type,
 			hw_info->func_id) &
 			VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM) {
@@ -718,16 +1064,19 @@ vxge_hw_device_hw_info_get(void __iomem *bar0,
 
 		val64 = readq(&toc->toc_vpath_pointer[i]);
 
-		vpath_reg = (struct vxge_hw_vpath_reg __iomem *)(bar0 + val64);
+		vpath.vp_reg = (struct vxge_hw_vpath_reg __iomem *)
+			       (bar0 + val64);
+		vpath.vp_open = 0;
 
-		hw_info->function_mode =
-			__vxge_hw_vpath_pci_func_mode_get(i, vpath_reg);
-
-		status = __vxge_hw_vpath_fw_ver_get(i, vpath_reg, hw_info);
+		status = __vxge_hw_vpath_pci_func_mode_get(&vpath, hw_info);
 		if (status != VXGE_HW_OK)
 			goto exit;
 
-		status = __vxge_hw_vpath_card_info_get(i, vpath_reg, hw_info);
+		status = __vxge_hw_vpath_fw_ver_get(&vpath, hw_info);
+		if (status != VXGE_HW_OK)
+			goto exit;
+
+		status = __vxge_hw_vpath_card_info_get(&vpath, hw_info);
 		if (status != VXGE_HW_OK)
 			goto exit;
 
@@ -735,14 +1084,15 @@ vxge_hw_device_hw_info_get(void __iomem *bar0,
 	}
 
 	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
-
 		if (!((hw_info->vpath_mask) & vxge_mBIT(i)))
 			continue;
 
 		val64 = readq(&toc->toc_vpath_pointer[i]);
-		vpath_reg = (struct vxge_hw_vpath_reg __iomem *)(bar0 + val64);
+		vpath.vp_reg = (struct vxge_hw_vpath_reg __iomem *)
+			       (bar0 + val64);
+		vpath.vp_open = 0;
 
-		status =  __vxge_hw_vpath_addr_get(i, vpath_reg,
+		status =  __vxge_hw_vpath_addr_get(&vpath,
 				hw_info->mac_addrs[i],
 				hw_info->mac_addr_masks[i]);
 		if (status != VXGE_HW_OK)
@@ -750,6 +1100,218 @@ vxge_hw_device_hw_info_get(void __iomem *bar0,
 	}
 exit:
 	return status;
+}
+
+/*
+ * __vxge_hw_blockpool_destroy - Deallocates the block pool
+ */
+static void __vxge_hw_blockpool_destroy(struct __vxge_hw_blockpool *blockpool)
+{
+	struct __vxge_hw_device *hldev;
+	struct list_head *p, *n;
+	u16 ret;
+
+	if (blockpool == NULL) {
+		ret = 1;
+		goto exit;
+	}
+
+	hldev = blockpool->hldev;
+
+	list_for_each_safe(p, n, &blockpool->free_block_list) {
+		pci_unmap_single(hldev->pdev,
+			((struct __vxge_hw_blockpool_entry *)p)->dma_addr,
+			((struct __vxge_hw_blockpool_entry *)p)->length,
+			PCI_DMA_BIDIRECTIONAL);
+
+		vxge_os_dma_free(hldev->pdev,
+			((struct __vxge_hw_blockpool_entry *)p)->memblock,
+			&((struct __vxge_hw_blockpool_entry *)p)->acc_handle);
+
+		list_del(&((struct __vxge_hw_blockpool_entry *)p)->item);
+		kfree(p);
+		blockpool->pool_size--;
+	}
+
+	list_for_each_safe(p, n, &blockpool->free_entry_list) {
+		list_del(&((struct __vxge_hw_blockpool_entry *)p)->item);
+		kfree((void *)p);
+	}
+	ret = 0;
+exit:
+	return;
+}
+
+/*
+ * __vxge_hw_blockpool_create - Create block pool
+ */
+static enum vxge_hw_status
+__vxge_hw_blockpool_create(struct __vxge_hw_device *hldev,
+			   struct __vxge_hw_blockpool *blockpool,
+			   u32 pool_size,
+			   u32 pool_max)
+{
+	u32 i;
+	struct __vxge_hw_blockpool_entry *entry = NULL;
+	void *memblock;
+	dma_addr_t dma_addr;
+	struct pci_dev *dma_handle;
+	struct pci_dev *acc_handle;
+	enum vxge_hw_status status = VXGE_HW_OK;
+
+	if (blockpool == NULL) {
+		status = VXGE_HW_FAIL;
+		goto blockpool_create_exit;
+	}
+
+	blockpool->hldev = hldev;
+	blockpool->block_size = VXGE_HW_BLOCK_SIZE;
+	blockpool->pool_size = 0;
+	blockpool->pool_max = pool_max;
+	blockpool->req_out = 0;
+
+	INIT_LIST_HEAD(&blockpool->free_block_list);
+	INIT_LIST_HEAD(&blockpool->free_entry_list);
+
+	for (i = 0; i < pool_size + pool_max; i++) {
+		entry = kzalloc(sizeof(struct __vxge_hw_blockpool_entry),
+				GFP_KERNEL);
+		if (entry == NULL) {
+			__vxge_hw_blockpool_destroy(blockpool);
+			status = VXGE_HW_ERR_OUT_OF_MEMORY;
+			goto blockpool_create_exit;
+		}
+		list_add(&entry->item, &blockpool->free_entry_list);
+	}
+
+	for (i = 0; i < pool_size; i++) {
+		memblock = vxge_os_dma_malloc(
+				hldev->pdev,
+				VXGE_HW_BLOCK_SIZE,
+				&dma_handle,
+				&acc_handle);
+		if (memblock == NULL) {
+			__vxge_hw_blockpool_destroy(blockpool);
+			status = VXGE_HW_ERR_OUT_OF_MEMORY;
+			goto blockpool_create_exit;
+		}
+
+		dma_addr = pci_map_single(hldev->pdev, memblock,
+				VXGE_HW_BLOCK_SIZE, PCI_DMA_BIDIRECTIONAL);
+		if (unlikely(pci_dma_mapping_error(hldev->pdev,
+				dma_addr))) {
+			vxge_os_dma_free(hldev->pdev, memblock, &acc_handle);
+			__vxge_hw_blockpool_destroy(blockpool);
+			status = VXGE_HW_ERR_OUT_OF_MEMORY;
+			goto blockpool_create_exit;
+		}
+
+		if (!list_empty(&blockpool->free_entry_list))
+			entry = (struct __vxge_hw_blockpool_entry *)
+				list_first_entry(&blockpool->free_entry_list,
+					struct __vxge_hw_blockpool_entry,
+					item);
+
+		if (entry == NULL)
+			entry =
+			    kzalloc(sizeof(struct __vxge_hw_blockpool_entry),
+					GFP_KERNEL);
+		if (entry != NULL) {
+			list_del(&entry->item);
+			entry->length = VXGE_HW_BLOCK_SIZE;
+			entry->memblock = memblock;
+			entry->dma_addr = dma_addr;
+			entry->acc_handle = acc_handle;
+			entry->dma_handle = dma_handle;
+			list_add(&entry->item,
+					  &blockpool->free_block_list);
+			blockpool->pool_size++;
+		} else {
+			__vxge_hw_blockpool_destroy(blockpool);
+			status = VXGE_HW_ERR_OUT_OF_MEMORY;
+			goto blockpool_create_exit;
+		}
+	}
+
+blockpool_create_exit:
+	return status;
+}
+
+/*
+ * __vxge_hw_device_fifo_config_check - Check fifo configuration.
+ * Check the fifo configuration
+ */
+static enum vxge_hw_status
+__vxge_hw_device_fifo_config_check(struct vxge_hw_fifo_config *fifo_config)
+{
+	if ((fifo_config->fifo_blocks < VXGE_HW_MIN_FIFO_BLOCKS) ||
+	    (fifo_config->fifo_blocks > VXGE_HW_MAX_FIFO_BLOCKS))
+		return VXGE_HW_BADCFG_FIFO_BLOCKS;
+
+	return VXGE_HW_OK;
+}
+
+/*
+ * __vxge_hw_device_vpath_config_check - Check vpath configuration.
+ * Check the vpath configuration
+ */
+static enum vxge_hw_status
+__vxge_hw_device_vpath_config_check(struct vxge_hw_vp_config *vp_config)
+{
+	enum vxge_hw_status status;
+
+	if ((vp_config->min_bandwidth < VXGE_HW_VPATH_BANDWIDTH_MIN) ||
+	    (vp_config->min_bandwidth >	VXGE_HW_VPATH_BANDWIDTH_MAX))
+		return VXGE_HW_BADCFG_VPATH_MIN_BANDWIDTH;
+
+	status = __vxge_hw_device_fifo_config_check(&vp_config->fifo);
+	if (status != VXGE_HW_OK)
+		return status;
+
+	if ((vp_config->mtu != VXGE_HW_VPATH_USE_FLASH_DEFAULT_INITIAL_MTU) &&
+		((vp_config->mtu < VXGE_HW_VPATH_MIN_INITIAL_MTU) ||
+		(vp_config->mtu > VXGE_HW_VPATH_MAX_INITIAL_MTU)))
+		return VXGE_HW_BADCFG_VPATH_MTU;
+
+	if ((vp_config->rpa_strip_vlan_tag !=
+		VXGE_HW_VPATH_RPA_STRIP_VLAN_TAG_USE_FLASH_DEFAULT) &&
+		(vp_config->rpa_strip_vlan_tag !=
+		VXGE_HW_VPATH_RPA_STRIP_VLAN_TAG_ENABLE) &&
+		(vp_config->rpa_strip_vlan_tag !=
+		VXGE_HW_VPATH_RPA_STRIP_VLAN_TAG_DISABLE))
+		return VXGE_HW_BADCFG_VPATH_RPA_STRIP_VLAN_TAG;
+
+	return VXGE_HW_OK;
+}
+
+/*
+ * __vxge_hw_device_config_check - Check device configuration.
+ * Check the device configuration
+ */
+static enum vxge_hw_status
+__vxge_hw_device_config_check(struct vxge_hw_device_config *new_config)
+{
+	u32 i;
+	enum vxge_hw_status status;
+
+	if ((new_config->intr_mode != VXGE_HW_INTR_MODE_IRQLINE) &&
+	    (new_config->intr_mode != VXGE_HW_INTR_MODE_MSIX) &&
+	    (new_config->intr_mode != VXGE_HW_INTR_MODE_MSIX_ONE_SHOT) &&
+	    (new_config->intr_mode != VXGE_HW_INTR_MODE_DEF))
+		return VXGE_HW_BADCFG_INTR_MODE;
+
+	if ((new_config->rts_mac_en != VXGE_HW_RTS_MAC_DISABLE) &&
+	    (new_config->rts_mac_en != VXGE_HW_RTS_MAC_ENABLE))
+		return VXGE_HW_BADCFG_RTS_MAC_EN;
+
+	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
+		status = __vxge_hw_device_vpath_config_check(
+				&new_config->vp_config[i]);
+		if (status != VXGE_HW_OK)
+			return status;
+	}
+
+	return VXGE_HW_OK;
 }
 
 /*
@@ -776,14 +1338,12 @@ vxge_hw_device_initialize(
 	if (status != VXGE_HW_OK)
 		goto exit;
 
-	hldev = (struct __vxge_hw_device *)
-			vmalloc(sizeof(struct __vxge_hw_device));
+	hldev = vzalloc(sizeof(struct __vxge_hw_device));
 	if (hldev == NULL) {
 		status = VXGE_HW_ERR_OUT_OF_MEMORY;
 		goto exit;
 	}
 
-	memset(hldev, 0, sizeof(struct __vxge_hw_device));
 	hldev->magic = VXGE_HW_DEVICE_MAGIC;
 
 	vxge_hw_device_debug_set(hldev, VXGE_ERR, VXGE_COMPONENT_ALL);
@@ -806,7 +1366,6 @@ vxge_hw_device_initialize(
 		vfree(hldev);
 		goto exit;
 	}
-	__vxge_hw_device_id_get(hldev);
 
 	__vxge_hw_device_host_info_get(hldev);
 
@@ -814,7 +1373,6 @@ vxge_hw_device_initialize(
 	nblocks++;
 
 	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
-
 		if (!(hldev->vpath_assignments & vxge_mBIT(i)))
 			continue;
 
@@ -839,7 +1397,6 @@ vxge_hw_device_initialize(
 	}
 
 	status = __vxge_hw_device_initialize(hldev);
-
 	if (status != VXGE_HW_OK) {
 		vxge_hw_device_terminate(hldev);
 		goto exit;
@@ -865,6 +1422,242 @@ vxge_hw_device_terminate(struct __vxge_hw_device *hldev)
 }
 
 /*
+ * __vxge_hw_vpath_stats_access - Get the statistics from the given location
+ *                           and offset and perform an operation
+ */
+static enum vxge_hw_status
+__vxge_hw_vpath_stats_access(struct __vxge_hw_virtualpath *vpath,
+			     u32 operation, u32 offset, u64 *stat)
+{
+	u64 val64;
+	enum vxge_hw_status status = VXGE_HW_OK;
+	struct vxge_hw_vpath_reg __iomem *vp_reg;
+
+	if (vpath->vp_open == VXGE_HW_VP_NOT_OPEN) {
+		status = VXGE_HW_ERR_VPATH_NOT_OPEN;
+		goto vpath_stats_access_exit;
+	}
+
+	vp_reg = vpath->vp_reg;
+
+	val64 =  VXGE_HW_XMAC_STATS_ACCESS_CMD_OP(operation) |
+		 VXGE_HW_XMAC_STATS_ACCESS_CMD_STROBE |
+		 VXGE_HW_XMAC_STATS_ACCESS_CMD_OFFSET_SEL(offset);
+
+	status = __vxge_hw_pio_mem_write64(val64,
+				&vp_reg->xmac_stats_access_cmd,
+				VXGE_HW_XMAC_STATS_ACCESS_CMD_STROBE,
+				vpath->hldev->config.device_poll_millis);
+	if ((status == VXGE_HW_OK) && (operation == VXGE_HW_STATS_OP_READ))
+		*stat = readq(&vp_reg->xmac_stats_access_data);
+	else
+		*stat = 0;
+
+vpath_stats_access_exit:
+	return status;
+}
+
+/*
+ * __vxge_hw_vpath_xmac_tx_stats_get - Get the TX Statistics of a vpath
+ */
+static enum vxge_hw_status
+__vxge_hw_vpath_xmac_tx_stats_get(struct __vxge_hw_virtualpath *vpath,
+			struct vxge_hw_xmac_vpath_tx_stats *vpath_tx_stats)
+{
+	u64 *val64;
+	int i;
+	u32 offset = VXGE_HW_STATS_VPATH_TX_OFFSET;
+	enum vxge_hw_status status = VXGE_HW_OK;
+
+	val64 = (u64 *)vpath_tx_stats;
+
+	if (vpath->vp_open == VXGE_HW_VP_NOT_OPEN) {
+		status = VXGE_HW_ERR_VPATH_NOT_OPEN;
+		goto exit;
+	}
+
+	for (i = 0; i < sizeof(struct vxge_hw_xmac_vpath_tx_stats) / 8; i++) {
+		status = __vxge_hw_vpath_stats_access(vpath,
+					VXGE_HW_STATS_OP_READ,
+					offset, val64);
+		if (status != VXGE_HW_OK)
+			goto exit;
+		offset++;
+		val64++;
+	}
+exit:
+	return status;
+}
+
+/*
+ * __vxge_hw_vpath_xmac_rx_stats_get - Get the RX Statistics of a vpath
+ */
+static enum vxge_hw_status
+__vxge_hw_vpath_xmac_rx_stats_get(struct __vxge_hw_virtualpath *vpath,
+			struct vxge_hw_xmac_vpath_rx_stats *vpath_rx_stats)
+{
+	u64 *val64;
+	enum vxge_hw_status status = VXGE_HW_OK;
+	int i;
+	u32 offset = VXGE_HW_STATS_VPATH_RX_OFFSET;
+	val64 = (u64 *) vpath_rx_stats;
+
+	if (vpath->vp_open == VXGE_HW_VP_NOT_OPEN) {
+		status = VXGE_HW_ERR_VPATH_NOT_OPEN;
+		goto exit;
+	}
+	for (i = 0; i < sizeof(struct vxge_hw_xmac_vpath_rx_stats) / 8; i++) {
+		status = __vxge_hw_vpath_stats_access(vpath,
+					VXGE_HW_STATS_OP_READ,
+					offset >> 3, val64);
+		if (status != VXGE_HW_OK)
+			goto exit;
+
+		offset += 8;
+		val64++;
+	}
+exit:
+	return status;
+}
+
+/*
+ * __vxge_hw_vpath_stats_get - Get the vpath hw statistics.
+ */
+static enum vxge_hw_status
+__vxge_hw_vpath_stats_get(struct __vxge_hw_virtualpath *vpath,
+			  struct vxge_hw_vpath_stats_hw_info *hw_stats)
+{
+	u64 val64;
+	enum vxge_hw_status status = VXGE_HW_OK;
+	struct vxge_hw_vpath_reg __iomem *vp_reg;
+
+	if (vpath->vp_open == VXGE_HW_VP_NOT_OPEN) {
+		status = VXGE_HW_ERR_VPATH_NOT_OPEN;
+		goto exit;
+	}
+	vp_reg = vpath->vp_reg;
+
+	val64 = readq(&vp_reg->vpath_debug_stats0);
+	hw_stats->ini_num_mwr_sent =
+		(u32)VXGE_HW_VPATH_DEBUG_STATS0_GET_INI_NUM_MWR_SENT(val64);
+
+	val64 = readq(&vp_reg->vpath_debug_stats1);
+	hw_stats->ini_num_mrd_sent =
+		(u32)VXGE_HW_VPATH_DEBUG_STATS1_GET_INI_NUM_MRD_SENT(val64);
+
+	val64 = readq(&vp_reg->vpath_debug_stats2);
+	hw_stats->ini_num_cpl_rcvd =
+		(u32)VXGE_HW_VPATH_DEBUG_STATS2_GET_INI_NUM_CPL_RCVD(val64);
+
+	val64 = readq(&vp_reg->vpath_debug_stats3);
+	hw_stats->ini_num_mwr_byte_sent =
+		VXGE_HW_VPATH_DEBUG_STATS3_GET_INI_NUM_MWR_BYTE_SENT(val64);
+
+	val64 = readq(&vp_reg->vpath_debug_stats4);
+	hw_stats->ini_num_cpl_byte_rcvd =
+		VXGE_HW_VPATH_DEBUG_STATS4_GET_INI_NUM_CPL_BYTE_RCVD(val64);
+
+	val64 = readq(&vp_reg->vpath_debug_stats5);
+	hw_stats->wrcrdtarb_xoff =
+		(u32)VXGE_HW_VPATH_DEBUG_STATS5_GET_WRCRDTARB_XOFF(val64);
+
+	val64 = readq(&vp_reg->vpath_debug_stats6);
+	hw_stats->rdcrdtarb_xoff =
+		(u32)VXGE_HW_VPATH_DEBUG_STATS6_GET_RDCRDTARB_XOFF(val64);
+
+	val64 = readq(&vp_reg->vpath_genstats_count01);
+	hw_stats->vpath_genstats_count0 =
+	(u32)VXGE_HW_VPATH_GENSTATS_COUNT01_GET_PPIF_VPATH_GENSTATS_COUNT0(
+		val64);
+
+	val64 = readq(&vp_reg->vpath_genstats_count01);
+	hw_stats->vpath_genstats_count1 =
+	(u32)VXGE_HW_VPATH_GENSTATS_COUNT01_GET_PPIF_VPATH_GENSTATS_COUNT1(
+		val64);
+
+	val64 = readq(&vp_reg->vpath_genstats_count23);
+	hw_stats->vpath_genstats_count2 =
+	(u32)VXGE_HW_VPATH_GENSTATS_COUNT23_GET_PPIF_VPATH_GENSTATS_COUNT2(
+		val64);
+
+	val64 = readq(&vp_reg->vpath_genstats_count01);
+	hw_stats->vpath_genstats_count3 =
+	(u32)VXGE_HW_VPATH_GENSTATS_COUNT23_GET_PPIF_VPATH_GENSTATS_COUNT3(
+		val64);
+
+	val64 = readq(&vp_reg->vpath_genstats_count4);
+	hw_stats->vpath_genstats_count4 =
+	(u32)VXGE_HW_VPATH_GENSTATS_COUNT4_GET_PPIF_VPATH_GENSTATS_COUNT4(
+		val64);
+
+	val64 = readq(&vp_reg->vpath_genstats_count5);
+	hw_stats->vpath_genstats_count5 =
+	(u32)VXGE_HW_VPATH_GENSTATS_COUNT5_GET_PPIF_VPATH_GENSTATS_COUNT5(
+		val64);
+
+	status = __vxge_hw_vpath_xmac_tx_stats_get(vpath, &hw_stats->tx_stats);
+	if (status != VXGE_HW_OK)
+		goto exit;
+
+	status = __vxge_hw_vpath_xmac_rx_stats_get(vpath, &hw_stats->rx_stats);
+	if (status != VXGE_HW_OK)
+		goto exit;
+
+	VXGE_HW_VPATH_STATS_PIO_READ(
+		VXGE_HW_STATS_VPATH_PROG_EVENT_VNUM0_OFFSET);
+
+	hw_stats->prog_event_vnum0 =
+			(u32)VXGE_HW_STATS_GET_VPATH_PROG_EVENT_VNUM0(val64);
+
+	hw_stats->prog_event_vnum1 =
+			(u32)VXGE_HW_STATS_GET_VPATH_PROG_EVENT_VNUM1(val64);
+
+	VXGE_HW_VPATH_STATS_PIO_READ(
+		VXGE_HW_STATS_VPATH_PROG_EVENT_VNUM2_OFFSET);
+
+	hw_stats->prog_event_vnum2 =
+			(u32)VXGE_HW_STATS_GET_VPATH_PROG_EVENT_VNUM2(val64);
+
+	hw_stats->prog_event_vnum3 =
+			(u32)VXGE_HW_STATS_GET_VPATH_PROG_EVENT_VNUM3(val64);
+
+	val64 = readq(&vp_reg->rx_multi_cast_stats);
+	hw_stats->rx_multi_cast_frame_discard =
+		(u16)VXGE_HW_RX_MULTI_CAST_STATS_GET_FRAME_DISCARD(val64);
+
+	val64 = readq(&vp_reg->rx_frm_transferred);
+	hw_stats->rx_frm_transferred =
+		(u32)VXGE_HW_RX_FRM_TRANSFERRED_GET_RX_FRM_TRANSFERRED(val64);
+
+	val64 = readq(&vp_reg->rxd_returned);
+	hw_stats->rxd_returned =
+		(u16)VXGE_HW_RXD_RETURNED_GET_RXD_RETURNED(val64);
+
+	val64 = readq(&vp_reg->dbg_stats_rx_mpa);
+	hw_stats->rx_mpa_len_fail_frms =
+		(u16)VXGE_HW_DBG_STATS_GET_RX_MPA_LEN_FAIL_FRMS(val64);
+	hw_stats->rx_mpa_mrk_fail_frms =
+		(u16)VXGE_HW_DBG_STATS_GET_RX_MPA_MRK_FAIL_FRMS(val64);
+	hw_stats->rx_mpa_crc_fail_frms =
+		(u16)VXGE_HW_DBG_STATS_GET_RX_MPA_CRC_FAIL_FRMS(val64);
+
+	val64 = readq(&vp_reg->dbg_stats_rx_fau);
+	hw_stats->rx_permitted_frms =
+		(u16)VXGE_HW_DBG_STATS_GET_RX_FAU_RX_PERMITTED_FRMS(val64);
+	hw_stats->rx_vp_reset_discarded_frms =
+	(u16)VXGE_HW_DBG_STATS_GET_RX_FAU_RX_VP_RESET_DISCARDED_FRMS(val64);
+	hw_stats->rx_wol_frms =
+		(u16)VXGE_HW_DBG_STATS_GET_RX_FAU_RX_WOL_FRMS(val64);
+
+	val64 = readq(&vp_reg->tx_vp_reset_discarded_frms);
+	hw_stats->tx_vp_reset_discarded_frms =
+	(u16)VXGE_HW_TX_VP_RESET_DISCARDED_FRMS_GET_TX_VP_RESET_DISCARDED_FRMS(
+		val64);
+exit:
+	return status;
+}
+
+/*
  * vxge_hw_device_stats_get - Get the device hw statistics.
  * Returns the vpath h/w stats for the device.
  */
@@ -876,7 +1669,6 @@ vxge_hw_device_stats_get(struct __vxge_hw_device *hldev,
 	enum vxge_hw_status status = VXGE_HW_OK;
 
 	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
-
 		if (!(hldev->vpaths_deployed & vxge_mBIT(i)) ||
 			(hldev->virtual_paths[i].vp_open ==
 				VXGE_HW_VP_NOT_OPEN))
@@ -1031,7 +1823,6 @@ vxge_hw_device_xmac_stats_get(struct __vxge_hw_device *hldev,
 
 	status = vxge_hw_device_xmac_aggr_stats_get(hldev,
 					0, &xmac_stats->aggr_stats[0]);
-
 	if (status != VXGE_HW_OK)
 		goto exit;
 
@@ -1165,7 +1956,6 @@ exit:
  * It can be used to set or reset Pause frame generation or reception
  * support of the NIC.
  */
-
 enum vxge_hw_status vxge_hw_device_setpause_data(struct __vxge_hw_device *hldev,
 						 u32 port, u32 tx, u32 rx)
 {
@@ -1407,115 +2197,550 @@ exit:
 }
 
 /*
- * __vxge_hw_ring_create - Create a Ring
- * This function creates Ring and initializes it.
- *
+ * __vxge_hw_channel_allocate - Allocate memory for channel
+ * This function allocates required memory for the channel and various arrays
+ * in the channel
  */
-static enum vxge_hw_status
-__vxge_hw_ring_create(struct __vxge_hw_vpath_handle *vp,
-		      struct vxge_hw_ring_attr *attr)
+static struct __vxge_hw_channel *
+__vxge_hw_channel_allocate(struct __vxge_hw_vpath_handle *vph,
+			   enum __vxge_hw_channel_type type,
+			   u32 length, u32 per_dtr_space,
+			   void *userdata)
 {
-	enum vxge_hw_status status = VXGE_HW_OK;
-	struct __vxge_hw_ring *ring;
-	u32 ring_length;
-	struct vxge_hw_ring_config *config;
+	struct __vxge_hw_channel *channel;
 	struct __vxge_hw_device *hldev;
+	int size = 0;
 	u32 vp_id;
-	struct vxge_hw_mempool_cbs ring_mp_callback;
 
-	if ((vp == NULL) || (attr == NULL)) {
+	hldev = vph->vpath->hldev;
+	vp_id = vph->vpath->vp_id;
+
+	switch (type) {
+	case VXGE_HW_CHANNEL_TYPE_FIFO:
+		size = sizeof(struct __vxge_hw_fifo);
+		break;
+	case VXGE_HW_CHANNEL_TYPE_RING:
+		size = sizeof(struct __vxge_hw_ring);
+		break;
+	default:
+		break;
+	}
+
+	channel = kzalloc(size, GFP_KERNEL);
+	if (channel == NULL)
+		goto exit0;
+	INIT_LIST_HEAD(&channel->item);
+
+	channel->common_reg = hldev->common_reg;
+	channel->first_vp_id = hldev->first_vp_id;
+	channel->type = type;
+	channel->devh = hldev;
+	channel->vph = vph;
+	channel->userdata = userdata;
+	channel->per_dtr_space = per_dtr_space;
+	channel->length = length;
+	channel->vp_id = vp_id;
+
+	channel->work_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
+	if (channel->work_arr == NULL)
+		goto exit1;
+
+	channel->free_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
+	if (channel->free_arr == NULL)
+		goto exit1;
+	channel->free_ptr = length;
+
+	channel->reserve_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
+	if (channel->reserve_arr == NULL)
+		goto exit1;
+	channel->reserve_ptr = length;
+	channel->reserve_top = 0;
+
+	channel->orig_arr = kzalloc(sizeof(void *)*length, GFP_KERNEL);
+	if (channel->orig_arr == NULL)
+		goto exit1;
+
+	return channel;
+exit1:
+	__vxge_hw_channel_free(channel);
+
+exit0:
+	return NULL;
+}
+
+/*
+ * vxge_hw_blockpool_block_add - callback for vxge_os_dma_malloc_async
+ * Adds a block to block pool
+ */
+static void vxge_hw_blockpool_block_add(struct __vxge_hw_device *devh,
+					void *block_addr,
+					u32 length,
+					struct pci_dev *dma_h,
+					struct pci_dev *acc_handle)
+{
+	struct __vxge_hw_blockpool *blockpool;
+	struct __vxge_hw_blockpool_entry *entry = NULL;
+	dma_addr_t dma_addr;
+	enum vxge_hw_status status = VXGE_HW_OK;
+	u32 req_out;
+
+	blockpool = &devh->block_pool;
+
+	if (block_addr == NULL) {
+		blockpool->req_out--;
 		status = VXGE_HW_FAIL;
 		goto exit;
 	}
 
-	hldev = vp->vpath->hldev;
-	vp_id = vp->vpath->vp_id;
+	dma_addr = pci_map_single(devh->pdev, block_addr, length,
+				PCI_DMA_BIDIRECTIONAL);
 
-	config = &hldev->config.vp_config[vp_id].ring;
+	if (unlikely(pci_dma_mapping_error(devh->pdev, dma_addr))) {
+		vxge_os_dma_free(devh->pdev, block_addr, &acc_handle);
+		blockpool->req_out--;
+		status = VXGE_HW_FAIL;
+		goto exit;
+	}
 
-	ring_length = config->ring_blocks *
-			vxge_hw_ring_rxds_per_block_get(config->buffer_mode);
+	if (!list_empty(&blockpool->free_entry_list))
+		entry = (struct __vxge_hw_blockpool_entry *)
+			list_first_entry(&blockpool->free_entry_list,
+				struct __vxge_hw_blockpool_entry,
+				item);
 
-	ring = (struct __vxge_hw_ring *)__vxge_hw_channel_allocate(vp,
-						VXGE_HW_CHANNEL_TYPE_RING,
-						ring_length,
-						attr->per_rxd_space,
-						attr->userdata);
+	if (entry == NULL)
+		entry =	vmalloc(sizeof(struct __vxge_hw_blockpool_entry));
+	else
+		list_del(&entry->item);
 
-	if (ring == NULL) {
+	if (entry != NULL) {
+		entry->length = length;
+		entry->memblock = block_addr;
+		entry->dma_addr = dma_addr;
+		entry->acc_handle = acc_handle;
+		entry->dma_handle = dma_h;
+		list_add(&entry->item, &blockpool->free_block_list);
+		blockpool->pool_size++;
+		status = VXGE_HW_OK;
+	} else
+		status = VXGE_HW_ERR_OUT_OF_MEMORY;
+
+	blockpool->req_out--;
+
+	req_out = blockpool->req_out;
+exit:
+	return;
+}
+
+static inline void
+vxge_os_dma_malloc_async(struct pci_dev *pdev, void *devh, unsigned long size)
+{
+	gfp_t flags;
+	void *vaddr;
+
+	if (in_interrupt())
+		flags = GFP_ATOMIC | GFP_DMA;
+	else
+		flags = GFP_KERNEL | GFP_DMA;
+
+	vaddr = kmalloc((size), flags);
+
+	vxge_hw_blockpool_block_add(devh, vaddr, size, pdev, pdev);
+}
+
+/*
+ * __vxge_hw_blockpool_blocks_add - Request additional blocks
+ */
+static
+void __vxge_hw_blockpool_blocks_add(struct __vxge_hw_blockpool *blockpool)
+{
+	u32 nreq = 0, i;
+
+	if ((blockpool->pool_size  +  blockpool->req_out) <
+		VXGE_HW_MIN_DMA_BLOCK_POOL_SIZE) {
+		nreq = VXGE_HW_INCR_DMA_BLOCK_POOL_SIZE;
+		blockpool->req_out += nreq;
+	}
+
+	for (i = 0; i < nreq; i++)
+		vxge_os_dma_malloc_async(
+			((struct __vxge_hw_device *)blockpool->hldev)->pdev,
+			blockpool->hldev, VXGE_HW_BLOCK_SIZE);
+}
+
+/*
+ * __vxge_hw_blockpool_malloc - Allocate a memory block from pool
+ * Allocates a block of memory of given size, either from block pool
+ * or by calling vxge_os_dma_malloc()
+ */
+static void *__vxge_hw_blockpool_malloc(struct __vxge_hw_device *devh, u32 size,
+					struct vxge_hw_mempool_dma *dma_object)
+{
+	struct __vxge_hw_blockpool_entry *entry = NULL;
+	struct __vxge_hw_blockpool  *blockpool;
+	void *memblock = NULL;
+	enum vxge_hw_status status = VXGE_HW_OK;
+
+	blockpool = &devh->block_pool;
+
+	if (size != blockpool->block_size) {
+
+		memblock = vxge_os_dma_malloc(devh->pdev, size,
+						&dma_object->handle,
+						&dma_object->acc_handle);
+
+		if (memblock == NULL) {
+			status = VXGE_HW_ERR_OUT_OF_MEMORY;
+			goto exit;
+		}
+
+		dma_object->addr = pci_map_single(devh->pdev, memblock, size,
+					PCI_DMA_BIDIRECTIONAL);
+
+		if (unlikely(pci_dma_mapping_error(devh->pdev,
+				dma_object->addr))) {
+			vxge_os_dma_free(devh->pdev, memblock,
+				&dma_object->acc_handle);
+			status = VXGE_HW_ERR_OUT_OF_MEMORY;
+			goto exit;
+		}
+
+	} else {
+
+		if (!list_empty(&blockpool->free_block_list))
+			entry = (struct __vxge_hw_blockpool_entry *)
+				list_first_entry(&blockpool->free_block_list,
+					struct __vxge_hw_blockpool_entry,
+					item);
+
+		if (entry != NULL) {
+			list_del(&entry->item);
+			dma_object->addr = entry->dma_addr;
+			dma_object->handle = entry->dma_handle;
+			dma_object->acc_handle = entry->acc_handle;
+			memblock = entry->memblock;
+
+			list_add(&entry->item,
+				&blockpool->free_entry_list);
+			blockpool->pool_size--;
+		}
+
+		if (memblock != NULL)
+			__vxge_hw_blockpool_blocks_add(blockpool);
+	}
+exit:
+	return memblock;
+}
+
+/*
+ * __vxge_hw_blockpool_blocks_remove - Free additional blocks
+ */
+static void
+__vxge_hw_blockpool_blocks_remove(struct __vxge_hw_blockpool *blockpool)
+{
+	struct list_head *p, *n;
+
+	list_for_each_safe(p, n, &blockpool->free_block_list) {
+
+		if (blockpool->pool_size < blockpool->pool_max)
+			break;
+
+		pci_unmap_single(
+			((struct __vxge_hw_device *)blockpool->hldev)->pdev,
+			((struct __vxge_hw_blockpool_entry *)p)->dma_addr,
+			((struct __vxge_hw_blockpool_entry *)p)->length,
+			PCI_DMA_BIDIRECTIONAL);
+
+		vxge_os_dma_free(
+			((struct __vxge_hw_device *)blockpool->hldev)->pdev,
+			((struct __vxge_hw_blockpool_entry *)p)->memblock,
+			&((struct __vxge_hw_blockpool_entry *)p)->acc_handle);
+
+		list_del(&((struct __vxge_hw_blockpool_entry *)p)->item);
+
+		list_add(p, &blockpool->free_entry_list);
+
+		blockpool->pool_size--;
+
+	}
+}
+
+/*
+ * __vxge_hw_blockpool_free - Frees the memory allcoated with
+ *				__vxge_hw_blockpool_malloc
+ */
+static void __vxge_hw_blockpool_free(struct __vxge_hw_device *devh,
+				     void *memblock, u32 size,
+				     struct vxge_hw_mempool_dma *dma_object)
+{
+	struct __vxge_hw_blockpool_entry *entry = NULL;
+	struct __vxge_hw_blockpool  *blockpool;
+	enum vxge_hw_status status = VXGE_HW_OK;
+
+	blockpool = &devh->block_pool;
+
+	if (size != blockpool->block_size) {
+		pci_unmap_single(devh->pdev, dma_object->addr, size,
+			PCI_DMA_BIDIRECTIONAL);
+		vxge_os_dma_free(devh->pdev, memblock, &dma_object->acc_handle);
+	} else {
+
+		if (!list_empty(&blockpool->free_entry_list))
+			entry = (struct __vxge_hw_blockpool_entry *)
+				list_first_entry(&blockpool->free_entry_list,
+					struct __vxge_hw_blockpool_entry,
+					item);
+
+		if (entry == NULL)
+			entry =	vmalloc(sizeof(
+					struct __vxge_hw_blockpool_entry));
+		else
+			list_del(&entry->item);
+
+		if (entry != NULL) {
+			entry->length = size;
+			entry->memblock = memblock;
+			entry->dma_addr = dma_object->addr;
+			entry->acc_handle = dma_object->acc_handle;
+			entry->dma_handle = dma_object->handle;
+			list_add(&entry->item,
+					&blockpool->free_block_list);
+			blockpool->pool_size++;
+			status = VXGE_HW_OK;
+		} else
+			status = VXGE_HW_ERR_OUT_OF_MEMORY;
+
+		if (status == VXGE_HW_OK)
+			__vxge_hw_blockpool_blocks_remove(blockpool);
+	}
+}
+
+/*
+ * vxge_hw_mempool_destroy
+ */
+static void __vxge_hw_mempool_destroy(struct vxge_hw_mempool *mempool)
+{
+	u32 i, j;
+	struct __vxge_hw_device *devh = mempool->devh;
+
+	for (i = 0; i < mempool->memblocks_allocated; i++) {
+		struct vxge_hw_mempool_dma *dma_object;
+
+		vxge_assert(mempool->memblocks_arr[i]);
+		vxge_assert(mempool->memblocks_dma_arr + i);
+
+		dma_object = mempool->memblocks_dma_arr + i;
+
+		for (j = 0; j < mempool->items_per_memblock; j++) {
+			u32 index = i * mempool->items_per_memblock + j;
+
+			/* to skip last partially filled(if any) memblock */
+			if (index >= mempool->items_current)
+				break;
+		}
+
+		vfree(mempool->memblocks_priv_arr[i]);
+
+		__vxge_hw_blockpool_free(devh, mempool->memblocks_arr[i],
+				mempool->memblock_size, dma_object);
+	}
+
+	vfree(mempool->items_arr);
+	vfree(mempool->memblocks_dma_arr);
+	vfree(mempool->memblocks_priv_arr);
+	vfree(mempool->memblocks_arr);
+	vfree(mempool);
+}
+
+/*
+ * __vxge_hw_mempool_grow
+ * Will resize mempool up to %num_allocate value.
+ */
+static enum vxge_hw_status
+__vxge_hw_mempool_grow(struct vxge_hw_mempool *mempool, u32 num_allocate,
+		       u32 *num_allocated)
+{
+	u32 i, first_time = mempool->memblocks_allocated == 0 ? 1 : 0;
+	u32 n_items = mempool->items_per_memblock;
+	u32 start_block_idx = mempool->memblocks_allocated;
+	u32 end_block_idx = mempool->memblocks_allocated + num_allocate;
+	enum vxge_hw_status status = VXGE_HW_OK;
+
+	*num_allocated = 0;
+
+	if (end_block_idx > mempool->memblocks_max) {
 		status = VXGE_HW_ERR_OUT_OF_MEMORY;
 		goto exit;
 	}
 
-	vp->vpath->ringh = ring;
-	ring->vp_id = vp_id;
-	ring->vp_reg = vp->vpath->vp_reg;
-	ring->common_reg = hldev->common_reg;
-	ring->stats = &vp->vpath->sw_stats->ring_stats;
-	ring->config = config;
-	ring->callback = attr->callback;
-	ring->rxd_init = attr->rxd_init;
-	ring->rxd_term = attr->rxd_term;
-	ring->buffer_mode = config->buffer_mode;
-	ring->rxds_limit = config->rxds_limit;
+	for (i = start_block_idx; i < end_block_idx; i++) {
+		u32 j;
+		u32 is_last = ((end_block_idx - 1) == i);
+		struct vxge_hw_mempool_dma *dma_object =
+			mempool->memblocks_dma_arr + i;
+		void *the_memblock;
 
-	ring->rxd_size = vxge_hw_ring_rxd_size_get(config->buffer_mode);
-	ring->rxd_priv_size =
-		sizeof(struct __vxge_hw_ring_rxd_priv) + attr->per_rxd_space;
-	ring->per_rxd_space = attr->per_rxd_space;
+		/* allocate memblock's private part. Each DMA memblock
+		 * has a space allocated for item's private usage upon
+		 * mempool's user request. Each time mempool grows, it will
+		 * allocate new memblock and its private part at once.
+		 * This helps to minimize memory usage a lot. */
+		mempool->memblocks_priv_arr[i] =
+				vzalloc(mempool->items_priv_size * n_items);
+		if (mempool->memblocks_priv_arr[i] == NULL) {
+			status = VXGE_HW_ERR_OUT_OF_MEMORY;
+			goto exit;
+		}
 
-	ring->rxd_priv_size =
-		((ring->rxd_priv_size + VXGE_CACHE_LINE_SIZE - 1) /
-		VXGE_CACHE_LINE_SIZE) * VXGE_CACHE_LINE_SIZE;
+		/* allocate DMA-capable memblock */
+		mempool->memblocks_arr[i] =
+			__vxge_hw_blockpool_malloc(mempool->devh,
+				mempool->memblock_size, dma_object);
+		if (mempool->memblocks_arr[i] == NULL) {
+			vfree(mempool->memblocks_priv_arr[i]);
+			status = VXGE_HW_ERR_OUT_OF_MEMORY;
+			goto exit;
+		}
 
-	/* how many RxDs can fit into one block. Depends on configured
-	 * buffer_mode. */
-	ring->rxds_per_block =
-		vxge_hw_ring_rxds_per_block_get(config->buffer_mode);
+		(*num_allocated)++;
+		mempool->memblocks_allocated++;
 
-	/* calculate actual RxD block private size */
-	ring->rxdblock_priv_size = ring->rxd_priv_size * ring->rxds_per_block;
-	ring_mp_callback.item_func_alloc = __vxge_hw_ring_mempool_item_alloc;
-	ring->mempool = __vxge_hw_mempool_create(hldev,
-				VXGE_HW_BLOCK_SIZE,
-				VXGE_HW_BLOCK_SIZE,
-				ring->rxdblock_priv_size,
-				ring->config->ring_blocks,
-				ring->config->ring_blocks,
-				&ring_mp_callback,
-				ring);
+		memset(mempool->memblocks_arr[i], 0, mempool->memblock_size);
 
-	if (ring->mempool == NULL) {
-		__vxge_hw_ring_delete(vp);
-		return VXGE_HW_ERR_OUT_OF_MEMORY;
+		the_memblock = mempool->memblocks_arr[i];
+
+		/* fill the items hash array */
+		for (j = 0; j < n_items; j++) {
+			u32 index = i * n_items + j;
+
+			if (first_time && index >= mempool->items_initial)
+				break;
+
+			mempool->items_arr[index] =
+				((char *)the_memblock + j*mempool->item_size);
+
+			/* let caller to do more job on each item */
+			if (mempool->item_func_alloc != NULL)
+				mempool->item_func_alloc(mempool, i,
+					dma_object, index, is_last);
+
+			mempool->items_current = index + 1;
+		}
+
+		if (first_time && mempool->items_current ==
+					mempool->items_initial)
+			break;
 	}
+exit:
+	return status;
+}
 
-	status = __vxge_hw_channel_initialize(&ring->channel);
-	if (status != VXGE_HW_OK) {
-		__vxge_hw_ring_delete(vp);
+/*
+ * vxge_hw_mempool_create
+ * This function will create memory pool object. Pool may grow but will
+ * never shrink. Pool consists of number of dynamically allocated blocks
+ * with size enough to hold %items_initial number of items. Memory is
+ * DMA-able but client must map/unmap before interoperating with the device.
+ */
+static struct vxge_hw_mempool *
+__vxge_hw_mempool_create(struct __vxge_hw_device *devh,
+			 u32 memblock_size,
+			 u32 item_size,
+			 u32 items_priv_size,
+			 u32 items_initial,
+			 u32 items_max,
+			 struct vxge_hw_mempool_cbs *mp_callback,
+			 void *userdata)
+{
+	enum vxge_hw_status status = VXGE_HW_OK;
+	u32 memblocks_to_allocate;
+	struct vxge_hw_mempool *mempool = NULL;
+	u32 allocated;
+
+	if (memblock_size < item_size) {
+		status = VXGE_HW_FAIL;
 		goto exit;
 	}
 
-	/* Note:
-	 * Specifying rxd_init callback means two things:
-	 * 1) rxds need to be initialized by driver at channel-open time;
-	 * 2) rxds need to be posted at channel-open time
-	 *    (that's what the initial_replenish() below does)
-	 * Currently we don't have a case when the 1) is done without the 2).
-	 */
-	if (ring->rxd_init) {
-		status = vxge_hw_ring_replenish(ring);
-		if (status != VXGE_HW_OK) {
-			__vxge_hw_ring_delete(vp);
-			goto exit;
-		}
+	mempool = vzalloc(sizeof(struct vxge_hw_mempool));
+	if (mempool == NULL) {
+		status = VXGE_HW_ERR_OUT_OF_MEMORY;
+		goto exit;
 	}
 
-	/* initial replenish will increment the counter in its post() routine,
-	 * we have to reset it */
-	ring->stats->common_stats.usage_cnt = 0;
+	mempool->devh			= devh;
+	mempool->memblock_size		= memblock_size;
+	mempool->items_max		= items_max;
+	mempool->items_initial		= items_initial;
+	mempool->item_size		= item_size;
+	mempool->items_priv_size	= items_priv_size;
+	mempool->item_func_alloc	= mp_callback->item_func_alloc;
+	mempool->userdata		= userdata;
+
+	mempool->memblocks_allocated = 0;
+
+	mempool->items_per_memblock = memblock_size / item_size;
+
+	mempool->memblocks_max = (items_max + mempool->items_per_memblock - 1) /
+					mempool->items_per_memblock;
+
+	/* allocate array of memblocks */
+	mempool->memblocks_arr =
+		vzalloc(sizeof(void *) * mempool->memblocks_max);
+	if (mempool->memblocks_arr == NULL) {
+		__vxge_hw_mempool_destroy(mempool);
+		status = VXGE_HW_ERR_OUT_OF_MEMORY;
+		mempool = NULL;
+		goto exit;
+	}
+
+	/* allocate array of private parts of items per memblocks */
+	mempool->memblocks_priv_arr =
+		vzalloc(sizeof(void *) * mempool->memblocks_max);
+	if (mempool->memblocks_priv_arr == NULL) {
+		__vxge_hw_mempool_destroy(mempool);
+		status = VXGE_HW_ERR_OUT_OF_MEMORY;
+		mempool = NULL;
+		goto exit;
+	}
+
+	/* allocate array of memblocks DMA objects */
+	mempool->memblocks_dma_arr =
+		vzalloc(sizeof(struct vxge_hw_mempool_dma) *
+			mempool->memblocks_max);
+	if (mempool->memblocks_dma_arr == NULL) {
+		__vxge_hw_mempool_destroy(mempool);
+		status = VXGE_HW_ERR_OUT_OF_MEMORY;
+		mempool = NULL;
+		goto exit;
+	}
+
+	/* allocate hash array of items */
+	mempool->items_arr = vzalloc(sizeof(void *) * mempool->items_max);
+	if (mempool->items_arr == NULL) {
+		__vxge_hw_mempool_destroy(mempool);
+		status = VXGE_HW_ERR_OUT_OF_MEMORY;
+		mempool = NULL;
+		goto exit;
+	}
+
+	/* calculate initial number of memblocks */
+	memblocks_to_allocate = (mempool->items_initial +
+				 mempool->items_per_memblock - 1) /
+						mempool->items_per_memblock;
+
+	/* pre-allocate the mempool */
+	status = __vxge_hw_mempool_grow(mempool, memblocks_to_allocate,
+					&allocated);
+	if (status != VXGE_HW_OK) {
+		__vxge_hw_mempool_destroy(mempool);
+		status = VXGE_HW_ERR_OUT_OF_MEMORY;
+		mempool = NULL;
+		goto exit;
+	}
+
 exit:
-	return status;
+	return mempool;
 }
 
 /*
@@ -1578,7 +2803,8 @@ exit:
  * __vxge_hw_ring_delete - Removes the ring
  * This function freeup the memory pool and removes the ring
  */
-static enum vxge_hw_status __vxge_hw_ring_delete(struct __vxge_hw_vpath_handle *vp)
+static enum vxge_hw_status
+__vxge_hw_ring_delete(struct __vxge_hw_vpath_handle *vp)
 {
 	struct __vxge_hw_ring *ring = vp->vpath->ringh;
 
@@ -1594,329 +2820,112 @@ static enum vxge_hw_status __vxge_hw_ring_delete(struct __vxge_hw_vpath_handle *
 }
 
 /*
- * __vxge_hw_mempool_grow
- * Will resize mempool up to %num_allocate value.
+ * __vxge_hw_ring_create - Create a Ring
+ * This function creates Ring and initializes it.
  */
 static enum vxge_hw_status
-__vxge_hw_mempool_grow(struct vxge_hw_mempool *mempool, u32 num_allocate,
-		       u32 *num_allocated)
-{
-	u32 i, first_time = mempool->memblocks_allocated == 0 ? 1 : 0;
-	u32 n_items = mempool->items_per_memblock;
-	u32 start_block_idx = mempool->memblocks_allocated;
-	u32 end_block_idx = mempool->memblocks_allocated + num_allocate;
-	enum vxge_hw_status status = VXGE_HW_OK;
-
-	*num_allocated = 0;
-
-	if (end_block_idx > mempool->memblocks_max) {
-		status = VXGE_HW_ERR_OUT_OF_MEMORY;
-		goto exit;
-	}
-
-	for (i = start_block_idx; i < end_block_idx; i++) {
-		u32 j;
-		u32 is_last = ((end_block_idx - 1) == i);
-		struct vxge_hw_mempool_dma *dma_object =
-			mempool->memblocks_dma_arr + i;
-		void *the_memblock;
-
-		/* allocate memblock's private part. Each DMA memblock
-		 * has a space allocated for item's private usage upon
-		 * mempool's user request. Each time mempool grows, it will
-		 * allocate new memblock and its private part at once.
-		 * This helps to minimize memory usage a lot. */
-		mempool->memblocks_priv_arr[i] =
-				vmalloc(mempool->items_priv_size * n_items);
-		if (mempool->memblocks_priv_arr[i] == NULL) {
-			status = VXGE_HW_ERR_OUT_OF_MEMORY;
-			goto exit;
-		}
-
-		memset(mempool->memblocks_priv_arr[i], 0,
-			     mempool->items_priv_size * n_items);
-
-		/* allocate DMA-capable memblock */
-		mempool->memblocks_arr[i] =
-			__vxge_hw_blockpool_malloc(mempool->devh,
-				mempool->memblock_size, dma_object);
-		if (mempool->memblocks_arr[i] == NULL) {
-			vfree(mempool->memblocks_priv_arr[i]);
-			status = VXGE_HW_ERR_OUT_OF_MEMORY;
-			goto exit;
-		}
-
-		(*num_allocated)++;
-		mempool->memblocks_allocated++;
-
-		memset(mempool->memblocks_arr[i], 0, mempool->memblock_size);
-
-		the_memblock = mempool->memblocks_arr[i];
-
-		/* fill the items hash array */
-		for (j = 0; j < n_items; j++) {
-			u32 index = i * n_items + j;
-
-			if (first_time && index >= mempool->items_initial)
-				break;
-
-			mempool->items_arr[index] =
-				((char *)the_memblock + j*mempool->item_size);
-
-			/* let caller to do more job on each item */
-			if (mempool->item_func_alloc != NULL)
-				mempool->item_func_alloc(mempool, i,
-					dma_object, index, is_last);
-
-			mempool->items_current = index + 1;
-		}
-
-		if (first_time && mempool->items_current ==
-					mempool->items_initial)
-			break;
-	}
-exit:
-	return status;
-}
-
-/*
- * vxge_hw_mempool_create
- * This function will create memory pool object. Pool may grow but will
- * never shrink. Pool consists of number of dynamically allocated blocks
- * with size enough to hold %items_initial number of items. Memory is
- * DMA-able but client must map/unmap before interoperating with the device.
- */
-static struct vxge_hw_mempool*
-__vxge_hw_mempool_create(
-	struct __vxge_hw_device *devh,
-	u32 memblock_size,
-	u32 item_size,
-	u32 items_priv_size,
-	u32 items_initial,
-	u32 items_max,
-	struct vxge_hw_mempool_cbs *mp_callback,
-	void *userdata)
+__vxge_hw_ring_create(struct __vxge_hw_vpath_handle *vp,
+		      struct vxge_hw_ring_attr *attr)
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
-	u32 memblocks_to_allocate;
-	struct vxge_hw_mempool *mempool = NULL;
-	u32 allocated;
+	struct __vxge_hw_ring *ring;
+	u32 ring_length;
+	struct vxge_hw_ring_config *config;
+	struct __vxge_hw_device *hldev;
+	u32 vp_id;
+	struct vxge_hw_mempool_cbs ring_mp_callback;
 
-	if (memblock_size < item_size) {
+	if ((vp == NULL) || (attr == NULL)) {
 		status = VXGE_HW_FAIL;
 		goto exit;
 	}
 
-	mempool = (struct vxge_hw_mempool *)
-			vmalloc(sizeof(struct vxge_hw_mempool));
-	if (mempool == NULL) {
+	hldev = vp->vpath->hldev;
+	vp_id = vp->vpath->vp_id;
+
+	config = &hldev->config.vp_config[vp_id].ring;
+
+	ring_length = config->ring_blocks *
+			vxge_hw_ring_rxds_per_block_get(config->buffer_mode);
+
+	ring = (struct __vxge_hw_ring *)__vxge_hw_channel_allocate(vp,
+						VXGE_HW_CHANNEL_TYPE_RING,
+						ring_length,
+						attr->per_rxd_space,
+						attr->userdata);
+	if (ring == NULL) {
 		status = VXGE_HW_ERR_OUT_OF_MEMORY;
 		goto exit;
 	}
-	memset(mempool, 0, sizeof(struct vxge_hw_mempool));
 
-	mempool->devh			= devh;
-	mempool->memblock_size		= memblock_size;
-	mempool->items_max		= items_max;
-	mempool->items_initial		= items_initial;
-	mempool->item_size		= item_size;
-	mempool->items_priv_size	= items_priv_size;
-	mempool->item_func_alloc	= mp_callback->item_func_alloc;
-	mempool->userdata		= userdata;
+	vp->vpath->ringh = ring;
+	ring->vp_id = vp_id;
+	ring->vp_reg = vp->vpath->vp_reg;
+	ring->common_reg = hldev->common_reg;
+	ring->stats = &vp->vpath->sw_stats->ring_stats;
+	ring->config = config;
+	ring->callback = attr->callback;
+	ring->rxd_init = attr->rxd_init;
+	ring->rxd_term = attr->rxd_term;
+	ring->buffer_mode = config->buffer_mode;
+	ring->rxds_limit = config->rxds_limit;
 
-	mempool->memblocks_allocated = 0;
+	ring->rxd_size = vxge_hw_ring_rxd_size_get(config->buffer_mode);
+	ring->rxd_priv_size =
+		sizeof(struct __vxge_hw_ring_rxd_priv) + attr->per_rxd_space;
+	ring->per_rxd_space = attr->per_rxd_space;
 
-	mempool->items_per_memblock = memblock_size / item_size;
+	ring->rxd_priv_size =
+		((ring->rxd_priv_size + VXGE_CACHE_LINE_SIZE - 1) /
+		VXGE_CACHE_LINE_SIZE) * VXGE_CACHE_LINE_SIZE;
 
-	mempool->memblocks_max = (items_max + mempool->items_per_memblock - 1) /
-					mempool->items_per_memblock;
+	/* how many RxDs can fit into one block. Depends on configured
+	 * buffer_mode. */
+	ring->rxds_per_block =
+		vxge_hw_ring_rxds_per_block_get(config->buffer_mode);
 
-	/* allocate array of memblocks */
-	mempool->memblocks_arr =
-		(void **) vmalloc(sizeof(void *) * mempool->memblocks_max);
-	if (mempool->memblocks_arr == NULL) {
-		__vxge_hw_mempool_destroy(mempool);
-		status = VXGE_HW_ERR_OUT_OF_MEMORY;
-		mempool = NULL;
-		goto exit;
+	/* calculate actual RxD block private size */
+	ring->rxdblock_priv_size = ring->rxd_priv_size * ring->rxds_per_block;
+	ring_mp_callback.item_func_alloc = __vxge_hw_ring_mempool_item_alloc;
+	ring->mempool = __vxge_hw_mempool_create(hldev,
+				VXGE_HW_BLOCK_SIZE,
+				VXGE_HW_BLOCK_SIZE,
+				ring->rxdblock_priv_size,
+				ring->config->ring_blocks,
+				ring->config->ring_blocks,
+				&ring_mp_callback,
+				ring);
+	if (ring->mempool == NULL) {
+		__vxge_hw_ring_delete(vp);
+		return VXGE_HW_ERR_OUT_OF_MEMORY;
 	}
-	memset(mempool->memblocks_arr, 0,
-		sizeof(void *) * mempool->memblocks_max);
 
-	/* allocate array of private parts of items per memblocks */
-	mempool->memblocks_priv_arr =
-		(void **) vmalloc(sizeof(void *) * mempool->memblocks_max);
-	if (mempool->memblocks_priv_arr == NULL) {
-		__vxge_hw_mempool_destroy(mempool);
-		status = VXGE_HW_ERR_OUT_OF_MEMORY;
-		mempool = NULL;
-		goto exit;
-	}
-	memset(mempool->memblocks_priv_arr, 0,
-		    sizeof(void *) * mempool->memblocks_max);
-
-	/* allocate array of memblocks DMA objects */
-	mempool->memblocks_dma_arr = (struct vxge_hw_mempool_dma *)
-		vmalloc(sizeof(struct vxge_hw_mempool_dma) *
-			mempool->memblocks_max);
-
-	if (mempool->memblocks_dma_arr == NULL) {
-		__vxge_hw_mempool_destroy(mempool);
-		status = VXGE_HW_ERR_OUT_OF_MEMORY;
-		mempool = NULL;
-		goto exit;
-	}
-	memset(mempool->memblocks_dma_arr, 0,
-			sizeof(struct vxge_hw_mempool_dma) *
-			mempool->memblocks_max);
-
-	/* allocate hash array of items */
-	mempool->items_arr =
-		(void **) vmalloc(sizeof(void *) * mempool->items_max);
-	if (mempool->items_arr == NULL) {
-		__vxge_hw_mempool_destroy(mempool);
-		status = VXGE_HW_ERR_OUT_OF_MEMORY;
-		mempool = NULL;
-		goto exit;
-	}
-	memset(mempool->items_arr, 0, sizeof(void *) * mempool->items_max);
-
-	/* calculate initial number of memblocks */
-	memblocks_to_allocate = (mempool->items_initial +
-				 mempool->items_per_memblock - 1) /
-						mempool->items_per_memblock;
-
-	/* pre-allocate the mempool */
-	status = __vxge_hw_mempool_grow(mempool, memblocks_to_allocate,
-					&allocated);
+	status = __vxge_hw_channel_initialize(&ring->channel);
 	if (status != VXGE_HW_OK) {
-		__vxge_hw_mempool_destroy(mempool);
-		status = VXGE_HW_ERR_OUT_OF_MEMORY;
-		mempool = NULL;
+		__vxge_hw_ring_delete(vp);
 		goto exit;
 	}
 
-exit:
-	return mempool;
-}
-
-/*
- * vxge_hw_mempool_destroy
- */
-static void __vxge_hw_mempool_destroy(struct vxge_hw_mempool *mempool)
-{
-	u32 i, j;
-	struct __vxge_hw_device *devh = mempool->devh;
-
-	for (i = 0; i < mempool->memblocks_allocated; i++) {
-		struct vxge_hw_mempool_dma *dma_object;
-
-		vxge_assert(mempool->memblocks_arr[i]);
-		vxge_assert(mempool->memblocks_dma_arr + i);
-
-		dma_object = mempool->memblocks_dma_arr + i;
-
-		for (j = 0; j < mempool->items_per_memblock; j++) {
-			u32 index = i * mempool->items_per_memblock + j;
-
-			/* to skip last partially filled(if any) memblock */
-			if (index >= mempool->items_current)
-				break;
+	/* Note:
+	 * Specifying rxd_init callback means two things:
+	 * 1) rxds need to be initialized by driver at channel-open time;
+	 * 2) rxds need to be posted at channel-open time
+	 *    (that's what the initial_replenish() below does)
+	 * Currently we don't have a case when the 1) is done without the 2).
+	 */
+	if (ring->rxd_init) {
+		status = vxge_hw_ring_replenish(ring);
+		if (status != VXGE_HW_OK) {
+			__vxge_hw_ring_delete(vp);
+			goto exit;
 		}
-
-		vfree(mempool->memblocks_priv_arr[i]);
-
-		__vxge_hw_blockpool_free(devh, mempool->memblocks_arr[i],
-				mempool->memblock_size, dma_object);
 	}
 
-	vfree(mempool->items_arr);
-
-	vfree(mempool->memblocks_dma_arr);
-
-	vfree(mempool->memblocks_priv_arr);
-
-	vfree(mempool->memblocks_arr);
-
-	vfree(mempool);
-}
-
-/*
- * __vxge_hw_device_fifo_config_check - Check fifo configuration.
- * Check the fifo configuration
- */
-enum vxge_hw_status
-__vxge_hw_device_fifo_config_check(struct vxge_hw_fifo_config *fifo_config)
-{
-	if ((fifo_config->fifo_blocks < VXGE_HW_MIN_FIFO_BLOCKS) ||
-	     (fifo_config->fifo_blocks > VXGE_HW_MAX_FIFO_BLOCKS))
-		return VXGE_HW_BADCFG_FIFO_BLOCKS;
-
-	return VXGE_HW_OK;
-}
-
-/*
- * __vxge_hw_device_vpath_config_check - Check vpath configuration.
- * Check the vpath configuration
- */
-static enum vxge_hw_status
-__vxge_hw_device_vpath_config_check(struct vxge_hw_vp_config *vp_config)
-{
-	enum vxge_hw_status status;
-
-	if ((vp_config->min_bandwidth < VXGE_HW_VPATH_BANDWIDTH_MIN) ||
-		(vp_config->min_bandwidth >
-					VXGE_HW_VPATH_BANDWIDTH_MAX))
-		return VXGE_HW_BADCFG_VPATH_MIN_BANDWIDTH;
-
-	status = __vxge_hw_device_fifo_config_check(&vp_config->fifo);
-	if (status != VXGE_HW_OK)
-		return status;
-
-	if ((vp_config->mtu != VXGE_HW_VPATH_USE_FLASH_DEFAULT_INITIAL_MTU) &&
-		((vp_config->mtu < VXGE_HW_VPATH_MIN_INITIAL_MTU) ||
-		(vp_config->mtu > VXGE_HW_VPATH_MAX_INITIAL_MTU)))
-		return VXGE_HW_BADCFG_VPATH_MTU;
-
-	if ((vp_config->rpa_strip_vlan_tag !=
-		VXGE_HW_VPATH_RPA_STRIP_VLAN_TAG_USE_FLASH_DEFAULT) &&
-		(vp_config->rpa_strip_vlan_tag !=
-		VXGE_HW_VPATH_RPA_STRIP_VLAN_TAG_ENABLE) &&
-		(vp_config->rpa_strip_vlan_tag !=
-		VXGE_HW_VPATH_RPA_STRIP_VLAN_TAG_DISABLE))
-		return VXGE_HW_BADCFG_VPATH_RPA_STRIP_VLAN_TAG;
-
-	return VXGE_HW_OK;
-}
-
-/*
- * __vxge_hw_device_config_check - Check device configuration.
- * Check the device configuration
- */
-enum vxge_hw_status
-__vxge_hw_device_config_check(struct vxge_hw_device_config *new_config)
-{
-	u32 i;
-	enum vxge_hw_status status;
-
-	if ((new_config->intr_mode != VXGE_HW_INTR_MODE_IRQLINE) &&
-	   (new_config->intr_mode != VXGE_HW_INTR_MODE_MSIX) &&
-	   (new_config->intr_mode != VXGE_HW_INTR_MODE_MSIX_ONE_SHOT) &&
-	   (new_config->intr_mode != VXGE_HW_INTR_MODE_DEF))
-		return VXGE_HW_BADCFG_INTR_MODE;
-
-	if ((new_config->rts_mac_en != VXGE_HW_RTS_MAC_DISABLE) &&
-	   (new_config->rts_mac_en != VXGE_HW_RTS_MAC_ENABLE))
-		return VXGE_HW_BADCFG_RTS_MAC_EN;
-
-	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
-		status = __vxge_hw_device_vpath_config_check(
-				&new_config->vp_config[i]);
-		if (status != VXGE_HW_OK)
-			return status;
-	}
-
-	return VXGE_HW_OK;
+	/* initial replenish will increment the counter in its post() routine,
+	 * we have to reset it */
+	ring->stats->common_stats.usage_cnt = 0;
+exit:
+	return status;
 }
 
 /*
@@ -1938,7 +2947,6 @@ vxge_hw_device_config_default_get(struct vxge_hw_device_config *device_config)
 	device_config->rts_mac_en =  VXGE_HW_RTS_MAC_DEFAULT;
 
 	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
-
 		device_config->vp_config[i].vp_id = i;
 
 		device_config->vp_config[i].min_bandwidth =
@@ -2078,61 +3086,6 @@ vxge_hw_device_config_default_get(struct vxge_hw_device_config *device_config)
 }
 
 /*
- * _hw_legacy_swapper_set - Set the swapper bits for the legacy secion.
- * Set the swapper bits appropriately for the lagacy section.
- */
-static enum vxge_hw_status
-__vxge_hw_legacy_swapper_set(struct vxge_hw_legacy_reg __iomem *legacy_reg)
-{
-	u64 val64;
-	enum vxge_hw_status status = VXGE_HW_OK;
-
-	val64 = readq(&legacy_reg->toc_swapper_fb);
-
-	wmb();
-
-	switch (val64) {
-
-	case VXGE_HW_SWAPPER_INITIAL_VALUE:
-		return status;
-
-	case VXGE_HW_SWAPPER_BYTE_SWAPPED_BIT_FLIPPED:
-		writeq(VXGE_HW_SWAPPER_READ_BYTE_SWAP_ENABLE,
-			&legacy_reg->pifm_rd_swap_en);
-		writeq(VXGE_HW_SWAPPER_READ_BIT_FLAP_ENABLE,
-			&legacy_reg->pifm_rd_flip_en);
-		writeq(VXGE_HW_SWAPPER_WRITE_BYTE_SWAP_ENABLE,
-			&legacy_reg->pifm_wr_swap_en);
-		writeq(VXGE_HW_SWAPPER_WRITE_BIT_FLAP_ENABLE,
-			&legacy_reg->pifm_wr_flip_en);
-		break;
-
-	case VXGE_HW_SWAPPER_BYTE_SWAPPED:
-		writeq(VXGE_HW_SWAPPER_READ_BYTE_SWAP_ENABLE,
-			&legacy_reg->pifm_rd_swap_en);
-		writeq(VXGE_HW_SWAPPER_WRITE_BYTE_SWAP_ENABLE,
-			&legacy_reg->pifm_wr_swap_en);
-		break;
-
-	case VXGE_HW_SWAPPER_BIT_FLIPPED:
-		writeq(VXGE_HW_SWAPPER_READ_BIT_FLAP_ENABLE,
-			&legacy_reg->pifm_rd_flip_en);
-		writeq(VXGE_HW_SWAPPER_WRITE_BIT_FLAP_ENABLE,
-			&legacy_reg->pifm_wr_flip_en);
-		break;
-	}
-
-	wmb();
-
-	val64 = readq(&legacy_reg->toc_swapper_fb);
-
-	if (val64 != VXGE_HW_SWAPPER_INITIAL_VALUE)
-		status = VXGE_HW_ERR_SWAPPER_CTRL;
-
-	return status;
-}
-
-/*
  * __vxge_hw_vpath_swapper_set - Set the swapper bits for the vpath.
  * Set the swapper bits appropriately for the vpath.
  */
@@ -2156,9 +3109,8 @@ __vxge_hw_vpath_swapper_set(struct vxge_hw_vpath_reg __iomem *vpath_reg)
  * Set the swapper bits appropriately for the vpath.
  */
 static enum vxge_hw_status
-__vxge_hw_kdfc_swapper_set(
-	struct vxge_hw_legacy_reg __iomem *legacy_reg,
-	struct vxge_hw_vpath_reg __iomem *vpath_reg)
+__vxge_hw_kdfc_swapper_set(struct vxge_hw_legacy_reg __iomem *legacy_reg,
+			   struct vxge_hw_vpath_reg __iomem *vpath_reg)
 {
 	u64 val64;
 
@@ -2408,6 +3360,69 @@ exit:
 }
 
 /*
+ * __vxge_hw_fifo_abort - Returns the TxD
+ * This function terminates the TxDs of fifo
+ */
+static enum vxge_hw_status __vxge_hw_fifo_abort(struct __vxge_hw_fifo *fifo)
+{
+	void *txdlh;
+
+	for (;;) {
+		vxge_hw_channel_dtr_try_complete(&fifo->channel, &txdlh);
+
+		if (txdlh == NULL)
+			break;
+
+		vxge_hw_channel_dtr_complete(&fifo->channel);
+
+		if (fifo->txdl_term) {
+			fifo->txdl_term(txdlh,
+			VXGE_HW_TXDL_STATE_POSTED,
+			fifo->channel.userdata);
+		}
+
+		vxge_hw_channel_dtr_free(&fifo->channel, txdlh);
+	}
+
+	return VXGE_HW_OK;
+}
+
+/*
+ * __vxge_hw_fifo_reset - Resets the fifo
+ * This function resets the fifo during vpath reset operation
+ */
+static enum vxge_hw_status __vxge_hw_fifo_reset(struct __vxge_hw_fifo *fifo)
+{
+	enum vxge_hw_status status = VXGE_HW_OK;
+
+	__vxge_hw_fifo_abort(fifo);
+	status = __vxge_hw_channel_reset(&fifo->channel);
+
+	return status;
+}
+
+/*
+ * __vxge_hw_fifo_delete - Removes the FIFO
+ * This function freeup the memory pool and removes the FIFO
+ */
+static enum vxge_hw_status
+__vxge_hw_fifo_delete(struct __vxge_hw_vpath_handle *vp)
+{
+	struct __vxge_hw_fifo *fifo = vp->vpath->fifoh;
+
+	__vxge_hw_fifo_abort(fifo);
+
+	if (fifo->mempool)
+		__vxge_hw_mempool_destroy(fifo->mempool);
+
+	vp->vpath->fifoh = NULL;
+
+	__vxge_hw_channel_free(&fifo->channel);
+
+	return VXGE_HW_OK;
+}
+
+/*
  * __vxge_hw_fifo_mempool_item_alloc - Allocate List blocks for TxD
  * list callback
  * This function is callback passed to __vxge_hw_mempool_create to create memory
@@ -2453,7 +3468,7 @@ __vxge_hw_fifo_mempool_item_alloc(
  * __vxge_hw_fifo_create - Create a FIFO
  * This function creates FIFO and initializes it.
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 __vxge_hw_fifo_create(struct __vxge_hw_vpath_handle *vp,
 		      struct vxge_hw_fifo_attr *attr)
 {
@@ -2572,68 +3587,6 @@ exit:
 }
 
 /*
- * __vxge_hw_fifo_abort - Returns the TxD
- * This function terminates the TxDs of fifo
- */
-static enum vxge_hw_status __vxge_hw_fifo_abort(struct __vxge_hw_fifo *fifo)
-{
-	void *txdlh;
-
-	for (;;) {
-		vxge_hw_channel_dtr_try_complete(&fifo->channel, &txdlh);
-
-		if (txdlh == NULL)
-			break;
-
-		vxge_hw_channel_dtr_complete(&fifo->channel);
-
-		if (fifo->txdl_term) {
-			fifo->txdl_term(txdlh,
-			VXGE_HW_TXDL_STATE_POSTED,
-			fifo->channel.userdata);
-		}
-
-		vxge_hw_channel_dtr_free(&fifo->channel, txdlh);
-	}
-
-	return VXGE_HW_OK;
-}
-
-/*
- * __vxge_hw_fifo_reset - Resets the fifo
- * This function resets the fifo during vpath reset operation
- */
-static enum vxge_hw_status __vxge_hw_fifo_reset(struct __vxge_hw_fifo *fifo)
-{
-	enum vxge_hw_status status = VXGE_HW_OK;
-
-	__vxge_hw_fifo_abort(fifo);
-	status = __vxge_hw_channel_reset(&fifo->channel);
-
-	return status;
-}
-
-/*
- * __vxge_hw_fifo_delete - Removes the FIFO
- * This function freeup the memory pool and removes the FIFO
- */
-enum vxge_hw_status __vxge_hw_fifo_delete(struct __vxge_hw_vpath_handle *vp)
-{
-	struct __vxge_hw_fifo *fifo = vp->vpath->fifoh;
-
-	__vxge_hw_fifo_abort(fifo);
-
-	if (fifo->mempool)
-		__vxge_hw_mempool_destroy(fifo->mempool);
-
-	vp->vpath->fifoh = NULL;
-
-	__vxge_hw_channel_free(&fifo->channel);
-
-	return VXGE_HW_OK;
-}
-
-/*
  * __vxge_hw_vpath_pci_read - Read the content of given address
  *                          in pci config space.
  * Read from the vpath pci config space.
@@ -2675,297 +3628,6 @@ exit:
 	return status;
 }
 
-/*
- * __vxge_hw_vpath_func_id_get - Get the function id of the vpath.
- * Returns the function number of the vpath.
- */
-static u32
-__vxge_hw_vpath_func_id_get(u32 vp_id,
-	struct vxge_hw_vpmgmt_reg __iomem *vpmgmt_reg)
-{
-	u64 val64;
-
-	val64 = readq(&vpmgmt_reg->vpath_to_func_map_cfg1);
-
-	return
-	 (u32)VXGE_HW_VPATH_TO_FUNC_MAP_CFG1_GET_VPATH_TO_FUNC_MAP_CFG1(val64);
-}
-
-/*
- * __vxge_hw_read_rts_ds - Program RTS steering critieria
- */
-static inline void
-__vxge_hw_read_rts_ds(struct vxge_hw_vpath_reg __iomem *vpath_reg,
-		      u64 dta_struct_sel)
-{
-	writeq(0, &vpath_reg->rts_access_steer_ctrl);
-	wmb();
-	writeq(dta_struct_sel, &vpath_reg->rts_access_steer_data0);
-	writeq(0, &vpath_reg->rts_access_steer_data1);
-	wmb();
-}
-
-
-/*
- * __vxge_hw_vpath_card_info_get - Get the serial numbers,
- * part number and product description.
- */
-static enum vxge_hw_status
-__vxge_hw_vpath_card_info_get(
-	u32 vp_id,
-	struct vxge_hw_vpath_reg __iomem *vpath_reg,
-	struct vxge_hw_device_hw_info *hw_info)
-{
-	u32 i, j;
-	u64 val64;
-	u64 data1 = 0ULL;
-	u64 data2 = 0ULL;
-	enum vxge_hw_status status = VXGE_HW_OK;
-	u8 *serial_number = hw_info->serial_number;
-	u8 *part_number = hw_info->part_number;
-	u8 *product_desc = hw_info->product_desc;
-
-	__vxge_hw_read_rts_ds(vpath_reg,
-		VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_SERIAL_NUMBER);
-
-	val64 = VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION(
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_READ_MEMO_ENTRY) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL(
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_OFFSET(0);
-
-	status = __vxge_hw_pio_mem_write64(val64,
-				&vpath_reg->rts_access_steer_ctrl,
-				VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE,
-				VXGE_HW_DEF_DEVICE_POLL_MILLIS);
-
-	if (status != VXGE_HW_OK)
-		return status;
-
-	val64 = readq(&vpath_reg->rts_access_steer_ctrl);
-
-	if (val64 & VXGE_HW_RTS_ACCESS_STEER_CTRL_RMACJ_STATUS) {
-		data1 = readq(&vpath_reg->rts_access_steer_data0);
-		((u64 *)serial_number)[0] = be64_to_cpu(data1);
-
-		data2 = readq(&vpath_reg->rts_access_steer_data1);
-		((u64 *)serial_number)[1] = be64_to_cpu(data2);
-		status = VXGE_HW_OK;
-	} else
-		*serial_number = 0;
-
-	__vxge_hw_read_rts_ds(vpath_reg,
-			VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_PART_NUMBER);
-
-	val64 = VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION(
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_READ_MEMO_ENTRY) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL(
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_OFFSET(0);
-
-	status = __vxge_hw_pio_mem_write64(val64,
-				&vpath_reg->rts_access_steer_ctrl,
-				VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE,
-				VXGE_HW_DEF_DEVICE_POLL_MILLIS);
-
-	if (status != VXGE_HW_OK)
-		return status;
-
-	val64 = readq(&vpath_reg->rts_access_steer_ctrl);
-
-	if (val64 & VXGE_HW_RTS_ACCESS_STEER_CTRL_RMACJ_STATUS) {
-
-		data1 = readq(&vpath_reg->rts_access_steer_data0);
-		((u64 *)part_number)[0] = be64_to_cpu(data1);
-
-		data2 = readq(&vpath_reg->rts_access_steer_data1);
-		((u64 *)part_number)[1] = be64_to_cpu(data2);
-
-		status = VXGE_HW_OK;
-
-	} else
-		*part_number = 0;
-
-	j = 0;
-
-	for (i = VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_DESC_0;
-	     i <= VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_DESC_3; i++) {
-
-		__vxge_hw_read_rts_ds(vpath_reg, i);
-
-		val64 = VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION(
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_READ_MEMO_ENTRY) |
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL(
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO) |
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE |
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_OFFSET(0);
-
-		status = __vxge_hw_pio_mem_write64(val64,
-				&vpath_reg->rts_access_steer_ctrl,
-				VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE,
-				VXGE_HW_DEF_DEVICE_POLL_MILLIS);
-
-		if (status != VXGE_HW_OK)
-			return status;
-
-		val64 = readq(&vpath_reg->rts_access_steer_ctrl);
-
-		if (val64 & VXGE_HW_RTS_ACCESS_STEER_CTRL_RMACJ_STATUS) {
-
-			data1 = readq(&vpath_reg->rts_access_steer_data0);
-			((u64 *)product_desc)[j++] = be64_to_cpu(data1);
-
-			data2 = readq(&vpath_reg->rts_access_steer_data1);
-			((u64 *)product_desc)[j++] = be64_to_cpu(data2);
-
-			status = VXGE_HW_OK;
-		} else
-			*product_desc = 0;
-	}
-
-	return status;
-}
-
-/*
- * __vxge_hw_vpath_fw_ver_get - Get the fw version
- * Returns FW Version
- */
-static enum vxge_hw_status
-__vxge_hw_vpath_fw_ver_get(
-	u32 vp_id,
-	struct vxge_hw_vpath_reg __iomem *vpath_reg,
-	struct vxge_hw_device_hw_info *hw_info)
-{
-	u64 val64;
-	u64 data1 = 0ULL;
-	u64 data2 = 0ULL;
-	struct vxge_hw_device_version *fw_version = &hw_info->fw_version;
-	struct vxge_hw_device_date *fw_date = &hw_info->fw_date;
-	struct vxge_hw_device_version *flash_version = &hw_info->flash_version;
-	struct vxge_hw_device_date *flash_date = &hw_info->flash_date;
-	enum vxge_hw_status status = VXGE_HW_OK;
-
-	val64 = VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION(
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_READ_ENTRY) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL(
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_OFFSET(0);
-
-	status = __vxge_hw_pio_mem_write64(val64,
-				&vpath_reg->rts_access_steer_ctrl,
-				VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE,
-				VXGE_HW_DEF_DEVICE_POLL_MILLIS);
-
-	if (status != VXGE_HW_OK)
-		goto exit;
-
-	val64 = readq(&vpath_reg->rts_access_steer_ctrl);
-
-	if (val64 & VXGE_HW_RTS_ACCESS_STEER_CTRL_RMACJ_STATUS) {
-
-		data1 = readq(&vpath_reg->rts_access_steer_data0);
-		data2 = readq(&vpath_reg->rts_access_steer_data1);
-
-		fw_date->day =
-			(u32)VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_DAY(
-						data1);
-		fw_date->month =
-			(u32)VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MONTH(
-						data1);
-		fw_date->year =
-			(u32)VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_YEAR(
-						data1);
-
-		snprintf(fw_date->date, VXGE_HW_FW_STRLEN, "%2.2d/%2.2d/%4.4d",
-			fw_date->month, fw_date->day, fw_date->year);
-
-		fw_version->major =
-		    (u32)VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MAJOR(data1);
-		fw_version->minor =
-		    (u32)VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MINOR(data1);
-		fw_version->build =
-		    (u32)VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_BUILD(data1);
-
-		snprintf(fw_version->version, VXGE_HW_FW_STRLEN, "%d.%d.%d",
-		    fw_version->major, fw_version->minor, fw_version->build);
-
-		flash_date->day =
-		  (u32)VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_DAY(data2);
-		flash_date->month =
-		 (u32)VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_MONTH(data2);
-		flash_date->year =
-		 (u32)VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_YEAR(data2);
-
-		snprintf(flash_date->date, VXGE_HW_FW_STRLEN,
-			"%2.2d/%2.2d/%4.4d",
-			flash_date->month, flash_date->day, flash_date->year);
-
-		flash_version->major =
-		 (u32)VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_MAJOR(data2);
-		flash_version->minor =
-		 (u32)VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_MINOR(data2);
-		flash_version->build =
-		 (u32)VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_BUILD(data2);
-
-		snprintf(flash_version->version, VXGE_HW_FW_STRLEN, "%d.%d.%d",
-			flash_version->major, flash_version->minor,
-			flash_version->build);
-
-		status = VXGE_HW_OK;
-
-	} else
-		status = VXGE_HW_FAIL;
-exit:
-	return status;
-}
-
-/*
- * __vxge_hw_vpath_pci_func_mode_get - Get the pci mode
- * Returns pci function mode
- */
-static u64
-__vxge_hw_vpath_pci_func_mode_get(
-	u32  vp_id,
-	struct vxge_hw_vpath_reg __iomem *vpath_reg)
-{
-	u64 val64;
-	u64 data1 = 0ULL;
-	enum vxge_hw_status status = VXGE_HW_OK;
-
-	__vxge_hw_read_rts_ds(vpath_reg,
-		VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_PCI_MODE);
-
-	val64 = VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION(
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_READ_MEMO_ENTRY) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL(
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_OFFSET(0);
-
-	status = __vxge_hw_pio_mem_write64(val64,
-				&vpath_reg->rts_access_steer_ctrl,
-				VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE,
-				VXGE_HW_DEF_DEVICE_POLL_MILLIS);
-
-	if (status != VXGE_HW_OK)
-		goto exit;
-
-	val64 = readq(&vpath_reg->rts_access_steer_ctrl);
-
-	if (val64 & VXGE_HW_RTS_ACCESS_STEER_CTRL_RMACJ_STATUS) {
-		data1 = readq(&vpath_reg->rts_access_steer_data0);
-		status = VXGE_HW_OK;
-	} else {
-		data1 = 0;
-		status = VXGE_HW_FAIL;
-	}
-exit:
-	return data1;
-}
-
 /**
  * vxge_hw_device_flick_link_led - Flick (blink) link LED.
  * @hldev: HW device.
@@ -2974,37 +3636,24 @@ exit:
  * Flicker the link LED.
  */
 enum vxge_hw_status
-vxge_hw_device_flick_link_led(struct __vxge_hw_device *hldev,
-			       u64 on_off)
+vxge_hw_device_flick_link_led(struct __vxge_hw_device *hldev, u64 on_off)
 {
-	u64 val64;
-	enum vxge_hw_status status = VXGE_HW_OK;
-	struct vxge_hw_vpath_reg __iomem *vp_reg;
+	struct __vxge_hw_virtualpath *vpath;
+	u64 data0, data1 = 0, steer_ctrl = 0;
+	enum vxge_hw_status status;
 
 	if (hldev == NULL) {
 		status = VXGE_HW_ERR_INVALID_DEVICE;
 		goto exit;
 	}
 
-	vp_reg = hldev->vpath_reg[hldev->first_vp_id];
+	vpath = &hldev->virtual_paths[hldev->first_vp_id];
 
-	writeq(0, &vp_reg->rts_access_steer_ctrl);
-	wmb();
-	writeq(on_off, &vp_reg->rts_access_steer_data0);
-	writeq(0, &vp_reg->rts_access_steer_data1);
-	wmb();
-
-	val64 = VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION(
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_LED_CONTROL) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL(
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_OFFSET(0);
-
-	status = __vxge_hw_pio_mem_write64(val64,
-				&vp_reg->rts_access_steer_ctrl,
-				VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE,
-				VXGE_HW_DEF_DEVICE_POLL_MILLIS);
+	data0 = on_off;
+	status = vxge_hw_vpath_fw_api(vpath,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_LED_CONTROL,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO,
+			0, &data0, &data1, &steer_ctrl);
 exit:
 	return status;
 }
@@ -3013,63 +3662,38 @@ exit:
  * __vxge_hw_vpath_rts_table_get - Get the entries from RTS access tables
  */
 enum vxge_hw_status
-__vxge_hw_vpath_rts_table_get(
-	struct __vxge_hw_vpath_handle *vp,
-	u32 action, u32 rts_table, u32 offset, u64 *data1, u64 *data2)
+__vxge_hw_vpath_rts_table_get(struct __vxge_hw_vpath_handle *vp,
+			      u32 action, u32 rts_table, u32 offset,
+			      u64 *data0, u64 *data1)
 {
-	u64 val64;
-	struct __vxge_hw_virtualpath *vpath;
-	struct vxge_hw_vpath_reg __iomem *vp_reg;
-
-	enum vxge_hw_status status = VXGE_HW_OK;
+	enum vxge_hw_status status;
+	u64 steer_ctrl = 0;
 
 	if (vp == NULL) {
 		status = VXGE_HW_ERR_INVALID_HANDLE;
 		goto exit;
 	}
 
-	vpath = vp->vpath;
-	vp_reg = vpath->vp_reg;
-
-	val64 = VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION(action) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL(rts_table) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_OFFSET(offset);
-
 	if ((rts_table ==
-		VXGE_HW_RTS_ACS_STEER_CTRL_DATA_STRUCT_SEL_RTH_SOLO_IT) ||
+	     VXGE_HW_RTS_ACS_STEER_CTRL_DATA_STRUCT_SEL_RTH_SOLO_IT) ||
 	    (rts_table ==
-		VXGE_HW_RTS_ACS_STEER_CTRL_DATA_STRUCT_SEL_RTH_MULTI_IT) ||
+	     VXGE_HW_RTS_ACS_STEER_CTRL_DATA_STRUCT_SEL_RTH_MULTI_IT) ||
 	    (rts_table ==
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_RTH_MASK) ||
+	     VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_RTH_MASK) ||
 	    (rts_table ==
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_RTH_KEY)) {
-		val64 = val64 |	VXGE_HW_RTS_ACCESS_STEER_CTRL_TABLE_SEL;
+	     VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_RTH_KEY)) {
+		steer_ctrl = VXGE_HW_RTS_ACCESS_STEER_CTRL_TABLE_SEL;
 	}
 
-	status = __vxge_hw_pio_mem_write64(val64,
-				&vp_reg->rts_access_steer_ctrl,
-				VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE,
-				vpath->hldev->config.device_poll_millis);
-
+	status = vxge_hw_vpath_fw_api(vp->vpath, action, rts_table, offset,
+				      data0, data1, &steer_ctrl);
 	if (status != VXGE_HW_OK)
 		goto exit;
 
-	val64 = readq(&vp_reg->rts_access_steer_ctrl);
-
-	if (val64 & VXGE_HW_RTS_ACCESS_STEER_CTRL_RMACJ_STATUS) {
-
-		*data1 = readq(&vp_reg->rts_access_steer_data0);
-
-		if ((rts_table ==
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_DA) ||
-		(rts_table ==
-		VXGE_HW_RTS_ACS_STEER_CTRL_DATA_STRUCT_SEL_RTH_MULTI_IT)) {
-			*data2 = readq(&vp_reg->rts_access_steer_data1);
-		}
-		status = VXGE_HW_OK;
-	} else
-		status = VXGE_HW_FAIL;
+	if ((rts_table != VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_DA) ||
+	    (rts_table !=
+	     VXGE_HW_RTS_ACS_STEER_CTRL_DATA_STRUCT_SEL_RTH_MULTI_IT))
+		*data1 = 0;
 exit:
 	return status;
 }
@@ -3078,107 +3702,27 @@ exit:
  * __vxge_hw_vpath_rts_table_set - Set the entries of RTS access tables
  */
 enum vxge_hw_status
-__vxge_hw_vpath_rts_table_set(
-	struct __vxge_hw_vpath_handle *vp, u32 action, u32 rts_table,
-	u32 offset, u64 data1, u64 data2)
+__vxge_hw_vpath_rts_table_set(struct __vxge_hw_vpath_handle *vp, u32 action,
+			      u32 rts_table, u32 offset, u64 steer_data0,
+			      u64 steer_data1)
 {
-	u64 val64;
-	struct __vxge_hw_virtualpath *vpath;
-	enum vxge_hw_status status = VXGE_HW_OK;
-	struct vxge_hw_vpath_reg __iomem *vp_reg;
+	u64 data0, data1 = 0, steer_ctrl = 0;
+	enum vxge_hw_status status;
 
 	if (vp == NULL) {
 		status = VXGE_HW_ERR_INVALID_HANDLE;
 		goto exit;
 	}
 
-	vpath = vp->vpath;
-	vp_reg = vpath->vp_reg;
-
-	writeq(data1, &vp_reg->rts_access_steer_data0);
-	wmb();
+	data0 = steer_data0;
 
 	if ((rts_table == VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_DA) ||
 	    (rts_table ==
-		VXGE_HW_RTS_ACS_STEER_CTRL_DATA_STRUCT_SEL_RTH_MULTI_IT)) {
-		writeq(data2, &vp_reg->rts_access_steer_data1);
-		wmb();
-	}
+	     VXGE_HW_RTS_ACS_STEER_CTRL_DATA_STRUCT_SEL_RTH_MULTI_IT))
+		data1 = steer_data1;
 
-	val64 = VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION(action) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL(rts_table) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_OFFSET(offset);
-
-	status = __vxge_hw_pio_mem_write64(val64,
-				&vp_reg->rts_access_steer_ctrl,
-				VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE,
-				vpath->hldev->config.device_poll_millis);
-
-	if (status != VXGE_HW_OK)
-		goto exit;
-
-	val64 = readq(&vp_reg->rts_access_steer_ctrl);
-
-	if (val64 & VXGE_HW_RTS_ACCESS_STEER_CTRL_RMACJ_STATUS)
-		status = VXGE_HW_OK;
-	else
-		status = VXGE_HW_FAIL;
-exit:
-	return status;
-}
-
-/*
- * __vxge_hw_vpath_addr_get - Get the hw address entry for this vpath
- *               from MAC address table.
- */
-static enum vxge_hw_status
-__vxge_hw_vpath_addr_get(
-	u32 vp_id, struct vxge_hw_vpath_reg __iomem *vpath_reg,
-	u8 (macaddr)[ETH_ALEN], u8 (macaddr_mask)[ETH_ALEN])
-{
-	u32 i;
-	u64 val64;
-	u64 data1 = 0ULL;
-	u64 data2 = 0ULL;
-	enum vxge_hw_status status = VXGE_HW_OK;
-
-	val64 = VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION(
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_LIST_FIRST_ENTRY) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL(
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_DA) |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE |
-		VXGE_HW_RTS_ACCESS_STEER_CTRL_OFFSET(0);
-
-	status = __vxge_hw_pio_mem_write64(val64,
-				&vpath_reg->rts_access_steer_ctrl,
-				VXGE_HW_RTS_ACCESS_STEER_CTRL_STROBE,
-				VXGE_HW_DEF_DEVICE_POLL_MILLIS);
-
-	if (status != VXGE_HW_OK)
-		goto exit;
-
-	val64 = readq(&vpath_reg->rts_access_steer_ctrl);
-
-	if (val64 & VXGE_HW_RTS_ACCESS_STEER_CTRL_RMACJ_STATUS) {
-
-		data1 = readq(&vpath_reg->rts_access_steer_data0);
-		data2 = readq(&vpath_reg->rts_access_steer_data1);
-
-		data1 = VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_DA_MAC_ADDR(data1);
-		data2 = VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_DA_MAC_ADDR_MASK(
-							data2);
-
-		for (i = ETH_ALEN; i > 0; i--) {
-			macaddr[i-1] = (u8)(data1 & 0xFF);
-			data1 >>= 8;
-
-			macaddr_mask[i-1] = (u8)(data2 & 0xFF);
-			data2 >>= 8;
-		}
-		status = VXGE_HW_OK;
-	} else
-		status = VXGE_HW_FAIL;
+	status = vxge_hw_vpath_fw_api(vp->vpath, action, rts_table, offset,
+				      &data0, &data1, &steer_ctrl);
 exit:
 	return status;
 }
@@ -3204,6 +3748,8 @@ enum vxge_hw_status vxge_hw_vpath_rts_rth_set(
 		     VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_READ_ENTRY,
 		     VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_RTH_GEN_CFG,
 			0, &data0, &data1);
+	if (status != VXGE_HW_OK)
+		goto exit;
 
 	data0 &= ~(VXGE_HW_RTS_ACCESS_STEER_DATA0_RTH_GEN_BUCKET_SIZE(0xf) |
 			VXGE_HW_RTS_ACCESS_STEER_DATA0_RTH_GEN_ALG_SEL(0x3));
@@ -3771,10 +4317,10 @@ __vxge_hw_vpath_tim_configure(struct __vxge_hw_device *hldev, u32 vp_id)
 	vp_reg = vpath->vp_reg;
 	config = vpath->vp_config;
 
-	writeq((u64)0, &vp_reg->tim_dest_addr);
-	writeq((u64)0, &vp_reg->tim_vpath_map);
-	writeq((u64)0, &vp_reg->tim_bitmap);
-	writeq((u64)0, &vp_reg->tim_remap);
+	writeq(0, &vp_reg->tim_dest_addr);
+	writeq(0, &vp_reg->tim_vpath_map);
+	writeq(0, &vp_reg->tim_bitmap);
+	writeq(0, &vp_reg->tim_remap);
 
 	if (config->ring.enable == VXGE_HW_RING_ENABLE)
 		writeq(VXGE_HW_TIM_RING_ASSN_INT_NUM(
@@ -3876,8 +4422,7 @@ __vxge_hw_vpath_tim_configure(struct __vxge_hw_device *hldev, u32 vp_id)
 
 		if (config->tti.util_sel != VXGE_HW_USE_FLASH_DEFAULT) {
 			val64 &= ~VXGE_HW_TIM_CFG3_INT_NUM_UTIL_SEL(0x3f);
-			val64 |= VXGE_HW_TIM_CFG3_INT_NUM_UTIL_SEL(
-					config->tti.util_sel);
+			val64 |= VXGE_HW_TIM_CFG3_INT_NUM_UTIL_SEL(vp_id);
 		}
 
 		if (config->tti.ltimer_val != VXGE_HW_USE_FLASH_DEFAULT) {
@@ -3981,8 +4526,7 @@ __vxge_hw_vpath_tim_configure(struct __vxge_hw_device *hldev, u32 vp_id)
 
 		if (config->rti.util_sel != VXGE_HW_USE_FLASH_DEFAULT) {
 			val64 &= ~VXGE_HW_TIM_CFG3_INT_NUM_UTIL_SEL(0x3f);
-			val64 |= VXGE_HW_TIM_CFG3_INT_NUM_UTIL_SEL(
-					config->rti.util_sel);
+			val64 |= VXGE_HW_TIM_CFG3_INT_NUM_UTIL_SEL(vp_id);
 		}
 
 		if (config->rti.ltimer_val != VXGE_HW_USE_FLASH_DEFAULT) {
@@ -4003,11 +4547,15 @@ __vxge_hw_vpath_tim_configure(struct __vxge_hw_device *hldev, u32 vp_id)
 	writeq(val64, &vp_reg->tim_cfg2_int_num[VXGE_HW_VPATH_INTR_BMAP]);
 	writeq(val64, &vp_reg->tim_cfg3_int_num[VXGE_HW_VPATH_INTR_BMAP]);
 
+	val64 = VXGE_HW_TIM_WRKLD_CLC_WRKLD_EVAL_PRD(150);
+	val64 |= VXGE_HW_TIM_WRKLD_CLC_WRKLD_EVAL_DIV(0);
+	val64 |= VXGE_HW_TIM_WRKLD_CLC_CNT_RX_TX(3);
+	writeq(val64, &vp_reg->tim_wrkld_clc);
+
 	return status;
 }
 
-void
-vxge_hw_vpath_tti_ci_set(struct __vxge_hw_device *hldev, u32 vp_id)
+void vxge_hw_vpath_tti_ci_set(struct __vxge_hw_device *hldev, u32 vp_id)
 {
 	struct __vxge_hw_virtualpath *vpath;
 	struct vxge_hw_vpath_reg __iomem *vp_reg;
@@ -4018,17 +4566,15 @@ vxge_hw_vpath_tti_ci_set(struct __vxge_hw_device *hldev, u32 vp_id)
 	vp_reg = vpath->vp_reg;
 	config = vpath->vp_config;
 
-	if (config->fifo.enable == VXGE_HW_FIFO_ENABLE) {
+	if (config->fifo.enable == VXGE_HW_FIFO_ENABLE &&
+	    config->tti.timer_ci_en != VXGE_HW_TIM_TIMER_CI_ENABLE) {
+		config->tti.timer_ci_en = VXGE_HW_TIM_TIMER_CI_ENABLE;
 		val64 = readq(&vp_reg->tim_cfg1_int_num[VXGE_HW_VPATH_INTR_TX]);
-
-		if (config->tti.timer_ci_en != VXGE_HW_TIM_TIMER_CI_ENABLE) {
-			config->tti.timer_ci_en = VXGE_HW_TIM_TIMER_CI_ENABLE;
-			val64 |= VXGE_HW_TIM_CFG1_INT_NUM_TIMER_CI;
-			writeq(val64,
-			&vp_reg->tim_cfg1_int_num[VXGE_HW_VPATH_INTR_TX]);
-		}
+		val64 |= VXGE_HW_TIM_CFG1_INT_NUM_TIMER_CI;
+		writeq(val64, &vp_reg->tim_cfg1_int_num[VXGE_HW_VPATH_INTR_TX]);
 	}
 }
+
 /*
  * __vxge_hw_vpath_initialize
  * This routine is the final phase of init which initializes the
@@ -4052,22 +4598,18 @@ __vxge_hw_vpath_initialize(struct __vxge_hw_device *hldev, u32 vp_id)
 	vp_reg = vpath->vp_reg;
 
 	status =  __vxge_hw_vpath_swapper_set(vpath->vp_reg);
-
 	if (status != VXGE_HW_OK)
 		goto exit;
 
 	status =  __vxge_hw_vpath_mac_configure(hldev, vp_id);
-
 	if (status != VXGE_HW_OK)
 		goto exit;
 
 	status =  __vxge_hw_vpath_kdfc_configure(hldev, vp_id);
-
 	if (status != VXGE_HW_OK)
 		goto exit;
 
 	status = __vxge_hw_vpath_tim_configure(hldev, vp_id);
-
 	if (status != VXGE_HW_OK)
 		goto exit;
 
@@ -4075,7 +4617,6 @@ __vxge_hw_vpath_initialize(struct __vxge_hw_device *hldev, u32 vp_id)
 
 	/* Get MRRS value from device control */
 	status  = __vxge_hw_vpath_pci_read(vpath, 1, 0x78, &val32);
-
 	if (status == VXGE_HW_OK) {
 		val32 = (val32 & VXGE_HW_PCI_EXP_DEVCTL_READRQ) >> 12;
 		val64 &=
@@ -4099,6 +4640,28 @@ exit:
 }
 
 /*
+ * __vxge_hw_vp_terminate - Terminate Virtual Path structure
+ * This routine closes all channels it opened and freeup memory
+ */
+static void __vxge_hw_vp_terminate(struct __vxge_hw_device *hldev, u32 vp_id)
+{
+	struct __vxge_hw_virtualpath *vpath;
+
+	vpath = &hldev->virtual_paths[vp_id];
+
+	if (vpath->vp_open == VXGE_HW_VP_NOT_OPEN)
+		goto exit;
+
+	VXGE_HW_DEVICE_TIM_INT_MASK_RESET(vpath->hldev->tim_int_mask0,
+		vpath->hldev->tim_int_mask1, vpath->vp_id);
+	hldev->stats.hw_dev_info_stats.vpath_info[vpath->vp_id] = NULL;
+
+	memset(vpath, 0, sizeof(struct __vxge_hw_virtualpath));
+exit:
+	return;
+}
+
+/*
  * __vxge_hw_vp_initialize - Initialize Virtual Path structure
  * This routine is the initial phase of init which resets the vpath and
  * initializes the software support structures.
@@ -4117,6 +4680,7 @@ __vxge_hw_vp_initialize(struct __vxge_hw_device *hldev, u32 vp_id,
 
 	vpath = &hldev->virtual_paths[vp_id];
 
+	spin_lock_init(&hldev->virtual_paths[vp_id].lock);
 	vpath->vp_id = vp_id;
 	vpath->vp_open = VXGE_HW_VP_OPEN;
 	vpath->hldev = hldev;
@@ -4127,14 +4691,12 @@ __vxge_hw_vp_initialize(struct __vxge_hw_device *hldev, u32 vp_id,
 	__vxge_hw_vpath_reset(hldev, vp_id);
 
 	status = __vxge_hw_vpath_reset_check(vpath);
-
 	if (status != VXGE_HW_OK) {
 		memset(vpath, 0, sizeof(struct __vxge_hw_virtualpath));
 		goto exit;
 	}
 
 	status = __vxge_hw_vpath_mgmt_read(hldev, vpath);
-
 	if (status != VXGE_HW_OK) {
 		memset(vpath, 0, sizeof(struct __vxge_hw_virtualpath));
 		goto exit;
@@ -4148,34 +4710,10 @@ __vxge_hw_vp_initialize(struct __vxge_hw_device *hldev, u32 vp_id,
 		hldev->tim_int_mask1, vp_id);
 
 	status = __vxge_hw_vpath_initialize(hldev, vp_id);
-
 	if (status != VXGE_HW_OK)
 		__vxge_hw_vp_terminate(hldev, vp_id);
 exit:
 	return status;
-}
-
-/*
- * __vxge_hw_vp_terminate - Terminate Virtual Path structure
- * This routine closes all channels it opened and freeup memory
- */
-static void
-__vxge_hw_vp_terminate(struct __vxge_hw_device *hldev, u32 vp_id)
-{
-	struct __vxge_hw_virtualpath *vpath;
-
-	vpath = &hldev->virtual_paths[vp_id];
-
-	if (vpath->vp_open == VXGE_HW_VP_NOT_OPEN)
-		goto exit;
-
-	VXGE_HW_DEVICE_TIM_INT_MASK_RESET(vpath->hldev->tim_int_mask0,
-		vpath->hldev->tim_int_mask1, vpath->vp_id);
-	hldev->stats.hw_dev_info_stats.vpath_info[vpath->vp_id] = NULL;
-
-	memset(vpath, 0, sizeof(struct __vxge_hw_virtualpath));
-exit:
-	return;
 }
 
 /*
@@ -4215,6 +4753,64 @@ exit:
 }
 
 /*
+ * vxge_hw_vpath_stats_enable - Enable vpath h/wstatistics.
+ * Enable the DMA vpath statistics. The function is to be called to re-enable
+ * the adapter to update stats into the host memory
+ */
+static enum vxge_hw_status
+vxge_hw_vpath_stats_enable(struct __vxge_hw_vpath_handle *vp)
+{
+	enum vxge_hw_status status = VXGE_HW_OK;
+	struct __vxge_hw_virtualpath *vpath;
+
+	vpath = vp->vpath;
+
+	if (vpath->vp_open == VXGE_HW_VP_NOT_OPEN) {
+		status = VXGE_HW_ERR_VPATH_NOT_OPEN;
+		goto exit;
+	}
+
+	memcpy(vpath->hw_stats_sav, vpath->hw_stats,
+			sizeof(struct vxge_hw_vpath_stats_hw_info));
+
+	status = __vxge_hw_vpath_stats_get(vpath, vpath->hw_stats);
+exit:
+	return status;
+}
+
+/*
+ * __vxge_hw_blockpool_block_allocate - Allocates a block from block pool
+ * This function allocates a block from block pool or from the system
+ */
+static struct __vxge_hw_blockpool_entry *
+__vxge_hw_blockpool_block_allocate(struct __vxge_hw_device *devh, u32 size)
+{
+	struct __vxge_hw_blockpool_entry *entry = NULL;
+	struct __vxge_hw_blockpool  *blockpool;
+
+	blockpool = &devh->block_pool;
+
+	if (size == blockpool->block_size) {
+
+		if (!list_empty(&blockpool->free_block_list))
+			entry = (struct __vxge_hw_blockpool_entry *)
+				list_first_entry(&blockpool->free_block_list,
+					struct __vxge_hw_blockpool_entry,
+					item);
+
+		if (entry != NULL) {
+			list_del(&entry->item);
+			blockpool->pool_size--;
+		}
+	}
+
+	if (entry != NULL)
+		__vxge_hw_blockpool_blocks_add(blockpool);
+
+	return entry;
+}
+
+/*
  * vxge_hw_vpath_open - Open a virtual path on a given adapter
  * This function is used to open access to virtual path of an
  * adapter for offload, GRO operations. This function returns
@@ -4238,18 +4834,14 @@ vxge_hw_vpath_open(struct __vxge_hw_device *hldev,
 
 	status = __vxge_hw_vp_initialize(hldev, attr->vp_id,
 			&hldev->config.vp_config[attr->vp_id]);
-
 	if (status != VXGE_HW_OK)
 		goto vpath_open_exit1;
 
-	vp = (struct __vxge_hw_vpath_handle *)
-		vmalloc(sizeof(struct __vxge_hw_vpath_handle));
+	vp = vzalloc(sizeof(struct __vxge_hw_vpath_handle));
 	if (vp == NULL) {
 		status = VXGE_HW_ERR_OUT_OF_MEMORY;
 		goto vpath_open_exit2;
 	}
-
-	memset(vp, 0, sizeof(struct __vxge_hw_vpath_handle));
 
 	vp->vpath = vpath;
 
@@ -4273,7 +4865,6 @@ vxge_hw_vpath_open(struct __vxge_hw_device *hldev,
 
 	vpath->stats_block = __vxge_hw_blockpool_block_allocate(hldev,
 				VXGE_HW_BLOCK_SIZE);
-
 	if (vpath->stats_block == NULL) {
 		status = VXGE_HW_ERR_OUT_OF_MEMORY;
 		goto vpath_open_exit8;
@@ -4332,19 +4923,20 @@ vpath_open_exit1:
  * This function is used to close access to virtual path opened
  * earlier.
  */
-void
-vxge_hw_vpath_rx_doorbell_init(struct __vxge_hw_vpath_handle *vp)
+void vxge_hw_vpath_rx_doorbell_init(struct __vxge_hw_vpath_handle *vp)
 {
-	struct __vxge_hw_virtualpath *vpath = NULL;
+	struct __vxge_hw_virtualpath *vpath = vp->vpath;
+	struct __vxge_hw_ring *ring = vpath->ringh;
+	struct vxgedev *vdev = netdev_priv(vpath->hldev->ndev);
 	u64 new_count, val64, val164;
-	struct __vxge_hw_ring *ring;
 
-	vpath = vp->vpath;
-	ring = vpath->ringh;
+	if (vdev->titan1) {
+		new_count = readq(&vpath->vp_reg->rxdmem_size);
+		new_count &= 0x1fff;
+	} else
+		new_count = ring->config->ring_blocks * VXGE_HW_BLOCK_SIZE / 8;
 
-	new_count = readq(&vpath->vp_reg->rxdmem_size);
-	new_count &= 0x1fff;
-	val164 = (VXGE_HW_RXDMEM_SIZE_PRC_RXDMEM_SIZE(new_count));
+	val164 = VXGE_HW_RXDMEM_SIZE_PRC_RXDMEM_SIZE(new_count);
 
 	writeq(VXGE_HW_PRC_RXD_DOORBELL_NEW_QW_CNT(val164),
 		&vpath->vp_reg->prc_rxd_doorbell);
@@ -4364,6 +4956,29 @@ vxge_hw_vpath_rx_doorbell_init(struct __vxge_hw_vpath_handle *vp)
 	ring->rxds_limit = min(ring->rxds_limit, val64);
 	if (ring->rxds_limit < 4)
 		ring->rxds_limit = 4;
+}
+
+/*
+ * __vxge_hw_blockpool_block_free - Frees a block from block pool
+ * @devh: Hal device
+ * @entry: Entry of block to be freed
+ *
+ * This function frees a block from block pool
+ */
+static void
+__vxge_hw_blockpool_block_free(struct __vxge_hw_device *devh,
+			       struct __vxge_hw_blockpool_entry *entry)
+{
+	struct __vxge_hw_blockpool  *blockpool;
+
+	blockpool = &devh->block_pool;
+
+	if (entry->length == blockpool->block_size) {
+		list_add(&entry->item, &blockpool->free_block_list);
+		blockpool->pool_size++;
+	}
+
+	__vxge_hw_blockpool_blocks_remove(blockpool);
 }
 
 /*
@@ -4414,7 +5029,9 @@ enum vxge_hw_status vxge_hw_vpath_close(struct __vxge_hw_vpath_handle *vp)
 
 	__vxge_hw_vp_terminate(devh, vp_id);
 
+	spin_lock(&vpath->lock);
 	vpath->vp_open = VXGE_HW_VP_NOT_OPEN;
+	spin_unlock(&vpath->lock);
 
 vpath_close_exit:
 	return status;
@@ -4514,731 +5131,4 @@ vxge_hw_vpath_enable(struct __vxge_hw_vpath_handle *vp)
 
 	__vxge_hw_pio_mem_write32_upper((u32)vxge_bVALn(val64, 0, 32),
 		&hldev->common_reg->cmn_rsthdlr_cfg1);
-}
-
-/*
- * vxge_hw_vpath_stats_enable - Enable vpath h/wstatistics.
- * Enable the DMA vpath statistics. The function is to be called to re-enable
- * the adapter to update stats into the host memory
- */
-static enum vxge_hw_status
-vxge_hw_vpath_stats_enable(struct __vxge_hw_vpath_handle *vp)
-{
-	enum vxge_hw_status status = VXGE_HW_OK;
-	struct __vxge_hw_virtualpath *vpath;
-
-	vpath = vp->vpath;
-
-	if (vpath->vp_open == VXGE_HW_VP_NOT_OPEN) {
-		status = VXGE_HW_ERR_VPATH_NOT_OPEN;
-		goto exit;
-	}
-
-	memcpy(vpath->hw_stats_sav, vpath->hw_stats,
-			sizeof(struct vxge_hw_vpath_stats_hw_info));
-
-	status = __vxge_hw_vpath_stats_get(vpath, vpath->hw_stats);
-exit:
-	return status;
-}
-
-/*
- * __vxge_hw_vpath_stats_access - Get the statistics from the given location
- *                           and offset and perform an operation
- */
-static enum vxge_hw_status
-__vxge_hw_vpath_stats_access(struct __vxge_hw_virtualpath *vpath,
-			     u32 operation, u32 offset, u64 *stat)
-{
-	u64 val64;
-	enum vxge_hw_status status = VXGE_HW_OK;
-	struct vxge_hw_vpath_reg __iomem *vp_reg;
-
-	if (vpath->vp_open == VXGE_HW_VP_NOT_OPEN) {
-		status = VXGE_HW_ERR_VPATH_NOT_OPEN;
-		goto vpath_stats_access_exit;
-	}
-
-	vp_reg = vpath->vp_reg;
-
-	val64 =  VXGE_HW_XMAC_STATS_ACCESS_CMD_OP(operation) |
-		 VXGE_HW_XMAC_STATS_ACCESS_CMD_STROBE |
-		 VXGE_HW_XMAC_STATS_ACCESS_CMD_OFFSET_SEL(offset);
-
-	status = __vxge_hw_pio_mem_write64(val64,
-				&vp_reg->xmac_stats_access_cmd,
-				VXGE_HW_XMAC_STATS_ACCESS_CMD_STROBE,
-				vpath->hldev->config.device_poll_millis);
-
-	if ((status == VXGE_HW_OK) && (operation == VXGE_HW_STATS_OP_READ))
-		*stat = readq(&vp_reg->xmac_stats_access_data);
-	else
-		*stat = 0;
-
-vpath_stats_access_exit:
-	return status;
-}
-
-/*
- * __vxge_hw_vpath_xmac_tx_stats_get - Get the TX Statistics of a vpath
- */
-static enum vxge_hw_status
-__vxge_hw_vpath_xmac_tx_stats_get(
-	struct __vxge_hw_virtualpath *vpath,
-	struct vxge_hw_xmac_vpath_tx_stats *vpath_tx_stats)
-{
-	u64 *val64;
-	int i;
-	u32 offset = VXGE_HW_STATS_VPATH_TX_OFFSET;
-	enum vxge_hw_status status = VXGE_HW_OK;
-
-	val64 = (u64 *) vpath_tx_stats;
-
-	if (vpath->vp_open == VXGE_HW_VP_NOT_OPEN) {
-		status = VXGE_HW_ERR_VPATH_NOT_OPEN;
-		goto exit;
-	}
-
-	for (i = 0; i < sizeof(struct vxge_hw_xmac_vpath_tx_stats) / 8; i++) {
-		status = __vxge_hw_vpath_stats_access(vpath,
-					VXGE_HW_STATS_OP_READ,
-					offset, val64);
-		if (status != VXGE_HW_OK)
-			goto exit;
-		offset++;
-		val64++;
-	}
-exit:
-	return status;
-}
-
-/*
- * __vxge_hw_vpath_xmac_rx_stats_get - Get the RX Statistics of a vpath
- */
-static enum vxge_hw_status
-__vxge_hw_vpath_xmac_rx_stats_get(struct __vxge_hw_virtualpath *vpath,
-				  struct vxge_hw_xmac_vpath_rx_stats *vpath_rx_stats)
-{
-	u64 *val64;
-	enum vxge_hw_status status = VXGE_HW_OK;
-	int i;
-	u32 offset = VXGE_HW_STATS_VPATH_RX_OFFSET;
-	val64 = (u64 *) vpath_rx_stats;
-
-	if (vpath->vp_open == VXGE_HW_VP_NOT_OPEN) {
-		status = VXGE_HW_ERR_VPATH_NOT_OPEN;
-		goto exit;
-	}
-	for (i = 0; i < sizeof(struct vxge_hw_xmac_vpath_rx_stats) / 8; i++) {
-		status = __vxge_hw_vpath_stats_access(vpath,
-					VXGE_HW_STATS_OP_READ,
-					offset >> 3, val64);
-		if (status != VXGE_HW_OK)
-			goto exit;
-
-		offset += 8;
-		val64++;
-	}
-exit:
-	return status;
-}
-
-/*
- * __vxge_hw_vpath_stats_get - Get the vpath hw statistics.
- */
-static enum vxge_hw_status
-__vxge_hw_vpath_stats_get(struct __vxge_hw_virtualpath *vpath,
-			  struct vxge_hw_vpath_stats_hw_info *hw_stats)
-{
-	u64 val64;
-	enum vxge_hw_status status = VXGE_HW_OK;
-	struct vxge_hw_vpath_reg __iomem *vp_reg;
-
-	if (vpath->vp_open == VXGE_HW_VP_NOT_OPEN) {
-		status = VXGE_HW_ERR_VPATH_NOT_OPEN;
-		goto exit;
-	}
-	vp_reg = vpath->vp_reg;
-
-	val64 = readq(&vp_reg->vpath_debug_stats0);
-	hw_stats->ini_num_mwr_sent =
-		(u32)VXGE_HW_VPATH_DEBUG_STATS0_GET_INI_NUM_MWR_SENT(val64);
-
-	val64 = readq(&vp_reg->vpath_debug_stats1);
-	hw_stats->ini_num_mrd_sent =
-		(u32)VXGE_HW_VPATH_DEBUG_STATS1_GET_INI_NUM_MRD_SENT(val64);
-
-	val64 = readq(&vp_reg->vpath_debug_stats2);
-	hw_stats->ini_num_cpl_rcvd =
-		(u32)VXGE_HW_VPATH_DEBUG_STATS2_GET_INI_NUM_CPL_RCVD(val64);
-
-	val64 = readq(&vp_reg->vpath_debug_stats3);
-	hw_stats->ini_num_mwr_byte_sent =
-		VXGE_HW_VPATH_DEBUG_STATS3_GET_INI_NUM_MWR_BYTE_SENT(val64);
-
-	val64 = readq(&vp_reg->vpath_debug_stats4);
-	hw_stats->ini_num_cpl_byte_rcvd =
-		VXGE_HW_VPATH_DEBUG_STATS4_GET_INI_NUM_CPL_BYTE_RCVD(val64);
-
-	val64 = readq(&vp_reg->vpath_debug_stats5);
-	hw_stats->wrcrdtarb_xoff =
-		(u32)VXGE_HW_VPATH_DEBUG_STATS5_GET_WRCRDTARB_XOFF(val64);
-
-	val64 = readq(&vp_reg->vpath_debug_stats6);
-	hw_stats->rdcrdtarb_xoff =
-		(u32)VXGE_HW_VPATH_DEBUG_STATS6_GET_RDCRDTARB_XOFF(val64);
-
-	val64 = readq(&vp_reg->vpath_genstats_count01);
-	hw_stats->vpath_genstats_count0 =
-	(u32)VXGE_HW_VPATH_GENSTATS_COUNT01_GET_PPIF_VPATH_GENSTATS_COUNT0(
-		val64);
-
-	val64 = readq(&vp_reg->vpath_genstats_count01);
-	hw_stats->vpath_genstats_count1 =
-	(u32)VXGE_HW_VPATH_GENSTATS_COUNT01_GET_PPIF_VPATH_GENSTATS_COUNT1(
-		val64);
-
-	val64 = readq(&vp_reg->vpath_genstats_count23);
-	hw_stats->vpath_genstats_count2 =
-	(u32)VXGE_HW_VPATH_GENSTATS_COUNT23_GET_PPIF_VPATH_GENSTATS_COUNT2(
-		val64);
-
-	val64 = readq(&vp_reg->vpath_genstats_count01);
-	hw_stats->vpath_genstats_count3 =
-	(u32)VXGE_HW_VPATH_GENSTATS_COUNT23_GET_PPIF_VPATH_GENSTATS_COUNT3(
-		val64);
-
-	val64 = readq(&vp_reg->vpath_genstats_count4);
-	hw_stats->vpath_genstats_count4 =
-	(u32)VXGE_HW_VPATH_GENSTATS_COUNT4_GET_PPIF_VPATH_GENSTATS_COUNT4(
-		val64);
-
-	val64 = readq(&vp_reg->vpath_genstats_count5);
-	hw_stats->vpath_genstats_count5 =
-	(u32)VXGE_HW_VPATH_GENSTATS_COUNT5_GET_PPIF_VPATH_GENSTATS_COUNT5(
-		val64);
-
-	status = __vxge_hw_vpath_xmac_tx_stats_get(vpath, &hw_stats->tx_stats);
-	if (status != VXGE_HW_OK)
-		goto exit;
-
-	status = __vxge_hw_vpath_xmac_rx_stats_get(vpath, &hw_stats->rx_stats);
-	if (status != VXGE_HW_OK)
-		goto exit;
-
-	VXGE_HW_VPATH_STATS_PIO_READ(
-		VXGE_HW_STATS_VPATH_PROG_EVENT_VNUM0_OFFSET);
-
-	hw_stats->prog_event_vnum0 =
-			(u32)VXGE_HW_STATS_GET_VPATH_PROG_EVENT_VNUM0(val64);
-
-	hw_stats->prog_event_vnum1 =
-			(u32)VXGE_HW_STATS_GET_VPATH_PROG_EVENT_VNUM1(val64);
-
-	VXGE_HW_VPATH_STATS_PIO_READ(
-		VXGE_HW_STATS_VPATH_PROG_EVENT_VNUM2_OFFSET);
-
-	hw_stats->prog_event_vnum2 =
-			(u32)VXGE_HW_STATS_GET_VPATH_PROG_EVENT_VNUM2(val64);
-
-	hw_stats->prog_event_vnum3 =
-			(u32)VXGE_HW_STATS_GET_VPATH_PROG_EVENT_VNUM3(val64);
-
-	val64 = readq(&vp_reg->rx_multi_cast_stats);
-	hw_stats->rx_multi_cast_frame_discard =
-		(u16)VXGE_HW_RX_MULTI_CAST_STATS_GET_FRAME_DISCARD(val64);
-
-	val64 = readq(&vp_reg->rx_frm_transferred);
-	hw_stats->rx_frm_transferred =
-		(u32)VXGE_HW_RX_FRM_TRANSFERRED_GET_RX_FRM_TRANSFERRED(val64);
-
-	val64 = readq(&vp_reg->rxd_returned);
-	hw_stats->rxd_returned =
-		(u16)VXGE_HW_RXD_RETURNED_GET_RXD_RETURNED(val64);
-
-	val64 = readq(&vp_reg->dbg_stats_rx_mpa);
-	hw_stats->rx_mpa_len_fail_frms =
-		(u16)VXGE_HW_DBG_STATS_GET_RX_MPA_LEN_FAIL_FRMS(val64);
-	hw_stats->rx_mpa_mrk_fail_frms =
-		(u16)VXGE_HW_DBG_STATS_GET_RX_MPA_MRK_FAIL_FRMS(val64);
-	hw_stats->rx_mpa_crc_fail_frms =
-		(u16)VXGE_HW_DBG_STATS_GET_RX_MPA_CRC_FAIL_FRMS(val64);
-
-	val64 = readq(&vp_reg->dbg_stats_rx_fau);
-	hw_stats->rx_permitted_frms =
-		(u16)VXGE_HW_DBG_STATS_GET_RX_FAU_RX_PERMITTED_FRMS(val64);
-	hw_stats->rx_vp_reset_discarded_frms =
-	(u16)VXGE_HW_DBG_STATS_GET_RX_FAU_RX_VP_RESET_DISCARDED_FRMS(val64);
-	hw_stats->rx_wol_frms =
-		(u16)VXGE_HW_DBG_STATS_GET_RX_FAU_RX_WOL_FRMS(val64);
-
-	val64 = readq(&vp_reg->tx_vp_reset_discarded_frms);
-	hw_stats->tx_vp_reset_discarded_frms =
-	(u16)VXGE_HW_TX_VP_RESET_DISCARDED_FRMS_GET_TX_VP_RESET_DISCARDED_FRMS(
-		val64);
-exit:
-	return status;
-}
-
-
-static void vxge_os_dma_malloc_async(struct pci_dev *pdev, void *devh,
-					unsigned long size)
-{
-	gfp_t flags;
-	void *vaddr;
-
-	if (in_interrupt())
-		flags = GFP_ATOMIC | GFP_DMA;
-	else
-		flags = GFP_KERNEL | GFP_DMA;
-
-	vaddr = kmalloc((size), flags);
-
-	vxge_hw_blockpool_block_add(devh, vaddr, size, pdev, pdev);
-}
-
-static void vxge_os_dma_free(struct pci_dev *pdev, const void *vaddr,
-			     struct pci_dev **p_dma_acch)
-{
-	unsigned long misaligned = *(unsigned long *)p_dma_acch;
-	u8 *tmp = (u8 *)vaddr;
-	tmp -= misaligned;
-	kfree((void *)tmp);
-}
-
-/*
- * __vxge_hw_blockpool_create - Create block pool
- */
-
-enum vxge_hw_status
-__vxge_hw_blockpool_create(struct __vxge_hw_device *hldev,
-			   struct __vxge_hw_blockpool *blockpool,
-			   u32 pool_size,
-			   u32 pool_max)
-{
-	u32 i;
-	struct __vxge_hw_blockpool_entry *entry = NULL;
-	void *memblock;
-	dma_addr_t dma_addr;
-	struct pci_dev *dma_handle;
-	struct pci_dev *acc_handle;
-	enum vxge_hw_status status = VXGE_HW_OK;
-
-	if (blockpool == NULL) {
-		status = VXGE_HW_FAIL;
-		goto blockpool_create_exit;
-	}
-
-	blockpool->hldev = hldev;
-	blockpool->block_size = VXGE_HW_BLOCK_SIZE;
-	blockpool->pool_size = 0;
-	blockpool->pool_max = pool_max;
-	blockpool->req_out = 0;
-
-	INIT_LIST_HEAD(&blockpool->free_block_list);
-	INIT_LIST_HEAD(&blockpool->free_entry_list);
-
-	for (i = 0; i < pool_size + pool_max; i++) {
-		entry = kzalloc(sizeof(struct __vxge_hw_blockpool_entry),
-				GFP_KERNEL);
-		if (entry == NULL) {
-			__vxge_hw_blockpool_destroy(blockpool);
-			status = VXGE_HW_ERR_OUT_OF_MEMORY;
-			goto blockpool_create_exit;
-		}
-		list_add(&entry->item, &blockpool->free_entry_list);
-	}
-
-	for (i = 0; i < pool_size; i++) {
-
-		memblock = vxge_os_dma_malloc(
-				hldev->pdev,
-				VXGE_HW_BLOCK_SIZE,
-				&dma_handle,
-				&acc_handle);
-
-		if (memblock == NULL) {
-			__vxge_hw_blockpool_destroy(blockpool);
-			status = VXGE_HW_ERR_OUT_OF_MEMORY;
-			goto blockpool_create_exit;
-		}
-
-		dma_addr = pci_map_single(hldev->pdev, memblock,
-				VXGE_HW_BLOCK_SIZE, PCI_DMA_BIDIRECTIONAL);
-
-		if (unlikely(pci_dma_mapping_error(hldev->pdev,
-				dma_addr))) {
-
-			vxge_os_dma_free(hldev->pdev, memblock, &acc_handle);
-			__vxge_hw_blockpool_destroy(blockpool);
-			status = VXGE_HW_ERR_OUT_OF_MEMORY;
-			goto blockpool_create_exit;
-		}
-
-		if (!list_empty(&blockpool->free_entry_list))
-			entry = (struct __vxge_hw_blockpool_entry *)
-				list_first_entry(&blockpool->free_entry_list,
-					struct __vxge_hw_blockpool_entry,
-					item);
-
-		if (entry == NULL)
-			entry =
-			    kzalloc(sizeof(struct __vxge_hw_blockpool_entry),
-					GFP_KERNEL);
-		if (entry != NULL) {
-			list_del(&entry->item);
-			entry->length = VXGE_HW_BLOCK_SIZE;
-			entry->memblock = memblock;
-			entry->dma_addr = dma_addr;
-			entry->acc_handle = acc_handle;
-			entry->dma_handle = dma_handle;
-			list_add(&entry->item,
-					  &blockpool->free_block_list);
-			blockpool->pool_size++;
-		} else {
-			__vxge_hw_blockpool_destroy(blockpool);
-			status = VXGE_HW_ERR_OUT_OF_MEMORY;
-			goto blockpool_create_exit;
-		}
-	}
-
-blockpool_create_exit:
-	return status;
-}
-
-/*
- * __vxge_hw_blockpool_destroy - Deallocates the block pool
- */
-
-void __vxge_hw_blockpool_destroy(struct __vxge_hw_blockpool *blockpool)
-{
-
-	struct __vxge_hw_device *hldev;
-	struct list_head *p, *n;
-	u16 ret;
-
-	if (blockpool == NULL) {
-		ret = 1;
-		goto exit;
-	}
-
-	hldev = blockpool->hldev;
-
-	list_for_each_safe(p, n, &blockpool->free_block_list) {
-
-		pci_unmap_single(hldev->pdev,
-			((struct __vxge_hw_blockpool_entry *)p)->dma_addr,
-			((struct __vxge_hw_blockpool_entry *)p)->length,
-			PCI_DMA_BIDIRECTIONAL);
-
-		vxge_os_dma_free(hldev->pdev,
-			((struct __vxge_hw_blockpool_entry *)p)->memblock,
-			&((struct __vxge_hw_blockpool_entry *) p)->acc_handle);
-
-		list_del(
-			&((struct __vxge_hw_blockpool_entry *)p)->item);
-		kfree(p);
-		blockpool->pool_size--;
-	}
-
-	list_for_each_safe(p, n, &blockpool->free_entry_list) {
-		list_del(
-			&((struct __vxge_hw_blockpool_entry *)p)->item);
-		kfree((void *)p);
-	}
-	ret = 0;
-exit:
-	return;
-}
-
-/*
- * __vxge_hw_blockpool_blocks_add - Request additional blocks
- */
-static
-void __vxge_hw_blockpool_blocks_add(struct __vxge_hw_blockpool *blockpool)
-{
-	u32 nreq = 0, i;
-
-	if ((blockpool->pool_size  +  blockpool->req_out) <
-		VXGE_HW_MIN_DMA_BLOCK_POOL_SIZE) {
-		nreq = VXGE_HW_INCR_DMA_BLOCK_POOL_SIZE;
-		blockpool->req_out += nreq;
-	}
-
-	for (i = 0; i < nreq; i++)
-		vxge_os_dma_malloc_async(
-			((struct __vxge_hw_device *)blockpool->hldev)->pdev,
-			blockpool->hldev, VXGE_HW_BLOCK_SIZE);
-}
-
-/*
- * __vxge_hw_blockpool_blocks_remove - Free additional blocks
- */
-static
-void __vxge_hw_blockpool_blocks_remove(struct __vxge_hw_blockpool *blockpool)
-{
-	struct list_head *p, *n;
-
-	list_for_each_safe(p, n, &blockpool->free_block_list) {
-
-		if (blockpool->pool_size < blockpool->pool_max)
-			break;
-
-		pci_unmap_single(
-			((struct __vxge_hw_device *)blockpool->hldev)->pdev,
-			((struct __vxge_hw_blockpool_entry *)p)->dma_addr,
-			((struct __vxge_hw_blockpool_entry *)p)->length,
-			PCI_DMA_BIDIRECTIONAL);
-
-		vxge_os_dma_free(
-			((struct __vxge_hw_device *)blockpool->hldev)->pdev,
-			((struct __vxge_hw_blockpool_entry *)p)->memblock,
-			&((struct __vxge_hw_blockpool_entry *)p)->acc_handle);
-
-		list_del(&((struct __vxge_hw_blockpool_entry *)p)->item);
-
-		list_add(p, &blockpool->free_entry_list);
-
-		blockpool->pool_size--;
-
-	}
-}
-
-/*
- * vxge_hw_blockpool_block_add - callback for vxge_os_dma_malloc_async
- * Adds a block to block pool
- */
-static void vxge_hw_blockpool_block_add(struct __vxge_hw_device *devh,
-					void *block_addr,
-					u32 length,
-					struct pci_dev *dma_h,
-					struct pci_dev *acc_handle)
-{
-	struct __vxge_hw_blockpool  *blockpool;
-	struct __vxge_hw_blockpool_entry  *entry = NULL;
-	dma_addr_t dma_addr;
-	enum vxge_hw_status status = VXGE_HW_OK;
-	u32 req_out;
-
-	blockpool = &devh->block_pool;
-
-	if (block_addr == NULL) {
-		blockpool->req_out--;
-		status = VXGE_HW_FAIL;
-		goto exit;
-	}
-
-	dma_addr = pci_map_single(devh->pdev, block_addr, length,
-				PCI_DMA_BIDIRECTIONAL);
-
-	if (unlikely(pci_dma_mapping_error(devh->pdev, dma_addr))) {
-
-		vxge_os_dma_free(devh->pdev, block_addr, &acc_handle);
-		blockpool->req_out--;
-		status = VXGE_HW_FAIL;
-		goto exit;
-	}
-
-
-	if (!list_empty(&blockpool->free_entry_list))
-		entry = (struct __vxge_hw_blockpool_entry *)
-			list_first_entry(&blockpool->free_entry_list,
-				struct __vxge_hw_blockpool_entry,
-				item);
-
-	if (entry == NULL)
-		entry = (struct __vxge_hw_blockpool_entry *)
-			vmalloc(sizeof(struct __vxge_hw_blockpool_entry));
-	else
-		list_del(&entry->item);
-
-	if (entry != NULL) {
-		entry->length = length;
-		entry->memblock = block_addr;
-		entry->dma_addr = dma_addr;
-		entry->acc_handle = acc_handle;
-		entry->dma_handle = dma_h;
-		list_add(&entry->item, &blockpool->free_block_list);
-		blockpool->pool_size++;
-		status = VXGE_HW_OK;
-	} else
-		status = VXGE_HW_ERR_OUT_OF_MEMORY;
-
-	blockpool->req_out--;
-
-	req_out = blockpool->req_out;
-exit:
-	return;
-}
-
-/*
- * __vxge_hw_blockpool_malloc - Allocate a memory block from pool
- * Allocates a block of memory of given size, either from block pool
- * or by calling vxge_os_dma_malloc()
- */
-void *
-__vxge_hw_blockpool_malloc(struct __vxge_hw_device *devh, u32 size,
-				struct vxge_hw_mempool_dma *dma_object)
-{
-	struct __vxge_hw_blockpool_entry *entry = NULL;
-	struct __vxge_hw_blockpool  *blockpool;
-	void *memblock = NULL;
-	enum vxge_hw_status status = VXGE_HW_OK;
-
-	blockpool = &devh->block_pool;
-
-	if (size != blockpool->block_size) {
-
-		memblock = vxge_os_dma_malloc(devh->pdev, size,
-						&dma_object->handle,
-						&dma_object->acc_handle);
-
-		if (memblock == NULL) {
-			status = VXGE_HW_ERR_OUT_OF_MEMORY;
-			goto exit;
-		}
-
-		dma_object->addr = pci_map_single(devh->pdev, memblock, size,
-					PCI_DMA_BIDIRECTIONAL);
-
-		if (unlikely(pci_dma_mapping_error(devh->pdev,
-				dma_object->addr))) {
-			vxge_os_dma_free(devh->pdev, memblock,
-				&dma_object->acc_handle);
-			status = VXGE_HW_ERR_OUT_OF_MEMORY;
-			goto exit;
-		}
-
-	} else {
-
-		if (!list_empty(&blockpool->free_block_list))
-			entry = (struct __vxge_hw_blockpool_entry *)
-				list_first_entry(&blockpool->free_block_list,
-					struct __vxge_hw_blockpool_entry,
-					item);
-
-		if (entry != NULL) {
-			list_del(&entry->item);
-			dma_object->addr = entry->dma_addr;
-			dma_object->handle = entry->dma_handle;
-			dma_object->acc_handle = entry->acc_handle;
-			memblock = entry->memblock;
-
-			list_add(&entry->item,
-				&blockpool->free_entry_list);
-			blockpool->pool_size--;
-		}
-
-		if (memblock != NULL)
-			__vxge_hw_blockpool_blocks_add(blockpool);
-	}
-exit:
-	return memblock;
-}
-
-/*
- * __vxge_hw_blockpool_free - Frees the memory allcoated with
-				__vxge_hw_blockpool_malloc
- */
-void
-__vxge_hw_blockpool_free(struct __vxge_hw_device *devh,
-			void *memblock, u32 size,
-			struct vxge_hw_mempool_dma *dma_object)
-{
-	struct __vxge_hw_blockpool_entry *entry = NULL;
-	struct __vxge_hw_blockpool  *blockpool;
-	enum vxge_hw_status status = VXGE_HW_OK;
-
-	blockpool = &devh->block_pool;
-
-	if (size != blockpool->block_size) {
-		pci_unmap_single(devh->pdev, dma_object->addr, size,
-			PCI_DMA_BIDIRECTIONAL);
-		vxge_os_dma_free(devh->pdev, memblock, &dma_object->acc_handle);
-	} else {
-
-		if (!list_empty(&blockpool->free_entry_list))
-			entry = (struct __vxge_hw_blockpool_entry *)
-				list_first_entry(&blockpool->free_entry_list,
-					struct __vxge_hw_blockpool_entry,
-					item);
-
-		if (entry == NULL)
-			entry = (struct __vxge_hw_blockpool_entry *)
-				vmalloc(sizeof(
-					struct __vxge_hw_blockpool_entry));
-		else
-			list_del(&entry->item);
-
-		if (entry != NULL) {
-			entry->length = size;
-			entry->memblock = memblock;
-			entry->dma_addr = dma_object->addr;
-			entry->acc_handle = dma_object->acc_handle;
-			entry->dma_handle = dma_object->handle;
-			list_add(&entry->item,
-					&blockpool->free_block_list);
-			blockpool->pool_size++;
-			status = VXGE_HW_OK;
-		} else
-			status = VXGE_HW_ERR_OUT_OF_MEMORY;
-
-		if (status == VXGE_HW_OK)
-			__vxge_hw_blockpool_blocks_remove(blockpool);
-	}
-}
-
-/*
- * __vxge_hw_blockpool_block_allocate - Allocates a block from block pool
- * This function allocates a block from block pool or from the system
- */
-struct __vxge_hw_blockpool_entry *
-__vxge_hw_blockpool_block_allocate(struct __vxge_hw_device *devh, u32 size)
-{
-	struct __vxge_hw_blockpool_entry *entry = NULL;
-	struct __vxge_hw_blockpool  *blockpool;
-
-	blockpool = &devh->block_pool;
-
-	if (size == blockpool->block_size) {
-
-		if (!list_empty(&blockpool->free_block_list))
-			entry = (struct __vxge_hw_blockpool_entry *)
-				list_first_entry(&blockpool->free_block_list,
-					struct __vxge_hw_blockpool_entry,
-					item);
-
-		if (entry != NULL) {
-			list_del(&entry->item);
-			blockpool->pool_size--;
-		}
-	}
-
-	if (entry != NULL)
-		__vxge_hw_blockpool_blocks_add(blockpool);
-
-	return entry;
-}
-
-/*
- * __vxge_hw_blockpool_block_free - Frees a block from block pool
- * @devh: Hal device
- * @entry: Entry of block to be freed
- *
- * This function frees a block from block pool
- */
-void
-__vxge_hw_blockpool_block_free(struct __vxge_hw_device *devh,
-			struct __vxge_hw_blockpool_entry *entry)
-{
-	struct __vxge_hw_blockpool  *blockpool;
-
-	blockpool = &devh->block_pool;
-
-	if (entry->length == blockpool->block_size) {
-		list_add(&entry->item, &blockpool->free_block_list);
-		blockpool->pool_size++;
-	}
-
-	__vxge_hw_blockpool_blocks_remove(blockpool);
 }

@@ -35,10 +35,6 @@ Driver ID Guide at:
 Known Issues/Troubleshooting
 ============================
 
-  Unloading Physical Function (PF) Driver Causes System Reboots When VM is
-  Running and VF is Loaded on the VM
-  ------------------------------------------------------------------------
-  Do not unload the PF driver (ixgbe) while VFs are assigned to guests.
 
 Support
 =======

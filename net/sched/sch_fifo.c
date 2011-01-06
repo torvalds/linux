@@ -54,8 +54,6 @@ static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 	/* queue full, remove one skb to fulfill the limit */
 	skb_head = qdisc_dequeue_head(sch);
-	sch->bstats.bytes -= qdisc_pkt_len(skb_head);
-	sch->bstats.packets--;
 	sch->qstats.drops++;
 	kfree_skb(skb_head);
 

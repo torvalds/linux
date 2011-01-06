@@ -780,7 +780,6 @@ module_init(i2400mu_driver_init);
 static
 void __exit i2400mu_driver_exit(void)
 {
-	flush_scheduled_work();	/* for the stuff we schedule from sysfs.c */
 	usb_deregister(&i2400mu_driver);
 }
 module_exit(i2400mu_driver_exit);

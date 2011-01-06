@@ -1615,6 +1615,8 @@
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_NO_VLAN	 (0x1<<4)
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_UNCST	 (0x1<<2)
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_VLAN	 (0x1<<3)
+#define NIG_LLH0_XCM_MASK_REG_LLH0_XCM_MASK_BCN			 (0x1<<0)
+#define NIG_LLH1_XCM_MASK_REG_LLH1_XCM_MASK_BCN			 (0x1<<0)
 #define NIG_MASK_INTERRUPT_PORT0_REG_MASK_EMAC0_MISC_MI_INT	 (0x1<<0)
 #define NIG_MASK_INTERRUPT_PORT0_REG_MASK_SERDES0_LINK_STATUS	 (0x1<<9)
 #define NIG_MASK_INTERRUPT_PORT0_REG_MASK_XGXS0_LINK10G 	 (0x1<<15)
@@ -1744,12 +1746,16 @@
    ~ppp_enable.ppp_enable = 0 and pause_enable.pause_enable =0 for the same
    port */
 #define NIG_REG_LLFC_ENABLE_0					 0x16208
+#define NIG_REG_LLFC_ENABLE_1					 0x1620c
 /* [RW 16] classes are high-priority for port0 */
 #define NIG_REG_LLFC_HIGH_PRIORITY_CLASSES_0			 0x16058
+#define NIG_REG_LLFC_HIGH_PRIORITY_CLASSES_1			 0x1605c
 /* [RW 16] classes are low-priority for port0 */
 #define NIG_REG_LLFC_LOW_PRIORITY_CLASSES_0			 0x16060
+#define NIG_REG_LLFC_LOW_PRIORITY_CLASSES_1			 0x16064
 /* [RW 1] Output enable of message to LLFC BMAC IF for port0 */
 #define NIG_REG_LLFC_OUT_EN_0					 0x160c8
+#define NIG_REG_LLFC_OUT_EN_1					 0x160cc
 #define NIG_REG_LLH0_ACPI_PAT_0_CRC				 0x1015c
 #define NIG_REG_LLH0_ACPI_PAT_6_LEN				 0x10154
 #define NIG_REG_LLH0_BRB1_DRV_MASK				 0x10244
@@ -1774,6 +1780,8 @@
 /* [RW 8] event id for llh0 */
 #define NIG_REG_LLH0_EVENT_ID					 0x10084
 #define NIG_REG_LLH0_FUNC_EN					 0x160fc
+#define NIG_REG_LLH0_FUNC_MEM					 0x16180
+#define NIG_REG_LLH0_FUNC_MEM_ENABLE				 0x16140
 #define NIG_REG_LLH0_FUNC_VLAN_ID				 0x16100
 /* [RW 1] Determine the IP version to look for in
    ~nig_registers_llh0_dest_ip_0.llh0_dest_ip_0. 0 - IPv6; 1-IPv4 */
@@ -1797,6 +1805,9 @@
 #define NIG_REG_LLH1_ERROR_MASK 				 0x10090
 /* [RW 8] event id for llh1 */
 #define NIG_REG_LLH1_EVENT_ID					 0x10088
+#define NIG_REG_LLH1_FUNC_MEM					 0x161c0
+#define NIG_REG_LLH1_FUNC_MEM_ENABLE				 0x16160
+#define NIG_REG_LLH1_FUNC_MEM_SIZE				 16
 /* [RW 8] init credit counter for port1 in LLH */
 #define NIG_REG_LLH1_XCM_INIT_CREDIT				 0x10564
 #define NIG_REG_LLH1_XCM_MASK					 0x10134
@@ -1907,11 +1918,17 @@
    ~safc_enable.safc_enable = 0 and ppp_enable.ppp_enable =0 for the same
    port */
 #define NIG_REG_PAUSE_ENABLE_0					 0x160c0
+#define NIG_REG_PAUSE_ENABLE_1					 0x160c4
 /* [RW 1] Input enable for RX PBF LP IF */
 #define NIG_REG_PBF_LB_IN_EN					 0x100b4
 /* [RW 1] Value of this register will be transmitted to port swap when
    ~nig_registers_strap_override.strap_override =1 */
 #define NIG_REG_PORT_SWAP					 0x10394
+/* [RW 1] PPP enable for port0. This register may get 1 only when
+ * ~safc_enable.safc_enable = 0 and pause_enable.pause_enable =0 for the
+ * same port */
+#define NIG_REG_PPP_ENABLE_0					 0x160b0
+#define NIG_REG_PPP_ENABLE_1					 0x160b4
 /* [RW 1] output enable for RX parser descriptor IF */
 #define NIG_REG_PRS_EOP_OUT_EN					 0x10104
 /* [RW 1] Input enable for RX parser request IF */
@@ -1978,6 +1995,14 @@
 #define NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK10G	 (0x1<<15)
 #define NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK_STATUS  (0xf<<18)
 #define NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK_STATUS_SIZE 18
+/* [RW 31] The upper bound of the weight of COS0 in the ETS command arbiter. */
+#define PBF_REG_COS0_UPPER_BOUND				 0x15c05c
+/* [RW 31] The weight of COS0 in the ETS command arbiter. */
+#define PBF_REG_COS0_WEIGHT					 0x15c054
+/* [RW 31] The upper bound of the weight of COS1 in the ETS command arbiter. */
+#define PBF_REG_COS1_UPPER_BOUND				 0x15c060
+/* [RW 31] The weight of COS1 in the ETS command arbiter. */
+#define PBF_REG_COS1_WEIGHT					 0x15c058
 /* [RW 1] Disable processing further tasks from port 0 (after ending the
    current task in process). */
 #define PBF_REG_DISABLE_NEW_TASK_PROC_P0			 0x14005c
@@ -1988,9 +2013,16 @@
    current task in process). */
 #define PBF_REG_DISABLE_NEW_TASK_PROC_P4			 0x14006c
 #define PBF_REG_DISABLE_PF					 0x1402e8
+/* [RW 1] Indicates that ETS is performed between the COSes in the command
+ * arbiter. If reset strict priority w/ anti-starvation will be performed
+ * w/o WFQ. */
+#define PBF_REG_ETS_ENABLED					 0x15c050
 /* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
  * Ethernet header. */
 #define PBF_REG_HDRS_AFTER_BASIC				 0x15c0a8
+/* [RW 1] Indicates which COS is conncted to the highest priority in the
+ * command arbiter. */
+#define PBF_REG_HIGH_PRIORITY_COS_NUM				 0x15c04c
 #define PBF_REG_IF_ENABLE_REG					 0x140044
 /* [RW 1] Init bit. When set the initial credits are copied to the credit
    registers (except the port credits). Should be set and then reset after
@@ -2016,6 +2048,10 @@
 #define PBF_REG_MAC_LB_ENABLE					 0x140040
 /* [RW 6] Bit-map indicating which headers must appear in the packet */
 #define PBF_REG_MUST_HAVE_HDRS					 0x15c0c4
+/* [RW 16] The number of strict priority arbitration slots between 2 RR
+ * arbitration slots. A value of 0 means no strict priority cycles; i.e. the
+ * strict-priority w/ anti-starvation arbiter is a RR arbiter. */
+#define PBF_REG_NUM_STRICT_ARB_SLOTS				 0x15c064
 /* [RW 10] Port 0 threshold used by arbiter in 16 byte lines used when pause
    not suppoterd. */
 #define PBF_REG_P0_ARB_THRSH					 0x1400e4
@@ -4970,7 +5006,23 @@
 #define EMAC_REG_EMAC_TX_MODE					 0xbc
 #define EMAC_REG_EMAC_TX_STAT_AC				 0x280
 #define EMAC_REG_EMAC_TX_STAT_AC_COUNT				 22
+#define EMAC_REG_RX_PFC_MODE					 0x320
+#define EMAC_REG_RX_PFC_MODE_PRIORITIES				 (1L<<2)
+#define EMAC_REG_RX_PFC_MODE_RX_EN				 (1L<<1)
+#define EMAC_REG_RX_PFC_MODE_TX_EN				 (1L<<0)
+#define EMAC_REG_RX_PFC_PARAM					 0x324
+#define EMAC_REG_RX_PFC_PARAM_OPCODE_BITSHIFT			 0
+#define EMAC_REG_RX_PFC_PARAM_PRIORITY_EN_BITSHIFT		 16
+#define EMAC_REG_RX_PFC_STATS_XOFF_RCVD				 0x328
+#define EMAC_REG_RX_PFC_STATS_XOFF_RCVD_COUNT			 (0xffff<<0)
+#define EMAC_REG_RX_PFC_STATS_XOFF_SENT				 0x330
+#define EMAC_REG_RX_PFC_STATS_XOFF_SENT_COUNT			 (0xffff<<0)
+#define EMAC_REG_RX_PFC_STATS_XON_RCVD				 0x32c
+#define EMAC_REG_RX_PFC_STATS_XON_RCVD_COUNT			 (0xffff<<0)
+#define EMAC_REG_RX_PFC_STATS_XON_SENT				 0x334
+#define EMAC_REG_RX_PFC_STATS_XON_SENT_COUNT			 (0xffff<<0)
 #define EMAC_RX_MODE_FLOW_EN					 (1L<<2)
+#define EMAC_RX_MODE_KEEP_MAC_CONTROL				 (1L<<3)
 #define EMAC_RX_MODE_KEEP_VLAN_TAG				 (1L<<10)
 #define EMAC_RX_MODE_PROMISCUOUS				 (1L<<8)
 #define EMAC_RX_MODE_RESET					 (1L<<0)

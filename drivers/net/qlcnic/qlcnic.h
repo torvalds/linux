@@ -1,25 +1,8 @@
 /*
- * Copyright (C) 2009 - QLogic Corporation.
- * All rights reserved.
+ * QLogic qlcnic NIC Driver
+ * Copyright (c)  2009-2010 QLogic Corporation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
- * MA  02111-1307, USA.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called "COPYING".
- *
+ * See LICENSE.qlcnic for copyright and licensing details.
  */
 
 #ifndef _QLCNIC_H_
@@ -51,8 +34,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 11
-#define QLCNIC_LINUX_VERSIONID  "5.0.11"
+#define _QLCNIC_LINUX_SUBVERSION 14
+#define QLCNIC_LINUX_VERSIONID  "5.0.14"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -798,7 +781,6 @@ struct qlcnic_nic_intr_coalesce {
 #define QLCNIC_H2C_OPCODE_GET_NET_STATS 		16
 #define QLCNIC_H2C_OPCODE_PROXY_UPDATE_P2V		17
 #define QLCNIC_H2C_OPCODE_CONFIG_IPADDR 		18
-#define QLCNIC_H2C_OPCODE_CONFIG_LOOPBACK		19
 #define QLCNIC_H2C_OPCODE_PROXY_STOP_DONE		20
 #define QLCNIC_H2C_OPCODE_GET_LINKEVENT 		21
 #define QLCNIC_C2C_OPCODE				22
@@ -923,6 +905,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_MACSPOOF			0x200
 #define QLCNIC_MAC_OVERRIDE_DISABLED	0x400
 #define QLCNIC_PROMISC_DISABLED		0x800
+#define QLCNIC_NEED_FLR			0x1000
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
 
@@ -942,6 +925,7 @@ struct qlcnic_ipaddr {
 
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
+#define QLCNIC_LED_TEST		3
 
 #define QLCNIC_FILTER_AGE	80
 #define QLCNIC_READD_AGE	20
@@ -1126,8 +1110,7 @@ struct qlcnic_eswitch {
 /* Return codes for Error handling */
 #define QL_STATUS_INVALID_PARAM	-1
 
-#define MAX_BW			100
-#define MIN_BW			1
+#define MAX_BW			100	/* % of link speed */
 #define MAX_VLAN_ID		4095
 #define MIN_VLAN_ID		2
 #define MAX_TX_QUEUES		1
@@ -1135,7 +1118,7 @@ struct qlcnic_eswitch {
 #define DEFAULT_MAC_LEARN	1
 
 #define IS_VALID_VLAN(vlan)	(vlan >= MIN_VLAN_ID && vlan < MAX_VLAN_ID)
-#define IS_VALID_BW(bw)		(bw >= MIN_BW && bw <= MAX_BW)
+#define IS_VALID_BW(bw)		(bw <= MAX_BW)
 #define IS_VALID_TX_QUEUES(que)	(que > 0 && que <= MAX_TX_QUEUES)
 #define IS_VALID_RX_QUEUES(que)	(que > 0 && que <= MAX_RX_QUEUES)
 
@@ -1314,21 +1297,15 @@ int qlcnic_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable);
 int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter);
 void qlcnic_update_cmd_producer(struct qlcnic_adapter *adapter,
 		struct qlcnic_host_tx_ring *tx_ring);
-void qlcnic_clear_ilb_mode(struct qlcnic_adapter *adapter);
-int qlcnic_set_ilb_mode(struct qlcnic_adapter *adapter);
 void qlcnic_fetch_mac(struct qlcnic_adapter *, u32, u32, u8, u8 *);
 
 /* Functions from qlcnic_main.c */
-int qlcnic_request_quiscent_mode(struct qlcnic_adapter *adapter);
-void qlcnic_clear_quiscent_mode(struct qlcnic_adapter *adapter);
 int qlcnic_reset_context(struct qlcnic_adapter *);
 u32 qlcnic_issue_cmd(struct qlcnic_adapter *adapter,
 	u32 pci_fn, u32 version, u32 arg1, u32 arg2, u32 arg3, u32 cmd);
 void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings);
 int qlcnic_diag_alloc_res(struct net_device *netdev, int test);
-int qlcnic_check_loopback_buff(unsigned char *data);
 netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
-void qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring);
 
 /* Management functions */
 int qlcnic_get_mac_address(struct qlcnic_adapter *, u8*);
@@ -1377,6 +1354,8 @@ static const struct qlcnic_brdinfo qlcnic_boards[] = {
 		"3200 Series Single Port 10Gb Intelligent Ethernet Adapter"},
 	{0x1077, 0x8020, 0x103c, 0x3733,
 		"NC523SFP 10Gb 2-port Server Adapter"},
+	{0x1077, 0x8020, 0x103c, 0x3346,
+		"CN1000Q Dual Port Converged Network Adapter"},
 	{0x1077, 0x8020, 0x0, 0x0, "cLOM8214 1/10GbE Controller"},
 };
 

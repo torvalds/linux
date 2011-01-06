@@ -45,63 +45,67 @@ struct e1000_stats {
 	int stat_offset;
 };
 
-#define E1000_STAT(m)		E1000_STATS, \
-				sizeof(((struct e1000_adapter *)0)->m), \
-		      		offsetof(struct e1000_adapter, m)
-#define E1000_NETDEV_STAT(m)	NETDEV_STATS, \
-				sizeof(((struct net_device *)0)->m), \
-				offsetof(struct net_device, m)
+#define E1000_STAT(str, m) { \
+			.stat_string = str, \
+			.type = E1000_STATS, \
+			.sizeof_stat = sizeof(((struct e1000_adapter *)0)->m), \
+			.stat_offset = offsetof(struct e1000_adapter, m) }
+#define E1000_NETDEV_STAT(str, m) { \
+			.stat_string = str, \
+			.type = NETDEV_STATS, \
+			.sizeof_stat = sizeof(((struct net_device *)0)->m), \
+			.stat_offset = offsetof(struct net_device, m) }
 
 static const struct e1000_stats e1000_gstrings_stats[] = {
-	{ "rx_packets", E1000_STAT(stats.gprc) },
-	{ "tx_packets", E1000_STAT(stats.gptc) },
-	{ "rx_bytes", E1000_STAT(stats.gorc) },
-	{ "tx_bytes", E1000_STAT(stats.gotc) },
-	{ "rx_broadcast", E1000_STAT(stats.bprc) },
-	{ "tx_broadcast", E1000_STAT(stats.bptc) },
-	{ "rx_multicast", E1000_STAT(stats.mprc) },
-	{ "tx_multicast", E1000_STAT(stats.mptc) },
-	{ "rx_errors", E1000_NETDEV_STAT(stats.rx_errors) },
-	{ "tx_errors", E1000_NETDEV_STAT(stats.tx_errors) },
-	{ "tx_dropped", E1000_NETDEV_STAT(stats.tx_dropped) },
-	{ "multicast", E1000_STAT(stats.mprc) },
-	{ "collisions", E1000_STAT(stats.colc) },
-	{ "rx_length_errors", E1000_NETDEV_STAT(stats.rx_length_errors) },
-	{ "rx_over_errors", E1000_NETDEV_STAT(stats.rx_over_errors) },
-	{ "rx_crc_errors", E1000_STAT(stats.crcerrs) },
-	{ "rx_frame_errors", E1000_NETDEV_STAT(stats.rx_frame_errors) },
-	{ "rx_no_buffer_count", E1000_STAT(stats.rnbc) },
-	{ "rx_missed_errors", E1000_STAT(stats.mpc) },
-	{ "tx_aborted_errors", E1000_STAT(stats.ecol) },
-	{ "tx_carrier_errors", E1000_STAT(stats.tncrs) },
-	{ "tx_fifo_errors", E1000_NETDEV_STAT(stats.tx_fifo_errors) },
-	{ "tx_heartbeat_errors", E1000_NETDEV_STAT(stats.tx_heartbeat_errors) },
-	{ "tx_window_errors", E1000_STAT(stats.latecol) },
-	{ "tx_abort_late_coll", E1000_STAT(stats.latecol) },
-	{ "tx_deferred_ok", E1000_STAT(stats.dc) },
-	{ "tx_single_coll_ok", E1000_STAT(stats.scc) },
-	{ "tx_multi_coll_ok", E1000_STAT(stats.mcc) },
-	{ "tx_timeout_count", E1000_STAT(tx_timeout_count) },
-	{ "tx_restart_queue", E1000_STAT(restart_queue) },
-	{ "rx_long_length_errors", E1000_STAT(stats.roc) },
-	{ "rx_short_length_errors", E1000_STAT(stats.ruc) },
-	{ "rx_align_errors", E1000_STAT(stats.algnerrc) },
-	{ "tx_tcp_seg_good", E1000_STAT(stats.tsctc) },
-	{ "tx_tcp_seg_failed", E1000_STAT(stats.tsctfc) },
-	{ "rx_flow_control_xon", E1000_STAT(stats.xonrxc) },
-	{ "rx_flow_control_xoff", E1000_STAT(stats.xoffrxc) },
-	{ "tx_flow_control_xon", E1000_STAT(stats.xontxc) },
-	{ "tx_flow_control_xoff", E1000_STAT(stats.xofftxc) },
-	{ "rx_long_byte_count", E1000_STAT(stats.gorc) },
-	{ "rx_csum_offload_good", E1000_STAT(hw_csum_good) },
-	{ "rx_csum_offload_errors", E1000_STAT(hw_csum_err) },
-	{ "rx_header_split", E1000_STAT(rx_hdr_split) },
-	{ "alloc_rx_buff_failed", E1000_STAT(alloc_rx_buff_failed) },
-	{ "tx_smbus", E1000_STAT(stats.mgptc) },
-	{ "rx_smbus", E1000_STAT(stats.mgprc) },
-	{ "dropped_smbus", E1000_STAT(stats.mgpdc) },
-	{ "rx_dma_failed", E1000_STAT(rx_dma_failed) },
-	{ "tx_dma_failed", E1000_STAT(tx_dma_failed) },
+	E1000_STAT("rx_packets", stats.gprc),
+	E1000_STAT("tx_packets", stats.gptc),
+	E1000_STAT("rx_bytes", stats.gorc),
+	E1000_STAT("tx_bytes", stats.gotc),
+	E1000_STAT("rx_broadcast", stats.bprc),
+	E1000_STAT("tx_broadcast", stats.bptc),
+	E1000_STAT("rx_multicast", stats.mprc),
+	E1000_STAT("tx_multicast", stats.mptc),
+	E1000_NETDEV_STAT("rx_errors", stats.rx_errors),
+	E1000_NETDEV_STAT("tx_errors", stats.tx_errors),
+	E1000_NETDEV_STAT("tx_dropped", stats.tx_dropped),
+	E1000_STAT("multicast", stats.mprc),
+	E1000_STAT("collisions", stats.colc),
+	E1000_NETDEV_STAT("rx_length_errors", stats.rx_length_errors),
+	E1000_NETDEV_STAT("rx_over_errors", stats.rx_over_errors),
+	E1000_STAT("rx_crc_errors", stats.crcerrs),
+	E1000_NETDEV_STAT("rx_frame_errors", stats.rx_frame_errors),
+	E1000_STAT("rx_no_buffer_count", stats.rnbc),
+	E1000_STAT("rx_missed_errors", stats.mpc),
+	E1000_STAT("tx_aborted_errors", stats.ecol),
+	E1000_STAT("tx_carrier_errors", stats.tncrs),
+	E1000_NETDEV_STAT("tx_fifo_errors", stats.tx_fifo_errors),
+	E1000_NETDEV_STAT("tx_heartbeat_errors", stats.tx_heartbeat_errors),
+	E1000_STAT("tx_window_errors", stats.latecol),
+	E1000_STAT("tx_abort_late_coll", stats.latecol),
+	E1000_STAT("tx_deferred_ok", stats.dc),
+	E1000_STAT("tx_single_coll_ok", stats.scc),
+	E1000_STAT("tx_multi_coll_ok", stats.mcc),
+	E1000_STAT("tx_timeout_count", tx_timeout_count),
+	E1000_STAT("tx_restart_queue", restart_queue),
+	E1000_STAT("rx_long_length_errors", stats.roc),
+	E1000_STAT("rx_short_length_errors", stats.ruc),
+	E1000_STAT("rx_align_errors", stats.algnerrc),
+	E1000_STAT("tx_tcp_seg_good", stats.tsctc),
+	E1000_STAT("tx_tcp_seg_failed", stats.tsctfc),
+	E1000_STAT("rx_flow_control_xon", stats.xonrxc),
+	E1000_STAT("rx_flow_control_xoff", stats.xoffrxc),
+	E1000_STAT("tx_flow_control_xon", stats.xontxc),
+	E1000_STAT("tx_flow_control_xoff", stats.xofftxc),
+	E1000_STAT("rx_long_byte_count", stats.gorc),
+	E1000_STAT("rx_csum_offload_good", hw_csum_good),
+	E1000_STAT("rx_csum_offload_errors", hw_csum_err),
+	E1000_STAT("rx_header_split", rx_hdr_split),
+	E1000_STAT("alloc_rx_buff_failed", alloc_rx_buff_failed),
+	E1000_STAT("tx_smbus", stats.mgptc),
+	E1000_STAT("rx_smbus", stats.mgprc),
+	E1000_STAT("dropped_smbus", stats.mgpdc),
+	E1000_STAT("rx_dma_failed", rx_dma_failed),
+	E1000_STAT("tx_dma_failed", tx_dma_failed),
 };
 
 #define E1000_GLOBAL_STATS_LEN	ARRAY_SIZE(e1000_gstrings_stats)
@@ -192,20 +196,6 @@ static int e1000_get_settings(struct net_device *netdev,
 		ecmd->eth_tp_mdix = ETH_TP_MDI_INVALID;
 
 	return 0;
-}
-
-static u32 e1000_get_link(struct net_device *netdev)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
-
-	/*
-	 * Avoid touching hardware registers when possible, otherwise
-	 * link negotiation can get messed up when user-level scripts
-	 * are rapidly polling the driver to see if link is up.
-	 */
-	return netif_running(netdev) ? netif_carrier_ok(netdev) :
-	    !!(er32(STATUS) & E1000_STATUS_LU);
 }
 
 static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u16 spddplx)
@@ -763,8 +753,8 @@ static bool reg_pattern_test(struct e1000_adapter *adapter, u64 *data,
 			     int reg, int offset, u32 mask, u32 write)
 {
 	u32 pat, val;
-	static const u32 test[] =
-		{0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};
+	static const u32 test[] = {
+		0x5A5A5A5A, 0xA5A5A5A5, 0x00000000, 0xFFFFFFFF};
 	for (pat = 0; pat < ARRAY_SIZE(test); pat++) {
 		E1000_WRITE_REG_ARRAY(&adapter->hw, reg, offset,
 				      (test[pat] & write));
@@ -1263,6 +1253,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 	u32 ctrl_reg = 0;
 	u32 stat_reg = 0;
 	u16 phy_reg = 0;
+	s32 ret_val = 0;
 
 	hw->mac.autoneg = 0;
 
@@ -1322,7 +1313,13 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 	case e1000_phy_82577:
 	case e1000_phy_82578:
 		/* Workaround: K1 must be disabled for stable 1Gbps operation */
+		ret_val = hw->phy.ops.acquire(hw);
+		if (ret_val) {
+			e_err("Cannot setup 1Gbps loopback.\n");
+			return ret_val;
+		}
 		e1000_configure_k1_ich8lan(hw, false);
+		hw->phy.ops.release(hw);
 		break;
 	case e1000_phy_82579:
 		/* Disable PHY energy detect power down */
@@ -1860,7 +1857,7 @@ static int e1000_set_wol(struct net_device *netdev,
 /* bit defines for adapter->led_status */
 #define E1000_LED_ON		0
 
-static void e1000e_led_blink_task(struct work_struct *work)
+void e1000e_led_blink_task(struct work_struct *work)
 {
 	struct e1000_adapter *adapter = container_of(work,
 	                                struct e1000_adapter, led_blink_task);
@@ -1892,7 +1889,6 @@ static int e1000_phys_id(struct net_device *netdev, u32 data)
 	    (hw->mac.type == e1000_pch2lan) ||
 	    (hw->mac.type == e1000_82583) ||
 	    (hw->mac.type == e1000_82574)) {
-		INIT_WORK(&adapter->led_blink_task, e1000e_led_blink_task);
 		if (!adapter->blink_timer.function) {
 			init_timer(&adapter->blink_timer);
 			adapter->blink_timer.function =
@@ -1986,6 +1982,9 @@ static void e1000_get_ethtool_stats(struct net_device *netdev,
 			p = (char *) adapter +
 					e1000_gstrings_stats[i].stat_offset;
 			break;
+		default:
+			data[i] = 0;
+			continue;
 		}
 
 		data[i] = (e1000_gstrings_stats[i].sizeof_stat ==
@@ -2024,7 +2023,7 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_msglevel		= e1000_get_msglevel,
 	.set_msglevel		= e1000_set_msglevel,
 	.nway_reset		= e1000_nway_reset,
-	.get_link		= e1000_get_link,
+	.get_link		= ethtool_op_get_link,
 	.get_eeprom_len		= e1000_get_eeprom_len,
 	.get_eeprom		= e1000_get_eeprom,
 	.set_eeprom		= e1000_set_eeprom,

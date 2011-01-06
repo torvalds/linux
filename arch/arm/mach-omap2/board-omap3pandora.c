@@ -642,30 +642,12 @@ static void __init omap3pandora_init_irq(void)
 	omap_gpio_init();
 }
 
-static void pandora_wl1251_set_power(bool enable)
+static void __init pandora_wl1251_init(void)
 {
-	/*
-	 * Keep power always on until wl1251_sdio driver learns to re-init
-	 * the chip after powering it down and back up.
-	 */
-}
-
-static struct wl12xx_platform_data pandora_wl1251_pdata = {
-	.set_power	= pandora_wl1251_set_power,
-	.use_eeprom	= true,
-};
-
-static struct platform_device pandora_wl1251_data = {
-	.name           = "wl1251_data",
-	.id             = -1,
-	.dev		= {
-		.platform_data	= &pandora_wl1251_pdata,
-	},
-};
-
-static void pandora_wl1251_init(void)
-{
+	struct wl12xx_platform_data pandora_wl1251_pdata;
 	int ret;
+
+	memset(&pandora_wl1251_pdata, 0, sizeof(pandora_wl1251_pdata));
 
 	ret = gpio_request(PANDORA_WIFI_IRQ_GPIO, "wl1251 irq");
 	if (ret < 0)
@@ -677,6 +659,11 @@ static void pandora_wl1251_init(void)
 
 	pandora_wl1251_pdata.irq = gpio_to_irq(PANDORA_WIFI_IRQ_GPIO);
 	if (pandora_wl1251_pdata.irq < 0)
+		goto fail_irq;
+
+	pandora_wl1251_pdata.use_eeprom = true;
+	ret = wl12xx_set_platform_data(&pandora_wl1251_pdata);
+	if (ret < 0)
 		goto fail_irq;
 
 	return;
@@ -691,7 +678,6 @@ static struct platform_device *omap3pandora_devices[] __initdata = {
 	&pandora_leds_gpio,
 	&pandora_keys_gpio,
 	&pandora_dss_device,
-	&pandora_wl1251_data,
 	&pandora_vwlan_device,
 };
 

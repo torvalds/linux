@@ -148,7 +148,8 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 		     !attrs[XFRMA_ALG_AUTH_TRUNC]) ||
 		    attrs[XFRMA_ALG_AEAD]	||
 		    attrs[XFRMA_ALG_CRYPT]	||
-		    attrs[XFRMA_ALG_COMP])
+		    attrs[XFRMA_ALG_COMP]	||
+		    attrs[XFRMA_TFCPAD])
 			goto out;
 		break;
 
@@ -165,6 +166,9 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 		     attrs[XFRMA_ALG_CRYPT]) &&
 		    attrs[XFRMA_ALG_AEAD])
 			goto out;
+		if (attrs[XFRMA_TFCPAD] &&
+		    p->mode != XFRM_MODE_TUNNEL)
+			goto out;
 		break;
 
 	case IPPROTO_COMP:
@@ -172,7 +176,8 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 		    attrs[XFRMA_ALG_AEAD]	||
 		    attrs[XFRMA_ALG_AUTH]	||
 		    attrs[XFRMA_ALG_AUTH_TRUNC]	||
-		    attrs[XFRMA_ALG_CRYPT])
+		    attrs[XFRMA_ALG_CRYPT]	||
+		    attrs[XFRMA_TFCPAD])
 			goto out;
 		break;
 
@@ -186,6 +191,7 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 		    attrs[XFRMA_ALG_CRYPT]	||
 		    attrs[XFRMA_ENCAP]		||
 		    attrs[XFRMA_SEC_CTX]	||
+		    attrs[XFRMA_TFCPAD]		||
 		    !attrs[XFRMA_COADDR])
 			goto out;
 		break;
@@ -439,6 +445,9 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 			goto error;
 	}
 
+	if (attrs[XFRMA_TFCPAD])
+		x->tfcpad = nla_get_u32(attrs[XFRMA_TFCPAD]);
+
 	if (attrs[XFRMA_COADDR]) {
 		x->coaddr = kmemdup(nla_data(attrs[XFRMA_COADDR]),
 				    sizeof(*x->coaddr), GFP_KERNEL);
@@ -687,6 +696,9 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 
 	if (x->encap)
 		NLA_PUT(skb, XFRMA_ENCAP, sizeof(*x->encap), x->encap);
+
+	if (x->tfcpad)
+		NLA_PUT_U32(skb, XFRMA_TFCPAD, x->tfcpad);
 
 	if (xfrm_mark_put(skb, &x->mark))
 		goto nla_put_failure;
@@ -2122,6 +2134,7 @@ static const struct nla_policy xfrma_policy[XFRMA_MAX+1] = {
 	[XFRMA_MIGRATE]		= { .len = sizeof(struct xfrm_user_migrate) },
 	[XFRMA_KMADDRESS]	= { .len = sizeof(struct xfrm_user_kmaddress) },
 	[XFRMA_MARK]		= { .len = sizeof(struct xfrm_mark) },
+	[XFRMA_TFCPAD]		= { .type = NLA_U32 },
 };
 
 static struct xfrm_link {
@@ -2301,6 +2314,8 @@ static inline size_t xfrm_sa_len(struct xfrm_state *x)
 		l += nla_total_size(sizeof(*x->calg));
 	if (x->encap)
 		l += nla_total_size(sizeof(*x->encap));
+	if (x->tfcpad)
+		l += nla_total_size(sizeof(x->tfcpad));
 	if (x->security)
 		l += nla_total_size(sizeof(struct xfrm_user_sec_ctx) +
 				    x->security->ctx_len);

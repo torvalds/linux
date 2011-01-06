@@ -2346,19 +2346,21 @@ static void bnx2i_cm_remote_abort(struct cnic_sock *cm_sk)
 }
 
 
-static void bnx2i_send_nl_mesg(struct cnic_dev *dev, u32 msg_type,
+static int bnx2i_send_nl_mesg(void *context, u32 msg_type,
 			       char *buf, u16 buflen)
 {
-	struct bnx2i_hba *hba;
+	struct bnx2i_hba *hba = context;
+	int rc;
 
-	hba = bnx2i_find_hba_for_cnic(dev);
 	if (!hba)
-		return;
+		return -ENODEV;
 
-	if (iscsi_offload_mesg(hba->shost, &bnx2i_iscsi_transport,
-				   msg_type, buf, buflen))
+	rc = iscsi_offload_mesg(hba->shost, &bnx2i_iscsi_transport,
+				msg_type, buf, buflen);
+	if (rc)
 		printk(KERN_ALERT "bnx2i: private nl message send error\n");
 
+	return rc;
 }
 
 
