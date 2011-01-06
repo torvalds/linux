@@ -624,20 +624,24 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	char firmware_version[32];
 
-	strncpy(drvinfo->driver,  e1000e_driver_name, 32);
-	strncpy(drvinfo->version, e1000e_driver_version, 32);
+	strncpy(drvinfo->driver,  e1000e_driver_name,
+		sizeof(drvinfo->driver) - 1);
+	strncpy(drvinfo->version, e1000e_driver_version,
+		sizeof(drvinfo->version) - 1);
 
 	/*
 	 * EEPROM image version # is reported as firmware version # for
 	 * PCI-E controllers
 	 */
-	sprintf(firmware_version, "%d.%d-%d",
+	snprintf(firmware_version, sizeof(firmware_version), "%d.%d-%d",
 		(adapter->eeprom_vers & 0xF000) >> 12,
 		(adapter->eeprom_vers & 0x0FF0) >> 4,
 		(adapter->eeprom_vers & 0x000F));
 
-	strncpy(drvinfo->fw_version, firmware_version, 32);
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
+	strncpy(drvinfo->fw_version, firmware_version,
+		sizeof(drvinfo->fw_version) - 1);
+	strncpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info) - 1);
 	drvinfo->regdump_len = e1000_get_regs_len(netdev);
 	drvinfo->eedump_len = e1000_get_eeprom_len(netdev);
 }

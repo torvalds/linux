@@ -5639,7 +5639,7 @@ static void e1000_print_device_info(struct e1000_adapter *adapter)
 	ret_val = e1000_read_pba_string_generic(hw, pba_str,
 						E1000_PBANUM_LENGTH);
 	if (ret_val)
-		strcpy(pba_str, "Unknown");
+		strncpy((char *)pba_str, "Unknown", sizeof(pba_str) - 1);
 	e_info("MAC: %d, PHY: %d, PBA No: %s\n",
 	       hw->mac.type, hw->phy.type, pba_str);
 }
@@ -5968,7 +5968,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	if (!(adapter->flags & FLAG_HAS_AMT))
 		e1000_get_hw_control(adapter);
 
-	strcpy(netdev->name, "eth%d");
+	strncpy(netdev->name, "eth%d", sizeof(netdev->name) - 1);
 	err = register_netdev(netdev);
 	if (err)
 		goto err_register;
