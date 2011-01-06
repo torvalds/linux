@@ -230,6 +230,17 @@ __be32 nfs4_callback_layoutrecall(struct cb_layoutrecallargs *args,
 	return cpu_to_be32(res);
 }
 
+static void pnfs_recall_all_layouts(struct nfs_client *clp)
+{
+	struct cb_layoutrecallargs args;
+
+	/* Pretend we got a CB_LAYOUTRECALL(ALL) */
+	memset(&args, 0, sizeof(args));
+	args.cbl_recall_type = RETURN_ALL;
+	/* FIXME we ignore errors, what should we do? */
+	do_callback_layoutrecall(clp, &args);
+}
+
 int nfs41_validate_delegation_stateid(struct nfs_delegation *delegation, const nfs4_stateid *stateid)
 {
 	if (delegation == NULL)
@@ -421,29 +432,41 @@ out:
 	return status;
 }
 
+static bool
+validate_bitmap_values(unsigned long mask)
+{
+	return (mask & ~RCA4_TYPE_MASK_ALL) == 0;
+}
+
 __be32 nfs4_callback_recallany(struct cb_recallanyargs *args, void *dummy,
 			       struct cb_process_state *cps)
 {
 	__be32 status;
 	fmode_t flags = 0;
 
-	status = htonl(NFS4ERR_OP_NOT_IN_SESSION);
+	status = cpu_to_be32(NFS4ERR_OP_NOT_IN_SESSION);
 	if (!cps->clp) /* set in cb_sequence */
 		goto out;
 
 	dprintk("NFS: RECALL_ANY callback request from %s\n",
 		rpc_peeraddr2str(cps->clp->cl_rpcclient, RPC_DISPLAY_ADDR));
 
+	status = cpu_to_be32(NFS4ERR_INVAL);
+	if (!validate_bitmap_values(args->craa_type_mask))
+		goto out;
+
+	status = cpu_to_be32(NFS4_OK);
 	if (test_bit(RCA4_TYPE_MASK_RDATA_DLG, (const unsigned long *)
 		     &args->craa_type_mask))
 		flags = FMODE_READ;
 	if (test_bit(RCA4_TYPE_MASK_WDATA_DLG, (const unsigned long *)
 		     &args->craa_type_mask))
 		flags |= FMODE_WRITE;
-
+	if (test_bit(RCA4_TYPE_MASK_FILE_LAYOUT, (const unsigned long *)
+		     &args->craa_type_mask))
+		pnfs_recall_all_layouts(cps->clp);
 	if (flags)
 		nfs_expire_all_delegation_types(cps->clp, flags);
-	status = htonl(NFS4_OK);
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;
