@@ -34,7 +34,6 @@ typedef enum iomux_config {
 	IOMUX_CONFIG_ALT6,
 	IOMUX_CONFIG_ALT7,
 	IOMUX_CONFIG_GPIO, /* added to help user use GPIO mode */
-	IOMUX_CONFIG_SION = 0x1 << 4, /* LOOPBACK:MUX SION bit */
 } iomux_pin_cfg_t;
 
 /* These 2 defines are for pins that may not have a mux register, but could
