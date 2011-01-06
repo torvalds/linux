@@ -337,6 +337,10 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_LDPC: tells the driver to use LDPC for this frame
  * @IEEE80211_TX_CTL_STBC: Enables Space-Time Block Coding (STBC) for this
  *	frame and selects the maximum number of streams that it can use.
+ * @IEEE80211_TX_CTL_TX_OFFCHAN: Marks this packet to be transmitted on
+ *	the off-channel channel when a remain-on-channel offload is done
+ *	in hardware -- normal packets still flow and are expected to be
+ *	handled properly by the device.
  *
  * Note: If you have to add new flags to the enumeration, then don't
  *	 forget to update %IEEE80211_TX_TEMPORARY_FLAGS when necessary.
