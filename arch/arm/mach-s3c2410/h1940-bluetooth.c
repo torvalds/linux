@@ -85,15 +85,12 @@ static int __devinit h1940bt_probe(struct platform_device *pdev)
 	s3c_gpio_cfgpin(S3C2410_GPH(3), S3C2410_GPH3_RXD0);
 	s3c_gpio_setpull(S3C2410_GPH(3), S3C_GPIO_PULL_NONE);
 
-
 	rfk = rfkill_alloc(DRV_NAME, &pdev->dev, RFKILL_TYPE_BLUETOOTH,
 			&h1940bt_rfkill_ops, NULL);
 	if (!rfk) {
 		ret = -ENOMEM;
 		goto err_rfk_alloc;
 	}
-
-	rfkill_set_led_trigger_name(rfk, "h1940-bluetooth");
 
 	ret = rfkill_register(rfk);
 	if (ret)
