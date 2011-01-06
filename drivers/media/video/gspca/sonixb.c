@@ -564,7 +564,8 @@ SENS(initTas5110c, tas5110c_sensor_init, F_GAIN|F_SIF|F_COARSE_EXPO,
 	NO_BRIGHTNESS|NO_FREQ, 0),
 SENS(initTas5110d, tas5110d_sensor_init, F_GAIN|F_SIF|F_COARSE_EXPO,
 	NO_BRIGHTNESS|NO_FREQ, 0),
-SENS(initTas5130, tas5130_sensor_init, 0, NO_EXPO|NO_FREQ, 0),
+SENS(initTas5130, tas5130_sensor_init, F_GAIN,
+	NO_BRIGHTNESS|NO_EXPO|NO_FREQ, 0),
 };
 
 /* get one byte in gspca_dev->usb_buf */
@@ -636,7 +637,6 @@ static void i2c_w_vector(struct gspca_dev *gspca_dev,
 static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 value;
 
 	switch (sd->sensor) {
 	case  SENSOR_OV6650:
@@ -678,17 +678,6 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 			goto err;
 		break;
 	    }
-	case SENSOR_TAS5130CXX: {
-		__u8 i2c[] =
-			{0x30, 0x11, 0x02, 0x20, 0x70, 0x00, 0x00, 0x10};
-
-		value = 0xff - sd->brightness;
-		i2c[4] = value;
-		PDEBUG(D_CONF, "brightness %d : %d", value, i2c[4]);
-		if (i2c_w(gspca_dev, i2c) < 0)
-			goto err;
-		break;
-	    }
 	}
 	return;
 err:
@@ -713,7 +702,8 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 			goto err;
 		break;
 	    }
-	case SENSOR_TAS5110C: {
+	case SENSOR_TAS5110C:
+	case SENSOR_TAS5130CXX: {
 		__u8 i2c[] =
 			{0x30, 0x11, 0x02, 0x20, 0x70, 0x00, 0x00, 0x10};
 
