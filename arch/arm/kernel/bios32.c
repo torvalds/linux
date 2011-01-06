@@ -583,6 +583,11 @@ void __init pci_common_init(struct hw_pci *hw)
 			 * Assign resources.
 			 */
 			pci_bus_assign_resources(bus);
+
+			/*
+			 * Enable bridges
+			 */
+			pci_enable_bridges(bus);
 		}
 
 		/*
