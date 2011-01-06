@@ -139,39 +139,6 @@ ENTRY(startup_32)
 	movl %eax, pa(olpc_ofw_pgd)
 #endif
 
-#ifdef CONFIG_PARAVIRT
-	/* This is can only trip for a broken bootloader... */
-	cmpw $0x207, pa(boot_params + BP_version)
-	jb default_entry
-
-	/* Paravirt-compatible boot parameters.  Look to see what architecture
-		we're booting under. */
-	movl pa(boot_params + BP_hardware_subarch), %eax
-	cmpl $num_subarch_entries, %eax
-	jae bad_subarch
-
-	movl pa(subarch_entries)(,%eax,4), %eax
-	subl $__PAGE_OFFSET, %eax
-	jmp *%eax
-
-bad_subarch:
-WEAK(lguest_entry)
-WEAK(xen_entry)
-	/* Unknown implementation; there's really
-	   nothing we can do at this point. */
-	ud2a
-
-	__INITDATA
-
-subarch_entries:
-	.long default_entry		/* normal x86/PC */
-	.long lguest_entry		/* lguest hypervisor */
-	.long xen_entry			/* Xen hypervisor */
-	.long default_entry		/* Moorestown MID */
-num_subarch_entries = (. - subarch_entries) / 4
-.previous
-#endif /* CONFIG_PARAVIRT */
-
 /*
  * Initialize page tables.  This creates a PDE and a set of page
  * tables, which are located immediately beyond __brk_base.  The variable
@@ -181,7 +148,6 @@ num_subarch_entries = (. - subarch_entries) / 4
  *
  * Note that the stack is not yet set up!
  */
-default_entry:
 #ifdef CONFIG_X86_PAE
 
 	/*
@@ -261,7 +227,42 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
 	movl $pa(initial_pg_fixmap)+PDE_IDENT_ATTR,%eax
 	movl %eax,pa(initial_page_table+0xffc)
 #endif
-	jmp 3f
+
+#ifdef CONFIG_PARAVIRT
+	/* This is can only trip for a broken bootloader... */
+	cmpw $0x207, pa(boot_params + BP_version)
+	jb default_entry
+
+	/* Paravirt-compatible boot parameters.  Look to see what architecture
+		we're booting under. */
+	movl pa(boot_params + BP_hardware_subarch), %eax
+	cmpl $num_subarch_entries, %eax
+	jae bad_subarch
+
+	movl pa(subarch_entries)(,%eax,4), %eax
+	subl $__PAGE_OFFSET, %eax
+	jmp *%eax
+
+bad_subarch:
+WEAK(lguest_entry)
+WEAK(xen_entry)
+	/* Unknown implementation; there's really
+	   nothing we can do at this point. */
+	ud2a
+
+	__INITDATA
+
+subarch_entries:
+	.long default_entry		/* normal x86/PC */
+	.long lguest_entry		/* lguest hypervisor */
+	.long xen_entry			/* Xen hypervisor */
+	.long default_entry		/* Moorestown MID */
+num_subarch_entries = (. - subarch_entries) / 4
+.previous
+#else
+	jmp default_entry
+#endif /* CONFIG_PARAVIRT */
+
 /*
  * Non-boot CPU entry point; entered from trampoline.S
  * We can't lgdt here, because lgdt itself uses a data segment, but
@@ -282,7 +283,7 @@ ENTRY(startup_32_smp)
 	movl %eax,%fs
 	movl %eax,%gs
 #endif /* CONFIG_SMP */
-3:
+default_entry:
 
 /*
  *	New page tables may be in 4Mbyte page mode and may
@@ -628,13 +629,13 @@ ENTRY(initial_code)
 __PAGE_ALIGNED_BSS
 	.align PAGE_SIZE_asm
 #ifdef CONFIG_X86_PAE
-ENTRY(initial_pg_pmd)
+initial_pg_pmd:
 	.fill 1024*KPMDS,4,0
 #else
 ENTRY(initial_page_table)
 	.fill 1024,4,0
 #endif
-ENTRY(initial_pg_fixmap)
+initial_pg_fixmap:
 	.fill 1024,4,0
 ENTRY(empty_zero_page)
 	.fill 4096,1,0
