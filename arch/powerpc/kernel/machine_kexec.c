@@ -85,10 +85,7 @@ void arch_crash_save_vmcoreinfo(void)
  */
 void machine_kexec(struct kimage *image)
 {
-	if (ppc_md.machine_kexec)
-		ppc_md.machine_kexec(image);
-	else
-		default_machine_kexec(image);
+	default_machine_kexec(image);
 
 	/* Fall back to normal restart if we're still alive. */
 	machine_restart(NULL);
