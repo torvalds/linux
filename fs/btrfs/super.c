@@ -54,6 +54,90 @@
 
 static const struct super_operations btrfs_super_ops;
 
+static const char *btrfs_decode_error(struct btrfs_fs_info *fs_info, int errno,
+				      char nbuf[16])
+{
+	char *errstr = NULL;
+
+	switch (errno) {
+	case -EIO:
+		errstr = "IO failure";
+		break;
+	case -ENOMEM:
+		errstr = "Out of memory";
+		break;
+	case -EROFS:
+		errstr = "Readonly filesystem";
+		break;
+	default:
+		if (nbuf) {
+			if (snprintf(nbuf, 16, "error %d", -errno) >= 0)
+				errstr = nbuf;
+		}
+		break;
+	}
+
+	return errstr;
+}
+
+static void __save_error_info(struct btrfs_fs_info *fs_info)
+{
+	/*
+	 * today we only save the error info into ram.  Long term we'll
+	 * also send it down to the disk
+	 */
+	fs_info->fs_state = BTRFS_SUPER_FLAG_ERROR;
+}
+
+/* NOTE:
+ *	We move write_super stuff at umount in order to avoid deadlock
+ *	for umount hold all lock.
+ */
+static void save_error_info(struct btrfs_fs_info *fs_info)
+{
+	__save_error_info(fs_info);
+}
+
+/* btrfs handle error by forcing the filesystem readonly */
+static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
+{
+	struct super_block *sb = fs_info->sb;
+
+	if (sb->s_flags & MS_RDONLY)
+		return;
+
+	if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+		sb->s_flags |= MS_RDONLY;
+		printk(KERN_INFO "btrfs is forced readonly\n");
+	}
+}
+
+/*
+ * __btrfs_std_error decodes expected errors from the caller and
+ * invokes the approciate error response.
+ */
+void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
+		     unsigned int line, int errno)
+{
+	struct super_block *sb = fs_info->sb;
+	char nbuf[16];
+	const char *errstr;
+
+	/*
+	 * Special case: if the error is EROFS, and we're already
+	 * under MS_RDONLY, then it is safe here.
+	 */
+	if (errno == -EROFS && (sb->s_flags & MS_RDONLY))
+		return;
+
+	errstr = btrfs_decode_error(fs_info, errno, nbuf);
+	printk(KERN_CRIT "BTRFS error (device %s) in %s:%d: %s\n",
+		sb->s_id, function, line, errstr);
+	save_error_info(fs_info);
+
+	btrfs_handle_error(fs_info);
+}
+
 static void btrfs_put_super(struct super_block *sb)
 {
 	struct btrfs_root *root = btrfs_sb(sb);

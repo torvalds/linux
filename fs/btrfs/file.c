@@ -892,6 +892,17 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	if (err)
 		goto out;
 
+	/*
+	 * If BTRFS flips readonly due to some impossible error
+	 * (fs_info->fs_state now has BTRFS_SUPER_FLAG_ERROR),
+	 * although we have opened a file as writable, we have
+	 * to stop this write operation to ensure FS consistency.
+	 */
+	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
+		err = -EROFS;
+		goto out;
+	}
+
 	file_update_time(file);
 	BTRFS_I(inode)->sequence++;
 

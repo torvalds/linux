@@ -181,6 +181,9 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 	struct btrfs_trans_handle *h;
 	struct btrfs_transaction *cur_trans;
 	int ret;
+
+	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)
+		return ERR_PTR(-EROFS);
 again:
 	h = kmem_cache_alloc(btrfs_trans_handle_cachep, GFP_NOFS);
 	if (!h)
