@@ -2267,7 +2267,7 @@ static void cmd_special_free(struct ctlr_info *h, struct CommandList *c)
 	pci_free_consistent(h->pdev, sizeof(*c->err_info),
 			    c->err_info, (dma_addr_t) temp64.val);
 	pci_free_consistent(h->pdev, sizeof(*c),
-			    c, (dma_addr_t) c->busaddr);
+			    c, (dma_addr_t) (c->busaddr & DIRECT_LOOKUP_MASK));
 }
 
 #ifdef CONFIG_COMPAT
