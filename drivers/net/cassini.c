@@ -3203,6 +3203,10 @@ static int cas_get_vpd_info(struct cas *cp, unsigned char *dev_addr,
 	int phy_type = CAS_PHY_MII_MDIO0; /* default phy type */
 	int mac_off  = 0;
 
+#if defined(CONFIG_OF)
+	const unsigned char *addr;
+#endif
+
 	/* give us access to the PROM */
 	writel(BIM_LOCAL_DEV_PROM | BIM_LOCAL_DEV_PAD,
 	       cp->regs + REG_BIM_LOCAL_DEV_EN);
@@ -3349,6 +3353,14 @@ next:
 use_random_mac_addr:
 	if (found & VPD_FOUND_MAC)
 		goto done;
+
+#if defined(CONFIG_OF)
+	addr = of_get_property(cp->of_node, "local-mac-address", NULL);
+	if (addr != NULL) {
+		memcpy(dev_addr, addr, 6);
+		goto done;
+	}
+#endif
 
 	/* Sun MAC prefix then 3 random bytes. */
 	pr_info("MAC address not found in ROM VPD\n");
@@ -5018,6 +5030,10 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	cp->dev = dev;
 	cp->msg_enable = (cassini_debug < 0) ? CAS_DEF_MSG_ENABLE :
 	  cassini_debug;
+
+#if defined(CONFIG_OF)
+	cp->of_node = pci_device_to_OF_node(pdev);
+#endif
 
 	cp->link_transition = LINK_TRANSITION_UNKNOWN;
 	cp->link_transition_jiffies_valid = 0;
