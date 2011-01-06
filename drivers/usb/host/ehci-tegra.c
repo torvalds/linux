@@ -151,11 +151,7 @@ static int tegra_ehci_hub_control(
 
 		tegra_usb_phy_preresume(tegra->phy);
 
-		/* reschedule root hub polling during resume signaling */
 		ehci->reset_done[wIndex-1] = jiffies + msecs_to_jiffies(25);
-		/* check the port again */
-		mod_timer(&ehci_to_hcd(ehci)->rh_timer,
-				ehci->reset_done[wIndex-1]);
 
 		temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
 		/* start resume signalling */
@@ -172,6 +168,8 @@ static int tegra_ehci_hub_control(
 		/* polling PORT_SUSPEND until the controller clear this bit */
 		if (handshake(ehci, status_reg, PORT_SUSPEND, 0, 2000))
 			pr_err("%s: timeout waiting for PORT_SUSPEND\n", __func__);
+
+		ehci->reset_done[wIndex-1] = 0;
 
 		tegra->port_resuming = 1;
 		goto done;
