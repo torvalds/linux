@@ -247,9 +247,6 @@ struct machdep_calls {
 	 */
 	int (*machine_kexec_prepare)(struct kimage *image);
 
-	/* Called to handle any machine specific cleanup on image */
-	void (*machine_kexec_cleanup)(struct kimage *image);
-
 	/* Called to perform the _real_ kexec.
 	 * Do NOT allocate memory or fail here. We are past the point of
 	 * no return.
