@@ -2968,6 +2968,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6143), BS(SN9C120, SP80708)},	/*sn9c120b*/
 	{USB_DEVICE(0x0c45, 0x6148), BS(SN9C120, OM6802)},	/*sn9c120b*/
 	{USB_DEVICE(0x0c45, 0x614a), BS(SN9C120, ADCM1700)},	/*sn9c120b*/
+/*	{USB_DEVICE(0x0c45, 0x614c), BS(SN9C120, GC0306)}, */	/*sn9c120b*/
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
