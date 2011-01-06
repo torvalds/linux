@@ -1280,12 +1280,14 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 			mode = &default_720p;
 			num_cfg = 1;
 		} else {
-			num_cfg = ch->cfg.num_cfg;
+			num_cfg = cfg->num_cfg;
 		}
 
 		fb_videomode_to_modelist(mode, num_cfg, &info->modelist);
 
 		fb_videomode_to_var(var, mode);
+		var->width = cfg->lcd_size_cfg.width;
+		var->height = cfg->lcd_size_cfg.height;
 		/* Default Y virtual resolution is 2x panel size */
 		var->yres_virtual = var->yres * 2;
 		var->activate = FB_ACTIVATE_NOW;

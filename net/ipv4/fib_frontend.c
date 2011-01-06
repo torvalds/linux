@@ -163,13 +163,19 @@ struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref)
 				.daddr = addr
 			}
 		},
-		.flags = FLOWI_FLAG_MATCH_ANY_IIF
 	};
 	struct fib_result res = { 0 };
 	struct net_device *dev = NULL;
+	struct fib_table *local_table;
+
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+	res.r = NULL;
+#endif
 
 	rcu_read_lock();
-	if (fib_lookup(net, &fl, &res)) {
+	local_table = fib_get_table(net, RT_TABLE_LOCAL);
+	if (!local_table ||
+	    fib_table_lookup(local_table, &fl, &res, FIB_LOOKUP_NOREF)) {
 		rcu_read_unlock();
 		return NULL;
 	}

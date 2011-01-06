@@ -5379,6 +5379,23 @@ static int intel_encoder_clones(struct drm_device *dev, int type_mask)
 	return index_mask;
 }
 
+static bool has_edp_a(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_MOBILE(dev))
+		return false;
+
+	if ((I915_READ(DP_A) & DP_DETECTED) == 0)
+		return false;
+
+	if (IS_GEN5(dev) &&
+	    (I915_READ(ILK_DISPLAY_CHICKEN_FUSES) & ILK_eDP_A_DISABLE))
+		return false;
+
+	return true;
+}
+
 static void intel_setup_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5396,7 +5413,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev)) {
 		dpd_is_edp = intel_dpd_is_edp(dev);
 
-		if (IS_MOBILE(dev) && (I915_READ(DP_A) & DP_DETECTED))
+		if (has_edp_a(dev))
 			intel_dp_init(dev, DP_A);
 
 		if (dpd_is_edp && (I915_READ(PCH_DP_D) & DP_DETECTED))
@@ -5825,6 +5842,8 @@ void intel_init_clock_gating(struct drm_device *dev)
 			I915_WRITE(PCH_3DCGDIS0,
 				   MARIUNIT_CLOCK_GATE_DISABLE |
 				   SVSMUNIT_CLOCK_GATE_DISABLE);
+			I915_WRITE(PCH_3DCGDIS1,
+				   VFMUNIT_CLOCK_GATE_DISABLE);
 		}
 
 		I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
