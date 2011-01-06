@@ -1255,7 +1255,6 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl_reg = 0;
-	u32 stat_reg = 0;
 	u16 phy_reg = 0;
 	s32 ret_val = 0;
 
@@ -1363,8 +1362,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		 * Set the ILOS bit on the fiber Nic if half duplex link is
 		 * detected.
 		 */
-		stat_reg = er32(STATUS);
-		if ((stat_reg & E1000_STATUS_FD) == 0)
+		if ((er32(STATUS) & E1000_STATUS_FD) == 0)
 			ctrl_reg |= (E1000_CTRL_ILOS | E1000_CTRL_SLU);
 	}
 

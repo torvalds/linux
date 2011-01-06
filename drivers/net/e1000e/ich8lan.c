@@ -2104,7 +2104,6 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 {
 	union ich8_hws_flash_status hsfsts;
 	s32 ret_val = -E1000_ERR_NVM;
-	s32 i = 0;
 
 	hsfsts.regval = er16flash(ICH_FLASH_HSFSTS);
 
@@ -2140,6 +2139,8 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 		ew16flash(ICH_FLASH_HSFSTS, hsfsts.regval);
 		ret_val = 0;
 	} else {
+		s32 i = 0;
+
 		/*
 		 * Otherwise poll for sometime so the current
 		 * cycle has a chance to end before giving up.

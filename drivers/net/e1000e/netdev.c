@@ -2720,7 +2720,6 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl, rfctl;
-	u32 psrctl = 0;
 	u32 pages = 0;
 
 	/* Workaround Si errata on 82579 - configure jumbo frame flow */
@@ -2819,6 +2818,8 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 		adapter->rx_ps_pages = 0;
 
 	if (adapter->rx_ps_pages) {
+		u32 psrctl = 0;
+
 		/* Configure extra packet-split registers */
 		rfctl = er32(RFCTL);
 		rfctl |= E1000_RFCTL_EXTEN;
@@ -3020,7 +3021,6 @@ static void e1000_set_multi(struct net_device *netdev)
 	struct netdev_hw_addr *ha;
 	u8  *mta_list;
 	u32 rctl;
-	int i;
 
 	/* Check for Promiscuous and All Multicast modes */
 
@@ -3043,12 +3043,13 @@ static void e1000_set_multi(struct net_device *netdev)
 	ew32(RCTL, rctl);
 
 	if (!netdev_mc_empty(netdev)) {
+		int i = 0;
+
 		mta_list = kmalloc(netdev_mc_count(netdev) * 6, GFP_ATOMIC);
 		if (!mta_list)
 			return;
 
 		/* prepare a packed array of only addresses. */
-		i = 0;
 		netdev_for_each_mc_addr(ha, netdev)
 			memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
 
@@ -3999,10 +4000,11 @@ static void e1000_phy_read_status(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_phy_regs *phy = &adapter->phy_regs;
-	int ret_val;
 
 	if ((er32(STATUS) & E1000_STATUS_LU) &&
 	    (adapter->hw.phy.media_type == e1000_media_type_copper)) {
+		int ret_val;
+
 		ret_val  = e1e_rphy(hw, PHY_CONTROL, &phy->bmcr);
 		ret_val |= e1e_rphy(hw, PHY_STATUS, &phy->bmsr);
 		ret_val |= e1e_rphy(hw, PHY_AUTONEG_ADV, &phy->advertise);
@@ -4148,7 +4150,6 @@ static void e1000_watchdog_task(struct work_struct *work)
 	struct e1000_ring *tx_ring = adapter->tx_ring;
 	struct e1000_hw *hw = &adapter->hw;
 	u32 link, tctl;
-	int tx_pending = 0;
 
 	link = e1000e_has_link(adapter);
 	if ((netif_carrier_ok(netdev)) && link) {
@@ -4302,21 +4303,18 @@ link_up:
 
 	e1000e_update_adaptive(&adapter->hw);
 
-	if (!netif_carrier_ok(netdev)) {
-		tx_pending = (e1000_desc_unused(tx_ring) + 1 <
-			       tx_ring->count);
-		if (tx_pending) {
-			/*
-			 * We've lost link, so the controller stops DMA,
-			 * but we've got queued Tx work that's never going
-			 * to get done, so reset controller to flush Tx.
-			 * (Do the reset outside of interrupt context).
-			 */
-			adapter->tx_timeout_count++;
-			schedule_work(&adapter->reset_task);
-			/* return immediately since reset is imminent */
-			return;
-		}
+	if (!netif_carrier_ok(netdev) &&
+	    (e1000_desc_unused(tx_ring) + 1 < tx_ring->count)) {
+		/*
+		 * We've lost link, so the controller stops DMA,
+		 * but we've got queued Tx work that's never going
+		 * to get done, so reset controller to flush Tx.
+		 * (Do the reset outside of interrupt context).
+		 */
+		adapter->tx_timeout_count++;
+		schedule_work(&adapter->reset_task);
+		/* return immediately since reset is imminent */
+		return;
 	}
 
 	/* Simple mode for Interrupt Throttle Rate (ITR) */
@@ -4387,13 +4385,13 @@ static int e1000_tso(struct e1000_adapter *adapter,
 	u32 cmd_length = 0;
 	u16 ipcse = 0, tucse, mss;
 	u8 ipcss, ipcso, tucss, tucso, hdr_len;
-	int err;
 
 	if (!skb_is_gso(skb))
 		return 0;
 
 	if (skb_header_cloned(skb)) {
-		err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
+		int err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
+
 		if (err)
 			return err;
 	}
@@ -5518,9 +5516,10 @@ static irqreturn_t e1000_intr_msix(int irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	int vector, msix_irq;
 
 	if (adapter->msix_entries) {
+		int vector, msix_irq;
+
 		vector = 0;
 		msix_irq = adapter->msix_entries[vector].vector;
 		disable_irq(msix_irq);
