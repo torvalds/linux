@@ -2908,10 +2908,8 @@ static const struct sd_desc sd_desc = {
 			| (SENSOR_ ## sensor << 8) \
 			| (flags)
 static const __devinitdata struct usb_device_id device_table[] = {
-#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0458, 0x7025), BS(SN9C120, MI0360)},
 	{USB_DEVICE(0x0458, 0x702e), BS(SN9C120, OV7660)},
-#endif
 	{USB_DEVICE(0x045e, 0x00f5), BSF(SN9C105, OV7660, PDN_INV)},
 	{USB_DEVICE(0x045e, 0x00f7), BSF(SN9C105, OV7660, PDN_INV)},
 	{USB_DEVICE(0x0471, 0x0327), BS(SN9C105, MI0360)},
@@ -2936,8 +2934,8 @@ static const __devinitdata struct usb_device_id device_table[] = {
 /*	{USB_DEVICE(0x0c45, 0x60fa), BS(SN9C105, OV7648)}, */
 /*	{USB_DEVICE(0x0c45, 0x60f2), BS(SN9C105, OV7660)}, */
 	{USB_DEVICE(0x0c45, 0x60fb), BS(SN9C105, OV7660)},
-#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x60fc), BS(SN9C105, HV7131R)},
+#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x60fe), BS(SN9C105, OV7630)},
 #endif
 	{USB_DEVICE(0x0c45, 0x6100), BS(SN9C120, MI0360)},	/*sn9c128*/
@@ -2962,9 +2960,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 /*	{USB_DEVICE(0x0c45, 0x6132), BS(SN9C120, OV7670)}, */
 	{USB_DEVICE(0x0c45, 0x6138), BS(SN9C120, MO4000)},
 	{USB_DEVICE(0x0c45, 0x613a), BS(SN9C120, OV7648)},
-#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x613b), BS(SN9C120, OV7660)},
-#endif
 	{USB_DEVICE(0x0c45, 0x613c), BS(SN9C120, HV7131R)},
 	{USB_DEVICE(0x0c45, 0x613e), BS(SN9C120, OV7630)},
 	{USB_DEVICE(0x0c45, 0x6142), BS(SN9C120, PO2030N)},	/*sn9c120b*/
