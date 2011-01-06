@@ -394,6 +394,14 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 	unsigned char reason = 0;
 	int cpu;
 
+	/*
+	 * CPU-specific NMI must be processed before non-CPU-specific
+	 * NMI, otherwise we may lose it, because the CPU-specific
+	 * NMI can not be detected/processed on other CPUs.
+	 */
+	if (notify_die(DIE_NMI, "nmi", regs, 0, 2, SIGINT) == NOTIFY_STOP)
+		return;
+
 	cpu = smp_processor_id();
 
 	/* Only the BSP gets external NMIs from the system. */
@@ -401,21 +409,10 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 		reason = get_nmi_reason();
 
 	if (!(reason & NMI_REASON_MASK)) {
-		if (notify_die(DIE_NMI_IPI, "nmi_ipi", regs, reason, 2, SIGINT)
-								== NOTIFY_STOP)
-			return;
-
-#ifdef CONFIG_X86_LOCAL_APIC
-		if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT)
-							== NOTIFY_STOP)
-			return;
-#endif
 		unknown_nmi_error(reason, regs);
 
 		return;
 	}
-	if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT) == NOTIFY_STOP)
-		return;
 
 	/* AK: following checks seem to be broken on modern chipsets. FIXME */
 	if (reason & NMI_REASON_SERR)
