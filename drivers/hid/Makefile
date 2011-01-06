@@ -56,6 +56,7 @@ obj-$(CONFIG_HID_PANTHERLORD)	+= hid-pl.o
 obj-$(CONFIG_HID_PETALYNX)	+= hid-petalynx.o
 obj-$(CONFIG_HID_PICOLCD)	+= hid-picolcd.o
 obj-$(CONFIG_HID_ROCCAT)	+= hid-roccat.o
+obj-$(CONFIG_HID_ROCCAT_ARVO)	+= hid-roccat-arvo.o
 obj-$(CONFIG_HID_ROCCAT_KONE)	+= hid-roccat-kone.o
 obj-$(CONFIG_HID_ROCCAT_KONEPLUS)	+= hid-roccat-koneplus.o
 obj-$(CONFIG_HID_ROCCAT_PYRA)	+= hid-roccat-pyra.o
