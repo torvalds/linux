@@ -3118,7 +3118,7 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 	 * Reset the phy after disabling host wakeup to reset the Rx buffer.
 	 */
 	if (hw->phy.type == e1000_phy_82578) {
-		hw->phy.ops.read_reg(hw, BM_WUC, &i);
+		e1e_rphy(hw, BM_WUC, &i);
 		ret_val = e1000_phy_hw_reset_ich8lan(hw);
 		if (ret_val)
 			return ret_val;
@@ -3276,9 +3276,8 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 	    (hw->phy.type == e1000_phy_82577)) {
 		ew32(FCRTV_PCH, hw->fc.refresh_time);
 
-		ret_val = hw->phy.ops.write_reg(hw,
-		                             PHY_REG(BM_PORT_CTRL_PAGE, 27),
-		                             hw->fc.pause_time);
+		ret_val = e1e_wphy(hw, PHY_REG(BM_PORT_CTRL_PAGE, 27),
+				   hw->fc.pause_time);
 		if (ret_val)
 			return ret_val;
 	}
@@ -3342,8 +3341,7 @@ static s32 e1000_setup_copper_link_ich8lan(struct e1000_hw *hw)
 			return ret_val;
 		break;
 	case e1000_phy_ife:
-		ret_val = hw->phy.ops.read_reg(hw, IFE_PHY_MDIX_CONTROL,
-		                               &reg_data);
+		ret_val = e1e_rphy(hw, IFE_PHY_MDIX_CONTROL, &reg_data);
 		if (ret_val)
 			return ret_val;
 
@@ -3361,8 +3359,7 @@ static s32 e1000_setup_copper_link_ich8lan(struct e1000_hw *hw)
 			reg_data |= IFE_PMC_AUTO_MDIX;
 			break;
 		}
-		ret_val = hw->phy.ops.write_reg(hw, IFE_PHY_MDIX_CONTROL,
-		                                reg_data);
+		ret_val = e1e_wphy(hw, IFE_PHY_MDIX_CONTROL, reg_data);
 		if (ret_val)
 			return ret_val;
 		break;
@@ -3646,7 +3643,8 @@ static s32 e1000_led_off_ich8lan(struct e1000_hw *hw)
 {
 	if (hw->phy.type == e1000_phy_ife)
 		return e1e_wphy(hw, IFE_PHY_SPECIAL_CONTROL_LED,
-			       (IFE_PSCL_PROBE_MODE | IFE_PSCL_PROBE_LEDS_OFF));
+				(IFE_PSCL_PROBE_MODE |
+				 IFE_PSCL_PROBE_LEDS_OFF));
 
 	ew32(LEDCTL, hw->mac.ledctl_mode1);
 	return 0;
@@ -3660,8 +3658,7 @@ static s32 e1000_led_off_ich8lan(struct e1000_hw *hw)
  **/
 static s32 e1000_setup_led_pchlan(struct e1000_hw *hw)
 {
-	return hw->phy.ops.write_reg(hw, HV_LED_CONFIG,
-					(u16)hw->mac.ledctl_mode1);
+	return e1e_wphy(hw, HV_LED_CONFIG, (u16)hw->mac.ledctl_mode1);
 }
 
 /**
@@ -3672,8 +3669,7 @@ static s32 e1000_setup_led_pchlan(struct e1000_hw *hw)
  **/
 static s32 e1000_cleanup_led_pchlan(struct e1000_hw *hw)
 {
-	return hw->phy.ops.write_reg(hw, HV_LED_CONFIG,
-					(u16)hw->mac.ledctl_default);
+	return e1e_wphy(hw, HV_LED_CONFIG, (u16)hw->mac.ledctl_default);
 }
 
 /**
@@ -3704,7 +3700,7 @@ static s32 e1000_led_on_pchlan(struct e1000_hw *hw)
 		}
 	}
 
-	return hw->phy.ops.write_reg(hw, HV_LED_CONFIG, data);
+	return e1e_wphy(hw, HV_LED_CONFIG, data);
 }
 
 /**
@@ -3735,7 +3731,7 @@ static s32 e1000_led_off_pchlan(struct e1000_hw *hw)
 		}
 	}
 
-	return hw->phy.ops.write_reg(hw, HV_LED_CONFIG, data);
+	return e1e_wphy(hw, HV_LED_CONFIG, data);
 }
 
 /**
@@ -3844,20 +3840,20 @@ static void e1000_clear_hw_cntrs_ich8lan(struct e1000_hw *hw)
 	if ((hw->phy.type == e1000_phy_82578) ||
 	    (hw->phy.type == e1000_phy_82579) ||
 	    (hw->phy.type == e1000_phy_82577)) {
-		hw->phy.ops.read_reg(hw, HV_SCC_UPPER, &phy_data);
-		hw->phy.ops.read_reg(hw, HV_SCC_LOWER, &phy_data);
-		hw->phy.ops.read_reg(hw, HV_ECOL_UPPER, &phy_data);
-		hw->phy.ops.read_reg(hw, HV_ECOL_LOWER, &phy_data);
-		hw->phy.ops.read_reg(hw, HV_MCC_UPPER, &phy_data);
-		hw->phy.ops.read_reg(hw, HV_MCC_LOWER, &phy_data);
-		hw->phy.ops.read_reg(hw, HV_LATECOL_UPPER, &phy_data);
-		hw->phy.ops.read_reg(hw, HV_LATECOL_LOWER, &phy_data);
-		hw->phy.ops.read_reg(hw, HV_COLC_UPPER, &phy_data);
-		hw->phy.ops.read_reg(hw, HV_COLC_LOWER, &phy_data);
-		hw->phy.ops.read_reg(hw, HV_DC_UPPER, &phy_data);
-		hw->phy.ops.read_reg(hw, HV_DC_LOWER, &phy_data);
-		hw->phy.ops.read_reg(hw, HV_TNCRS_UPPER, &phy_data);
-		hw->phy.ops.read_reg(hw, HV_TNCRS_LOWER, &phy_data);
+		e1e_rphy(hw, HV_SCC_UPPER, &phy_data);
+		e1e_rphy(hw, HV_SCC_LOWER, &phy_data);
+		e1e_rphy(hw, HV_ECOL_UPPER, &phy_data);
+		e1e_rphy(hw, HV_ECOL_LOWER, &phy_data);
+		e1e_rphy(hw, HV_MCC_UPPER, &phy_data);
+		e1e_rphy(hw, HV_MCC_LOWER, &phy_data);
+		e1e_rphy(hw, HV_LATECOL_UPPER, &phy_data);
+		e1e_rphy(hw, HV_LATECOL_LOWER, &phy_data);
+		e1e_rphy(hw, HV_COLC_UPPER, &phy_data);
+		e1e_rphy(hw, HV_COLC_LOWER, &phy_data);
+		e1e_rphy(hw, HV_DC_UPPER, &phy_data);
+		e1e_rphy(hw, HV_DC_LOWER, &phy_data);
+		e1e_rphy(hw, HV_TNCRS_UPPER, &phy_data);
+		e1e_rphy(hw, HV_TNCRS_LOWER, &phy_data);
 	}
 }
 

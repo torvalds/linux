@@ -637,12 +637,11 @@ s32 e1000e_write_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 data)
  **/
 s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 {
-	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
 	u16 phy_data;
 
 	/* Enable CRS on TX. This must be set for half-duplex operation. */
-	ret_val = phy->ops.read_reg(hw, I82577_CFG_REG, &phy_data);
+	ret_val = e1e_rphy(hw, I82577_CFG_REG, &phy_data);
 	if (ret_val)
 		goto out;
 
@@ -651,7 +650,7 @@ s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 	/* Enable downshift */
 	phy_data |= I82577_CFG_ENABLE_DOWNSHIFT;
 
-	ret_val = phy->ops.write_reg(hw, I82577_CFG_REG, phy_data);
+	ret_val = e1e_wphy(hw, I82577_CFG_REG, phy_data);
 
 out:
 	return ret_val;
@@ -774,16 +773,14 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 	}
 
 	if (phy->type == e1000_phy_82578) {
-		ret_val = phy->ops.read_reg(hw, M88E1000_EXT_PHY_SPEC_CTRL,
-		                            &phy_data);
+		ret_val = e1e_rphy(hw, M88E1000_EXT_PHY_SPEC_CTRL, &phy_data);
 		if (ret_val)
 			return ret_val;
 
 		/* 82578 PHY - set the downshift count to 1x. */
 		phy_data |= I82578_EPSCR_DOWNSHIFT_ENABLE;
 		phy_data &= ~I82578_EPSCR_DOWNSHIFT_COUNTER_MASK;
-		ret_val = phy->ops.write_reg(hw, M88E1000_EXT_PHY_SPEC_CTRL,
-		                             phy_data);
+		ret_val = e1e_wphy(hw, M88E1000_EXT_PHY_SPEC_CTRL, phy_data);
 		if (ret_val)
 			return ret_val;
 	}
@@ -1319,9 +1316,8 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 				 * We didn't get link.
 				 * Reset the DSP and cross our fingers.
 				 */
-				ret_val = e1e_wphy(hw,
-						M88E1000_PHY_PAGE_SELECT,
-						0x001d);
+				ret_val = e1e_wphy(hw, M88E1000_PHY_PAGE_SELECT,
+						   0x001d);
 				if (ret_val)
 					return ret_val;
 				ret_val = e1000e_phy_reset_dsp(hw);
@@ -3071,12 +3067,12 @@ s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw)
 		goto out;
 
 	/* Do not apply workaround if in PHY loopback bit 14 set */
-	hw->phy.ops.read_reg(hw, PHY_CONTROL, &data);
+	e1e_rphy(hw, PHY_CONTROL, &data);
 	if (data & PHY_CONTROL_LB)
 		goto out;
 
 	/* check if link is up and at 1Gbps */
-	ret_val = hw->phy.ops.read_reg(hw, BM_CS_STATUS, &data);
+	ret_val = e1e_rphy(hw, BM_CS_STATUS, &data);
 	if (ret_val)
 		goto out;
 
@@ -3092,14 +3088,12 @@ s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw)
 	mdelay(200);
 
 	/* flush the packets in the fifo buffer */
-	ret_val = hw->phy.ops.write_reg(hw, HV_MUX_DATA_CTRL,
-	                                HV_MUX_DATA_CTRL_GEN_TO_MAC |
-	                                HV_MUX_DATA_CTRL_FORCE_SPEED);
+	ret_val = e1e_wphy(hw, HV_MUX_DATA_CTRL, HV_MUX_DATA_CTRL_GEN_TO_MAC |
+			   HV_MUX_DATA_CTRL_FORCE_SPEED);
 	if (ret_val)
 		goto out;
 
-	ret_val = hw->phy.ops.write_reg(hw, HV_MUX_DATA_CTRL,
-	                                HV_MUX_DATA_CTRL_GEN_TO_MAC);
+	ret_val = e1e_wphy(hw, HV_MUX_DATA_CTRL, HV_MUX_DATA_CTRL_GEN_TO_MAC);
 
 out:
 	return ret_val;
@@ -3119,7 +3113,7 @@ s32 e1000_check_polarity_82577(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 data;
 
-	ret_val = phy->ops.read_reg(hw, I82577_PHY_STATUS_2, &data);
+	ret_val = e1e_rphy(hw, I82577_PHY_STATUS_2, &data);
 
 	if (!ret_val)
 		phy->cable_polarity = (data & I82577_PHY_STATUS2_REV_POLARITY)
@@ -3142,13 +3136,13 @@ s32 e1000_phy_force_speed_duplex_82577(struct e1000_hw *hw)
 	u16 phy_data;
 	bool link;
 
-	ret_val = phy->ops.read_reg(hw, PHY_CONTROL, &phy_data);
+	ret_val = e1e_rphy(hw, PHY_CONTROL, &phy_data);
 	if (ret_val)
 		goto out;
 
 	e1000e_phy_force_speed_duplex_setup(hw, &phy_data);
 
-	ret_val = phy->ops.write_reg(hw, PHY_CONTROL, phy_data);
+	ret_val = e1e_wphy(hw, PHY_CONTROL, phy_data);
 	if (ret_val)
 		goto out;
 
@@ -3212,7 +3206,7 @@ s32 e1000_get_phy_info_82577(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	ret_val = phy->ops.read_reg(hw, I82577_PHY_STATUS_2, &data);
+	ret_val = e1e_rphy(hw, I82577_PHY_STATUS_2, &data);
 	if (ret_val)
 		goto out;
 
@@ -3224,7 +3218,7 @@ s32 e1000_get_phy_info_82577(struct e1000_hw *hw)
 		if (ret_val)
 			goto out;
 
-		ret_val = phy->ops.read_reg(hw, PHY_1000T_STATUS, &data);
+		ret_val = e1e_rphy(hw, PHY_1000T_STATUS, &data);
 		if (ret_val)
 			goto out;
 
@@ -3258,7 +3252,7 @@ s32 e1000_get_cable_length_82577(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data, length;
 
-	ret_val = phy->ops.read_reg(hw, I82577_PHY_DIAG_STATUS, &phy_data);
+	ret_val = e1e_rphy(hw, I82577_PHY_DIAG_STATUS, &phy_data);
 	if (ret_val)
 		goto out;
 
