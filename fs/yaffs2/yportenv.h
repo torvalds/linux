@@ -54,7 +54,7 @@
 #endif
 
 #define yaffs_trace(msk, fmt, ...) do { \
-	if(yaffs_trace_mask & ((msk) | YAFFS_TRACE_ALWAYS)) \
+	if(yaffs_trace_mask & (msk)) \
 		printk(KERN_DEBUG "yaffs: " fmt "\n", ##__VA_ARGS__); \
 } while(0)
 
