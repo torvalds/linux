@@ -674,9 +674,8 @@ static int fsi_hdmi_set_rate(struct device *dev, int rate, int enable)
 		return -EIO;
 
 	ret = __fsi_set_round_rate(fsib_clk, fsib_rate, enable);
-	clk_put(fsib_clk);
 	if (ret < 0)
-		return ret;
+		goto fsi_set_rate_end;
 
 	/* FSI DIV setting */
 	ret = __fsi_set_round_rate(fdiv_clk, fdiv_rate, enable);
@@ -684,10 +683,14 @@ static int fsi_hdmi_set_rate(struct device *dev, int rate, int enable)
 		/* disable FSI B */
 		if (enable)
 			__fsi_set_round_rate(fsib_clk, fsib_rate, 0);
-		return ret;
+		goto fsi_set_rate_end;
 	}
 
-	return ackmd_bpfmd;
+	ret = ackmd_bpfmd;
+
+fsi_set_rate_end:
+	clk_put(fsib_clk);
+	return ret;
 }
 
 static int fsi_set_rate(struct device *dev, int is_porta, int rate, int enable)
