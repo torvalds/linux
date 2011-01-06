@@ -994,6 +994,9 @@ extern void pci_restore_msi_state(struct pci_dev *dev);
 extern int pci_msi_enabled(void);
 #endif
 
+extern bool pcie_ports_disabled;
+extern bool pcie_ports_auto;
+
 #ifndef CONFIG_PCIEASPM
 static inline int pcie_aspm_enabled(void)
 {
@@ -1001,6 +1004,14 @@ static inline int pcie_aspm_enabled(void)
 }
 #else
 extern int pcie_aspm_enabled(void);
+#endif
+
+#ifdef CONFIG_PCIEAER
+void pci_no_aer(void);
+bool pci_aer_available(void);
+#else
+static inline void pci_no_aer(void) { }
+static inline bool pci_aer_available(void) { return false; }
 #endif
 
 #ifndef CONFIG_PCIE_ECRC

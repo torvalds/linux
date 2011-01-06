@@ -140,14 +140,6 @@ static inline void pci_no_msi(void) { }
 static inline void pci_msi_init_pci_dev(struct pci_dev *dev) { }
 #endif
 
-#ifdef CONFIG_PCIEAER
-void pci_no_aer(void);
-bool pci_aer_available(void);
-#else
-static inline void pci_no_aer(void) { }
-static inline bool pci_aer_available(void) { return false; }
-#endif
-
 static inline int pci_no_d1d2(struct pci_dev *dev)
 {
 	unsigned int parent_dstates = 0;

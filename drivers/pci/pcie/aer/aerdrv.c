@@ -17,6 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pci-acpi.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
