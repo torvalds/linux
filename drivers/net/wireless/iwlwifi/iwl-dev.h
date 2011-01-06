@@ -1488,6 +1488,12 @@ struct iwl_priv {
 			struct list_head notif_waits;
 			spinlock_t notif_wait_lock;
 			wait_queue_head_t notif_waitq;
+
+			/* remain-on-channel offload support */
+			struct ieee80211_channel *hw_roc_channel;
+			struct delayed_work hw_roc_work;
+			enum nl80211_channel_type hw_roc_chantype;
+			int hw_roc_duration;
 		} _agn;
 #endif
 	};

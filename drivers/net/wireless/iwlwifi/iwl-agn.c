@@ -3208,6 +3208,8 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 		hw->wiphy->interface_modes |= ctx->exclusive_interface_modes;
 	}
 
+	hw->wiphy->max_remain_on_channel_duration = 1000;
+
 	hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY |
 			    WIPHY_FLAG_DISABLE_BEACON_HINTS;
 
@@ -3726,6 +3728,95 @@ done:
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
+static void iwlagn_disable_roc(struct iwl_priv *priv)
+{
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_PAN];
+	struct ieee80211_channel *chan = ACCESS_ONCE(priv->hw->conf.channel);
+
+	lockdep_assert_held(&priv->mutex);
+
+	if (!ctx->is_active)
+		return;
+
+	ctx->staging.dev_type = RXON_DEV_TYPE_2STA;
+	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+	iwl_set_rxon_channel(priv, chan, ctx);
+	iwl_set_flags_for_band(priv, ctx, chan->band, NULL);
+
+	priv->_agn.hw_roc_channel = NULL;
+
+	iwlagn_commit_rxon(priv, ctx);
+
+	ctx->is_active = false;
+}
+
+static void iwlagn_bg_roc_done(struct work_struct *work)
+{
+	struct iwl_priv *priv = container_of(work, struct iwl_priv,
+					     _agn.hw_roc_work.work);
+
+	mutex_lock(&priv->mutex);
+	ieee80211_remain_on_channel_expired(priv->hw);
+	iwlagn_disable_roc(priv);
+	mutex_unlock(&priv->mutex);
+}
+
+static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
+				     struct ieee80211_channel *channel,
+				     enum nl80211_channel_type channel_type,
+				     int duration)
+{
+	struct iwl_priv *priv = hw->priv;
+	int err = 0;
+
+	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
+		return -EOPNOTSUPP;
+
+	if (!(priv->contexts[IWL_RXON_CTX_PAN].interface_modes &
+					BIT(NL80211_IFTYPE_P2P_CLIENT)))
+		return -EOPNOTSUPP;
+
+	mutex_lock(&priv->mutex);
+
+	if (priv->contexts[IWL_RXON_CTX_PAN].is_active ||
+	    test_bit(STATUS_SCAN_HW, &priv->status)) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	priv->contexts[IWL_RXON_CTX_PAN].is_active = true;
+	priv->_agn.hw_roc_channel = channel;
+	priv->_agn.hw_roc_chantype = channel_type;
+	priv->_agn.hw_roc_duration = DIV_ROUND_UP(duration * 1000, 1024);
+	iwlagn_commit_rxon(priv, &priv->contexts[IWL_RXON_CTX_PAN]);
+	queue_delayed_work(priv->workqueue, &priv->_agn.hw_roc_work,
+			   msecs_to_jiffies(duration + 20));
+
+	msleep(20);
+	ieee80211_ready_on_channel(priv->hw);
+
+ out:
+	mutex_unlock(&priv->mutex);
+
+	return err;
+}
+
+static int iwl_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
+{
+	struct iwl_priv *priv = hw->priv;
+
+	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
+		return -EOPNOTSUPP;
+
+	cancel_delayed_work_sync(&priv->_agn.hw_roc_work);
+
+	mutex_lock(&priv->mutex);
+	iwlagn_disable_roc(priv);
+	mutex_unlock(&priv->mutex);
+
+	return 0;
+}
+
 /*****************************************************************************
  *
  * driver setup and teardown
@@ -3747,6 +3838,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->bt_runtime_config, iwl_bg_bt_runtime_config);
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);
+	INIT_DELAYED_WORK(&priv->_agn.hw_roc_work, iwlagn_bg_roc_done);
 
 	iwl_setup_scan_deferred_work(priv);
 
@@ -3915,6 +4007,8 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.channel_switch = iwlagn_mac_channel_switch,
 	.flush = iwlagn_mac_flush,
 	.tx_last_beacon = iwl_mac_tx_last_beacon,
+	.remain_on_channel = iwl_mac_remain_on_channel,
+	.cancel_remain_on_channel = iwl_mac_cancel_remain_on_channel,
 };
 #endif
 
