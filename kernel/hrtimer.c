@@ -516,10 +516,13 @@ hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal)
 
 	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++, base++) {
 		struct hrtimer *timer;
+		struct timerqueue_node *next;
 
-		if (!base->first)
+		next = timerqueue_getnext(&base->active);
+		if (!next)
 			continue;
-		timer = rb_entry(base->first, struct hrtimer, node);
+		timer = container_of(next, struct hrtimer, node);
+
 		expires = ktime_sub(hrtimer_get_expires(timer), base->offset);
 		/*
 		 * clock_was_set() has changed base->offset so the
@@ -840,48 +843,17 @@ EXPORT_SYMBOL_GPL(hrtimer_forward);
 static int enqueue_hrtimer(struct hrtimer *timer,
 			   struct hrtimer_clock_base *base)
 {
-	struct rb_node **link = &base->active.rb_node;
-	struct rb_node *parent = NULL;
-	struct hrtimer *entry;
-	int leftmost = 1;
-
 	debug_activate(timer);
 
-	/*
-	 * Find the right place in the rbtree:
-	 */
-	while (*link) {
-		parent = *link;
-		entry = rb_entry(parent, struct hrtimer, node);
-		/*
-		 * We dont care about collisions. Nodes with
-		 * the same expiry time stay together.
-		 */
-		if (hrtimer_get_expires_tv64(timer) <
-				hrtimer_get_expires_tv64(entry)) {
-			link = &(*link)->rb_left;
-		} else {
-			link = &(*link)->rb_right;
-			leftmost = 0;
-		}
-	}
+	timerqueue_add(&base->active, &timer->node);
 
-	/*
-	 * Insert the timer to the rbtree and check whether it
-	 * replaces the first pending timer
-	 */
-	if (leftmost)
-		base->first = &timer->node;
-
-	rb_link_node(&timer->node, parent, link);
-	rb_insert_color(&timer->node, &base->active);
 	/*
 	 * HRTIMER_STATE_ENQUEUED is or'ed to the current state to preserve the
 	 * state of a possibly running callback.
 	 */
 	timer->state |= HRTIMER_STATE_ENQUEUED;
 
-	return leftmost;
+	return (&timer->node == base->active.next);
 }
 
 /*
@@ -901,12 +873,7 @@ static void __remove_hrtimer(struct hrtimer *timer,
 	if (!(timer->state & HRTIMER_STATE_ENQUEUED))
 		goto out;
 
-	/*
-	 * Remove the timer from the rbtree and replace the first
-	 * entry pointer if necessary.
-	 */
-	if (base->first == &timer->node) {
-		base->first = rb_next(&timer->node);
+	if (&timer->node == timerqueue_getnext(&base->active)) {
 #ifdef CONFIG_HIGH_RES_TIMERS
 		/* Reprogram the clock event device. if enabled */
 		if (reprogram && hrtimer_hres_active()) {
@@ -919,7 +886,7 @@ static void __remove_hrtimer(struct hrtimer *timer,
 		}
 #endif
 	}
-	rb_erase(&timer->node, &base->active);
+	timerqueue_del(&base->active, &timer->node);
 out:
 	timer->state = newstate;
 }
@@ -1128,11 +1095,13 @@ ktime_t hrtimer_get_next_event(void)
 	if (!hrtimer_hres_active()) {
 		for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++, base++) {
 			struct hrtimer *timer;
+			struct timerqueue_node *next;
 
-			if (!base->first)
+			next = timerqueue_getnext(&base->active);
+			if (!next)
 				continue;
 
-			timer = rb_entry(base->first, struct hrtimer, node);
+			timer = container_of(next, struct hrtimer, node);
 			delta.tv64 = hrtimer_get_expires_tv64(timer);
 			delta = ktime_sub(delta, base->get_time());
 			if (delta.tv64 < mindelta.tv64)
@@ -1162,6 +1131,7 @@ static void __hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 
 	timer->base = &cpu_base->clock_base[clock_id];
 	hrtimer_init_timer_hres(timer);
+	timerqueue_init(&timer->node);
 
 #ifdef CONFIG_TIMER_STATS
 	timer->start_site = NULL;
@@ -1278,14 +1248,14 @@ retry:
 
 	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
 		ktime_t basenow;
-		struct rb_node *node;
+		struct timerqueue_node *node;
 
 		basenow = ktime_add(now, base->offset);
 
-		while ((node = base->first)) {
+		while ((node = timerqueue_getnext(&base->active))) {
 			struct hrtimer *timer;
 
-			timer = rb_entry(node, struct hrtimer, node);
+			timer = container_of(node, struct hrtimer, node);
 
 			/*
 			 * The immediate goal for using the softexpires is
@@ -1441,7 +1411,7 @@ void hrtimer_run_pending(void)
  */
 void hrtimer_run_queues(void)
 {
-	struct rb_node *node;
+	struct timerqueue_node *node;
 	struct hrtimer_cpu_base *cpu_base = &__get_cpu_var(hrtimer_bases);
 	struct hrtimer_clock_base *base;
 	int index, gettime = 1;
@@ -1451,8 +1421,7 @@ void hrtimer_run_queues(void)
 
 	for (index = 0; index < HRTIMER_MAX_CLOCK_BASES; index++) {
 		base = &cpu_base->clock_base[index];
-
-		if (!base->first)
+		if (!timerqueue_getnext(&base->active))
 			continue;
 
 		if (gettime) {
@@ -1462,10 +1431,10 @@ void hrtimer_run_queues(void)
 
 		raw_spin_lock(&cpu_base->lock);
 
-		while ((node = base->first)) {
+		while ((node = timerqueue_getnext(&base->active))) {
 			struct hrtimer *timer;
 
-			timer = rb_entry(node, struct hrtimer, node);
+			timer = container_of(node, struct hrtimer, node);
 			if (base->softirq_time.tv64 <=
 					hrtimer_get_expires_tv64(timer))
 				break;
@@ -1630,8 +1599,10 @@ static void __cpuinit init_hrtimers_cpu(int cpu)
 
 	raw_spin_lock_init(&cpu_base->lock);
 
-	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++)
+	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
 		cpu_base->clock_base[i].cpu_base = cpu_base;
+		timerqueue_init_head(&cpu_base->clock_base[i].active);
+	}
 
 	hrtimer_init_hres(cpu_base);
 }
@@ -1642,10 +1613,10 @@ static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 				struct hrtimer_clock_base *new_base)
 {
 	struct hrtimer *timer;
-	struct rb_node *node;
+	struct timerqueue_node *node;
 
-	while ((node = rb_first(&old_base->active))) {
-		timer = rb_entry(node, struct hrtimer, node);
+	while ((node = timerqueue_getnext(&old_base->active))) {
+		timer = container_of(node, struct hrtimer, node);
 		BUG_ON(hrtimer_callback_running(timer));
 		debug_deactivate(timer);
 

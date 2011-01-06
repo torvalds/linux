@@ -2812,6 +2812,10 @@ M:	Thomas Gleixner <tglx@linutronix.de>
 S:	Maintained
 F:	Documentation/timers/
 F:	kernel/hrtimer.c
+F:	kernel/time/clockevents.c
+F:	kernel/time/tick*.*
+F:	kernel/time/timer_*.c
+F	include/linux/clockevents.h
 F:	include/linux/hrtimer.h
 
 HIGH-SPEED SCC DRIVER FOR AX.25
@@ -5141,6 +5145,18 @@ M:	Jassi Brar <jassi.brar@samsung.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
 F:	sound/soc/s3c24xx
+
+TIMEKEEPING, NTP
+M:	John Stultz <johnstul@us.ibm.com>
+M:	Thomas Gleixner <tglx@linutronix.de>
+S:	Supported
+F:	include/linux/clocksource.h
+F:	include/linux/time.h
+F:	include/linux/timex.h
+F:	include/linux/timekeeping.h
+F:	kernel/time/clocksource.c
+F:	kernel/time/time*.c
+F:	kernel/time/ntp.c
 
 TLG2300 VIDEO4LINUX-2 DRIVER
 M:	Huang Shijie <shijie8@gmail.com>
