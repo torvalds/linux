@@ -1477,9 +1477,7 @@ static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 	reg_ctl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
 	reg_ctl &= ~IXGBE_RXCTRL_RXEN;
 	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, reg_ctl);
-	reg_ctl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(rx_ring->reg_idx));
-	reg_ctl &= ~IXGBE_RXDCTL_ENABLE;
-	IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(rx_ring->reg_idx), reg_ctl);
+	ixgbe_disable_rx_queue(adapter, rx_ring);
 
 	/* now Tx */
 	reg_ctl = IXGBE_READ_REG(hw, IXGBE_TXDCTL(tx_ring->reg_idx));

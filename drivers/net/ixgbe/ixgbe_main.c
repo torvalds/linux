@@ -3024,6 +3024,36 @@ static void ixgbe_rx_desc_queue_enable(struct ixgbe_adapter *adapter,
 	}
 }
 
+void ixgbe_disable_rx_queue(struct ixgbe_adapter *adapter,
+			    struct ixgbe_ring *ring)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int wait_loop = IXGBE_MAX_RX_DESC_POLL;
+	u32 rxdctl;
+	u8 reg_idx = ring->reg_idx;
+
+	rxdctl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(reg_idx));
+	rxdctl &= ~IXGBE_RXDCTL_ENABLE;
+
+	/* write value back with RXDCTL.ENABLE bit cleared */
+	IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(reg_idx), rxdctl);
+
+	if (hw->mac.type == ixgbe_mac_82598EB &&
+	    !(IXGBE_READ_REG(hw, IXGBE_LINKS) & IXGBE_LINKS_UP))
+		return;
+
+	/* the hardware may take up to 100us to really disable the rx queue */
+	do {
+		udelay(10);
+		rxdctl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(reg_idx));
+	} while (--wait_loop && (rxdctl & IXGBE_RXDCTL_ENABLE));
+
+	if (!wait_loop) {
+		e_err(drv, "RXDCTL.ENABLE on Rx queue %d not cleared within "
+		      "the polling period\n", reg_idx);
+	}
+}
+
 void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 			     struct ixgbe_ring *ring)
 {
@@ -3034,9 +3064,7 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 
 	/* disable queue to avoid issues while updating state */
 	rxdctl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(reg_idx));
-	IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(reg_idx),
-			rxdctl & ~IXGBE_RXDCTL_ENABLE);
-	IXGBE_WRITE_FLUSH(hw);
+	ixgbe_disable_rx_queue(adapter, ring);
 
 	IXGBE_WRITE_REG(hw, IXGBE_RDBAL(reg_idx), (rdba & DMA_BIT_MASK(32)));
 	IXGBE_WRITE_REG(hw, IXGBE_RDBAH(reg_idx), (rdba >> 32));
@@ -4064,7 +4092,11 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
 	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, rxctrl & ~IXGBE_RXCTRL_RXEN);
 
-	IXGBE_WRITE_FLUSH(hw);
+	/* disable all enabled rx queues */
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		/* this call also flushes the previous write */
+		ixgbe_disable_rx_queue(adapter, adapter->rx_ring[i]);
+
 	msleep(10);
 
 	netif_tx_stop_all_queues(netdev);

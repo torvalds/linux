@@ -508,6 +508,8 @@ extern void ixgbe_free_rx_resources(struct ixgbe_ring *);
 extern void ixgbe_free_tx_resources(struct ixgbe_ring *);
 extern void ixgbe_configure_rx_ring(struct ixgbe_adapter *,struct ixgbe_ring *);
 extern void ixgbe_configure_tx_ring(struct ixgbe_adapter *,struct ixgbe_ring *);
+extern void ixgbe_disable_rx_queue(struct ixgbe_adapter *adapter,
+				   struct ixgbe_ring *);
 extern void ixgbe_update_stats(struct ixgbe_adapter *adapter);
 extern int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter);
 extern void ixgbe_clear_interrupt_scheme(struct ixgbe_adapter *adapter);
