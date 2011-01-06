@@ -95,6 +95,12 @@ config S3C_GPIO_PULL_UPDOWN
 	help
 	  Internal configuration to enable the correct GPIO pull helper
 
+config S3C_GPIO_PULL_S3C2443
+	bool
+	select S3C_GPIO_PULL_UPDOWN
+	help
+	  Internal configuration to enable the correct GPIO pull helper for S3C2443-style GPIO
+
 config S3C_GPIO_PULL_DOWN
 	bool
 	help
