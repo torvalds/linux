@@ -173,6 +173,10 @@ static int __devinit hpsa_find_cfg_addrs(struct pci_dev *pdev,
 static int __devinit hpsa_pci_find_memory_BAR(struct pci_dev *pdev,
 	unsigned long *memory_bar);
 static int __devinit hpsa_lookup_board_id(struct pci_dev *pdev, u32 *board_id);
+static int __devinit hpsa_wait_for_board_state(struct pci_dev *pdev,
+	void __iomem *vaddr, int wait_for_ready);
+#define BOARD_NOT_READY 0
+#define BOARD_READY 1
 
 static DEVICE_ATTR(raid_level, S_IRUGO, raid_level_show, NULL);
 static DEVICE_ATTR(lunid, S_IRUGO, lunid_show, NULL);
@@ -3237,6 +3241,20 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	   need a little pause here */
 	msleep(HPSA_POST_RESET_PAUSE_MSECS);
 
+	/* Wait for board to become not ready, then ready. */
+	dev_info(&pdev->dev, "Waiting for board to become ready.\n");
+	rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_NOT_READY);
+	if (rc)
+		dev_warn(&pdev->dev,
+			"failed waiting for board to become not ready\n");
+	rc = hpsa_wait_for_board_state(pdev, vaddr, BOARD_READY);
+	if (rc) {
+		dev_warn(&pdev->dev,
+			"failed waiting for board to become ready\n");
+		goto unmap_cfgtable;
+	}
+	dev_info(&pdev->dev, "board ready.\n");
+
 	/* Controller should be in simple mode at this point.  If it's not,
 	 * It means we're on one of those controllers which doesn't support
 	 * the doorbell reset method and on which the PCI power management reset
@@ -3432,18 +3450,28 @@ static int __devinit hpsa_pci_find_memory_BAR(struct pci_dev *pdev,
 	return -ENODEV;
 }
 
-static int __devinit hpsa_wait_for_board_ready(struct ctlr_info *h)
+static int __devinit hpsa_wait_for_board_state(struct pci_dev *pdev,
+	void __iomem *vaddr, int wait_for_ready)
 {
-	int i;
+	int i, iterations;
 	u32 scratchpad;
+	if (wait_for_ready)
+		iterations = HPSA_BOARD_READY_ITERATIONS;
+	else
+		iterations = HPSA_BOARD_NOT_READY_ITERATIONS;
 
-	for (i = 0; i < HPSA_BOARD_READY_ITERATIONS; i++) {
-		scratchpad = readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
-		if (scratchpad == HPSA_FIRMWARE_READY)
-			return 0;
+	for (i = 0; i < iterations; i++) {
+		scratchpad = readl(vaddr + SA5_SCRATCHPAD_OFFSET);
+		if (wait_for_ready) {
+			if (scratchpad == HPSA_FIRMWARE_READY)
+				return 0;
+		} else {
+			if (scratchpad != HPSA_FIRMWARE_READY)
+				return 0;
+		}
 		msleep(HPSA_BOARD_READY_POLL_INTERVAL_MSECS);
 	}
-	dev_warn(&h->pdev->dev, "board not ready, timed out.\n");
+	dev_warn(&pdev->dev, "board not ready, timed out.\n");
 	return -ENODEV;
 }
 
@@ -3635,7 +3663,7 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 		err = -ENOMEM;
 		goto err_out_free_res;
 	}
-	err = hpsa_wait_for_board_ready(h);
+	err = hpsa_wait_for_board_state(h->pdev, h->vaddr, BOARD_READY);
 	if (err)
 		goto err_out_free_res;
 	err = hpsa_find_cfgtables(h);
