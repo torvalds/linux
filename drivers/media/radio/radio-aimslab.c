@@ -31,7 +31,6 @@
 #include <linux/module.h>	/* Modules 			*/
 #include <linux/init.h>		/* Initdata			*/
 #include <linux/ioport.h>	/* request_region		*/
-#include <linux/delay.h>	/* udelay			*/
 #include <linux/videodev2.h>	/* kernel radio structs		*/
 #include <linux/version.h>	/* for KERNEL_VERSION MACRO	*/
 #include <linux/io.h>		/* outb, outb_p			*/
@@ -71,27 +70,17 @@ static struct rtrack rtrack_card;
 
 /* local things */
 
-static void sleep_delay(long n)
-{
-	/* Sleep nicely for 'n' uS */
-	int d = n / msecs_to_jiffies(1000);
-	if (!d)
-		udelay(n);
-	else
-		msleep(jiffies_to_msecs(d));
-}
-
 static void rt_decvol(struct rtrack *rt)
 {
 	outb(0x58, rt->io);		/* volume down + sigstr + on	*/
-	sleep_delay(100000);
+	msleep(100);
 	outb(0xd8, rt->io);		/* volume steady + sigstr + on	*/
 }
 
 static void rt_incvol(struct rtrack *rt)
 {
 	outb(0x98, rt->io);		/* volume up + sigstr + on	*/
-	sleep_delay(100000);
+	msleep(100);
 	outb(0xd8, rt->io);		/* volume steady + sigstr + on	*/
 }
 
@@ -120,7 +109,7 @@ static int rt_setvol(struct rtrack *rt, int vol)
 
 	if (vol == 0) {			/* volume = 0 means mute the card */
 		outb(0x48, rt->io);	/* volume down but still "on"	*/
-		sleep_delay(2000000);	/* make sure it's totally down	*/
+		msleep(2000);	/* make sure it's totally down	*/
 		outb(0xd0, rt->io);	/* volume steady, off		*/
 		rt->curvol = 0;		/* track the volume state!	*/
 		mutex_unlock(&rt->lock);
@@ -155,7 +144,7 @@ static void send_0_byte(struct rtrack *rt)
 		outb_p(128+64+16+8+  1, rt->io);  /* on + wr-enable + data low */
 		outb_p(128+64+16+8+2+1, rt->io);  /* clock */
 	}
-	sleep_delay(1000);
+	msleep(1);
 }
 
 static void send_1_byte(struct rtrack *rt)
@@ -169,7 +158,7 @@ static void send_1_byte(struct rtrack *rt)
 		outb_p(128+64+16+8+4+2+1, rt->io); /* clock */
 	}
 
-	sleep_delay(1000);
+	msleep(1);
 }
 
 static int rt_setfreq(struct rtrack *rt, unsigned long freq)
@@ -423,7 +412,7 @@ static int __init rtrack_init(void)
 
 	/* this ensures that the volume is all the way down  */
 	outb(0x48, rt->io);		/* volume down but still "on"	*/
-	sleep_delay(2000000);	/* make sure it's totally down	*/
+	msleep(2000);	/* make sure it's totally down	*/
 	outb(0xc0, rt->io);		/* steady volume, mute card	*/
 
 	return 0;
