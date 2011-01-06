@@ -3411,18 +3411,15 @@ static u32 sky2_supported_modes(const struct sky2_hw *hw)
 		u32 modes = SUPPORTED_10baseT_Half
 			| SUPPORTED_10baseT_Full
 			| SUPPORTED_100baseT_Half
-			| SUPPORTED_100baseT_Full
-			| SUPPORTED_Autoneg | SUPPORTED_TP;
+			| SUPPORTED_100baseT_Full;
 
 		if (hw->flags & SKY2_HW_GIGABIT)
 			modes |= SUPPORTED_1000baseT_Half
 				| SUPPORTED_1000baseT_Full;
 		return modes;
 	} else
-		return  SUPPORTED_1000baseT_Half
-			| SUPPORTED_1000baseT_Full
-			| SUPPORTED_Autoneg
-			| SUPPORTED_FIBRE;
+		return SUPPORTED_1000baseT_Half
+			| SUPPORTED_1000baseT_Full;
 }
 
 static int sky2_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
@@ -3436,9 +3433,11 @@ static int sky2_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	if (sky2_is_copper(hw)) {
 		ecmd->port = PORT_TP;
 		ecmd->speed = sky2->speed;
+		ecmd->supported |=  SUPPORTED_Autoneg | SUPPORTED_TP;
 	} else {
 		ecmd->speed = SPEED_1000;
 		ecmd->port = PORT_FIBRE;
+		ecmd->supported |=  SUPPORTED_Autoneg | SUPPORTED_FIBRE;
 	}
 
 	ecmd->advertising = sky2->advertising;
@@ -3455,8 +3454,19 @@ static int sky2_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	u32 supported = sky2_supported_modes(hw);
 
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
+		if (ecmd->advertising & ~supported)
+			return -EINVAL;
+
+		if (sky2_is_copper(hw))
+			sky2->advertising = ecmd->advertising |
+					    ADVERTISED_TP |
+					    ADVERTISED_Autoneg;
+		else
+			sky2->advertising = ecmd->advertising |
+					    ADVERTISED_FIBRE |
+					    ADVERTISED_Autoneg;
+
 		sky2->flags |= SKY2_FLAG_AUTO_SPEED;
-		ecmd->advertising = supported;
 		sky2->duplex = -1;
 		sky2->speed = -1;
 	} else {
@@ -3499,8 +3509,6 @@ static int sky2_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		sky2->duplex = ecmd->duplex;
 		sky2->flags &= ~SKY2_FLAG_AUTO_SPEED;
 	}
-
-	sky2->advertising = ecmd->advertising;
 
 	if (netif_running(dev)) {
 		sky2_phy_reinit(sky2);
