@@ -12,6 +12,13 @@
 #include <linux/securebits.h>
 #include <net/net_namespace.h>
 
+#ifdef CONFIG_SMP
+# define INIT_PUSHABLE_TASKS(tsk)					\
+	.pushable_tasks = PLIST_NODE_INIT(tsk.pushable_tasks, MAX_PRIO),
+#else
+# define INIT_PUSHABLE_TASKS(tsk)
+#endif
+
 extern struct files_struct init_files;
 extern struct fs_struct init_fs;
 
@@ -144,7 +151,7 @@ extern struct cred init_cred;
 		.nr_cpus_allowed = NR_CPUS,				\
 	},								\
 	.tasks		= LIST_HEAD_INIT(tsk.tasks),			\
-	.pushable_tasks = PLIST_NODE_INIT(tsk.pushable_tasks, MAX_PRIO), \
+	INIT_PUSHABLE_TASKS(tsk)					\
 	.ptraced	= LIST_HEAD_INIT(tsk.ptraced),			\
 	.ptrace_entry	= LIST_HEAD_INIT(tsk.ptrace_entry),		\
 	.real_parent	= &tsk,						\

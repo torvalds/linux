@@ -1074,17 +1074,17 @@ static DEFINE_PER_CPU(int, printk_pending);
 
 void printk_tick(void)
 {
-	if (__get_cpu_var(printk_pending)) {
-		__get_cpu_var(printk_pending) = 0;
+	if (__this_cpu_read(printk_pending)) {
+		__this_cpu_write(printk_pending, 0);
 		wake_up_interruptible(&log_wait);
 	}
 }
 
 int printk_needs_cpu(int cpu)
 {
-	if (unlikely(cpu_is_offline(cpu)))
+	if (cpu_is_offline(cpu))
 		printk_tick();
-	return per_cpu(printk_pending, cpu);
+	return __this_cpu_read(printk_pending);
 }
 
 void wake_up_klogd(void)

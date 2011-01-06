@@ -189,7 +189,6 @@ static inline void check_for_tasks(int cpu)
 }
 
 struct take_cpu_down_param {
-	struct task_struct *caller;
 	unsigned long mod;
 	void *hcpu;
 };
@@ -198,7 +197,6 @@ struct take_cpu_down_param {
 static int __ref take_cpu_down(void *_param)
 {
 	struct take_cpu_down_param *param = _param;
-	unsigned int cpu = (unsigned long)param->hcpu;
 	int err;
 
 	/* Ensure this CPU doesn't handle any more interrupts. */
@@ -208,11 +206,6 @@ static int __ref take_cpu_down(void *_param)
 
 	cpu_notify(CPU_DYING | param->mod, param->hcpu);
 
-	if (task_cpu(param->caller) == cpu)
-		move_task_off_dead_cpu(cpu, param->caller);
-	/* Force idle task to run as soon as we yield: it should
-	   immediately notice cpu is offline and die quickly. */
-	sched_idle_next();
 	return 0;
 }
 
@@ -223,7 +216,6 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	void *hcpu = (void *)(long)cpu;
 	unsigned long mod = tasks_frozen ? CPU_TASKS_FROZEN : 0;
 	struct take_cpu_down_param tcd_param = {
-		.caller = current,
 		.mod = mod,
 		.hcpu = hcpu,
 	};
@@ -253,9 +245,15 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	}
 	BUG_ON(cpu_online(cpu));
 
-	/* Wait for it to sleep (leaving idle task). */
+	/*
+	 * The migration_call() CPU_DYING callback will have removed all
+	 * runnable tasks from the cpu, there's only the idle task left now
+	 * that the migration thread is done doing the stop_machine thing.
+	 *
+	 * Wait for the stop thread to go away.
+	 */
 	while (!idle_cpu(cpu))
-		yield();
+		cpu_relax();
 
 	/* This actually kills the CPU. */
 	__cpu_die(cpu);
