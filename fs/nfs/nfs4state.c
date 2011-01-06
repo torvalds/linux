@@ -192,6 +192,12 @@ int nfs41_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
 	status = nfs4_proc_create_session(clp);
 	if (status != 0)
 		goto out;
+	status = nfs4_set_callback_sessionid(clp);
+	if (status != 0) {
+		printk(KERN_WARNING "Sessionid not set. No callback service\n");
+		nfs_callback_down(1);
+		status = 0;
+	}
 	nfs41_setup_state_renewal(clp);
 	nfs_mark_client_ready(clp, NFS_CS_READY);
 out:

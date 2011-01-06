@@ -137,6 +137,33 @@ out_err:
 
 #if defined(CONFIG_NFS_V4_1)
 /*
+ *  * CB_SEQUENCE operations will fail until the callback sessionid is set.
+ *   */
+int nfs4_set_callback_sessionid(struct nfs_client *clp)
+{
+	struct svc_serv *serv = clp->cl_rpcclient->cl_xprt->bc_serv;
+	struct nfs4_sessionid *bc_sid;
+
+	if (!serv->bc_xprt)
+		return -EINVAL;
+
+	/* on success freed in xprt_free */
+	bc_sid = kmalloc(sizeof(struct nfs4_sessionid), GFP_KERNEL);
+	if (!bc_sid)
+		return -ENOMEM;
+	memcpy(bc_sid->data, &clp->cl_session->sess_id.data,
+		NFS4_MAX_SESSIONID_LEN);
+	spin_lock_bh(&serv->sv_cb_lock);
+	serv->bc_xprt->xpt_bc_sid = bc_sid;
+	spin_unlock_bh(&serv->sv_cb_lock);
+	dprintk("%s set xpt_bc_sid=%u:%u:%u:%u for bc_xprt %p\n", __func__,
+		((u32 *)bc_sid->data)[0], ((u32 *)bc_sid->data)[1],
+		((u32 *)bc_sid->data)[2], ((u32 *)bc_sid->data)[3],
+		serv->bc_xprt);
+	return 0;
+}
+
+/*
  * The callback service for NFSv4.1 callbacks
  */
 static int
@@ -240,6 +267,10 @@ static inline int nfs_minorversion_callback_svc_setup(u32 minorversion,
 static inline void nfs_callback_bc_serv(u32 minorversion, struct rpc_xprt *xprt,
 		struct nfs_callback_data *cb_info)
 {
+}
+int nfs4_set_callback_sessionid(struct nfs_client *clp)
+{
+	return 0;
 }
 #endif /* CONFIG_NFS_V4_1 */
 
