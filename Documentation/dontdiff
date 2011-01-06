@@ -62,6 +62,10 @@ aic7*reg_print.c*
 aic7*seq.h*
 aicasm
 aicdb.h*
+altivec1.c
+altivec2.c
+altivec4.c
+altivec8.c
 asm-offsets.h
 asm_offsets.h
 autoconf.h*
@@ -76,6 +80,7 @@ btfixupprep
 build
 bvmlinux
 bzImage*
+capflags.c
 classlist.h*
 comp*.log
 compile.h*
@@ -94,6 +99,7 @@ devlist.h*
 docproc
 elf2ecoff
 elfconfig.h*
+evergreen_reg_safe.h
 fixdep
 flask.h
 fore200e_mkfirm
@@ -108,9 +114,16 @@ genksyms
 *_gray256.c
 ihex2fw
 ikconfig.h*
+inat-tables.c
 initramfs_data.cpio
 initramfs_data.cpio.gz
 initramfs_list
+int16.c
+int1.c
+int2.c
+int32.c
+int4.c
+int8.c
 kallsyms
 kconfig
 keywords.c
@@ -140,6 +153,7 @@ mkprep
 mktables
 mktree
 modpost
+modules.builtin
 modules.order
 modversions.h*
 ncscope.*
@@ -153,14 +167,23 @@ pca200e.bin
 pca200e_ecd.bin2
 piggy.gz
 piggyback
+piggy.S
 pnmtologo
 ppc_defs.h*
 pss_boot.h
 qconf
+r100_reg_safe.h
+r200_reg_safe.h
+r300_reg_safe.h
+r420_reg_safe.h
+r600_reg_safe.h
 raid6altivec*.c
 raid6int*.c
 raid6tables.c
 relocs
+rn50_reg_safe.h
+rs600_reg_safe.h
+rv515_reg_safe.h
 series
 setup
 setup.bin
@@ -169,6 +192,7 @@ sImage
 sm_tbl*
 split-include
 syscalltab.h
+tables.c
 tags
 tftpboot.img
 timeconst.h
@@ -190,6 +214,7 @@ vmlinux
 vmlinux-*
 vmlinux.aout
 vmlinux.lds
+voffset.h
 vsyscall.lds
 vsyscall_32.lds
 wanxlfw.inc
@@ -200,3 +225,4 @@ wakeup.elf
 wakeup.lds
 zImage*
 zconf.hash.c
+zoffset.h
