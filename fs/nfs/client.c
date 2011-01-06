@@ -170,21 +170,17 @@ error_0:
 }
 
 #ifdef CONFIG_NFS_V4
-/*
- * Clears/puts all minor version specific parts from an nfs_client struct
- * reverting it to minorversion 0.
- */
-static void nfs4_clear_client_minor_version(struct nfs_client *clp)
-{
 #ifdef CONFIG_NFS_V4_1
-	if (nfs4_has_session(clp)) {
+static void nfs4_shutdown_session(struct nfs_client *clp)
+{
+	if (nfs4_has_session(clp))
 		nfs4_destroy_session(clp->cl_session);
-		clp->cl_session = NULL;
-	}
-
-	clp->cl_mvops = nfs_v4_minor_ops[0];
-#endif /* CONFIG_NFS_V4_1 */
 }
+#else /* CONFIG_NFS_V4_1 */
+static void nfs4_shutdown_session(struct nfs_client *clp)
+{
+}
+#endif /* CONFIG_NFS_V4_1 */
 
 /*
  * Destroy the NFS4 callback service
@@ -199,7 +195,7 @@ static void nfs4_shutdown_client(struct nfs_client *clp)
 {
 	if (__test_and_clear_bit(NFS_CS_RENEWD, &clp->cl_res_state))
 		nfs4_kill_renewd(clp);
-	nfs4_clear_client_minor_version(clp);
+	nfs4_shutdown_session(clp);
 	nfs4_destroy_callback(clp);
 	if (__test_and_clear_bit(NFS_CS_IDMAP, &clp->cl_res_state))
 		nfs_idmap_delete(clp);
