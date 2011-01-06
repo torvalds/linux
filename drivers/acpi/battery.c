@@ -631,6 +631,17 @@ static int acpi_battery_update(struct acpi_battery *battery)
 	return result;
 }
 
+static void acpi_battery_refresh(struct acpi_battery *battery)
+{
+	if (!battery->bat.dev)
+		return;
+
+	acpi_battery_get_info(battery);
+	/* The battery may have changed its reporting units. */
+	sysfs_remove_battery(battery);
+	sysfs_add_battery(battery);
+}
+
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
@@ -916,6 +927,8 @@ static void acpi_battery_notify(struct acpi_device *device, u32 event)
 	if (!battery)
 		return;
 	old = battery->bat.dev;
+	if (event == ACPI_BATTERY_NOTIFY_INFO)
+		acpi_battery_refresh(battery);
 	acpi_battery_update(battery);
 	acpi_bus_generate_proc_event(device, event,
 				     acpi_battery_present(battery));
@@ -985,6 +998,7 @@ static int acpi_battery_resume(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 	battery = acpi_driver_data(device);
+	acpi_battery_refresh(battery);
 	battery->update_time = 0;
 	acpi_battery_update(battery);
 	return 0;
