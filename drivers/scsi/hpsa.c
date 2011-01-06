@@ -2433,15 +2433,17 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 		buff = kmalloc(iocommand.buf_size, GFP_KERNEL);
 		if (buff == NULL)
 			return -EFAULT;
-	}
-	if (iocommand.Request.Type.Direction == XFER_WRITE) {
-		/* Copy the data into the buffer we created */
-		if (copy_from_user(buff, iocommand.buf, iocommand.buf_size)) {
-			kfree(buff);
-			return -EFAULT;
+		if (iocommand.Request.Type.Direction == XFER_WRITE) {
+			/* Copy the data into the buffer we created */
+			if (copy_from_user(buff, iocommand.buf,
+				iocommand.buf_size)) {
+				kfree(buff);
+				return -EFAULT;
+			}
+		} else {
+			memset(buff, 0, iocommand.buf_size);
 		}
-	} else
-		memset(buff, 0, iocommand.buf_size);
+	}
 	c = cmd_special_alloc(h);
 	if (c == NULL) {
 		kfree(buff);
@@ -2487,8 +2489,8 @@ static int hpsa_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 		cmd_special_free(h, c);
 		return -EFAULT;
 	}
-
-	if (iocommand.Request.Type.Direction == XFER_READ) {
+	if (iocommand.Request.Type.Direction == XFER_READ &&
+		iocommand.buf_size > 0) {
 		/* Copy the data out of the buffer we created */
 		if (copy_to_user(iocommand.buf, buff, iocommand.buf_size)) {
 			kfree(buff);
@@ -2581,14 +2583,7 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 	}
 	c->cmd_type = CMD_IOCTL_PEND;
 	c->Header.ReplyQueue = 0;
-
-	if (ioc->buf_size > 0) {
-		c->Header.SGList = sg_used;
-		c->Header.SGTotal = sg_used;
-	} else {
-		c->Header.SGList = 0;
-		c->Header.SGTotal = 0;
-	}
+	c->Header.SGList = c->Header.SGTotal = sg_used;
 	memcpy(&c->Header.LUN, &ioc->LUN_info, sizeof(c->Header.LUN));
 	c->Header.Tag.lower = c->busaddr;
 	memcpy(&c->Request, &ioc->Request, sizeof(c->Request));
@@ -2605,7 +2600,8 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 		}
 	}
 	hpsa_scsi_do_simple_cmd_core(h, c);
-	hpsa_pci_unmap(h->pdev, c, sg_used, PCI_DMA_BIDIRECTIONAL);
+	if (sg_used)
+		hpsa_pci_unmap(h->pdev, c, sg_used, PCI_DMA_BIDIRECTIONAL);
 	check_ioctl_unit_attention(h, c);
 	/* Copy the error information out */
 	memcpy(&ioc->error_info, c->err_info, sizeof(ioc->error_info));
@@ -2614,7 +2610,7 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 		status = -EFAULT;
 		goto cleanup1;
 	}
-	if (ioc->Request.Type.Direction == XFER_READ) {
+	if (ioc->Request.Type.Direction == XFER_READ && ioc->buf_size > 0) {
 		/* Copy the data out of the buffer we created */
 		BYTE __user *ptr = ioc->buf;
 		for (i = 0; i < sg_used; i++) {
