@@ -2110,18 +2110,6 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 		goto find_endpoint_failed;
 	}
 
-	ictx->idev = imon_init_idev(ictx);
-	if (!ictx->idev) {
-		dev_err(dev, "%s: input device setup failed\n", __func__);
-		goto idev_setup_failed;
-	}
-
-	ictx->rdev = imon_init_rdev(ictx);
-	if (!ictx->rdev) {
-		dev_err(dev, "%s: rc device setup failed\n", __func__);
-		goto rdev_setup_failed;
-	}
-
 	usb_fill_int_urb(ictx->rx_urb_intf0, ictx->usbdev_intf0,
 		usb_rcvintpipe(ictx->usbdev_intf0,
 			ictx->rx_endpoint_intf0->bEndpointAddress),
@@ -2135,13 +2123,25 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 		goto urb_submit_failed;
 	}
 
+	ictx->idev = imon_init_idev(ictx);
+	if (!ictx->idev) {
+		dev_err(dev, "%s: input device setup failed\n", __func__);
+		goto idev_setup_failed;
+	}
+
+	ictx->rdev = imon_init_rdev(ictx);
+	if (!ictx->rdev) {
+		dev_err(dev, "%s: rc device setup failed\n", __func__);
+		goto rdev_setup_failed;
+	}
+
 	return ictx;
 
-urb_submit_failed:
-	rc_unregister_device(ictx->rdev);
 rdev_setup_failed:
 	input_unregister_device(ictx->idev);
 idev_setup_failed:
+	usb_kill_urb(ictx->rx_urb_intf0);
+urb_submit_failed:
 find_endpoint_failed:
 	mutex_unlock(&ictx->lock);
 	usb_free_urb(tx_urb);
