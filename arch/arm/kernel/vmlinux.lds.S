@@ -168,6 +168,7 @@ SECTIONS
 
 		NOSAVE_DATA
 		CACHELINE_ALIGNED_DATA(32)
+		READ_MOSTLY_DATA(32)
 
 		/*
 		 * The exception fixup table (might need resorting at runtime)

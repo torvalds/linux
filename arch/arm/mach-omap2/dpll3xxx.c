@@ -26,10 +26,10 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
+#include <linux/clkdev.h>
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
-#include <asm/clkdev.h>
 
 #include "clock.h"
 #include "prm.h"

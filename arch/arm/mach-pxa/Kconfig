@@ -94,6 +94,7 @@ config MACH_ARMCORE
 	select PXA27x
 	select IWMMXT
 	select PXA25x
+	select MIGHT_HAVE_PCI
 
 config MACH_EM_X270
 	bool "CompuLab EM-x270 platform"

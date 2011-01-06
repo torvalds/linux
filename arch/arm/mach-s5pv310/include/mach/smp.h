@@ -7,14 +7,13 @@
 #define ASM_ARCH_SMP_H __FILE__
 
 #include <asm/hardware/gic.h>
-#include <asm/smp_mpidr.h>
 
 /*
  * We use IRQ1 as the IPI
  */
-static inline void smp_cross_call(const struct cpumask *mask)
+static inline void smp_cross_call(const struct cpumask *mask, int ipi)
 {
-	gic_raise_softirq(mask, 1);
+	gic_raise_softirq(mask, ipi);
 }
 
 #endif

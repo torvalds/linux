@@ -11,8 +11,8 @@
 #include <linux/spinlock.h>
 #include <linux/sysdev.h>
 #include <linux/usb/isp1760.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
 #include <asm/sizes.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
@@ -20,7 +20,6 @@
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/timer-sp.h>
 
-#include <mach/clkdev.h>
 #include <mach/motherboard.h>
 
 #include <plat/sched_clock.h>

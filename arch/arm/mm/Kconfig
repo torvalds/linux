@@ -599,6 +599,14 @@ config CPU_CP15_MPU
 	help
 	  Processor has the CP15 register, which has MPU related registers.
 
+config CPU_USE_DOMAINS
+	bool
+	depends on MMU
+	default y if !CPU_32v6K
+	help
+	  This option enables or disables the use of domain switching
+	  via the set_fs() function.
+
 #
 # CPU supports 36-bit I/O
 #
@@ -627,6 +635,33 @@ config ARM_THUMBEE
 	help
 	  Say Y here if you have a CPU with the ThumbEE extension and code to
 	  make use of it. Say N for code that can run on CPUs without ThumbEE.
+
+config SWP_EMULATE
+	bool "Emulate SWP/SWPB instructions"
+	depends on CPU_V7
+	select HAVE_PROC_CPU if PROC_FS
+	default y if SMP
+	help
+	  ARMv6 architecture deprecates use of the SWP/SWPB instructions.
+	  ARMv7 multiprocessing extensions introduce the ability to disable
+	  these instructions, triggering an undefined instruction exception
+	  when executed. Say Y here to enable software emulation of these
+	  instructions for userspace (not kernel) using LDREX/STREX.
+	  Also creates /proc/cpu/swp_emulation for statistics.
+
+	  In some older versions of glibc [<=2.8] SWP is used during futex
+	  trylock() operations with the assumption that the code will not
+	  be preempted. This invalid assumption may be more likely to fail
+	  with SWP emulation enabled, leading to deadlock of the user
+	  application.
+
+	  NOTE: when accessing uncached shared regions, LDREX/STREX rely
+	  on an external transaction monitoring block called a global
+	  monitor to maintain update atomicity. If your system does not
+	  implement a global monitor, this option can cause programs that
+	  perform SWP operations to uncached memory to deadlock.
+
+	  If unsure, say Y.
 
 config CPU_BIG_ENDIAN
 	bool "Build big-endian kernel"
