@@ -177,30 +177,38 @@ nfs41_callback_svc(void *vrqstp)
 struct svc_rqst *
 nfs41_callback_up(struct svc_serv *serv, struct rpc_xprt *xprt)
 {
-	struct svc_xprt *bc_xprt;
-	struct svc_rqst *rqstp = ERR_PTR(-ENOMEM);
+	struct svc_rqst *rqstp;
+	int ret;
 
-	dprintk("--> %s\n", __func__);
-	/* Create a svc_sock for the service */
-	bc_xprt = svc_sock_create(serv, xprt->prot);
-	if (!bc_xprt)
+	/*
+	 * Create an svc_sock for the back channel service that shares the
+	 * fore channel connection.
+	 * Returns the input port (0) and sets the svc_serv bc_xprt on success
+	 */
+	ret = svc_create_xprt(serv, "tcp-bc", &init_net, PF_INET, 0,
+			      SVC_SOCK_ANONYMOUS);
+	if (ret < 0) {
+		rqstp = ERR_PTR(ret);
 		goto out;
+	}
 
 	/*
 	 * Save the svc_serv in the transport so that it can
 	 * be referenced when the session backchannel is initialized
 	 */
-	serv->bc_xprt = bc_xprt;
 	xprt->bc_serv = serv;
 
 	INIT_LIST_HEAD(&serv->sv_cb_list);
 	spin_lock_init(&serv->sv_cb_lock);
 	init_waitqueue_head(&serv->sv_cb_waitq);
 	rqstp = svc_prepare_thread(serv, &serv->sv_pools[0]);
-	if (IS_ERR(rqstp))
-		svc_sock_destroy(bc_xprt);
+	if (IS_ERR(rqstp)) {
+		svc_xprt_put(serv->bc_xprt);
+		serv->bc_xprt = NULL;
+	}
 out:
-	dprintk("--> %s return %p\n", __func__, rqstp);
+	dprintk("--> %s return %ld\n", __func__,
+		IS_ERR(rqstp) ? PTR_ERR(rqstp) : 0);
 	return rqstp;
 }
 
