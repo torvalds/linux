@@ -431,17 +431,18 @@ int setup_APIC_eilvt(u8 offset, u8 vector, u8 msg_type, u8 mask)
 	reserved = reserve_eilvt_offset(offset, new);
 
 	if (reserved != new) {
-		pr_err(FW_BUG "cpu %d, try to setup vector 0x%x, but "
-		       "vector 0x%x was already reserved by another core, "
-		       "APIC%lX=0x%x\n",
-		       smp_processor_id(), new, reserved, reg, old);
+		pr_err(FW_BUG "cpu %d, try to use APIC%lX (LVT offset %d) for "
+		       "vector 0x%x, but the register is already in use for "
+		       "vector 0x%x on another cpu\n",
+		       smp_processor_id(), reg, offset, new, reserved);
 		return -EINVAL;
 	}
 
 	if (!eilvt_entry_is_changeable(old, new)) {
-		pr_err(FW_BUG "cpu %d, try to setup vector 0x%x but "
-		       "register already in use, APIC%lX=0x%x\n",
-		       smp_processor_id(), new, reg, old);
+		pr_err(FW_BUG "cpu %d, try to use APIC%lX (LVT offset %d) for "
+		       "vector 0x%x, but the register is already in use for "
+		       "vector 0x%x on this cpu\n",
+		       smp_processor_id(), reg, offset, new, old);
 		return -EBUSY;
 	}
 
