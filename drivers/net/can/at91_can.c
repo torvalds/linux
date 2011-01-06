@@ -2,7 +2,7 @@
  * at91_can.c - CAN network driver for AT91 SoC CAN controller
  *
  * (C) 2007 by Hans J. Koch <hjk@hansjkoch.de>
- * (C) 2008, 2009, 2010 by Marc Kleine-Budde <kernel@pengutronix.de>
+ * (C) 2008, 2009, 2010, 2011 by Marc Kleine-Budde <kernel@pengutronix.de>
  *
  * This software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2 as distributed in the 'COPYING'
@@ -55,7 +55,8 @@
 #define AT91_MB_RX_MASK(i)	((1 << (i)) - 1)
 #define AT91_MB_RX_SPLIT	8
 #define AT91_MB_RX_LOW_LAST	(AT91_MB_RX_SPLIT - 1)
-#define AT91_MB_RX_LOW_MASK	(AT91_MB_RX_MASK(AT91_MB_RX_SPLIT))
+#define AT91_MB_RX_LOW_MASK	(AT91_MB_RX_MASK(AT91_MB_RX_SPLIT) & \
+				 ~AT91_MB_RX_MASK(AT91_MB_RX_FIRST))
 
 #define AT91_MB_TX_NUM		(1 << AT91_MB_TX_SHIFT)
 #define AT91_MB_TX_FIRST	(AT91_MB_RX_LAST + 1)
@@ -254,7 +255,8 @@ static void at91_setup_mailboxes(struct net_device *dev)
 		set_mb_mode_prio(priv, i, AT91_MB_MODE_TX, 0);
 
 	/* Reset tx and rx helper pointers */
-	priv->tx_next = priv->tx_echo = priv->rx_next = 0;
+	priv->tx_next = priv->tx_echo = 0;
+	priv->rx_next = AT91_MB_RX_FIRST;
 }
 
 static int at91_set_bittiming(struct net_device *dev)
@@ -590,10 +592,10 @@ static int at91_poll_rx(struct net_device *dev, int quota)
 			"order of incoming frames cannot be guaranteed\n");
 
  again:
-	for (mb = find_next_bit(addr, AT91_MB_RX_NUM, priv->rx_next);
-	     mb < AT91_MB_RX_NUM && quota > 0;
+	for (mb = find_next_bit(addr, AT91_MB_RX_LAST + 1, priv->rx_next);
+	     mb < AT91_MB_RX_LAST + 1 && quota > 0;
 	     reg_sr = at91_read(priv, AT91_SR),
-	     mb = find_next_bit(addr, AT91_MB_RX_NUM, ++priv->rx_next)) {
+	     mb = find_next_bit(addr, AT91_MB_RX_LAST + 1, ++priv->rx_next)) {
 		at91_read_msg(dev, mb);
 
 		/* reactivate mailboxes */
@@ -610,8 +612,8 @@ static int at91_poll_rx(struct net_device *dev, int quota)
 
 	/* upper group completed, look again in lower */
 	if (priv->rx_next > AT91_MB_RX_LOW_LAST &&
-	    quota > 0 && mb >= AT91_MB_RX_NUM) {
-		priv->rx_next = 0;
+	    quota > 0 && mb > AT91_MB_RX_LAST) {
+		priv->rx_next = AT91_MB_RX_FIRST;
 		goto again;
 	}
 
