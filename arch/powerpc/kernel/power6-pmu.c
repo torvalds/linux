@@ -544,4 +544,4 @@ static int init_power6_pmu(void)
 	return register_power_pmu(&power6_pmu);
 }
 
-arch_initcall(init_power6_pmu);
+early_initcall(init_power6_pmu);

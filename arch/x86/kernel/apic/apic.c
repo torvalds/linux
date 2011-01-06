@@ -31,7 +31,6 @@
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/dmi.h>
-#include <linux/nmi.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
 
@@ -799,11 +798,7 @@ void __init setup_boot_APIC_clock(void)
 	 * PIT/HPET going.  Otherwise register lapic as a dummy
 	 * device.
 	 */
-	if (nmi_watchdog != NMI_IO_APIC)
-		lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
-	else
-		pr_warning("APIC timer registered as dummy,"
-			" due to nmi_watchdog=%d!\n", nmi_watchdog);
+	lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
 
 	/* Setup the lapic or request the broadcast */
 	setup_APIC_timer();
@@ -1387,7 +1382,6 @@ void __cpuinit end_local_APIC_setup(void)
 	}
 #endif
 
-	setup_apic_nmi_watchdog(NULL);
 	apic_pm_activate();
 
 	/*
@@ -1758,17 +1752,10 @@ int __init APIC_init_uniprocessor(void)
 		setup_IO_APIC();
 	else {
 		nr_ioapics = 0;
-		localise_nmi_watchdog();
 	}
-#else
-	localise_nmi_watchdog();
 #endif
 
 	x86_init.timers.setup_percpu_clockev();
-#ifdef CONFIG_X86_64
-	check_nmi_watchdog();
-#endif
-
 	return 0;
 }
 

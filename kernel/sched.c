@@ -8293,8 +8293,6 @@ void __init sched_init(void)
 		zalloc_cpumask_var(&cpu_isolated_map, GFP_NOWAIT);
 #endif /* SMP */
 
-	perf_event_init();
-
 	scheduler_running = 1;
 }
 

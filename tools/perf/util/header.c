@@ -152,6 +152,11 @@ void perf_header__set_feat(struct perf_header *self, int feat)
 	set_bit(feat, self->adds_features);
 }
 
+void perf_header__clear_feat(struct perf_header *self, int feat)
+{
+	clear_bit(feat, self->adds_features);
+}
+
 bool perf_header__has_feat(const struct perf_header *self, int feat)
 {
 	return test_bit(feat, self->adds_features);
@@ -433,8 +438,10 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 	int idx = 0, err;
 
 	session = container_of(self, struct perf_session, header);
-	if (perf_session__read_build_ids(session, true))
-		perf_header__set_feat(self, HEADER_BUILD_ID);
+
+	if (perf_header__has_feat(self, HEADER_BUILD_ID &&
+	    !perf_session__read_build_ids(session, true)))
+		perf_header__clear_feat(self, HEADER_BUILD_ID);
 
 	nr_sections = bitmap_weight(self->adds_features, HEADER_FEAT_BITS);
 	if (!nr_sections)
@@ -456,7 +463,7 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 
 		/* Write trace info */
 		trace_sec->offset = lseek(fd, 0, SEEK_CUR);
-		read_tracing_data(fd, attrs, nr_counters);
+		read_tracing_data(fd, &evsel_list);
 		trace_sec->size = lseek(fd, 0, SEEK_CUR) - trace_sec->offset;
 	}
 
@@ -599,7 +606,7 @@ int perf_header__write(struct perf_header *self, int fd, bool at_exit)
 static int perf_header__getbuffer64(struct perf_header *self,
 				    int fd, void *buf, size_t size)
 {
-	if (do_read(fd, buf, size) <= 0)
+	if (readn(fd, buf, size) <= 0)
 		return -1;
 
 	if (self->needs_swap)
@@ -655,7 +662,7 @@ int perf_file_header__read(struct perf_file_header *self,
 {
 	lseek(fd, 0, SEEK_SET);
 
-	if (do_read(fd, self, sizeof(*self)) <= 0 ||
+	if (readn(fd, self, sizeof(*self)) <= 0 ||
 	    memcmp(&self->magic, __perf_magic, sizeof(self->magic)))
 		return -1;
 
@@ -816,7 +823,7 @@ static int perf_file_header__read_pipe(struct perf_pipe_file_header *self,
 				       struct perf_header *ph, int fd,
 				       bool repipe)
 {
-	if (do_read(fd, self, sizeof(*self)) <= 0 ||
+	if (readn(fd, self, sizeof(*self)) <= 0 ||
 	    memcmp(&self->magic, __perf_magic, sizeof(self->magic)))
 		return -1;
 
@@ -941,6 +948,24 @@ u64 perf_header__sample_type(struct perf_header *header)
 	return type;
 }
 
+bool perf_header__sample_id_all(const struct perf_header *header)
+{
+	bool value = false, first = true;
+	int i;
+
+	for (i = 0; i < header->attrs; i++) {
+		struct perf_header_attr *attr = header->attr[i];
+
+		if (first) {
+			value = attr->attr.sample_id_all;
+			first = false;
+		} else if (value != attr->attr.sample_id_all)
+			die("non matching sample_id_all");
+	}
+
+	return value;
+}
+
 struct perf_event_attr *
 perf_header__find_attr(u64 id, struct perf_header *header)
 {
@@ -987,21 +1012,23 @@ int event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
 
 	ev = malloc(size);
 
+	if (ev == NULL)
+		return -ENOMEM;
+
 	ev->attr.attr = *attr;
 	memcpy(ev->attr.id, id, ids * sizeof(u64));
 
 	ev->attr.header.type = PERF_RECORD_HEADER_ATTR;
 	ev->attr.header.size = size;
 
-	err = process(ev, session);
+	err = process(ev, NULL, session);
 
 	free(ev);
 
 	return err;
 }
 
-int event__synthesize_attrs(struct perf_header *self,
-			    event__handler_t process,
+int event__synthesize_attrs(struct perf_header *self, event__handler_t process,
 			    struct perf_session *session)
 {
 	struct perf_header_attr	*attr;
@@ -1071,7 +1098,7 @@ int event__synthesize_event_type(u64 event_id, char *name,
 	ev.event_type.header.size = sizeof(ev.event_type) -
 		(sizeof(ev.event_type.event_type.name) - size);
 
-	err = process(&ev, session);
+	err = process(&ev, NULL, session);
 
 	return err;
 }
@@ -1106,8 +1133,7 @@ int event__process_event_type(event_t *self,
 	return 0;
 }
 
-int event__synthesize_tracing_data(int fd, struct perf_event_attr *pattrs,
-				   int nb_events,
+int event__synthesize_tracing_data(int fd, struct list_head *pattrs,
 				   event__handler_t process,
 				   struct perf_session *session __unused)
 {
@@ -1118,7 +1144,7 @@ int event__synthesize_tracing_data(int fd, struct perf_event_attr *pattrs,
 	memset(&ev, 0, sizeof(ev));
 
 	ev.tracing_data.header.type = PERF_RECORD_HEADER_TRACING_DATA;
-	size = read_tracing_data_size(fd, pattrs, nb_events);
+	size = read_tracing_data_size(fd, pattrs);
 	if (size <= 0)
 		return size;
 	aligned_size = ALIGN(size, sizeof(u64));
@@ -1126,9 +1152,9 @@ int event__synthesize_tracing_data(int fd, struct perf_event_attr *pattrs,
 	ev.tracing_data.header.size = sizeof(ev.tracing_data);
 	ev.tracing_data.size = aligned_size;
 
-	process(&ev, session);
+	process(&ev, NULL, session);
 
-	err = read_tracing_data(fd, pattrs, nb_events);
+	err = read_tracing_data(fd, pattrs);
 	write_padded(fd, NULL, 0, padding);
 
 	return aligned_size;
@@ -1186,7 +1212,7 @@ int event__synthesize_build_id(struct dso *pos, u16 misc,
 	ev.build_id.header.size = sizeof(ev.build_id) + len;
 	memcpy(&ev.build_id.filename, pos->long_name, pos->long_name_len);
 
-	err = process(&ev, session);
+	err = process(&ev, NULL, session);
 
 	return err;
 }

@@ -34,9 +34,9 @@ extern int find_available_vars_at(int fd, struct perf_probe_event *pev,
 				  bool externs);
 
 #include <dwarf.h>
-#include <libdw.h>
-#include <libdwfl.h>
-#include <version.h>
+#include <elfutils/libdw.h>
+#include <elfutils/libdwfl.h>
+#include <elfutils/version.h>
 
 struct probe_finder {
 	struct perf_probe_event	*pev;		/* Target probe event */

@@ -83,6 +83,8 @@ EXPORT_SYMBOL_GPL(used_vectors);
 
 static int ignore_nmis;
 
+int unknown_nmi_panic;
+
 static inline void conditional_sti(struct pt_regs *regs)
 {
 	if (regs->flags & X86_EFLAGS_IF)
@@ -300,6 +302,13 @@ gp_in_kernel:
 	die("general protection fault", regs, error_code);
 }
 
+static int __init setup_unknown_nmi_panic(char *str)
+{
+	unknown_nmi_panic = 1;
+	return 1;
+}
+__setup("unknown_nmi_panic", setup_unknown_nmi_panic);
+
 static notrace __kprobes void
 mem_parity_error(unsigned char reason, struct pt_regs *regs)
 {
@@ -342,9 +351,11 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 	reason = (reason & 0xf) | 8;
 	outb(reason, 0x61);
 
-	i = 2000;
-	while (--i)
-		udelay(1000);
+	i = 20000;
+	while (--i) {
+		touch_nmi_watchdog();
+		udelay(100);
+	}
 
 	reason &= ~8;
 	outb(reason, 0x61);
@@ -371,7 +382,7 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 			reason, smp_processor_id());
 
 	printk(KERN_EMERG "Do you have a strange power saving mode enabled?\n");
-	if (panic_on_unrecovered_nmi)
+	if (unknown_nmi_panic || panic_on_unrecovered_nmi)
 		panic("NMI: Not continuing");
 
 	printk(KERN_EMERG "Dazed and confused, but trying to continue\n");
@@ -397,20 +408,8 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 		if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT)
 							== NOTIFY_STOP)
 			return;
-
-#ifndef CONFIG_LOCKUP_DETECTOR
-		/*
-		 * Ok, so this is none of the documented NMI sources,
-		 * so it must be the NMI watchdog.
-		 */
-		if (nmi_watchdog_tick(regs, reason))
-			return;
-		if (!do_nmi_callback(regs, cpu))
-#endif /* !CONFIG_LOCKUP_DETECTOR */
-			unknown_nmi_error(reason, regs);
-#else
-		unknown_nmi_error(reason, regs);
 #endif
+		unknown_nmi_error(reason, regs);
 
 		return;
 	}
@@ -446,14 +445,12 @@ do_nmi(struct pt_regs *regs, long error_code)
 
 void stop_nmi(void)
 {
-	acpi_nmi_disable();
 	ignore_nmis++;
 }
 
 void restart_nmi(void)
 {
 	ignore_nmis--;
-	acpi_nmi_enable();
 }
 
 /* May run on IST stack. */

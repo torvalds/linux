@@ -54,7 +54,6 @@
 #include <asm/dma.h>
 #include <asm/timer.h>
 #include <asm/i8259.h>
-#include <asm/nmi.h>
 #include <asm/msidef.h>
 #include <asm/hypertransport.h>
 #include <asm/setup.h>
@@ -2642,24 +2641,6 @@ static void lapic_register_intr(int irq)
 				      "edge");
 }
 
-static void __init setup_nmi(void)
-{
-	/*
-	 * Dirty trick to enable the NMI watchdog ...
-	 * We put the 8259A master into AEOI mode and
-	 * unmask on all local APICs LVT0 as NMI.
-	 *
-	 * The idea to use the 8259A in AEOI mode ('8259A Virtual Wire')
-	 * is from Maciej W. Rozycki - so we do not have to EOI from
-	 * the NMI handler or the timer interrupt.
-	 */
-	apic_printk(APIC_VERBOSE, KERN_INFO "activating NMI Watchdog ...");
-
-	enable_NMI_through_LVT0();
-
-	apic_printk(APIC_VERBOSE, " done.\n");
-}
-
 /*
  * This looks a bit hackish but it's about the only one way of sending
  * a few INTA cycles to 8259As and any associated glue logic.  ICR does
@@ -2765,15 +2746,6 @@ static inline void __init check_timer(void)
 	 */
 	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
 	legacy_pic->init(1);
-#ifdef CONFIG_X86_32
-	{
-		unsigned int ver;
-
-		ver = apic_read(APIC_LVR);
-		ver = GET_APIC_VERSION(ver);
-		timer_ack = (nmi_watchdog == NMI_IO_APIC && !APIC_INTEGRATED(ver));
-	}
-#endif
 
 	pin1  = find_isa_irq_pin(0, mp_INT);
 	apic1 = find_isa_irq_apic(0, mp_INT);
@@ -2821,10 +2793,6 @@ static inline void __init check_timer(void)
 				unmask_ioapic(cfg);
 		}
 		if (timer_irq_works()) {
-			if (nmi_watchdog == NMI_IO_APIC) {
-				setup_nmi();
-				legacy_pic->unmask(0);
-			}
 			if (disable_timer_pin_1 > 0)
 				clear_IO_APIC_pin(0, pin1);
 			goto out;
@@ -2850,11 +2818,6 @@ static inline void __init check_timer(void)
 		if (timer_irq_works()) {
 			apic_printk(APIC_QUIET, KERN_INFO "....... works.\n");
 			timer_through_8259 = 1;
-			if (nmi_watchdog == NMI_IO_APIC) {
-				legacy_pic->mask(0);
-				setup_nmi();
-				legacy_pic->unmask(0);
-			}
 			goto out;
 		}
 		/*
@@ -2865,15 +2828,6 @@ static inline void __init check_timer(void)
 		clear_IO_APIC_pin(apic2, pin2);
 		apic_printk(APIC_QUIET, KERN_INFO "....... failed.\n");
 	}
-
-	if (nmi_watchdog == NMI_IO_APIC) {
-		apic_printk(APIC_QUIET, KERN_WARNING "timer doesn't work "
-			    "through the IO-APIC - disabling NMI Watchdog!\n");
-		nmi_watchdog = NMI_NONE;
-	}
-#ifdef CONFIG_X86_32
-	timer_ack = 0;
-#endif
 
 	apic_printk(APIC_QUIET, KERN_INFO
 		    "...trying to set up timer as Virtual Wire IRQ...\n");

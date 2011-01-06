@@ -24,6 +24,21 @@ and statistics with this 'perf lock' command.
 
   'perf lock report' reports statistical data.
 
+OPTIONS
+-------
+
+-i::
+--input=<file>::
+        Input file name.
+
+-v::
+--verbose::
+        Be more verbose (show symbol address, etc).
+
+-D::
+--dump-raw-trace::
+        Dump raw trace in ASCII.
+
 SEE ALSO
 --------
 linkperf:perf[1]
