@@ -279,6 +279,9 @@ static int acpi_lid_send_state(struct acpi_device *device)
 	input_report_switch(button->input, SW_LID, !state);
 	input_sync(button->input);
 
+	if (state)
+		pm_wakeup_event(&device->dev, 0);
+
 	ret = blocking_notifier_call_chain(&acpi_lid_notifier, state, device);
 	if (ret == NOTIFY_DONE)
 		ret = blocking_notifier_call_chain(&acpi_lid_notifier, state,
@@ -314,6 +317,8 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 			input_sync(input);
 			input_report_key(input, keycode, 0);
 			input_sync(input);
+
+			pm_wakeup_event(&device->dev, 0);
 		}
 
 		acpi_bus_generate_proc_event(device, event, ++button->pushed);
