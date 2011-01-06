@@ -2863,13 +2863,11 @@ static inline void finish_cmd(struct CommandList *c, u32 raw_tag)
 
 static inline u32 hpsa_tag_contains_index(u32 tag)
 {
-#define DIRECT_LOOKUP_BIT 0x10
 	return tag & DIRECT_LOOKUP_BIT;
 }
 
 static inline u32 hpsa_tag_to_index(u32 tag)
 {
-#define DIRECT_LOOKUP_SHIFT 5
 	return tag >> DIRECT_LOOKUP_SHIFT;
 }
 
