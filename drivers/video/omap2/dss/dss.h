@@ -118,9 +118,9 @@ enum dss_clock {
 };
 
 enum dss_clk_source {
-	DSS_SRC_DSI1_PLL_FCLK,
-	DSS_SRC_DSI2_PLL_FCLK,
-	DSS_SRC_DSS1_ALWON_FCLK,
+	DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC,	/* DSI1_PLL_FCLK */
+	DSS_CLK_SRC_DSI_PLL_HSDIV_DSI,		/* DSI2_PLL_FCLK */
+	DSS_CLK_SRC_FCK,			/* DSS1_ALWON_FCLK */
 };
 
 struct dss_clock_info {

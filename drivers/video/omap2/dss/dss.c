@@ -278,12 +278,12 @@ void dss_select_dispc_clk_source(enum dss_clk_source clk_src)
 {
 	int b;
 
-	BUG_ON(clk_src != DSS_SRC_DSI1_PLL_FCLK &&
-			clk_src != DSS_SRC_DSS1_ALWON_FCLK);
+	BUG_ON(clk_src != DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC &&
+			clk_src != DSS_CLK_SRC_FCK);
 
-	b = clk_src == DSS_SRC_DSS1_ALWON_FCLK ? 0 : 1;
+	b = clk_src == DSS_CLK_SRC_FCK ? 0 : 1;
 
-	if (clk_src == DSS_SRC_DSI1_PLL_FCLK)
+	if (clk_src == DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC)
 		dsi_wait_dsi1_pll_active();
 
 	REG_FLD_MOD(DSS_CONTROL, b, 0, 0);	/* DISPC_CLK_SWITCH */
@@ -295,12 +295,12 @@ void dss_select_dsi_clk_source(enum dss_clk_source clk_src)
 {
 	int b;
 
-	BUG_ON(clk_src != DSS_SRC_DSI2_PLL_FCLK &&
-			clk_src != DSS_SRC_DSS1_ALWON_FCLK);
+	BUG_ON(clk_src != DSS_CLK_SRC_DSI_PLL_HSDIV_DSI &&
+			clk_src != DSS_CLK_SRC_FCK);
 
-	b = clk_src == DSS_SRC_DSS1_ALWON_FCLK ? 0 : 1;
+	b = clk_src == DSS_CLK_SRC_FCK ? 0 : 1;
 
-	if (clk_src == DSS_SRC_DSI2_PLL_FCLK)
+	if (clk_src == DSS_CLK_SRC_DSI_PLL_HSDIV_DSI)
 		dsi_wait_dsi2_pll_active();
 
 	REG_FLD_MOD(DSS_CONTROL, b, 1, 1);	/* DSI_CLK_SWITCH */
@@ -601,8 +601,8 @@ static int dss_init(bool skip_init)
 		}
 	}
 
-	dss.dsi_clk_source = DSS_SRC_DSS1_ALWON_FCLK;
-	dss.dispc_clk_source = DSS_SRC_DSS1_ALWON_FCLK;
+	dss.dsi_clk_source = DSS_CLK_SRC_FCK;
+	dss.dispc_clk_source = DSS_CLK_SRC_FCK;
 
 	dss_save_context();
 

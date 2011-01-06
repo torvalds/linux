@@ -57,7 +57,7 @@ static int dpi_set_dsi_clk(struct omap_dss_device *dssdev, bool is_tft,
 	if (r)
 		return r;
 
-	dss_select_dispc_clk_source(DSS_SRC_DSI1_PLL_FCLK);
+	dss_select_dispc_clk_source(DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC);
 
 	r = dispc_set_clock_div(dssdev->manager->id, &dispc_cinfo);
 	if (r)
@@ -217,7 +217,7 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 	dssdev->manager->disable(dssdev->manager);
 
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
-	dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
+	dss_select_dispc_clk_source(DSS_CLK_SRC_FCK);
 	dsi_pll_uninit();
 	dss_clk_disable(DSS_CLK_SYSCK);
 #endif

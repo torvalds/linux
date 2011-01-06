@@ -731,7 +731,7 @@ static unsigned long dsi_fclk_rate(void)
 {
 	unsigned long r;
 
-	if (dss_get_dsi_clk_source() == DSS_SRC_DSS1_ALWON_FCLK) {
+	if (dss_get_dsi_clk_source() == DSS_CLK_SRC_FCK) {
 		/* DSI FCLK source is DSS1_ALWON_FCK, which is dss1_fck */
 		r = dss_clk_get_rate(DSS_CLK_FCK);
 	} else {
@@ -1188,19 +1188,19 @@ void dsi_dump_clocks(struct seq_file *s)
 	seq_printf(s,	"dsi1_pll_fck\t%-16luregm3 %u\t(%s)\n",
 			cinfo->dsi1_pll_fclk,
 			cinfo->regm3,
-			dss_get_dispc_clk_source() == DSS_SRC_DSS1_ALWON_FCLK ?
+			dss_get_dispc_clk_source() == DSS_CLK_SRC_FCK ?
 			"off" : "on");
 
 	seq_printf(s,	"dsi2_pll_fck\t%-16luregm4 %u\t(%s)\n",
 			cinfo->dsi2_pll_fclk,
 			cinfo->regm4,
-			dss_get_dsi_clk_source() == DSS_SRC_DSS1_ALWON_FCLK ?
+			dss_get_dsi_clk_source() == DSS_CLK_SRC_FCK ?
 			"off" : "on");
 
 	seq_printf(s,	"- DSI -\n");
 
 	seq_printf(s,	"dsi fclk source = %s\n",
-			dss_get_dsi_clk_source() == DSS_SRC_DSS1_ALWON_FCLK ?
+			dss_get_dsi_clk_source() == DSS_CLK_SRC_FCK ?
 			"dss1_alwon_fclk" : "dsi2_pll_fclk");
 
 	seq_printf(s,	"DSI_FCLK\t%lu\n", dsi_fclk_rate());
@@ -3038,8 +3038,8 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 	if (r)
 		goto err1;
 
-	dss_select_dispc_clk_source(DSS_SRC_DSI1_PLL_FCLK);
-	dss_select_dsi_clk_source(DSS_SRC_DSI2_PLL_FCLK);
+	dss_select_dispc_clk_source(DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC);
+	dss_select_dsi_clk_source(DSS_CLK_SRC_DSI_PLL_HSDIV_DSI);
 
 	DSSDBG("PLL OK\n");
 
@@ -3075,8 +3075,8 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 err3:
 	dsi_complexio_uninit();
 err2:
-	dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
-	dss_select_dsi_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
+	dss_select_dispc_clk_source(DSS_CLK_SRC_FCK);
+	dss_select_dsi_clk_source(DSS_CLK_SRC_FCK);
 err1:
 	dsi_pll_uninit();
 err0:
@@ -3092,8 +3092,8 @@ static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev)
 	dsi_vc_enable(2, 0);
 	dsi_vc_enable(3, 0);
 
-	dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
-	dss_select_dsi_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
+	dss_select_dispc_clk_source(DSS_CLK_SRC_FCK);
+	dss_select_dsi_clk_source(DSS_CLK_SRC_FCK);
 	dsi_complexio_uninit();
 	dsi_pll_uninit();
 }

@@ -2334,7 +2334,7 @@ unsigned long dispc_fclk_rate(void)
 {
 	unsigned long r = 0;
 
-	if (dss_get_dispc_clk_source() == DSS_SRC_DSS1_ALWON_FCLK)
+	if (dss_get_dispc_clk_source() == DSS_CLK_SRC_FCK)
 		r = dss_clk_get_rate(DSS_CLK_FCK);
 	else
 #ifdef CONFIG_OMAP2_DSS_DSI
@@ -2385,7 +2385,7 @@ void dispc_dump_clocks(struct seq_file *s)
 	seq_printf(s, "- DISPC -\n");
 
 	seq_printf(s, "dispc fclk source = %s\n",
-			dss_get_dispc_clk_source() == DSS_SRC_DSS1_ALWON_FCLK ?
+			dss_get_dispc_clk_source() == DSS_CLK_SRC_FCK ?
 			"dss1_alwon_fclk" : "dsi1_pll_fclk");
 
 	seq_printf(s, "fck\t\t%-16lu\n", dispc_fclk_rate());
