@@ -208,6 +208,73 @@ static int stingray_panel_disable(void)
 	return 0;
 }
 
+static void stingray_panel_early_reg_disable(struct work_struct *work)
+{
+	stingray_panel_disable();
+}
+
+static DECLARE_DELAYED_WORK(stingray_panel_early_reg_disable_work,
+	stingray_panel_early_reg_disable);
+
+static void stingray_panel_early_reg_enable(struct work_struct *work)
+{
+	stingray_panel_enable();
+
+	/*
+	 * Once the panel is powered up, set it to power down in 1 second.
+	 * If no other driver calls regulator_enable on stingray_panel_regulator
+	 * before 1 second has elapsed, the bridge chip will power down.
+	 */
+	schedule_delayed_work(&stingray_panel_early_reg_disable_work, HZ);
+}
+
+static DECLARE_WORK(stingray_panel_early_reg_enable_work,
+	stingray_panel_early_reg_enable);
+
+static int stingray_panel_early_reg_resume_noirq(struct device *dev)
+{
+	/* Start the bridge chip powering up during early resume */
+	schedule_work(&stingray_panel_early_reg_enable_work);
+
+	return 0;
+}
+
+static int stingray_panel_early_reg_suspend(struct device *dev)
+{
+	cancel_work_sync(&stingray_panel_early_reg_enable_work);
+
+	/*
+	 * If the delayed disable work was pending when it was cancelled,
+	 * do the disable immediately.
+	 */
+	if (cancel_delayed_work_sync(&stingray_panel_early_reg_disable_work))
+		stingray_panel_disable();
+
+	return 0;
+}
+
+static struct dev_pm_ops stingray_panel_early_reg_pm_ops = {
+	.resume_noirq = stingray_panel_early_reg_resume_noirq,
+	.suspend = stingray_panel_early_reg_suspend,
+};
+
+/*
+ * This driver uses a resume_noirq handler to start the bridge chip powering up
+ * as soon as possible during resume to avoid waiting for 200 ms after all the
+ * other resume handlers have finished.
+ */
+static struct platform_driver stingray_panel_early_reg_driver = {
+	.driver = {
+		.name	= "stingray-panel-early-reg",
+		.owner	= THIS_MODULE,
+		.pm = &stingray_panel_early_reg_pm_ops,
+	}
+};
+
+static struct platform_device stingray_panel_early_reg_device = {
+	.name = "stingray-panel-early-reg",
+};
+
 static struct tegra_dc_out stingray_disp1_out = {
 	.type = TEGRA_DC_OUT_RGB,
 
@@ -393,6 +460,9 @@ int __init stingray_panel_init(void)
 	}
 
 	platform_device_register(&stingray_panel_reg_device);
+
+	platform_driver_register(&stingray_panel_early_reg_driver);
+	platform_device_register(&stingray_panel_early_reg_device);
 
 	stingray_hdmi_init();
 
