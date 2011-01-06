@@ -93,7 +93,7 @@ void xhci_quiesce(struct xhci_hcd *xhci)
  *
  * Disable any IRQs and clear the run/stop bit.
  * HC will complete any current and actively pipelined transactions, and
- * should halt within 16 microframes of the run/stop bit being cleared.
+ * should halt within 16 ms of the run/stop bit being cleared.
  * Read HC Halted bit in the status register to see when the HC is finished.
  * XXX: shouldn't we set HC_STATE_HALT here somewhere?
  */
