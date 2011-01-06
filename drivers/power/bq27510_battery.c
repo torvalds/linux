@@ -86,7 +86,7 @@ static enum power_supply_property rk29_ac_props[] = {
  */
 static int bq27510_read(struct i2c_client *client, u8 reg, u8 buf[], unsigned len)
 {
-	int ret; 
+	int ret;
 	ret = i2c_master_reg8_recv(client, reg, buf, len, BQ27510_SPEED);
 	return ret; 
 }
@@ -107,6 +107,9 @@ static int bq27510_battery_temperature(struct bq27510_device_info *di)
 	int ret;
 	int temp = 0;
 	u8 buf[2];
+	#if CONFIG_NO_BATTERY_IC
+	return 258;
+	#endif
 	ret = bq27510_read(di->client,BQ27x00_REG_TEMP,buf,2);
 	if (ret<0) {
 		dev_err(di->dev, "error reading temperature\n");
@@ -114,9 +117,6 @@ static int bq27510_battery_temperature(struct bq27510_device_info *di)
 	}
 	temp = get_unaligned_le16(buf);
 	temp = temp - 2731;
-	#if CONFIG_NO_BATTERY_IC
-	temp = 258;
-	#endif
 	DBG("Enter:%s %d--temp = %d\n",__FUNCTION__,__LINE__,temp);
 	return temp;
 }
@@ -130,7 +130,9 @@ static int bq27510_battery_voltage(struct bq27510_device_info *di)
 	int ret;
 	u8 buf[2];
 	int volt = 0;
-
+	#if CONFIG_NO_BATTERY_IC
+	return 4000000;
+	#endif
 	ret = bq27510_read(di->client,BQ27x00_REG_VOLT,buf,2); 
 	if (ret<0) {
 		dev_err(di->dev, "error reading voltage\n");
@@ -152,7 +154,9 @@ static int bq27510_battery_current(struct bq27510_device_info *di)
 	int ret;
 	int curr = 0;
 	u8 buf[2];
-
+	#if CONFIG_NO_BATTERY_IC
+	return 22000;
+	#endif
 	ret = bq27510_read(di->client,BQ27x00_REG_AI,buf,2);
 	if (ret<0) {
 		dev_err(di->dev, "error reading current\n");
@@ -180,7 +184,9 @@ static int bq27510_battery_rsoc(struct bq27510_device_info *di)
 	int nvcap = 0,facap = 0,remcap=0,fccap=0,full=0,cnt=0;
 	#endif
 	u8 buf[2];
-	
+	#if CONFIG_NO_BATTERY_IC
+	return 100;
+	#endif
 	ret = bq27510_read(di->client,BQ27500_REG_SOC,buf,2); 
 	if (ret<0) {
 		dev_err(di->dev, "error reading relative State-of-Charge\n");
@@ -221,7 +227,10 @@ static int bq27510_battery_status(struct bq27510_device_info *di,
 	int flags = 0;
 	int status;
 	int ret;
-
+	#if CONFIG_NO_BATTERY_IC
+	val->intval = POWER_SUPPLY_STATUS_FULL;
+	return 0;
+	#endif
 	ret = bq27510_read(di->client,BQ27x00_REG_FLAGS, buf, 2);
 	if (ret < 0) {
 		dev_err(di->dev, "error reading flags\n");
