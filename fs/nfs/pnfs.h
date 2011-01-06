@@ -30,10 +30,15 @@
 #ifndef FS_NFS_PNFS_H
 #define FS_NFS_PNFS_H
 
+enum {
+	NFS_LSEG_VALID = 0,	/* cleared when lseg is recalled/returned */
+};
+
 struct pnfs_layout_segment {
 	struct list_head pls_list;
 	struct pnfs_layout_range pls_range;
-	struct kref pls_refcount;
+	atomic_t pls_refcount;
+	unsigned long pls_flags;
 	struct pnfs_layout_hdr *pls_layout;
 };
 
@@ -44,6 +49,7 @@ struct pnfs_layout_segment {
 enum {
 	NFS_LAYOUT_RO_FAILED = 0,	/* get ro layout failed stop trying */
 	NFS_LAYOUT_RW_FAILED,		/* get rw layout failed stop trying */
+	NFS_LAYOUT_DESTROYED,		/* no new use of layout allowed */
 };
 
 /* Per-layout driver specific registration structure */

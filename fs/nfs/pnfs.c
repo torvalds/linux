@@ -211,68 +211,109 @@ static void
 init_lseg(struct pnfs_layout_hdr *lo, struct pnfs_layout_segment *lseg)
 {
 	INIT_LIST_HEAD(&lseg->pls_list);
-	kref_init(&lseg->pls_refcount);
+	atomic_set(&lseg->pls_refcount, 1);
+	smp_mb();
+	set_bit(NFS_LSEG_VALID, &lseg->pls_flags);
 	lseg->pls_layout = lo;
 }
 
-/* Called without i_lock held, as the free_lseg call may sleep */
-static void
-destroy_lseg(struct kref *kref)
+static void free_lseg(struct pnfs_layout_segment *lseg)
 {
-	struct pnfs_layout_segment *lseg =
-		container_of(kref, struct pnfs_layout_segment, pls_refcount);
 	struct inode *ino = lseg->pls_layout->plh_inode;
 
-	dprintk("--> %s\n", __func__);
 	NFS_SERVER(ino)->pnfs_curr_ld->free_lseg(lseg);
 	/* Matched by get_layout_hdr in pnfs_insert_layout */
 	put_layout_hdr(ino);
 }
 
-static void
-put_lseg(struct pnfs_layout_segment *lseg)
+/* The use of tmp_list is necessary because pnfs_curr_ld->free_lseg
+ * could sleep, so must be called outside of the lock.
+ * Returns 1 if object was removed, otherwise return 0.
+ */
+static int
+put_lseg_locked(struct pnfs_layout_segment *lseg,
+		struct list_head *tmp_list)
 {
-	if (!lseg)
-		return;
+	dprintk("%s: lseg %p ref %d valid %d\n", __func__, lseg,
+		atomic_read(&lseg->pls_refcount),
+		test_bit(NFS_LSEG_VALID, &lseg->pls_flags));
+	if (atomic_dec_and_test(&lseg->pls_refcount)) {
+		struct inode *ino = lseg->pls_layout->plh_inode;
 
-	dprintk("%s: lseg %p ref %d\n", __func__, lseg,
-		atomic_read(&lseg->pls_refcount.refcount));
-	kref_put(&lseg->pls_refcount, destroy_lseg);
+		BUG_ON(test_bit(NFS_LSEG_VALID, &lseg->pls_flags));
+		list_del(&lseg->pls_list);
+		if (list_empty(&lseg->pls_layout->plh_segs)) {
+			struct nfs_client *clp;
+
+			clp = NFS_SERVER(ino)->nfs_client;
+			spin_lock(&clp->cl_lock);
+			/* List does not take a reference, so no need for put here */
+			list_del_init(&lseg->pls_layout->plh_layouts);
+			spin_unlock(&clp->cl_lock);
+		}
+		list_add(&lseg->pls_list, tmp_list);
+		return 1;
+	}
+	return 0;
 }
 
-static void
-pnfs_clear_lseg_list(struct pnfs_layout_hdr *lo, struct list_head *tmp_list)
+static bool
+should_free_lseg(u32 lseg_iomode, u32 recall_iomode)
+{
+	return (recall_iomode == IOMODE_ANY ||
+		lseg_iomode == recall_iomode);
+}
+
+/* Returns 1 if lseg is removed from list, 0 otherwise */
+static int mark_lseg_invalid(struct pnfs_layout_segment *lseg,
+			     struct list_head *tmp_list)
+{
+	int rv = 0;
+
+	if (test_and_clear_bit(NFS_LSEG_VALID, &lseg->pls_flags)) {
+		/* Remove the reference keeping the lseg in the
+		 * list.  It will now be removed when all
+		 * outstanding io is finished.
+		 */
+		rv = put_lseg_locked(lseg, tmp_list);
+	}
+	return rv;
+}
+
+/* Returns count of number of matching invalid lsegs remaining in list
+ * after call.
+ */
+static int
+mark_matching_lsegs_invalid(struct pnfs_layout_hdr *lo,
+			    struct list_head *tmp_list,
+			    u32 iomode)
 {
 	struct pnfs_layout_segment *lseg, *next;
-	struct nfs_client *clp;
+	int invalid = 0, removed = 0;
 
 	dprintk("%s:Begin lo %p\n", __func__, lo);
 
-	assert_spin_locked(&lo->plh_inode->i_lock);
-	list_for_each_entry_safe(lseg, next, &lo->plh_segs, pls_list) {
-		dprintk("%s: freeing lseg %p\n", __func__, lseg);
-		list_move(&lseg->pls_list, tmp_list);
-	}
-	clp = NFS_SERVER(lo->plh_inode)->nfs_client;
-	spin_lock(&clp->cl_lock);
-	/* List does not take a reference, so no need for put here */
-	list_del_init(&lo->plh_layouts);
-	spin_unlock(&clp->cl_lock);
-
-	dprintk("%s:Return\n", __func__);
+	list_for_each_entry_safe(lseg, next, &lo->plh_segs, pls_list)
+		if (should_free_lseg(lseg->pls_range.iomode, iomode)) {
+			dprintk("%s: freeing lseg %p iomode %d "
+				"offset %llu length %llu\n", __func__,
+				lseg, lseg->pls_range.iomode, lseg->pls_range.offset,
+				lseg->pls_range.length);
+			invalid++;
+			removed += mark_lseg_invalid(lseg, tmp_list);
+		}
+	dprintk("%s:Return %i\n", __func__, invalid - removed);
+	return invalid - removed;
 }
 
 static void
-pnfs_free_lseg_list(struct list_head *tmp_list)
+pnfs_free_lseg_list(struct list_head *free_me)
 {
-	struct pnfs_layout_segment *lseg;
+	struct pnfs_layout_segment *lseg, *tmp;
 
-	while (!list_empty(tmp_list)) {
-		lseg = list_entry(tmp_list->next, struct pnfs_layout_segment,
-				pls_list);
-		dprintk("%s calling put_lseg on %p\n", __func__, lseg);
+	list_for_each_entry_safe(lseg, tmp, free_me, pls_list) {
 		list_del(&lseg->pls_list);
-		put_lseg(lseg);
+		free_lseg(lseg);
 	}
 }
 
@@ -285,7 +326,8 @@ pnfs_destroy_layout(struct nfs_inode *nfsi)
 	spin_lock(&nfsi->vfs_inode.i_lock);
 	lo = nfsi->layout;
 	if (lo) {
-		pnfs_clear_lseg_list(lo, &tmp_list);
+		set_bit(NFS_LAYOUT_DESTROYED, &nfsi->layout->plh_flags);
+		mark_matching_lsegs_invalid(lo, &tmp_list, IOMODE_ANY);
 		/* Matched by refcount set to 1 in alloc_init_layout_hdr */
 		put_layout_hdr_locked(lo);
 	}
@@ -477,9 +519,12 @@ pnfs_find_alloc_layout(struct inode *ino)
 	dprintk("%s Begin ino=%p layout=%p\n", __func__, ino, nfsi->layout);
 
 	assert_spin_locked(&ino->i_lock);
-	if (nfsi->layout)
-		return nfsi->layout;
-
+	if (nfsi->layout) {
+		if (test_bit(NFS_LAYOUT_DESTROYED, &nfsi->layout->plh_flags))
+			return NULL;
+		else
+			return nfsi->layout;
+	}
 	spin_unlock(&ino->i_lock);
 	new = alloc_init_layout_hdr(ino);
 	spin_lock(&ino->i_lock);
@@ -520,7 +565,8 @@ pnfs_has_layout(struct pnfs_layout_hdr *lo, u32 iomode)
 
 	assert_spin_locked(&lo->plh_inode->i_lock);
 	list_for_each_entry(lseg, &lo->plh_segs, pls_list) {
-		if (is_matching_lseg(lseg, iomode)) {
+		if (test_bit(NFS_LSEG_VALID, &lseg->pls_flags) &&
+		    is_matching_lseg(lseg, iomode)) {
 			ret = lseg;
 			break;
 		}
@@ -529,7 +575,7 @@ pnfs_has_layout(struct pnfs_layout_hdr *lo, u32 iomode)
 	}
 
 	dprintk("%s:Return lseg %p ref %d\n",
-		__func__, ret, ret ? atomic_read(&ret->pls_refcount.refcount) : 0);
+		__func__, ret, ret ? atomic_read(&ret->pls_refcount) : 0);
 	return ret;
 }
 
