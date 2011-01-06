@@ -379,16 +379,6 @@ struct mma8452_platform_data mma8452_info = {
 *****************************************************************************************/
 static int rk29_i2c0_io_init(void)
 {
-	rk29_mux_api_set(GPIO2B7_I2C0SCL_NAME, 0);
-	rk29_mux_api_set(GPIO2B6_I2C0SDA_NAME, 0);
-	gpio_request(RK29_PIN2_PB6, "i2c0_sda");
-	gpio_set_value(RK29_PIN2_PB6, GPIO_HIGH);
-	gpio_pull_updown(RK29_PIN2_PB6, PullDisable);
-
-	gpio_request(RK29_PIN2_PB7, "i2c0_scl");
-	gpio_set_value(RK29_PIN2_PB7, GPIO_HIGH);
-	gpio_pull_updown(RK29_PIN2_PB7, PullDisable);
-	
 	rk29_mux_api_set(GPIO2B7_I2C0SCL_NAME, GPIO2L_I2C0_SCL);
 	rk29_mux_api_set(GPIO2B6_I2C0SDA_NAME, GPIO2L_I2C0_SDA);
 	return 0;
@@ -396,28 +386,12 @@ static int rk29_i2c0_io_init(void)
 
 static int rk29_i2c1_io_init(void)
 {
-	gpio_request(RK29_PIN1_PA6, "i2c1_sda");
-	gpio_set_value(RK29_PIN1_PA6, GPIO_HIGH);
-	gpio_pull_updown(RK29_PIN1_PA6, PullDisable);
-
-	gpio_request(RK29_PIN1_PA7, "i2c1_scl");
-	gpio_set_value(RK29_PIN1_PA7, GPIO_HIGH);
-	gpio_pull_updown(RK29_PIN1_PA7, PullDisable);
-	
 	rk29_mux_api_set(GPIO1A7_I2C1SCL_NAME, GPIO1L_I2C1_SCL);
 	rk29_mux_api_set(GPIO1A6_I2C1SDA_NAME, GPIO1L_I2C1_SDA);
 	return 0;
 }
 static int rk29_i2c2_io_init(void)
 {
-	gpio_request(RK29_PIN5_PD3, "i2c2_sda");
-	gpio_set_value(RK29_PIN5_PD3, GPIO_HIGH);
-	gpio_pull_updown(RK29_PIN5_PD3, PullDisable);
-
-	gpio_request(RK29_PIN5_PD4, "i2c2_scl");
-	gpio_set_value(RK29_PIN5_PD4, GPIO_HIGH);
-	gpio_pull_updown(RK29_PIN5_PD4, PullDisable);
-	
 	rk29_mux_api_set(GPIO5D4_I2C2SCL_NAME, GPIO5H_I2C2_SCL);
 	rk29_mux_api_set(GPIO5D3_I2C2SDA_NAME, GPIO5H_I2C2_SDA);
 	return 0;
@@ -425,14 +399,6 @@ static int rk29_i2c2_io_init(void)
 
 static int rk29_i2c3_io_init(void)
 {
-	gpio_request(RK29_PIN2_PB4, "i2c3_sda");
-	gpio_set_value(RK29_PIN2_PB4, GPIO_HIGH);
-	gpio_pull_updown(RK29_PIN2_PB4, PullDisable);
-
-	gpio_request(RK29_PIN2_PB5, "i2c3_scl");
-	gpio_set_value(RK29_PIN2_PB5, GPIO_HIGH);
-	gpio_pull_updown(RK29_PIN2_PB5, PullDisable);
-	
 	rk29_mux_api_set(GPIO2B5_UART3RTSN_I2C3SCL_NAME, GPIO2L_I2C3_SCL);
 	rk29_mux_api_set(GPIO2B4_UART3CTSN_I2C3SDA_NAME, GPIO2L_I2C3_SDA);
 	return 0;
