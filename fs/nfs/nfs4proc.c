@@ -5293,10 +5293,14 @@ static void
 nfs4_layoutget_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_layoutget *lgp = calldata;
-	struct inode *ino = lgp->args.inode;
-	struct nfs_server *server = NFS_SERVER(ino);
+	struct nfs_server *server = NFS_SERVER(lgp->args.inode);
 
 	dprintk("--> %s\n", __func__);
+	/* Note the is a race here, where a CB_LAYOUTRECALL can come in
+	 * right now covering the LAYOUTGET we are about to send.
+	 * However, that is not so catastrophic, and there seems
+	 * to be no way to prevent it completely.
+	 */
 	if (nfs4_setup_sequence(server, &lgp->args.seq_args,
 				&lgp->res.seq_res, 0, task))
 		return;
@@ -5379,13 +5383,10 @@ int nfs4_proc_layoutget(struct nfs4_layoutget *lgp)
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 	status = nfs4_wait_for_completion_rpc_task(task);
-	if (status != 0)
-		goto out;
-	status = task->tk_status;
-	if (status != 0)
-		goto out;
-	status = pnfs_layout_process(lgp);
-out:
+	if (status == 0)
+		status = task->tk_status;
+	if (status == 0)
+		status = pnfs_layout_process(lgp);
 	rpc_put_task(task);
 	dprintk("<-- %s status=%d\n", __func__, status);
 	return status;
