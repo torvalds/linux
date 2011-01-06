@@ -1708,6 +1708,19 @@ static void e1000_diag_test(struct net_device *netdev,
 	bool if_running = netif_running(netdev);
 
 	set_bit(__E1000_TESTING, &adapter->state);
+
+	if (!if_running) {
+		/* Get control of and reset hardware */
+		if (adapter->flags & FLAG_HAS_AMT)
+			e1000e_get_hw_control(adapter);
+
+		e1000e_power_up_phy(adapter);
+
+		adapter->hw.phy.autoneg_wait_to_complete = 1;
+		e1000e_reset(adapter);
+		adapter->hw.phy.autoneg_wait_to_complete = 0;
+	}
+
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
 		/* Offline tests */
 
@@ -1721,8 +1734,6 @@ static void e1000_diag_test(struct net_device *netdev,
 		if (if_running)
 			/* indicate we're in test mode */
 			dev_close(netdev);
-		else
-			e1000e_reset(adapter);
 
 		if (e1000_reg_test(adapter, &data[0]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
@@ -1736,8 +1747,6 @@ static void e1000_diag_test(struct net_device *netdev,
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		e1000e_reset(adapter);
-		/* make sure the phy is powered up */
-		e1000e_power_up_phy(adapter);
 		if (e1000_loopback_test(adapter, &data[3]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
@@ -1759,28 +1768,29 @@ static void e1000_diag_test(struct net_device *netdev,
 		if (if_running)
 			dev_open(netdev);
 	} else {
-		if (!if_running && (adapter->flags & FLAG_HAS_AMT)) {
-			clear_bit(__E1000_TESTING, &adapter->state);
-			dev_open(netdev);
-			set_bit(__E1000_TESTING, &adapter->state);
-		}
+		/* Online tests */
 
 		e_info("online testing starting\n");
-		/* Online tests */
-		if (e1000_link_test(adapter, &data[4]))
-			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		/* Online tests aren't run; pass by default */
+		/* register, eeprom, intr and loopback tests not run online */
 		data[0] = 0;
 		data[1] = 0;
 		data[2] = 0;
 		data[3] = 0;
 
-		if (!if_running && (adapter->flags & FLAG_HAS_AMT))
-			dev_close(netdev);
+		if (e1000_link_test(adapter, &data[4]))
+			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		clear_bit(__E1000_TESTING, &adapter->state);
 	}
+
+	if (!if_running) {
+		e1000e_reset(adapter);
+
+		if (adapter->flags & FLAG_HAS_AMT)
+			e1000e_release_hw_control(adapter);
+	}
+
 	msleep_interruptible(4 * 1000);
 }
 
