@@ -320,6 +320,15 @@
 #       define RADEON_PCIE_LC_RECONFIG_NOW         (1 << 8)
 #       define RADEON_PCIE_LC_RECONFIG_LATER       (1 << 9)
 #       define RADEON_PCIE_LC_SHORT_RECONFIG_EN    (1 << 10)
+#       define R600_PCIE_LC_RECONFIG_ARC_MISSING_ESCAPE   (1 << 7)
+#       define R600_PCIE_LC_RENEGOTIATION_SUPPORT  (1 << 9)
+#       define R600_PCIE_LC_RENEGOTIATE_EN         (1 << 10)
+#       define R600_PCIE_LC_SHORT_RECONFIG_EN      (1 << 11)
+#       define R600_PCIE_LC_UPCONFIGURE_SUPPORT    (1 << 12)
+#       define R600_PCIE_LC_UPCONFIGURE_DIS        (1 << 13)
+
+#define R600_TARGET_AND_CURRENT_PROFILE_INDEX      0x70c
+#define R700_TARGET_AND_CURRENT_PROFILE_INDEX      0x66c
 
 #define RADEON_CACHE_CNTL                   0x1724
 #define RADEON_CACHE_LINE                   0x0f0c /* PCI */

@@ -94,7 +94,7 @@ static void radeon_register_accessor_init(struct radeon_device *rdev)
 		rdev->mc_rreg = &rs600_mc_rreg;
 		rdev->mc_wreg = &rs600_mc_wreg;
 	}
-	if ((rdev->family >= CHIP_R600) && (rdev->family <= CHIP_RV740)) {
+	if ((rdev->family >= CHIP_R600) && (rdev->family <= CHIP_HEMLOCK)) {
 		rdev->pciep_rreg = &r600_pciep_rreg;
 		rdev->pciep_wreg = &r600_pciep_wreg;
 	}
@@ -631,8 +631,8 @@ static struct radeon_asic r600_asic = {
 	.set_engine_clock = &radeon_atom_set_engine_clock,
 	.get_memory_clock = &radeon_atom_get_memory_clock,
 	.set_memory_clock = &radeon_atom_set_memory_clock,
-	.get_pcie_lanes = &rv370_get_pcie_lanes,
-	.set_pcie_lanes = NULL,
+	.get_pcie_lanes = &r600_get_pcie_lanes,
+	.set_pcie_lanes = &r600_set_pcie_lanes,
 	.set_clock_gating = NULL,
 	.set_surface_reg = r600_set_surface_reg,
 	.clear_surface_reg = r600_clear_surface_reg,
@@ -725,8 +725,8 @@ static struct radeon_asic rv770_asic = {
 	.set_engine_clock = &radeon_atom_set_engine_clock,
 	.get_memory_clock = &radeon_atom_get_memory_clock,
 	.set_memory_clock = &radeon_atom_set_memory_clock,
-	.get_pcie_lanes = &rv370_get_pcie_lanes,
-	.set_pcie_lanes = NULL,
+	.get_pcie_lanes = &r600_get_pcie_lanes,
+	.set_pcie_lanes = &r600_set_pcie_lanes,
 	.set_clock_gating = &radeon_atom_set_clock_gating,
 	.set_surface_reg = r600_set_surface_reg,
 	.clear_surface_reg = r600_clear_surface_reg,
@@ -772,8 +772,8 @@ static struct radeon_asic evergreen_asic = {
 	.set_engine_clock = &radeon_atom_set_engine_clock,
 	.get_memory_clock = &radeon_atom_get_memory_clock,
 	.set_memory_clock = &radeon_atom_set_memory_clock,
-	.get_pcie_lanes = NULL,
-	.set_pcie_lanes = NULL,
+	.get_pcie_lanes = &r600_get_pcie_lanes,
+	.set_pcie_lanes = &r600_set_pcie_lanes,
 	.set_clock_gating = NULL,
 	.set_surface_reg = r600_set_surface_reg,
 	.clear_surface_reg = r600_clear_surface_reg,

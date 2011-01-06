@@ -284,6 +284,8 @@ extern void r600_pm_misc(struct radeon_device *rdev);
 extern void r600_pm_init_profile(struct radeon_device *rdev);
 extern void rs780_pm_init_profile(struct radeon_device *rdev);
 extern void r600_pm_get_dynpm_state(struct radeon_device *rdev);
+extern void r600_set_pcie_lanes(struct radeon_device *rdev, int lanes);
+extern int r600_get_pcie_lanes(struct radeon_device *rdev);
 
 /*
  * rv770,rv730,rv710,rv740
