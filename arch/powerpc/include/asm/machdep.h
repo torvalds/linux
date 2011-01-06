@@ -116,9 +116,6 @@ struct machdep_calls {
 	 * If for some reason there is no irq, but the interrupt
 	 * shouldn't be counted as spurious, return NO_IRQ_IGNORE. */
 	unsigned int	(*get_irq)(void);
-#ifdef CONFIG_KEXEC
-	void		(*kexec_cpu_down)(int crash_shutdown, int secondary);
-#endif
 
 	/* PCI stuff */
 	/* Called after scanning the bus, before allocating resources */
@@ -235,6 +232,8 @@ struct machdep_calls {
 	void (*machine_shutdown)(void);
 
 #ifdef CONFIG_KEXEC
+	void (*kexec_cpu_down)(int crash_shutdown, int secondary);
+
 	/* Called to do the minimal shutdown needed to run a kexec'd kernel
 	 * to run successfully.
 	 * XXX Should we move this one out of kexec scope?
