@@ -39,9 +39,7 @@ static struct fb_fix_screeninfo dlfb_fix = {
 };
 
 static const u32 udlfb_info_flags = FBINFO_DEFAULT | FBINFO_READS_FAST |
-#ifdef FBINFO_VIRTFB
 		FBINFO_VIRTFB |
-#endif
 		FBINFO_HWACCEL_IMAGEBLIT | FBINFO_HWACCEL_FILLRECT |
 		FBINFO_HWACCEL_COPYAREA | FBINFO_MISC_ALWAYS_SETPAR;
 
@@ -594,18 +592,6 @@ error:
 	return 0;
 }
 
-static ssize_t dlfb_ops_read(struct fb_info *info, char __user *buf,
-			 size_t count, loff_t *ppos)
-{
-	ssize_t result = -ENOSYS;
-
-#if defined CONFIG_FB_SYS_FOPS || defined CONFIG_FB_SYS_FOPS_MODULE
-	result = fb_sys_read(info, buf, count, ppos);
-#endif
-
-	return result;
-}
-
 /*
  * Path triggered by usermode clients who write to filesystem
  * e.g. cat filename > /dev/fb1
@@ -615,11 +601,9 @@ static ssize_t dlfb_ops_read(struct fb_info *info, char __user *buf,
 static ssize_t dlfb_ops_write(struct fb_info *info, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	ssize_t result = -ENOSYS;
+	ssize_t result;
 	struct dlfb_data *dev = info->par;
 	u32 offset = (u32) *ppos;
-
-#if defined CONFIG_FB_SYS_FOPS || defined CONFIG_FB_SYS_FOPS_MODULE
 
 	result = fb_sys_write(info, buf, count, ppos);
 
@@ -631,7 +615,6 @@ static ssize_t dlfb_ops_write(struct fb_info *info, const char __user *buf,
 		dlfb_handle_damage(dev, 0, start, info->var.xres,
 			lines, info->screen_base);
 	}
-#endif
 
 	return result;
 }
@@ -643,14 +626,10 @@ static void dlfb_ops_copyarea(struct fb_info *info,
 
 	struct dlfb_data *dev = info->par;
 
-#if defined CONFIG_FB_SYS_COPYAREA || defined CONFIG_FB_SYS_COPYAREA_MODULE
-
 	sys_copyarea(info, area);
 
 	dlfb_handle_damage(dev, area->dx, area->dy,
 			area->width, area->height, info->screen_base);
-#endif
-
 }
 
 static void dlfb_ops_imageblit(struct fb_info *info,
@@ -658,15 +637,10 @@ static void dlfb_ops_imageblit(struct fb_info *info,
 {
 	struct dlfb_data *dev = info->par;
 
-#if defined CONFIG_FB_SYS_IMAGEBLIT || defined CONFIG_FB_SYS_IMAGEBLIT_MODULE
-
 	sys_imageblit(info, image);
 
 	dlfb_handle_damage(dev, image->dx, image->dy,
 			image->width, image->height, info->screen_base);
-
-#endif
-
 }
 
 static void dlfb_ops_fillrect(struct fb_info *info,
@@ -674,17 +648,12 @@ static void dlfb_ops_fillrect(struct fb_info *info,
 {
 	struct dlfb_data *dev = info->par;
 
-#if defined CONFIG_FB_SYS_FILLRECT || defined CONFIG_FB_SYS_FILLRECT_MODULE
-
 	sys_fillrect(info, rect);
 
 	dlfb_handle_damage(dev, rect->dx, rect->dy, rect->width,
 			      rect->height, info->screen_base);
-#endif
-
 }
 
-#ifdef CONFIG_FB_DEFERRED_IO
 /*
  * NOTE: fb_defio.c is holding info->fbdefio.mutex
  *   Touching ANY framebuffer memory that triggers a page fault
@@ -745,8 +714,6 @@ error:
 		    >> 10)), /* Kcycles */
 		   &dev->cpu_kcycles_used);
 }
-
-#endif
 
 static int dlfb_get_edid(struct dlfb_data *dev, char *edid, int len)
 {
@@ -880,7 +847,6 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 
 	kref_get(&dev->kref);
 
-#ifdef CONFIG_FB_DEFERRED_IO
 	if (fb_defio && (info->fbdefio == NULL)) {
 		/* enable defio at last moment if not disabled by client */
 
@@ -896,7 +862,6 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 		info->fbdefio = fbdefio;
 		fb_deferred_io_init(info);
 	}
-#endif
 
 	dl_notice("open /dev/fb%d user=%d fb_info=%p count=%d\n",
 	    info->node, user, info, dev->fb_count);
@@ -977,14 +942,12 @@ static int dlfb_ops_release(struct fb_info *info, int user)
 	if (dev->virtualized && (dev->fb_count == 0))
 		schedule_delayed_work(&dev->free_framebuffer_work, HZ);
 
-#ifdef CONFIG_FB_DEFERRED_IO
 	if ((dev->fb_count == 0) && (info->fbdefio)) {
 		fb_deferred_io_cleanup(info);
 		kfree(info->fbdefio);
 		info->fbdefio = NULL;
 		info->fbops->fb_mmap = dlfb_ops_mmap;
 	}
-#endif
 
 	dl_warn("released /dev/fb%d user=%d count=%d\n",
 		  info->node, user, dev->fb_count);
@@ -1103,7 +1066,7 @@ static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 
 static struct fb_ops dlfb_ops = {
 	.owner = THIS_MODULE,
-	.fb_read = dlfb_ops_read,
+	.fb_read = fb_sys_read,
 	.fb_write = dlfb_ops_write,
 	.fb_setcolreg = dlfb_ops_setcolreg,
 	.fb_fillrect = dlfb_ops_fillrect,
