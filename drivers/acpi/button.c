@@ -426,7 +426,7 @@ static int acpi_button_add(struct acpi_device *device)
 		acpi_enable_gpe(device->wakeup.gpe_device,
 				device->wakeup.gpe_number);
 		device->wakeup.run_wake_count++;
-		device->wakeup.state.enabled = 1;
+		device_set_wakeup_enable(&device->dev, true);
 	}
 
 	printk(KERN_INFO PREFIX "%s [%s]\n", name, acpi_device_bid(device));
@@ -449,7 +449,7 @@ static int acpi_button_remove(struct acpi_device *device, int type)
 		acpi_disable_gpe(device->wakeup.gpe_device,
 				device->wakeup.gpe_number);
 		device->wakeup.run_wake_count--;
-		device->wakeup.state.enabled = 0;
+		device_set_wakeup_enable(&device->dev, false);
 	}
 
 	acpi_button_remove_fs(device);

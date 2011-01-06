@@ -311,7 +311,9 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 			   dev->pnp.bus_id,
 			   (u32) dev->wakeup.sleep_state,
 			   dev->wakeup.flags.run_wake ? '*' : ' ',
-			   dev->wakeup.state.enabled ? "enabled" : "disabled");
+			   (device_may_wakeup(&dev->dev)
+			     || (ldev && device_may_wakeup(ldev))) ?
+			       "enabled" : "disabled");
 		if (ldev)
 			seq_printf(seq, "%s:%s",
 				   ldev->bus ? ldev->bus->name : "no-bus",
@@ -328,8 +330,10 @@ static void physical_device_enable_wakeup(struct acpi_device *adev)
 {
 	struct device *dev = acpi_get_physical_device(adev->handle);
 
-	if (dev && device_can_wakeup(dev))
-		device_set_wakeup_enable(dev, adev->wakeup.state.enabled);
+	if (dev && device_can_wakeup(dev)) {
+		bool enable = !device_may_wakeup(dev);
+		device_set_wakeup_enable(dev, enable);
+	}
 }
 
 static ssize_t
@@ -360,9 +364,12 @@ acpi_system_write_wakeup_device(struct file *file,
 			continue;
 
 		if (!strncmp(dev->pnp.bus_id, str, 4)) {
-			dev->wakeup.state.enabled =
-			    dev->wakeup.state.enabled ? 0 : 1;
-			physical_device_enable_wakeup(dev);
+			if (device_can_wakeup(&dev->dev)) {
+				bool enable = !device_may_wakeup(&dev->dev);
+				device_set_wakeup_enable(&dev->dev, enable);
+			} else {
+				physical_device_enable_wakeup(dev);
+			}
 			break;
 		}
 	}

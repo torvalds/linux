@@ -37,11 +37,12 @@ void acpi_enable_wakeup_devices(u8 sleep_state)
 			container_of(node, struct acpi_device, wakeup_list);
 
 		if (!dev->wakeup.flags.valid
-		    || !(dev->wakeup.state.enabled || dev->wakeup.prepare_count)
-		    || sleep_state > (u32) dev->wakeup.sleep_state)
+		    || sleep_state > (u32) dev->wakeup.sleep_state
+		    || !(device_may_wakeup(&dev->dev)
+		        || dev->wakeup.prepare_count))
 			continue;
 
-		if (dev->wakeup.state.enabled)
+		if (device_may_wakeup(&dev->dev))
 			acpi_enable_wakeup_device_power(dev, sleep_state);
 
 		/* The wake-up power should have been enabled already. */
@@ -63,14 +64,15 @@ void acpi_disable_wakeup_devices(u8 sleep_state)
 			container_of(node, struct acpi_device, wakeup_list);
 
 		if (!dev->wakeup.flags.valid
-		    || !(dev->wakeup.state.enabled || dev->wakeup.prepare_count)
-		    || (sleep_state > (u32) dev->wakeup.sleep_state))
+		    || sleep_state > (u32) dev->wakeup.sleep_state
+		    || !(device_may_wakeup(&dev->dev)
+		        || dev->wakeup.prepare_count))
 			continue;
 
 		acpi_gpe_wakeup(dev->wakeup.gpe_device, dev->wakeup.gpe_number,
 				ACPI_GPE_DISABLE);
 
-		if (dev->wakeup.state.enabled)
+		if (device_may_wakeup(&dev->dev))
 			acpi_disable_wakeup_device_power(dev);
 	}
 }
@@ -84,8 +86,8 @@ int __init acpi_wakeup_device_init(void)
 		struct acpi_device *dev = container_of(node,
 						       struct acpi_device,
 						       wakeup_list);
-		if (dev->wakeup.flags.always_enabled)
-			dev->wakeup.state.enabled = 1;
+		if (device_can_wakeup(&dev->dev))
+			device_set_wakeup_enable(&dev->dev, true);
 	}
 	mutex_unlock(&acpi_device_lock);
 	return 0;
