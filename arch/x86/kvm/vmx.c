@@ -4022,6 +4022,7 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	asm(
 		/* Store host registers */
 		"push %%"R"dx; push %%"R"bp;"
+		"push %%"R"cx \n\t" /* placeholder for guest rcx */
 		"push %%"R"cx \n\t"
 		"cmp %%"R"sp, %c[host_rsp](%0) \n\t"
 		"je 1f \n\t"
@@ -4063,7 +4064,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		".Llaunched: " __ex(ASM_VMX_VMRESUME) "\n\t"
 		".Lkvm_vmx_return: "
 		/* Save guest registers, load host registers, keep flags */
-		"xchg %0,     (%%"R"sp) \n\t"
+		"mov %0, %c[wordsize](%%"R"sp) \n\t"
+		"pop %0 \n\t"
 		"mov %%"R"ax, %c[rax](%0) \n\t"
 		"mov %%"R"bx, %c[rbx](%0) \n\t"
 		"pop"Q" %c[rcx](%0) \n\t"
@@ -4107,7 +4109,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		[r14]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R14])),
 		[r15]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R15])),
 #endif
-		[cr2]"i"(offsetof(struct vcpu_vmx, vcpu.arch.cr2))
+		[cr2]"i"(offsetof(struct vcpu_vmx, vcpu.arch.cr2)),
+		[wordsize]"i"(sizeof(ulong))
 	      : "cc", "memory"
 		, R"ax", R"bx", R"di", R"si"
 #ifdef CONFIG_X86_64
