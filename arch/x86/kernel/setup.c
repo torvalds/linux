@@ -705,7 +705,7 @@ static u64 __init get_max_mapped(void)
 void __init setup_arch(char **cmdline_p)
 {
 	int acpi = 0;
-	int k8 = 0;
+	int amd = 0;
 	unsigned long flags;
 
 #ifdef CONFIG_X86_32
@@ -991,12 +991,12 @@ void __init setup_arch(char **cmdline_p)
 	acpi = acpi_numa_init();
 #endif
 
-#ifdef CONFIG_K8_NUMA
+#ifdef CONFIG_AMD_NUMA
 	if (!acpi)
-		k8 = !k8_numa_init(0, max_pfn);
+		amd = !amd_numa_init(0, max_pfn);
 #endif
 
-	initmem_init(0, max_pfn, acpi, k8);
+	initmem_init(0, max_pfn, acpi, amd);
 	memblock_find_dma_reserve();
 	dma32_reserve_bootmem();
 
