@@ -34,10 +34,17 @@ enum nfs4_callback_opnum {
 	OP_CB_ILLEGAL = 10044,
 };
 
+struct cb_process_state {
+	__be32			drc_status;
+	struct nfs_client	*clp;
+	struct nfs4_sessionid	*svc_sid; /* v4.1 callback service sessionid */
+};
+
 struct cb_compound_hdr_arg {
 	unsigned int taglen;
 	const char *tag;
 	unsigned int minorversion;
+	unsigned int cb_ident; /* v4.0 callback identifier */
 	unsigned nops;
 };
 
@@ -103,8 +110,9 @@ struct cb_sequenceres {
 	uint32_t			csr_target_highestslotid;
 };
 
-extern unsigned nfs4_callback_sequence(struct cb_sequenceargs *args,
-				       struct cb_sequenceres *res);
+extern __be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
+				       struct cb_sequenceres *res,
+				       struct cb_process_state *cps);
 
 extern int nfs41_validate_delegation_stateid(struct nfs_delegation *delegation,
 					     const nfs4_stateid *stateid);
@@ -118,19 +126,25 @@ struct cb_recallanyargs {
 	uint32_t	craa_type_mask;
 };
 
-extern unsigned nfs4_callback_recallany(struct cb_recallanyargs *args, void *dummy);
+extern __be32 nfs4_callback_recallany(struct cb_recallanyargs *args,
+					void *dummy,
+					struct cb_process_state *cps);
 
 struct cb_recallslotargs {
 	struct sockaddr	*crsa_addr;
 	uint32_t	crsa_target_max_slots;
 };
-extern unsigned nfs4_callback_recallslot(struct cb_recallslotargs *args,
-					  void *dummy);
+extern __be32 nfs4_callback_recallslot(struct cb_recallslotargs *args,
+					 void *dummy,
+					 struct cb_process_state *cps);
 
 #endif /* CONFIG_NFS_V4_1 */
 
-extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *res);
-extern __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy);
+extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args,
+				    struct cb_getattrres *res,
+				    struct cb_process_state *cps);
+extern __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy,
+				   struct cb_process_state *cps);
 
 #ifdef CONFIG_NFS_V4
 extern int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt);

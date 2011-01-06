@@ -10,8 +10,10 @@
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
 #include <linux/slab.h>
+#include <linux/sunrpc/bc_xprt.h>
 #include "nfs4_fs.h"
 #include "callback.h"
+#include "internal.h"
 
 #define CB_OP_TAGLEN_MAXSZ	(512)
 #define CB_OP_HDR_RES_MAXSZ	(2 + CB_OP_TAGLEN_MAXSZ)
@@ -33,7 +35,8 @@
 /* Internal error code */
 #define NFS4ERR_RESOURCE_HDR	11050
 
-typedef __be32 (*callback_process_op_t)(void *, void *);
+typedef __be32 (*callback_process_op_t)(void *, void *,
+					struct cb_process_state *);
 typedef __be32 (*callback_decode_arg_t)(struct svc_rqst *, struct xdr_stream *, void *);
 typedef __be32 (*callback_encode_res_t)(struct svc_rqst *, struct xdr_stream *, void *);
 
@@ -160,7 +163,7 @@ static __be32 decode_compound_hdr_arg(struct xdr_stream *xdr, struct cb_compound
 	hdr->minorversion = ntohl(*p++);
 	/* Check minor version is zero or one. */
 	if (hdr->minorversion <= 1) {
-		p++;	/* skip callback_ident */
+		hdr->cb_ident = ntohl(*p++); /* ignored by v4.1 */
 	} else {
 		printk(KERN_WARNING "%s: NFSv4 server callback with "
 			"illegal minor version %u!\n",
@@ -621,7 +624,8 @@ preprocess_nfs4_op(unsigned int op_nr, struct callback_op **op)
 static __be32 process_op(uint32_t minorversion, int nop,
 		struct svc_rqst *rqstp,
 		struct xdr_stream *xdr_in, void *argp,
-		struct xdr_stream *xdr_out, void *resp, int* drc_status)
+		struct xdr_stream *xdr_out, void *resp,
+		struct cb_process_state *cps)
 {
 	struct callback_op *op = &callback_ops[0];
 	unsigned int op_nr;
@@ -644,8 +648,8 @@ static __be32 process_op(uint32_t minorversion, int nop,
 	if (status)
 		goto encode_hdr;
 
-	if (*drc_status) {
-		status = *drc_status;
+	if (cps->drc_status) {
+		status = cps->drc_status;
 		goto encode_hdr;
 	}
 
@@ -653,15 +657,9 @@ static __be32 process_op(uint32_t minorversion, int nop,
 	if (maxlen > 0 && maxlen < PAGE_SIZE) {
 		status = op->decode_args(rqstp, xdr_in, argp);
 		if (likely(status == 0))
-			status = op->process_op(argp, resp);
+			status = op->process_op(argp, resp, cps);
 	} else
 		status = htonl(NFS4ERR_RESOURCE);
-
-	/* Only set by OP_CB_SEQUENCE processing */
-	if (status == htonl(NFS4ERR_RETRY_UNCACHED_REP)) {
-		*drc_status = status;
-		status = 0;
-	}
 
 encode_hdr:
 	res = encode_op_hdr(xdr_out, op_nr, status);
@@ -681,8 +679,11 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 	struct cb_compound_hdr_arg hdr_arg = { 0 };
 	struct cb_compound_hdr_res hdr_res = { NULL };
 	struct xdr_stream xdr_in, xdr_out;
-	__be32 *p;
-	__be32 status, drc_status = 0;
+	__be32 *p, status;
+	struct cb_process_state cps = {
+		.drc_status = 0,
+		.clp = NULL,
+	};
 	unsigned int nops = 0;
 
 	dprintk("%s: start\n", __func__);
@@ -696,6 +697,13 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 	if (status == __constant_htonl(NFS4ERR_RESOURCE))
 		return rpc_garbage_args;
 
+	if (hdr_arg.minorversion == 0) {
+		cps.clp = nfs4_find_client_ident(hdr_arg.cb_ident);
+		if (!cps.clp)
+			return rpc_drop_reply;
+	} else
+		cps.svc_sid = bc_xprt_sid(rqstp);
+
 	hdr_res.taglen = hdr_arg.taglen;
 	hdr_res.tag = hdr_arg.tag;
 	if (encode_compound_hdr_res(&xdr_out, &hdr_res) != 0)
@@ -703,7 +711,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 
 	while (status == 0 && nops != hdr_arg.nops) {
 		status = process_op(hdr_arg.minorversion, nops, rqstp,
-				    &xdr_in, argp, &xdr_out, resp, &drc_status);
+				    &xdr_in, argp, &xdr_out, resp, &cps);
 		nops++;
 	}
 
@@ -716,6 +724,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 
 	*hdr_res.status = status;
 	*hdr_res.nops = htonl(nops);
+	nfs_put_client(cps.clp);
 	dprintk("%s: done, status = %u\n", __func__, ntohl(status));
 	return rpc_success;
 }

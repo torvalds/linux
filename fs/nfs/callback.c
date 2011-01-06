@@ -16,9 +16,7 @@
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/sunrpc/svcauth_gss.h>
-#if defined(CONFIG_NFS_V4_1)
 #include <linux/sunrpc/bc_xprt.h>
-#endif
 
 #include <net/inet_sock.h>
 
@@ -384,6 +382,23 @@ static int check_gss_callback_principal(struct nfs_client *clp,
 	return SVC_OK;
 }
 
+/* pg_authenticate method helper */
+static struct nfs_client *nfs_cb_find_client(struct svc_rqst *rqstp)
+{
+	struct nfs4_sessionid *sessionid = bc_xprt_sid(rqstp);
+	int is_cb_compound = rqstp->rq_proc == CB_COMPOUND ? 1 : 0;
+
+	dprintk("--> %s rq_proc %d\n", __func__, rqstp->rq_proc);
+	if (svc_is_backchannel(rqstp))
+		/* Sessionid (usually) set after CB_NULL ping */
+		return nfs4_find_client_sessionid(svc_addr(rqstp), sessionid,
+						  is_cb_compound);
+	else
+		/* No callback identifier in pg_authenticate */
+		return nfs4_find_client_no_ident(svc_addr(rqstp));
+}
+
+/* pg_authenticate method for nfsv4 callback threads. */
 static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 {
 	struct nfs_client *clp;
@@ -391,7 +406,7 @@ static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 	int ret = SVC_OK;
 
 	/* Don't talk to strangers */
-	clp = nfs_find_client(svc_addr(rqstp), 4);
+	clp = nfs_cb_find_client(rqstp);
 	if (clp == NULL)
 		return SVC_DROP;
 
