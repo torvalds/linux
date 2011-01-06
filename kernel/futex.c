@@ -791,10 +791,9 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_q *this)
 	new_owner = rt_mutex_next_owner(&pi_state->pi_mutex);
 
 	/*
-	 * This happens when we have stolen the lock and the original
-	 * pending owner did not enqueue itself back on the rt_mutex.
-	 * Thats not a tragedy. We know that way, that a lock waiter
-	 * is on the fly. We make the futex_q waiter the pending owner.
+	 * It is possible that the next waiter (the one that brought
+	 * this owner to the kernel) timed out and is no longer
+	 * waiting on the lock.
 	 */
 	if (!new_owner)
 		new_owner = this->task;
