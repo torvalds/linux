@@ -410,26 +410,24 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 	raw_spin_lock(&nmi_reason_lock);
 	reason = get_nmi_reason();
 
-	if (!(reason & NMI_REASON_MASK)) {
+	if (reason & NMI_REASON_MASK) {
+		if (reason & NMI_REASON_SERR)
+			pci_serr_error(reason, regs);
+		else if (reason & NMI_REASON_IOCHK)
+			io_check_error(reason, regs);
+#ifdef CONFIG_X86_32
+		/*
+		 * Reassert NMI in case it became active
+		 * meanwhile as it's edge-triggered:
+		 */
+		reassert_nmi();
+#endif
 		raw_spin_unlock(&nmi_reason_lock);
-		unknown_nmi_error(reason, regs);
-
 		return;
 	}
-
-	/* AK: following checks seem to be broken on modern chipsets. FIXME */
-	if (reason & NMI_REASON_SERR)
-		pci_serr_error(reason, regs);
-	if (reason & NMI_REASON_IOCHK)
-		io_check_error(reason, regs);
-#ifdef CONFIG_X86_32
-	/*
-	 * Reassert NMI in case it became active meanwhile
-	 * as it's edge-triggered:
-	 */
-	reassert_nmi();
-#endif
 	raw_spin_unlock(&nmi_reason_lock);
+
+	unknown_nmi_error(reason, regs);
 }
 
 dotraplinkage notrace __kprobes void
