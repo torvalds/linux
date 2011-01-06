@@ -4821,6 +4821,12 @@ static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 
 	adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
 	adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
+	if (adapter->flags & (IXGBE_FLAG_FDIR_HASH_CAPABLE |
+			      IXGBE_FLAG_FDIR_PERFECT_CAPABLE)) {
+		e_err(probe,
+		      "Flow Director is not supported while multiple "
+		      "queues are disabled.  Disabling Flow Director\n");
+	}
 	adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 	adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
 	adapter->atr_sample_rate = 0;
@@ -5126,16 +5132,11 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
 		if (hw->device_id == IXGBE_DEV_ID_82599_T3_LOM)
 			adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_CAPABLE;
-		if (dev->features & NETIF_F_NTUPLE) {
-			/* Flow Director perfect filter enabled */
-			adapter->flags |= IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
-			adapter->atr_sample_rate = 0;
-			spin_lock_init(&adapter->fdir_perfect_lock);
-		} else {
-			/* Flow Director hash filters enabled */
-			adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
-			adapter->atr_sample_rate = 20;
-		}
+		/* n-tuple support exists, always init our spinlock */
+		spin_lock_init(&adapter->fdir_perfect_lock);
+		/* Flow Director hash filters enabled */
+		adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
+		adapter->atr_sample_rate = 20;
 		adapter->ring_feature[RING_F_FDIR].indices =
 							 IXGBE_MAX_FDIR_INDICES;
 		adapter->fdir_pballoc = 0;

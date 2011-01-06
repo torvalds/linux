@@ -1947,10 +1947,9 @@ enum ixgbe_fdir_pballoc_type {
 #define IXGBE_FDIRM_VLANID                      0x00000001
 #define IXGBE_FDIRM_VLANP                       0x00000002
 #define IXGBE_FDIRM_POOL                        0x00000004
-#define IXGBE_FDIRM_L3P                         0x00000008
-#define IXGBE_FDIRM_L4P                         0x00000010
-#define IXGBE_FDIRM_FLEX                        0x00000020
-#define IXGBE_FDIRM_DIPv6                       0x00000040
+#define IXGBE_FDIRM_L4P                         0x00000008
+#define IXGBE_FDIRM_FLEX                        0x00000010
+#define IXGBE_FDIRM_DIPv6                       0x00000020
 
 #define IXGBE_FDIRFREE_FREE_MASK                0xFFFF
 #define IXGBE_FDIRFREE_FREE_SHIFT               0
@@ -2215,12 +2214,13 @@ union ixgbe_atr_hash_dword {
 };
 
 struct ixgbe_atr_input_masks {
-	__be32 src_ip_mask;
-	__be32 dst_ip_mask;
+	__be16 rsvd0;
+	__be16 vlan_id_mask;
+	__be32 dst_ip_mask[4];
+	__be32 src_ip_mask[4];
 	__be16 src_port_mask;
 	__be16 dst_port_mask;
-	__be16 vlan_id_mask;
-	__be16 data_mask;
+	__be16 flex_mask;
 };
 
 enum ixgbe_eeprom_type {

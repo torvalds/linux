@@ -2277,10 +2277,11 @@ static int ixgbe_set_rx_ntuple(struct net_device *dev,
                                struct ethtool_rx_ntuple *cmd)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	struct ethtool_rx_ntuple_flow_spec fs = cmd->fs;
+	struct ethtool_rx_ntuple_flow_spec *fs = &cmd->fs;
 	union ixgbe_atr_input input_struct;
 	struct ixgbe_atr_input_masks input_masks;
 	int target_queue;
+	int err;
 
 	if (adapter->hw.mac.type == ixgbe_mac_82598EB)
 		return -EOPNOTSUPP;
@@ -2289,67 +2290,122 @@ static int ixgbe_set_rx_ntuple(struct net_device *dev,
 	 * Don't allow programming if the action is a queue greater than
 	 * the number of online Tx queues.
 	 */
-	if ((fs.action >= adapter->num_tx_queues) ||
-	    (fs.action < ETHTOOL_RXNTUPLE_ACTION_DROP))
+	if ((fs->action >= adapter->num_tx_queues) ||
+	    (fs->action < ETHTOOL_RXNTUPLE_ACTION_DROP))
 		return -EINVAL;
 
 	memset(&input_struct, 0, sizeof(union ixgbe_atr_input));
 	memset(&input_masks, 0, sizeof(struct ixgbe_atr_input_masks));
 
-	input_masks.src_ip_mask = fs.m_u.tcp_ip4_spec.ip4src;
-	input_masks.dst_ip_mask = fs.m_u.tcp_ip4_spec.ip4dst;
-	input_masks.src_port_mask = fs.m_u.tcp_ip4_spec.psrc;
-	input_masks.dst_port_mask = fs.m_u.tcp_ip4_spec.pdst;
-	input_masks.vlan_id_mask = fs.vlan_tag_mask;
-	/* only use the lowest 2 bytes for flex bytes */
-	input_masks.data_mask = (fs.data_mask & 0xffff);
-
-	switch (fs.flow_type) {
+	/* record flow type */
+	switch (fs->flow_type) {
+	case IPV4_FLOW:
+		input_struct.formatted.flow_type = IXGBE_ATR_FLOW_TYPE_IPV4;
+		break;
 	case TCP_V4_FLOW:
-		ixgbe_atr_set_l4type_82599(&input_struct, IXGBE_ATR_L4TYPE_TCP);
+		input_struct.formatted.flow_type = IXGBE_ATR_FLOW_TYPE_TCPV4;
 		break;
 	case UDP_V4_FLOW:
-		ixgbe_atr_set_l4type_82599(&input_struct, IXGBE_ATR_L4TYPE_UDP);
+		input_struct.formatted.flow_type = IXGBE_ATR_FLOW_TYPE_UDPV4;
 		break;
 	case SCTP_V4_FLOW:
-		ixgbe_atr_set_l4type_82599(&input_struct, IXGBE_ATR_L4TYPE_SCTP);
+		input_struct.formatted.flow_type = IXGBE_ATR_FLOW_TYPE_SCTPV4;
 		break;
 	default:
 		return -1;
 	}
 
-	/* Mask bits from the inputs based on user-supplied mask */
-	ixgbe_atr_set_src_ipv4_82599(&input_struct,
-	            (fs.h_u.tcp_ip4_spec.ip4src & ~fs.m_u.tcp_ip4_spec.ip4src));
-	ixgbe_atr_set_dst_ipv4_82599(&input_struct,
-	            (fs.h_u.tcp_ip4_spec.ip4dst & ~fs.m_u.tcp_ip4_spec.ip4dst));
-	/* 82599 expects these to be byte-swapped for perfect filtering */
-	ixgbe_atr_set_src_port_82599(&input_struct,
-	       ((ntohs(fs.h_u.tcp_ip4_spec.psrc)) & ~fs.m_u.tcp_ip4_spec.psrc));
-	ixgbe_atr_set_dst_port_82599(&input_struct,
-	       ((ntohs(fs.h_u.tcp_ip4_spec.pdst)) & ~fs.m_u.tcp_ip4_spec.pdst));
+	/* copy vlan tag minus the CFI bit */
+	if ((fs->vlan_tag & 0xEFFF) || (~fs->vlan_tag_mask & 0xEFFF)) {
+		input_struct.formatted.vlan_id = htons(fs->vlan_tag & 0xEFFF);
+		if (!fs->vlan_tag_mask) {
+			input_masks.vlan_id_mask = htons(0xEFFF);
+		} else {
+			switch (~fs->vlan_tag_mask & 0xEFFF) {
+			/* all of these are valid vlan-mask values */
+			case 0xEFFF:
+			case 0xE000:
+			case 0x0FFF:
+			case 0x0000:
+				input_masks.vlan_id_mask =
+					htons(~fs->vlan_tag_mask);
+				break;
+			/* exit with error if vlan-mask is invalid */
+			default:
+				e_err(drv, "Partial VLAN ID or "
+				      "priority mask in vlan-mask is not "
+				      "supported by hardware\n");
+				return -1;
+			}
+		}
+	}
 
-	/* VLAN and Flex bytes are either completely masked or not */
-	if (!fs.vlan_tag_mask)
-		ixgbe_atr_set_vlan_id_82599(&input_struct, fs.vlan_tag);
+	/* make sure we only use the first 2 bytes of user data */
+	if ((fs->data & 0xFFFF) || (~fs->data_mask & 0xFFFF)) {
+		input_struct.formatted.flex_bytes = htons(fs->data & 0xFFFF);
+		if (!(fs->data_mask & 0xFFFF)) {
+			input_masks.flex_mask = 0xFFFF;
+		} else if (~fs->data_mask & 0xFFFF) {
+			e_err(drv, "Partial user-def-mask is not "
+			      "supported by hardware\n");
+			return -1;
+		}
+	}
 
-	if (!input_masks.data_mask)
-		/* make sure we only use the first 2 bytes of user data */
-		ixgbe_atr_set_flex_byte_82599(&input_struct,
-		                              (fs.data & 0xffff));
+	/*
+	 * Copy input into formatted structures
+	 *
+	 * These assignments are based on the following logic
+	 * If neither input or mask are set assume value is masked out.
+	 * If input is set, but mask is not mask should default to accept all.
+	 * If input is not set, but mask is set then mask likely results in 0.
+	 * If input is set and mask is set then assign both.
+	 */
+	if (fs->h_u.tcp_ip4_spec.ip4src || ~fs->m_u.tcp_ip4_spec.ip4src) {
+		input_struct.formatted.src_ip[0] = fs->h_u.tcp_ip4_spec.ip4src;
+		if (!fs->m_u.tcp_ip4_spec.ip4src)
+			input_masks.src_ip_mask[0] = 0xFFFFFFFF;
+		else
+			input_masks.src_ip_mask[0] =
+				~fs->m_u.tcp_ip4_spec.ip4src;
+	}
+	if (fs->h_u.tcp_ip4_spec.ip4dst || ~fs->m_u.tcp_ip4_spec.ip4dst) {
+		input_struct.formatted.dst_ip[0] = fs->h_u.tcp_ip4_spec.ip4dst;
+		if (!fs->m_u.tcp_ip4_spec.ip4dst)
+			input_masks.dst_ip_mask[0] = 0xFFFFFFFF;
+		else
+			input_masks.dst_ip_mask[0] =
+				~fs->m_u.tcp_ip4_spec.ip4dst;
+	}
+	if (fs->h_u.tcp_ip4_spec.psrc || ~fs->m_u.tcp_ip4_spec.psrc) {
+		input_struct.formatted.src_port = fs->h_u.tcp_ip4_spec.psrc;
+		if (!fs->m_u.tcp_ip4_spec.psrc)
+			input_masks.src_port_mask = 0xFFFF;
+		else
+			input_masks.src_port_mask = ~fs->m_u.tcp_ip4_spec.psrc;
+	}
+	if (fs->h_u.tcp_ip4_spec.pdst || ~fs->m_u.tcp_ip4_spec.pdst) {
+		input_struct.formatted.dst_port = fs->h_u.tcp_ip4_spec.pdst;
+		if (!fs->m_u.tcp_ip4_spec.pdst)
+			input_masks.dst_port_mask = 0xFFFF;
+		else
+			input_masks.dst_port_mask = ~fs->m_u.tcp_ip4_spec.pdst;
+	}
 
 	/* determine if we need to drop or route the packet */
-	if (fs.action == ETHTOOL_RXNTUPLE_ACTION_DROP)
+	if (fs->action == ETHTOOL_RXNTUPLE_ACTION_DROP)
 		target_queue = MAX_RX_QUEUES - 1;
 	else
-		target_queue = fs.action;
+		target_queue = fs->action;
 
 	spin_lock(&adapter->fdir_perfect_lock);
-	ixgbe_fdir_add_perfect_filter_82599(&adapter->hw, &input_struct,
-	                                    &input_masks, 0, target_queue);
+	err = ixgbe_fdir_add_perfect_filter_82599(&adapter->hw,
+						  &input_struct,
+						  &input_masks, 0,
+						  target_queue);
 	spin_unlock(&adapter->fdir_perfect_lock);
 
-	return 0;
+	return err ? -1 : 0;
 }
 
 static const struct ethtool_ops ixgbe_ethtool_ops = {
