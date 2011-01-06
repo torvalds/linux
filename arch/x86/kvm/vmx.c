@@ -4066,7 +4066,7 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		"xchg %0,     (%%"R"sp) \n\t"
 		"mov %%"R"ax, %c[rax](%0) \n\t"
 		"mov %%"R"bx, %c[rbx](%0) \n\t"
-		"push"Q" (%%"R"sp); pop"Q" %c[rcx](%0) \n\t"
+		"pop"Q" %c[rcx](%0) \n\t"
 		"mov %%"R"dx, %c[rdx](%0) \n\t"
 		"mov %%"R"si, %c[rsi](%0) \n\t"
 		"mov %%"R"di, %c[rdi](%0) \n\t"
@@ -4084,7 +4084,7 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		"mov %%cr2, %%"R"ax   \n\t"
 		"mov %%"R"ax, %c[cr2](%0) \n\t"
 
-		"pop  %%"R"bp; pop  %%"R"bp; pop  %%"R"dx \n\t"
+		"pop  %%"R"bp; pop  %%"R"dx \n\t"
 		"setbe %c[fail](%0) \n\t"
 	      : : "c"(vmx), "d"((unsigned long)HOST_RSP),
 		[launched]"i"(offsetof(struct vcpu_vmx, launched)),
