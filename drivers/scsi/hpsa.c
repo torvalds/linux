@@ -3553,13 +3553,18 @@ static inline void hpsa_p600_dma_prefetch_quirk(struct ctlr_info *h)
 static void __devinit hpsa_wait_for_mode_change_ack(struct ctlr_info *h)
 {
 	int i;
+	u32 doorbell_value;
+	unsigned long flags;
 
 	/* under certain very rare conditions, this can take awhile.
 	 * (e.g.: hot replace a failed 144GB drive in a RAID 5 set right
 	 * as we enter this code.)
 	 */
 	for (i = 0; i < MAX_CONFIG_WAIT; i++) {
-		if (!(readl(h->vaddr + SA5_DOORBELL) & CFGTBL_ChangeReq))
+		spin_lock_irqsave(&h->lock, flags);
+		doorbell_value = readl(h->vaddr + SA5_DOORBELL);
+		spin_unlock_irqrestore(&h->lock, flags);
+		if (!doorbell_value & CFGTBL_ChangeReq)
 			break;
 		/* delay and try again */
 		msleep(10);
@@ -3731,6 +3736,8 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 	h->busy_initializing = 1;
 	INIT_HLIST_HEAD(&h->cmpQ);
 	INIT_HLIST_HEAD(&h->reqQ);
+	spin_lock_init(&h->lock);
+	spin_lock_init(&h->scan_lock);
 	rc = hpsa_pci_init(h);
 	if (rc != 0)
 		goto clean1;
@@ -3790,8 +3797,6 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 	}
 	if (hpsa_allocate_sg_chain_blocks(h))
 		goto clean4;
-	spin_lock_init(&h->lock);
-	spin_lock_init(&h->scan_lock);
 	init_waitqueue_head(&h->scan_wait_queue);
 	h->scan_finished = 1; /* no scan currently in progress */
 
