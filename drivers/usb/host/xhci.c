@@ -696,9 +696,8 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 {
 	u32			command, temp = 0;
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
-	int	old_state, retval;
+	int			retval;
 
-	old_state = hcd->state;
 	if (time_before(jiffies, xhci->next_statechange))
 		msleep(100);
 
@@ -782,10 +781,6 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	 */
 
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-	if (!hibernated)
-		hcd->state = old_state;
-	else
-		hcd->state = HC_STATE_SUSPENDED;
 
 	spin_unlock_irq(&xhci->lock);
 	return 0;
