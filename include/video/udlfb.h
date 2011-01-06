@@ -65,9 +65,6 @@ struct dlfb_data {
 #define MAX_TRANSFER (PAGE_SIZE*16 - BULK_SIZE)
 #define WRITES_IN_FLIGHT (4)
 
-#define MIN_EDID_SIZE 128
-#define MAX_EDID_SIZE 128
-
 #define MAX_VENDOR_DESCRIPTOR_SIZE 256
 
 #define GET_URB_TIMEOUT	HZ
@@ -94,24 +91,5 @@ struct dlfb_data {
 /* remove these once align.h patch is taken into kernel */
 #define DL_ALIGN_UP(x, a) ALIGN(x, a)
 #define DL_ALIGN_DOWN(x, a) ALIGN(x-(a-1), a)
-
-/* remove once this gets added to sysfs.h */
-#define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
-
-/*
- * udlfb is both a usb device, and a framebuffer device.
- * They may exist at the same time, but during various stages
- * inactivity, teardown, or "virtual" operation, only one or the
- * other will exist (one will outlive the other).  So we can't
- * call the dev_*() macros, because we don't have a stable dev object.
- */
-#define dl_err(format, arg...) \
-	pr_err("udlfb: " format, ## arg)
-#define dl_warn(format, arg...) \
-	pr_warning("udlfb: " format, ## arg)
-#define dl_notice(format, arg...) \
-	pr_notice("udlfb: " format, ## arg)
-#define dl_info(format, arg...) \
-	pr_info("udlfb: " format, ## arg)
 
 #endif

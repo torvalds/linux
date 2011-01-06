@@ -501,7 +501,12 @@ static struct platform_device keysc_device = {
 static struct resource mipidsi0_resources[] = {
 	[0] = {
 		.start  = 0xffc60000,
-		.end    = 0xffc68fff,
+		.end    = 0xffc63073,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 0xffc68000,
+		.end    = 0xffc680ef,
 		.flags  = IORESOURCE_MEM,
 	},
 };
@@ -509,6 +514,7 @@ static struct resource mipidsi0_resources[] = {
 static struct sh_mipi_dsi_info mipidsi0_info = {
 	.data_format	= MIPI_RGB888,
 	.lcd_chan	= &lcdc_info.ch[0],
+	.vsynw_offset	= 17,
 };
 
 static struct platform_device mipidsi0_device = {
@@ -520,44 +526,6 @@ static struct platform_device mipidsi0_device = {
 		.platform_data	= &mipidsi0_info,
 	},
 };
-
-/* This function will disappear when we switch to (runtime) PM */
-static int __init ap4evb_init_display_clk(void)
-{
-	struct clk *lcdc_clk;
-	struct clk *dsitx_clk;
-	int ret;
-
-	lcdc_clk = clk_get(&lcdc_device.dev, "sh_mobile_lcdc_fb.0");
-	if (IS_ERR(lcdc_clk))
-		return PTR_ERR(lcdc_clk);
-
-	dsitx_clk = clk_get(&mipidsi0_device.dev, "sh-mipi-dsi.0");
-	if (IS_ERR(dsitx_clk)) {
-		ret = PTR_ERR(dsitx_clk);
-		goto eclkdsitxget;
-	}
-
-	ret = clk_enable(lcdc_clk);
-	if (ret < 0)
-		goto eclklcdcon;
-
-	ret = clk_enable(dsitx_clk);
-	if (ret < 0)
-		goto eclkdsitxon;
-
-	return 0;
-
-eclkdsitxon:
-	clk_disable(lcdc_clk);
-eclklcdcon:
-	clk_put(dsitx_clk);
-eclkdsitxget:
-	clk_put(lcdc_clk);
-
-	return ret;
-}
-device_initcall(ap4evb_init_display_clk);
 
 static struct platform_device *qhd_devices[] __initdata = {
 	&mipidsi0_device,
@@ -764,10 +732,15 @@ static struct platform_device lcdc1_device = {
 	},
 };
 
+static long ap4evb_clk_optimize(unsigned long target, unsigned long *best_freq,
+				unsigned long *parent_freq);
+
+
 static struct sh_mobile_hdmi_info hdmi_info = {
 	.lcd_chan = &sh_mobile_lcdc1_info.ch[0],
 	.lcd_dev = &lcdc1_device.dev,
 	.flags = HDMI_SND_SRC_SPDIF,
+	.clk_optimize_parent = ap4evb_clk_optimize,
 };
 
 static struct resource hdmi_resources[] = {
@@ -793,6 +766,25 @@ static struct platform_device hdmi_device = {
 		.platform_data	= &hdmi_info,
 	},
 };
+
+static long ap4evb_clk_optimize(unsigned long target, unsigned long *best_freq,
+				unsigned long *parent_freq)
+{
+	struct clk *hdmi_ick = clk_get(&hdmi_device.dev, "ick");
+	long error;
+
+	if (IS_ERR(hdmi_ick)) {
+		int ret = PTR_ERR(hdmi_ick);
+		pr_err("Cannot get HDMI ICK: %d\n", ret);
+		return ret;
+	}
+
+	error = clk_round_parent(hdmi_ick, target, best_freq, parent_freq, 1, 64);
+
+	clk_put(hdmi_ick);
+
+	return error;
+}
 
 static struct gpio_led ap4evb_leds[] = {
 	{

@@ -111,8 +111,6 @@ source "drivers/staging/vt6655/Kconfig"
 
 source "drivers/staging/vt6656/Kconfig"
 
-source "drivers/staging/udlfb/Kconfig"
-
 source "drivers/staging/hv/Kconfig"
 
 source "drivers/staging/vme/Kconfig"
