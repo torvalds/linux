@@ -145,9 +145,8 @@ static int acpi_power_get_state(acpi_handle handle, int *state)
 
 static int acpi_power_get_list_state(struct acpi_handle_list *list, int *state)
 {
-	int result = 0, state1;
-	u32 i = 0;
-
+	int cur_state;
+	int i = 0;
 
 	if (!list || !state)
 		return -EINVAL;
@@ -155,25 +154,33 @@ static int acpi_power_get_list_state(struct acpi_handle_list *list, int *state)
 	/* The state of the list is 'on' IFF all resources are 'on'. */
 
 	for (i = 0; i < list->count; i++) {
-		/*
-		 * The state of the power resource can be obtained by
-		 * using the ACPI handle. In such case it is unnecessary to
-		 * get the Power resource first and then get its state again.
-		 */
-		result = acpi_power_get_state(list->handles[i], &state1);
+		struct acpi_power_resource *resource;
+		acpi_handle handle = list->handles[i];
+		int result;
+
+		result = acpi_power_get_context(handle, &resource);
 		if (result)
 			return result;
 
-		*state = state1;
+		mutex_lock(&resource->resource_lock);
 
-		if (*state != ACPI_POWER_RESOURCE_STATE_ON)
+		result = acpi_power_get_state(handle, &cur_state);
+
+		mutex_unlock(&resource->resource_lock);
+
+		if (result)
+			return result;
+
+		if (cur_state != ACPI_POWER_RESOURCE_STATE_ON)
 			break;
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource list is %s\n",
-			  *state ? "on" : "off"));
+			  cur_state ? "on" : "off"));
 
-	return result;
+	*state = cur_state;
+
+	return 0;
 }
 
 static int __acpi_power_on(struct acpi_power_resource *resource)
