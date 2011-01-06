@@ -1262,7 +1262,7 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 	struct kvec	*resv = &rqstp->rq_res.head[0];
 
 	/* Build the svc_rqst used by the common processing routine */
-	rqstp->rq_xprt = serv->bc_xprt;
+	rqstp->rq_xprt = serv->sv_bc_xprt;
 	rqstp->rq_xid = req->rq_xid;
 	rqstp->rq_prot = req->rq_xprt->prot;
 	rqstp->rq_server = serv;

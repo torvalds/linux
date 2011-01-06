@@ -1595,7 +1595,7 @@ static struct svc_xprt *svc_bc_create_socket(struct svc_serv *serv,
 	xprt = &svsk->sk_xprt;
 	svc_xprt_init(&svc_tcp_bc_class, xprt, serv);
 
-	serv->bc_xprt = xprt;
+	serv->sv_bc_xprt = xprt;
 
 	return xprt;
 }

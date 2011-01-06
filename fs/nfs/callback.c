@@ -142,7 +142,7 @@ int nfs4_set_callback_sessionid(struct nfs_client *clp)
 	struct svc_serv *serv = clp->cl_rpcclient->cl_xprt->bc_serv;
 	struct nfs4_sessionid *bc_sid;
 
-	if (!serv->bc_xprt)
+	if (!serv->sv_bc_xprt)
 		return -EINVAL;
 
 	/* on success freed in xprt_free */
@@ -152,12 +152,12 @@ int nfs4_set_callback_sessionid(struct nfs_client *clp)
 	memcpy(bc_sid->data, &clp->cl_session->sess_id.data,
 		NFS4_MAX_SESSIONID_LEN);
 	spin_lock_bh(&serv->sv_cb_lock);
-	serv->bc_xprt->xpt_bc_sid = bc_sid;
+	serv->sv_bc_xprt->xpt_bc_sid = bc_sid;
 	spin_unlock_bh(&serv->sv_cb_lock);
-	dprintk("%s set xpt_bc_sid=%u:%u:%u:%u for bc_xprt %p\n", __func__,
+	dprintk("%s set xpt_bc_sid=%u:%u:%u:%u for sv_bc_xprt %p\n", __func__,
 		((u32 *)bc_sid->data)[0], ((u32 *)bc_sid->data)[1],
 		((u32 *)bc_sid->data)[2], ((u32 *)bc_sid->data)[3],
-		serv->bc_xprt);
+		serv->sv_bc_xprt);
 	return 0;
 }
 
@@ -228,8 +228,8 @@ nfs41_callback_up(struct svc_serv *serv, struct rpc_xprt *xprt)
 	init_waitqueue_head(&serv->sv_cb_waitq);
 	rqstp = svc_prepare_thread(serv, &serv->sv_pools[0]);
 	if (IS_ERR(rqstp)) {
-		svc_xprt_put(serv->bc_xprt);
-		serv->bc_xprt = NULL;
+		svc_xprt_put(serv->sv_bc_xprt);
+		serv->sv_bc_xprt = NULL;
 	}
 out:
 	dprintk("--> %s return %ld\n", __func__,
