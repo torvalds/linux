@@ -316,6 +316,10 @@ ENTRY(startup_32_smp)
 	subl $0x80000001, %eax
 	cmpl $(0x8000ffff-0x80000001), %eax
 	ja 6f
+
+	/* Clear bogus XD_DISABLE bits */
+	call verify_cpu
+
 	mov $0x80000001, %eax
 	cpuid
 	/* Execute Disable bit supported? */
@@ -610,6 +614,8 @@ ignore_int:
 	popl %eax
 #endif
 	iret
+
+#include "verify_cpu.S"
 
 	__REFDATA
 .align 4
