@@ -27,6 +27,7 @@
 #include <linux/miscdevice.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
+#include <linux/version.h>
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
@@ -364,7 +365,7 @@ static void vhba_free_command(struct vhba_command *vcmd)
         spin_unlock_irqrestore(&vhost->cmd_lock, flags);
 }
 
-static int vhba_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
+static int vhba_queuecommand_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
         struct vhba_device *vdev;
         int retval;
@@ -388,6 +389,12 @@ static int vhba_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmn
 
         return retval;
 }
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
+DEF_SCSI_QCMD(vhba_queuecommand)
+#else
+#define vhba_queuecommand vhba_queuecommand_lck
+#endif
 
 static int vhba_abort(struct scsi_cmnd *cmd)
 {
