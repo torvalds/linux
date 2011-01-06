@@ -766,7 +766,7 @@ static int solo_enc_open(struct file *file)
 				    &solo_enc->lock,
 				    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				    V4L2_FIELD_INTERLACED,
-				    sizeof(struct videobuf_buffer), fh);
+				    sizeof(struct videobuf_buffer), fh, NULL);
 
 	spin_unlock(&solo_enc->lock);
 

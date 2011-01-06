@@ -20,8 +20,8 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.60.00-3"
-#define DRV_MODULE_RELDATE      "2010/10/19"
+#define DRV_MODULE_VERSION      "1.60.00-4"
+#define DRV_MODULE_RELDATE      "2010/11/01"
 #define BNX2X_BC_VER            0x040200
 
 #define BNX2X_MULTI_QUEUE

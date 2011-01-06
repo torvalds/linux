@@ -3341,7 +3341,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 				adapter->name = adapter->port[i]->name;
 
 			__set_bit(i, &adapter->registered_device_map);
-			netif_tx_stop_all_queues(adapter->port[i]);
 		}
 	}
 	if (!adapter->registered_device_map) {

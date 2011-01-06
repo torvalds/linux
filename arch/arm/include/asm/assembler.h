@@ -158,16 +158,24 @@
 #ifdef CONFIG_SMP
 #define ALT_SMP(instr...)					\
 9998:	instr
+/*
+ * Note: if you get assembler errors from ALT_UP() when building with
+ * CONFIG_THUMB2_KERNEL, you almost certainly need to use
+ * ALT_SMP( W(instr) ... )
+ */
 #define ALT_UP(instr...)					\
 	.pushsection ".alt.smp.init", "a"			;\
 	.long	9998b						;\
-	instr							;\
+9997:	instr							;\
+	.if . - 9997b != 4					;\
+		.error "ALT_UP() content must assemble to exactly 4 bytes";\
+	.endif							;\
 	.popsection
 #define ALT_UP_B(label)					\
 	.equ	up_b_offset, label - 9998b			;\
 	.pushsection ".alt.smp.init", "a"			;\
 	.long	9998b						;\
-	b	. + up_b_offset					;\
+	W(b)	. + up_b_offset					;\
 	.popsection
 #else
 #define ALT_SMP(instr...)
@@ -178,16 +186,24 @@
 /*
  * SMP data memory barrier
  */
-	.macro	smp_dmb
+	.macro	smp_dmb mode
 #ifdef CONFIG_SMP
 #if __LINUX_ARM_ARCH__ >= 7
+	.ifeqs "\mode","arm"
 	ALT_SMP(dmb)
+	.else
+	ALT_SMP(W(dmb))
+	.endif
 #elif __LINUX_ARM_ARCH__ == 6
 	ALT_SMP(mcr	p15, 0, r0, c7, c10, 5)	@ dmb
 #else
 #error Incompatible SMP platform
 #endif
+	.ifeqs "\mode","arm"
 	ALT_UP(nop)
+	.else
+	ALT_UP(W(nop))
+	.endif
 #endif
 	.endm
 
@@ -239,7 +255,7 @@
 	@ Slightly optimised to avoid incrementing the pointer twice
 	usraccoff \instr, \reg, \ptr, \inc, 0, \cond, \abort
 	.if	\rept == 2
-	usraccoff \instr, \reg, \ptr, \inc, 4, \cond, \abort
+	usraccoff \instr, \reg, \ptr, \inc, \inc, \cond, \abort
 	.endif
 
 	add\cond \ptr, #\rept * \inc

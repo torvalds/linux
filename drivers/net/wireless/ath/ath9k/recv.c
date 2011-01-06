@@ -441,7 +441,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	 */
 	if (((sc->sc_ah->opmode != NL80211_IFTYPE_AP) &&
 	     (sc->rx.rxfilter & FIF_PROMISC_IN_BSS)) ||
-	    (sc->sc_ah->opmode == NL80211_IFTYPE_MONITOR))
+	    (sc->sc_ah->is_monitoring))
 		rfilt |= ATH9K_RX_FILTER_PROM;
 
 	if (sc->rx.rxfilter & FIF_CONTROL)
@@ -518,7 +518,7 @@ bool ath_stoprecv(struct ath_softc *sc)
 	bool stopped;
 
 	spin_lock_bh(&sc->rx.rxbuflock);
-	ath9k_hw_stoppcurecv(ah);
+	ath9k_hw_abortpcurecv(ah);
 	ath9k_hw_setrxfilter(ah, 0);
 	stopped = ath9k_hw_stopdmarecv(ah);
 
@@ -897,7 +897,7 @@ static bool ath9k_rx_accept(struct ath_common *common,
 		 * decryption and MIC failures. For monitor mode,
 		 * we also ignore the CRC error.
 		 */
-		if (ah->opmode == NL80211_IFTYPE_MONITOR) {
+		if (ah->is_monitoring) {
 			if (rx_stats->rs_status &
 			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
 			      ATH9K_RXERR_CRC))

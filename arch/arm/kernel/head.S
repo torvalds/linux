@@ -89,6 +89,11 @@ ENTRY(stext)
 	bl	__lookup_machine_type		@ r5=machinfo
 	movs	r8, r5				@ invalid machine (r5=0)?
 	beq	__error_a			@ yes, error 'a'
+
+	/*
+	 * r1 = machine no, r2 = atags,
+	 * r8 = machinfo, r9 = cpuid, r10 = procinfo
+	 */
 	bl	__vet_atags
 #ifdef CONFIG_SMP_ON_UP
 	bl	__fixup_smp
@@ -381,19 +386,19 @@ ENDPROC(__turn_mmu_on)
 
 #ifdef CONFIG_SMP_ON_UP
 __fixup_smp:
-	mov	r7, #0x00070000
-	orr	r6, r7, #0xff000000	@ mask 0xff070000
-	orr	r7, r7, #0x41000000	@ val 0x41070000
-	and	r0, r9, r6
-	teq	r0, r7			@ ARM CPU and ARMv6/v7?
+	mov	r4, #0x00070000
+	orr	r3, r4, #0xff000000	@ mask 0xff070000
+	orr	r4, r4, #0x41000000	@ val 0x41070000
+	and	r0, r9, r3
+	teq	r0, r4			@ ARM CPU and ARMv6/v7?
 	bne	__fixup_smp_on_up	@ no, assume UP
 
-	orr	r6, r6, #0x0000ff00
-	orr	r6, r6, #0x000000f0	@ mask 0xff07fff0
-	orr	r7, r7, #0x0000b000
-	orr	r7, r7, #0x00000020	@ val 0x4107b020
-	and	r0, r9, r6
-	teq	r0, r7			@ ARM 11MPCore?
+	orr	r3, r3, #0x0000ff00
+	orr	r3, r3, #0x000000f0	@ mask 0xff07fff0
+	orr	r4, r4, #0x0000b000
+	orr	r4, r4, #0x00000020	@ val 0x4107b020
+	and	r0, r9, r3
+	teq	r0, r4			@ ARM 11MPCore?
 	moveq	pc, lr			@ yes, assume SMP
 
 	mrc	p15, 0, r0, c0, c0, 5	@ read MPIDR
@@ -402,15 +407,22 @@ __fixup_smp:
 
 __fixup_smp_on_up:
 	adr	r0, 1f
-	ldmia	r0, {r3, r6, r7}
+	ldmia	r0, {r3 - r5}
 	sub	r3, r0, r3
-	add	r6, r6, r3
-	add	r7, r7, r3
-2:	cmp	r6, r7
-	ldmia	r6!, {r0, r4}
-	strlo	r4, [r0, r3]
-	blo	2b
-	mov	pc, lr
+	add	r4, r4, r3
+	add	r5, r5, r3
+2:	cmp	r4, r5
+	movhs	pc, lr
+	ldmia	r4!, {r0, r6}
+ ARM(	str	r6, [r0, r3]	)
+ THUMB(	add	r0, r0, r3	)
+#ifdef __ARMEB__
+ THUMB(	mov	r6, r6, ror #16	)	@ Convert word order for big-endian.
+#endif
+ THUMB(	strh	r6, [r0], #2	)	@ For Thumb-2, store as two halfwords
+ THUMB(	mov	r6, r6, lsr #16	)	@ to be robust against misaligned r3.
+ THUMB(	strh	r6, [r0]	)
+	b	2b
 ENDPROC(__fixup_smp)
 
 1:	.word	.

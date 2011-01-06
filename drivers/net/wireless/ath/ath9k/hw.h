@@ -622,6 +622,7 @@ struct ath_hw {
 
 	bool sw_mgmt_crypto;
 	bool is_pciexpress;
+	bool is_monitoring;
 	bool need_an_top2_fixup;
 	u16 tx_trig_level;
 

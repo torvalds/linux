@@ -110,7 +110,7 @@ static int shoc_clk_verify_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-static int shoc_clk_set_rate(struct clk *clk, unsigned long rate, int algo_id)
+static int shoc_clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	unsigned long frqcr3;
 	unsigned int tmp;

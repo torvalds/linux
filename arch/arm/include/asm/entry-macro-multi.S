@@ -20,7 +20,7 @@
 	 */
 	ALT_SMP(test_for_ipi r0, r6, r5, lr)
 	ALT_UP_B(9997f)
-	movne	r0, sp
+	movne	r1, sp
 	adrne	lr, BSYM(1b)
 	bne	do_IPI
 

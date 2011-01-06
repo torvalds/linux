@@ -177,7 +177,7 @@ struct mpage_da_data {
 
 struct ext4_io_page {
 	struct page	*p_page;
-	int		p_count;
+	atomic_t	p_count;
 };
 
 #define MAX_IO_PAGES 128
@@ -858,6 +858,7 @@ struct ext4_inode_info {
 	spinlock_t i_completed_io_lock;
 	/* current io_end structure for async DIO write*/
 	ext4_io_end_t *cur_aio_dio;
+	atomic_t i_ioend_count;	/* Number of outstanding io_end structs */
 
 	/*
 	 * Transactions that contain inode's metadata needed to complete
@@ -2060,6 +2061,7 @@ extern int ext4_move_extents(struct file *o_filp, struct file *d_filp,
 /* page-io.c */
 extern int __init ext4_init_pageio(void);
 extern void ext4_exit_pageio(void);
+extern void ext4_ioend_wait(struct inode *);
 extern void ext4_free_io_end(ext4_io_end_t *io);
 extern ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags);
 extern int ext4_end_io_nolock(ext4_io_end_t *io);

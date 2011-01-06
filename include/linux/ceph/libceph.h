@@ -227,8 +227,7 @@ extern int ceph_open_session(struct ceph_client *client);
 extern void ceph_release_page_vector(struct page **pages, int num_pages);
 
 extern struct page **ceph_get_direct_page_vector(const char __user *data,
-					    int num_pages,
-					    loff_t off, size_t len);
+						 int num_pages);
 extern void ceph_put_page_vector(struct page **pages, int num_pages);
 extern void ceph_release_page_vector(struct page **pages, int num_pages);
 extern struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags);

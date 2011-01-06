@@ -53,6 +53,7 @@
 static inline int ext4_begin_ordered_truncate(struct inode *inode,
 					      loff_t new_size)
 {
+	trace_ext4_begin_ordered_truncate(inode, new_size);
 	return jbd2_journal_begin_ordered_truncate(
 					EXT4_SB(inode->i_sb)->s_journal,
 					&EXT4_I(inode)->jinode,
@@ -178,6 +179,7 @@ void ext4_evict_inode(struct inode *inode)
 	handle_t *handle;
 	int err;
 
+	trace_ext4_evict_inode(inode);
 	if (inode->i_nlink) {
 		truncate_inode_pages(&inode->i_data, 0);
 		goto no_delete;
@@ -5647,6 +5649,7 @@ int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode)
 	int err, ret;
 
 	might_sleep();
+	trace_ext4_mark_inode_dirty(inode, _RET_IP_);
 	err = ext4_reserve_inode_write(handle, inode, &iloc);
 	if (ext4_handle_valid(handle) &&
 	    EXT4_I(inode)->i_extra_isize < sbi->s_want_extra_isize &&

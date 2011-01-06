@@ -68,10 +68,11 @@ static struct fiq_handler default_owner = {
 
 static struct fiq_handler *current_fiq = &default_owner;
 
-int show_fiq_list(struct seq_file *p, void *v)
+int show_fiq_list(struct seq_file *p, int prec)
 {
 	if (current_fiq != &default_owner)
-		seq_printf(p, "FIQ:              %s\n", current_fiq->name);
+		seq_printf(p, "%*s:              %s\n", prec, "FIQ",
+			current_fiq->name);
 
 	return 0;
 }

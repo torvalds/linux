@@ -161,7 +161,7 @@ M:	Greg Kroah-Hartman <gregkh@suse.de>
 L:	linux-serial@vger.kernel.org
 W:	http://serial.sourceforge.net
 S:	Maintained
-T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/tty-2.6.git
 F:	drivers/serial/8250*
 F:	include/linux/serial_8250.h
 
@@ -945,7 +945,7 @@ M:	Magnus Damm <magnus.damm@gmail.com>
 L:	linux-sh@vger.kernel.org
 W:	http://oss.renesas.com
 Q:	http://patchwork.kernel.org/project/linux-sh/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/genesis-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/sh-2.6.git rmobile-latest
 S:	Supported
 F:	arch/arm/mach-shmobile/
 F:	drivers/sh/
@@ -1359,7 +1359,7 @@ F:	include/net/bluetooth/
 
 BONDING DRIVER
 M:	Jay Vosburgh <fubar@us.ibm.com>
-L:	bonding-devel@lists.sourceforge.net
+L:	netdev@vger.kernel.org
 W:	http://sourceforge.net/projects/bonding/
 S:	Supported
 F:	drivers/net/bonding/
@@ -1829,6 +1829,13 @@ W:	http://www.chelsio.com
 S:	Supported
 F:	drivers/net/cxgb4vf/
 
+STMMAC ETHERNET DRIVER
+M:	Giuseppe Cavallaro <peppe.cavallaro@st.com>
+L:	netdev@vger.kernel.org
+W:	http://www.stlinux.com
+S:	Supported
+F:	drivers/net/stmmac/
+
 CYBERPRO FB DRIVER
 M:	Russell King <linux@arm.linux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -2008,6 +2015,7 @@ F:	drivers/hwmon/dme1737.c
 DOCBOOK FOR DOCUMENTATION
 M:	Randy Dunlap <rdunlap@xenotime.net>
 S:	Maintained
+F:	scripts/kernel-doc
 
 DOCKING STATION DRIVER
 M:	Shaohua Li <shaohua.li@intel.com>
@@ -2018,6 +2026,7 @@ F:	drivers/acpi/dock.c
 DOCUMENTATION
 M:	Randy Dunlap <rdunlap@xenotime.net>
 L:	linux-doc@vger.kernel.org
+T:	quilt oss.oracle.com/~rdunlap/kernel-doc-patches/current/
 S:	Maintained
 F:	Documentation/
 
@@ -2435,9 +2444,12 @@ F:	drivers/net/wan/sdla.c
 FRAMEBUFFER LAYER
 L:	linux-fbdev@vger.kernel.org
 W:	http://linux-fbdev.sourceforge.net/
+Q:	http://patchwork.kernel.org/project/linux-fbdev/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/fbdev-2.6.git
 S:	Orphan
 F:	Documentation/fb/
-F:	drivers/video/fb*
+F:	drivers/video/
+F:	include/video/
 F:	include/linux/fb.h
 
 FREESCALE DMA DRIVER
@@ -5676,7 +5688,7 @@ S:	Maintained
 
 STAGING SUBSYSTEM
 M:	Greg Kroah-Hartman <gregkh@suse.de>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging-next-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging-2.6.git
 L:	devel@driverdev.osuosl.org
 S:	Maintained
 F:	drivers/staging/
@@ -5705,7 +5717,7 @@ M:	Paul Mundt <lethal@linux-sh.org>
 L:	linux-sh@vger.kernel.org
 W:	http://www.linux-sh.org
 Q:	http://patchwork.kernel.org/project/linux-sh/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/sh-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/sh-2.6.git sh-latest
 S:	Supported
 F:	Documentation/sh/
 F:	arch/sh/
@@ -5827,6 +5839,8 @@ M:	Chris Metcalf <cmetcalf@tilera.com>
 W:	http://www.tilera.com/scm/
 S:	Supported
 F:	arch/tile/
+F:	drivers/char/hvc_tile.c
+F:	drivers/net/tile/
 
 TLAN NETWORK DRIVER
 M:	Samuel Chessman <chessman@tux.org>
@@ -5910,7 +5924,7 @@ S:	Maintained
 TTY LAYER
 M:	Greg Kroah-Hartman <gregkh@suse.de>
 S:	Maintained
-T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/tty-2.6.git
 F:	drivers/char/tty_*
 F:	drivers/serial/serial_core.c
 F:	include/linux/serial_core.h
@@ -6233,7 +6247,7 @@ USB SUBSYSTEM
 M:	Greg Kroah-Hartman <gregkh@suse.de>
 L:	linux-usb@vger.kernel.org
 W:	http://www.linux-usb.org
-T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/usb-2.6.git
 S:	Supported
 F:	Documentation/usb/
 F:	drivers/net/usb/
@@ -6598,14 +6612,14 @@ F:	drivers/platform/x86
 
 XEN PCI SUBSYSTEM
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-L:	xen-devel@lists.xensource.com
+L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
 S:	Supported
 F:	arch/x86/pci/*xen*
 F:	drivers/pci/*xen*
 
 XEN SWIOTLB SUBSYSTEM
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-L:	xen-devel@lists.xensource.com
+L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
 S:	Supported
 F:	arch/x86/xen/*swiotlb*
 F:	drivers/xen/*swiotlb*
@@ -6613,7 +6627,7 @@ F:	drivers/xen/*swiotlb*
 XEN HYPERVISOR INTERFACE
 M:	Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-L:	xen-devel@lists.xen.org
+L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
 L:	virtualization@lists.osdl.org
 S:	Supported
 F:	arch/x86/xen/

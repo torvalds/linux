@@ -1084,6 +1084,6 @@ memdump:	mov	r12, r0
 reloc_end:
 
 		.align
-		.section ".stack", "w"
+		.section ".stack", "aw", %nobits
 user_stack:	.space	4096
 user_stack_end:

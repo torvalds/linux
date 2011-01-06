@@ -139,11 +139,13 @@ void __init init_se7206_IRQ(void)
 	make_se7206_irq(IRQ0_IRQ); /* SMC91C111 */
 	make_se7206_irq(IRQ1_IRQ); /* ATA */
 	make_se7206_irq(IRQ3_IRQ); /* SLOT / PCM */
-	__raw_writew(inw(INTC_ICR1) | 0x000b ,INTC_ICR1 ) ; /* ICR1 */
+
+	__raw_writew(__raw_readw(INTC_ICR1) | 0x000b, INTC_ICR); /* ICR1 */
 
 	/* FPGA System register setup*/
 	__raw_writew(0x0000,INTSTS0); /* Clear INTSTS0 */
 	__raw_writew(0x0000,INTSTS1); /* Clear INTSTS1 */
+
 	/* IRQ0=LAN, IRQ1=ATA, IRQ3=SLT,PCM */
 	__raw_writew(0x0001,INTSEL);
 }

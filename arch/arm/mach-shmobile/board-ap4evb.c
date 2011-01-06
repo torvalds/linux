@@ -163,11 +163,13 @@ static struct mtd_partition nor_flash_partitions[] = {
 		.name		= "loader",
 		.offset		= 0x00000000,
 		.size		= 512 * 1024,
+		.mask_flags	= MTD_WRITEABLE,
 	},
 	{
 		.name		= "bootenv",
 		.offset		= MTDPART_OFS_APPEND,
 		.size		= 512 * 1024,
+		.mask_flags	= MTD_WRITEABLE,
 	},
 	{
 		.name		= "kernel_ro",
@@ -565,12 +567,143 @@ static struct platform_device *qhd_devices[] __initdata = {
 
 /* FSI */
 #define IRQ_FSI		evt2irq(0x1840)
+static int __fsi_set_rate(struct clk *clk, long rate, int enable)
+{
+	int ret = 0;
+
+	if (rate <= 0)
+		return ret;
+
+	if (enable) {
+		ret = clk_set_rate(clk, rate);
+		if (0 == ret)
+			ret = clk_enable(clk);
+	} else {
+		clk_disable(clk);
+	}
+
+	return ret;
+}
+
+static int __fsi_set_round_rate(struct clk *clk, long rate, int enable)
+{
+	return __fsi_set_rate(clk, clk_round_rate(clk, rate), enable);
+}
+
+static int fsi_ak4642_set_rate(struct device *dev, int rate, int enable)
+{
+	struct clk *fsia_ick;
+	struct clk *fsiack;
+	int ret = -EIO;
+
+	fsia_ick = clk_get(dev, "icka");
+	if (IS_ERR(fsia_ick))
+		return PTR_ERR(fsia_ick);
+
+	/*
+	 * FSIACK is connected to AK4642,
+	 * and use external clock pin from it.
+	 * it is parent of fsia_ick now.
+	 */
+	fsiack = clk_get_parent(fsia_ick);
+	if (!fsiack)
+		goto fsia_ick_out;
+
+	/*
+	 * we get 1/1 divided clock by setting same rate to fsiack and fsia_ick
+	 *
+	 ** FIXME **
+	 * Because the freq_table of external clk (fsiack) are all 0,
+	 * the return value of clk_round_rate became 0.
+	 * So, it use __fsi_set_rate here.
+	 */
+	ret = __fsi_set_rate(fsiack, rate, enable);
+	if (ret < 0)
+		goto fsiack_out;
+
+	ret = __fsi_set_round_rate(fsia_ick, rate, enable);
+	if ((ret < 0) && enable)
+		__fsi_set_round_rate(fsiack, rate, 0); /* disable FSI ACK */
+
+fsiack_out:
+	clk_put(fsiack);
+
+fsia_ick_out:
+	clk_put(fsia_ick);
+
+	return 0;
+}
+
+static int fsi_hdmi_set_rate(struct device *dev, int rate, int enable)
+{
+	struct clk *fsib_clk;
+	struct clk *fdiv_clk = &sh7372_fsidivb_clk;
+	long fsib_rate = 0;
+	long fdiv_rate = 0;
+	int ackmd_bpfmd;
+	int ret;
+
+	switch (rate) {
+	case 44100:
+		fsib_rate	= rate * 256;
+		ackmd_bpfmd	= SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
+		break;
+	case 48000:
+		fsib_rate	= 85428000; /* around 48kHz x 256 x 7 */
+		fdiv_rate	= rate * 256;
+		ackmd_bpfmd	= SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
+		break;
+	default:
+		pr_err("unsupported rate in FSI2 port B\n");
+		return -EINVAL;
+	}
+
+	/* FSI B setting */
+	fsib_clk = clk_get(dev, "ickb");
+	if (IS_ERR(fsib_clk))
+		return -EIO;
+
+	ret = __fsi_set_round_rate(fsib_clk, fsib_rate, enable);
+	clk_put(fsib_clk);
+	if (ret < 0)
+		return ret;
+
+	/* FSI DIV setting */
+	ret = __fsi_set_round_rate(fdiv_clk, fdiv_rate, enable);
+	if (ret < 0) {
+		/* disable FSI B */
+		if (enable)
+			__fsi_set_round_rate(fsib_clk, fsib_rate, 0);
+		return ret;
+	}
+
+	return ackmd_bpfmd;
+}
+
+static int fsi_set_rate(struct device *dev, int is_porta, int rate, int enable)
+{
+	int ret;
+
+	if (is_porta)
+		ret = fsi_ak4642_set_rate(dev, rate, enable);
+	else
+		ret = fsi_hdmi_set_rate(dev, rate, enable);
+
+	return ret;
+}
+
 static struct sh_fsi_platform_info fsi_info = {
 	.porta_flags = SH_FSI_BRS_INV |
 		       SH_FSI_OUT_SLAVE_MODE |
 		       SH_FSI_IN_SLAVE_MODE |
 		       SH_FSI_OFMT(PCM) |
 		       SH_FSI_IFMT(PCM),
+
+	.portb_flags = SH_FSI_BRS_INV |
+		       SH_FSI_BRM_INV |
+		       SH_FSI_LRS_INV |
+		       SH_FSI_OFMT(SPDIF),
+	.set_rate = fsi_set_rate,
 };
 
 static struct resource fsi_resources[] = {
@@ -634,6 +767,7 @@ static struct platform_device lcdc1_device = {
 static struct sh_mobile_hdmi_info hdmi_info = {
 	.lcd_chan = &sh_mobile_lcdc1_info.ch[0],
 	.lcd_dev = &lcdc1_device.dev,
+	.flags = HDMI_SND_SRC_SPDIF,
 };
 
 static struct resource hdmi_resources[] = {
@@ -835,6 +969,11 @@ static int __init hdmi_init_pm_clock(void)
 		goto out;
 	}
 
+	ret = clk_enable(&sh7372_pllc2_clk);
+	if (ret < 0) {
+		pr_err("Cannot enable pllc2 clock\n");
+		goto out;
+	}
 	pr_debug("PLLC2 set frequency %lu\n", rate);
 
 	ret = clk_set_parent(hdmi_ick, &sh7372_pllc2_clk);
@@ -851,22 +990,10 @@ out:
 
 device_initcall(hdmi_init_pm_clock);
 
-#define FSIACK_DUMMY_RATE 48000
 static int __init fsi_init_pm_clock(void)
 {
 	struct clk *fsia_ick;
 	int ret;
-
-	/*
-	 * FSIACK is connected to AK4642,
-	 * and the rate is depend on playing sound rate.
-	 * So, set dummy rate (= 48k) here
-	 */
-	ret = clk_set_rate(&sh7372_fsiack_clk, FSIACK_DUMMY_RATE);
-	if (ret < 0) {
-		pr_err("Cannot set FSIACK dummy rate: %d\n", ret);
-		return ret;
-	}
 
 	fsia_ick = clk_get(&fsi_device.dev, "icka");
 	if (IS_ERR(fsia_ick)) {
@@ -876,16 +1003,9 @@ static int __init fsi_init_pm_clock(void)
 	}
 
 	ret = clk_set_parent(fsia_ick, &sh7372_fsiack_clk);
-	if (ret < 0) {
-		pr_err("Cannot set FSI-A parent: %d\n", ret);
-		goto out;
-	}
-
-	ret = clk_set_rate(fsia_ick, FSIACK_DUMMY_RATE);
 	if (ret < 0)
-		pr_err("Cannot set FSI-A rate: %d\n", ret);
+		pr_err("Cannot set FSI-A parent: %d\n", ret);
 
-out:
 	clk_put(fsia_ick);
 
 	return ret;
@@ -992,6 +1112,7 @@ static void __init ap4evb_map_io(void)
 
 #define GPIO_PORT9CR	0xE6051009
 #define GPIO_PORT10CR	0xE605100A
+#define USCCR1		0xE6058144
 static void __init ap4evb_init(void)
 {
 	u32 srcr4;
@@ -1062,7 +1183,7 @@ static void __init ap4evb_init(void)
 	/* setup USB phy */
 	__raw_writew(0x8a0a, 0xE6058130);	/* USBCR2 */
 
-	/* enable FSI2 */
+	/* enable FSI2 port A (ak4643) */
 	gpio_request(GPIO_FN_FSIAIBT,	NULL);
 	gpio_request(GPIO_FN_FSIAILR,	NULL);
 	gpio_request(GPIO_FN_FSIAISLD,	NULL);
@@ -1078,6 +1199,10 @@ static void __init ap4evb_init(void)
 	/* card detect pin for MMC slot (CN7) */
 	gpio_request(GPIO_PORT41, NULL);
 	gpio_direction_input(GPIO_PORT41);
+
+	/* setup FSI2 port B (HDMI) */
+	gpio_request(GPIO_FN_FSIBCK, NULL);
+	__raw_writew(__raw_readw(USCCR1) & ~(1 << 6), USCCR1); /* use SPDIF */
 
 	/* set SPU2 clock to 119.6 MHz */
 	clk = clk_get(NULL, "spu_clk");

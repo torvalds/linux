@@ -2177,7 +2177,6 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 
 	setattr_copy(inode, attrs);
 	mark_inode_dirty(inode);
-	return 0;
 
 cifs_setattr_exit:
 	kfree(full_path);

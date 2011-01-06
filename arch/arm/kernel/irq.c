@@ -56,11 +56,20 @@ int show_interrupts(struct seq_file *p, void *v)
 	struct irq_desc *desc;
 	struct irqaction * action;
 	unsigned long flags;
+	int prec, n;
+
+	for (prec = 3, n = 1000; prec < 10 && n <= nr_irqs; prec++)
+		n *= 10;
+
+#ifdef CONFIG_SMP
+	if (prec < 4)
+		prec = 4;
+#endif
 
 	if (i == 0) {
 		char cpuname[12];
 
-		seq_printf(p, "    ");
+		seq_printf(p, "%*s ", prec, "");
 		for_each_present_cpu(cpu) {
 			sprintf(cpuname, "CPU%d", cpu);
 			seq_printf(p, " %10s", cpuname);
@@ -75,7 +84,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		if (!action)
 			goto unlock;
 
-		seq_printf(p, "%3d: ", i);
+		seq_printf(p, "%*d: ", prec, i);
 		for_each_present_cpu(cpu)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(i, cpu));
 		seq_printf(p, " %10s", desc->chip->name ? : "-");
@@ -88,13 +97,15 @@ unlock:
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	} else if (i == nr_irqs) {
 #ifdef CONFIG_FIQ
-		show_fiq_list(p, v);
+		show_fiq_list(p, prec);
 #endif
 #ifdef CONFIG_SMP
-		show_ipi_list(p);
-		show_local_irqs(p);
+		show_ipi_list(p, prec);
 #endif
-		seq_printf(p, "Err: %10lu\n", irq_err_count);
+#ifdef CONFIG_LOCAL_TIMERS
+		show_local_irqs(p, prec);
+#endif
+		seq_printf(p, "%*s: %10lu\n", prec, "Err", irq_err_count);
 	}
 	return 0;
 }

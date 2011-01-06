@@ -1159,11 +1159,11 @@ int __devinit rio_init_mports(void)
 
 	list_for_each_entry(port, &rio_mports, node) {
 		if (!request_mem_region(port->iores.start,
-					port->iores.end - port->iores.start,
+					resource_size(&port->iores),
 					port->name)) {
 			printk(KERN_ERR
 			       "RIO: Error requesting master port region 0x%016llx-0x%016llx\n",
-			       (u64)port->iores.start, (u64)port->iores.end - 1);
+			       (u64)port->iores.start, (u64)port->iores.end);
 			rc = -ENOMEM;
 			goto out;
 		}

@@ -481,12 +481,6 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 	if (bio_rw(bio) == WRITE) {
 		struct file *file = lo->lo_backing_file;
 
-		/* REQ_HARDBARRIER is deprecated */
-		if (bio->bi_rw & REQ_HARDBARRIER) {
-			ret = -EOPNOTSUPP;
-			goto out;
-		}
-
 		if (bio->bi_rw & REQ_FLUSH) {
 			ret = vfs_fsync(file, 0);
 			if (unlikely(ret && ret != -EINVAL)) {

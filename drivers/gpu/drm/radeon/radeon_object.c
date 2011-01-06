@@ -86,11 +86,12 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 }
 
 int radeon_bo_create(struct radeon_device *rdev, struct drm_gem_object *gobj,
-			unsigned long size, bool kernel, u32 domain,
-			struct radeon_bo **bo_ptr)
+		     unsigned long size, int byte_align, bool kernel, u32 domain,
+		     struct radeon_bo **bo_ptr)
 {
 	struct radeon_bo *bo;
 	enum ttm_bo_type type;
+	int page_align = roundup(byte_align, PAGE_SIZE) >> PAGE_SHIFT;
 	int r;
 
 	if (unlikely(rdev->mman.bdev.dev_mapping == NULL)) {
@@ -102,6 +103,8 @@ int radeon_bo_create(struct radeon_device *rdev, struct drm_gem_object *gobj,
 		type = ttm_bo_type_device;
 	}
 	*bo_ptr = NULL;
+
+retry:
 	bo = kzalloc(sizeof(struct radeon_bo), GFP_KERNEL);
 	if (bo == NULL)
 		return -ENOMEM;
@@ -109,13 +112,11 @@ int radeon_bo_create(struct radeon_device *rdev, struct drm_gem_object *gobj,
 	bo->gobj = gobj;
 	bo->surface_reg = -1;
 	INIT_LIST_HEAD(&bo->list);
-
-retry:
 	radeon_ttm_placement_from_domain(bo, domain);
 	/* Kernel allocation are uninterruptible */
 	mutex_lock(&rdev->vram_mutex);
 	r = ttm_bo_init(&rdev->mman.bdev, &bo->tbo, size, type,
-			&bo->placement, 0, 0, !kernel, NULL, size,
+			&bo->placement, page_align, 0, !kernel, NULL, size,
 			&radeon_ttm_bo_destroy);
 	mutex_unlock(&rdev->vram_mutex);
 	if (unlikely(r != 0)) {
