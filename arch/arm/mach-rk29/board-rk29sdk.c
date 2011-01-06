@@ -282,7 +282,7 @@ static struct android_pmem_platform_data android_pmem_cam_pdata = {
 	.start		= PMEM_CAM_BASE,
 	.size		= PMEM_CAM_SIZE,
 	.no_allocator	= 1,
-	.cached		= 0,
+	.cached		= 1,
 };
 
 static struct platform_device android_pmem_cam_device = {
