@@ -1756,7 +1756,6 @@ static void imon_get_ffdc_type(struct imon_context *ictx)
 	printk(KERN_CONT " (id 0x%02x)\n", ffdc_cfg_byte);
 
 	ictx->display_type = detected_display_type;
-	ictx->rdev->allowed_protos = allowed_protos;
 	ictx->rc_type = allowed_protos;
 }
 
@@ -1839,10 +1838,6 @@ static struct rc_dev *imon_init_rdev(struct imon_context *ictx)
 	rdev->allowed_protos = RC_TYPE_OTHER | RC_TYPE_RC6; /* iMON PAD or MCE */
 	rdev->change_protocol = imon_ir_change_protocol;
 	rdev->driver_name = MOD_NAME;
-	if (ictx->rc_type == RC_TYPE_RC6)
-		rdev->map_name = RC_MAP_IMON_MCE;
-	else
-		rdev->map_name = RC_MAP_IMON_PAD;
 
 	/* Enable front-panel buttons and/or knobs */
 	memcpy(ictx->usb_tx_buf, &fp_packet, sizeof(fp_packet));
@@ -1851,10 +1846,17 @@ static struct rc_dev *imon_init_rdev(struct imon_context *ictx)
 	if (ret)
 		dev_info(ictx->dev, "panel buttons/knobs setup failed\n");
 
-	if (ictx->product == 0xffdc)
+	if (ictx->product == 0xffdc) {
 		imon_get_ffdc_type(ictx);
+		rdev->allowed_protos = ictx->rc_type;
+	}
 
 	imon_set_display_type(ictx);
+
+	if (ictx->rc_type == RC_TYPE_RC6)
+		rdev->map_name = RC_MAP_IMON_MCE;
+	else
+		rdev->map_name = RC_MAP_IMON_PAD;
 
 	ret = rc_register_device(rdev);
 	if (ret < 0) {
