@@ -45,6 +45,7 @@ int		svc_sock_names(struct svc_serv *serv, char *buf,
 int		svc_addsock(struct svc_serv *serv, const int fd,
 					char *name_return, const size_t len);
 void		svc_init_xprt_sock(void);
+void		svc_init_bc_xprt_sock(void);
 void		svc_cleanup_xprt_sock(void);
 struct svc_xprt *svc_sock_create(struct svc_serv *serv, int prot);
 void		svc_sock_destroy(struct svc_xprt *);
