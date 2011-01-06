@@ -177,34 +177,38 @@ EXPORT_SYMBOL_GPL(pnfs_unregister_layoutdriver);
  * pNFS client layout cache
  */
 
+/* Need to hold i_lock if caller does not already hold reference */
 static void
-get_layout_hdr_locked(struct pnfs_layout_hdr *lo)
+get_layout_hdr(struct pnfs_layout_hdr *lo)
 {
-	assert_spin_locked(&lo->plh_inode->i_lock);
-	lo->plh_refcount++;
+	atomic_inc(&lo->plh_refcount);
+}
+
+static void
+destroy_layout_hdr(struct pnfs_layout_hdr *lo)
+{
+	dprintk("%s: freeing layout cache %p\n", __func__, lo);
+	BUG_ON(!list_empty(&lo->plh_layouts));
+	NFS_I(lo->plh_inode)->layout = NULL;
+	kfree(lo);
 }
 
 static void
 put_layout_hdr_locked(struct pnfs_layout_hdr *lo)
 {
-	assert_spin_locked(&lo->plh_inode->i_lock);
-	BUG_ON(lo->plh_refcount == 0);
-
-	lo->plh_refcount--;
-	if (!lo->plh_refcount) {
-		dprintk("%s: freeing layout cache %p\n", __func__, lo);
-		BUG_ON(!list_empty(&lo->plh_layouts));
-		NFS_I(lo->plh_inode)->layout = NULL;
-		kfree(lo);
-	}
+	if (atomic_dec_and_test(&lo->plh_refcount))
+		destroy_layout_hdr(lo);
 }
 
 void
-put_layout_hdr(struct inode *inode)
+put_layout_hdr(struct pnfs_layout_hdr *lo)
 {
-	spin_lock(&inode->i_lock);
-	put_layout_hdr_locked(NFS_I(inode)->layout);
-	spin_unlock(&inode->i_lock);
+	struct inode *inode = lo->plh_inode;
+
+	if (atomic_dec_and_lock(&lo->plh_refcount, &inode->i_lock)) {
+		destroy_layout_hdr(lo);
+		spin_unlock(&inode->i_lock);
+	}
 }
 
 static void
@@ -223,7 +227,7 @@ static void free_lseg(struct pnfs_layout_segment *lseg)
 
 	NFS_SERVER(ino)->pnfs_curr_ld->free_lseg(lseg);
 	/* Matched by get_layout_hdr in pnfs_insert_layout */
-	put_layout_hdr(ino);
+	put_layout_hdr(NFS_I(ino)->layout);
 }
 
 /* The use of tmp_list is necessary because pnfs_curr_ld->free_lseg
@@ -490,7 +494,7 @@ pnfs_insert_layout(struct pnfs_layout_hdr *lo,
 			__func__, lseg, lseg->pls_range.iomode,
 			lseg->pls_range.offset, lseg->pls_range.length);
 	}
-	get_layout_hdr_locked(lo);
+	get_layout_hdr(lo);
 
 	dprintk("%s:Return\n", __func__);
 }
@@ -503,7 +507,7 @@ alloc_init_layout_hdr(struct inode *ino)
 	lo = kzalloc(sizeof(struct pnfs_layout_hdr), GFP_KERNEL);
 	if (!lo)
 		return NULL;
-	lo->plh_refcount = 1;
+	atomic_set(&lo->plh_refcount, 1);
 	INIT_LIST_HEAD(&lo->plh_layouts);
 	INIT_LIST_HEAD(&lo->plh_segs);
 	lo->plh_inode = ino;
@@ -618,7 +622,7 @@ pnfs_update_layout(struct inode *ino,
 		goto out_unlock;
 	atomic_inc(&lo->plh_outstanding);
 
-	get_layout_hdr_locked(lo);
+	get_layout_hdr(lo);
 	if (list_empty(&lo->plh_segs)) {
 		/* The lo must be on the clp list if there is any
 		 * chance of a CB_LAYOUTRECALL(FILE) coming in.
@@ -641,7 +645,7 @@ pnfs_update_layout(struct inode *ino,
 		spin_unlock(&ino->i_lock);
 	}
 	atomic_dec(&lo->plh_outstanding);
-	put_layout_hdr(ino);
+	put_layout_hdr(lo);
 out:
 	dprintk("%s end, state 0x%lx lseg %p\n", __func__,
 		nfsi->layout->plh_flags, lseg);
