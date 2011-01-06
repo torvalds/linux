@@ -29,11 +29,11 @@
 #include <net/mac80211.h>
 
 #include "rtl8187.h"
-#include "rtl8187_rtl8225.h"
+#include "rtl8225.h"
 #ifdef CONFIG_RTL8187_LEDS
-#include "rtl8187_leds.h"
+#include "leds.h"
 #endif
-#include "rtl8187_rfkill.h"
+#include "rfkill.h"
 
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
 MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");

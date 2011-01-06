@@ -21,7 +21,6 @@
  *
  */
 
-#include <linux/gpio.h>
 #include <linux/slab.h>
 
 #include "acx.h"

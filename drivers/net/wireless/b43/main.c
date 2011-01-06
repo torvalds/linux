@@ -2121,8 +2121,10 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 		filename = "ucode13";
 	else if (rev == 14)
 		filename = "ucode14";
-	else if (rev >= 15)
+	else if (rev == 15)
 		filename = "ucode15";
+	else if ((rev >= 16) && (rev <= 20))
+		filename = "ucode16_mimo";
 	else
 		goto err_no_ucode;
 	err = b43_do_request_fw(ctx, filename, &fw->ucode);
@@ -2165,7 +2167,9 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 			goto err_no_initvals;
 		break;
 	case B43_PHYTYPE_N:
-		if ((rev >= 11) && (rev <= 12))
+		if (rev >= 16)
+			filename = "n0initvals16";
+		else if ((rev >= 11) && (rev <= 12))
 			filename = "n0initvals11";
 		else
 			goto err_no_initvals;
@@ -2209,7 +2213,9 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 			goto err_no_initvals;
 		break;
 	case B43_PHYTYPE_N:
-		if ((rev >= 11) && (rev <= 12))
+		if (rev >= 16)
+			filename = "n0bsinitvals16";
+		else if ((rev >= 11) && (rev <= 12))
 			filename = "n0bsinitvals11";
 		else
 			goto err_no_initvals;
@@ -4050,7 +4056,7 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		break;
 #ifdef CONFIG_B43_PHY_N
 	case B43_PHYTYPE_N:
-		if (phy_rev > 2)
+		if (phy_rev > 9)
 			unsupported = 1;
 		break;
 #endif

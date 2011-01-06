@@ -692,15 +692,16 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 	if ((ads.ds_rxstatus8 & AR_RxFrameOK) == 0) {
 		if (ads.ds_rxstatus8 & AR_CRCErr)
 			rs->rs_status |= ATH9K_RXERR_CRC;
-		else if (ads.ds_rxstatus8 & AR_PHYErr) {
+		if (ads.ds_rxstatus8 & AR_PHYErr) {
 			rs->rs_status |= ATH9K_RXERR_PHY;
 			phyerr = MS(ads.ds_rxstatus8, AR_PHYErrCode);
 			rs->rs_phyerr = phyerr;
-		} else if (ads.ds_rxstatus8 & AR_DecryptCRCErr)
+		}
+		if (ads.ds_rxstatus8 & AR_DecryptCRCErr)
 			rs->rs_status |= ATH9K_RXERR_DECRYPT;
-		else if (ads.ds_rxstatus8 & AR_MichaelErr)
+		if (ads.ds_rxstatus8 & AR_MichaelErr)
 			rs->rs_status |= ATH9K_RXERR_MIC;
-		else if (ads.ds_rxstatus8 & AR_KeyMiss)
+		if (ads.ds_rxstatus8 & AR_KeyMiss)
 			rs->rs_status |= ATH9K_RXERR_DECRYPT;
 	}
 

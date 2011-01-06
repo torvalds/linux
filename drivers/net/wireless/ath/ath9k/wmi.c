@@ -120,7 +120,7 @@ void ath9k_deinit_wmi(struct ath9k_htc_priv *priv)
 	kfree(priv->wmi);
 }
 
-void ath9k_wmi_tasklet(unsigned long data)
+void ath9k_swba_tasklet(unsigned long data)
 {
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
@@ -129,6 +129,16 @@ void ath9k_wmi_tasklet(unsigned long data)
 
 	ath9k_htc_swba(priv, priv->wmi->beacon_pending);
 
+}
+
+void ath9k_fatal_work(struct work_struct *work)
+{
+	struct ath9k_htc_priv *priv = container_of(work, struct ath9k_htc_priv,
+						   fatal_work);
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+
+	ath_dbg(common, ATH_DBG_FATAL, "FATAL Event received, resetting device\n");
+	ath9k_htc_reset(priv);
 }
 
 static void ath9k_wmi_rsp_callback(struct wmi *wmi, struct sk_buff *skb)
@@ -163,7 +173,11 @@ static void ath9k_wmi_ctrl_rx(void *priv, struct sk_buff *skb,
 		switch (cmd_id) {
 		case WMI_SWBA_EVENTID:
 			wmi->beacon_pending = *(u8 *)wmi_event;
-			tasklet_schedule(&wmi->drv_priv->wmi_tasklet);
+			tasklet_schedule(&wmi->drv_priv->swba_tasklet);
+			break;
+		case WMI_FATAL_EVENTID:
+			ieee80211_queue_work(wmi->drv_priv->hw,
+					     &wmi->drv_priv->fatal_work);
 			break;
 		case WMI_TXRATE_EVENTID:
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
@@ -250,7 +264,7 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	int time_left, ret = 0;
 	unsigned long flags;
 
-	if (wmi->drv_priv->op_flags & OP_UNPLUGGED)
+	if (ah->ah_flags & AH_UNPLUGGED)
 		return 0;
 
 	skb = alloc_skb(headroom + cmd_len, GFP_ATOMIC);

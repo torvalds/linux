@@ -1492,15 +1492,11 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	if (priv->cfg->scan_rx_antennas[band])
 		rx_ant = priv->cfg->scan_rx_antennas[band];
 
-	if (priv->cfg->scan_tx_antennas[band])
-		scan_tx_antennas = priv->cfg->scan_tx_antennas[band];
-
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist &&
-	    priv->bt_full_concurrent) {
-		/* operated as 1x1 in full concurrency mode */
-		scan_tx_antennas = first_antenna(
-			priv->cfg->scan_tx_antennas[band]);
+	if (band == IEEE80211_BAND_2GHZ &&
+	    priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
+		/* transmit 2.4 GHz probes only on first antenna */
+		scan_tx_antennas = first_antenna(scan_tx_antennas);
 	}
 
 	priv->scan_tx_ant[band] = iwl_toggle_tx_ant(priv, priv->scan_tx_ant[band],

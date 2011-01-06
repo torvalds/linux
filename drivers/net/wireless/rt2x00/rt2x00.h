@@ -347,28 +347,16 @@ struct link {
 	struct delayed_work watchdog_work;
 };
 
+enum rt2x00_delayed_flags {
+	DELAYED_UPDATE_BEACON,
+};
+
 /*
  * Interface structure
  * Per interface configuration details, this structure
  * is allocated as the private data for ieee80211_vif.
  */
 struct rt2x00_intf {
-	/*
-	 * All fields within the rt2x00_intf structure
-	 * must be protected with a spinlock.
-	 */
-	spinlock_t lock;
-
-	/*
-	 * MAC of the device.
-	 */
-	u8 mac[ETH_ALEN];
-
-	/*
-	 * BBSID of the AP to associate with.
-	 */
-	u8 bssid[ETH_ALEN];
-
 	/*
 	 * beacon->skb must be protected with the mutex.
 	 */
@@ -384,8 +372,7 @@ struct rt2x00_intf {
 	/*
 	 * Actions that needed rescheduling.
 	 */
-	unsigned int delayed_flags;
-#define DELAYED_UPDATE_BEACON		0x00000001
+	unsigned long delayed_flags;
 
 	/*
 	 * Software sequence counter, this is only required
@@ -908,7 +895,7 @@ struct rt2x00_dev {
 	/*
 	 * FIFO for storing tx status reports between isr and tasklet.
 	 */
-	struct kfifo txstatus_fifo;
+	DECLARE_KFIFO_PTR(txstatus_fifo, u32);
 
 	/*
 	 * Tasklet for processing tx status reports (rt2800pci).

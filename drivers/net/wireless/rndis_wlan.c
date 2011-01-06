@@ -129,6 +129,7 @@ MODULE_PARM_DESC(workaround_interval,
 #define OID_802_11_RTS_THRESHOLD		cpu_to_le32(0x0d01020a)
 #define OID_802_11_SUPPORTED_RATES		cpu_to_le32(0x0d01020e)
 #define OID_802_11_CONFIGURATION		cpu_to_le32(0x0d010211)
+#define OID_802_11_POWER_MODE			cpu_to_le32(0x0d010216)
 #define OID_802_11_BSSID_LIST			cpu_to_le32(0x0d010217)
 
 
@@ -237,6 +238,12 @@ enum ndis_80211_addkey_bits {
 enum ndis_80211_addwep_bits {
 	NDIS_80211_ADDWEP_PERCLIENT_KEY = cpu_to_le32(1 << 30),
 	NDIS_80211_ADDWEP_TRANSMIT_KEY = cpu_to_le32(1 << 31)
+};
+
+enum ndis_80211_power_mode {
+	NDIS_80211_POWER_MODE_CAM,
+	NDIS_80211_POWER_MODE_MAX_PSP,
+	NDIS_80211_POWER_MODE_FAST_PSP,
 };
 
 struct ndis_80211_auth_request {
@@ -478,6 +485,9 @@ struct rndis_wlan_private {
 	struct mutex command_lock;
 	unsigned long work_pending;
 	int last_qual;
+	s32 cqm_rssi_thold;
+	u32 cqm_rssi_hyst;
+	int last_cqm_event_rssi;
 
 	struct ieee80211_supported_band band;
 	struct ieee80211_channel channels[ARRAY_SIZE(rndis_channels)];
@@ -500,10 +510,10 @@ struct rndis_wlan_private {
 
 	/* hardware state */
 	bool radio_on;
+	int power_mode;
 	int infra_mode;
 	bool connected;
 	u8 bssid[ETH_ALEN];
-	struct ndis_80211_ssid essid;
 	__le32 current_command_oid;
 
 	/* encryption stuff */
@@ -570,7 +580,14 @@ static int rndis_del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 
 static int rndis_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev);
 
-static struct cfg80211_ops rndis_config_ops = {
+static int rndis_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
+				bool enabled, int timeout);
+
+static int rndis_set_cqm_rssi_config(struct wiphy *wiphy,
+					struct net_device *dev,
+					s32 rssi_thold, u32 rssi_hyst);
+
+static const struct cfg80211_ops rndis_config_ops = {
 	.change_virtual_intf = rndis_change_virtual_intf,
 	.scan = rndis_scan,
 	.set_wiphy_params = rndis_set_wiphy_params,
@@ -589,6 +606,8 @@ static struct cfg80211_ops rndis_config_ops = {
 	.set_pmksa = rndis_set_pmksa,
 	.del_pmksa = rndis_del_pmksa,
 	.flush_pmksa = rndis_flush_pmksa,
+	.set_power_mgmt = rndis_set_power_mgmt,
+	.set_cqm_rssi_config = rndis_set_cqm_rssi_config,
 };
 
 static void *rndis_wiphy_privid = &rndis_wiphy_privid;
@@ -687,6 +706,7 @@ static const char *oid_to_string(__le32 oid)
 		OID_STR(OID_802_11_ADD_KEY);
 		OID_STR(OID_802_11_REMOVE_KEY);
 		OID_STR(OID_802_11_ASSOCIATION_INFORMATION);
+		OID_STR(OID_802_11_CAPABILITY);
 		OID_STR(OID_802_11_PMKID);
 		OID_STR(OID_802_11_NETWORK_TYPES_SUPPORTED);
 		OID_STR(OID_802_11_NETWORK_TYPE_IN_USE);
@@ -697,6 +717,7 @@ static const char *oid_to_string(__le32 oid)
 		OID_STR(OID_802_11_RTS_THRESHOLD);
 		OID_STR(OID_802_11_SUPPORTED_RATES);
 		OID_STR(OID_802_11_CONFIGURATION);
+		OID_STR(OID_802_11_POWER_MODE);
 		OID_STR(OID_802_11_BSSID_LIST);
 #undef OID_STR
 	}
@@ -1026,7 +1047,6 @@ static int set_essid(struct usbnet *usbdev, struct ndis_80211_ssid *ssid)
 		return ret;
 	}
 	if (ret == 0) {
-		memcpy(&priv->essid, ssid, sizeof(priv->essid));
 		priv->radio_on = true;
 		netdev_dbg(usbdev->net, "%s(): radio_on = true\n", __func__);
 	}
@@ -1967,8 +1987,8 @@ static struct cfg80211_bss *rndis_bss_info_update(struct usbnet *usbdev,
 	int ie_len, bssid_len;
 	u8 *ie;
 
-	netdev_dbg(usbdev->net, " found bssid: '%.32s' [%pM]\n",
-		   bssid->ssid.essid, bssid->mac);
+	netdev_dbg(usbdev->net, " found bssid: '%.32s' [%pM], len: %d\n",
+		   bssid->ssid.essid, bssid->mac, le32_to_cpu(bssid->length));
 
 	/* parse bssid structure */
 	bssid_len = le32_to_cpu(bssid->length);
@@ -2002,53 +2022,97 @@ static struct cfg80211_bss *rndis_bss_info_update(struct usbnet *usbdev,
 		GFP_KERNEL);
 }
 
+static struct ndis_80211_bssid_ex *next_bssid_list_item(
+					struct ndis_80211_bssid_ex *bssid,
+					int *bssid_len, void *buf, int len)
+{
+	void *buf_end, *bssid_end;
+
+	buf_end = (char *)buf + len;
+	bssid_end = (char *)bssid + *bssid_len;
+
+	if ((int)(buf_end - bssid_end) < sizeof(bssid->length)) {
+		*bssid_len = 0;
+		return NULL;
+	} else {
+		bssid = (void *)((char *)bssid + *bssid_len);
+		*bssid_len = le32_to_cpu(bssid->length);
+		return bssid;
+	}
+}
+
+static bool check_bssid_list_item(struct ndis_80211_bssid_ex *bssid,
+				  int bssid_len, void *buf, int len)
+{
+	void *buf_end, *bssid_end;
+
+	if (!bssid || bssid_len <= 0 || bssid_len > len)
+		return false;
+
+	buf_end = (char *)buf + len;
+	bssid_end = (char *)bssid + bssid_len;
+
+	return (int)(buf_end - bssid_end) >= 0 && (int)(bssid_end - buf) >= 0;
+}
+
 static int rndis_check_bssid_list(struct usbnet *usbdev, u8 *match_bssid,
 					bool *matched)
 {
 	void *buf = NULL;
 	struct ndis_80211_bssid_list_ex *bssid_list;
 	struct ndis_80211_bssid_ex *bssid;
-	int ret = -EINVAL, len, count, bssid_len;
-	bool resized = false;
+	int ret = -EINVAL, len, count, bssid_len, real_count, new_len;
 
-	netdev_dbg(usbdev->net, "check_bssid_list\n");
+	netdev_dbg(usbdev->net, "%s()\n", __func__);
 
 	len = CONTROL_BUFFER_SIZE;
 resize_buf:
-	buf = kmalloc(len, GFP_KERNEL);
+	buf = kzalloc(len, GFP_KERNEL);
 	if (!buf) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	ret = rndis_query_oid(usbdev, OID_802_11_BSSID_LIST, buf, &len);
-	if (ret != 0)
+	/* BSSID-list might have got bigger last time we checked, keep
+	 * resizing until it won't get any bigger.
+	 */
+	new_len = len;
+	ret = rndis_query_oid(usbdev, OID_802_11_BSSID_LIST, buf, &new_len);
+	if (ret != 0 || new_len < sizeof(struct ndis_80211_bssid_list_ex))
 		goto out;
 
-	if (!resized && len > CONTROL_BUFFER_SIZE) {
-		resized = true;
+	if (new_len > len) {
+		len = new_len;
 		kfree(buf);
 		goto resize_buf;
 	}
 
-	bssid_list = buf;
-	bssid = bssid_list->bssid;
-	bssid_len = le32_to_cpu(bssid->length);
-	count = le32_to_cpu(bssid_list->num_items);
-	netdev_dbg(usbdev->net, "check_bssid_list: %d BSSIDs found (buflen: %d)\n",
-		   count, len);
+	len = new_len;
 
-	while (count && ((void *)bssid + bssid_len) <= (buf + len)) {
+	bssid_list = buf;
+	count = le32_to_cpu(bssid_list->num_items);
+	real_count = 0;
+	netdev_dbg(usbdev->net, "%s(): buflen: %d\n", __func__, len);
+
+	bssid_len = 0;
+	bssid = next_bssid_list_item(bssid_list->bssid, &bssid_len, buf, len);
+
+	/* Device returns incorrect 'num_items'. Workaround by ignoring the
+	 * received 'num_items' and walking through full bssid buffer instead.
+	 */
+	while (check_bssid_list_item(bssid, bssid_len, buf, len)) {
 		if (rndis_bss_info_update(usbdev, bssid) && match_bssid &&
 		    matched) {
 			if (compare_ether_addr(bssid->mac, match_bssid))
 				*matched = true;
 		}
 
-		bssid = (void *)bssid + bssid_len;
-		bssid_len = le32_to_cpu(bssid->length);
-		count--;
+		real_count++;
+		bssid = next_bssid_list_item(bssid, &bssid_len, buf, len);
 	}
+
+	netdev_dbg(usbdev->net, "%s(): num_items from device: %d, really found:"
+				" %d\n", __func__, count, real_count);
 
 out:
 	kfree(buf);
@@ -2391,6 +2455,9 @@ static int rndis_set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 
 	priv->encr_tx_key_index = key_index;
 
+	if (is_wpa_key(priv, key_index))
+		return 0;
+
 	key = priv->encr_keys[key_index];
 
 	return add_wep_key(usbdev, key.material, key.len, key_index);
@@ -2519,6 +2586,51 @@ static int rndis_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 	pmkid.bssid_info_count = cpu_to_le32(0);
 
 	return rndis_set_oid(usbdev, OID_802_11_PMKID, &pmkid, sizeof(pmkid));
+}
+
+static int rndis_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
+				bool enabled, int timeout)
+{
+	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
+	struct usbnet *usbdev = priv->usbdev;
+	int power_mode;
+	__le32 mode;
+	int ret;
+
+	netdev_dbg(usbdev->net, "%s(): %s, %d\n", __func__,
+				enabled ? "enabled" : "disabled",
+				timeout);
+
+	if (enabled)
+		power_mode = NDIS_80211_POWER_MODE_FAST_PSP;
+	else
+		power_mode = NDIS_80211_POWER_MODE_CAM;
+
+	if (power_mode == priv->power_mode)
+		return 0;
+
+	priv->power_mode = power_mode;
+
+	mode = cpu_to_le32(power_mode);
+	ret = rndis_set_oid(usbdev, OID_802_11_POWER_MODE, &mode, sizeof(mode));
+
+	netdev_dbg(usbdev->net, "%s(): OID_802_11_POWER_MODE -> %d\n",
+				__func__, ret);
+
+	return ret;
+}
+
+static int rndis_set_cqm_rssi_config(struct wiphy *wiphy,
+					struct net_device *dev,
+					s32 rssi_thold, u32 rssi_hyst)
+{
+	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
+
+	priv->cqm_rssi_thold = rssi_thold;
+	priv->cqm_rssi_hyst = rssi_hyst;
+	priv->last_cqm_event_rssi = 0;
+
+	return 0;
 }
 
 static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
@@ -3050,6 +3162,32 @@ static int rndis_wlan_get_caps(struct usbnet *usbdev, struct wiphy *wiphy)
 	return retval;
 }
 
+static void rndis_do_cqm(struct usbnet *usbdev, s32 rssi)
+{
+	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
+	enum nl80211_cqm_rssi_threshold_event event;
+	int thold, hyst, last_event;
+
+	if (priv->cqm_rssi_thold >= 0 || rssi >= 0)
+		return;
+	if (priv->infra_mode != NDIS_80211_INFRA_INFRA)
+		return;
+
+	last_event = priv->last_cqm_event_rssi;
+	thold = priv->cqm_rssi_thold;
+	hyst = priv->cqm_rssi_hyst;
+
+	if (rssi < thold && (last_event == 0 || rssi < last_event - hyst))
+		event = NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
+	else if (rssi > thold && (last_event == 0 || rssi > last_event + hyst))
+		event = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
+	else
+		return;
+
+	priv->last_cqm_event_rssi = rssi;
+	cfg80211_cqm_rssi_notify(usbdev->net, event, GFP_KERNEL);
+}
+
 #define DEVICE_POLLER_JIFFIES (HZ)
 static void rndis_device_poller(struct work_struct *work)
 {
@@ -3084,8 +3222,10 @@ static void rndis_device_poller(struct work_struct *work)
 
 	len = sizeof(rssi);
 	ret = rndis_query_oid(usbdev, OID_802_11_RSSI, &rssi, &len);
-	if (ret == 0)
+	if (ret == 0) {
 		priv->last_qual = level_to_qual(le32_to_cpu(rssi));
+		rndis_do_cqm(usbdev, le32_to_cpu(rssi));
+	}
 
 	netdev_dbg(usbdev->net, "dev-poller: OID_802_11_RSSI -> %d, rssi:%d, qual: %d\n",
 		   ret, le32_to_cpu(rssi), level_to_qual(le32_to_cpu(rssi)));
@@ -3347,13 +3487,15 @@ static int rndis_wlan_bind(struct usbnet *usbdev, struct usb_interface *intf)
 
 	set_default_iw_params(usbdev);
 
+	priv->power_mode = -1;
+
 	/* set default rts/frag */
 	rndis_set_wiphy_params(wiphy,
 			WIPHY_PARAM_FRAG_THRESHOLD | WIPHY_PARAM_RTS_THRESHOLD);
 
-	/* turn radio on */
-	priv->radio_on = true;
-	disassociate(usbdev, true);
+	/* turn radio off on init */
+	priv->radio_on = false;
+	disassociate(usbdev, false);
 	netif_carrier_off(usbdev->net);
 
 	return 0;

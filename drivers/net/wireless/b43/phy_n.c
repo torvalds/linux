@@ -139,6 +139,99 @@ static void b43_chantab_radio_upload(struct b43_wldev *dev,
 	b43_radio_write(dev, B2055_C2_TX_MXBGTRIM, e->radio_c2_tx_mxbgtrim);
 }
 
+static void b43_chantab_radio_2056_upload(struct b43_wldev *dev,
+				const struct b43_nphy_channeltab_entry_rev3 *e)
+{
+	b43_radio_write(dev, B2056_SYN_PLL_VCOCAL1, e->radio_syn_pll_vcocal1);
+	b43_radio_write(dev, B2056_SYN_PLL_VCOCAL2, e->radio_syn_pll_vcocal2);
+	b43_radio_write(dev, B2056_SYN_PLL_REFDIV, e->radio_syn_pll_refdiv);
+	b43_radio_write(dev, B2056_SYN_PLL_MMD2, e->radio_syn_pll_mmd2);
+	b43_radio_write(dev, B2056_SYN_PLL_MMD1, e->radio_syn_pll_mmd1);
+	b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER1,
+					e->radio_syn_pll_loopfilter1);
+	b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER2,
+					e->radio_syn_pll_loopfilter2);
+	b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER3,
+					e->radio_syn_pll_loopfilter3);
+	b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER4,
+					e->radio_syn_pll_loopfilter4);
+	b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER5,
+					e->radio_syn_pll_loopfilter5);
+	b43_radio_write(dev, B2056_SYN_RESERVED_ADDR27,
+					e->radio_syn_reserved_addr27);
+	b43_radio_write(dev, B2056_SYN_RESERVED_ADDR28,
+					e->radio_syn_reserved_addr28);
+	b43_radio_write(dev, B2056_SYN_RESERVED_ADDR29,
+					e->radio_syn_reserved_addr29);
+	b43_radio_write(dev, B2056_SYN_LOGEN_VCOBUF1,
+					e->radio_syn_logen_vcobuf1);
+	b43_radio_write(dev, B2056_SYN_LOGEN_MIXER2, e->radio_syn_logen_mixer2);
+	b43_radio_write(dev, B2056_SYN_LOGEN_BUF3, e->radio_syn_logen_buf3);
+	b43_radio_write(dev, B2056_SYN_LOGEN_BUF4, e->radio_syn_logen_buf4);
+
+	b43_radio_write(dev, B2056_RX0 | B2056_RX_LNAA_TUNE,
+					e->radio_rx0_lnaa_tune);
+	b43_radio_write(dev, B2056_RX0 | B2056_RX_LNAG_TUNE,
+					e->radio_rx0_lnag_tune);
+
+	b43_radio_write(dev, B2056_TX0 | B2056_TX_INTPAA_BOOST_TUNE,
+					e->radio_tx0_intpaa_boost_tune);
+	b43_radio_write(dev, B2056_TX0 | B2056_TX_INTPAG_BOOST_TUNE,
+					e->radio_tx0_intpag_boost_tune);
+	b43_radio_write(dev, B2056_TX0 | B2056_TX_PADA_BOOST_TUNE,
+					e->radio_tx0_pada_boost_tune);
+	b43_radio_write(dev, B2056_TX0 | B2056_TX_PADG_BOOST_TUNE,
+					e->radio_tx0_padg_boost_tune);
+	b43_radio_write(dev, B2056_TX0 | B2056_TX_PGAA_BOOST_TUNE,
+					e->radio_tx0_pgaa_boost_tune);
+	b43_radio_write(dev, B2056_TX0 | B2056_TX_PGAG_BOOST_TUNE,
+					e->radio_tx0_pgag_boost_tune);
+	b43_radio_write(dev, B2056_TX0 | B2056_TX_MIXA_BOOST_TUNE,
+					e->radio_tx0_mixa_boost_tune);
+	b43_radio_write(dev, B2056_TX0 | B2056_TX_MIXG_BOOST_TUNE,
+					e->radio_tx0_mixg_boost_tune);
+
+	b43_radio_write(dev, B2056_RX1 | B2056_RX_LNAA_TUNE,
+					e->radio_rx1_lnaa_tune);
+	b43_radio_write(dev, B2056_RX1 | B2056_RX_LNAG_TUNE,
+					e->radio_rx1_lnag_tune);
+
+	b43_radio_write(dev, B2056_TX1 | B2056_TX_INTPAA_BOOST_TUNE,
+					e->radio_tx1_intpaa_boost_tune);
+	b43_radio_write(dev, B2056_TX1 | B2056_TX_INTPAG_BOOST_TUNE,
+					e->radio_tx1_intpag_boost_tune);
+	b43_radio_write(dev, B2056_TX1 | B2056_TX_PADA_BOOST_TUNE,
+					e->radio_tx1_pada_boost_tune);
+	b43_radio_write(dev, B2056_TX1 | B2056_TX_PADG_BOOST_TUNE,
+					e->radio_tx1_padg_boost_tune);
+	b43_radio_write(dev, B2056_TX1 | B2056_TX_PGAA_BOOST_TUNE,
+					e->radio_tx1_pgaa_boost_tune);
+	b43_radio_write(dev, B2056_TX1 | B2056_TX_PGAG_BOOST_TUNE,
+					e->radio_tx1_pgag_boost_tune);
+	b43_radio_write(dev, B2056_TX1 | B2056_TX_MIXA_BOOST_TUNE,
+					e->radio_tx1_mixa_boost_tune);
+	b43_radio_write(dev, B2056_TX1 | B2056_TX_MIXG_BOOST_TUNE,
+					e->radio_tx1_mixg_boost_tune);
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/Radio/2056Setup */
+static void b43_radio_2056_setup(struct b43_wldev *dev,
+				const struct b43_nphy_channeltab_entry_rev3 *e)
+{
+	B43_WARN_ON(dev->phy.rev < 3);
+
+	b43_chantab_radio_2056_upload(dev, e);
+	/* TODO */
+	udelay(50);
+	/* VCO calibration */
+	b43_radio_write(dev, B2056_SYN_PLL_VCOCAL12, 0x00);
+	b43_radio_write(dev, B2056_TX_INTPAA_PA_MISC, 0x38);
+	b43_radio_write(dev, B2056_TX_INTPAA_PA_MISC, 0x18);
+	b43_radio_write(dev, B2056_TX_INTPAA_PA_MISC, 0x38);
+	b43_radio_write(dev, B2056_TX_INTPAA_PA_MISC, 0x39);
+	udelay(300);
+}
+
 static void b43_chantab_phy_upload(struct b43_wldev *dev,
 				   const struct b43_phy_n_sfo_cfg *e)
 {
@@ -401,15 +494,44 @@ static void b43_radio_init2055(struct b43_wldev *dev)
 	b43_radio_init2055_post(dev);
 }
 
+static void b43_radio_init2056_pre(struct b43_wldev *dev)
+{
+	b43_phy_mask(dev, B43_NPHY_RFCTL_CMD,
+		     ~B43_NPHY_RFCTL_CMD_CHIP0PU);
+	/* Maybe wl meant to reset and set (order?) RFCTL_CMD_OEPORFORCE? */
+	b43_phy_mask(dev, B43_NPHY_RFCTL_CMD,
+		     B43_NPHY_RFCTL_CMD_OEPORFORCE);
+	b43_phy_set(dev, B43_NPHY_RFCTL_CMD,
+		    ~B43_NPHY_RFCTL_CMD_OEPORFORCE);
+	b43_phy_set(dev, B43_NPHY_RFCTL_CMD,
+		    B43_NPHY_RFCTL_CMD_CHIP0PU);
+}
+
+static void b43_radio_init2056_post(struct b43_wldev *dev)
+{
+	b43_radio_set(dev, B2056_SYN_COM_CTRL, 0xB);
+	b43_radio_set(dev, B2056_SYN_COM_PU, 0x2);
+	b43_radio_set(dev, B2056_SYN_COM_RESET, 0x2);
+	msleep(1);
+	b43_radio_mask(dev, B2056_SYN_COM_RESET, ~0x2);
+	b43_radio_mask(dev, B2056_SYN_PLL_MAST2, ~0xFC);
+	b43_radio_mask(dev, B2056_SYN_RCCAL_CTRL0, ~0x1);
+	/*
+	if (nphy->init_por)
+		Call Radio 2056 Recalibrate
+	*/
+}
+
 /*
  * Initialize a Broadcom 2056 N-radio
  * http://bcm-v4.sipsolutions.net/802.11/Radio/2056/Init
  */
 static void b43_radio_init2056(struct b43_wldev *dev)
 {
-	/* TODO */
+	b43_radio_init2056_pre(dev);
+	b2056_upload_inittabs(dev, 0, 0);
+	b43_radio_init2056_post(dev);
 }
-
 
 /*
  * Upload the N-PHY tables.
@@ -3578,7 +3700,6 @@ static int b43_nphy_set_channel(struct b43_wldev *dev,
 	if (dev->phy.rev >= 3) {
 		tabent_r3 = b43_nphy_get_chantabent_rev3(dev,
 							channel->center_freq);
-		tabent_r3 = NULL;
 		if (!tabent_r3)
 			return -ESRCH;
 	} else {
@@ -3607,7 +3728,7 @@ static int b43_nphy_set_channel(struct b43_wldev *dev,
 	if (dev->phy.rev >= 3) {
 		tmp = (channel->band == IEEE80211_BAND_5GHZ) ? 4 : 0;
 		b43_radio_maskset(dev, 0x08, 0xFFFB, tmp);
-		/* TODO: PHY Radio2056 Setup (dev, tabent_r3); */
+		b43_radio_2056_setup(dev, tabent_r3);
 		b43_nphy_channel_setup(dev, &(tabent_r3->phy_regs), channel);
 	} else {
 		tmp = (channel->band == IEEE80211_BAND_5GHZ) ? 0x0020 : 0x0050;
@@ -3638,6 +3759,7 @@ static void b43_nphy_op_prepare_structs(struct b43_wldev *dev)
 
 	memset(nphy, 0, sizeof(*nphy));
 
+	nphy->hang_avoid = (phy->rev == 3 || phy->rev == 4);
 	nphy->gain_boost = true; /* this way we follow wl, assume it is true */
 	nphy->txrx_chain = 2; /* sth different than 0 and 1 for now */
 	nphy->phyrxchain = 3; /* to avoid b43_nphy_set_rx_core_state like wl */

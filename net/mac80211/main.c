@@ -569,6 +569,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	spin_lock_init(&local->filter_lock);
 	spin_lock_init(&local->queue_stop_reason_lock);
 
+	skb_queue_head_init(&local->rx_skb_queue);
+
 	INIT_DELAYED_WORK(&local->scan_work, ieee80211_scan_work);
 
 	ieee80211_work_init(local);
@@ -606,6 +608,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	init_dummy_netdev(&local->napi_dev);
 
 	ieee80211_led_names(local);
+
+	ieee80211_hw_roc_setup(local);
 
 	return local_to_hw(local);
 }
@@ -751,7 +755,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		}
 	}
 
-	local->hw.wiphy->max_remain_on_channel_duration = 5000;
+	if (!local->ops->remain_on_channel)
+		local->hw.wiphy->max_remain_on_channel_duration = 5000;
 
 	result = wiphy_register(local->hw.wiphy);
 	if (result < 0)
@@ -914,6 +919,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 		wiphy_warn(local->hw.wiphy, "skb_queue not empty\n");
 	skb_queue_purge(&local->skb_queue);
 	skb_queue_purge(&local->skb_queue_unreliable);
+	skb_queue_purge(&local->rx_skb_queue);
 
 	destroy_workqueue(local->workqueue);
 	wiphy_unregister(local->hw.wiphy);

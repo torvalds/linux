@@ -1593,6 +1593,37 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 	return 0;
 }
 
+static int ieee80211_remain_on_channel_hw(struct ieee80211_local *local,
+					  struct net_device *dev,
+					  struct ieee80211_channel *chan,
+					  enum nl80211_channel_type chantype,
+					  unsigned int duration, u64 *cookie)
+{
+	int ret;
+	u32 random_cookie;
+
+	lockdep_assert_held(&local->mtx);
+
+	if (local->hw_roc_cookie)
+		return -EBUSY;
+	/* must be nonzero */
+	random_cookie = random32() | 1;
+
+	*cookie = random_cookie;
+	local->hw_roc_dev = dev;
+	local->hw_roc_cookie = random_cookie;
+	local->hw_roc_channel = chan;
+	local->hw_roc_channel_type = chantype;
+	local->hw_roc_duration = duration;
+	ret = drv_remain_on_channel(local, chan, chantype, duration);
+	if (ret) {
+		local->hw_roc_channel = NULL;
+		local->hw_roc_cookie = 0;
+	}
+
+	return ret;
+}
+
 static int ieee80211_remain_on_channel(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       struct ieee80211_channel *chan,
@@ -1601,9 +1632,45 @@ static int ieee80211_remain_on_channel(struct wiphy *wiphy,
 				       u64 *cookie)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+
+	if (local->ops->remain_on_channel) {
+		int ret;
+
+		mutex_lock(&local->mtx);
+		ret = ieee80211_remain_on_channel_hw(local, dev,
+						     chan, channel_type,
+						     duration, cookie);
+		local->hw_roc_for_tx = false;
+		mutex_unlock(&local->mtx);
+
+		return ret;
+	}
 
 	return ieee80211_wk_remain_on_channel(sdata, chan, channel_type,
 					      duration, cookie);
+}
+
+static int ieee80211_cancel_remain_on_channel_hw(struct ieee80211_local *local,
+						 u64 cookie)
+{
+	int ret;
+
+	lockdep_assert_held(&local->mtx);
+
+	if (local->hw_roc_cookie != cookie)
+		return -ENOENT;
+
+	ret = drv_cancel_remain_on_channel(local);
+	if (ret)
+		return ret;
+
+	local->hw_roc_cookie = 0;
+	local->hw_roc_channel = NULL;
+
+	ieee80211_recalc_idle(local);
+
+	return 0;
 }
 
 static int ieee80211_cancel_remain_on_channel(struct wiphy *wiphy,
@@ -1611,6 +1678,17 @@ static int ieee80211_cancel_remain_on_channel(struct wiphy *wiphy,
 					      u64 cookie)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+
+	if (local->ops->cancel_remain_on_channel) {
+		int ret;
+
+		mutex_lock(&local->mtx);
+		ret = ieee80211_cancel_remain_on_channel_hw(local, cookie);
+		mutex_unlock(&local->mtx);
+
+		return ret;
+	}
 
 	return ieee80211_wk_cancel_remain_on_channel(sdata, cookie);
 }
@@ -1662,6 +1740,12 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 	     channel_type != local->_oper_channel_type))
 		is_offchan = true;
 
+	if (chan == local->hw_roc_channel) {
+		/* TODO: check channel type? */
+		is_offchan = false;
+		flags |= IEEE80211_TX_CTL_TX_OFFCHAN;
+	}
+
 	if (is_offchan && !offchan)
 		return -EBUSY;
 
@@ -1699,6 +1783,49 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 	skb->dev = sdata->dev;
 
 	*cookie = (unsigned long) skb;
+
+	if (is_offchan && local->ops->remain_on_channel) {
+		unsigned int duration;
+		int ret;
+
+		mutex_lock(&local->mtx);
+		/*
+		 * If the duration is zero, then the driver
+		 * wouldn't actually do anything. Set it to
+		 * 100 for now.
+		 *
+		 * TODO: cancel the off-channel operation
+		 *       when we get the SKB's TX status and
+		 *       the wait time was zero before.
+		 */
+		duration = 100;
+		if (wait)
+			duration = wait;
+		ret = ieee80211_remain_on_channel_hw(local, dev, chan,
+						     channel_type,
+						     duration, cookie);
+		if (ret) {
+			kfree_skb(skb);
+			mutex_unlock(&local->mtx);
+			return ret;
+		}
+
+		local->hw_roc_for_tx = true;
+		local->hw_roc_duration = wait;
+
+		/*
+		 * queue up frame for transmission after
+		 * ieee80211_ready_on_channel call
+		 */
+
+		/* modify cookie to prevent API mismatches */
+		*cookie ^= 2;
+		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_TX_OFFCHAN;
+		local->hw_roc_skb = skb;
+		mutex_unlock(&local->mtx);
+
+		return 0;
+	}
 
 	/*
 	 * Can transmit right away if the channel was the
@@ -1740,6 +1867,21 @@ static int ieee80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
 	int ret = -ENOENT;
 
 	mutex_lock(&local->mtx);
+
+	if (local->ops->cancel_remain_on_channel) {
+		cookie ^= 2;
+		ret = ieee80211_cancel_remain_on_channel_hw(local, cookie);
+
+		if (ret == 0) {
+			kfree_skb(local->hw_roc_skb);
+			local->hw_roc_skb = NULL;
+		}
+
+		mutex_unlock(&local->mtx);
+
+		return ret;
+	}
+
 	list_for_each_entry(wk, &local->work_list, list) {
 		if (wk->sdata != sdata)
 			continue;

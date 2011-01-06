@@ -110,19 +110,6 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 {
 	struct rt2x00_dev *rt2x00dev = data;
 	struct rt2x00_intf *intf = vif_to_intf(vif);
-	int delayed_flags;
-
-	/*
-	 * Copy all data we need during this action under the protection
-	 * of a spinlock. Otherwise race conditions might occur which results
-	 * into an invalid configuration.
-	 */
-	spin_lock(&intf->lock);
-
-	delayed_flags = intf->delayed_flags;
-	intf->delayed_flags = 0;
-
-	spin_unlock(&intf->lock);
 
 	/*
 	 * It is possible the radio was disabled while the work had been
@@ -133,7 +120,7 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return;
 
-	if (delayed_flags & DELAYED_UPDATE_BEACON)
+	if (test_and_clear_bit(DELAYED_UPDATE_BEACON, &intf->delayed_flags))
 		rt2x00queue_update_beacon(rt2x00dev, vif, true);
 }
 
@@ -813,8 +800,7 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Allocate tx status FIFO for driver use.
 	 */
-	if (test_bit(DRIVER_REQUIRE_TXSTATUS_FIFO, &rt2x00dev->flags) &&
-	    rt2x00dev->ops->lib->txstatus_tasklet) {
+	if (test_bit(DRIVER_REQUIRE_TXSTATUS_FIFO, &rt2x00dev->flags)) {
 		/*
 		 * Allocate txstatus fifo and tasklet, we use a size of 512
 		 * for the kfifo which is big enough to store 512/4=128 tx
@@ -828,9 +814,10 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 			return status;
 
 		/* tasklet for processing the tx status reports. */
-		tasklet_init(&rt2x00dev->txstatus_tasklet,
-			     rt2x00dev->ops->lib->txstatus_tasklet,
-			     (unsigned long)rt2x00dev);
+		if (rt2x00dev->ops->lib->txstatus_tasklet)
+			tasklet_init(&rt2x00dev->txstatus_tasklet,
+				     rt2x00dev->ops->lib->txstatus_tasklet,
+				     (unsigned long)rt2x00dev);
 
 	}
 

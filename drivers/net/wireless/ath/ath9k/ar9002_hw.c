@@ -22,7 +22,7 @@
 
 int modparam_force_new_ani;
 module_param_named(force_new_ani, modparam_force_new_ani, int, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Force new ANI for AR5008, AR9001, AR9002");
+MODULE_PARM_DESC(force_new_ani, "Force new ANI for AR5008, AR9001, AR9002");
 
 /* General hardware code for the A5008/AR9001/AR9002 hadware families */
 

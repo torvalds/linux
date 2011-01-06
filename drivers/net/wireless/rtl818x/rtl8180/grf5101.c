@@ -25,7 +25,7 @@
 #include <net/mac80211.h>
 
 #include "rtl8180.h"
-#include "rtl8180_grf5101.h"
+#include "grf5101.h"
 
 static const int grf5101_encode[] = {
 	0x0, 0x8, 0x4, 0xC,

@@ -168,6 +168,7 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
  * @IEEE80211_RX_FRAGMENTED: fragmented frame
  * @IEEE80211_RX_AMSDU: a-MSDU packet
  * @IEEE80211_RX_MALFORMED_ACTION_FRM: action frame is malformed
+ * @IEEE80211_RX_DEFERRED_RELEASE: frame was subjected to receive reordering
  *
  * These are per-frame flags that are attached to a frame in the
  * @rx_flags field of &struct ieee80211_rx_status.
@@ -178,6 +179,7 @@ enum ieee80211_packet_rx_flags {
 	IEEE80211_RX_FRAGMENTED			= BIT(2),
 	IEEE80211_RX_AMSDU			= BIT(3),
 	IEEE80211_RX_MALFORMED_ACTION_FRM	= BIT(4),
+	IEEE80211_RX_DEFERRED_RELEASE		= BIT(5),
 };
 
 /**
@@ -774,6 +776,15 @@ struct ieee80211_local {
 	struct sk_buff_head skb_queue;
 	struct sk_buff_head skb_queue_unreliable;
 
+	/*
+	 * Internal FIFO queue which is shared between multiple rx path
+	 * stages. Its main task is to provide a serialization mechanism,
+	 * so all rx handlers can enjoy having exclusive access to their
+	 * private data structures.
+	 */
+	struct sk_buff_head rx_skb_queue;
+	bool running_rx_handler;	/* protected by rx_skb_queue.lock */
+
 	/* Station data */
 	/*
 	 * The mutex only protects the list and counter,
@@ -939,6 +950,15 @@ struct ieee80211_local {
 		struct dentry *keys;
 	} debugfs;
 #endif
+
+	struct ieee80211_channel *hw_roc_channel;
+	struct net_device *hw_roc_dev;
+	struct sk_buff *hw_roc_skb;
+	struct work_struct hw_roc_start, hw_roc_done;
+	enum nl80211_channel_type hw_roc_channel_type;
+	unsigned int hw_roc_duration;
+	u32 hw_roc_cookie;
+	bool hw_roc_for_tx;
 
 	/* dummy netdev for use w/ NAPI */
 	struct net_device napi_dev;
@@ -1131,6 +1151,7 @@ void ieee80211_offchannel_stop_beaconing(struct ieee80211_local *local);
 void ieee80211_offchannel_stop_station(struct ieee80211_local *local);
 void ieee80211_offchannel_return(struct ieee80211_local *local,
 				 bool enable_beaconing);
+void ieee80211_hw_roc_setup(struct ieee80211_local *local);
 
 /* interface handling */
 int ieee80211_iface_init(void);

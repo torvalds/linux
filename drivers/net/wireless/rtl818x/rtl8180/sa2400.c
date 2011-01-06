@@ -25,7 +25,7 @@
 #include <net/mac80211.h>
 
 #include "rtl8180.h"
-#include "rtl8180_sa2400.h"
+#include "sa2400.h"
 
 static const u32 sa2400_chan[] = {
 	0x00096c, /* ch1 */

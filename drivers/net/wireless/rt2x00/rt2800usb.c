@@ -369,7 +369,10 @@ static void rt2800usb_write_tx_desc(struct queue_entry *entry,
 static void rt2800usb_write_tx_data(struct queue_entry *entry,
 					struct txentry_desc *txdesc)
 {
-	u8 padding_len;
+	unsigned int len;
+	int err;
+
+	rt2800_write_tx_data(entry, txdesc);
 
 	/*
 	 * pad(1~3 bytes) is added after each 802.11 payload.
@@ -378,9 +381,14 @@ static void rt2800usb_write_tx_data(struct queue_entry *entry,
 	 * | TXINFO | TXWI | 802.11 header | L2 pad | payload | pad | USB end pad |
 	 *                 |<------------- tx_pkt_len ------------->|
 	 */
-        rt2800_write_tx_data(entry, txdesc);
-        padding_len = roundup(entry->skb->len + 4, 4) - entry->skb->len;
-        memset(skb_put(entry->skb, padding_len), 0, padding_len);
+	len = roundup(entry->skb->len, 4) + 4;
+	err = skb_padto(entry->skb, len);
+	if (unlikely(err)) {
+		WARNING(entry->queue->rt2x00dev, "TX SKB padding error, out of memory\n");
+		return;
+	}
+
+	entry->skb->len = len;
 }
 
 /*

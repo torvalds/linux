@@ -1264,7 +1264,7 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 	int count = 0;
-	bool working = false, scanning = false;
+	bool working = false, scanning = false, hw_roc = false;
 	struct ieee80211_work *wk;
 	unsigned int led_trig_start = 0, led_trig_stop = 0;
 
@@ -1308,6 +1308,9 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 		local->scan_sdata->vif.bss_conf.idle = false;
 	}
 
+	if (local->hw_roc_channel)
+		hw_roc = true;
+
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata->old_idle == sdata->vif.bss_conf.idle)
 			continue;
@@ -1316,7 +1319,7 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
 	}
 
-	if (working || scanning)
+	if (working || scanning || hw_roc)
 		led_trig_start |= IEEE80211_TPT_LEDTRIG_FL_WORK;
 	else
 		led_trig_stop |= IEEE80211_TPT_LEDTRIG_FL_WORK;
@@ -1328,6 +1331,8 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 
 	ieee80211_mod_tpt_led_trig(local, led_trig_start, led_trig_stop);
 
+	if (hw_roc)
+		return ieee80211_idle_off(local, "hw remain-on-channel");
 	if (working)
 		return ieee80211_idle_off(local, "working");
 	if (scanning)

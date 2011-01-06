@@ -1750,6 +1750,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	__le16 fc;
 	struct ieee80211_hdr hdr;
 	struct ieee80211s_hdr mesh_hdr __maybe_unused;
+	struct mesh_path *mppath = NULL;
 	const u8 *encaps_data;
 	int encaps_len, skip_header_bytes;
 	int nh_pos, h_pos;
@@ -1810,16 +1811,23 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			ret = NETDEV_TX_OK;
 			goto fail;
 		}
+		if (!is_multicast_ether_addr(skb->data))
+			mppath = mpp_path_lookup(skb->data, sdata);
 
+		/*
+		 * Do not use address extension, if it is a packet from
+		 * the same interface and the destination is not being
+		 * proxied by any other mest point.
+		 */
 		if (compare_ether_addr(sdata->vif.addr,
-				       skb->data + ETH_ALEN) == 0) {
+				       skb->data + ETH_ALEN) == 0 &&
+		    (!mppath || !compare_ether_addr(mppath->mpp, skb->data))) {
 			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
 					skb->data, skb->data + ETH_ALEN);
 			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr,
 					sdata, NULL, NULL);
 		} else {
 			/* packet from other interface */
-			struct mesh_path *mppath;
 			int is_mesh_mcast = 1;
 			const u8 *mesh_da;
 
@@ -1830,8 +1838,6 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			else {
 				static const u8 bcast[ETH_ALEN] =
 					{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-
-				mppath = mpp_path_lookup(skb->data, sdata);
 				if (mppath) {
 					/* RA TA mDA mSA AE:DA SA */
 					mesh_da = mppath->mpp;

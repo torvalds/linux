@@ -59,6 +59,8 @@
 
 #define CTL(_tpower, _flag) ((_tpower) | ((_flag) << 6))
 
+#define EEPROM_DATA_LEN_9485	1088
+
 static int ar9003_hw_power_interpolate(int32_t x,
 				       int32_t *px, int32_t *py, u_int16_t np);
 
@@ -3368,7 +3370,7 @@ found:
 			"Found block at %x: code=%d ref=%d length=%d major=%d minor=%d\n",
 			cptr, code, reference, length, major, minor);
 		if ((!AR_SREV_9485(ah) && length >= 1024) ||
-		    (AR_SREV_9485(ah) && length >= (4 * 1024))) {
+		    (AR_SREV_9485(ah) && length > EEPROM_DATA_LEN_9485)) {
 			ath_dbg(common, ATH_DBG_EEPROM,
 				"Skipping bad header\n");
 			cptr -= COMP_HDR_LEN;

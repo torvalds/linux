@@ -834,7 +834,7 @@ static int carl9170_usb_load_firmware(struct ar9170 *ar)
 	if (err)
 		goto err_out;
 
-	/* firmware restarts cmd counter */
+	/* now, start the command response counter */
 	ar->cmd_seq = -1;
 
 	return 0;
@@ -851,7 +851,12 @@ int carl9170_usb_restart(struct ar9170 *ar)
 	if (ar->intf->condition != USB_INTERFACE_BOUND)
 		return 0;
 
-	/* Disable command response sequence counter. */
+	/*
+	 * Disable the command response sequence counter check.
+	 * We already know that the device/firmware is in a bad state.
+	 * So, no extra points are awarded to anyone who reminds the
+	 * driver about that.
+	 */
 	ar->cmd_seq = -2;
 
 	err = carl9170_reboot(ar);
@@ -903,6 +908,15 @@ static int carl9170_usb_init_device(struct ar9170 *ar)
 {
 	int err;
 
+	/*
+	 * The carl9170 firmware let's the driver know when it's
+	 * ready for action. But we have to be prepared to gracefully
+	 * handle all spurious [flushed] messages after each (re-)boot.
+	 * Thus the command response counter remains disabled until it
+	 * can be safely synchronized.
+	 */
+	ar->cmd_seq = -2;
+
 	err = carl9170_usb_send_rx_irq_urb(ar);
 	if (err)
 		goto err_out;
@@ -911,13 +925,20 @@ static int carl9170_usb_init_device(struct ar9170 *ar)
 	if (err)
 		goto err_unrx;
 
+	err = carl9170_usb_open(ar);
+	if (err)
+		goto err_unrx;
+
 	mutex_lock(&ar->mutex);
 	err = carl9170_usb_load_firmware(ar);
 	mutex_unlock(&ar->mutex);
 	if (err)
-		goto err_unrx;
+		goto err_stop;
 
 	return 0;
+
+err_stop:
+	carl9170_usb_stop(ar);
 
 err_unrx:
 	carl9170_usb_cancel_urbs(ar);
@@ -963,10 +984,6 @@ static void carl9170_usb_firmware_finish(struct ar9170 *ar)
 	err = carl9170_usb_init_device(ar);
 	if (err)
 		goto err_freefw;
-
-	err = carl9170_usb_open(ar);
-	if (err)
-		goto err_unrx;
 
 	err = carl9170_register(ar);
 
@@ -1043,7 +1060,6 @@ static int carl9170_usb_probe(struct usb_interface *intf,
 	atomic_set(&ar->rx_work_urbs, 0);
 	atomic_set(&ar->rx_anch_urbs, 0);
 	atomic_set(&ar->rx_pool_urbs, 0);
-	ar->cmd_seq = -2;
 
 	usb_get_dev(ar->udev);
 
@@ -1090,10 +1106,6 @@ static int carl9170_usb_suspend(struct usb_interface *intf,
 
 	carl9170_usb_cancel_urbs(ar);
 
-	/*
-	 * firmware automatically reboots for usb suspend.
-	 */
-
 	return 0;
 }
 
@@ -1106,12 +1118,20 @@ static int carl9170_usb_resume(struct usb_interface *intf)
 		return -ENODEV;
 
 	usb_unpoison_anchored_urbs(&ar->rx_anch);
+	carl9170_set_state(ar, CARL9170_STOPPED);
+
+	/*
+	 * The USB documentation demands that [for suspend] all traffic
+	 * to and from the device has to stop. This would be fine, but
+	 * there's a catch: the device[usb phy] does not come back.
+	 *
+	 * Upon resume the firmware will "kill" itself and the
+	 * boot-code sorts out the magic voodoo.
+	 * Not very nice, but there's not much what could go wrong.
+	 */
+	msleep(1100);
 
 	err = carl9170_usb_init_device(ar);
-	if (err)
-		goto err_unrx;
-
-	err = carl9170_usb_open(ar);
 	if (err)
 		goto err_unrx;
 
@@ -1133,6 +1153,7 @@ static struct usb_driver carl9170_driver = {
 #ifdef CONFIG_PM
 	.suspend = carl9170_usb_suspend,
 	.resume = carl9170_usb_resume,
+	.reset_resume = carl9170_usb_resume,
 #endif /* CONFIG_PM */
 };
 

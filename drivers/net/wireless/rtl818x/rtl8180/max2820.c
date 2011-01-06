@@ -24,7 +24,7 @@
 #include <net/mac80211.h>
 
 #include "rtl8180.h"
-#include "rtl8180_max2820.h"
+#include "max2820.h"
 
 static const u32 max2820_chan[] = {
 	12, /* CH 1 */
