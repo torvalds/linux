@@ -1222,6 +1222,24 @@ static struct svc_xprt_class svc_tcp_bc_class = {
 	.xcl_ops = &svc_tcp_bc_ops,
 	.xcl_max_payload = RPCSVC_MAXPAYLOAD_TCP,
 };
+
+static void svc_init_bc_xprt_sock(void)
+{
+	svc_reg_xprt_class(&svc_tcp_bc_class);
+}
+
+static void svc_cleanup_bc_xprt_sock(void)
+{
+	svc_unreg_xprt_class(&svc_tcp_bc_class);
+}
+#else /* CONFIG_NFS_V4_1 */
+static void svc_init_bc_xprt_sock(void)
+{
+}
+
+static void svc_cleanup_bc_xprt_sock(void)
+{
+}
 #endif /* CONFIG_NFS_V4_1 */
 
 static struct svc_xprt_ops svc_tcp_ops = {
@@ -1247,12 +1265,14 @@ void svc_init_xprt_sock(void)
 {
 	svc_reg_xprt_class(&svc_tcp_class);
 	svc_reg_xprt_class(&svc_udp_class);
+	svc_init_bc_xprt_sock();
 }
 
 void svc_cleanup_xprt_sock(void)
 {
 	svc_unreg_xprt_class(&svc_tcp_class);
 	svc_unreg_xprt_class(&svc_udp_class);
+	svc_cleanup_bc_xprt_sock();
 }
 
 static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
