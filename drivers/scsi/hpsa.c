@@ -3053,38 +3053,6 @@ static __devinit int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 #define hpsa_soft_reset_controller(p) hpsa_message(p, 1, 0)
 #define hpsa_noop(p) hpsa_message(p, 3, 0)
 
-static __devinit int hpsa_reset_msi(struct pci_dev *pdev)
-{
-/* the #defines are stolen from drivers/pci/msi.h. */
-#define msi_control_reg(base)		(base + PCI_MSI_FLAGS)
-#define PCI_MSIX_FLAGS_ENABLE		(1 << 15)
-
-	int pos;
-	u16 control = 0;
-
-	pos = pci_find_capability(pdev, PCI_CAP_ID_MSI);
-	if (pos) {
-		pci_read_config_word(pdev, msi_control_reg(pos), &control);
-		if (control & PCI_MSI_FLAGS_ENABLE) {
-			dev_info(&pdev->dev, "resetting MSI\n");
-			pci_write_config_word(pdev, msi_control_reg(pos),
-					control & ~PCI_MSI_FLAGS_ENABLE);
-		}
-	}
-
-	pos = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
-	if (pos) {
-		pci_read_config_word(pdev, msi_control_reg(pos), &control);
-		if (control & PCI_MSIX_FLAGS_ENABLE) {
-			dev_info(&pdev->dev, "resetting MSI-X\n");
-			pci_write_config_word(pdev, msi_control_reg(pos),
-					control & ~PCI_MSIX_FLAGS_ENABLE);
-		}
-	}
-
-	return 0;
-}
-
 static int hpsa_controller_hard_reset(struct pci_dev *pdev,
 	void * __iomem vaddr, bool use_doorbell)
 {
@@ -3140,17 +3108,17 @@ static int hpsa_controller_hard_reset(struct pci_dev *pdev,
  */
 static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 {
-	u16 saved_config_space[32];
 	u64 cfg_offset;
 	u32 cfg_base_addr;
 	u64 cfg_base_addr_index;
 	void __iomem *vaddr;
 	unsigned long paddr;
 	u32 misc_fw_support, active_transport;
-	int rc, i;
+	int rc;
 	struct CfgTable __iomem *cfgtable;
 	bool use_doorbell;
 	u32 board_id;
+	u16 command_register;
 
 	/* For controllers as old as the P600, this is very nearly
 	 * the same thing as
@@ -3159,14 +3127,6 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	 * pci_set_power_state(pci_dev, PCI_D3hot);
 	 * pci_set_power_state(pci_dev, PCI_D0);
 	 * pci_restore_state(pci_dev);
-	 *
-	 * but we can't use these nice canned kernel routines on
-	 * kexec, because they also check the MSI/MSI-X state in PCI
-	 * configuration space and do the wrong thing when it is
-	 * set/cleared.  Also, the pci_save/restore_state functions
-	 * violate the ordering requirements for restoring the
-	 * configuration space from the CCISS document (see the
-	 * comment below).  So we roll our own ....
 	 *
 	 * For controllers newer than the P600, the pci power state
 	 * method of resetting doesn't work so we have another way
@@ -3184,9 +3144,13 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	if (board_id == 0x409C0E11 || board_id == 0x409D0E11)
 		return -ENOTSUPP;
 
-	for (i = 0; i < 32; i++)
-		pci_read_config_word(pdev, 2*i, &saved_config_space[i]);
-
+	/* Save the PCI command register */
+	pci_read_config_word(pdev, 4, &command_register);
+	/* Turn the board off.  This is so that later pci_restore_state()
+	 * won't turn the board on before the rest of config space is ready.
+	 */
+	pci_disable_device(pdev);
+	pci_save_state(pdev);
 
 	/* find the first memory BAR, so we can find the cfg table */
 	rc = hpsa_pci_find_memory_BAR(pdev, &paddr);
@@ -3212,30 +3176,17 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	misc_fw_support = readl(&cfgtable->misc_fw_support);
 	use_doorbell = misc_fw_support & MISC_FW_DOORBELL_RESET;
 
-	/* The doorbell reset seems to cause lockups on some Smart
-	 * Arrays (e.g. P410, P410i, maybe others).  Until this is
-	 * fixed or at least isolated, avoid the doorbell reset.
-	 */
-	use_doorbell = 0;
-
 	rc = hpsa_controller_hard_reset(pdev, vaddr, use_doorbell);
 	if (rc)
 		goto unmap_cfgtable;
 
-	/* Restore the PCI configuration space.  The Open CISS
-	 * Specification says, "Restore the PCI Configuration
-	 * Registers, offsets 00h through 60h. It is important to
-	 * restore the command register, 16-bits at offset 04h,
-	 * last. Do not restore the configuration status register,
-	 * 16-bits at offset 06h."  Note that the offset is 2*i.
-	 */
-	for (i = 0; i < 32; i++) {
-		if (i == 2 || i == 3)
-			continue;
-		pci_write_config_word(pdev, 2*i, saved_config_space[i]);
+	pci_restore_state(pdev);
+	rc = pci_enable_device(pdev);
+	if (rc) {
+		dev_warn(&pdev->dev, "failed to enable device.\n");
+		goto unmap_cfgtable;
 	}
-	wmb();
-	pci_write_config_word(pdev, 4, saved_config_space[2]);
+	pci_write_config_word(pdev, 4, command_register);
 
 	/* Some devices (notably the HP Smart Array 5i Controller)
 	   need a little pause here */
@@ -3731,8 +3682,6 @@ static __devinit int hpsa_init_reset_devices(struct pci_dev *pdev)
 	if (rc == -ENOTSUPP)
 		return 0; /* just try to do the kdump anyhow. */
 	if (rc)
-		return -ENODEV;
-	if (hpsa_reset_msi(pdev))
 		return -ENODEV;
 
 	/* Now try to get the controller to respond to a no-op */
