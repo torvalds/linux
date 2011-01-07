@@ -575,20 +575,25 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	if (!(vma->vm_flags & VM_WRITE))
 		map->flags |= GNTMAP_readonly;
 
+	spin_unlock(&priv->lock);
+
 	err = apply_to_page_range(vma->vm_mm, vma->vm_start,
 				  vma->vm_end - vma->vm_start,
 				  find_grant_ptes, map);
 	if (err) {
 		printk(KERN_WARNING "find_grant_ptes() failure.\n");
-		goto unlock_out;
+		return err;
 	}
 
 	err = map_grant_pages(map);
 	if (err) {
 		printk(KERN_WARNING "map_grant_pages() failure.\n");
-		goto unlock_out;
+		return err;
 	}
+
 	map->is_mapped = 1;
+
+	return 0;
 
 unlock_out:
 	spin_unlock(&priv->lock);
