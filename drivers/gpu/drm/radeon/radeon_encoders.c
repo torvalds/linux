@@ -712,7 +712,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
  * - 2 DIG encoder blocks.
  * DIG1/2 can drive UNIPHY0/1/2 link A or link B
  *
- * DCE 4.0
+ * DCE 4.0/5.0
  * - 3 DIG transmitter blocks UNIPHY0/1/2 (links A and B).
  * Supports up to 6 digital outputs
  * - 6 DIG encoder blocks.
@@ -829,6 +829,7 @@ union dig_transmitter_control {
 	DIG_TRANSMITTER_CONTROL_PS_ALLOCATION v1;
 	DIG_TRANSMITTER_CONTROL_PARAMETERS_V2 v2;
 	DIG_TRANSMITTER_CONTROL_PARAMETERS_V3 v3;
+	DIG_TRANSMITTER_CONTROL_PARAMETERS_V4 v4;
 };
 
 void
@@ -923,10 +924,18 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 			struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
 			pll_id = radeon_crtc->pll_id;
 		}
-		if (is_dp && rdev->clock.dp_extclk)
-			args.v3.acConfig.ucRefClkSource = 2; /* external src */
-		else
-			args.v3.acConfig.ucRefClkSource = pll_id;
+
+		if (ASIC_IS_DCE5(rdev)) {
+			if (is_dp && rdev->clock.dp_extclk)
+				args.v4.acConfig.ucRefClkSource = 3; /* external src */
+			else
+				args.v4.acConfig.ucRefClkSource = pll_id;
+		} else {
+			if (is_dp && rdev->clock.dp_extclk)
+				args.v3.acConfig.ucRefClkSource = 2; /* external src */
+			else
+				args.v3.acConfig.ucRefClkSource = pll_id;
+		}
 
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
