@@ -125,6 +125,26 @@ static int __init parse_noapic(char *str)
 }
 early_param("noapic", parse_noapic);
 
+/* Will be called in mpparse/acpi/sfi codes for saving IRQ info */
+void mp_save_irq(struct mpc_intsrc *m)
+{
+	int i;
+
+	apic_printk(APIC_VERBOSE, "Int: type %d, pol %d, trig %d, bus %02x,"
+		" IRQ %02x, APIC ID %x, APIC INT %02x\n",
+		m->irqtype, m->irqflag & 3, (m->irqflag >> 2) & 3, m->srcbus,
+		m->srcbusirq, m->dstapic, m->dstirq);
+
+	for (i = 0; i < mp_irq_entries; i++) {
+		if (!memcmp(&mp_irqs[i], m, sizeof(*m)))
+			return;
+	}
+
+	memcpy(&mp_irqs[mp_irq_entries], m, sizeof(*m));
+	if (++mp_irq_entries == MAX_IRQ_SOURCES)
+		panic("Max # of irq sources exceeded!!\n");
+}
+
 struct irq_pin_list {
 	int apic, pin;
 	struct irq_pin_list *next;
@@ -134,6 +154,7 @@ static struct irq_pin_list *alloc_irq_pin_list(int node)
 {
 	return kzalloc_node(sizeof(struct irq_pin_list), GFP_KERNEL, node);
 }
+
 
 /* irq_cfg is indexed by the sum of all RTEs in all I/O APICs. */
 #ifdef CONFIG_SPARSE_IRQ
@@ -2006,9 +2027,12 @@ void __init setup_ioapic_ids_from_mpc_nocheck(void)
 						= mp_ioapics[apic_id].apicid;
 
 		/*
-		 * Read the right value from the MPC table and
-		 * write it into the ID register.
+		 * Update the ID register according to the right value
+		 * from the MPC table if they are different.
 		 */
+		if (mp_ioapics[apic_id].apicid == reg_00.bits.ID)
+			continue;
+
 		apic_printk(APIC_VERBOSE, KERN_INFO
 			"...changing IO-APIC physical APIC ID to %d ...",
 			mp_ioapics[apic_id].apicid);
