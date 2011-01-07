@@ -231,7 +231,7 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
 		goto repeat;
 }
 
-static int sysfs_dentry_delete(struct dentry *dentry)
+static int sysfs_dentry_delete(const struct dentry *dentry)
 {
 	struct sysfs_dirent *sd = dentry->d_fsdata;
 	return !!(sd->s_flags & SYSFS_FLAG_REMOVED);

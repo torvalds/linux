@@ -133,9 +133,9 @@ enum dentry_d_lock_class
 
 struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, struct nameidata *);
-	int (*d_hash) (struct dentry *, struct qstr *);
-	int (*d_compare) (struct dentry *, struct qstr *, struct qstr *);
-	int (*d_delete)(struct dentry *);
+	int (*d_hash)(struct dentry *, struct qstr *);
+	int (*d_compare)(struct dentry *, struct qstr *, struct qstr *);
+	int (*d_delete)(const struct dentry *);
 	void (*d_release)(struct dentry *);
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)(struct dentry *, char *, int);

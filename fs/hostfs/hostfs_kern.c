@@ -32,7 +32,7 @@ static inline struct hostfs_inode_info *HOSTFS_I(struct inode *inode)
 
 #define FILE_HOSTFS_I(file) HOSTFS_I((file)->f_path.dentry->d_inode)
 
-static int hostfs_d_delete(struct dentry *dentry)
+static int hostfs_d_delete(const struct dentry *dentry)
 {
 	return 1;
 }

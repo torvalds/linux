@@ -2198,7 +2198,7 @@ static inline struct cftype *__file_cft(struct file *file)
 	return __d_cft(file->f_dentry);
 }
 
-static int cgroup_delete_dentry(struct dentry *dentry)
+static int cgroup_delete_dentry(const struct dentry *dentry)
 {
 	return 1;
 }

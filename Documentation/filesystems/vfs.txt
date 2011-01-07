@@ -847,9 +847,9 @@ defined:
 
 struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, struct nameidata *);
-	int (*d_hash) (struct dentry *, struct qstr *);
-	int (*d_compare) (struct dentry *, struct qstr *, struct qstr *);
-	int (*d_delete)(struct dentry *);
+	int (*d_hash)(struct dentry *, struct qstr *);
+	int (*d_compare)(struct dentry *, struct qstr *, struct qstr *);
+	int (*d_delete)(const struct dentry *);
 	void (*d_release)(struct dentry *);
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)(struct dentry *, char *, int);
@@ -864,9 +864,11 @@ struct dentry_operations {
 
   d_compare: called when a dentry should be compared with another
 
-  d_delete: called when the last reference to a dentry is
-	deleted. This means no-one is using the dentry, however it is
-	still valid and in the dcache
+  d_delete: called when the last reference to a dentry is dropped and the
+	dcache is deciding whether or not to cache it. Return 1 to delete
+	immediately, or 0 to cache the dentry. Default is NULL which means to
+	always cache a reachable dentry. d_delete must be constant and
+	idempotent.
 
   d_release: called when a dentry is really deallocated
 
@@ -910,14 +912,11 @@ manipulate dentries:
 	the usage count)
 
   dput: close a handle for a dentry (decrements the usage count). If
-	the usage count drops to 0, the "d_delete" method is called
-	and the dentry is placed on the unused list if the dentry is
-	still in its parents hash list. Putting the dentry on the
-	unused list just means that if the system needs some RAM, it
-	goes through the unused list of dentries and deallocates them.
-	If the dentry has already been unhashed and the usage count
-	drops to 0, in this case the dentry is deallocated after the
-	"d_delete" method is called
+	the usage count drops to 0, and the dentry is still in its
+	parent's hash, the "d_delete" method is called to check whether
+	it should be cached. If it should not be cached, or if the dentry
+	is not hashed, it is deleted. Otherwise cached dentries are put
+	into an LRU list to be reclaimed on memory shortage.
 
   d_drop: this unhashes a dentry from its parents hash list. A
 	subsequent call to dput() will deallocate the dentry if its

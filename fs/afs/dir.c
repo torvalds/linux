@@ -23,7 +23,7 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 static int afs_dir_open(struct inode *inode, struct file *file);
 static int afs_readdir(struct file *file, void *dirent, filldir_t filldir);
 static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd);
-static int afs_d_delete(struct dentry *dentry);
+static int afs_d_delete(const struct dentry *dentry);
 static void afs_d_release(struct dentry *dentry);
 static int afs_lookup_filldir(void *_cookie, const char *name, int nlen,
 				  loff_t fpos, u64 ino, unsigned dtype);
@@ -730,7 +730,7 @@ out_bad:
  * - called from dput() when d_count is going to 0.
  * - return 1 to request dentry be unhashed, 0 otherwise
  */
-static int afs_d_delete(struct dentry *dentry)
+static int afs_d_delete(const struct dentry *dentry)
 {
 	_enter("%s", dentry->d_name.name);
 

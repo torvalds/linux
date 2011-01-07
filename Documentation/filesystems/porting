@@ -318,3 +318,11 @@ if it's zero is not *and* *never* *had* *been* enough.  Final unlink() and iput(
 may happen while the inode is in the middle of ->write_inode(); e.g. if you blindly
 free the on-disk inode, you may end up doing that while ->write_inode() is writing
 to it.
+
+---
+[mandatory]
+
+	.d_delete() now only advises the dcache as to whether or not to cache
+unreferenced dentries, and is now only called when the dentry refcount goes to
+0. Even on 0 refcount transition, it must be able to tolerate being called 0,
+1, or more times (eg. constant, idempotent).

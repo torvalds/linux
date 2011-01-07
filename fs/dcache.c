@@ -453,8 +453,6 @@ static void prune_one_dentry(struct dentry * dentry)
 		if (!atomic_dec_and_lock(&dentry->d_count, &dentry->d_lock))
 			return;
 
-		if (dentry->d_op && dentry->d_op->d_delete)
-			dentry->d_op->d_delete(dentry);
 		dentry_lru_del(dentry);
 		__d_drop(dentry);
 		dentry = d_kill(dentry);

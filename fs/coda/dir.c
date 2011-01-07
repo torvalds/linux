@@ -47,7 +47,7 @@ static int coda_readdir(struct file *file, void *buf, filldir_t filldir);
 
 /* dentry ops */
 static int coda_dentry_revalidate(struct dentry *de, struct nameidata *nd);
-static int coda_dentry_delete(struct dentry *);
+static int coda_dentry_delete(const struct dentry *);
 
 /* support routines */
 static int coda_venus_readdir(struct file *coda_file, void *buf,
@@ -577,7 +577,7 @@ out:
  * This is the callback from dput() when d_count is going to 0.
  * We use this to unhash dentries with bad inodes.
  */
-static int coda_dentry_delete(struct dentry * dentry)
+static int coda_dentry_delete(const struct dentry * dentry)
 {
 	int flags;
 

@@ -276,7 +276,7 @@ smb_dir_open(struct inode *dir, struct file *file)
 static int smb_lookup_validate(struct dentry *, struct nameidata *);
 static int smb_hash_dentry(struct dentry *, struct qstr *);
 static int smb_compare_dentry(struct dentry *, struct qstr *, struct qstr *);
-static int smb_delete_dentry(struct dentry *);
+static int smb_delete_dentry(const struct dentry *);
 
 static const struct dentry_operations smbfs_dentry_operations =
 {
@@ -367,7 +367,7 @@ out:
  * We use this to unhash dentries with bad inodes.
  */
 static int
-smb_delete_dentry(struct dentry * dentry)
+smb_delete_dentry(const struct dentry *dentry)
 {
 	if (dentry->d_inode) {
 		if (is_bad_inode(dentry->d_inode)) {

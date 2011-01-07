@@ -430,7 +430,7 @@ void rpc_put_mount(void)
 }
 EXPORT_SYMBOL_GPL(rpc_put_mount);
 
-static int rpc_delete_dentry(struct dentry *dentry)
+static int rpc_delete_dentry(const struct dentry *dentry)
 {
 	return 1;
 }

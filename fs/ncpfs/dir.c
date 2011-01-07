@@ -76,7 +76,7 @@ const struct inode_operations ncp_dir_inode_operations =
 static int ncp_lookup_validate(struct dentry *, struct nameidata *);
 static int ncp_hash_dentry(struct dentry *, struct qstr *);
 static int ncp_compare_dentry (struct dentry *, struct qstr *, struct qstr *);
-static int ncp_delete_dentry(struct dentry *);
+static int ncp_delete_dentry(const struct dentry *);
 
 static const struct dentry_operations ncp_dentry_operations =
 {
@@ -162,7 +162,7 @@ ncp_compare_dentry(struct dentry *dentry, struct qstr *a, struct qstr *b)
  * Closing files can be safely postponed until iput() - it's done there anyway.
  */
 static int
-ncp_delete_dentry(struct dentry * dentry)
+ncp_delete_dentry(const struct dentry * dentry)
 {
 	struct inode *inode = dentry->d_inode;
 

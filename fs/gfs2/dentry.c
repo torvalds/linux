@@ -106,7 +106,7 @@ static int gfs2_dhash(struct dentry *dentry, struct qstr *str)
 	return 0;
 }
 
-static int gfs2_dentry_delete(struct dentry *dentry)
+static int gfs2_dentry_delete(const struct dentry *dentry)
 {
 	struct gfs2_inode *ginode;
 

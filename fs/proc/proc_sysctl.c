@@ -392,7 +392,7 @@ static int proc_sys_revalidate(struct dentry *dentry, struct nameidata *nd)
 	return !PROC_I(dentry->d_inode)->sysctl->unregistering;
 }
 
-static int proc_sys_delete(struct dentry *dentry)
+static int proc_sys_delete(const struct dentry *dentry)
 {
 	return !!PROC_I(dentry->d_inode)->sysctl->unregistering;
 }
