@@ -273,6 +273,15 @@ static struct resource sh_mmcif_resources[] = {
 	},
 };
 
+static struct sh_mmcif_dma sh_mmcif_dma = {
+	.chan_priv_rx	= {
+		.slave_id	= SHDMA_SLAVE_MMCIF_RX,
+	},
+	.chan_priv_tx	= {
+		.slave_id	= SHDMA_SLAVE_MMCIF_TX,
+	},
+};
+
 static struct sh_mmcif_plat_data sh_mmcif_plat = {
 	.sup_pclk	= 0,
 	.ocr		= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
@@ -280,6 +289,7 @@ static struct sh_mmcif_plat_data sh_mmcif_plat = {
 			  MMC_CAP_8_BIT_DATA |
 			  MMC_CAP_NEEDS_POLL,
 	.get_cd		= slot_cn7_get_cd,
+	.dma		= &sh_mmcif_dma,
 };
 
 static struct platform_device sh_mmcif_device = {
@@ -633,9 +643,8 @@ static int fsi_hdmi_set_rate(struct device *dev, int rate, int enable)
 		return -EIO;
 
 	ret = __fsi_set_round_rate(fsib_clk, fsib_rate, enable);
-	clk_put(fsib_clk);
 	if (ret < 0)
-		return ret;
+		goto fsi_set_rate_end;
 
 	/* FSI DIV setting */
 	ret = __fsi_set_round_rate(fdiv_clk, fdiv_rate, enable);
@@ -643,10 +652,14 @@ static int fsi_hdmi_set_rate(struct device *dev, int rate, int enable)
 		/* disable FSI B */
 		if (enable)
 			__fsi_set_round_rate(fsib_clk, fsib_rate, 0);
-		return ret;
+		goto fsi_set_rate_end;
 	}
 
-	return ackmd_bpfmd;
+	ret = ackmd_bpfmd;
+
+fsi_set_rate_end:
+	clk_put(fsib_clk);
+	return ret;
 }
 
 static int fsi_set_rate(struct device *dev, int is_porta, int rate, int enable)
@@ -1174,7 +1187,7 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_OVCN2_1,    NULL);
 
 	/* setup USB phy */
-	__raw_writew(0x8a0a, 0xE6058130);	/* USBCR2 */
+	__raw_writew(0x8a0a, 0xE6058130);	/* USBCR4 */
 
 	/* enable FSI2 port A (ak4643) */
 	gpio_request(GPIO_FN_FSIAIBT,	NULL);
@@ -1348,6 +1361,7 @@ static struct sys_timer ap4evb_timer = {
 MACHINE_START(AP4EVB, "ap4evb")
 	.map_io		= ap4evb_map_io,
 	.init_irq	= sh7372_init_irq,
+	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= ap4evb_init,
 	.timer		= &ap4evb_timer,
 MACHINE_END

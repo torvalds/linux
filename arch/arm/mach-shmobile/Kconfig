@@ -5,26 +5,27 @@ comment "SH-Mobile System Type"
 config ARCH_SH7367
 	bool "SH-Mobile G3 (SH7367)"
 	select CPU_V6
-	select HAVE_CLK
-	select CLKDEV_LOOKUP
 	select SH_CLK_CPG
-	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config ARCH_SH7377
 	bool "SH-Mobile G4 (SH7377)"
 	select CPU_V7
-	select HAVE_CLK
-	select CLKDEV_LOOKUP
 	select SH_CLK_CPG
-	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config ARCH_SH7372
 	bool "SH-Mobile AP4 (SH7372)"
 	select CPU_V7
-	select HAVE_CLK
-	select CLKDEV_LOOKUP
 	select SH_CLK_CPG
-	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+
+config ARCH_SH73A0
+	bool "SH-Mobile AG5 (R8A73A00)"
+	select CPU_V7
+	select SH_CLK_CPG
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_GIC
 
 comment "SH-Mobile Board Type"
 
@@ -57,6 +58,15 @@ config AP4EVB_WVGA
 
 endchoice
 
+config MACH_AG5EVM
+	bool "AG5EVM board"
+	depends on ARCH_SH73A0
+
+config MACH_MACKEREL
+	bool "mackerel board"
+	depends on ARCH_SH7372
+	select ARCH_REQUIRE_GPIOLIB
+
 comment "SH-Mobile System Configuration"
 
 menu "Memory configuration"
@@ -64,8 +74,8 @@ menu "Memory configuration"
 config MEMORY_START
 	hex "Physical memory start address"
 	default "0x50000000" if MACH_G3EVM
-	default "0x40000000" if MACH_G4EVM
-	default "0x40000000" if MACH_AP4EVB
+	default "0x40000000" if MACH_G4EVM || MACH_AP4EVB || MACH_AG5EVM || \
+				MACH_MACKEREL
 	default "0x00000000"
 	---help---
 	  Tweak this only when porting to a new machine which does not
@@ -76,7 +86,8 @@ config MEMORY_SIZE
 	hex "Physical memory size"
 	default "0x08000000" if MACH_G3EVM
 	default "0x08000000" if MACH_G4EVM
-	default "0x10000000" if MACH_AP4EVB
+	default "0x20000000" if MACH_AG5EVM
+	default "0x10000000" if MACH_AP4EVB || MACH_MACKEREL
 	default "0x04000000"
 	help
 	  This sets the default memory size assumed by your kernel. It can

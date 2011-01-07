@@ -394,6 +394,7 @@ static struct sys_timer g4evm_timer = {
 MACHINE_START(G4EVM, "g4evm")
 	.map_io		= g4evm_map_io,
 	.init_irq	= sh7377_init_irq,
+	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= g4evm_init,
 	.timer		= &g4evm_timer,
 MACHINE_END
