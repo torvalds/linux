@@ -530,6 +530,15 @@ void radeon_pm_suspend(struct radeon_device *rdev)
 
 void radeon_pm_resume(struct radeon_device *rdev)
 {
+	/* set up the default clocks if the MC ucode is loaded */
+	if (ASIC_IS_DCE5(rdev) && rdev->mc_fw) {
+		if (rdev->pm.default_vddc)
+			radeon_atom_set_voltage(rdev, rdev->pm.default_vddc);
+		if (rdev->pm.default_sclk)
+			radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
+		if (rdev->pm.default_mclk)
+			radeon_set_memory_clock(rdev, rdev->pm.default_mclk);
+	}
 	/* asic init will reset the default power state */
 	mutex_lock(&rdev->pm.mutex);
 	rdev->pm.current_power_state_index = rdev->pm.default_power_state_index;
@@ -571,6 +580,15 @@ int radeon_pm_init(struct radeon_device *rdev)
 			radeon_combios_get_power_modes(rdev);
 		radeon_pm_print_states(rdev);
 		radeon_pm_init_profile(rdev);
+		/* set up the default clocks if the MC ucode is loaded */
+		if (ASIC_IS_DCE5(rdev) && rdev->mc_fw) {
+			if (rdev->pm.default_vddc)
+				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc);
+			if (rdev->pm.default_sclk)
+				radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
+			if (rdev->pm.default_mclk)
+				radeon_set_memory_clock(rdev, rdev->pm.default_mclk);
+		}
 	}
 
 	/* set up the internal thermal sensor if applicable */
