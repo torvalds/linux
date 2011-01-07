@@ -122,7 +122,7 @@ struct link {
 	u32 checkpoint;
 	u32 peer_session;
 	u32 peer_bearer_id;
-	struct bearer *b_ptr;
+	struct tipc_bearer *b_ptr;
 	u32 tolerance;
 	u32 continuity_interval;
 	u32 abort_limit;
@@ -213,7 +213,7 @@ struct link {
 
 struct tipc_port;
 
-struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
+struct link *tipc_link_create(struct tipc_bearer *b_ptr, const u32 peer,
 			      const struct tipc_media_addr *media_addr);
 void tipc_link_delete(struct link *l_ptr);
 void tipc_link_changeover(struct link *l_ptr);

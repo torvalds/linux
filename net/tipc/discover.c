@@ -2,7 +2,7 @@
  * net/tipc/discover.c
  *
  * Copyright (c) 2003-2006, Ericsson AB
- * Copyright (c) 2005-2006, Wind River Systems
+ * Copyright (c) 2005-2006, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@
  * @timer_intv: current interval between requests (in ms)
  */
 struct link_req {
-	struct bearer *bearer;
+	struct tipc_bearer *bearer;
 	struct tipc_media_addr dest;
 	struct sk_buff *buf;
 	struct timer_list timer;
@@ -75,7 +75,7 @@ struct link_req {
 static struct sk_buff *tipc_disc_init_msg(u32 type,
 					  u32 req_links,
 					  u32 dest_domain,
-					  struct bearer *b_ptr)
+					  struct tipc_bearer *b_ptr)
 {
 	struct sk_buff *buf = tipc_buf_acquire(DSC_H_SIZE);
 	struct tipc_msg *msg;
@@ -87,7 +87,7 @@ static struct sk_buff *tipc_disc_init_msg(u32 type,
 		msg_set_req_links(msg, req_links);
 		msg_set_dest_domain(msg, dest_domain);
 		msg_set_bc_netid(msg, tipc_net_id);
-		msg_set_media_addr(msg, &b_ptr->publ.addr);
+		msg_set_media_addr(msg, &b_ptr->addr);
 	}
 	return buf;
 }
@@ -99,7 +99,7 @@ static struct sk_buff *tipc_disc_init_msg(u32 type,
  * @media_addr: media address advertised by duplicated node
  */
 
-static void disc_dupl_alert(struct bearer *b_ptr, u32 node_addr,
+static void disc_dupl_alert(struct tipc_bearer *b_ptr, u32 node_addr,
 			    struct tipc_media_addr *media_addr)
 {
 	char node_addr_str[16];
@@ -111,7 +111,7 @@ static void disc_dupl_alert(struct bearer *b_ptr, u32 node_addr,
 	tipc_media_addr_printf(&pb, media_addr);
 	tipc_printbuf_validate(&pb);
 	warn("Duplicate %s using %s seen on <%s>\n",
-	     node_addr_str, media_addr_str, b_ptr->publ.name);
+	     node_addr_str, media_addr_str, b_ptr->name);
 }
 
 /**
@@ -120,7 +120,7 @@ static void disc_dupl_alert(struct bearer *b_ptr, u32 node_addr,
  * @b_ptr: bearer that message arrived on
  */
 
-void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
+void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 {
 	struct link *link;
 	struct tipc_media_addr media_addr;
@@ -140,7 +140,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 	if (!tipc_addr_node_valid(orig))
 		return;
 	if (orig == tipc_own_addr) {
-		if (memcmp(&media_addr, &b_ptr->publ.addr, sizeof(media_addr)))
+		if (memcmp(&media_addr, &b_ptr->addr, sizeof(media_addr)))
 			disc_dupl_alert(b_ptr, tipc_own_addr, &media_addr);
 		return;
 	}
@@ -193,7 +193,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 			return;
 		rbuf = tipc_disc_init_msg(DSC_RESP_MSG, 1, orig, b_ptr);
 		if (rbuf != NULL) {
-			b_ptr->media->send_msg(rbuf, &b_ptr->publ, &media_addr);
+			b_ptr->media->send_msg(rbuf, b_ptr, &media_addr);
 			buf_discard(rbuf);
 		}
 	}
@@ -249,9 +249,9 @@ void tipc_disc_update_link_req(struct link_req *req)
 
 static void disc_timeout(struct link_req *req)
 {
-	spin_lock_bh(&req->bearer->publ.lock);
+	spin_lock_bh(&req->bearer->lock);
 
-	req->bearer->media->send_msg(req->buf, &req->bearer->publ, &req->dest);
+	req->bearer->media->send_msg(req->buf, req->bearer, &req->dest);
 
 	if ((req->timer_intv == TIPC_LINK_REQ_SLOW) ||
 	    (req->timer_intv == TIPC_LINK_REQ_FAST)) {
@@ -266,7 +266,7 @@ static void disc_timeout(struct link_req *req)
 	}
 	k_start_timer(&req->timer, req->timer_intv);
 
-	spin_unlock_bh(&req->bearer->publ.lock);
+	spin_unlock_bh(&req->bearer->lock);
 }
 
 /**
@@ -279,7 +279,7 @@ static void disc_timeout(struct link_req *req)
  * Returns pointer to link request structure, or NULL if unable to create.
  */
 
-struct link_req *tipc_disc_init_link_req(struct bearer *b_ptr,
+struct link_req *tipc_disc_init_link_req(struct tipc_bearer *b_ptr,
 					 const struct tipc_media_addr *dest,
 					 u32 dest_domain,
 					 u32 req_links)

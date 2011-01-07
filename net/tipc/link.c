@@ -113,7 +113,7 @@ static void link_init_max_pkt(struct link *l_ptr)
 {
 	u32 max_pkt;
 
-	max_pkt = (l_ptr->b_ptr->publ.mtu & ~3);
+	max_pkt = (l_ptr->b_ptr->mtu & ~3);
 	if (max_pkt > MAX_MSG_SIZE)
 		max_pkt = MAX_MSG_SIZE;
 
@@ -303,7 +303,7 @@ static void link_set_timer(struct link *l_ptr, u32 time)
  * Returns pointer to link.
  */
 
-struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
+struct link *tipc_link_create(struct tipc_bearer *b_ptr, const u32 peer,
 			      const struct tipc_media_addr *media_addr)
 {
 	struct link *l_ptr;
@@ -317,7 +317,7 @@ struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
 	}
 
 	l_ptr->addr = peer;
-	if_name = strchr(b_ptr->publ.name, ':') + 1;
+	if_name = strchr(b_ptr->name, ':') + 1;
 	sprintf(l_ptr->name, "%u.%u.%u:%s-%u.%u.%u:",
 		tipc_zone(tipc_own_addr), tipc_cluster(tipc_own_addr),
 		tipc_node(tipc_own_addr),
@@ -1595,11 +1595,10 @@ static int link_recv_buf_validate(struct sk_buff *buf)
  * structure (i.e. cannot be NULL), but bearer can be inactive.
  */
 
-void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *tb_ptr)
+void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 {
 	read_lock_bh(&tipc_net_lock);
 	while (head) {
-		struct bearer *b_ptr = (struct bearer *)tb_ptr;
 		struct tipc_node *n_ptr;
 		struct link *l_ptr;
 		struct sk_buff *crs;
@@ -2658,7 +2657,7 @@ void tipc_link_set_queue_limits(struct link *l_ptr, u32 window)
 static struct link *link_find_link(const char *name, struct tipc_node **node)
 {
 	struct link_name link_name_parts;
-	struct bearer *b_ptr;
+	struct tipc_bearer *b_ptr;
 	struct link *l_ptr;
 
 	if (!link_name_validate(name, &link_name_parts))
@@ -2961,7 +2960,7 @@ static void link_print(struct link *l_ptr, const char *str)
 
 	tipc_printf(buf, str);
 	tipc_printf(buf, "Link %x<%s>:",
-		    l_ptr->addr, l_ptr->b_ptr->publ.name);
+		    l_ptr->addr, l_ptr->b_ptr->name);
 
 #ifdef CONFIG_TIPC_DEBUG
 	if (link_reset_reset(l_ptr) || link_reset_unknown(l_ptr))

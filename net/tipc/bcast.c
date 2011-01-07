@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2004-2006, Ericsson AB
  * Copyright (c) 2004, Intel Corporation.
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,8 +61,8 @@
  */
 
 struct bcbearer_pair {
-	struct bearer *primary;
-	struct bearer *secondary;
+	struct tipc_bearer *primary;
+	struct tipc_bearer *secondary;
 };
 
 /**
@@ -81,7 +81,7 @@ struct bcbearer_pair {
  */
 
 struct bcbearer {
-	struct bearer bearer;
+	struct tipc_bearer bearer;
 	struct media media;
 	struct bcbearer_pair bpairs[MAX_BEARERS];
 	struct bcbearer_pair bpairs_temp[TIPC_MAX_LINK_PRI + 1];
@@ -574,8 +574,8 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 	bcbearer->remains = tipc_bcast_nmap;
 
 	for (bp_index = 0; bp_index < MAX_BEARERS; bp_index++) {
-		struct bearer *p = bcbearer->bpairs[bp_index].primary;
-		struct bearer *s = bcbearer->bpairs[bp_index].secondary;
+		struct tipc_bearer *p = bcbearer->bpairs[bp_index].primary;
+		struct tipc_bearer *s = bcbearer->bpairs[bp_index].secondary;
 
 		if (!p)
 			break;	/* no more bearers to try */
@@ -584,11 +584,11 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		if (bcbearer->remains_new.count == bcbearer->remains.count)
 			continue;	/* bearer pair doesn't add anything */
 
-		if (p->publ.blocked ||
-		    p->media->send_msg(buf, &p->publ, &p->media->bcast_addr)) {
+		if (p->blocked ||
+		    p->media->send_msg(buf, p, &p->media->bcast_addr)) {
 			/* unable to send on primary bearer */
-			if (!s || s->publ.blocked ||
-			    s->media->send_msg(buf, &s->publ,
+			if (!s || s->blocked ||
+			    s->media->send_msg(buf, s,
 					       &s->media->bcast_addr)) {
 				/* unable to send on either bearer */
 				continue;
@@ -633,7 +633,7 @@ void tipc_bcbearer_sort(void)
 	memset(bp_temp, 0, sizeof(bcbearer->bpairs_temp));
 
 	for (b_index = 0; b_index < MAX_BEARERS; b_index++) {
-		struct bearer *b = &tipc_bearers[b_index];
+		struct tipc_bearer *b = &tipc_bearers[b_index];
 
 		if (!b->active || !b->nodes.count)
 			continue;
@@ -682,12 +682,12 @@ void tipc_bcbearer_sort(void)
 
 void tipc_bcbearer_push(void)
 {
-	struct bearer *b_ptr;
+	struct tipc_bearer *b_ptr;
 
 	spin_lock_bh(&bc_lock);
 	b_ptr = &bcbearer->bearer;
-	if (b_ptr->publ.blocked) {
-		b_ptr->publ.blocked = 0;
+	if (b_ptr->blocked) {
+		b_ptr->blocked = 0;
 		tipc_bearer_lock_push(b_ptr);
 	}
 	spin_unlock_bh(&bc_lock);
