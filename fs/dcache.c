@@ -67,13 +67,22 @@ struct dentry_stat_t dentry_stat = {
 	.age_limit = 45,
 };
 
-static struct percpu_counter nr_dentry __cacheline_aligned_in_smp;
+static DEFINE_PER_CPU(unsigned int, nr_dentry);
 
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
+static int get_nr_dentry(void)
+{
+	int i;
+	int sum = 0;
+	for_each_possible_cpu(i)
+		sum += per_cpu(nr_dentry, i);
+	return sum < 0 ? 0 : sum;
+}
+
 int proc_nr_dentry(ctl_table *table, int write, void __user *buffer,
 		   size_t *lenp, loff_t *ppos)
 {
-	dentry_stat.nr_dentry = percpu_counter_sum_positive(&nr_dentry);
+	dentry_stat.nr_dentry = get_nr_dentry();
 	return proc_dointvec(table, write, buffer, lenp, ppos);
 }
 #endif
@@ -93,7 +102,7 @@ static void __d_free(struct rcu_head *head)
  */
 static void d_free(struct dentry *dentry)
 {
-	percpu_counter_dec(&nr_dentry);
+	this_cpu_dec(nr_dentry);
 	if (dentry->d_op && dentry->d_op->d_release)
 		dentry->d_op->d_release(dentry);
 
@@ -981,7 +990,7 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 		list_add(&dentry->d_u.d_child, &parent->d_subdirs);
 	spin_unlock(&dcache_lock);
 
-	percpu_counter_inc(&nr_dentry);
+	this_cpu_inc(nr_dentry);
 
 	return dentry;
 }
@@ -2417,8 +2426,6 @@ static void __init dcache_init_early(void)
 static void __init dcache_init(void)
 {
 	int loop;
-
-	percpu_counter_init(&nr_dentry, 0);
 
 	/* 
 	 * A constructor could be added for stable state like the lists,

@@ -102,13 +102,17 @@ static DECLARE_RWSEM(iprune_sem);
  */
 struct inodes_stat_t inodes_stat;
 
-static struct percpu_counter nr_inodes __cacheline_aligned_in_smp;
+static DEFINE_PER_CPU(unsigned int, nr_inodes);
 
 static struct kmem_cache *inode_cachep __read_mostly;
 
-static inline int get_nr_inodes(void)
+static int get_nr_inodes(void)
 {
-	return percpu_counter_sum_positive(&nr_inodes);
+	int i;
+	int sum = 0;
+	for_each_possible_cpu(i)
+		sum += per_cpu(nr_inodes, i);
+	return sum < 0 ? 0 : sum;
 }
 
 static inline int get_nr_inodes_unused(void)
@@ -118,9 +122,9 @@ static inline int get_nr_inodes_unused(void)
 
 int get_nr_dirty_inodes(void)
 {
+	/* not actually dirty inodes, but a wild approximation */
 	int nr_dirty = get_nr_inodes() - get_nr_inodes_unused();
 	return nr_dirty > 0 ? nr_dirty : 0;
-
 }
 
 /*
@@ -222,7 +226,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	inode->i_fsnotify_mask = 0;
 #endif
 
-	percpu_counter_inc(&nr_inodes);
+	this_cpu_inc(nr_inodes);
 
 	return 0;
 out:
@@ -264,7 +268,7 @@ void __destroy_inode(struct inode *inode)
 	if (inode->i_default_acl && inode->i_default_acl != ACL_NOT_CACHED)
 		posix_acl_release(inode->i_default_acl);
 #endif
-	percpu_counter_dec(&nr_inodes);
+	this_cpu_dec(nr_inodes);
 }
 EXPORT_SYMBOL(__destroy_inode);
 
@@ -1646,7 +1650,6 @@ void __init inode_init(void)
 					 SLAB_MEM_SPREAD),
 					 init_once);
 	register_shrinker(&icache_shrinker);
-	percpu_counter_init(&nr_inodes, 0);
 
 	/* Hash may have been set up in inode_init_early */
 	if (!hashdist)
