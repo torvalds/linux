@@ -32,6 +32,9 @@
 
 #include "dma.h"
 
+#define ST_RUNNING		(1<<0)
+#define ST_OPENED		(1<<1)
+
 static const struct snd_pcm_hardware dma_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
 				    SNDRV_PCM_INFO_BLOCK_TRANSFER |
