@@ -713,14 +713,14 @@ err:
 	return ret;
 }
 
-static void
+static int
 i915_gem_execbuffer_flush(struct drm_device *dev,
 			  uint32_t invalidate_domains,
 			  uint32_t flush_domains,
 			  uint32_t flush_rings)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int i;
+	int i, ret;
 
 	if (flush_domains & I915_GEM_DOMAIN_CPU)
 		intel_gtt_chipset_flush();
@@ -730,11 +730,17 @@ i915_gem_execbuffer_flush(struct drm_device *dev,
 
 	if ((flush_domains | invalidate_domains) & I915_GEM_GPU_DOMAINS) {
 		for (i = 0; i < I915_NUM_RINGS; i++)
-			if (flush_rings & (1 << i))
-				i915_gem_flush_ring(dev, &dev_priv->ring[i],
-						    invalidate_domains,
-						    flush_domains);
+			if (flush_rings & (1 << i)) {
+				ret = i915_gem_flush_ring(dev,
+							  &dev_priv->ring[i],
+							  invalidate_domains,
+							  flush_domains);
+				if (ret)
+					return ret;
+			}
 	}
+
+	return 0;
 }
 
 static int
@@ -798,10 +804,12 @@ i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 			 cd.invalidate_domains,
 			 cd.flush_domains);
 #endif
-		i915_gem_execbuffer_flush(ring->dev,
-					  cd.invalidate_domains,
-					  cd.flush_domains,
-					  cd.flush_rings);
+		ret = i915_gem_execbuffer_flush(ring->dev,
+						cd.invalidate_domains,
+						cd.flush_domains,
+						cd.flush_rings);
+		if (ret)
+			return ret;
 	}
 
 	list_for_each_entry(obj, objects, exec_list) {

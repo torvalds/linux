@@ -35,18 +35,18 @@
 #include <linux/swap.h>
 #include <linux/pci.h>
 
-static void i915_gem_object_flush_gpu_write_domain(struct drm_i915_gem_object *obj);
+static __must_check int i915_gem_object_flush_gpu_write_domain(struct drm_i915_gem_object *obj);
 static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj);
-static int i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj,
-					     bool write);
-static int i915_gem_object_set_cpu_read_domain_range(struct drm_i915_gem_object *obj,
-						     uint64_t offset,
-						     uint64_t size);
+static __must_check int i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj,
+							  bool write);
+static __must_check int i915_gem_object_set_cpu_read_domain_range(struct drm_i915_gem_object *obj,
+								  uint64_t offset,
+								  uint64_t size);
 static void i915_gem_object_set_to_full_cpu_read_domain(struct drm_i915_gem_object *obj);
-static int i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
-				       unsigned alignment,
-				       bool map_and_fenceable);
+static __must_check int i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
+						    unsigned alignment,
+						    bool map_and_fenceable);
 static void i915_gem_clear_fence_reg(struct drm_device *dev,
 				     struct drm_i915_fence_reg *reg);
 static int i915_gem_phys_pwrite(struct drm_device *dev,
@@ -2142,25 +2142,37 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	return ret;
 }
 
-void
+int
 i915_gem_flush_ring(struct drm_device *dev,
 		    struct intel_ring_buffer *ring,
 		    uint32_t invalidate_domains,
 		    uint32_t flush_domains)
 {
-	if (ring->flush(ring, invalidate_domains, flush_domains) == 0)
-		i915_gem_process_flushing_list(dev, flush_domains, ring);
+	int ret;
+
+	ret = ring->flush(ring, invalidate_domains, flush_domains);
+	if (ret)
+		return ret;
+
+	i915_gem_process_flushing_list(dev, flush_domains, ring);
+	return 0;
 }
 
 static int i915_ring_idle(struct drm_device *dev,
 			  struct intel_ring_buffer *ring)
 {
+	int ret;
+
 	if (list_empty(&ring->gpu_write_list) && list_empty(&ring->active_list))
 		return 0;
 
-	if (!list_empty(&ring->gpu_write_list))
-		i915_gem_flush_ring(dev, ring,
+	if (!list_empty(&ring->gpu_write_list)) {
+		ret = i915_gem_flush_ring(dev, ring,
 				    I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
+		if (ret)
+			return ret;
+	}
+
 	return i915_wait_request(dev,
 				 i915_gem_next_request_seqno(dev, ring),
 				 ring);
@@ -2370,10 +2382,13 @@ i915_gem_object_flush_fence(struct drm_i915_gem_object *obj,
 	int ret;
 
 	if (obj->fenced_gpu_access) {
-		if (obj->base.write_domain & I915_GEM_GPU_DOMAINS)
-			i915_gem_flush_ring(obj->base.dev,
-					    obj->last_fenced_ring,
-					    0, obj->base.write_domain);
+		if (obj->base.write_domain & I915_GEM_GPU_DOMAINS) {
+			ret = i915_gem_flush_ring(obj->base.dev,
+						  obj->last_fenced_ring,
+						  0, obj->base.write_domain);
+			if (ret)
+				return ret;
+		}
 
 		obj->fenced_gpu_access = false;
 	}
@@ -2529,9 +2544,12 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 				return ret;
 		} else if (obj->tiling_changed) {
 			if (obj->fenced_gpu_access) {
-				if (obj->base.write_domain & I915_GEM_GPU_DOMAINS)
-					i915_gem_flush_ring(obj->base.dev, obj->ring,
-							    0, obj->base.write_domain);
+				if (obj->base.write_domain & I915_GEM_GPU_DOMAINS) {
+					ret = i915_gem_flush_ring(obj->base.dev, obj->ring,
+								  0, obj->base.write_domain);
+					if (ret)
+						return ret;
+				}
 
 				obj->fenced_gpu_access = false;
 			}
@@ -2817,17 +2835,16 @@ i915_gem_clflush_object(struct drm_i915_gem_object *obj)
 }
 
 /** Flushes any GPU write domain for the object if it's dirty. */
-static void
+static int
 i915_gem_object_flush_gpu_write_domain(struct drm_i915_gem_object *obj)
 {
 	struct drm_device *dev = obj->base.dev;
 
 	if ((obj->base.write_domain & I915_GEM_GPU_DOMAINS) == 0)
-		return;
+		return 0;
 
 	/* Queue the GPU write cache flushing we need. */
-	i915_gem_flush_ring(dev, obj->ring, 0, obj->base.write_domain);
-	BUG_ON(obj->base.write_domain);
+	return i915_gem_flush_ring(dev, obj->ring, 0, obj->base.write_domain);
 }
 
 /** Flushes the GTT write domain for the object if it's dirty. */
@@ -2894,7 +2911,10 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	if (obj->gtt_space == NULL)
 		return -EINVAL;
 
-	i915_gem_object_flush_gpu_write_domain(obj);
+	ret = i915_gem_object_flush_gpu_write_domain(obj);
+	if (ret)
+		return ret;
+
 	if (obj->pending_gpu_write || write) {
 		ret = i915_gem_object_wait_rendering(obj, true);
 		if (ret)
@@ -2939,7 +2959,10 @@ i915_gem_object_set_to_display_plane(struct drm_i915_gem_object *obj,
 	if (obj->gtt_space == NULL)
 		return -EINVAL;
 
-	i915_gem_object_flush_gpu_write_domain(obj);
+	ret = i915_gem_object_flush_gpu_write_domain(obj);
+	if (ret)
+		return ret;
+
 
 	/* Currently, we are always called from an non-interruptible context. */
 	if (pipelined != obj->ring) {
@@ -2964,12 +2987,17 @@ int
 i915_gem_object_flush_gpu(struct drm_i915_gem_object *obj,
 			  bool interruptible)
 {
+	int ret;
+
 	if (!obj->active)
 		return 0;
 
-	if (obj->base.write_domain & I915_GEM_GPU_DOMAINS)
-		i915_gem_flush_ring(obj->base.dev, obj->ring,
-				    0, obj->base.write_domain);
+	if (obj->base.write_domain & I915_GEM_GPU_DOMAINS) {
+		ret = i915_gem_flush_ring(obj->base.dev, obj->ring,
+					  0, obj->base.write_domain);
+		if (ret)
+			return ret;
+	}
 
 	return i915_gem_object_wait_rendering(obj, interruptible);
 }
@@ -2986,7 +3014,10 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	uint32_t old_write_domain, old_read_domains;
 	int ret;
 
-	i915_gem_object_flush_gpu_write_domain(obj);
+	ret = i915_gem_object_flush_gpu_write_domain(obj);
+	if (ret)
+		return ret;
+
 	ret = i915_gem_object_wait_rendering(obj, true);
 	if (ret)
 		return ret;
@@ -3081,7 +3112,10 @@ i915_gem_object_set_cpu_read_domain_range(struct drm_i915_gem_object *obj,
 	if (offset == 0 && size == obj->base.size)
 		return i915_gem_object_set_to_cpu_domain(obj, 0);
 
-	i915_gem_object_flush_gpu_write_domain(obj);
+	ret = i915_gem_object_flush_gpu_write_domain(obj);
+	if (ret)
+		return ret;
+
 	ret = i915_gem_object_wait_rendering(obj, true);
 	if (ret)
 		return ret;
@@ -3374,8 +3408,8 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		 * flush earlier is beneficial.
 		 */
 		if (obj->base.write_domain & I915_GEM_GPU_DOMAINS) {
-			i915_gem_flush_ring(dev, obj->ring,
-					    0, obj->base.write_domain);
+			ret = i915_gem_flush_ring(dev, obj->ring,
+						  0, obj->base.write_domain);
 		} else if (obj->ring->outstanding_lazy_request ==
 			   obj->last_rendering_seqno) {
 			struct drm_i915_gem_request *request;
