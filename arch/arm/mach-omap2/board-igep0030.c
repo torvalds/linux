@@ -103,7 +103,7 @@ static struct platform_device igep3_onenand_device = {
 	},
 };
 
-void __init igep3_flash_init(void)
+static void __init igep3_flash_init(void)
 {
 	u8 cs = 0;
 	u8 onenandcs = GPMC_CS_NUM + 1;
@@ -137,7 +137,7 @@ void __init igep3_flash_init(void)
 }
 
 #else
-void __init igep3_flash_init(void) {}
+static void __init igep3_flash_init(void) {}
 #endif
 
 static struct regulator_consumer_supply igep3_vmmc1_supply = {
