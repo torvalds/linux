@@ -46,6 +46,7 @@
  *   - d_name
  *   - d_lru
  *   - d_count
+ *   - d_unhashed()
  *
  * Ordering:
  * dcache_lock
@@ -53,6 +54,13 @@
  *     dcache_lru_lock
  *     dcache_hash_lock
  *
+ * If there is an ancestor relationship:
+ * dentry->d_parent->...->d_parent->d_lock
+ *   ...
+ *     dentry->d_parent->d_lock
+ *       dentry->d_lock
+ *
+ * If no ancestor relationship:
  * if (dentry1 < dentry2)
  *   dentry1->d_lock
  *     dentry2->d_lock
@@ -379,7 +387,9 @@ int d_invalidate(struct dentry * dentry)
 	 * If it's already been dropped, return OK.
 	 */
 	spin_lock(&dcache_lock);
+	spin_lock(&dentry->d_lock);
 	if (d_unhashed(dentry)) {
+		spin_unlock(&dentry->d_lock);
 		spin_unlock(&dcache_lock);
 		return 0;
 	}
@@ -388,9 +398,11 @@ int d_invalidate(struct dentry * dentry)
 	 * to get rid of unused child entries.
 	 */
 	if (!list_empty(&dentry->d_subdirs)) {
+		spin_unlock(&dentry->d_lock);
 		spin_unlock(&dcache_lock);
 		shrink_dcache_parent(dentry);
 		spin_lock(&dcache_lock);
+		spin_lock(&dentry->d_lock);
 	}
 
 	/*
@@ -403,7 +415,6 @@ int d_invalidate(struct dentry * dentry)
 	 * we might still populate it if it was a
 	 * working directory or similar).
 	 */
-	spin_lock(&dentry->d_lock);
 	if (dentry->d_count > 1) {
 		if (dentry->d_inode && S_ISDIR(dentry->d_inode->i_mode)) {
 			spin_unlock(&dentry->d_lock);
@@ -490,35 +501,44 @@ EXPORT_SYMBOL(dget_parent);
  * any other hashed alias over that one unless @want_discon is set,
  * in which case only return an IS_ROOT, DCACHE_DISCONNECTED alias.
  */
-
-static struct dentry * __d_find_alias(struct inode *inode, int want_discon)
+static struct dentry *__d_find_alias(struct inode *inode, int want_discon)
 {
-	struct list_head *head, *next, *tmp;
-	struct dentry *alias, *discon_alias=NULL;
+	struct dentry *alias, *discon_alias;
 
-	head = &inode->i_dentry;
-	next = inode->i_dentry.next;
-	while (next != head) {
-		tmp = next;
-		next = tmp->next;
-		prefetch(next);
-		alias = list_entry(tmp, struct dentry, d_alias);
+again:
+	discon_alias = NULL;
+	list_for_each_entry(alias, &inode->i_dentry, d_alias) {
+		spin_lock(&alias->d_lock);
  		if (S_ISDIR(inode->i_mode) || !d_unhashed(alias)) {
 			if (IS_ROOT(alias) &&
-			    (alias->d_flags & DCACHE_DISCONNECTED))
+			    (alias->d_flags & DCACHE_DISCONNECTED)) {
 				discon_alias = alias;
-			else if (!want_discon) {
-				__dget_locked(alias);
+			} else if (!want_discon) {
+				__dget_locked_dlock(alias);
+				spin_unlock(&alias->d_lock);
 				return alias;
 			}
 		}
+		spin_unlock(&alias->d_lock);
 	}
-	if (discon_alias)
-		__dget_locked(discon_alias);
-	return discon_alias;
+	if (discon_alias) {
+		alias = discon_alias;
+		spin_lock(&alias->d_lock);
+		if (S_ISDIR(inode->i_mode) || !d_unhashed(alias)) {
+			if (IS_ROOT(alias) &&
+			    (alias->d_flags & DCACHE_DISCONNECTED)) {
+				__dget_locked_dlock(alias);
+				spin_unlock(&alias->d_lock);
+				return alias;
+			}
+		}
+		spin_unlock(&alias->d_lock);
+		goto again;
+	}
+	return NULL;
 }
 
-struct dentry * d_find_alias(struct inode *inode)
+struct dentry *d_find_alias(struct inode *inode)
 {
 	struct dentry *de = NULL;
 
@@ -801,8 +821,8 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 	spin_lock(&dcache_lock);
 	spin_lock(&dentry->d_lock);
 	dentry_lru_del(dentry);
-	spin_unlock(&dentry->d_lock);
 	__d_drop(dentry);
+	spin_unlock(&dentry->d_lock);
 	spin_unlock(&dcache_lock);
 
 	for (;;) {
@@ -817,8 +837,8 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 					    d_u.d_child) {
 				spin_lock(&loop->d_lock);
 				dentry_lru_del(loop);
-				spin_unlock(&loop->d_lock);
 				__d_drop(loop);
+				spin_unlock(&loop->d_lock);
 				cond_resched_lock(&dcache_lock);
 			}
 			spin_unlock(&dcache_lock);
@@ -1863,7 +1883,10 @@ static void d_move_locked(struct dentry * dentry, struct dentry * target)
 	/*
 	 * XXXX: do we really need to take target->d_lock?
 	 */
-	if (target < dentry) {
+	if (d_ancestor(dentry, target)) {
+		spin_lock(&dentry->d_lock);
+		spin_lock_nested(&target->d_lock, DENTRY_D_LOCK_NESTED);
+	} else if (d_ancestor(target, dentry) || target < dentry) {
 		spin_lock(&target->d_lock);
 		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 	} else {
@@ -2542,13 +2565,16 @@ resume:
 		struct list_head *tmp = next;
 		struct dentry *dentry = list_entry(tmp, struct dentry, d_u.d_child);
 		next = tmp->next;
-		if (d_unhashed(dentry)||!dentry->d_inode)
+		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
+		if (d_unhashed(dentry) || !dentry->d_inode) {
+			spin_unlock(&dentry->d_lock);
 			continue;
+		}
 		if (!list_empty(&dentry->d_subdirs)) {
+			spin_unlock(&dentry->d_lock);
 			this_parent = dentry;
 			goto repeat;
 		}
-		spin_lock(&dentry->d_lock);
 		dentry->d_count--;
 		spin_unlock(&dentry->d_lock);
 	}

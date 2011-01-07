@@ -166,6 +166,9 @@ static void spufs_prune_dir(struct dentry *dir)
 			__d_drop(dentry);
 			spin_unlock(&dentry->d_lock);
 			simple_unlink(dir->d_inode, dentry);
+			/* XXX: what is dcache_lock protecting here? Other
+			 * filesystems (IB, configfs) release dcache_lock
+			 * before unlink */
 			spin_unlock(&dcache_lock);
 			dput(dentry);
 		} else {

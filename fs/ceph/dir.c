@@ -136,6 +136,7 @@ more:
 			fi->at_end = 1;
 			goto out_unlock;
 		}
+		spin_lock(&dentry->d_lock);
 		if (!d_unhashed(dentry) && dentry->d_inode &&
 		    ceph_snap(dentry->d_inode) != CEPH_SNAPDIR &&
 		    ceph_ino(dentry->d_inode) != CEPH_INO_CEPH &&
@@ -145,13 +146,13 @@ more:
 		     dentry->d_name.len, dentry->d_name.name, di->offset,
 		     filp->f_pos, d_unhashed(dentry) ? " unhashed" : "",
 		     !dentry->d_inode ? " null" : "");
+		spin_unlock(&dentry->d_lock);
 		p = p->prev;
 		dentry = list_entry(p, struct dentry, d_u.d_child);
 		di = ceph_dentry(dentry);
 	}
 
-	spin_lock(&dentry->d_lock);
-	dentry->d_count++;
+	dget_dlock(dentry);
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&dcache_lock);
 

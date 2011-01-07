@@ -160,14 +160,18 @@ static int autofs4_tree_busy(struct vfsmount *mnt,
 
 	spin_lock(&dcache_lock);
 	for (p = top; p; p = next_dentry(p, top)) {
+		spin_lock(&p->d_lock);
 		/* Negative dentry - give up */
-		if (!simple_positive(p))
+		if (!simple_positive(p)) {
+			spin_unlock(&p->d_lock);
 			continue;
+		}
 
 		DPRINTK("dentry %p %.*s",
 			p, (int) p->d_name.len, p->d_name.name);
 
-		p = dget(p);
+		p = dget_dlock(p);
+		spin_unlock(&p->d_lock);
 		spin_unlock(&dcache_lock);
 
 		/*
@@ -228,14 +232,18 @@ static struct dentry *autofs4_check_leaves(struct vfsmount *mnt,
 
 	spin_lock(&dcache_lock);
 	for (p = parent; p; p = next_dentry(p, parent)) {
+		spin_lock(&p->d_lock);
 		/* Negative dentry - give up */
-		if (!simple_positive(p))
+		if (!simple_positive(p)) {
+			spin_unlock(&p->d_lock);
 			continue;
+		}
 
 		DPRINTK("dentry %p %.*s",
 			p, (int) p->d_name.len, p->d_name.name);
 
-		p = dget(p);
+		p = dget_dlock(p);
+		spin_unlock(&p->d_lock);
 		spin_unlock(&dcache_lock);
 
 		if (d_mountpoint(p)) {
@@ -324,12 +332,15 @@ struct dentry *autofs4_expire_indirect(struct super_block *sb,
 		struct dentry *dentry = list_entry(next, struct dentry, d_u.d_child);
 
 		/* Negative dentry - give up */
+		spin_lock(&dentry->d_lock);
 		if (!simple_positive(dentry)) {
 			next = next->next;
+			spin_unlock(&dentry->d_lock);
 			continue;
 		}
 
-		dentry = dget(dentry);
+		dentry = dget_dlock(dentry);
+		spin_unlock(&dentry->d_lock);
 		spin_unlock(&dcache_lock);
 
 		spin_lock(&sbi->fs_lock);
