@@ -2544,7 +2544,7 @@ int btrfs_sync_fs(struct super_block *sb, int wait);
 
 /* acl.c */
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
-int btrfs_check_acl(struct inode *inode, int mask);
+int btrfs_check_acl(struct inode *inode, int mask, unsigned int flags);
 #else
 #define btrfs_check_acl NULL
 #endif

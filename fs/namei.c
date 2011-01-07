@@ -169,8 +169,8 @@ EXPORT_SYMBOL(putname);
 /*
  * This does basic POSIX ACL permission checking
  */
-static inline int __acl_permission_check(struct inode *inode, int mask,
-		int (*check_acl)(struct inode *inode, int mask), int rcu)
+static int acl_permission_check(struct inode *inode, int mask, unsigned int flags,
+		int (*check_acl)(struct inode *inode, int mask, unsigned int flags))
 {
 	umode_t			mode = inode->i_mode;
 
@@ -180,13 +180,9 @@ static inline int __acl_permission_check(struct inode *inode, int mask,
 		mode >>= 6;
 	else {
 		if (IS_POSIXACL(inode) && (mode & S_IRWXG) && check_acl) {
-			if (rcu) {
-				return -ECHILD;
-			} else {
-				int error = check_acl(inode, mask);
-				if (error != -EAGAIN)
-					return error;
-			}
+			int error = check_acl(inode, mask, flags);
+			if (error != -EAGAIN)
+				return error;
 		}
 
 		if (in_group_p(inode->i_gid))
@@ -201,32 +197,31 @@ static inline int __acl_permission_check(struct inode *inode, int mask,
 	return -EACCES;
 }
 
-static inline int acl_permission_check(struct inode *inode, int mask,
-		int (*check_acl)(struct inode *inode, int mask))
-{
-	return __acl_permission_check(inode, mask, check_acl, 0);
-}
-
 /**
- * generic_permission  -  check for access rights on a Posix-like filesystem
+ * generic_permission -  check for access rights on a Posix-like filesystem
  * @inode:	inode to check access rights for
  * @mask:	right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC)
  * @check_acl:	optional callback to check for Posix ACLs
+ * @flags	IPERM_FLAG_ flags.
  *
  * Used to check for read/write/execute permissions on a file.
  * We use "fsuid" for this, letting us set arbitrary permissions
  * for filesystem access without changing the "normal" uids which
- * are used for other things..
+ * are used for other things.
+ *
+ * generic_permission is rcu-walk aware. It returns -ECHILD in case an rcu-walk
+ * request cannot be satisfied (eg. requires blocking or too much complexity).
+ * It would then be called again in ref-walk mode.
  */
-int generic_permission(struct inode *inode, int mask,
-		int (*check_acl)(struct inode *inode, int mask))
+int generic_permission(struct inode *inode, int mask, unsigned int flags,
+	int (*check_acl)(struct inode *inode, int mask, unsigned int flags))
 {
 	int ret;
 
 	/*
 	 * Do the basic POSIX ACL permission checks.
 	 */
-	ret = acl_permission_check(inode, mask, check_acl);
+	ret = acl_permission_check(inode, mask, flags, check_acl);
 	if (ret != -EACCES)
 		return ret;
 
@@ -281,9 +276,10 @@ int inode_permission(struct inode *inode, int mask)
 	}
 
 	if (inode->i_op->permission)
-		retval = inode->i_op->permission(inode, mask);
+		retval = inode->i_op->permission(inode, mask, 0);
 	else
-		retval = generic_permission(inode, mask, inode->i_op->check_acl);
+		retval = generic_permission(inode, mask, 0,
+				inode->i_op->check_acl);
 
 	if (retval)
 		return retval;
@@ -668,22 +664,19 @@ force_reval_path(struct path *path, struct nameidata *nd)
  * short-cut DAC fails, then call ->permission() to do more
  * complete permission check.
  */
-static inline int __exec_permission(struct inode *inode, int rcu)
+static inline int exec_permission(struct inode *inode, unsigned int flags)
 {
 	int ret;
 
 	if (inode->i_op->permission) {
-		if (rcu)
-			return -ECHILD;
-		ret = inode->i_op->permission(inode, MAY_EXEC);
-		if (!ret)
-			goto ok;
-		return ret;
+		ret = inode->i_op->permission(inode, MAY_EXEC, flags);
+	} else {
+		ret = acl_permission_check(inode, MAY_EXEC, flags,
+				inode->i_op->check_acl);
 	}
-	ret = __acl_permission_check(inode, MAY_EXEC, inode->i_op->check_acl, rcu);
-	if (!ret)
+	if (likely(!ret))
 		goto ok;
-	if (rcu && ret == -ECHILD)
+	if (ret == -ECHILD)
 		return ret;
 
 	if (capable(CAP_DAC_OVERRIDE) || capable(CAP_DAC_READ_SEARCH))
@@ -691,17 +684,7 @@ static inline int __exec_permission(struct inode *inode, int rcu)
 
 	return ret;
 ok:
-	return security_inode_exec_permission(inode, rcu);
-}
-
-static int exec_permission(struct inode *inode)
-{
-	return __exec_permission(inode, 0);
-}
-
-static int exec_permission_rcu(struct inode *inode)
-{
-	return __exec_permission(inode, 1);
+	return security_inode_exec_permission(inode, flags);
 }
 
 static __always_inline void set_root(struct nameidata *nd)
@@ -1165,7 +1148,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 
 		nd->flags |= LOOKUP_CONTINUE;
 		if (nd->flags & LOOKUP_RCU) {
-			err = exec_permission_rcu(nd->inode);
+			err = exec_permission(nd->inode, IPERM_FLAG_RCU);
 			if (err == -ECHILD) {
 				if (nameidata_drop_rcu(nd))
 					return -ECHILD;
@@ -1173,7 +1156,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			}
 		} else {
 exec_again:
-			err = exec_permission(nd->inode);
+			err = exec_permission(nd->inode, 0);
 		}
  		if (err)
 			break;
@@ -1620,7 +1603,7 @@ static struct dentry *__lookup_hash(struct qstr *name,
 	struct dentry *dentry;
 	int err;
 
-	err = exec_permission(inode);
+	err = exec_permission(inode, 0);
 	if (err)
 		return ERR_PTR(err);
 

@@ -219,12 +219,16 @@ xfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 }
 
 int
-xfs_check_acl(struct inode *inode, int mask)
+xfs_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
-	struct xfs_inode *ip = XFS_I(inode);
+	struct xfs_inode *ip;
 	struct posix_acl *acl;
 	int error = -EAGAIN;
 
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
+
+	ip = XFS_I(inode);
 	trace_xfs_check_acl(ip);
 
 	/*

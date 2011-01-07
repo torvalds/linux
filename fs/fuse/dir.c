@@ -985,11 +985,14 @@ static int fuse_access(struct inode *inode, int mask)
  * access request is sent.  Execute permission is still checked
  * locally based on file mode.
  */
-static int fuse_permission(struct inode *inode, int mask)
+static int fuse_permission(struct inode *inode, int mask, unsigned int flags)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	bool refreshed = false;
 	int err = 0;
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
 	if (!fuse_allow_task(fc, current))
 		return -EACCES;
@@ -1005,7 +1008,7 @@ static int fuse_permission(struct inode *inode, int mask)
 	}
 
 	if (fc->flags & FUSE_DEFAULT_PERMISSIONS) {
-		err = generic_permission(inode, mask, NULL);
+		err = generic_permission(inode, mask, flags, NULL);
 
 		/* If permission is denied, try to refresh file
 		   attributes.  This is also needed, because the root
@@ -1013,7 +1016,8 @@ static int fuse_permission(struct inode *inode, int mask)
 		if (err == -EACCES && !refreshed) {
 			err = fuse_do_getattr(inode, NULL, NULL);
 			if (!err)
-				err = generic_permission(inode, mask, NULL);
+				err = generic_permission(inode, mask,
+							flags, NULL);
 		}
 
 		/* Note: the opposite of the above test does not

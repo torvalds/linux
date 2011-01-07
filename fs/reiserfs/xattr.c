@@ -870,10 +870,13 @@ out:
 	return err;
 }
 
-static int reiserfs_check_acl(struct inode *inode, int mask)
+static int reiserfs_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
 	struct posix_acl *acl;
 	int error = -EAGAIN; /* do regular unix permission checks by default */
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
 	acl = reiserfs_get_acl(inode, ACL_TYPE_ACCESS);
 
@@ -951,8 +954,10 @@ static int xattr_mount_check(struct super_block *s)
 	return 0;
 }
 
-int reiserfs_permission(struct inode *inode, int mask)
+int reiserfs_permission(struct inode *inode, int mask, unsigned int flags)
 {
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 	/*
 	 * We don't do permission checks on the internal objects.
 	 * Permissions are determined by the "owning" object.
@@ -965,9 +970,10 @@ int reiserfs_permission(struct inode *inode, int mask)
 	 * Stat data v1 doesn't support ACLs.
 	 */
 	if (get_inode_sd_version(inode) != STAT_DATA_V1)
-		return generic_permission(inode, mask, reiserfs_check_acl);
+		return generic_permission(inode, mask, flags,
+					reiserfs_check_acl);
 #endif
-	return generic_permission(inode, mask, NULL);
+	return generic_permission(inode, mask, flags, NULL);
 }
 
 static int xattr_hide_revalidate(struct dentry *dentry, struct nameidata *nd)

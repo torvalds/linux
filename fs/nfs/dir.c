@@ -2189,10 +2189,13 @@ int nfs_may_open(struct inode *inode, struct rpc_cred *cred, int openflags)
 	return nfs_do_access(inode, cred, nfs_open_permission_mask(openflags));
 }
 
-int nfs_permission(struct inode *inode, int mask)
+int nfs_permission(struct inode *inode, int mask, unsigned int flags)
 {
 	struct rpc_cred *cred;
 	int res = 0;
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
 	nfs_inc_stats(inode, NFSIOS_VFSACCESS);
 
@@ -2241,7 +2244,7 @@ out:
 out_notsup:
 	res = nfs_revalidate_inode(NFS_SERVER(inode), inode);
 	if (res == 0)
-		res = generic_permission(inode, mask, NULL);
+		res = generic_permission(inode, mask, flags, NULL);
 	goto out;
 }
 

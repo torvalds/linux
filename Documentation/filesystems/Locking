@@ -47,8 +47,8 @@ ata *);
 	void * (*follow_link) (struct dentry *, struct nameidata *);
 	void (*put_link) (struct dentry *, struct nameidata *, void *);
 	void (*truncate) (struct inode *);
-	int (*permission) (struct inode *, int, struct nameidata *);
-	int (*check_acl)(struct inode *, int);
+	int (*permission) (struct inode *, int, unsigned int);
+	int (*check_acl)(struct inode *, int, unsigned int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *, struct dentry *, struct kstat *);
 	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
@@ -76,7 +76,7 @@ follow_link:	no
 put_link:	no
 truncate:	yes		(see below)
 setattr:	yes
-permission:	no
+permission:	no (may not block if called in rcu-walk mode)
 check_acl:	no
 getattr:	no
 setxattr:	yes

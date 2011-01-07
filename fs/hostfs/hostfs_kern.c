@@ -749,10 +749,13 @@ int hostfs_rename(struct inode *from_ino, struct dentry *from,
 	return err;
 }
 
-int hostfs_permission(struct inode *ino, int desired)
+int hostfs_permission(struct inode *ino, int desired, unsigned int flags)
 {
 	char *name;
 	int r = 0, w = 0, x = 0, err;
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
 	if (desired & MAY_READ) r = 1;
 	if (desired & MAY_WRITE) w = 1;
@@ -768,7 +771,7 @@ int hostfs_permission(struct inode *ino, int desired)
 		err = access_file(name, r, w, x);
 	__putname(name);
 	if (!err)
-		err = generic_permission(ino, desired, NULL);
+		err = generic_permission(ino, desired, flags, NULL);
 	return err;
 }
 

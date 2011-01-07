@@ -380,3 +380,8 @@ the filesystem provides it), which requires dropping out of rcu-walk mode. This
 may now be called in rcu-walk mode (nd->flags & LOOKUP_RCU). -ECHILD should be
 returned if the filesystem cannot handle rcu-walk. See
 Documentation/filesystems/vfs.txt for more details.
+
+	permission and check_acl are inode permission checks that are called
+on many or all directory inodes on the way down a path walk (to check for
+exec permission). These must now be rcu-walk aware (flags & IPERM_RCU). See
+Documentation/filesystems/vfs.txt for more details.

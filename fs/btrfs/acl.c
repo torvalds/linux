@@ -185,13 +185,15 @@ static int btrfs_xattr_acl_set(struct dentry *dentry, const char *name,
 	return ret;
 }
 
-int btrfs_check_acl(struct inode *inode, int mask)
+int btrfs_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
 	struct posix_acl *acl;
 	int error = -EAGAIN;
 
-	acl = btrfs_get_acl(inode, ACL_TYPE_ACCESS);
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
+	acl = btrfs_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl) {

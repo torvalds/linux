@@ -316,11 +316,9 @@ The detailed design for rcu-walk is like this:
 
 The cases where rcu-walk cannot continue are:
 * NULL dentry (ie. any uncached path element)
-* parent with d_inode->i_op->permission or ACLs
 * Following links
 
-In future patches, permission checks become rcu-walk aware. It may be possible
-eventually to make following links rcu-walk aware.
+It may be possible eventually to make following links rcu-walk aware.
 
 Uncached path elements will always require dropping to ref-walk mode, at the
 very least because i_mutex needs to be grabbed, and objects allocated.
@@ -336,9 +334,49 @@ or stored into. The result is massive improvements in performance and
 scalability of path resolution.
 
 
+Interesting statistics
+======================
+
+The following table gives rcu lookup statistics for a few simple workloads
+(2s12c24t Westmere, debian non-graphical system). Ungraceful are attempts to
+drop rcu that fail due to d_seq failure and requiring the entire path lookup
+again. Other cases are successful rcu-drops that are required before the final
+element, nodentry for missing dentry, revalidate for filesystem revalidate
+routine requiring rcu drop, permission for permission check requiring drop,
+and link for symlink traversal requiring drop.
+
+     rcu-lookups     restart  nodentry          link  revalidate  permission
+bootup     47121           0      4624          1010       10283        7852
+dbench  25386793           0   6778659(26.7%)     55         549        1156
+kbuild   2696672          10     64442(2.3%)  108764(4.0%)     1        1590
+git diff   39605           0        28             2           0         106
+vfstest 24185492        4945    708725(2.9%) 1076136(4.4%)     0        2651
+
+What this shows is that failed rcu-walk lookups, ie. ones that are restarted
+entirely with ref-walk, are quite rare. Even the "vfstest" case which
+specifically has concurrent renames/mkdir/rmdir/ creat/unlink/etc to excercise
+such races is not showing a huge amount of restarts.
+
+Dropping from rcu-walk to ref-walk mean that we have encountered a dentry where
+the reference count needs to be taken for some reason. This is either because
+we have reached the target of the path walk, or because we have encountered a
+condition that can't be resolved in rcu-walk mode.  Ideally, we drop rcu-walk
+only when we have reached the target dentry, so the other statistics show where
+this does not happen.
+
+Note that a graceful drop from rcu-walk mode due to something such as the
+dentry not existing (which can be common) is not necessarily a failure of
+rcu-walk scheme, because some elements of the path may have been walked in
+rcu-walk mode. The further we get from common path elements (such as cwd or
+root), the less contended the dentry is likely to be. The closer we are to
+common path elements, the more likely they will exist in dentry cache.
+
+
 Papers and other documentation on dcache locking
 ================================================
 
 1. Scaling dcache with RCU (http://linuxjournal.com/article.php?sid=7124).
 
 2. http://lse.sourceforge.net/locking/dcache/dcache.html
+
+
