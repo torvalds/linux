@@ -68,7 +68,7 @@ static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 	WREG32(AVIVO_D1GRPH_LUT_SEL + radeon_crtc->crtc_offset, radeon_crtc->crtc_id);
 }
 
-static void evergreen_crtc_load_lut(struct drm_crtc *crtc)
+static void dce4_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
@@ -96,6 +96,66 @@ static void evergreen_crtc_load_lut(struct drm_crtc *crtc)
 		       (radeon_crtc->lut_g[i] << 10) |
 		       (radeon_crtc->lut_b[i] << 0));
 	}
+}
+
+static void dce5_crtc_load_lut(struct drm_crtc *crtc)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	int i;
+
+	DRM_DEBUG_KMS("%d\n", radeon_crtc->crtc_id);
+
+	WREG32(NI_INPUT_CSC_CONTROL + radeon_crtc->crtc_offset,
+	       (NI_INPUT_CSC_GRPH_MODE(NI_INPUT_CSC_BYPASS) |
+		NI_INPUT_CSC_OVL_MODE(NI_INPUT_CSC_BYPASS)));
+	WREG32(NI_PRESCALE_GRPH_CONTROL + radeon_crtc->crtc_offset,
+	       NI_GRPH_PRESCALE_BYPASS);
+	WREG32(NI_PRESCALE_OVL_CONTROL + radeon_crtc->crtc_offset,
+	       NI_OVL_PRESCALE_BYPASS);
+	WREG32(NI_INPUT_GAMMA_CONTROL + radeon_crtc->crtc_offset,
+	       (NI_GRPH_INPUT_GAMMA_MODE(NI_INPUT_GAMMA_USE_LUT) |
+		NI_OVL_INPUT_GAMMA_MODE(NI_INPUT_GAMMA_USE_LUT)));
+
+	WREG32(EVERGREEN_DC_LUT_CONTROL + radeon_crtc->crtc_offset, 0);
+
+	WREG32(EVERGREEN_DC_LUT_BLACK_OFFSET_BLUE + radeon_crtc->crtc_offset, 0);
+	WREG32(EVERGREEN_DC_LUT_BLACK_OFFSET_GREEN + radeon_crtc->crtc_offset, 0);
+	WREG32(EVERGREEN_DC_LUT_BLACK_OFFSET_RED + radeon_crtc->crtc_offset, 0);
+
+	WREG32(EVERGREEN_DC_LUT_WHITE_OFFSET_BLUE + radeon_crtc->crtc_offset, 0xffff);
+	WREG32(EVERGREEN_DC_LUT_WHITE_OFFSET_GREEN + radeon_crtc->crtc_offset, 0xffff);
+	WREG32(EVERGREEN_DC_LUT_WHITE_OFFSET_RED + radeon_crtc->crtc_offset, 0xffff);
+
+	WREG32(EVERGREEN_DC_LUT_RW_MODE + radeon_crtc->crtc_offset, 0);
+	WREG32(EVERGREEN_DC_LUT_WRITE_EN_MASK + radeon_crtc->crtc_offset, 0x00000007);
+
+	WREG32(EVERGREEN_DC_LUT_RW_INDEX + radeon_crtc->crtc_offset, 0);
+	for (i = 0; i < 256; i++) {
+		WREG32(EVERGREEN_DC_LUT_30_COLOR + radeon_crtc->crtc_offset,
+		       (radeon_crtc->lut_r[i] << 20) |
+		       (radeon_crtc->lut_g[i] << 10) |
+		       (radeon_crtc->lut_b[i] << 0));
+	}
+
+	WREG32(NI_DEGAMMA_CONTROL + radeon_crtc->crtc_offset,
+	       (NI_GRPH_DEGAMMA_MODE(NI_DEGAMMA_BYPASS) |
+		NI_OVL_DEGAMMA_MODE(NI_DEGAMMA_BYPASS) |
+		NI_ICON_DEGAMMA_MODE(NI_DEGAMMA_BYPASS) |
+		NI_CURSOR_DEGAMMA_MODE(NI_DEGAMMA_BYPASS)));
+	WREG32(NI_GAMUT_REMAP_CONTROL + radeon_crtc->crtc_offset,
+	       (NI_GRPH_GAMUT_REMAP_MODE(NI_GAMUT_REMAP_BYPASS) |
+		NI_OVL_GAMUT_REMAP_MODE(NI_GAMUT_REMAP_BYPASS)));
+	WREG32(NI_REGAMMA_CONTROL + radeon_crtc->crtc_offset,
+	       (NI_GRPH_REGAMMA_MODE(NI_REGAMMA_BYPASS) |
+		NI_OVL_REGAMMA_MODE(NI_REGAMMA_BYPASS)));
+	WREG32(NI_OUTPUT_CSC_CONTROL + radeon_crtc->crtc_offset,
+	       (NI_OUTPUT_CSC_GRPH_MODE(NI_OUTPUT_CSC_BYPASS) |
+		NI_OUTPUT_CSC_OVL_MODE(NI_OUTPUT_CSC_BYPASS)));
+	/* XXX match this to the depth of the crtc fmt block, move to modeset? */
+	WREG32(0x6940 + radeon_crtc->crtc_offset, 0);
+
 }
 
 static void legacy_crtc_load_lut(struct drm_crtc *crtc)
@@ -130,8 +190,10 @@ void radeon_crtc_load_lut(struct drm_crtc *crtc)
 	if (!crtc->enabled)
 		return;
 
-	if (ASIC_IS_DCE4(rdev))
-		evergreen_crtc_load_lut(crtc);
+	if (ASIC_IS_DCE5(rdev))
+		dce5_crtc_load_lut(crtc);
+	else if (ASIC_IS_DCE4(rdev))
+		dce4_crtc_load_lut(crtc);
 	else if (ASIC_IS_AVIVO(rdev))
 		avivo_crtc_load_lut(crtc);
 	else
