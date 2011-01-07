@@ -1,5 +1,3 @@
-EXTRA_CFLAGS += -DDEBUG
-
 snd-soc-sst-platform-objs := sst_platform.o
 snd-soc-mfld-machine-objs := mfld_machine.o
 
