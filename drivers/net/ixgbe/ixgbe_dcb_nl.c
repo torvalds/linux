@@ -37,7 +37,6 @@
 #define BIT_PG_RX	0x04
 #define BIT_PG_TX	0x08
 #define BIT_APP_UPCHG	0x10
-#define BIT_RESETLINK   0x40
 #define BIT_LINKSPEED   0x80
 
 /* Responses for the DCB_C_SET_ALL command */
@@ -345,7 +344,6 @@ static void ixgbe_dcbnl_get_pfc_cfg(struct net_device *netdev, int priority,
 static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	bool do_reset;
 	int ret;
 
 	if (!adapter->dcb_set_bitmap)
@@ -358,23 +356,17 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 		return DCB_NO_HW_CHG;
 
 	/*
-	 * Only take down the adapter if the configuration change
-	 * requires a reset.
+	 * Only take down the adapter if an app change occured. FCoE
+	 * may shuffle tx rings in this case and this can not be done
+	 * without a reset currently.
 	 */
-	do_reset = adapter->dcb_set_bitmap & (BIT_RESETLINK | BIT_APP_UPCHG);
-
-	if (do_reset) {
+	if (adapter->dcb_set_bitmap & BIT_APP_UPCHG) {
 		while (test_and_set_bit(__IXGBE_RESETTING, &adapter->state))
 			msleep(1);
 
-		if (adapter->dcb_set_bitmap & BIT_APP_UPCHG) {
-			if (netif_running(netdev))
-				netdev->netdev_ops->ndo_stop(netdev);
-			ixgbe_clear_interrupt_scheme(adapter);
-		} else {
-			if (netif_running(netdev))
-				ixgbe_down(adapter);
-		}
+		if (netif_running(netdev))
+			netdev->netdev_ops->ndo_stop(netdev);
+		ixgbe_clear_interrupt_scheme(adapter);
 	}
 
 	if (adapter->dcb_cfg.pfc_mode_enable) {
@@ -403,15 +395,10 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 		}
 	}
 
-	if (do_reset) {
-		if (adapter->dcb_set_bitmap & BIT_APP_UPCHG) {
-			ixgbe_init_interrupt_scheme(adapter);
-			if (netif_running(netdev))
-				netdev->netdev_ops->ndo_open(netdev);
-		} else {
-			if (netif_running(netdev))
-				ixgbe_up(adapter);
-		}
+	if (adapter->dcb_set_bitmap & BIT_APP_UPCHG) {
+		ixgbe_init_interrupt_scheme(adapter);
+		if (netif_running(netdev))
+			netdev->netdev_ops->ndo_open(netdev);
 		ret = DCB_HW_CHG_RST;
 	}
 
@@ -456,7 +443,7 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 	if (adapter->dcb_cfg.pfc_mode_enable)
 		adapter->hw.fc.current_mode = ixgbe_fc_pfc;
 
-	if (do_reset)
+	if (adapter->dcb_set_bitmap & BIT_APP_UPCHG)
 		clear_bit(__IXGBE_RESETTING, &adapter->state);
 	adapter->dcb_set_bitmap = 0x00;
 	return ret;
