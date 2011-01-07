@@ -621,7 +621,7 @@ static void shrink_dentry_list(struct list_head *list)
 		dentry = list_entry(list->prev, struct dentry, d_lru);
 
 		if (!spin_trylock(&dentry->d_lock)) {
-relock:
+relock1:
 			spin_unlock(&dcache_lru_lock);
 			cpu_relax();
 			spin_lock(&dcache_lru_lock);
@@ -638,20 +638,24 @@ relock:
 			spin_unlock(&dentry->d_lock);
 			continue;
 		}
+		if (!spin_trylock(&dcache_inode_lock)) {
+relock2:
+			spin_unlock(&dentry->d_lock);
+			goto relock1;
+		}
 		if (IS_ROOT(dentry))
 			parent = NULL;
 		else
 			parent = dentry->d_parent;
 		if (parent && !spin_trylock(&parent->d_lock)) {
-			spin_unlock(&dentry->d_lock);
-			goto relock;
+			spin_unlock(&dcache_inode_lock);
+			goto relock2;
 		}
 		__dentry_lru_del(dentry);
 		spin_unlock(&dcache_lru_lock);
 
 		prune_one_dentry(dentry, parent);
 		/* dcache_inode_lock and dentry->d_lock dropped */
-		spin_lock(&dcache_inode_lock);
 		spin_lock(&dcache_lru_lock);
 	}
 }
@@ -672,7 +676,6 @@ static void __shrink_dcache_sb(struct super_block *sb, int *count, int flags)
 	LIST_HEAD(tmp);
 	int cnt = *count;
 
-	spin_lock(&dcache_inode_lock);
 relock:
 	spin_lock(&dcache_lru_lock);
 	while (!list_empty(&sb->s_dentry_lru)) {
@@ -711,7 +714,6 @@ relock:
 	if (!list_empty(&referenced))
 		list_splice(&referenced, &sb->s_dentry_lru);
 	spin_unlock(&dcache_lru_lock);
-	spin_unlock(&dcache_inode_lock);
 }
 
 /**
@@ -800,14 +802,12 @@ void shrink_dcache_sb(struct super_block *sb)
 {
 	LIST_HEAD(tmp);
 
-	spin_lock(&dcache_inode_lock);
 	spin_lock(&dcache_lru_lock);
 	while (!list_empty(&sb->s_dentry_lru)) {
 		list_splice_init(&sb->s_dentry_lru, &tmp);
 		shrink_dentry_list(&tmp);
 	}
 	spin_unlock(&dcache_lru_lock);
-	spin_unlock(&dcache_inode_lock);
 }
 EXPORT_SYMBOL(shrink_dcache_sb);
 
