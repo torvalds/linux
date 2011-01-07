@@ -2,6 +2,7 @@
  * SMP support for R-Mobile / SH-Mobile
  *
  * Copyright (C) 2010  Magnus Damm
+ * Copyright (C) 2011  Paul Mundt
  *
  * Based on vexpress, Copyright (C) 2002 ARM Ltd, All Rights Reserved
  *
@@ -33,7 +34,6 @@ static void __init shmobile_smp_prepare_cpus(void)
 		sh73a0_smp_prepare_cpus();
 }
 
-
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
 	trace_hardirqs_off();
@@ -59,27 +59,12 @@ void __init smp_init_cpus(void)
 		set_cpu_possible(i, true);
 }
 
-void __init smp_prepare_cpus(unsigned int max_cpus)
+void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 {
-	unsigned int ncores = shmobile_smp_get_core_count();
-	unsigned int cpu = smp_processor_id();
 	int i;
-
-	smp_store_cpu_info(cpu);
-
-	if (max_cpus > ncores)
-		max_cpus = ncores;
 
 	for (i = 0; i < max_cpus; i++)
 		set_cpu_present(i, true);
 
-	if (max_cpus > 1) {
-		shmobile_smp_prepare_cpus();
-
-		/*
-		 * Enable the local timer or broadcast device for the
-		 * boot CPU, but only if we have more than one CPU.
-		 */
-		percpu_timer_setup();
-	}
+	shmobile_smp_prepare_cpus();
 }
