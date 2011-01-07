@@ -37,9 +37,9 @@ static unsigned long sfi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
 /* All CPUs enumerated by SFI must be present and enabled */
 static void __cpuinit mp_sfi_register_lapic(u8 id)
 {
-	if (MAX_APICS - id <= 0) {
+	if (MAX_LOCAL_APIC - id <= 0) {
 		pr_warning("Processor #%d invalid (max %d)\n",
-			id, MAX_APICS);
+			id, MAX_LOCAL_APIC);
 		return;
 	}
 

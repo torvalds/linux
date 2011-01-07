@@ -72,8 +72,7 @@ struct storvsc_driver_context {
 
 /* Static decl */
 static int storvsc_probe(struct device *dev);
-static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
-				void (*done)(struct scsi_cmnd *));
+static int storvsc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd);
 static int storvsc_device_alloc(struct scsi_device *);
 static int storvsc_device_configure(struct scsi_device *);
 static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd);
@@ -595,7 +594,7 @@ static unsigned int copy_from_bounce_buffer(struct scatterlist *orig_sgl,
 /*
  * storvsc_queuecommand - Initiate command processing
  */
-static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
+static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 				void (*done)(struct scsi_cmnd *))
 {
 	int ret;
@@ -782,6 +781,8 @@ retry_request:
 
 	return ret;
 }
+
+static DEF_SCSI_QCMD(storvsc_queuecommand)
 
 static int storvsc_merge_bvec(struct request_queue *q,
 			      struct bvec_merge_data *bmd, struct bio_vec *bvec)

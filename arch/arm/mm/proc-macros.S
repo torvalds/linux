@@ -61,17 +61,27 @@
 	.endm
 
 /*
- * cache_line_size - get the cache line size from the CSIDR register
- * (available on ARMv7+). It assumes that the CSSR register was configured
- * to access the L1 data cache CSIDR.
+ * dcache_line_size - get the minimum D-cache line size from the CTR register
+ * on ARMv7.
  */
 	.macro	dcache_line_size, reg, tmp
-	mrc	p15, 1, \tmp, c0, c0, 0		@ read CSIDR
-	and	\tmp, \tmp, #7			@ cache line size encoding
-	mov	\reg, #16			@ size offset
+	mrc	p15, 0, \tmp, c0, c0, 1		@ read ctr
+	lsr	\tmp, \tmp, #16
+	and	\tmp, \tmp, #0xf		@ cache line size encoding
+	mov	\reg, #4			@ bytes per word
 	mov	\reg, \reg, lsl \tmp		@ actual cache line size
 	.endm
 
+/*
+ * icache_line_size - get the minimum I-cache line size from the CTR register
+ * on ARMv7.
+ */
+	.macro	icache_line_size, reg, tmp
+	mrc	p15, 0, \tmp, c0, c0, 1		@ read ctr
+	and	\tmp, \tmp, #0xf		@ cache line size encoding
+	mov	\reg, #4			@ bytes per word
+	mov	\reg, \reg, lsl \tmp		@ actual cache line size
+	.endm
 
 /*
  * Sanity check the PTE configuration for the code below - which makes

@@ -30,8 +30,6 @@
 #include "cifs_debug.h"
 
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-
 static struct cifs_wksid wksidarr[NUM_WK_SIDS] = {
 	{{1, 0, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0} }, "null user"},
 	{{1, 1, {0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0} }, "nobody"},
@@ -560,7 +558,7 @@ static struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *cifs_sb,
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
 
 	if (IS_ERR(tlink))
-		return NULL;
+		return ERR_CAST(tlink);
 
 	xid = GetXid();
 	rc = CIFSSMBGetCIFSACL(xid, tlink_tcon(tlink), fid, &pntsd, pacllen);
@@ -568,7 +566,9 @@ static struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *cifs_sb,
 
 	cifs_put_tlink(tlink);
 
-	cFYI(1, "GetCIFSACL rc = %d ACL len %d", rc, *pacllen);
+	cFYI(1, "%s: rc = %d ACL len %d", __func__, rc, *pacllen);
+	if (rc)
+		return ERR_PTR(rc);
 	return pntsd;
 }
 
@@ -583,7 +583,7 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
 
 	if (IS_ERR(tlink))
-		return NULL;
+		return ERR_CAST(tlink);
 
 	tcon = tlink_tcon(tlink);
 	xid = GetXid();
@@ -591,23 +591,22 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 	rc = CIFSSMBOpen(xid, tcon, path, FILE_OPEN, READ_CONTROL, 0,
 			 &fid, &oplock, NULL, cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
-	if (rc) {
-		cERROR(1, "Unable to open file to get ACL");
-		goto out;
+	if (!rc) {
+		rc = CIFSSMBGetCIFSACL(xid, tcon, fid, &pntsd, pacllen);
+		CIFSSMBClose(xid, tcon, fid);
 	}
 
-	rc = CIFSSMBGetCIFSACL(xid, tcon, fid, &pntsd, pacllen);
-	cFYI(1, "GetCIFSACL rc = %d ACL len %d", rc, *pacllen);
-
-	CIFSSMBClose(xid, tcon, fid);
- out:
 	cifs_put_tlink(tlink);
 	FreeXid(xid);
+
+	cFYI(1, "%s: rc = %d ACL len %d", __func__, rc, *pacllen);
+	if (rc)
+		return ERR_PTR(rc);
 	return pntsd;
 }
 
 /* Retrieve an ACL from the server */
-static struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *cifs_sb,
+struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *cifs_sb,
 				      struct inode *inode, const char *path,
 				      u32 *pacllen)
 {
@@ -695,7 +694,7 @@ static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 }
 
 /* Translate the CIFS ACL (simlar to NTFS ACL) for a file into mode bits */
-void
+int
 cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
 		  struct inode *inode, const char *path, const __u16 *pfid)
 {
@@ -711,17 +710,21 @@ cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
 		pntsd = get_cifs_acl(cifs_sb, inode, path, &acllen);
 
 	/* if we can retrieve the ACL, now parse Access Control Entries, ACEs */
-	if (pntsd)
+	if (IS_ERR(pntsd)) {
+		rc = PTR_ERR(pntsd);
+		cERROR(1, "%s: error %d getting sec desc", __func__, rc);
+	} else {
 		rc = parse_sec_desc(pntsd, acllen, fattr);
-	if (rc)
-		cFYI(1, "parse sec desc failed rc = %d", rc);
+		kfree(pntsd);
+		if (rc)
+			cERROR(1, "parse sec desc failed rc = %d", rc);
+	}
 
-	kfree(pntsd);
-	return;
+	return rc;
 }
 
 /* Convert mode bits to an ACL so we can update the ACL on the server */
-int mode_to_acl(struct inode *inode, const char *path, __u64 nmode)
+int mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode)
 {
 	int rc = 0;
 	__u32 secdesclen = 0;
@@ -736,7 +739,10 @@ int mode_to_acl(struct inode *inode, const char *path, __u64 nmode)
 	/* Add three ACEs for owner, group, everyone getting rid of
 	   other ACEs as chmod disables ACEs and set the security descriptor */
 
-	if (pntsd) {
+	if (IS_ERR(pntsd)) {
+		rc = PTR_ERR(pntsd);
+		cERROR(1, "%s: error %d getting sec desc", __func__, rc);
+	} else {
 		/* allocate memory for the smb header,
 		   set security descriptor request security descriptor
 		   parameters, and secuirty descriptor itself */
@@ -766,4 +772,3 @@ int mode_to_acl(struct inode *inode, const char *path, __u64 nmode)
 
 	return rc;
 }
-#endif /* CONFIG_CIFS_EXPERIMENTAL */

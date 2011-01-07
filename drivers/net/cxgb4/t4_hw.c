@@ -2408,7 +2408,7 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 		if (index < NEXACT_MAC)
 			ret++;
 		else if (hash)
-			*hash |= (1 << hash_mac_addr(addr[i]));
+			*hash |= (1ULL << hash_mac_addr(addr[i]));
 	}
 	return ret;
 }

@@ -462,7 +462,8 @@ int be_cmd_fw_init(struct be_adapter *adapter)
 	u8 *wrb;
 	int status;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = (u8 *)wrb_from_mbox(adapter);
 	*wrb++ = 0xFF;
@@ -476,7 +477,7 @@ int be_cmd_fw_init(struct be_adapter *adapter)
 
 	status = be_mbox_notify_wait(adapter);
 
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 	return status;
 }
 
@@ -491,7 +492,8 @@ int be_cmd_fw_clean(struct be_adapter *adapter)
 	if (adapter->eeh_err)
 		return -EIO;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = (u8 *)wrb_from_mbox(adapter);
 	*wrb++ = 0xFF;
@@ -505,7 +507,7 @@ int be_cmd_fw_clean(struct be_adapter *adapter)
 
 	status = be_mbox_notify_wait(adapter);
 
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 	return status;
 }
 int be_cmd_eq_create(struct be_adapter *adapter,
@@ -516,7 +518,8 @@ int be_cmd_eq_create(struct be_adapter *adapter,
 	struct be_dma_mem *q_mem = &eq->dma_mem;
 	int status;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = wrb_from_mbox(adapter);
 	req = embedded_payload(wrb);
@@ -546,7 +549,7 @@ int be_cmd_eq_create(struct be_adapter *adapter,
 		eq->created = true;
 	}
 
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 	return status;
 }
 
@@ -558,7 +561,8 @@ int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 	struct be_cmd_req_mac_query *req;
 	int status;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = wrb_from_mbox(adapter);
 	req = embedded_payload(wrb);
@@ -583,7 +587,7 @@ int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 		memcpy(mac_addr, resp->mac.addr, ETH_ALEN);
 	}
 
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 	return status;
 }
 
@@ -667,7 +671,8 @@ int be_cmd_cq_create(struct be_adapter *adapter,
 	void *ctxt;
 	int status;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = wrb_from_mbox(adapter);
 	req = embedded_payload(wrb);
@@ -701,7 +706,7 @@ int be_cmd_cq_create(struct be_adapter *adapter,
 		cq->created = true;
 	}
 
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 
 	return status;
 }
@@ -724,7 +729,8 @@ int be_cmd_mccq_create(struct be_adapter *adapter,
 	void *ctxt;
 	int status;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = wrb_from_mbox(adapter);
 	req = embedded_payload(wrb);
@@ -754,7 +760,7 @@ int be_cmd_mccq_create(struct be_adapter *adapter,
 		mccq->id = le16_to_cpu(resp->id);
 		mccq->created = true;
 	}
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 
 	return status;
 }
@@ -769,7 +775,8 @@ int be_cmd_txq_create(struct be_adapter *adapter,
 	void *ctxt;
 	int status;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = wrb_from_mbox(adapter);
 	req = embedded_payload(wrb);
@@ -801,7 +808,7 @@ int be_cmd_txq_create(struct be_adapter *adapter,
 		txq->created = true;
 	}
 
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 
 	return status;
 }
@@ -816,7 +823,8 @@ int be_cmd_rxq_create(struct be_adapter *adapter,
 	struct be_dma_mem *q_mem = &rxq->dma_mem;
 	int status;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = wrb_from_mbox(adapter);
 	req = embedded_payload(wrb);
@@ -843,7 +851,7 @@ int be_cmd_rxq_create(struct be_adapter *adapter,
 		*rss_id = resp->rss_id;
 	}
 
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 
 	return status;
 }
@@ -862,7 +870,8 @@ int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 	if (adapter->eeh_err)
 		return -EIO;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = wrb_from_mbox(adapter);
 	req = embedded_payload(wrb);
@@ -899,7 +908,7 @@ int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 
 	status = be_mbox_notify_wait(adapter);
 
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 
 	return status;
 }
@@ -915,7 +924,8 @@ int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
 	struct be_cmd_req_if_create *req;
 	int status;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = wrb_from_mbox(adapter);
 	req = embedded_payload(wrb);
@@ -941,7 +951,7 @@ int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
 			*pmac_id = le32_to_cpu(resp->pmac_id);
 	}
 
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 	return status;
 }
 
@@ -955,7 +965,8 @@ int be_cmd_if_destroy(struct be_adapter *adapter, u32 interface_id)
 	if (adapter->eeh_err)
 		return -EIO;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = wrb_from_mbox(adapter);
 	req = embedded_payload(wrb);
@@ -970,7 +981,7 @@ int be_cmd_if_destroy(struct be_adapter *adapter, u32 interface_id)
 
 	status = be_mbox_notify_wait(adapter);
 
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 
 	return status;
 }
@@ -1060,7 +1071,8 @@ int be_cmd_get_fw_ver(struct be_adapter *adapter, char *fw_ver)
 	struct be_cmd_req_get_fw_version *req;
 	int status;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = wrb_from_mbox(adapter);
 	req = embedded_payload(wrb);
@@ -1077,7 +1089,7 @@ int be_cmd_get_fw_ver(struct be_adapter *adapter, char *fw_ver)
 		strncpy(fw_ver, resp->firmware_version_string, FW_VER_LEN);
 	}
 
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 	return status;
 }
 
@@ -1235,7 +1247,7 @@ int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
 
 		i = 0;
 		netdev_for_each_mc_addr(ha, netdev)
-			memcpy(req->mac[i].byte, ha->addr, ETH_ALEN);
+			memcpy(req->mac[i++].byte, ha->addr, ETH_ALEN);
 	} else {
 		req->promiscuous = 1;
 	}
@@ -1322,7 +1334,8 @@ int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num,
 	struct be_cmd_req_query_fw_cfg *req;
 	int status;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = wrb_from_mbox(adapter);
 	req = embedded_payload(wrb);
@@ -1341,7 +1354,7 @@ int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num,
 		*caps = le32_to_cpu(resp->function_caps);
 	}
 
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 	return status;
 }
 
@@ -1352,7 +1365,8 @@ int be_cmd_reset_function(struct be_adapter *adapter)
 	struct be_cmd_req_hdr *req;
 	int status;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = wrb_from_mbox(adapter);
 	req = embedded_payload(wrb);
@@ -1365,7 +1379,7 @@ int be_cmd_reset_function(struct be_adapter *adapter)
 
 	status = be_mbox_notify_wait(adapter);
 
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 	return status;
 }
 
@@ -1376,7 +1390,8 @@ int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable, u16 table_size)
 	u32 myhash[10];
 	int status;
 
-	spin_lock(&adapter->mbox_lock);
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
 
 	wrb = wrb_from_mbox(adapter);
 	req = embedded_payload(wrb);
@@ -1396,7 +1411,7 @@ int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable, u16 table_size)
 
 	status = be_mbox_notify_wait(adapter);
 
-	spin_unlock(&adapter->mbox_lock);
+	mutex_unlock(&adapter->mbox_lock);
 	return status;
 }
 

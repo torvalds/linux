@@ -220,8 +220,8 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
 }
 
 /* Return an pointer with offset calculated */
-static inline unsigned long __set_fixmap_offset(enum fixed_addresses idx,
-				phys_addr_t phys, pgprot_t flags)
+static __always_inline unsigned long
+__set_fixmap_offset(enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
 {
 	__set_fixmap(idx, phys, flags);
 	return fix_to_virt(idx) + (phys & (PAGE_SIZE - 1));

@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/highmem.h>
 
 #include <asm/memory.h>
 #include <asm/highmem.h>
@@ -480,10 +481,10 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 				op(vaddr, len, dir);
 				kunmap_high(page);
 			} else if (cache_is_vipt()) {
-				pte_t saved_pte;
-				vaddr = kmap_high_l1_vipt(page, &saved_pte);
+				/* unmapped pages might still be cached */
+				vaddr = kmap_atomic(page);
 				op(vaddr + offset, len, dir);
-				kunmap_high_l1_vipt(page, saved_pte);
+				kunmap_atomic(vaddr);
 			}
 		} else {
 			vaddr = page_address(page) + offset;

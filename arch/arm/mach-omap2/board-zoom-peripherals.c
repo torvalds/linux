@@ -216,7 +216,7 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 	{
 		.name		= "wl1271",
 		.mmc		= 3,
-		.caps		= MMC_CAP_4_BIT_DATA,
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_POWER_OFF_CARD,
 		.gpio_wp	= -EINVAL,
 		.gpio_cd	= -EINVAL,
 		.nonremovable	= true,

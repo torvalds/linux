@@ -83,11 +83,13 @@
 				 FAN_ALL_PERM_EVENTS |\
 				 FAN_Q_OVERFLOW)
 
-#define FANOTIFY_METADATA_VERSION	2
+#define FANOTIFY_METADATA_VERSION	3
 
 struct fanotify_event_metadata {
 	__u32 event_len;
-	__u32 vers;
+	__u8 vers;
+	__u8 reserved;
+	__u16 metadata_len;
 	__aligned_u64 mask;
 	__s32 fd;
 	__s32 pid;
@@ -96,11 +98,13 @@ struct fanotify_event_metadata {
 struct fanotify_response {
 	__s32 fd;
 	__u32 response;
-} __attribute__ ((packed));
+};
 
 /* Legit userspace responses to a _PERM event */
 #define FAN_ALLOW	0x01
 #define FAN_DENY	0x02
+/* No fd set in event */
+#define FAN_NOFD	-1
 
 /* Helper functions to deal with fanotify_event_metadata buffers */
 #define FAN_EVENT_METADATA_LEN (sizeof(struct fanotify_event_metadata))

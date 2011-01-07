@@ -54,7 +54,6 @@
 #include <asm/dma.h>
 #include <asm/timer.h>
 #include <asm/i8259.h>
-#include <asm/nmi.h>
 #include <asm/msidef.h>
 #include <asm/hypertransport.h>
 #include <asm/setup.h>
@@ -2458,13 +2457,12 @@ static void ack_apic_level(struct irq_data *data)
 {
 	struct irq_cfg *cfg = data->chip_data;
 	int i, do_unmask_irq = 0, irq = data->irq;
-	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long v;
 
 	irq_complete_move(cfg);
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	/* If we are moving the irq we need to mask it */
-	if (unlikely(desc->status & IRQ_MOVE_PENDING)) {
+	if (unlikely(irq_to_desc(irq)->status & IRQ_MOVE_PENDING)) {
 		do_unmask_irq = 1;
 		mask_ioapic(cfg);
 	}
@@ -2671,24 +2669,6 @@ static void lapic_register_intr(int irq)
 				      "edge");
 }
 
-static void __init setup_nmi(void)
-{
-	/*
-	 * Dirty trick to enable the NMI watchdog ...
-	 * We put the 8259A master into AEOI mode and
-	 * unmask on all local APICs LVT0 as NMI.
-	 *
-	 * The idea to use the 8259A in AEOI mode ('8259A Virtual Wire')
-	 * is from Maciej W. Rozycki - so we do not have to EOI from
-	 * the NMI handler or the timer interrupt.
-	 */
-	apic_printk(APIC_VERBOSE, KERN_INFO "activating NMI Watchdog ...");
-
-	enable_NMI_through_LVT0();
-
-	apic_printk(APIC_VERBOSE, " done.\n");
-}
-
 /*
  * This looks a bit hackish but it's about the only one way of sending
  * a few INTA cycles to 8259As and any associated glue logic.  ICR does
@@ -2794,15 +2774,6 @@ static inline void __init check_timer(void)
 	 */
 	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
 	legacy_pic->init(1);
-#ifdef CONFIG_X86_32
-	{
-		unsigned int ver;
-
-		ver = apic_read(APIC_LVR);
-		ver = GET_APIC_VERSION(ver);
-		timer_ack = (nmi_watchdog == NMI_IO_APIC && !APIC_INTEGRATED(ver));
-	}
-#endif
 
 	pin1  = find_isa_irq_pin(0, mp_INT);
 	apic1 = find_isa_irq_apic(0, mp_INT);
@@ -2850,10 +2821,6 @@ static inline void __init check_timer(void)
 				unmask_ioapic(cfg);
 		}
 		if (timer_irq_works()) {
-			if (nmi_watchdog == NMI_IO_APIC) {
-				setup_nmi();
-				legacy_pic->unmask(0);
-			}
 			if (disable_timer_pin_1 > 0)
 				clear_IO_APIC_pin(0, pin1);
 			goto out;
@@ -2879,11 +2846,6 @@ static inline void __init check_timer(void)
 		if (timer_irq_works()) {
 			apic_printk(APIC_QUIET, KERN_INFO "....... works.\n");
 			timer_through_8259 = 1;
-			if (nmi_watchdog == NMI_IO_APIC) {
-				legacy_pic->mask(0);
-				setup_nmi();
-				legacy_pic->unmask(0);
-			}
 			goto out;
 		}
 		/*
@@ -2894,15 +2856,6 @@ static inline void __init check_timer(void)
 		clear_IO_APIC_pin(apic2, pin2);
 		apic_printk(APIC_QUIET, KERN_INFO "....... failed.\n");
 	}
-
-	if (nmi_watchdog == NMI_IO_APIC) {
-		apic_printk(APIC_QUIET, KERN_WARNING "timer doesn't work "
-			    "through the IO-APIC - disabling NMI Watchdog!\n");
-		nmi_watchdog = NMI_NONE;
-	}
-#ifdef CONFIG_X86_32
-	timer_ack = 0;
-#endif
 
 	apic_printk(APIC_QUIET, KERN_INFO
 		    "...trying to set up timer as Virtual Wire IRQ...\n");
@@ -3441,6 +3394,7 @@ dmar_msi_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	msg.data |= MSI_DATA_VECTOR(cfg->vector);
 	msg.address_lo &= ~MSI_ADDR_DEST_ID_MASK;
 	msg.address_lo |= MSI_ADDR_DEST_ID(dest);
+	msg.address_hi = MSI_ADDR_BASE_HI | MSI_ADDR_EXT_DEST_ID(dest);
 
 	dmar_msi_write(irq, &msg);
 
@@ -4133,7 +4087,8 @@ void __init pre_init_apic_IRQ0(void)
 
 	printk(KERN_INFO "Early APIC setup for system timer0\n");
 #ifndef CONFIG_SMP
-	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
+	physid_set_mask_of_physid(boot_cpu_physical_apicid,
+					 &phys_cpu_present_map);
 #endif
 	/* Make sure the irq descriptor is set up */
 	cfg = alloc_irq_and_cfg_at(0, 0);

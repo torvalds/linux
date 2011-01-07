@@ -5,7 +5,7 @@ use strict;
 ## Copyright (c) 1998 Michael Zucchi, All Rights Reserved        ##
 ## Copyright (C) 2000, 1  Tim Waugh <twaugh@redhat.com>          ##
 ## Copyright (C) 2001  Simon Huggins                             ##
-## Copyright (C) 2005-2009  Randy Dunlap                         ##
+## Copyright (C) 2005-2010  Randy Dunlap                         ##
 ## 								 ##
 ## #define enhancements by Armin Kuster <akuster@mvista.com>	 ##
 ## Copyright (c) 2000 MontaVista Software, Inc.			 ##
@@ -155,6 +155,8 @@ use strict;
 # '@parameter' - name of a parameter
 # '%CONST' - name of a constant.
 
+## init lots of data
+
 my $errors = 0;
 my $warnings = 0;
 my $anon_struct_union = 0;
@@ -218,20 +220,13 @@ my %highlights_list = ( $type_constant, "\$1",
 			$type_param, "\$1" );
 my $blankline_list = "";
 
-sub usage {
-    print "Usage: $0 [ -v ] [ -docbook | -html | -text | -man | -list ]\n";
-    print "         [ -no-doc-sections ]\n";
-    print "         [ -function funcname [ -function funcname ...] ]\n";
-    print "         [ -nofunction funcname [ -nofunction funcname ...] ]\n";
-    print "         c source file(s) > outputfile\n";
-    print "         -v : verbose output, more warnings & other info listed\n";
-    exit 1;
-}
-
 # read arguments
 if ($#ARGV == -1) {
     usage();
 }
+
+my $kernelversion;
+my $dohighlight = "";
 
 my $verbose = 0;
 my $output_mode = "man";
@@ -245,7 +240,7 @@ my $man_date = ('January', 'February', 'March', 'April', 'May', 'June',
 		'November', 'December')[(localtime)[4]] .
   " " . ((localtime)[5]+1900);
 
-# Essentially these are globals
+# Essentially these are globals.
 # They probably want to be tidied up, made more localised or something.
 # CAVEAT EMPTOR!  Some of the others I localised may not want to be, which
 # could cause "use of undefined value" or other bugs.
@@ -353,6 +348,18 @@ while ($ARGV[0] =~ m/^-(.*)/) {
     }
 }
 
+# continue execution near EOF;
+
+sub usage {
+    print "Usage: $0 [ -v ] [ -docbook | -html | -text | -man | -list ]\n";
+    print "         [ -no-doc-sections ]\n";
+    print "         [ -function funcname [ -function funcname ...] ]\n";
+    print "         [ -nofunction funcname [ -nofunction funcname ...] ]\n";
+    print "         c source file(s) > outputfile\n";
+    print "         -v : verbose output, more warnings & other info listed\n";
+    exit 1;
+}
+
 # get kernel version from env
 sub get_kernel_version() {
     my $version = 'unknown kernel version';
@@ -361,15 +368,6 @@ sub get_kernel_version() {
 	$version = $ENV{'KERNELVERSION'};
     }
     return $version;
-}
-my $kernelversion = get_kernel_version();
-
-# generate a sequence of code that will splice in highlighting information
-# using the s// operator.
-my $dohighlight = "";
-foreach my $pattern (keys %highlights) {
-#   print STDERR "scanning pattern:$pattern, highlight:($highlights{$pattern})\n";
-    $dohighlight .=  "\$contents =~ s:$pattern:$highlights{$pattern}:gs;\n";
 }
 
 ##
@@ -453,7 +451,7 @@ sub output_highlight {
     if ($output_mode eq "html" || $output_mode eq "xml") {
 	$contents = local_unescape($contents);
 	# convert data read & converted thru xml_escape() into &xyz; format:
-	$contents =~ s/\\\\\\/&/g;
+	$contents =~ s/\\\\\\/\&/g;
     }
 #   print STDERR "contents b4:$contents\n";
     eval $dohighlight;
@@ -770,7 +768,11 @@ sub output_struct_xml(%) {
     print $args{'type'} . " " . $args{'struct'} . " {\n";
     foreach $parameter (@{$args{'parameterlist'}}) {
 	if ($parameter =~ /^#/) {
-	    print "$parameter\n";
+	    my $prm = $parameter;
+	    # convert data read & converted thru xml_escape() into &xyz; format:
+	    # This allows us to have #define macros interspersed in a struct.
+	    $prm =~ s/\\\\\\/\&/g;
+	    print "$prm\n";
 	    next;
 	}
 
@@ -1701,6 +1703,8 @@ sub push_parameter($$$) {
 	}
 	}
 
+	$param = xml_escape($param);
+
 	# strip spaces from $param so that it is one continous string
 	# on @parameterlist;
 	# this fixes a problem where check_sections() cannot find
@@ -1844,34 +1848,6 @@ sub dump_function($$) {
 			'purpose' => $declaration_purpose
 		       });
 }
-
-sub process_file($);
-
-# Read the file that maps relative names to absolute names for
-# separate source and object directories and for shadow trees.
-if (open(SOURCE_MAP, "<.tmp_filelist.txt")) {
-	my ($relname, $absname);
-	while(<SOURCE_MAP>) {
-		chop();
-		($relname, $absname) = (split())[0..1];
-		$relname =~ s:^/+::;
-		$source_map{$relname} = $absname;
-	}
-	close(SOURCE_MAP);
-}
-
-foreach (@ARGV) {
-    chomp;
-    process_file($_);
-}
-if ($verbose && $errors) {
-  print STDERR "$errors errors\n";
-}
-if ($verbose && $warnings) {
-  print STDERR "$warnings warnings\n";
-}
-
-exit($errors);
 
 sub reset_state {
     $function = "";
@@ -2279,3 +2255,39 @@ sub process_file($) {
 	}
     }
 }
+
+
+$kernelversion = get_kernel_version();
+
+# generate a sequence of code that will splice in highlighting information
+# using the s// operator.
+foreach my $pattern (keys %highlights) {
+#   print STDERR "scanning pattern:$pattern, highlight:($highlights{$pattern})\n";
+    $dohighlight .=  "\$contents =~ s:$pattern:$highlights{$pattern}:gs;\n";
+}
+
+# Read the file that maps relative names to absolute names for
+# separate source and object directories and for shadow trees.
+if (open(SOURCE_MAP, "<.tmp_filelist.txt")) {
+	my ($relname, $absname);
+	while(<SOURCE_MAP>) {
+		chop();
+		($relname, $absname) = (split())[0..1];
+		$relname =~ s:^/+::;
+		$source_map{$relname} = $absname;
+	}
+	close(SOURCE_MAP);
+}
+
+foreach (@ARGV) {
+    chomp;
+    process_file($_);
+}
+if ($verbose && $errors) {
+  print STDERR "$errors errors\n";
+}
+if ($verbose && $warnings) {
+  print STDERR "$warnings warnings\n";
+}
+
+exit($errors);

@@ -35,10 +35,10 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/usb.h>
 #include <linux/input.h>
+#include <linux/usb.h>
+#include <linux/usb/input.h>
 #include <media/ir-core.h>
-#include <media/ir-common.h>
 
 #define DRIVER_VERSION	"1.91"
 #define DRIVER_AUTHOR	"Jarod Wilson <jarod@wilsonet.com>"
@@ -49,6 +49,7 @@
 #define USB_BUFLEN		32 /* USB reception buffer length */
 #define USB_CTRL_MSG_SZ		2  /* Size of usb ctrl msg on gen1 hw */
 #define MCE_G1_INIT_MSGS	40 /* Init messages on gen1 hw to throw out */
+#define MS_TO_NS(msec)		((msec) * 1000)
 
 /* MCE constants */
 #define MCE_CMDBUF_SIZE		384  /* MCE Command buffer length */
@@ -74,6 +75,7 @@
 #define MCE_PACKET_LENGTH_MASK	0x1f /* Packet length mask */
 
 /* Sub-commands, which follow MCE_COMMAND_HEADER or MCE_HW_CMD_HEADER */
+#define MCE_CMD_SIG_END		0x01	/* End of signal */
 #define MCE_CMD_PING		0x03	/* Ping device */
 #define MCE_CMD_UNKNOWN		0x04	/* Unknown */
 #define MCE_CMD_UNKNOWN2	0x05	/* Unknown */
@@ -91,6 +93,7 @@
 #define MCE_CMD_G_TXMASK	0x13	/* Set TX port bitmask */
 #define MCE_CMD_S_RXSENSOR	0x14	/* Set RX sensor (std/learning) */
 #define MCE_CMD_G_RXSENSOR	0x15	/* Get RX sensor (std/learning) */
+#define MCE_RSP_PULSE_COUNT	0x15	/* RX pulse count (only if learning) */
 #define MCE_CMD_TX_PORTS	0x16	/* Get number of TX ports */
 #define MCE_CMD_G_WAKESRC	0x17	/* Get wake source */
 #define MCE_CMD_UNKNOWN7	0x18	/* Unknown */
@@ -146,14 +149,16 @@ enum mceusb_model_type {
 	MCE_GEN3,
 	MCE_GEN2_TX_INV,
 	POLARIS_EVK,
+	CX_HYBRID_TV,
 };
 
 struct mceusb_model {
 	u32 mce_gen1:1;
 	u32 mce_gen2:1;
 	u32 mce_gen3:1;
-	u32 tx_mask_inverted:1;
+	u32 tx_mask_normal:1;
 	u32 is_polaris:1;
+	u32 no_tx:1;
 
 	const char *rc_map;	/* Allow specify a per-board map */
 	const char *name;	/* per-board name */
@@ -162,18 +167,18 @@ struct mceusb_model {
 static const struct mceusb_model mceusb_model[] = {
 	[MCE_GEN1] = {
 		.mce_gen1 = 1,
-		.tx_mask_inverted = 1,
+		.tx_mask_normal = 1,
 	},
 	[MCE_GEN2] = {
 		.mce_gen2 = 1,
 	},
 	[MCE_GEN2_TX_INV] = {
 		.mce_gen2 = 1,
-		.tx_mask_inverted = 1,
+		.tx_mask_normal = 1,
 	},
 	[MCE_GEN3] = {
 		.mce_gen3 = 1,
-		.tx_mask_inverted = 1,
+		.tx_mask_normal = 1,
 	},
 	[POLARIS_EVK] = {
 		.is_polaris = 1,
@@ -183,7 +188,12 @@ static const struct mceusb_model mceusb_model[] = {
 		 * to allow testing it
 		 */
 		.rc_map = RC_MAP_RC5_HAUPPAUGE_NEW,
-		.name = "cx231xx MCE IR",
+		.name = "Conexant Hybrid TV (cx231xx) MCE IR",
+	},
+	[CX_HYBRID_TV] = {
+		.is_polaris = 1,
+		.no_tx = 1, /* tx isn't wired up at all */
+		.name = "Conexant Hybrid TV (cx231xx) MCE IR",
 	},
 };
 
@@ -273,6 +283,8 @@ static struct usb_device_id mceusb_dev_table[] = {
 	{ USB_DEVICE(VENDOR_FORMOSA, 0xe03c) },
 	/* Formosa Industrial Computing */
 	{ USB_DEVICE(VENDOR_FORMOSA, 0xe03e) },
+	/* Fintek eHome Infrared Transceiver (HP branded) */
+	{ USB_DEVICE(VENDOR_FINTEK, 0x5168) },
 	/* Fintek eHome Infrared Transceiver */
 	{ USB_DEVICE(VENDOR_FINTEK, 0x0602) },
 	/* Fintek eHome Infrared Transceiver (in the AOpen MP45) */
@@ -292,9 +304,12 @@ static struct usb_device_id mceusb_dev_table[] = {
 	{ USB_DEVICE(VENDOR_NORTHSTAR, 0xe004) },
 	/* TiVo PC IR Receiver */
 	{ USB_DEVICE(VENDOR_TIVO, 0x2000) },
-	/* Conexant SDK */
+	/* Conexant Hybrid TV "Shelby" Polaris SDK */
 	{ USB_DEVICE(VENDOR_CONEXANT, 0x58a1),
 	  .driver_info = POLARIS_EVK },
+	/* Conexant Hybrid TV RDU253S Polaris */
+	{ USB_DEVICE(VENDOR_CONEXANT, 0x58a5),
+	  .driver_info = CX_HYBRID_TV },
 	/* Terminating entry */
 	{ }
 };
@@ -303,7 +318,10 @@ static struct usb_device_id mceusb_dev_table[] = {
 struct mceusb_dev {
 	/* ir-core bits */
 	struct ir_dev_props *props;
-	struct ir_raw_event rawir;
+
+	/* optional features we can enable */
+	bool carrier_report_enabled;
+	bool learning_enabled;
 
 	/* core device bits */
 	struct device *dev;
@@ -318,6 +336,8 @@ struct mceusb_dev {
 	/* buffers and dma */
 	unsigned char *buf_in;
 	unsigned int len_in;
+	dma_addr_t dma_in;
+	dma_addr_t dma_out;
 
 	enum {
 		CMD_HEADER = 0,
@@ -325,15 +345,14 @@ struct mceusb_dev {
 		CMD_DATA,
 		PARSE_IRDATA,
 	} parser_state;
-	u8 cmd, rem;		/* Remaining IR data bytes in packet */
 
-	dma_addr_t dma_in;
-	dma_addr_t dma_out;
+	u8 cmd, rem;		/* Remaining IR data bytes in packet */
 
 	struct {
 		u32 connected:1;
-		u32 tx_mask_inverted:1;
+		u32 tx_mask_normal:1;
 		u32 microsoft_gen1:1;
+		u32 no_tx:1;
 	} flags;
 
 	/* transmit support */
@@ -408,9 +427,10 @@ static int mceusb_cmdsize(u8 cmd, u8 subcmd)
 		case MCE_CMD_UNKNOWN:
 		case MCE_CMD_S_CARRIER:
 		case MCE_CMD_S_TIMEOUT:
-		case MCE_CMD_G_RXSENSOR:
+		case MCE_RSP_PULSE_COUNT:
 			datasize = 2;
 			break;
+		case MCE_CMD_SIG_END:
 		case MCE_CMD_S_TXMASK:
 		case MCE_CMD_S_RXSENSOR:
 			datasize = 1;
@@ -433,7 +453,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 		return;
 
 	/* skip meaningless 0xb1 0x60 header bytes on orig receiver */
-	if (ir->flags.microsoft_gen1 && !out)
+	if (ir->flags.microsoft_gen1 && !out && !offset)
 		skip = 2;
 
 	if (len <= skip)
@@ -491,6 +511,9 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 		break;
 	case MCE_COMMAND_HEADER:
 		switch (subcmd) {
+		case MCE_CMD_SIG_END:
+			dev_info(dev, "End of signal\n");
+			break;
 		case MCE_CMD_PING:
 			dev_info(dev, "Ping\n");
 			break;
@@ -525,10 +548,11 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 				 inout, data1 == 0x02 ? "short" : "long");
 			break;
 		case MCE_CMD_G_RXSENSOR:
-			if (len == 2)
+		/* aka MCE_RSP_PULSE_COUNT */
+			if (out)
 				dev_info(dev, "Get receive sensor\n");
-			else
-				dev_info(dev, "Received pulse count is %d\n",
+			else if (ir->learning_enabled)
+				dev_info(dev, "RX pulse count: %d\n",
 					 ((data1 << 8) | data2));
 			break;
 		case MCE_RSP_CMD_INVALID:
@@ -724,16 +748,16 @@ out:
 	return ret ? ret : n;
 }
 
-/* Sets active IR outputs -- mce devices typically (all?) have two */
+/* Sets active IR outputs -- mce devices typically have two */
 static int mceusb_set_tx_mask(void *priv, u32 mask)
 {
 	struct mceusb_dev *ir = priv;
 
-	if (ir->flags.tx_mask_inverted)
+	if (ir->flags.tx_mask_normal)
+		ir->tx_mask = mask;
+	else
 		ir->tx_mask = (mask != MCE_DEFAULT_TX_MASK ?
 				mask ^ MCE_DEFAULT_TX_MASK : mask) << 1;
-	else
-		ir->tx_mask = mask;
 
 	return 0;
 }
@@ -752,7 +776,7 @@ static int mceusb_set_tx_carrier(void *priv, u32 carrier)
 
 		if (carrier == 0) {
 			ir->carrier = carrier;
-			cmdbuf[2] = 0x01;
+			cmdbuf[2] = MCE_CMD_SIG_END;
 			cmdbuf[3] = MCE_IRDATA_TRAILER;
 			dev_dbg(ir->dev, "%s: disabling carrier "
 				"modulation\n", __func__);
@@ -782,6 +806,34 @@ static int mceusb_set_tx_carrier(void *priv, u32 carrier)
 	return carrier;
 }
 
+/*
+ * We don't do anything but print debug spew for many of the command bits
+ * we receive from the hardware, but some of them are useful information
+ * we want to store so that we can use them.
+ */
+static void mceusb_handle_command(struct mceusb_dev *ir, int index)
+{
+	u8 hi = ir->buf_in[index + 1] & 0xff;
+	u8 lo = ir->buf_in[index + 2] & 0xff;
+
+	switch (ir->buf_in[index]) {
+	/* 2-byte return value commands */
+	case MCE_CMD_S_TIMEOUT:
+		ir->props->timeout = MS_TO_NS((hi << 8 | lo) / 2);
+		break;
+
+	/* 1-byte return value commands */
+	case MCE_CMD_S_TXMASK:
+		ir->tx_mask = hi;
+		break;
+	case MCE_CMD_S_RXSENSOR:
+		ir->learning_enabled = (hi == 0x02);
+		break;
+	default:
+		break;
+	}
+}
+
 static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 {
 	DEFINE_IR_RAW_EVENT(rawir);
@@ -791,39 +843,30 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 	if (ir->flags.microsoft_gen1)
 		i = 2;
 
+	/* if there's no data, just return now */
+	if (buf_len <= i)
+		return;
+
 	for (; i < buf_len; i++) {
 		switch (ir->parser_state) {
 		case SUBCMD:
 			ir->rem = mceusb_cmdsize(ir->cmd, ir->buf_in[i]);
 			mceusb_dev_printdata(ir, ir->buf_in, i - 1,
 					     ir->rem + 2, false);
+			mceusb_handle_command(ir, i);
 			ir->parser_state = CMD_DATA;
 			break;
 		case PARSE_IRDATA:
 			ir->rem--;
 			rawir.pulse = ((ir->buf_in[i] & MCE_PULSE_BIT) != 0);
 			rawir.duration = (ir->buf_in[i] & MCE_PULSE_MASK)
-					 * MCE_TIME_UNIT * 1000;
-
-			if ((ir->buf_in[i] & MCE_PULSE_MASK) == 0x7f) {
-				if (ir->rawir.pulse == rawir.pulse) {
-					ir->rawir.duration += rawir.duration;
-				} else {
-					ir->rawir.duration = rawir.duration;
-					ir->rawir.pulse = rawir.pulse;
-				}
-				if (ir->rem)
-					break;
-			}
-			rawir.duration += ir->rawir.duration;
-			ir->rawir.duration = 0;
-			ir->rawir.pulse = rawir.pulse;
+					 * MS_TO_NS(MCE_TIME_UNIT);
 
 			dev_dbg(ir->dev, "Storing %s with duration %d\n",
 				rawir.pulse ? "pulse" : "space",
 				rawir.duration);
 
-			ir_raw_event_store(ir->idev, &rawir);
+			ir_raw_event_store_with_filter(ir->idev, &rawir);
 			break;
 		case CMD_DATA:
 			ir->rem--;
@@ -839,17 +882,10 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 				continue;
 			}
 			ir->rem = (ir->cmd & MCE_PACKET_LENGTH_MASK);
-			mceusb_dev_printdata(ir, ir->buf_in, i, ir->rem + 1, false);
-			if (ir->rem) {
+			mceusb_dev_printdata(ir, ir->buf_in,
+					     i, ir->rem + 1, false);
+			if (ir->rem)
 				ir->parser_state = PARSE_IRDATA;
-				break;
-			}
-			/*
-			 * a package with len=0 (e. g. 0x80) means end of
-			 * data. We could use it to do the call to
-			 * ir_raw_event_handle(). For now, we don't need to
-			 * use it.
-			 */
 			break;
 		}
 
@@ -984,9 +1020,11 @@ static void mceusb_get_parameters(struct mceusb_dev *ir)
 	mce_async_out(ir, GET_CARRIER_FREQ, sizeof(GET_CARRIER_FREQ));
 	mce_sync_in(ir, NULL, maxp);
 
-	/* get the transmitter bitmask */
-	mce_async_out(ir, GET_TX_BITMASK, sizeof(GET_TX_BITMASK));
-	mce_sync_in(ir, NULL, maxp);
+	if (!ir->flags.no_tx) {
+		/* get the transmitter bitmask */
+		mce_async_out(ir, GET_TX_BITMASK, sizeof(GET_TX_BITMASK));
+		mce_sync_in(ir, NULL, maxp);
+	}
 
 	/* get receiver timeout value */
 	mce_async_out(ir, GET_RX_TIMEOUT, sizeof(GET_RX_TIMEOUT));
@@ -1035,11 +1073,17 @@ static struct input_dev *mceusb_init_input_dev(struct mceusb_dev *ir)
 	props->priv = ir;
 	props->driver_type = RC_DRIVER_IR_RAW;
 	props->allowed_protos = IR_TYPE_ALL;
-	props->s_tx_mask = mceusb_set_tx_mask;
-	props->s_tx_carrier = mceusb_set_tx_carrier;
-	props->tx_ir = mceusb_tx_ir;
+	props->timeout = MS_TO_NS(1000);
+	if (!ir->flags.no_tx) {
+		props->s_tx_mask = mceusb_set_tx_mask;
+		props->s_tx_carrier = mceusb_set_tx_carrier;
+		props->tx_ir = mceusb_tx_ir;
+	}
 
 	ir->props = props;
+
+	usb_to_input_id(ir->usbdev, &idev->id);
+	idev->dev.parent = ir->dev;
 
 	if (mceusb_model[ir->model].rc_map)
 		rc_map = mceusb_model[ir->model].rc_map;
@@ -1074,16 +1118,16 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	enum mceusb_model_type model = id->driver_info;
 	bool is_gen3;
 	bool is_microsoft_gen1;
-	bool tx_mask_inverted;
+	bool tx_mask_normal;
 	bool is_polaris;
 
-	dev_dbg(&intf->dev, ": %s called\n", __func__);
+	dev_dbg(&intf->dev, "%s called\n", __func__);
 
 	idesc  = intf->cur_altsetting;
 
 	is_gen3 = mceusb_model[model].mce_gen3;
 	is_microsoft_gen1 = mceusb_model[model].mce_gen1;
-	tx_mask_inverted = mceusb_model[model].tx_mask_inverted;
+	tx_mask_normal = mceusb_model[model].tx_mask_normal;
 	is_polaris = mceusb_model[model].is_polaris;
 
 	if (is_polaris) {
@@ -1107,7 +1151,7 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 			ep_in = ep;
 			ep_in->bmAttributes = USB_ENDPOINT_XFER_INT;
 			ep_in->bInterval = 1;
-			dev_dbg(&intf->dev, ": acceptable inbound endpoint "
+			dev_dbg(&intf->dev, "acceptable inbound endpoint "
 				"found\n");
 		}
 
@@ -1122,12 +1166,12 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 			ep_out = ep;
 			ep_out->bmAttributes = USB_ENDPOINT_XFER_INT;
 			ep_out->bInterval = 1;
-			dev_dbg(&intf->dev, ": acceptable outbound endpoint "
+			dev_dbg(&intf->dev, "acceptable outbound endpoint "
 				"found\n");
 		}
 	}
 	if (ep_in == NULL) {
-		dev_dbg(&intf->dev, ": inbound and/or endpoint not found\n");
+		dev_dbg(&intf->dev, "inbound and/or endpoint not found\n");
 		return -ENODEV;
 	}
 
@@ -1150,10 +1194,9 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	ir->dev = &intf->dev;
 	ir->len_in = maxp;
 	ir->flags.microsoft_gen1 = is_microsoft_gen1;
-	ir->flags.tx_mask_inverted = tx_mask_inverted;
+	ir->flags.tx_mask_normal = tx_mask_normal;
+	ir->flags.no_tx = mceusb_model[model].no_tx;
 	ir->model = model;
-
-	init_ir_raw_event(&ir->rawir);
 
 	/* Saving usb interface data for use by the transmitter routine */
 	ir->usb_ep_in = ep_in;
@@ -1191,7 +1234,8 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 
 	mceusb_get_parameters(ir);
 
-	mceusb_set_tx_mask(ir, MCE_DEFAULT_TX_MASK);
+	if (!ir->flags.no_tx)
+		mceusb_set_tx_mask(ir, MCE_DEFAULT_TX_MASK);
 
 	usb_set_intfdata(intf, ir);
 

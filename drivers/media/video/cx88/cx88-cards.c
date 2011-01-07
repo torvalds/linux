@@ -1007,15 +1007,22 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
+		.audio_chip = V4L2_IDENT_WM8775,
 		.input		= {{
 			.type	= CX88_VMUX_DVB,
 			.vmux	= 0,
+			/* 2: Line-In */
+			.audioroute = 2,
 		},{
 			.type	= CX88_VMUX_COMPOSITE1,
 			.vmux	= 1,
+			/* 2: Line-In */
+			.audioroute = 2,
 		},{
 			.type	= CX88_VMUX_SVIDEO,
 			.vmux	= 2,
+			/* 2: Line-In */
+			.audioroute = 2,
 		}},
 		.mpeg           = CX88_MPEG_DVB,
 	},
@@ -3515,19 +3522,18 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 		   later code configures a tea5767.
 		 */
 		v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
-				NULL, "tuner",
-				0, v4l2_i2c_tuner_addrs(ADDRS_RADIO));
+				"tuner", 0, v4l2_i2c_tuner_addrs(ADDRS_RADIO));
 		if (has_demod)
 			v4l2_i2c_new_subdev(&core->v4l2_dev,
-				&core->i2c_adap, NULL, "tuner",
+				&core->i2c_adap, "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		if (core->board.tuner_addr == ADDR_UNSET) {
 			v4l2_i2c_new_subdev(&core->v4l2_dev,
-				&core->i2c_adap, NULL, "tuner",
+				&core->i2c_adap, "tuner",
 				0, has_demod ? tv_addrs + 4 : tv_addrs);
 		} else {
 			v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
-				NULL, "tuner", core->board.tuner_addr, NULL);
+				"tuner", core->board.tuner_addr, NULL);
 		}
 	}
 

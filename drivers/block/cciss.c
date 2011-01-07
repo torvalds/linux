@@ -66,6 +66,7 @@ MODULE_VERSION("3.6.26");
 MODULE_LICENSE("GPL");
 
 static DEFINE_MUTEX(cciss_mutex);
+static struct proc_dir_entry *proc_cciss;
 
 #include "cciss_cmd.h"
 #include "cciss.h"
@@ -362,8 +363,6 @@ static const char *raid_label[] = { "0", "4", "1(1+0)", "5", "5+1", "ADG",
 #define ENG_GIG 1000000000
 #define ENG_GIG_FACTOR (ENG_GIG/512)
 #define ENGAGE_SCSI	"engage scsi"
-
-static struct proc_dir_entry *proc_cciss;
 
 static void cciss_seq_show_header(struct seq_file *seq)
 {
@@ -2835,6 +2834,8 @@ static int cciss_revalidate(struct gendisk *disk)
 	InquiryData_struct *inq_buff = NULL;
 
 	for (logvol = 0; logvol < CISS_MAX_LUN; logvol++) {
+		if (!h->drv[logvol])
+			continue;
 		if (memcmp(h->drv[logvol]->LunID, drv->LunID,
 			sizeof(drv->LunID)) == 0) {
 			FOUND = 1;

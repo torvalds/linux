@@ -90,7 +90,8 @@ static DECLARE_WORK(kgdboc_restore_input_work, kgdboc_restore_input_helper);
 
 static void kgdboc_restore_input(void)
 {
-	schedule_work(&kgdboc_restore_input_work);
+	if (likely(system_state == SYSTEM_RUNNING))
+		schedule_work(&kgdboc_restore_input_work);
 }
 
 static int kgdboc_register_kbd(char **cptr)

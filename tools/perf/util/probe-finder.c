@@ -117,28 +117,6 @@ static void line_list__free(struct list_head *head)
 }
 
 /* Dwarf FL wrappers */
-
-static int __linux_kernel_find_elf(Dwfl_Module *mod,
-				   void **userdata,
-				   const char *module_name,
-				   Dwarf_Addr base,
-				   char **file_name, Elf **elfp)
-{
-	int fd;
-	const char *path = kernel_get_module_path(module_name);
-
-	if (path) {
-		fd = open(path, O_RDONLY);
-		if (fd >= 0) {
-			*file_name = strdup(path);
-			return fd;
-		}
-	}
-	/* If failed, try to call standard method */
-	return dwfl_linux_kernel_find_elf(mod, userdata, module_name, base,
-					  file_name, elfp);
-}
-
 static char *debuginfo_path;	/* Currently dummy */
 
 static const Dwfl_Callbacks offline_callbacks = {
@@ -149,14 +127,6 @@ static const Dwfl_Callbacks offline_callbacks = {
 
 	/* We use this table for core files too.  */
 	.find_elf = dwfl_build_id_find_elf,
-};
-
-static const Dwfl_Callbacks kernel_callbacks = {
-	.find_debuginfo = dwfl_standard_find_debuginfo,
-	.debuginfo_path = &debuginfo_path,
-
-	.find_elf = __linux_kernel_find_elf,
-	.section_address = dwfl_linux_kernel_module_section_address,
 };
 
 /* Get a Dwarf from offline image */
@@ -185,6 +155,38 @@ error:
 	return dbg;
 }
 
+#if _ELFUTILS_PREREQ(0, 148)
+/* This method is buggy if elfutils is older than 0.148 */
+static int __linux_kernel_find_elf(Dwfl_Module *mod,
+				   void **userdata,
+				   const char *module_name,
+				   Dwarf_Addr base,
+				   char **file_name, Elf **elfp)
+{
+	int fd;
+	const char *path = kernel_get_module_path(module_name);
+
+	pr_debug2("Use file %s for %s\n", path, module_name);
+	if (path) {
+		fd = open(path, O_RDONLY);
+		if (fd >= 0) {
+			*file_name = strdup(path);
+			return fd;
+		}
+	}
+	/* If failed, try to call standard method */
+	return dwfl_linux_kernel_find_elf(mod, userdata, module_name, base,
+					  file_name, elfp);
+}
+
+static const Dwfl_Callbacks kernel_callbacks = {
+	.find_debuginfo = dwfl_standard_find_debuginfo,
+	.debuginfo_path = &debuginfo_path,
+
+	.find_elf = __linux_kernel_find_elf,
+	.section_address = dwfl_linux_kernel_module_section_address,
+};
+
 /* Get a Dwarf from live kernel image */
 static Dwarf *dwfl_init_live_kernel_dwarf(Dwarf_Addr addr, Dwfl **dwflp,
 					  Dwarf_Addr *bias)
@@ -205,11 +207,34 @@ static Dwarf *dwfl_init_live_kernel_dwarf(Dwarf_Addr addr, Dwfl **dwflp,
 	dbg = dwfl_addrdwarf(*dwflp, addr, bias);
 	/* Here, check whether we could get a real dwarf */
 	if (!dbg) {
+		pr_debug("Failed to find kernel dwarf at %lx\n",
+			 (unsigned long)addr);
 		dwfl_end(*dwflp);
 		*dwflp = NULL;
 	}
 	return dbg;
 }
+#else
+/* With older elfutils, this just support kernel module... */
+static Dwarf *dwfl_init_live_kernel_dwarf(Dwarf_Addr addr __used, Dwfl **dwflp,
+					  Dwarf_Addr *bias)
+{
+	int fd;
+	const char *path = kernel_get_module_path("kernel");
+
+	if (!path) {
+		pr_err("Failed to find vmlinux path\n");
+		return NULL;
+	}
+
+	pr_debug2("Use file %s for debuginfo\n", path);
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+
+	return dwfl_init_offline_dwarf(fd, dwflp, bias);
+}
+#endif
 
 /* Dwarf wrappers */
 
@@ -627,8 +652,8 @@ static_var:
 	regs = get_arch_regstr(regn);
 	if (!regs) {
 		/* This should be a bug in DWARF or this tool */
-		pr_warning("Mapping for DWARF register number %u "
-			   "missing on this architecture.", regn);
+		pr_warning("Mapping for the register number %u "
+			   "missing on this architecture.\n", regn);
 		return -ERANGE;
 	}
 
@@ -674,13 +699,14 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 		if (ret != DW_TAG_pointer_type &&
 		    ret != DW_TAG_array_type) {
 			pr_warning("Failed to cast into string: "
-				   "%s(%s) is not a pointer nor array.",
+				   "%s(%s) is not a pointer nor array.\n",
 				   dwarf_diename(vr_die), dwarf_diename(&type));
 			return -EINVAL;
 		}
 		if (ret == DW_TAG_pointer_type) {
 			if (die_get_real_type(&type, &type) == NULL) {
-				pr_warning("Failed to get a type information.");
+				pr_warning("Failed to get a type"
+					   " information.\n");
 				return -ENOENT;
 			}
 			while (*ref_ptr)
@@ -695,7 +721,7 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 		if (!die_compare_name(&type, "char") &&
 		    !die_compare_name(&type, "unsigned char")) {
 			pr_warning("Failed to cast into string: "
-				   "%s is not (unsigned) char *.",
+				   "%s is not (unsigned) char *.\n",
 				   dwarf_diename(vr_die));
 			return -EINVAL;
 		}
@@ -805,8 +831,8 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 			return -EINVAL;
 		}
 		if (field->name[0] == '[') {
-			pr_err("Semantic error: %s is not a pointor nor array.",
-			       varname);
+			pr_err("Semantic error: %s is not a pointor"
+			       " nor array.\n", varname);
 			return -EINVAL;
 		}
 		if (field->ref) {
@@ -953,7 +979,7 @@ static int convert_to_trace_point(Dwarf_Die *sp_die, Dwarf_Addr paddr,
 	name = dwarf_diename(sp_die);
 	if (name) {
 		if (dwarf_entrypc(sp_die, &eaddr) != 0) {
-			pr_warning("Failed to get entry pc of %s\n",
+			pr_warning("Failed to get entry address of %s\n",
 				   dwarf_diename(sp_die));
 			return -ENOENT;
 		}
@@ -969,7 +995,7 @@ static int convert_to_trace_point(Dwarf_Die *sp_die, Dwarf_Addr paddr,
 	if (retprobe) {
 		if (eaddr != paddr) {
 			pr_warning("Return probe must be on the head of"
-				   " a real function\n");
+				   " a real function.\n");
 			return -EINVAL;
 		}
 		tp->retprobe = true;
@@ -1008,7 +1034,7 @@ static int call_probe_finder(Dwarf_Die *sp_die, struct probe_finder *pf)
 		Dwarf_Frame *frame;
 		if (dwarf_cfi_addrframe(pf->cfi, pf->addr, &frame) != 0 ||
 		    dwarf_frame_cfa(frame, &pf->fb_ops, &nops) != 0) {
-			pr_warning("Failed to get CFA on 0x%jx\n",
+			pr_warning("Failed to get call frame on 0x%jx\n",
 				   (uintmax_t)pf->addr);
 			return -ENOENT;
 		}
@@ -1035,7 +1061,7 @@ static int find_probe_point_by_line(struct probe_finder *pf)
 	int ret = 0;
 
 	if (dwarf_getsrclines(&pf->cu_die, &lines, &nlines) != 0) {
-		pr_warning("No source lines found in this CU.\n");
+		pr_warning("No source lines found.\n");
 		return -ENOENT;
 	}
 
@@ -1137,7 +1163,7 @@ static int find_probe_point_lazy(Dwarf_Die *sp_die, struct probe_finder *pf)
 	}
 
 	if (dwarf_getsrclines(&pf->cu_die, &lines, &nlines) != 0) {
-		pr_warning("No source lines found in this CU.\n");
+		pr_warning("No source lines found.\n");
 		return -ENOENT;
 	}
 
@@ -1195,7 +1221,7 @@ static int probe_point_inline_cb(Dwarf_Die *in_die, void *data)
 	else {
 		/* Get probe address */
 		if (dwarf_entrypc(in_die, &addr) != 0) {
-			pr_warning("Failed to get entry pc of %s.\n",
+			pr_warning("Failed to get entry address of %s.\n",
 				   dwarf_diename(in_die));
 			param->retval = -ENOENT;
 			return DWARF_CB_ABORT;
@@ -1236,8 +1262,8 @@ static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 			param->retval = find_probe_point_lazy(sp_die, pf);
 		else {
 			if (dwarf_entrypc(sp_die, &pf->addr) != 0) {
-				pr_warning("Failed to get entry pc of %s.\n",
-					   dwarf_diename(sp_die));
+				pr_warning("Failed to get entry address of "
+					   "%s.\n", dwarf_diename(sp_die));
 				param->retval = -ENOENT;
 				return DWARF_CB_ABORT;
 			}
@@ -1279,7 +1305,7 @@ static int find_probes(int fd, struct probe_finder *pf)
 
 	dbg = dwfl_init_offline_dwarf(fd, &dwfl, &bias);
 	if (!dbg) {
-		pr_warning("No dwarf info found in the vmlinux - "
+		pr_warning("No debug information found in the vmlinux - "
 			"please rebuild with CONFIG_DEBUG_INFO=y.\n");
 		return -EBADF;
 	}
@@ -1524,7 +1550,7 @@ int find_perf_probe_point(unsigned long addr, struct perf_probe_point *ppt)
 	/* Open the live linux kernel */
 	dbg = dwfl_init_live_kernel_dwarf(addr, &dwfl, &bias);
 	if (!dbg) {
-		pr_warning("No dwarf info found in the vmlinux - "
+		pr_warning("No debug information found in the vmlinux - "
 			"please rebuild with CONFIG_DEBUG_INFO=y.\n");
 		ret = -EINVAL;
 		goto end;
@@ -1534,7 +1560,8 @@ int find_perf_probe_point(unsigned long addr, struct perf_probe_point *ppt)
 	addr += bias;
 	/* Find cu die */
 	if (!dwarf_addrdie(dbg, (Dwarf_Addr)addr - bias, &cudie)) {
-		pr_warning("No CU DIE is found at %lx\n", addr);
+		pr_warning("Failed to find debug information for address %lx\n",
+			   addr);
 		ret = -EINVAL;
 		goto end;
 	}
@@ -1659,7 +1686,7 @@ static int find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 
 	line_list__init(&lf->lr->line_list);
 	if (dwarf_getsrclines(&lf->cu_die, &lines, &nlines) != 0) {
-		pr_warning("No source lines found in this CU.\n");
+		pr_warning("No source lines found.\n");
 		return -ENOENT;
 	}
 
@@ -1784,7 +1811,7 @@ int find_line_range(int fd, struct line_range *lr)
 
 	dbg = dwfl_init_offline_dwarf(fd, &dwfl, &bias);
 	if (!dbg) {
-		pr_warning("No dwarf info found in the vmlinux - "
+		pr_warning("No debug information found in the vmlinux - "
 			"please rebuild with CONFIG_DEBUG_INFO=y.\n");
 		return -EBADF;
 	}

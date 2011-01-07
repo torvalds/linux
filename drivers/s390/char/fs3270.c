@@ -14,7 +14,6 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/smp_lock.h>
 
 #include <asm/compat.h>
 #include <asm/ccwdev.h>

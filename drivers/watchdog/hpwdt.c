@@ -642,19 +642,14 @@ static struct notifier_block die_notifier = {
  */
 
 #ifdef CONFIG_HPWDT_NMI_DECODING
-#ifdef ARCH_HAS_NMI_WATCHDOG
+#ifdef CONFIG_X86_LOCAL_APIC
 static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
 {
 	/*
 	 * If nmi_watchdog is turned off then we can turn on
 	 * our nmi decoding capability.
 	 */
-	if (!nmi_watchdog_active())
-		hpwdt_nmi_decoding = 1;
-	else
-		dev_warn(&dev->dev, "NMI decoding is disabled. To enable this "
-			"functionality you must reboot with nmi_watchdog=0 "
-			"and load the hpwdt driver with priority=1.\n");
+	hpwdt_nmi_decoding = 1;
 }
 #else
 static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
@@ -662,7 +657,7 @@ static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
 	dev_warn(&dev->dev, "NMI decoding is disabled. "
 		"Your kernel does not support a NMI Watchdog.\n");
 }
-#endif /* ARCH_HAS_NMI_WATCHDOG */
+#endif /* CONFIG_X86_LOCAL_APIC */
 
 static int __devinit hpwdt_init_nmi_decoding(struct pci_dev *dev)
 {

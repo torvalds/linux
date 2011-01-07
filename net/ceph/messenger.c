@@ -97,11 +97,9 @@ struct workqueue_struct *ceph_msgr_wq;
 int ceph_msgr_init(void)
 {
 	ceph_msgr_wq = create_workqueue("ceph-msgr");
-	if (IS_ERR(ceph_msgr_wq)) {
-		int ret = PTR_ERR(ceph_msgr_wq);
-		pr_err("msgr_init failed to create workqueue: %d\n", ret);
-		ceph_msgr_wq = NULL;
-		return ret;
+	if (!ceph_msgr_wq) {
+		pr_err("msgr_init failed to create workqueue\n");
+		return -ENOMEM;
 	}
 	return 0;
 }
@@ -540,8 +538,7 @@ static void prepare_write_message(struct ceph_connection *con)
 		/* initialize page iterator */
 		con->out_msg_pos.page = 0;
 		if (m->pages)
-			con->out_msg_pos.page_pos =
-				le16_to_cpu(m->hdr.data_off) & ~PAGE_MASK;
+			con->out_msg_pos.page_pos = m->page_alignment;
 		else
 			con->out_msg_pos.page_pos = 0;
 		con->out_msg_pos.data_pos = 0;
@@ -1491,7 +1488,7 @@ static int read_partial_message(struct ceph_connection *con)
 	struct ceph_msg *m = con->in_msg;
 	int ret;
 	int to, left;
-	unsigned front_len, middle_len, data_len, data_off;
+	unsigned front_len, middle_len, data_len;
 	int datacrc = con->msgr->nocrc;
 	int skip;
 	u64 seq;
@@ -1527,19 +1524,17 @@ static int read_partial_message(struct ceph_connection *con)
 	data_len = le32_to_cpu(con->in_hdr.data_len);
 	if (data_len > CEPH_MSG_MAX_DATA_LEN)
 		return -EIO;
-	data_off = le16_to_cpu(con->in_hdr.data_off);
 
 	/* verify seq# */
 	seq = le64_to_cpu(con->in_hdr.seq);
 	if ((s64)seq - (s64)con->in_seq < 1) {
-		pr_info("skipping %s%lld %s seq %lld, expected %lld\n",
+		pr_info("skipping %s%lld %s seq %lld expected %lld\n",
 			ENTITY_NAME(con->peer_name),
 			ceph_pr_addr(&con->peer_addr.in_addr),
 			seq, con->in_seq + 1);
 		con->in_base_pos = -front_len - middle_len - data_len -
 			sizeof(m->footer);
 		con->in_tag = CEPH_MSGR_TAG_READY;
-		con->in_seq++;
 		return 0;
 	} else if ((s64)seq - (s64)con->in_seq > 1) {
 		pr_err("read_partial_message bad seq %lld expected %lld\n",
@@ -1576,7 +1571,7 @@ static int read_partial_message(struct ceph_connection *con)
 
 		con->in_msg_pos.page = 0;
 		if (m->pages)
-			con->in_msg_pos.page_pos = data_off & ~PAGE_MASK;
+			con->in_msg_pos.page_pos = m->page_alignment;
 		else
 			con->in_msg_pos.page_pos = 0;
 		con->in_msg_pos.data_pos = 0;
@@ -2301,6 +2296,7 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags)
 
 	/* data */
 	m->nr_pages = 0;
+	m->page_alignment = 0;
 	m->pages = NULL;
 	m->pagelist = NULL;
 	m->bio = NULL;
@@ -2370,6 +2366,7 @@ static struct ceph_msg *ceph_alloc_msg(struct ceph_connection *con,
 			       type, front_len);
 			return NULL;
 		}
+		msg->page_alignment = le16_to_cpu(hdr->data_off);
 	}
 	memcpy(&msg->hdr, &con->in_hdr, sizeof(con->in_hdr));
 

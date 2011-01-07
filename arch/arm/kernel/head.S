@@ -85,9 +85,11 @@ ENTRY(stext)
 	mrc	p15, 0, r9, c0, c0		@ get processor id
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?
+ THUMB( it	eq )		@ force fixup-able long branch encoding
 	beq	__error_p			@ yes, error 'p'
 	bl	__lookup_machine_type		@ r5=machinfo
 	movs	r8, r5				@ invalid machine (r5=0)?
+ THUMB( it	eq )		@ force fixup-able long branch encoding
 	beq	__error_a			@ yes, error 'a'
 	bl	__vet_atags
 #ifdef CONFIG_SMP_ON_UP
@@ -262,6 +264,7 @@ __create_page_tables:
 	mov	pc, lr
 ENDPROC(__create_page_tables)
 	.ltorg
+	.align
 __enable_mmu_loc:
 	.long	.
 	.long	__enable_mmu
@@ -282,6 +285,7 @@ ENTRY(secondary_startup)
 	bl	__lookup_processor_type
 	movs	r10, r5				@ invalid processor?
 	moveq	r0, #'p'			@ yes, error 'p'
+ THUMB( it	eq )		@ force fixup-able long branch encoding
 	beq	__error_p
 
 	/*
@@ -307,6 +311,8 @@ ENTRY(__secondary_switched)
 	mov	fp, #0
 	b	secondary_start_kernel
 ENDPROC(__secondary_switched)
+
+	.align
 
 	.type	__secondary_data, %object
 __secondary_data:
@@ -413,6 +419,7 @@ __fixup_smp_on_up:
 	mov	pc, lr
 ENDPROC(__fixup_smp)
 
+	.align
 1:	.word	.
 	.word	__smpalt_begin
 	.word	__smpalt_end

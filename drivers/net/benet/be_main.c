@@ -2458,6 +2458,12 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 	int status, i = 0, num_imgs = 0;
 	const u8 *p;
 
+	if (!netif_running(adapter->netdev)) {
+		dev_err(&adapter->pdev->dev,
+			"Firmware load not allowed (interface is down)\n");
+		return -EPERM;
+	}
+
 	strcpy(fw_file, func);
 
 	status = request_firmware(&fw, fw_file, &adapter->pdev->dev);
@@ -2671,7 +2677,7 @@ static int be_ctrl_init(struct be_adapter *adapter)
 	}
 	memset(mc_cmd_mem->va, 0, mc_cmd_mem->size);
 
-	spin_lock_init(&adapter->mbox_lock);
+	mutex_init(&adapter->mbox_lock);
 	spin_lock_init(&adapter->mcc_lock);
 	spin_lock_init(&adapter->mcc_cq_lock);
 
