@@ -43,6 +43,13 @@ static u32 *tegra_fuse_bb;
 static dma_addr_t tegra_fuse_bb_phys;
 static DECLARE_COMPLETION(tegra_fuse_wait);
 
+static const char *tegra_revision_name[TEGRA_REVISION_MAX] = {
+	[TEGRA_REVISION_UNKNOWN] = "unknown",
+	[TEGRA_REVISION_A02] = "A02",
+	[TEGRA_REVISION_A03] = "A03",
+	[TEGRA_REVISION_A03p] = "A03 prime",
+};
+
 static void fuse_dma_complete(struct tegra_dma_req *req)
 {
 	complete(&tegra_fuse_wait);
@@ -136,13 +143,19 @@ void tegra_fuse_writel(u32 value, unsigned long offset)
 	fuse_writel(value, offset);
 }
 
+static inline bool get_spare_fuse(int bit)
+{
+	return fuse_readl(FUSE_SPARE_BIT + bit * 4);
+}
+
 void tegra_init_fuse(void)
 {
 	u32 reg = readl(IO_TO_VIRT(TEGRA_CLK_RESET_BASE + 0x48));
 	reg |= 1 << 28;
 	writel(reg, IO_TO_VIRT(TEGRA_CLK_RESET_BASE + 0x48));
 
-	pr_info("Tegra SKU: %d CPU Process: %d Core Process: %d\n",
+	pr_info("Tegra Revision: %s SKU: %d CPU Process: %d Core Process: %d\n",
+		tegra_revision_name[tegra_get_revision()],
 		tegra_sku_id(), tegra_cpu_process_id(),
 		tegra_core_process_id());
 }
@@ -199,4 +212,22 @@ int tegra_core_process_id(void)
 	u32 reg = fuse_readl(FUSE_SPARE_BIT);
 	core_process_id = (reg >> 12) & 3;
 	return core_process_id;
+}
+
+enum tegra_revision tegra_get_revision(void)
+{
+	void __iomem *chip_id = IO_ADDRESS(TEGRA_APB_MISC_BASE) + 0x804;
+	u32 id = readl(chip_id);
+
+	switch ((id >> 16) & 0xf) {
+	case 2:
+		return TEGRA_REVISION_A02;
+	case 3:
+		if (get_spare_fuse(18) || get_spare_fuse(19))
+			return TEGRA_REVISION_A03p;
+		else
+			return TEGRA_REVISION_A03;
+	default:
+		return TEGRA_REVISION_UNKNOWN;
+	}
 }
