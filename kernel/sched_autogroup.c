@@ -11,8 +11,8 @@ static atomic_t autogroup_seq_nr;
 
 static void autogroup_init(struct task_struct *init_task)
 {
-	autogroup_default.tg = &init_task_group;
-	init_task_group.autogroup = &autogroup_default;
+	autogroup_default.tg = &root_task_group;
+	root_task_group.autogroup = &autogroup_default;
 	kref_init(&autogroup_default.kref);
 	init_rwsem(&autogroup_default.lock);
 	init_task->signal->autogroup = &autogroup_default;
@@ -63,7 +63,7 @@ static inline struct autogroup *autogroup_create(void)
 	if (!ag)
 		goto out_fail;
 
-	tg = sched_create_group(&init_task_group);
+	tg = sched_create_group(&root_task_group);
 
 	if (IS_ERR(tg))
 		goto out_free;
