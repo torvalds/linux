@@ -256,23 +256,28 @@ static struct file_system_type pstore_fs_type = {
 
 static int __init init_pstore_fs(void)
 {
-	int ret = 0;
+	int rc = 0;
 	struct kobject *pstorefs_kobj;
 
 	pstorefs_kobj = kobject_create_and_add("pstore", fs_kobj);
-	if (!pstorefs_kobj)
-		return -ENOMEM;
-
-	sysfs_create_file(pstorefs_kobj, &pstore_kmsg_bytes_attr.attr);
-
-	ret = register_filesystem(&pstore_fs_type);
-
-	if (ret) {
-		sysfs_remove_file(pstorefs_kobj, &pstore_kmsg_bytes_attr.attr);
-		kobject_put(pstorefs_kobj);
+	if (!pstorefs_kobj) {
+		rc = -ENOMEM;
+		goto done;
 	}
 
-	return ret;
+	rc = sysfs_create_file(pstorefs_kobj, &pstore_kmsg_bytes_attr.attr);
+	if (rc)
+		goto done1;
+
+	rc = register_filesystem(&pstore_fs_type);
+	if (rc == 0)
+		goto done;
+
+	sysfs_remove_file(pstorefs_kobj, &pstore_kmsg_bytes_attr.attr);
+done1:
+	kobject_put(pstorefs_kobj);
+done:
+	return rc;
 }
 module_init(init_pstore_fs)
 
