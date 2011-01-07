@@ -684,9 +684,12 @@ static __always_inline void set_root_rcu(struct nameidata *nd)
 {
 	if (!nd->root.mnt) {
 		struct fs_struct *fs = current->fs;
-		spin_lock(&fs->lock);
-		nd->root = fs->root;
-		spin_unlock(&fs->lock);
+		unsigned seq;
+
+		do {
+			seq = read_seqcount_begin(&fs->seq);
+			nd->root = fs->root;
+		} while (read_seqcount_retry(&fs->seq, seq));
 	}
 }
 
@@ -1369,26 +1372,31 @@ static int path_init_rcu(int dfd, const char *name, unsigned int flags, struct n
 
 	if (*name=='/') {
 		struct fs_struct *fs = current->fs;
+		unsigned seq;
 
 		br_read_lock(vfsmount_lock);
 		rcu_read_lock();
 
-		spin_lock(&fs->lock);
-		nd->root = fs->root;
-		nd->path = nd->root;
-		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
-		spin_unlock(&fs->lock);
+		do {
+			seq = read_seqcount_begin(&fs->seq);
+			nd->root = fs->root;
+			nd->path = nd->root;
+			nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
+		} while (read_seqcount_retry(&fs->seq, seq));
 
 	} else if (dfd == AT_FDCWD) {
 		struct fs_struct *fs = current->fs;
+		unsigned seq;
 
 		br_read_lock(vfsmount_lock);
 		rcu_read_lock();
 
-		spin_lock(&fs->lock);
-		nd->path = fs->pwd;
-		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
-		spin_unlock(&fs->lock);
+		do {
+			seq = read_seqcount_begin(&fs->seq);
+			nd->path = fs->pwd;
+			nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
+		} while (read_seqcount_retry(&fs->seq, seq));
+
 	} else {
 		struct dentry *dentry;
 
@@ -1411,7 +1419,7 @@ static int path_init_rcu(int dfd, const char *name, unsigned int flags, struct n
 		if (fput_needed)
 			nd->file = file;
 
-		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
+		nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
 		br_read_lock(vfsmount_lock);
 		rcu_read_lock();
 	}
