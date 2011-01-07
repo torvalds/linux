@@ -673,9 +673,14 @@ union set_pixel_clock {
 	PIXEL_CLOCK_PARAMETERS_V2 v2;
 	PIXEL_CLOCK_PARAMETERS_V3 v3;
 	PIXEL_CLOCK_PARAMETERS_V5 v5;
+	PIXEL_CLOCK_PARAMETERS_V6 v6;
 };
 
-static void atombios_crtc_set_dcpll(struct drm_crtc *crtc)
+/* on DCE5, make sure the voltage is high enough to support the
+ * required disp clk.
+ */
+static void atombios_crtc_set_dcpll(struct drm_crtc *crtc,
+				    u32 dispclk)
 {
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -698,8 +703,15 @@ static void atombios_crtc_set_dcpll(struct drm_crtc *crtc)
 			 * SetPixelClock provides the dividers
 			 */
 			args.v5.ucCRTC = ATOM_CRTC_INVALID;
-			args.v5.usPixelClock = rdev->clock.default_dispclk;
+			args.v5.usPixelClock = dispclk;
 			args.v5.ucPpll = ATOM_DCPLL;
+			break;
+		case 6:
+			/* if the default dcpll clock is specified,
+			 * SetPixelClock provides the dividers
+			 */
+			args.v6.ulDispEngClkFreq = dispclk;
+			args.v6.ucPpll = ATOM_DCPLL;
 			break;
 		default:
 			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
@@ -783,6 +795,18 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 			args.v5.ucTransmitterID = encoder_id;
 			args.v5.ucEncoderMode = encoder_mode;
 			args.v5.ucPpll = pll_id;
+			break;
+		case 6:
+			args.v6.ulCrtcPclkFreq.ucCRTC = crtc_id;
+			args.v6.ulCrtcPclkFreq.ulPixelClock = cpu_to_le32(clock / 10);
+			args.v6.ucRefDiv = ref_div;
+			args.v6.usFbDiv = cpu_to_le16(fb_div);
+			args.v6.ulFbDivDecFrac = cpu_to_le32(frac_fb_div * 100000);
+			args.v6.ucPostDiv = post_div;
+			args.v6.ucMiscInfo = 0; /* HDMI depth, etc. */
+			args.v6.ucTransmitterID = encoder_id;
+			args.v6.ucEncoderMode = encoder_mode;
+			args.v6.ucPpll = pll_id;
 			break;
 		default:
 			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
@@ -1377,7 +1401,8 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 								   rdev->clock.default_dispclk);
 		if (ss_enabled)
 			atombios_crtc_program_ss(crtc, ATOM_DISABLE, ATOM_DCPLL, &ss);
-		atombios_crtc_set_dcpll(crtc);
+		/* XXX: DCE5, make sure voltage, dispclk is high enough */
+		atombios_crtc_set_dcpll(crtc, rdev->clock.default_dispclk);
 		if (ss_enabled)
 			atombios_crtc_program_ss(crtc, ATOM_ENABLE, ATOM_DCPLL, &ss);
 	}

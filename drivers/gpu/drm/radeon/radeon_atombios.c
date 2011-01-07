@@ -1086,6 +1086,7 @@ union firmware_info {
 	ATOM_FIRMWARE_INFO_V1_3 info_13;
 	ATOM_FIRMWARE_INFO_V1_4 info_14;
 	ATOM_FIRMWARE_INFO_V2_1 info_21;
+	ATOM_FIRMWARE_INFO_V2_2 info_22;
 };
 
 bool radeon_atom_get_clock_info(struct drm_device *dev)
@@ -1160,8 +1161,12 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		*p2pll = *p1pll;
 
 		/* system clock */
-		spll->reference_freq =
-		    le16_to_cpu(firmware_info->info.usReferenceClock);
+		if (ASIC_IS_DCE4(rdev))
+			spll->reference_freq =
+				le16_to_cpu(firmware_info->info_21.usCoreReferenceClock);
+		else
+			spll->reference_freq =
+				le16_to_cpu(firmware_info->info.usReferenceClock);
 		spll->reference_div = 0;
 
 		spll->pll_out_min =
@@ -1183,8 +1188,12 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		    le16_to_cpu(firmware_info->info.usMaxEngineClockPLL_Input);
 
 		/* memory clock */
-		mpll->reference_freq =
-		    le16_to_cpu(firmware_info->info.usReferenceClock);
+		if (ASIC_IS_DCE4(rdev))
+			mpll->reference_freq =
+				le16_to_cpu(firmware_info->info_21.usMemoryReferenceClock);
+		else
+			mpll->reference_freq =
+				le16_to_cpu(firmware_info->info.usReferenceClock);
 		mpll->reference_div = 0;
 
 		mpll->pll_out_min =
@@ -1213,8 +1222,12 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		if (ASIC_IS_DCE4(rdev)) {
 			rdev->clock.default_dispclk =
 				le32_to_cpu(firmware_info->info_21.ulDefaultDispEngineClkFreq);
-			if (rdev->clock.default_dispclk == 0)
-				rdev->clock.default_dispclk = 60000; /* 600 Mhz */
+			if (rdev->clock.default_dispclk == 0) {
+				if (ASIC_IS_DCE5(rdev))
+					rdev->clock.default_dispclk = 54000; /* 540 Mhz */
+				else
+					rdev->clock.default_dispclk = 60000; /* 600 Mhz */
+			}
 			rdev->clock.dp_extclk =
 				le16_to_cpu(firmware_info->info_21.usUniphyDPModeExtClkFreq);
 		}
