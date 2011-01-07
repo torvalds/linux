@@ -36,14 +36,8 @@ struct ehci_mxc_priv {
 static int ehci_mxc_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	struct device *dev = hcd->self.controller;
-	struct mxc_usbh_platform_data *pdata = dev_get_platdata(dev);
 	int retval;
 
-	/* EHCI registers start at offset 0x100 */
-	ehci->caps = hcd->regs + 0x100;
-	ehci->regs = hcd->regs + 0x100 +
-	    HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
 	dbg_hcs_params(ehci, "reset");
 	dbg_hcc_params(ehci, "reset");
 
@@ -64,12 +58,6 @@ static int ehci_mxc_setup(struct usb_hcd *hcd)
 	ehci->sbrn = 0x20;
 
 	ehci_reset(ehci);
-
-	/* set up the PORTSCx register */
-	ehci_writel(ehci, pdata->portsc, &ehci->regs->port_status[0]);
-
-	/* is this really needed? */
-	msleep(10);
 
 	ehci_port_power(ehci, 0);
 	return 0;
@@ -100,6 +88,7 @@ static const struct hc_driver ehci_mxc_hc_driver = {
 	.urb_enqueue = ehci_urb_enqueue,
 	.urb_dequeue = ehci_urb_dequeue,
 	.endpoint_disable = ehci_endpoint_disable,
+	.endpoint_reset = ehci_endpoint_reset,
 
 	/*
 	 * scheduling support
@@ -115,6 +104,8 @@ static const struct hc_driver ehci_mxc_hc_driver = {
 	.bus_resume = ehci_bus_resume,
 	.relinquish_port = ehci_relinquish_port,
 	.port_handed_over = ehci_port_handed_over,
+
+	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
 };
 
 static int ehci_mxc_drv_probe(struct platform_device *pdev)
@@ -125,6 +116,7 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	int irq, ret;
 	struct ehci_mxc_priv *priv;
 	struct device *dev = &pdev->dev;
+	struct ehci_hcd *ehci;
 
 	dev_info(&pdev->dev, "initializing i.MX USB Controller\n");
 
@@ -211,6 +203,19 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	ret = mxc_initialize_usb_hw(pdev->id, pdata->flags);
 	if (ret < 0)
 		goto err_init;
+
+	ehci = hcd_to_ehci(hcd);
+
+	/* EHCI registers start at offset 0x100 */
+	ehci->caps = hcd->regs + 0x100;
+	ehci->regs = hcd->regs + 0x100 +
+	    HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+
+	/* set up the PORTSCx register */
+	ehci_writel(ehci, pdata->portsc, &ehci->regs->port_status[0]);
+
+	/* is this really needed? */
+	msleep(10);
 
 	/* Initialize the transceiver */
 	if (pdata->otg) {
