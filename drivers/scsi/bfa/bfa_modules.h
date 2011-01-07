@@ -99,7 +99,6 @@ struct bfa_module_s {
 	void (*iocdisable) (struct bfa_s *bfa);
 };
 
-extern struct bfa_module_s *hal_mods[];
 
 struct bfa_s {
 	void			*bfad;		/*  BFA driver instance    */
@@ -116,8 +115,6 @@ struct bfa_s {
 	struct bfa_msix_s	msix;
 };
 
-extern bfa_isr_func_t bfa_isrs[BFI_MC_MAX];
-extern bfa_ioc_mbox_mcfunc_t  bfa_mbox_isrs[];
 extern bfa_boolean_t bfa_auto_recover;
 extern struct bfa_module_s hal_mod_sgpg;
 extern struct bfa_module_s hal_mod_fcport;

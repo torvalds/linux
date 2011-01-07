@@ -221,8 +221,8 @@ struct fc_rport_priv {
  * @InputRequests:         Number of input requests
  * @OutputRequests:        Number of output requests
  * @ControlRequests:       Number of control requests
- * @InputMegabytes:        Number of received megabytes
- * @OutputMegabytes:       Number of transmitted megabytes
+ * @InputBytes:            Number of received bytes
+ * @OutputBytes:           Number of transmitted bytes
  * @VLinkFailureCount:     Number of virtual link failures
  * @MissDiscAdvCount:      Number of missing FIP discovery advertisement
  */
@@ -241,8 +241,8 @@ struct fcoe_dev_stats {
 	u64		InputRequests;
 	u64		OutputRequests;
 	u64		ControlRequests;
-	u64		InputMegabytes;
-	u64		OutputMegabytes;
+	u64		InputBytes;
+	u64		OutputBytes;
 	u64		VLinkFailureCount;
 	u64		MissDiscAdvCount;
 };
@@ -263,7 +263,6 @@ struct fc_seq_els_data {
  * struct fc_fcp_pkt - FCP request structure (one for each scsi_cmnd request)
  * @lp:              The associated local port
  * @state:           The state of the I/O
- * @tgt_flags:       Target's flags
  * @ref_cnt:         Reference count
  * @scsi_pkt_lock:   Lock to protect the SCSI packet (must be taken before the
  *                   host_lock if both are to be held at the same time)
@@ -298,7 +297,6 @@ struct fc_fcp_pkt {
 	/* Housekeeping information */
 	struct fc_lport   *lp;
 	u16		  state;
-	u16		  tgt_flags;
 	atomic_t	  ref_cnt;
 	spinlock_t	  scsi_pkt_lock;
 
