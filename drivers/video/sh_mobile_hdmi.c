@@ -221,6 +221,7 @@ struct sh_hdmi {
 	struct delayed_work edid_work;
 	struct fb_var_screeninfo var;
 	struct fb_monspecs monspec;
+	struct notifier_block notifier;
 };
 
 static void hdmi_write(struct sh_hdmi *hdmi, u8 data, u8 reg)
@@ -1197,13 +1198,6 @@ out:
 }
 
 static int sh_hdmi_notify(struct notifier_block *nb,
-			  unsigned long action, void *data);
-
-static struct notifier_block sh_hdmi_notifier = {
-	.notifier_call = sh_hdmi_notify,
-};
-
-static int sh_hdmi_notify(struct notifier_block *nb,
 			  unsigned long action, void *data)
 {
 	struct fb_event *event = data;
@@ -1212,7 +1206,7 @@ static int sh_hdmi_notify(struct notifier_block *nb,
 	struct sh_mobile_lcdc_board_cfg	*board_cfg = &ch->cfg.board_cfg;
 	struct sh_hdmi *hdmi = board_cfg->board_data;
 
-	if (nb != &sh_hdmi_notifier || !hdmi || hdmi->info != info)
+	if (!hdmi || nb != &hdmi->notifier || hdmi->info != info)
 		return NOTIFY_DONE;
 
 	switch(action) {
@@ -1231,11 +1225,11 @@ static int sh_hdmi_notify(struct notifier_block *nb,
 		 * temporarily, synchronise with the work queue and re-acquire
 		 * the info->lock.
 		 */
-		unlock_fb_info(hdmi->info);
+		unlock_fb_info(info);
 		mutex_lock(&hdmi->mutex);
 		hdmi->info = NULL;
 		mutex_unlock(&hdmi->mutex);
-		lock_fb_info(hdmi->info);
+		lock_fb_info(info);
 		return NOTIFY_OK;
 	}
 	return NOTIFY_DONE;
@@ -1333,6 +1327,9 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		goto ecodec;
 	}
 
+	hdmi->notifier.notifier_call = sh_hdmi_notify;
+	fb_register_client(&hdmi->notifier);
+
 	return 0;
 
 ecodec:
@@ -1362,6 +1359,8 @@ static int __exit sh_hdmi_remove(struct platform_device *pdev)
 	int irq = platform_get_irq(pdev, 0);
 
 	snd_soc_unregister_codec(&pdev->dev);
+
+	fb_unregister_client(&hdmi->notifier);
 
 	board_cfg->display_on = NULL;
 	board_cfg->display_off = NULL;
