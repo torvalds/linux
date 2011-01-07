@@ -65,6 +65,10 @@ static inline void mx53_evk_init_uart(void)
 	imx53_add_imx_uart(2, &mx53_evk_uart_pdata);
 }
 
+static const struct imxi2c_platform_data mx53_evk_i2c_data __initconst = {
+	.bitrate = 100000,
+};
+
 static inline void mx53_evk_fec_reset(void)
 {
 	int ret;
@@ -92,6 +96,9 @@ static void __init mx53_evk_board_init(void)
 	mx53_evk_init_uart();
 	mx53_evk_fec_reset();
 	imx53_add_fec(&mx53_evk_fec_pdata);
+
+	imx53_add_imx_i2c(0, &mx53_evk_i2c_data);
+	imx53_add_imx_i2c(1, &mx53_evk_i2c_data);
 }
 
 static void __init mx53_evk_timer_init(void)
