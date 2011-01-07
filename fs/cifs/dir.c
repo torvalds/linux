@@ -293,10 +293,8 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			args.uid = NO_CHANGE_64;
 			args.gid = NO_CHANGE_64;
 		}
-		CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
-					cifs_sb->local_nls,
-					cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+		CIFSSMBUnixSetFileInfo(xid, tcon, &args, fileHandle,
+					current->tgid);
 	} else {
 		/* BB implement mode setting via Windows security
 		   descriptors e.g. */
