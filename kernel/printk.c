@@ -43,12 +43,6 @@
 #include <asm/uaccess.h>
 
 /*
- * for_each_console() allows you to iterate on each console
- */
-#define for_each_console(con) \
-	for (con = console_drivers; con != NULL; con = con->next)
-
-/*
  * Architectures can override it:
  */
 void asmlinkage __attribute__((weak)) early_printk(const char *fmt, ...)
@@ -1359,6 +1353,7 @@ void register_console(struct console *newcon)
 		spin_unlock_irqrestore(&logbuf_lock, flags);
 	}
 	release_console_sem();
+	console_sysfs_notify();
 
 	/*
 	 * By unregistering the bootconsoles after we enable the real console
@@ -1417,6 +1412,7 @@ int unregister_console(struct console *console)
 		console_drivers->flags |= CON_CONSDEV;
 
 	release_console_sem();
+	console_sysfs_notify();
 	return res;
 }
 EXPORT_SYMBOL(unregister_console);

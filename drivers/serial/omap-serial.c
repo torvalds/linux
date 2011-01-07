@@ -866,12 +866,6 @@ serial_omap_type(struct uart_port *port)
 	return up->name;
 }
 
-#ifdef CONFIG_SERIAL_OMAP_CONSOLE
-
-static struct uart_omap_port *serial_omap_console_ports[4];
-
-static struct uart_driver serial_omap_reg;
-
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
 static inline void wait_for_xmitr(struct uart_omap_port *up)
@@ -904,6 +898,34 @@ static inline void wait_for_xmitr(struct uart_omap_port *up)
 		}
 	}
 }
+
+#ifdef CONFIG_CONSOLE_POLL
+
+static void serial_omap_poll_put_char(struct uart_port *port, unsigned char ch)
+{
+	struct uart_omap_port *up = (struct uart_omap_port *)port;
+	wait_for_xmitr(up);
+	serial_out(up, UART_TX, ch);
+}
+
+static int serial_omap_poll_get_char(struct uart_port *port)
+{
+	struct uart_omap_port *up = (struct uart_omap_port *)port;
+	unsigned int status = serial_in(up, UART_LSR);
+
+	if (!(status & UART_LSR_DR))
+		return NO_POLL_CHAR;
+
+	return serial_in(up, UART_RX);
+}
+
+#endif /* CONFIG_CONSOLE_POLL */
+
+#ifdef CONFIG_SERIAL_OMAP_CONSOLE
+
+static struct uart_omap_port *serial_omap_console_ports[4];
+
+static struct uart_driver serial_omap_reg;
 
 static void serial_omap_console_putchar(struct uart_port *port, int ch)
 {
@@ -1022,6 +1044,10 @@ static struct uart_ops serial_omap_pops = {
 	.request_port	= serial_omap_request_port,
 	.config_port	= serial_omap_config_port,
 	.verify_port	= serial_omap_verify_port,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_put_char  = serial_omap_poll_put_char,
+	.poll_get_char  = serial_omap_poll_get_char,
+#endif
 };
 
 static struct uart_driver serial_omap_reg = {
