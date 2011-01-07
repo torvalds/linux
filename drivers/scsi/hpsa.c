@@ -1617,6 +1617,8 @@ static int add_msa2xxx_enclosure_device(struct ctlr_info *h,
 	if (lun == 0) /* if lun is 0, then obviously we have a lun 0. */
 		return 0;
 
+	memset(scsi3addr, 0, 8);
+	scsi3addr[3] = target;
 	if (is_hba_lunid(scsi3addr))
 		return 0; /* Don't add the RAID controller here. */
 
@@ -1631,8 +1633,6 @@ static int add_msa2xxx_enclosure_device(struct ctlr_info *h,
 		return 0;
 	}
 
-	memset(scsi3addr, 0, 8);
-	scsi3addr[3] = target;
 	if (hpsa_update_device_info(h, scsi3addr, this_device))
 		return 0;
 	(*nmsa2xxx_enclosures)++;
