@@ -277,11 +277,11 @@ static struct dentry *v9fs_dentry_from_dir_inode(struct inode *inode)
 {
 	struct dentry *dentry;
 
-	spin_lock(&dcache_inode_lock);
+	spin_lock(&inode->i_lock);
 	/* Directory should have only one entry. */
 	BUG_ON(S_ISDIR(inode->i_mode) && !list_is_singular(&inode->i_dentry));
 	dentry = list_entry(inode->i_dentry.next, struct dentry, d_alias);
-	spin_unlock(&dcache_inode_lock);
+	spin_unlock(&inode->i_lock);
 	return dentry;
 }
 

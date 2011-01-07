@@ -39,8 +39,8 @@
 
 /*
  * Usage:
- * dcache_inode_lock protects:
- *   - i_dentry, d_alias, d_inode
+ * dcache->d_inode->i_lock protects:
+ *   - i_dentry, d_alias, d_inode of aliases
  * dcache_hash_bucket lock protects:
  *   - the dcache hash table
  * s_anon bl list spinlock protects:
@@ -58,7 +58,7 @@
  *   - d_alias, d_inode
  *
  * Ordering:
- * dcache_inode_lock
+ * dentry->d_inode->i_lock
  *   dentry->d_lock
  *     dcache_lru_lock
  *     dcache_hash_bucket lock
@@ -78,12 +78,10 @@
 int sysctl_vfs_cache_pressure __read_mostly = 100;
 EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
 
-__cacheline_aligned_in_smp DEFINE_SPINLOCK(dcache_inode_lock);
 static __cacheline_aligned_in_smp DEFINE_SPINLOCK(dcache_lru_lock);
 __cacheline_aligned_in_smp DEFINE_SEQLOCK(rename_lock);
 
 EXPORT_SYMBOL(rename_lock);
-EXPORT_SYMBOL(dcache_inode_lock);
 
 static struct kmem_cache *dentry_cache __read_mostly;
 
@@ -196,14 +194,14 @@ static inline void dentry_rcuwalk_barrier(struct dentry *dentry)
  */
 static void dentry_iput(struct dentry * dentry)
 	__releases(dentry->d_lock)
-	__releases(dcache_inode_lock)
+	__releases(dentry->d_inode->i_lock)
 {
 	struct inode *inode = dentry->d_inode;
 	if (inode) {
 		dentry->d_inode = NULL;
 		list_del_init(&dentry->d_alias);
 		spin_unlock(&dentry->d_lock);
-		spin_unlock(&dcache_inode_lock);
+		spin_unlock(&inode->i_lock);
 		if (!inode->i_nlink)
 			fsnotify_inoderemove(inode);
 		if (dentry->d_op && dentry->d_op->d_iput)
@@ -212,7 +210,6 @@ static void dentry_iput(struct dentry * dentry)
 			iput(inode);
 	} else {
 		spin_unlock(&dentry->d_lock);
-		spin_unlock(&dcache_inode_lock);
 	}
 }
 
@@ -222,14 +219,14 @@ static void dentry_iput(struct dentry * dentry)
  */
 static void dentry_unlink_inode(struct dentry * dentry)
 	__releases(dentry->d_lock)
-	__releases(dcache_inode_lock)
+	__releases(dentry->d_inode->i_lock)
 {
 	struct inode *inode = dentry->d_inode;
 	dentry->d_inode = NULL;
 	list_del_init(&dentry->d_alias);
 	dentry_rcuwalk_barrier(dentry);
 	spin_unlock(&dentry->d_lock);
-	spin_unlock(&dcache_inode_lock);
+	spin_unlock(&inode->i_lock);
 	if (!inode->i_nlink)
 		fsnotify_inoderemove(inode);
 	if (dentry->d_op && dentry->d_op->d_iput)
@@ -295,7 +292,7 @@ static void dentry_lru_move_tail(struct dentry *dentry)
 static struct dentry *d_kill(struct dentry *dentry, struct dentry *parent)
 	__releases(dentry->d_lock)
 	__releases(parent->d_lock)
-	__releases(dcache_inode_lock)
+	__releases(dentry->d_inode->i_lock)
 {
 	dentry->d_parent = NULL;
 	list_del(&dentry->d_u.d_child);
@@ -370,9 +367,11 @@ EXPORT_SYMBOL(d_drop);
 static inline struct dentry *dentry_kill(struct dentry *dentry, int ref)
 	__releases(dentry->d_lock)
 {
+	struct inode *inode;
 	struct dentry *parent;
 
-	if (!spin_trylock(&dcache_inode_lock)) {
+	inode = dentry->d_inode;
+	if (inode && !spin_trylock(&inode->i_lock)) {
 relock:
 		spin_unlock(&dentry->d_lock);
 		cpu_relax();
@@ -383,7 +382,8 @@ relock:
 	else
 		parent = dentry->d_parent;
 	if (parent && !spin_trylock(&parent->d_lock)) {
-		spin_unlock(&dcache_inode_lock);
+		if (inode)
+			spin_unlock(&inode->i_lock);
 		goto relock;
 	}
 
@@ -618,9 +618,9 @@ struct dentry *d_find_alias(struct inode *inode)
 	struct dentry *de = NULL;
 
 	if (!list_empty(&inode->i_dentry)) {
-		spin_lock(&dcache_inode_lock);
+		spin_lock(&inode->i_lock);
 		de = __d_find_alias(inode, 0);
-		spin_unlock(&dcache_inode_lock);
+		spin_unlock(&inode->i_lock);
 	}
 	return de;
 }
@@ -634,20 +634,20 @@ void d_prune_aliases(struct inode *inode)
 {
 	struct dentry *dentry;
 restart:
-	spin_lock(&dcache_inode_lock);
+	spin_lock(&inode->i_lock);
 	list_for_each_entry(dentry, &inode->i_dentry, d_alias) {
 		spin_lock(&dentry->d_lock);
 		if (!dentry->d_count) {
 			__dget_dlock(dentry);
 			__d_drop(dentry);
 			spin_unlock(&dentry->d_lock);
-			spin_unlock(&dcache_inode_lock);
+			spin_unlock(&inode->i_lock);
 			dput(dentry);
 			goto restart;
 		}
 		spin_unlock(&dentry->d_lock);
 	}
-	spin_unlock(&dcache_inode_lock);
+	spin_unlock(&inode->i_lock);
 }
 EXPORT_SYMBOL(d_prune_aliases);
 
@@ -1392,9 +1392,11 @@ static void __d_instantiate(struct dentry *dentry, struct inode *inode)
 void d_instantiate(struct dentry *entry, struct inode * inode)
 {
 	BUG_ON(!list_empty(&entry->d_alias));
-	spin_lock(&dcache_inode_lock);
+	if (inode)
+		spin_lock(&inode->i_lock);
 	__d_instantiate(entry, inode);
-	spin_unlock(&dcache_inode_lock);
+	if (inode)
+		spin_unlock(&inode->i_lock);
 	security_d_instantiate(entry, inode);
 }
 EXPORT_SYMBOL(d_instantiate);
@@ -1458,9 +1460,11 @@ struct dentry *d_instantiate_unique(struct dentry *entry, struct inode *inode)
 
 	BUG_ON(!list_empty(&entry->d_alias));
 
-	spin_lock(&dcache_inode_lock);
+	if (inode)
+		spin_lock(&inode->i_lock);
 	result = __d_instantiate_unique(entry, inode);
-	spin_unlock(&dcache_inode_lock);
+	if (inode)
+		spin_unlock(&inode->i_lock);
 
 	if (!result) {
 		security_d_instantiate(entry, inode);
@@ -1542,10 +1546,10 @@ struct dentry *d_obtain_alias(struct inode *inode)
 	tmp->d_parent = tmp; /* make sure dput doesn't croak */
 
 
-	spin_lock(&dcache_inode_lock);
+	spin_lock(&inode->i_lock);
 	res = __d_find_alias(inode, 0);
 	if (res) {
-		spin_unlock(&dcache_inode_lock);
+		spin_unlock(&inode->i_lock);
 		dput(tmp);
 		goto out_iput;
 	}
@@ -1561,7 +1565,7 @@ struct dentry *d_obtain_alias(struct inode *inode)
 	hlist_bl_add_head(&tmp->d_hash, &tmp->d_sb->s_anon);
 	__bit_spin_unlock(0, (unsigned long *)&tmp->d_sb->s_anon.first);
 	spin_unlock(&tmp->d_lock);
-	spin_unlock(&dcache_inode_lock);
+	spin_unlock(&inode->i_lock);
 
 	return tmp;
 
@@ -1592,18 +1596,18 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 	struct dentry *new = NULL;
 
 	if (inode && S_ISDIR(inode->i_mode)) {
-		spin_lock(&dcache_inode_lock);
+		spin_lock(&inode->i_lock);
 		new = __d_find_alias(inode, 1);
 		if (new) {
 			BUG_ON(!(new->d_flags & DCACHE_DISCONNECTED));
-			spin_unlock(&dcache_inode_lock);
+			spin_unlock(&inode->i_lock);
 			security_d_instantiate(new, inode);
 			d_move(new, dentry);
 			iput(inode);
 		} else {
-			/* already got dcache_inode_lock, so d_add() by hand */
+			/* already taking inode->i_lock, so d_add() by hand */
 			__d_instantiate(dentry, inode);
-			spin_unlock(&dcache_inode_lock);
+			spin_unlock(&inode->i_lock);
 			security_d_instantiate(dentry, inode);
 			d_rehash(dentry);
 		}
@@ -1676,10 +1680,10 @@ struct dentry *d_add_ci(struct dentry *dentry, struct inode *inode,
 	 * Negative dentry: instantiate it unless the inode is a directory and
 	 * already has a dentry.
 	 */
-	spin_lock(&dcache_inode_lock);
+	spin_lock(&inode->i_lock);
 	if (!S_ISDIR(inode->i_mode) || list_empty(&inode->i_dentry)) {
 		__d_instantiate(found, inode);
-		spin_unlock(&dcache_inode_lock);
+		spin_unlock(&inode->i_lock);
 		security_d_instantiate(found, inode);
 		return found;
 	}
@@ -1690,7 +1694,7 @@ struct dentry *d_add_ci(struct dentry *dentry, struct inode *inode,
 	 */
 	new = list_entry(inode->i_dentry.next, struct dentry, d_alias);
 	__dget(new);
-	spin_unlock(&dcache_inode_lock);
+	spin_unlock(&inode->i_lock);
 	security_d_instantiate(found, inode);
 	d_move(new, found);
 	iput(inode);
@@ -2004,15 +2008,17 @@ EXPORT_SYMBOL(d_validate);
  
 void d_delete(struct dentry * dentry)
 {
+	struct inode *inode;
 	int isdir = 0;
 	/*
 	 * Are we the only user?
 	 */
 again:
 	spin_lock(&dentry->d_lock);
-	isdir = S_ISDIR(dentry->d_inode->i_mode);
+	inode = dentry->d_inode;
+	isdir = S_ISDIR(inode->i_mode);
 	if (dentry->d_count == 1) {
-		if (!spin_trylock(&dcache_inode_lock)) {
+		if (inode && !spin_trylock(&inode->i_lock)) {
 			spin_unlock(&dentry->d_lock);
 			cpu_relax();
 			goto again;
@@ -2266,13 +2272,13 @@ struct dentry *d_ancestor(struct dentry *p1, struct dentry *p2)
  * This helper attempts to cope with remotely renamed directories
  *
  * It assumes that the caller is already holding
- * dentry->d_parent->d_inode->i_mutex and the dcache_inode_lock
+ * dentry->d_parent->d_inode->i_mutex and the inode->i_lock
  *
  * Note: If ever the locking in lock_rename() changes, then please
  * remember to update this too...
  */
-static struct dentry *__d_unalias(struct dentry *dentry, struct dentry *alias)
-	__releases(dcache_inode_lock)
+static struct dentry *__d_unalias(struct inode *inode,
+		struct dentry *dentry, struct dentry *alias)
 {
 	struct mutex *m1 = NULL, *m2 = NULL;
 	struct dentry *ret;
@@ -2298,7 +2304,7 @@ out_unalias:
 	d_move(alias, dentry);
 	ret = alias;
 out_err:
-	spin_unlock(&dcache_inode_lock);
+	spin_unlock(&inode->i_lock);
 	if (m2)
 		mutex_unlock(m2);
 	if (m1)
@@ -2371,7 +2377,7 @@ struct dentry *d_materialise_unique(struct dentry *dentry, struct inode *inode)
 		goto out_nolock;
 	}
 
-	spin_lock(&dcache_inode_lock);
+	spin_lock(&inode->i_lock);
 
 	if (S_ISDIR(inode->i_mode)) {
 		struct dentry *alias;
@@ -2388,7 +2394,7 @@ struct dentry *d_materialise_unique(struct dentry *dentry, struct inode *inode)
 				goto found;
 			}
 			/* Nope, but we must(!) avoid directory aliasing */
-			actual = __d_unalias(dentry, alias);
+			actual = __d_unalias(inode, dentry, alias);
 			if (IS_ERR(actual))
 				dput(alias);
 			goto out_nolock;
@@ -2406,7 +2412,7 @@ struct dentry *d_materialise_unique(struct dentry *dentry, struct inode *inode)
 found:
 	_d_rehash(actual);
 	spin_unlock(&actual->d_lock);
-	spin_unlock(&dcache_inode_lock);
+	spin_unlock(&inode->i_lock);
 out_nolock:
 	if (actual == dentry) {
 		security_d_instantiate(dentry, inode);

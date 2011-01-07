@@ -191,7 +191,6 @@ struct dentry_operations {
 #define DCACHE_OP_REVALIDATE	0x4000
 #define DCACHE_OP_DELETE	0x8000
 
-extern spinlock_t dcache_inode_lock;
 extern seqlock_t rename_lock;
 
 static inline int dname_external(struct dentry *dentry)
