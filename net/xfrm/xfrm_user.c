@@ -2187,7 +2187,7 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	if ((type == (XFRM_MSG_GETSA - XFRM_MSG_BASE) ||
 	     type == (XFRM_MSG_GETPOLICY - XFRM_MSG_BASE)) &&
-	    (nlh->nlmsg_flags & NLM_F_DUMP)) {
+	    (nlh->nlmsg_flags & NLM_F_DUMP) == NLM_F_DUMP) {
 		if (link->dump == NULL)
 			return -EINVAL;
 
