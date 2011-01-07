@@ -222,11 +222,6 @@ static int aes_hw_init(struct tegra_aes_dev *dd)
 		return ret;
 	}
 
-	tegra_periph_reset_assert(dd->iclk);
-	udelay(50);
-	tegra_periph_reset_deassert(dd->iclk);
-	udelay(50);
-
 	ret = clk_enable(dd->iclk);
 	if (ret < 0) {
 		dev_err(dd->dev, "%s: iclock enable fail(%d)\n", __func__, ret);
