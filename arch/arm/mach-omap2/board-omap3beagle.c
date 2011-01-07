@@ -23,6 +23,7 @@
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
+#include <linux/opp.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -45,10 +46,12 @@
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 #include <plat/usb.h>
+#include <plat/omap_device.h>
 
 #include "mux.h"
 #include "hsmmc.h"
 #include "timer-gp.h"
+#include "pm.h"
 
 #define NAND_BLOCK_SIZE		SZ_128K
 
@@ -610,6 +613,52 @@ static struct omap_musb_board_data musb_board_data = {
 	.power			= 100,
 };
 
+static void __init beagle_opp_init(void)
+{
+	int r = 0;
+
+	/* Initialize the omap3 opp table */
+	if (omap3_opp_init()) {
+		pr_err("%s: opp default init failed\n", __func__);
+		return;
+	}
+
+	/* Custom OPP enabled for XM */
+	if (omap3_beagle_get_rev() == OMAP3BEAGLE_BOARD_XM) {
+		struct omap_hwmod *mh = omap_hwmod_lookup("mpu");
+		struct omap_hwmod *dh = omap_hwmod_lookup("iva");
+		struct device *dev;
+
+		if (!mh || !dh) {
+			pr_err("%s: Aiee.. no mpu/dsp devices? %p %p\n",
+				__func__, mh, dh);
+			return;
+		}
+		/* Enable MPU 1GHz and lower opps */
+		dev = &mh->od->pdev.dev;
+		r = opp_enable(dev, 800000000);
+		/* TODO: MPU 1GHz needs SR and ABB */
+
+		/* Enable IVA 800MHz and lower opps */
+		dev = &dh->od->pdev.dev;
+		r |= opp_enable(dev, 660000000);
+		/* TODO: DSP 800MHz needs SR and ABB */
+		if (r) {
+			pr_err("%s: failed to enable higher opp %d\n",
+				__func__, r);
+			/*
+			 * Cleanup - disable the higher freqs - we dont care
+			 * about the results
+			 */
+			dev = &mh->od->pdev.dev;
+			opp_disable(dev, 800000000);
+			dev = &dh->od->pdev.dev;
+			opp_disable(dev, 660000000);
+		}
+	}
+	return;
+}
+
 static void __init omap3_beagle_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
@@ -633,6 +682,7 @@ static void __init omap3_beagle_init(void)
 	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
 
 	beagle_display_init();
+	beagle_opp_init();
 }
 
 MACHINE_START(OMAP3_BEAGLE, "OMAP3 Beagle Board")
