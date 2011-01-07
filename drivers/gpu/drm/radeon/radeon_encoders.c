@@ -2046,7 +2046,10 @@ radeon_atombios_set_dig_info(struct radeon_encoder *radeon_encoder)
 }
 
 void
-radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum, uint32_t supported_device)
+radeon_add_atom_encoder(struct drm_device *dev,
+			uint32_t encoder_enum,
+			uint32_t supported_device,
+			u16 caps)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_encoder *encoder;
@@ -2089,6 +2092,7 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum, uint32_t 
 	radeon_encoder->rmx_type = RMX_OFF;
 	radeon_encoder->underscan_type = UNDERSCAN_OFF;
 	radeon_encoder->is_ext_encoder = false;
+	radeon_encoder->caps = caps;
 
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_LVDS:

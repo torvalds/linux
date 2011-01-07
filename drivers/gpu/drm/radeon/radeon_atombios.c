@@ -37,7 +37,7 @@ radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device,
 extern void radeon_link_encoder_connector(struct drm_device *dev);
 extern void
 radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum,
-			uint32_t supported_device);
+			uint32_t supported_device, u16 caps);
 
 /* from radeon_connector.c */
 extern void
@@ -537,6 +537,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 	u16 size, data_offset;
 	u8 frev, crev;
 	ATOM_CONNECTOR_OBJECT_TABLE *con_obj;
+	ATOM_ENCODER_OBJECT_TABLE *enc_obj;
 	ATOM_OBJECT_TABLE *router_obj;
 	ATOM_DISPLAY_OBJECT_PATH_TABLE *path_obj;
 	ATOM_OBJECT_HEADER *obj_header;
@@ -561,6 +562,9 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 	con_obj = (ATOM_CONNECTOR_OBJECT_TABLE *)
 	    (ctx->bios + data_offset +
 	     le16_to_cpu(obj_header->usConnectorObjectTableOffset));
+	enc_obj = (ATOM_ENCODER_OBJECT_TABLE *)
+	    (ctx->bios + data_offset +
+	     le16_to_cpu(obj_header->usEncoderObjectTableOffset));
 	router_obj = (ATOM_OBJECT_TABLE *)
 		(ctx->bios + data_offset +
 		 le16_to_cpu(obj_header->usRouterObjectTableOffset));
@@ -666,14 +670,35 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 				     OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
 
 				if (grph_obj_type == GRAPH_OBJECT_TYPE_ENCODER) {
-					u16 encoder_obj = le16_to_cpu(path->usGraphicObjIds[j]);
+					for (k = 0; k < enc_obj->ucNumberOfObjects; k++) {
+						u16 encoder_obj = le16_to_cpu(enc_obj->asObjects[k].usObjectID);
+						if (le16_to_cpu(path->usGraphicObjIds[j]) == encoder_obj) {
+							ATOM_COMMON_RECORD_HEADER *record = (ATOM_COMMON_RECORD_HEADER *)
+								(ctx->bios + data_offset +
+								 le16_to_cpu(enc_obj->asObjects[k].usRecordOffset));
+							ATOM_ENCODER_CAP_RECORD *cap_record;
+							u16 caps = 0;
 
-					radeon_add_atom_encoder(dev,
-								encoder_obj,
-								le16_to_cpu
-								(path->
-								 usDeviceTag));
-
+							while (record->ucRecordType > 0 &&
+							       record->ucRecordType <= ATOM_MAX_OBJECT_RECORD_NUMBER) {
+								switch (record->ucRecordType) {
+								case ATOM_ENCODER_CAP_RECORD_TYPE:
+									cap_record =(ATOM_ENCODER_CAP_RECORD *)
+										record;
+									caps = le16_to_cpu(cap_record->usEncoderCap);
+									break;
+								}
+								record = (ATOM_COMMON_RECORD_HEADER *)
+									((char *)record + record->ucRecordSize);
+							}
+							radeon_add_atom_encoder(dev,
+										encoder_obj,
+										le16_to_cpu
+										(path->
+										 usDeviceTag),
+										caps);
+						}
+					}
 				} else if (grph_obj_type == GRAPH_OBJECT_TYPE_ROUTER) {
 					for (k = 0; k < router_obj->ucNumberOfObjects; k++) {
 						u16 router_obj_id = le16_to_cpu(router_obj->asObjects[k].usObjectID);
@@ -1007,7 +1032,8 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 						radeon_get_encoder_enum(dev,
 								      (1 << i),
 								      dac),
-						(1 << i));
+						(1 << i),
+						0);
 		else
 			radeon_add_legacy_encoder(dev,
 						  radeon_get_encoder_enum(dev,
