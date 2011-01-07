@@ -120,6 +120,7 @@ enum sock_shutdown_cmd {
 struct socket_wq {
 	wait_queue_head_t	wait;
 	struct fasync_struct	*fasync_list;
+	struct rcu_head		rcu;
 } ____cacheline_aligned_in_smp;
 
 /**
