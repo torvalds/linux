@@ -131,7 +131,6 @@ struct cxgbi_ddp_info {
 	unsigned int rsvd_tag_mask;
 	spinlock_t map_lock;
 	struct cxgbi_gather_list **gl_map;
-	struct sk_buff **gl_skb;
 };
 
 #define DDP_PGIDX_MAX		4
@@ -536,8 +535,6 @@ struct cxgbi_device {
 	struct cxgbi_ddp_info *ddp;
 
 	void (*dev_ddp_cleanup)(struct cxgbi_device *);
-	void (*csk_ddp_free_gl_skb)(struct cxgbi_ddp_info *, int, int);
-	int (*csk_ddp_alloc_gl_skb)(struct cxgbi_ddp_info *, int, int, gfp_t);
 	int (*csk_ddp_set)(struct cxgbi_sock *, struct cxgbi_pagepod_hdr *,
 				unsigned int, unsigned int,
 				struct cxgbi_gather_list *);

@@ -1425,8 +1425,6 @@ static int cxgb4i_ddp_init(struct cxgbi_device *cdev)
 	cxgbi_ddp_page_size_factor(pgsz_factor);
 	cxgb4_iscsi_init(lldi->ports[0], tagmask, pgsz_factor);
 
-	cdev->csk_ddp_free_gl_skb = NULL;
-	cdev->csk_ddp_alloc_gl_skb = NULL;
 	cdev->csk_ddp_setup_digest = ddp_setup_conn_digest;
 	cdev->csk_ddp_setup_pgidx = ddp_setup_conn_pgidx;
 	cdev->csk_ddp_set = ddp_set_map;
