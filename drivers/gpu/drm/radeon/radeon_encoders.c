@@ -743,6 +743,7 @@ union dig_encoder_control {
 	DIG_ENCODER_CONTROL_PS_ALLOCATION v1;
 	DIG_ENCODER_CONTROL_PARAMETERS_V2 v2;
 	DIG_ENCODER_CONTROL_PARAMETERS_V3 v3;
+	DIG_ENCODER_CONTROL_PARAMETERS_V4 v4;
 };
 
 void
@@ -758,6 +759,7 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 	uint8_t frev, crev;
 	int dp_clock = 0;
 	int dp_lane_count = 0;
+	int hpd_id = RADEON_HPD_NONE;
 
 	if (connector) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
@@ -766,6 +768,7 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 
 		dp_clock = dig_connector->dp_clock;
 		dp_lane_count = dig_connector->dp_lane_count;
+		hpd_id = radeon_connector->hpd.hpd;
 	}
 
 	/* no dig encoder assigned */
@@ -790,19 +793,36 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 	args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 	args.v1.ucEncoderMode = atombios_get_encoder_mode(encoder);
 
-	if (args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP) {
-		if (dp_clock == 270000)
-			args.v1.ucConfig |= ATOM_ENCODER_CONFIG_DPLINKRATE_2_70GHZ;
+	if ((args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP) ||
+	    (args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP_MST))
 		args.v1.ucLaneNum = dp_lane_count;
-	} else if (radeon_encoder->pixel_clock > 165000)
+	else if (radeon_encoder->pixel_clock > 165000)
 		args.v1.ucLaneNum = 8;
 	else
 		args.v1.ucLaneNum = 4;
 
-	if (ASIC_IS_DCE4(rdev)) {
+	if (ASIC_IS_DCE5(rdev)) {
+		if ((args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP) ||
+		    (args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP_MST)) {
+			if (dp_clock == 270000)
+				args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_2_70GHZ;
+			else if (dp_clock == 540000)
+				args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V4_DPLINKRATE_5_40GHZ;
+		}
+		args.v4.acConfig.ucDigSel = dig->dig_encoder;
+		args.v4.ucBitPerColor = PANEL_8BIT_PER_COLOR;
+		if (hpd_id == RADEON_HPD_NONE)
+			args.v4.ucHPD_ID = 0;
+		else
+			args.v4.ucHPD_ID = hpd_id + 1;
+	} else if (ASIC_IS_DCE4(rdev)) {
+		if ((args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP) && (dp_clock == 270000))
+			args.v1.ucConfig |= ATOM_ENCODER_CONFIG_V3_DPLINKRATE_2_70GHZ;
 		args.v3.acConfig.ucDigSel = dig->dig_encoder;
 		args.v3.ucBitPerColor = PANEL_8BIT_PER_COLOR;
 	} else {
+		if ((args.v1.ucEncoderMode == ATOM_ENCODER_MODE_DP) && (dp_clock == 270000))
+			args.v1.ucConfig |= ATOM_ENCODER_CONFIG_DPLINKRATE_2_70GHZ;
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 			args.v1.ucConfig = ATOM_ENCODER_CONFIG_V2_TRANSMITTER1;
@@ -1538,6 +1558,7 @@ static int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder)
 	struct radeon_encoder_atom_dig *dig;
 	uint32_t dig_enc_in_use = 0;
 
+	/* DCE4/5 */
 	if (ASIC_IS_DCE4(rdev)) {
 		dig = radeon_encoder->enc_priv;
 		if (ASIC_IS_DCE41(rdev)) {
