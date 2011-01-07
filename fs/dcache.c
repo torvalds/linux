@@ -1253,11 +1253,13 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 
 	if (parent) {
 		spin_lock(&parent->d_lock);
-		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
+		/*
+		 * don't need child lock because it is not subject
+		 * to concurrency here
+		 */
 		dentry->d_parent = dget_dlock(parent);
 		dentry->d_sb = parent->d_sb;
 		list_add(&dentry->d_u.d_child, &parent->d_subdirs);
-		spin_unlock(&dentry->d_lock);
 		spin_unlock(&parent->d_lock);
 	}
 
