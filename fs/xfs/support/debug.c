@@ -104,7 +104,8 @@ xfs_fs_vcmn_err(
 void
 assfail(char *expr, char *file, int line)
 {
-	printk("Assertion failed: %s, file: %s, line: %d\n", expr, file, line);
+	printk(KERN_CRIT "Assertion failed: %s, file: %s, line: %d\n", expr,
+	       file, line);
 	BUG();
 }
 
