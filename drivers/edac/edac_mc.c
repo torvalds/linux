@@ -76,6 +76,8 @@ static void edac_mc_dump_mci(struct mem_ctl_info *mci)
 	debugf3("\tpvt_info = %p\n\n", mci->pvt_info);
 }
 
+#endif				/* CONFIG_EDAC_DEBUG */
+
 /*
  * keep those in sync with the enum mem_type
  */
@@ -99,8 +101,6 @@ const char *edac_mem_types[] = {
 	"Registered DDR3 RAM",
 };
 EXPORT_SYMBOL_GPL(edac_mem_types);
-
-#endif				/* CONFIG_EDAC_DEBUG */
 
 /* 'ptr' points to a possibly unaligned item X such that sizeof(X) is 'size'.
  * Adjust 'ptr' so that its alignment is at least as stringent as what the
