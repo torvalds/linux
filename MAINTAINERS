@@ -3065,8 +3065,10 @@ F:	drivers/input/
 INPUT MULTITOUCH (MT) PROTOCOL
 M:	Henrik Rydberg <rydberg@euromail.se>
 L:	linux-input@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rydberg/input-mt.git
 S:	Maintained
 F:	Documentation/input/multi-touch-protocol.txt
+F:	drivers/input/input-mt.c
 K:	\b(ABS|SYN)_MT_
 
 INTEL IDLE DRIVER
