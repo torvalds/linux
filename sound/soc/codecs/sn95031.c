@@ -235,21 +235,21 @@ static const struct snd_soc_dapm_route sn95031_audio_map[] = {
 	{ "IHFDAC Right", NULL, "Speaker Rail"},
 
 	/* vibra map */
-	{"VIB1OUT", NULL, "Vibra1 Playback"},
-	{"Vibra1 Playback", NULL, "Vibra1 DAC"},
+	{ "VIB1OUT", NULL, "Vibra1 Playback"},
+	{ "Vibra1 Playback", NULL, "Vibra1 DAC"},
 
-	{"VIB2OUT", NULL, "Vibra2 Playback"},
-	{"Vibra2 Playback", NULL, "Vibra2 DAC"},
+	{ "VIB2OUT", NULL, "Vibra2 Playback"},
+	{ "Vibra2 Playback", NULL, "Vibra2 DAC"},
 
 	/* lineout */
-	{"LINEOUTL", NULL, "Lineout Left Playback"},
-	{"LINEOUTR", NULL, "Lineout Right Playback"},
-	{"Lineout Left Playback", NULL, "Headset Left Filter"},
-	{"Lineout Left Playback", NULL, "Speaker Left Filter"},
-	{"Lineout Left Playback", NULL, "Vibra1 DAC"},
-	{"Lineout Right Playback", NULL, "Headset Right Filter"},
-	{"Lineout Right Playback", NULL, "Speaker Right Filter"},
-	{"Lineout Right Playback", NULL, "Vibra2 DAC"},
+	{ "LINEOUTL", NULL, "Lineout Left Playback"},
+	{ "LINEOUTR", NULL, "Lineout Right Playback"},
+	{ "Lineout Left Playback", NULL, "Headset Left Filter"},
+	{ "Lineout Left Playback", NULL, "Speaker Left Filter"},
+	{ "Lineout Left Playback", NULL, "Vibra1 DAC"},
+	{ "Lineout Right Playback", NULL, "Headset Right Filter"},
+	{ "Lineout Right Playback", NULL, "Speaker Right Filter"},
+	{ "Lineout Right Playback", NULL, "Vibra2 DAC"},
 };
 
 /* speaker and headset mutes, for audio pops and clicks */
@@ -444,8 +444,8 @@ static int sn95031_codec_remove(struct snd_soc_codec *codec)
 }
 
 struct snd_soc_codec_driver sn95031_codec = {
-	.probe =	sn95031_codec_probe,
-	.remove =	sn95031_codec_remove,
+	.probe		= sn95031_codec_probe,
+	.remove		= sn95031_codec_remove,
 	.read		= sn95031_read,
 	.write		= sn95031_write,
 	.set_bias_level	= sn95031_set_vaud_bias,
@@ -488,7 +488,7 @@ static void __exit sn95031_exit(void)
 }
 module_exit(sn95031_exit);
 
-MODULE_DESCRIPTION("ASoC Intel(R) SN95031 codec driver");
+MODULE_DESCRIPTION("ASoC TI SN95031 codec driver");
 MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");
 MODULE_AUTHOR("Harsha Priya <priya.harsha@intel.com>");
 MODULE_LICENSE("GPL v2");
