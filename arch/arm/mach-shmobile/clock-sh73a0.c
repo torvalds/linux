@@ -20,8 +20,8 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/sh_clk.h>
+#include <linux/clkdev.h>
 #include <mach/common.h>
-#include <asm/clkdev.h>
 
 #define FRQCRA		0xe6150000
 #define FRQCRB		0xe6150004
