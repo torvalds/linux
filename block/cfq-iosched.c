@@ -96,7 +96,7 @@ struct cfq_rb_root {
  */
 struct cfq_queue {
 	/* reference count */
-	atomic_t ref;
+	int ref;
 	/* various state flags, see below */
 	unsigned int flags;
 	/* parent cfq_data */
@@ -2025,7 +2025,7 @@ static int cfqq_process_refs(struct cfq_queue *cfqq)
 	int process_refs, io_refs;
 
 	io_refs = cfqq->allocated[READ] + cfqq->allocated[WRITE];
-	process_refs = atomic_read(&cfqq->ref) - io_refs;
+	process_refs = cfqq->ref - io_refs;
 	BUG_ON(process_refs < 0);
 	return process_refs;
 }
@@ -2065,10 +2065,10 @@ static void cfq_setup_merge(struct cfq_queue *cfqq, struct cfq_queue *new_cfqq)
 	 */
 	if (new_process_refs >= process_refs) {
 		cfqq->new_cfqq = new_cfqq;
-		atomic_add(process_refs, &new_cfqq->ref);
+		new_cfqq->ref += process_refs;
 	} else {
 		new_cfqq->new_cfqq = cfqq;
-		atomic_add(new_process_refs, &cfqq->ref);
+		cfqq->ref += new_process_refs;
 	}
 }
 
@@ -2532,9 +2532,10 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 	struct cfq_data *cfqd = cfqq->cfqd;
 	struct cfq_group *cfqg, *orig_cfqg;
 
-	BUG_ON(atomic_read(&cfqq->ref) <= 0);
+	BUG_ON(cfqq->ref <= 0);
 
-	if (!atomic_dec_and_test(&cfqq->ref))
+	cfqq->ref--;
+	if (cfqq->ref)
 		return;
 
 	cfq_log_cfqq(cfqd, cfqq, "put_queue");
@@ -2837,7 +2838,7 @@ static void cfq_init_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	RB_CLEAR_NODE(&cfqq->p_node);
 	INIT_LIST_HEAD(&cfqq->fifo);
 
-	atomic_set(&cfqq->ref, 0);
+	cfqq->ref = 0;
 	cfqq->cfqd = cfqd;
 
 	cfq_mark_cfqq_prio_changed(cfqq);
@@ -2973,11 +2974,11 @@ cfq_get_queue(struct cfq_data *cfqd, bool is_sync, struct io_context *ioc,
 	 * pin the queue now that it's allocated, scheduler exit will prune it
 	 */
 	if (!is_sync && !(*async_cfqq)) {
-		atomic_inc(&cfqq->ref);
+		cfqq->ref++;
 		*async_cfqq = cfqq;
 	}
 
-	atomic_inc(&cfqq->ref);
+	cfqq->ref++;
 	return cfqq;
 }
 
@@ -3679,7 +3680,7 @@ new_queue:
 	}
 
 	cfqq->allocated[rw]++;
-	atomic_inc(&cfqq->ref);
+	cfqq->ref++;
 
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
@@ -3860,6 +3861,10 @@ static void *cfq_init_queue(struct request_queue *q)
 	if (!cfqd)
 		return NULL;
 
+	/*
+	 * Don't need take queue_lock in the routine, since we are
+	 * initializing the ioscheduler, and nobody is using cfqd
+	 */
 	cfqd->cic_index = i;
 
 	/* Init root service tree */
@@ -3899,7 +3904,7 @@ static void *cfq_init_queue(struct request_queue *q)
 	 * will not attempt to free it.
 	 */
 	cfq_init_cfqq(cfqd, &cfqd->oom_cfqq, 1, 0);
-	atomic_inc(&cfqd->oom_cfqq.ref);
+	cfqd->oom_cfqq.ref++;
 	cfq_link_cfqq_cfqg(&cfqd->oom_cfqq, &cfqd->root_group);
 
 	INIT_LIST_HEAD(&cfqd->cic_list);
