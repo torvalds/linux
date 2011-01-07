@@ -368,6 +368,18 @@ void path_get(struct path *path)
 EXPORT_SYMBOL(path_get);
 
 /**
+ * path_get_long - get a long reference to a path
+ * @path: path to get the reference to
+ *
+ * Given a path increment the reference count to the dentry and the vfsmount.
+ */
+void path_get_long(struct path *path)
+{
+	mntget_long(path->mnt);
+	dget(path->dentry);
+}
+
+/**
  * path_put - put a reference to a path
  * @path: path to put the reference to
  *
@@ -379,6 +391,18 @@ void path_put(struct path *path)
 	mntput(path->mnt);
 }
 EXPORT_SYMBOL(path_put);
+
+/**
+ * path_put_long - put a long reference to a path
+ * @path: path to put the reference to
+ *
+ * Given a path decrement the reference count to the dentry and the vfsmount.
+ */
+void path_put_long(struct path *path)
+{
+	dput(path->dentry);
+	mntput_long(path->mnt);
+}
 
 /**
  * nameidata_drop_rcu - drop this nameidata out of rcu-walk

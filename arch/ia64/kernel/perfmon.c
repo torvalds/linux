@@ -1542,7 +1542,7 @@ pfm_exit_smpl_buffer(pfm_buffer_fmt_t *fmt)
  * any operations on the root directory. However, we need a non-trivial
  * d_name - pfm: will go nicely and kill the special-casing in procfs.
  */
-static struct vfsmount *pfmfs_mnt;
+static struct vfsmount *pfmfs_mnt __read_mostly;
 
 static int __init
 init_pfm_fs(void)

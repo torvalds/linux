@@ -232,7 +232,7 @@ static int __init anon_inode_init(void)
 	return 0;
 
 err_mntput:
-	mntput(anon_inode_mnt);
+	mntput_long(anon_inode_mnt);
 err_unregister_filesystem:
 	unregister_filesystem(&anon_inode_fs_type);
 err_exit:

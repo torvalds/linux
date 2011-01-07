@@ -138,6 +138,64 @@ void mnt_release_group_id(struct vfsmount *mnt)
 	mnt->mnt_group_id = 0;
 }
 
+/*
+ * vfsmount lock must be held for read
+ */
+static inline void mnt_add_count(struct vfsmount *mnt, int n)
+{
+#ifdef CONFIG_SMP
+	this_cpu_add(mnt->mnt_pcp->mnt_count, n);
+#else
+	preempt_disable();
+	mnt->mnt_count += n;
+	preempt_enable();
+#endif
+}
+
+static inline void mnt_set_count(struct vfsmount *mnt, int n)
+{
+#ifdef CONFIG_SMP
+	this_cpu_write(mnt->mnt_pcp->mnt_count, n);
+#else
+	mnt->mnt_count = n;
+#endif
+}
+
+/*
+ * vfsmount lock must be held for read
+ */
+static inline void mnt_inc_count(struct vfsmount *mnt)
+{
+	mnt_add_count(mnt, 1);
+}
+
+/*
+ * vfsmount lock must be held for read
+ */
+static inline void mnt_dec_count(struct vfsmount *mnt)
+{
+	mnt_add_count(mnt, -1);
+}
+
+/*
+ * vfsmount lock must be held for write
+ */
+unsigned int mnt_get_count(struct vfsmount *mnt)
+{
+#ifdef CONFIG_SMP
+	unsigned int count = atomic_read(&mnt->mnt_longrefs);
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		count += per_cpu_ptr(mnt->mnt_pcp, cpu)->mnt_count;
+	}
+
+	return count;
+#else
+	return mnt->mnt_count;
+#endif
+}
+
 struct vfsmount *alloc_vfsmnt(const char *name)
 {
 	struct vfsmount *mnt = kmem_cache_zalloc(mnt_cache, GFP_KERNEL);
@@ -154,7 +212,17 @@ struct vfsmount *alloc_vfsmnt(const char *name)
 				goto out_free_id;
 		}
 
-		atomic_set(&mnt->mnt_count, 1);
+#ifdef CONFIG_SMP
+		mnt->mnt_pcp = alloc_percpu(struct mnt_pcp);
+		if (!mnt->mnt_pcp)
+			goto out_free_devname;
+
+		atomic_set(&mnt->mnt_longrefs, 1);
+#else
+		mnt->mnt_count = 1;
+		mnt->mnt_writers = 0;
+#endif
+
 		INIT_LIST_HEAD(&mnt->mnt_hash);
 		INIT_LIST_HEAD(&mnt->mnt_child);
 		INIT_LIST_HEAD(&mnt->mnt_mounts);
@@ -165,13 +233,6 @@ struct vfsmount *alloc_vfsmnt(const char *name)
 		INIT_LIST_HEAD(&mnt->mnt_slave);
 #ifdef CONFIG_FSNOTIFY
 		INIT_HLIST_HEAD(&mnt->mnt_fsnotify_marks);
-#endif
-#ifdef CONFIG_SMP
-		mnt->mnt_writers = alloc_percpu(int);
-		if (!mnt->mnt_writers)
-			goto out_free_devname;
-#else
-		mnt->mnt_writers = 0;
 #endif
 	}
 	return mnt;
@@ -219,7 +280,7 @@ EXPORT_SYMBOL_GPL(__mnt_is_readonly);
 static inline void mnt_inc_writers(struct vfsmount *mnt)
 {
 #ifdef CONFIG_SMP
-	(*per_cpu_ptr(mnt->mnt_writers, smp_processor_id()))++;
+	this_cpu_inc(mnt->mnt_pcp->mnt_writers);
 #else
 	mnt->mnt_writers++;
 #endif
@@ -228,7 +289,7 @@ static inline void mnt_inc_writers(struct vfsmount *mnt)
 static inline void mnt_dec_writers(struct vfsmount *mnt)
 {
 #ifdef CONFIG_SMP
-	(*per_cpu_ptr(mnt->mnt_writers, smp_processor_id()))--;
+	this_cpu_dec(mnt->mnt_pcp->mnt_writers);
 #else
 	mnt->mnt_writers--;
 #endif
@@ -241,7 +302,7 @@ static unsigned int mnt_get_writers(struct vfsmount *mnt)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		count += *per_cpu_ptr(mnt->mnt_writers, cpu);
+		count += per_cpu_ptr(mnt->mnt_pcp, cpu)->mnt_writers;
 	}
 
 	return count;
@@ -418,7 +479,7 @@ void free_vfsmnt(struct vfsmount *mnt)
 	kfree(mnt->mnt_devname);
 	mnt_free_id(mnt);
 #ifdef CONFIG_SMP
-	free_percpu(mnt->mnt_writers);
+	free_percpu(mnt->mnt_pcp);
 #endif
 	kmem_cache_free(mnt_cache, mnt);
 }
@@ -652,9 +713,10 @@ static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 	return NULL;
 }
 
-static inline void __mntput(struct vfsmount *mnt)
+static inline void mntfree(struct vfsmount *mnt)
 {
 	struct super_block *sb = mnt->mnt_sb;
+
 	/*
 	 * This probably indicates that somebody messed
 	 * up a mnt_want/drop_write() pair.  If this
@@ -662,8 +724,8 @@ static inline void __mntput(struct vfsmount *mnt)
 	 * to make r/w->r/o transitions.
 	 */
 	/*
-	 * atomic_dec_and_lock() used to deal with ->mnt_count decrements
-	 * provides barriers, so mnt_get_writers() below is safe.  AV
+	 * The locking used to deal with mnt_count decrement provides barriers,
+	 * so mnt_get_writers() below is safe.
 	 */
 	WARN_ON(mnt_get_writers(mnt));
 	fsnotify_vfsmount_delete(mnt);
@@ -672,28 +734,113 @@ static inline void __mntput(struct vfsmount *mnt)
 	deactivate_super(sb);
 }
 
-void mntput_no_expire(struct vfsmount *mnt)
+#ifdef CONFIG_SMP
+static inline void __mntput(struct vfsmount *mnt, int longrefs)
 {
-repeat:
-	if (atomic_add_unless(&mnt->mnt_count, -1, 1))
+	if (!longrefs) {
+put_again:
+		br_read_lock(vfsmount_lock);
+		if (likely(atomic_read(&mnt->mnt_longrefs))) {
+			mnt_dec_count(mnt);
+			br_read_unlock(vfsmount_lock);
+			return;
+		}
+		br_read_unlock(vfsmount_lock);
+	} else {
+		BUG_ON(!atomic_read(&mnt->mnt_longrefs));
+		if (atomic_add_unless(&mnt->mnt_longrefs, -1, 1))
+			return;
+	}
+
+	br_write_lock(vfsmount_lock);
+	if (!longrefs)
+		mnt_dec_count(mnt);
+	else
+		atomic_dec(&mnt->mnt_longrefs);
+	if (mnt_get_count(mnt)) {
+		br_write_unlock(vfsmount_lock);
+		return;
+	}
+	if (unlikely(mnt->mnt_pinned)) {
+		mnt_add_count(mnt, mnt->mnt_pinned + 1);
+		mnt->mnt_pinned = 0;
+		br_write_unlock(vfsmount_lock);
+		acct_auto_close_mnt(mnt);
+		goto put_again;
+	}
+	br_write_unlock(vfsmount_lock);
+	mntfree(mnt);
+}
+#else
+static inline void __mntput(struct vfsmount *mnt, int longrefs)
+{
+put_again:
+	mnt_dec_count(mnt);
+	if (likely(mnt_get_count(mnt)))
 		return;
 	br_write_lock(vfsmount_lock);
-	if (!atomic_dec_and_test(&mnt->mnt_count)) {
+	if (unlikely(mnt->mnt_pinned)) {
+		mnt_add_count(mnt, mnt->mnt_pinned + 1);
+		mnt->mnt_pinned = 0;
 		br_write_unlock(vfsmount_lock);
-		return;
+		acct_auto_close_mnt(mnt);
+		goto put_again;
 	}
-	if (likely(!mnt->mnt_pinned)) {
-		br_write_unlock(vfsmount_lock);
-		__mntput(mnt);
-		return;
-	}
-	atomic_add(mnt->mnt_pinned + 1, &mnt->mnt_count);
-	mnt->mnt_pinned = 0;
 	br_write_unlock(vfsmount_lock);
-	acct_auto_close_mnt(mnt);
-	goto repeat;
+	mntfree(mnt);
 }
-EXPORT_SYMBOL(mntput_no_expire);
+#endif
+
+static void mntput_no_expire(struct vfsmount *mnt)
+{
+	__mntput(mnt, 0);
+}
+
+void mntput(struct vfsmount *mnt)
+{
+	if (mnt) {
+		/* avoid cacheline pingpong, hope gcc doesn't get "smart" */
+		if (unlikely(mnt->mnt_expiry_mark))
+			mnt->mnt_expiry_mark = 0;
+		__mntput(mnt, 0);
+	}
+}
+EXPORT_SYMBOL(mntput);
+
+struct vfsmount *mntget(struct vfsmount *mnt)
+{
+	if (mnt)
+		mnt_inc_count(mnt);
+	return mnt;
+}
+EXPORT_SYMBOL(mntget);
+
+void mntput_long(struct vfsmount *mnt)
+{
+#ifdef CONFIG_SMP
+	if (mnt) {
+		/* avoid cacheline pingpong, hope gcc doesn't get "smart" */
+		if (unlikely(mnt->mnt_expiry_mark))
+			mnt->mnt_expiry_mark = 0;
+		__mntput(mnt, 1);
+	}
+#else
+	mntput(mnt);
+#endif
+}
+EXPORT_SYMBOL(mntput_long);
+
+struct vfsmount *mntget_long(struct vfsmount *mnt)
+{
+#ifdef CONFIG_SMP
+	if (mnt)
+		atomic_inc(&mnt->mnt_longrefs);
+	return mnt;
+#else
+	return mntget(mnt);
+#endif
+}
+EXPORT_SYMBOL(mntget_long);
 
 void mnt_pin(struct vfsmount *mnt)
 {
@@ -701,19 +848,17 @@ void mnt_pin(struct vfsmount *mnt)
 	mnt->mnt_pinned++;
 	br_write_unlock(vfsmount_lock);
 }
-
 EXPORT_SYMBOL(mnt_pin);
 
 void mnt_unpin(struct vfsmount *mnt)
 {
 	br_write_lock(vfsmount_lock);
 	if (mnt->mnt_pinned) {
-		atomic_inc(&mnt->mnt_count);
+		mnt_inc_count(mnt);
 		mnt->mnt_pinned--;
 	}
 	br_write_unlock(vfsmount_lock);
 }
-
 EXPORT_SYMBOL(mnt_unpin);
 
 static inline void mangle(struct seq_file *m, const char *s)
@@ -1008,12 +1153,13 @@ int may_umount_tree(struct vfsmount *mnt)
 	int minimum_refs = 0;
 	struct vfsmount *p;
 
-	br_read_lock(vfsmount_lock);
+	/* write lock needed for mnt_get_count */
+	br_write_lock(vfsmount_lock);
 	for (p = mnt; p; p = next_mnt(p, mnt)) {
-		actual_refs += atomic_read(&p->mnt_count);
+		actual_refs += mnt_get_count(p);
 		minimum_refs += 2;
 	}
-	br_read_unlock(vfsmount_lock);
+	br_write_unlock(vfsmount_lock);
 
 	if (actual_refs > minimum_refs)
 		return 0;
@@ -1040,10 +1186,10 @@ int may_umount(struct vfsmount *mnt)
 {
 	int ret = 1;
 	down_read(&namespace_sem);
-	br_read_lock(vfsmount_lock);
+	br_write_lock(vfsmount_lock);
 	if (propagate_mount_busy(mnt, 2))
 		ret = 0;
-	br_read_unlock(vfsmount_lock);
+	br_write_unlock(vfsmount_lock);
 	up_read(&namespace_sem);
 	return ret;
 }
@@ -1070,7 +1216,7 @@ void release_mounts(struct list_head *head)
 			dput(dentry);
 			mntput(m);
 		}
-		mntput(mnt);
+		mntput_long(mnt);
 	}
 }
 
@@ -1125,8 +1271,16 @@ static int do_umount(struct vfsmount *mnt, int flags)
 		    flags & (MNT_FORCE | MNT_DETACH))
 			return -EINVAL;
 
-		if (atomic_read(&mnt->mnt_count) != 2)
+		/*
+		 * probably don't strictly need the lock here if we examined
+		 * all race cases, but it's a slowpath.
+		 */
+		br_write_lock(vfsmount_lock);
+		if (mnt_get_count(mnt) != 2) {
+			br_write_lock(vfsmount_lock);
 			return -EBUSY;
+		}
+		br_write_unlock(vfsmount_lock);
 
 		if (!xchg(&mnt->mnt_expiry_mark, 1))
 			return -EAGAIN;
@@ -1815,7 +1969,7 @@ int do_add_mount(struct vfsmount *newmnt, struct path *path,
 
 unlock:
 	up_write(&namespace_sem);
-	mntput(newmnt);
+	mntput_long(newmnt);
 	return err;
 }
 
@@ -2148,11 +2302,11 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 		if (fs) {
 			if (p == fs->root.mnt) {
 				rootmnt = p;
-				fs->root.mnt = mntget(q);
+				fs->root.mnt = mntget_long(q);
 			}
 			if (p == fs->pwd.mnt) {
 				pwdmnt = p;
-				fs->pwd.mnt = mntget(q);
+				fs->pwd.mnt = mntget_long(q);
 			}
 		}
 		p = next_mnt(p, mnt_ns->root);
@@ -2161,9 +2315,9 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 	up_write(&namespace_sem);
 
 	if (rootmnt)
-		mntput(rootmnt);
+		mntput_long(rootmnt);
 	if (pwdmnt)
-		mntput(pwdmnt);
+		mntput_long(pwdmnt);
 
 	return new_ns;
 }
@@ -2350,6 +2504,7 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	touch_mnt_namespace(current->nsproxy->mnt_ns);
 	br_write_unlock(vfsmount_lock);
 	chroot_fs_refs(&root, &new);
+
 	error = 0;
 	path_put(&root_parent);
 	path_put(&parent_path);
@@ -2376,6 +2531,7 @@ static void __init init_mount_tree(void)
 	mnt = do_kern_mount("rootfs", 0, "rootfs", NULL);
 	if (IS_ERR(mnt))
 		panic("Can't create rootfs");
+
 	ns = create_mnt_ns(mnt);
 	if (IS_ERR(ns))
 		panic("Can't allocate initial namespace");
