@@ -232,10 +232,8 @@ int configfs_make_dirent(struct configfs_dirent * parent_sd,
 
 	sd->s_mode = mode;
 	sd->s_dentry = dentry;
-	if (dentry) {
+	if (dentry)
 		dentry->d_fsdata = configfs_get(sd);
-		dentry->d_op = &configfs_dentry_ops;
-	}
 
 	return 0;
 }
@@ -278,7 +276,6 @@ static int create_dir(struct config_item * k, struct dentry * p,
 		error = configfs_create(d, mode, init_dir);
 		if (!error) {
 			inc_nlink(p->d_inode);
-			(d)->d_op = &configfs_dentry_ops;
 		} else {
 			struct configfs_dirent *sd = d->d_fsdata;
 			if (sd) {
@@ -371,9 +368,7 @@ int configfs_create_link(struct configfs_symlink *sl,
 				   CONFIGFS_ITEM_LINK);
 	if (!err) {
 		err = configfs_create(dentry, mode, init_symlink);
-		if (!err)
-			dentry->d_op = &configfs_dentry_ops;
-		else {
+		if (err) {
 			struct configfs_dirent *sd = dentry->d_fsdata;
 			if (sd) {
 				spin_lock(&configfs_dirent_lock);
@@ -493,7 +488,11 @@ static struct dentry * configfs_lookup(struct inode *dir,
 		 * If it doesn't exist and it isn't a NOT_PINNED item,
 		 * it must be negative.
 		 */
-		return simple_lookup(dir, dentry, nd);
+		if (dentry->d_name.len > NAME_MAX)
+			return ERR_PTR(-ENAMETOOLONG);
+		dentry->d_op = &configfs_dentry_ops;
+		d_add(dentry, NULL);
+		return NULL;
 	}
 
 out:
@@ -685,6 +684,7 @@ static int create_default_group(struct config_group *parent_group,
 	ret = -ENOMEM;
 	child = d_alloc(parent, &name);
 	if (child) {
+		child->d_op = &configfs_dentry_ops;
 		d_add(child, NULL);
 
 		ret = configfs_attach_group(&parent_group->cg_item,
@@ -1682,6 +1682,7 @@ int configfs_register_subsystem(struct configfs_subsystem *subsys)
 	err = -ENOMEM;
 	dentry = d_alloc(configfs_sb->s_root, &name);
 	if (dentry) {
+		dentry->d_op = &configfs_dentry_ops;
 		d_add(dentry, NULL);
 
 		err = configfs_attach_group(sd->s_element, &group->cg_item,
