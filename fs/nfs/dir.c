@@ -938,7 +938,8 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
  * component of the path.
  * We check for this using LOOKUP_CONTINUE and LOOKUP_PARENT.
  */
-static inline unsigned int nfs_lookup_check_intent(struct nameidata *nd, unsigned int mask)
+static inline unsigned int nfs_lookup_check_intent(struct nameidata *nd,
+						unsigned int mask)
 {
 	if (nd->flags & (LOOKUP_CONTINUE|LOOKUP_PARENT))
 		return 0;
@@ -1018,7 +1019,7 @@ int nfs_neg_need_reval(struct inode *dir, struct dentry *dentry,
  * If the parent directory is seen to have changed, we throw out the
  * cached dentry and do a new lookup.
  */
-static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
+static int nfs_lookup_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	struct inode *dir;
 	struct inode *inode;
@@ -1026,6 +1027,9 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	struct nfs_fh *fhandle = NULL;
 	struct nfs_fattr *fattr = NULL;
 	int error;
+
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
 
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;

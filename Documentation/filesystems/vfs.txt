@@ -863,6 +863,15 @@ struct dentry_operations {
 	dcache. Most filesystems leave this as NULL, because all their
 	dentries in the dcache are valid
 
+	d_revalidate may be called in rcu-walk mode (nd->flags & LOOKUP_RCU).
+	If in rcu-walk mode, the filesystem must revalidate the dentry without
+	blocking or storing to the dentry, d_parent and d_inode should not be
+	used without care (because they can go NULL), instead nd->inode should
+	be used.
+
+	If a situation is encountered that rcu-walk cannot handle, return
+	-ECHILD and it will be called again in ref-walk mode.
+
   d_hash: called when the VFS adds a dentry to the hash table. The first
 	dentry passed to d_hash is the parent directory that the name is
 	to be hashed into. The inode is the dentry's inode.

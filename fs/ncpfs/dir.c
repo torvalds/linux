@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
+#include <linux/namei.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 
@@ -307,6 +308,9 @@ ncp_lookup_validate(struct dentry *dentry, struct nameidata *nd)
 	struct ncp_entry_info finfo;
 	int res, val = 0, len;
 	__u8 __name[NCP_MAXPATHLEN + 1];
+
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
 
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;

@@ -972,6 +972,8 @@ int reiserfs_permission(struct inode *inode, int mask)
 
 static int xattr_hide_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
 	return -EPERM;
 }
 

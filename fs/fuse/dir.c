@@ -156,8 +156,12 @@ u64 fuse_get_attr_version(struct fuse_conn *fc)
  */
 static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 {
-	struct inode *inode = entry->d_inode;
+	struct inode *inode;
 
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	inode = entry->d_inode;
 	if (inode && is_bad_inode(inode))
 		return 0;
 	else if (fuse_dentry_time(entry) < get_jiffies_64()) {

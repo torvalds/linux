@@ -656,6 +656,9 @@ lookup_out:
 static int
 cifs_d_revalidate(struct dentry *direntry, struct nameidata *nd)
 {
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
 	if (direntry->d_inode) {
 		if (cifs_revalidate_dentry(direntry))
 			return 0;

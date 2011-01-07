@@ -1719,9 +1719,15 @@ static int pid_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat
  */
 static int pid_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct inode *inode = dentry->d_inode;
-	struct task_struct *task = get_proc_task(inode);
+	struct inode *inode;
+	struct task_struct *task;
 	const struct cred *cred;
+
+	if (nd && nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	inode = dentry->d_inode;
+	task = get_proc_task(inode);
 
 	if (task) {
 		if ((inode->i_mode == (S_IFDIR|S_IRUGO|S_IXUGO)) ||
@@ -1888,11 +1894,18 @@ static int proc_fd_link(struct inode *inode, struct path *path)
 
 static int tid_fd_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct inode *inode = dentry->d_inode;
-	struct task_struct *task = get_proc_task(inode);
-	int fd = proc_fd(inode);
+	struct inode *inode;
+	struct task_struct *task;
+	int fd;
 	struct files_struct *files;
 	const struct cred *cred;
+
+	if (nd && nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	inode = dentry->d_inode;
+	task = get_proc_task(inode);
+	fd = proc_fd(inode);
 
 	if (task) {
 		files = get_files_struct(task);
@@ -2563,8 +2576,14 @@ static const struct pid_entry proc_base_stuff[] = {
  */
 static int proc_base_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct inode *inode = dentry->d_inode;
-	struct task_struct *task = get_proc_task(inode);
+	struct inode *inode;
+	struct task_struct *task;
+
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	inode = dentry->d_inode;
+	task = get_proc_task(inode);
 	if (task) {
 		put_task_struct(task);
 		return 1;

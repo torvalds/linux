@@ -5,6 +5,7 @@
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
 #include <linux/security.h>
+#include <linux/namei.h>
 #include "internal.h"
 
 static const struct dentry_operations proc_sys_dentry_operations;
@@ -389,6 +390,8 @@ static const struct inode_operations proc_sys_dir_operations = {
 
 static int proc_sys_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
 	return !PROC_I(dentry->d_inode)->sysctl->unregistering;
 }
 

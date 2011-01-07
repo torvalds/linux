@@ -315,11 +315,18 @@ out_error:
  */
 static int autofs4_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
-	struct autofs_sb_info *sbi = autofs4_sbi(dir->i_sb);
-	int oz_mode = autofs4_oz_mode(sbi);
+	struct inode *dir;
+	struct autofs_sb_info *sbi;
+	int oz_mode;
 	int flags = nd ? nd->flags : 0;
 	int status = 1;
+
+	if (flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	dir = dentry->d_parent->d_inode;
+	sbi = autofs4_sbi(dir->i_sb);
+	oz_mode = autofs4_oz_mode(sbi);
 
 	/* Pending dentry */
 	spin_lock(&sbi->fs_lock);

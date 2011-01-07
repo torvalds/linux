@@ -990,7 +990,12 @@ static int dir_lease_is_valid(struct inode *dir, struct dentry *dentry)
  */
 static int ceph_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir;
+
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	dir = dentry->d_parent->d_inode;
 
 	dout("d_revalidate %p '%.*s' inode %p offset %lld\n", dentry,
 	     dentry->d_name.len, dentry->d_name.name, dentry->d_inode,

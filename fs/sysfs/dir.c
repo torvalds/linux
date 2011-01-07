@@ -239,9 +239,13 @@ static int sysfs_dentry_delete(const struct dentry *dentry)
 
 static int sysfs_dentry_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct sysfs_dirent *sd = dentry->d_fsdata;
+	struct sysfs_dirent *sd;
 	int is_dir;
 
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	sd = dentry->d_fsdata;
 	mutex_lock(&sysfs_mutex);
 
 	/* The sysfs dirent has been deleted */

@@ -52,9 +52,15 @@ void ocfs2_dentry_attach_gen(struct dentry *dentry)
 static int ocfs2_dentry_revalidate(struct dentry *dentry,
 				   struct nameidata *nd)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode;
 	int ret = 0;    /* if all else fails, just return false */
-	struct ocfs2_super *osb = OCFS2_SB(dentry->d_sb);
+	struct ocfs2_super *osb;
+
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	inode = dentry->d_inode;
+	osb = OCFS2_SB(dentry->d_sb);
 
 	mlog_entry("(0x%p, '%.*s')\n", dentry,
 		   dentry->d_name.len, dentry->d_name.name);

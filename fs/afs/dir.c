@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>
+#include <linux/namei.h>
 #include <linux/pagemap.h>
 #include <linux/ctype.h>
 #include <linux/sched.h>
@@ -606,6 +607,9 @@ static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	struct key *key;
 	void *dir_version;
 	int ret;
+
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
 
 	vnode = AFS_FS_I(dentry->d_inode);
 

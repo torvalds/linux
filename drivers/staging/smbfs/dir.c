@@ -14,6 +14,7 @@
 #include <linux/ctype.h>
 #include <linux/net.h>
 #include <linux/sched.h>
+#include <linux/namei.h>
 
 #include "smb_fs.h"
 #include "smb_mount.h"
@@ -301,12 +302,19 @@ static const struct dentry_operations smbfs_dentry_operations_case =
  * This is the callback when the dcache has a lookup hit.
  */
 static int
-smb_lookup_validate(struct dentry * dentry, struct nameidata *nd)
+smb_lookup_validate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct smb_sb_info *server = server_from_dentry(dentry);
-	struct inode * inode = dentry->d_inode;
-	unsigned long age = jiffies - dentry->d_time;
+	struct smb_sb_info *server;
+	struct inode *inode;
+	unsigned long age;
 	int valid;
+
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	server = server_from_dentry(dentry);
+	inode = dentry->d_inode;
+	age = jiffies - dentry->d_time;
 
 	/*
 	 * The default validation is based on dentry age:

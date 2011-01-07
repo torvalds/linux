@@ -317,11 +317,10 @@ The detailed design for rcu-walk is like this:
 The cases where rcu-walk cannot continue are:
 * NULL dentry (ie. any uncached path element)
 * parent with d_inode->i_op->permission or ACLs
-* dentries with d_revalidate
 * Following links
 
-In future patches, permission checks and d_revalidate become rcu-walk aware. It
-may be possible eventually to make following links rcu-walk aware.
+In future patches, permission checks become rcu-walk aware. It may be possible
+eventually to make following links rcu-walk aware.
 
 Uncached path elements will always require dropping to ref-walk mode, at the
 very least because i_mutex needs to be grabbed, and objects allocated.

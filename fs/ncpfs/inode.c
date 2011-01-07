@@ -29,6 +29,7 @@
 #include <linux/vfs.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
+#include <linux/namei.h>
 
 #include <linux/ncp_fs.h>
 

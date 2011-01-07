@@ -360,3 +360,23 @@ i_dentry to be reinitialized before it is freed, so an:
   INIT_LIST_HEAD(&inode->i_dentry);
 
 must be done in the RCU callback.
+
+--
+[recommended]
+	vfs now tries to do path walking in "rcu-walk mode", which avoids
+atomic operations and scalability hazards on dentries and inodes (see
+Documentation/filesystems/path-walk.txt). d_hash and d_compare changes (above)
+are examples of the changes required to support this. For more complex
+filesystem callbacks, the vfs drops out of rcu-walk mode before the fs call, so
+no changes are required to the filesystem. However, this is costly and loses
+the benefits of rcu-walk mode. We will begin to add filesystem callbacks that
+are rcu-walk aware, shown below. Filesystems should take advantage of this
+where possible.
+
+--
+[mandatory]
+	d_revalidate is a callback that is made on every path element (if
+the filesystem provides it), which requires dropping out of rcu-walk mode. This
+may now be called in rcu-walk mode (nd->flags & LOOKUP_RCU). -ECHILD should be
+returned if the filesystem cannot handle rcu-walk. See
+Documentation/filesystems/vfs.txt for more details.

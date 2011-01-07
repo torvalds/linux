@@ -563,10 +563,26 @@ void release_open_intent(struct nameidata *nd)
 		fput(nd->intent.open.file);
 }
 
+static int d_revalidate(struct dentry *dentry, struct nameidata *nd)
+{
+	int status;
+
+	status = dentry->d_op->d_revalidate(dentry, nd);
+	if (status == -ECHILD) {
+		if (nameidata_dentry_drop_rcu(nd, dentry))
+			return status;
+		status = dentry->d_op->d_revalidate(dentry, nd);
+	}
+
+	return status;
+}
+
 static inline struct dentry *
 do_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	int status = dentry->d_op->d_revalidate(dentry, nd);
+	int status;
+
+	status = d_revalidate(dentry, nd);
 	if (unlikely(status <= 0)) {
 		/*
 		 * The dentry failed validation.
@@ -574,14 +590,20 @@ do_revalidate(struct dentry *dentry, struct nameidata *nd)
 		 * the dentry otherwise d_revalidate is asking us
 		 * to return a fail status.
 		 */
-		if (!status) {
+		if (status < 0) {
+			/* If we're in rcu-walk, we don't have a ref */
+			if (!(nd->flags & LOOKUP_RCU))
+				dput(dentry);
+			dentry = ERR_PTR(status);
+
+		} else {
+			/* Don't d_invalidate in rcu-walk mode */
+			if (nameidata_dentry_drop_rcu_maybe(nd, dentry))
+				return ERR_PTR(-ECHILD);
 			if (!d_invalidate(dentry)) {
 				dput(dentry);
 				dentry = NULL;
 			}
-		} else {
-			dput(dentry);
-			dentry = ERR_PTR(status);
 		}
 	}
 	return dentry;
@@ -626,7 +648,7 @@ force_reval_path(struct path *path, struct nameidata *nd)
 	if (!need_reval_dot(dentry))
 		return 0;
 
-	status = dentry->d_op->d_revalidate(dentry, nd);
+	status = d_revalidate(dentry, nd);
 	if (status > 0)
 		return 0;
 
@@ -1039,12 +1061,8 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 			return -ECHILD;
 
 		nd->seq = seq;
-		if (dentry->d_flags & DCACHE_OP_REVALIDATE) {
-			/* We commonly drop rcu-walk here */
-			if (nameidata_dentry_drop_rcu(nd, dentry))
-				return -ECHILD;
+		if (dentry->d_flags & DCACHE_OP_REVALIDATE)
 			goto need_revalidate;
-		}
 		path->mnt = mnt;
 		path->dentry = dentry;
 		__follow_mount_rcu(nd, path, inode);
@@ -1292,12 +1310,11 @@ return_reval:
 		 * We may need to check the cached dentry for staleness.
 		 */
 		if (need_reval_dot(nd->path.dentry)) {
-			if (nameidata_drop_rcu_maybe(nd))
-				return -ECHILD;
-			err = -ESTALE;
 			/* Note: we do not d_invalidate() */
-			if (!nd->path.dentry->d_op->d_revalidate(
-					nd->path.dentry, nd))
+			err = d_revalidate(nd->path.dentry, nd);
+			if (!err)
+				err = -ESTALE;
+			if (err < 0)
 				break;
 		}
 return_base:
@@ -2080,10 +2097,11 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		dir = nd->path.dentry;
 	case LAST_DOT:
 		if (need_reval_dot(dir)) {
-			if (!dir->d_op->d_revalidate(dir, nd)) {
+			error = d_revalidate(nd->path.dentry, nd);
+			if (!error)
 				error = -ESTALE;
+			if (error < 0)
 				goto exit;
-			}
 		}
 		/* fallthrough */
 	case LAST_ROOT:

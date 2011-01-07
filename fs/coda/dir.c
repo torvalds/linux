@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
+#include <linux/namei.h>
 
 #include <asm/uaccess.h>
 
@@ -541,9 +542,13 @@ out:
 /* called when a cache lookup succeeds */
 static int coda_dentry_revalidate(struct dentry *de, struct nameidata *nd)
 {
-	struct inode *inode = de->d_inode;
+	struct inode *inode;
 	struct coda_inode_info *cii;
 
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	inode = de->d_inode;
 	if (!inode || coda_isroot(inode))
 		goto out;
 	if (is_bad_inode(inode))
