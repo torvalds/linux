@@ -617,6 +617,8 @@ static int xenfb_connect_backend(struct xenbus_device *dev,
 
 static void xenfb_disconnect_backend(struct xenfb_info *info)
 {
+	/* Prevent xenfb refresh */
+	info->update_wanted = 0;
 	if (info->irq >= 0)
 		unbind_from_irqhandler(info->irq, info);
 	info->irq = -1;
