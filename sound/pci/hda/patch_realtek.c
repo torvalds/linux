@@ -10830,7 +10830,8 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i, err;
+	int i, err, type;
+	int type_idx = 0;
 	hda_nid_t nid;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
@@ -10839,9 +10840,15 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 		nid = cfg->inputs[i].pin;
 		if (get_wcaps(codec, nid) & AC_WCAP_IN_AMP) {
 			char label[32];
+			type = cfg->inputs[i].type;
+			if (i > 0 && type == cfg->inputs[i - 1].type)
+				type_idx++;
+			else
+				type_idx = 0;
 			snprintf(label, sizeof(label), "%s Boost",
 				 hda_get_autocfg_input_label(codec, cfg, i));
-			err = add_control(spec, ALC_CTL_WIDGET_VOL, label, 0,
+			err = add_control(spec, ALC_CTL_WIDGET_VOL, label,
+					  type_idx,
 				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
 			if (err < 0)
 				return err;
@@ -14799,7 +14806,10 @@ static int alc269_resume(struct hda_codec *codec)
 
 enum {
 	ALC269_FIXUP_SONY_VAIO,
+	ALC275_FIX_SONY_VAIO_GPIO2,
 	ALC269_FIXUP_DELL_M101Z,
+	ALC269_FIXUP_SKU_IGNORE,
+	ALC269_FIXUP_ASUS_G73JW,
 };
 
 static const struct alc_fixup alc269_fixups[] = {
@@ -14807,6 +14817,14 @@ static const struct alc_fixup alc269_fixups[] = {
 		.verbs = (const struct hda_verb[]) {
 			{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREFGRD},
 			{}
+		}
+	},
+	[ALC275_FIX_SONY_VAIO_GPIO2] = {
+		.verbs = (const struct hda_verb[]) {
+			{0x01, AC_VERB_SET_GPIO_MASK, 0x04},
+			{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x04},
+			{0x01, AC_VERB_SET_GPIO_DATA, 0x00},
+			{ }
 		}
 	},
 	[ALC269_FIXUP_DELL_M101Z] = {
@@ -14817,11 +14835,26 @@ static const struct alc_fixup alc269_fixups[] = {
 			{}
 		}
 	},
+	[ALC269_FIXUP_SKU_IGNORE] = {
+		.sku = ALC_FIXUP_SKU_IGNORE,
+	},
+	[ALC269_FIXUP_ASUS_G73JW] = {
+		.pins = (const struct alc_pincfg[]) {
+			{ 0x17, 0x99130111 }, /* subwoofer */
+			{ }
+		}
+	},
 };
 
 static struct snd_pci_quirk alc269_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x104d, 0x9073, "Sony VAIO", ALC275_FIX_SONY_VAIO_GPIO2),
+	SND_PCI_QUIRK(0x104d, 0x907b, "Sony VAIO", ALC275_FIX_SONY_VAIO_GPIO2),
+	SND_PCI_QUIRK(0x104d, 0x9084, "Sony VAIO", ALC275_FIX_SONY_VAIO_GPIO2),
 	SND_PCI_QUIRK_VENDOR(0x104d, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
 	SND_PCI_QUIRK(0x1028, 0x0470, "Dell M101z", ALC269_FIXUP_DELL_M101Z),
+	SND_PCI_QUIRK(0x17aa, 0x21b8, "Thinkpad Edge 14", ALC269_FIXUP_SKU_IGNORE),
+	SND_PCI_QUIRK(0x17aa, 0x20f2, "Thinkpad SL410/510", ALC269_FIXUP_SKU_IGNORE),
+	SND_PCI_QUIRK(0x1043, 0x1a13, "Asus G73Jw", ALC269_FIXUP_ASUS_G73JW),
 	{}
 };
 
@@ -15071,28 +15104,29 @@ static int patch_alc269(struct hda_codec *codec)
 
 	alc_auto_parse_customize_define(codec);
 
-	coef = alc_read_coef_idx(codec, 0);
-	if ((coef & 0x00f0) == 0x0010) {
-		if (codec->bus->pci->subsystem_vendor == 0x1025 &&
-		    spec->cdefine.platform_type == 1) {
-			alc_codec_rename(codec, "ALC271X");
-			spec->codec_variant = ALC269_TYPE_ALC271X;
-		} else if ((coef & 0xf000) == 0x1000) {
-			spec->codec_variant = ALC269_TYPE_ALC270;
-		} else if ((coef & 0xf000) == 0x2000) {
-			alc_codec_rename(codec, "ALC259");
-			spec->codec_variant = ALC269_TYPE_ALC259;
-		} else if ((coef & 0xf000) == 0x3000) {
-			alc_codec_rename(codec, "ALC258");
-			spec->codec_variant = ALC269_TYPE_ALC258;
-		} else {
-			alc_codec_rename(codec, "ALC269VB");
-			spec->codec_variant = ALC269_TYPE_ALC269VB;
-		}
-	} else
-		alc_fix_pll_init(codec, 0x20, 0x04, 15);
-
-	alc269_fill_coef(codec);
+	if (codec->vendor_id == 0x10ec0269) {
+		coef = alc_read_coef_idx(codec, 0);
+		if ((coef & 0x00f0) == 0x0010) {
+			if (codec->bus->pci->subsystem_vendor == 0x1025 &&
+			    spec->cdefine.platform_type == 1) {
+				alc_codec_rename(codec, "ALC271X");
+				spec->codec_variant = ALC269_TYPE_ALC271X;
+			} else if ((coef & 0xf000) == 0x1000) {
+				spec->codec_variant = ALC269_TYPE_ALC270;
+			} else if ((coef & 0xf000) == 0x2000) {
+				alc_codec_rename(codec, "ALC259");
+				spec->codec_variant = ALC269_TYPE_ALC259;
+			} else if ((coef & 0xf000) == 0x3000) {
+				alc_codec_rename(codec, "ALC258");
+				spec->codec_variant = ALC269_TYPE_ALC258;
+			} else {
+				alc_codec_rename(codec, "ALC269VB");
+				spec->codec_variant = ALC269_TYPE_ALC269VB;
+			}
+		} else
+			alc_fix_pll_init(codec, 0x20, 0x04, 15);
+		alc269_fill_coef(codec);
+	}
 
 	board_config = snd_hda_check_board_config(codec, ALC269_MODEL_LAST,
 						  alc269_models,

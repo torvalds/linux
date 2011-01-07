@@ -1,25 +1,8 @@
 /*
- * Copyright (C) 2009 - QLogic Corporation.
- * All rights reserved.
+ * QLogic qlcnic NIC Driver
+ * Copyright (c)  2009-2010 QLogic Corporation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston,
- * MA  02111-1307, USA.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called "COPYING".
- *
+ * See LICENSE.qlcnic for copyright and licensing details.
  */
 
 #include <linux/netdevice.h>
@@ -236,12 +219,11 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 	tx_ring->num_desc = adapter->num_txd;
 	tx_ring->txq = netdev_get_tx_queue(netdev, 0);
 
-	cmd_buf_arr = vmalloc(TX_BUFF_RINGSIZE(tx_ring));
+	cmd_buf_arr = vzalloc(TX_BUFF_RINGSIZE(tx_ring));
 	if (cmd_buf_arr == NULL) {
 		dev_err(&netdev->dev, "failed to allocate cmd buffer ring\n");
 		goto err_out;
 	}
-	memset(cmd_buf_arr, 0, TX_BUFF_RINGSIZE(tx_ring));
 	tx_ring->cmd_buf_arr = cmd_buf_arr;
 
 	recv_ctx = &adapter->recv_ctx;
@@ -275,14 +257,12 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 				rds_ring->dma_size + NET_IP_ALIGN;
 			break;
 		}
-		rds_ring->rx_buf_arr = (struct qlcnic_rx_buffer *)
-			vmalloc(RCV_BUFF_RINGSIZE(rds_ring));
+		rds_ring->rx_buf_arr = vzalloc(RCV_BUFF_RINGSIZE(rds_ring));
 		if (rds_ring->rx_buf_arr == NULL) {
 			dev_err(&netdev->dev, "Failed to allocate "
 				"rx buffer ring %d\n", ring);
 			goto err_out;
 		}
-		memset(rds_ring->rx_buf_arr, 0, RCV_BUFF_RINGSIZE(rds_ring));
 		INIT_LIST_HEAD(&rds_ring->free_list);
 		/*
 		 * Now go through all of them, set reference handles
@@ -1691,99 +1671,6 @@ qlcnic_post_rx_buffers_nodb(struct qlcnic_adapter *adapter,
 				rds_ring->crb_rcv_producer);
 	}
 	spin_unlock(&rds_ring->lock);
-}
-
-static void dump_skb(struct sk_buff *skb)
-{
-	int i;
-	unsigned char *data = skb->data;
-
-	for (i = 0; i < skb->len; i++) {
-		printk("%02x ", data[i]);
-		if ((i & 0x0f) == 8)
-			printk("\n");
-	}
-}
-
-static struct qlcnic_rx_buffer *
-qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter,
-		struct qlcnic_host_sds_ring *sds_ring,
-		int ring, u64 sts_data0)
-{
-	struct qlcnic_recv_context *recv_ctx = &adapter->recv_ctx;
-	struct qlcnic_rx_buffer *buffer;
-	struct sk_buff *skb;
-	struct qlcnic_host_rds_ring *rds_ring;
-	int index, length, cksum, pkt_offset;
-
-	if (unlikely(ring >= adapter->max_rds_rings))
-		return NULL;
-
-	rds_ring = &recv_ctx->rds_rings[ring];
-
-	index = qlcnic_get_sts_refhandle(sts_data0);
-	if (unlikely(index >= rds_ring->num_desc))
-		return NULL;
-
-	buffer = &rds_ring->rx_buf_arr[index];
-
-	length = qlcnic_get_sts_totallength(sts_data0);
-	cksum  = qlcnic_get_sts_status(sts_data0);
-	pkt_offset = qlcnic_get_sts_pkt_offset(sts_data0);
-
-	skb = qlcnic_process_rxbuf(adapter, rds_ring, index, cksum);
-	if (!skb)
-		return buffer;
-
-	if (length > rds_ring->skb_size)
-		skb_put(skb, rds_ring->skb_size);
-	else
-		skb_put(skb, length);
-
-	if (pkt_offset)
-		skb_pull(skb, pkt_offset);
-
-	if (!qlcnic_check_loopback_buff(skb->data))
-		adapter->diag_cnt++;
-	else
-		dump_skb(skb);
-
-	dev_kfree_skb_any(skb);
-	adapter->stats.rx_pkts++;
-	adapter->stats.rxbytes += length;
-
-	return buffer;
-}
-
-void
-qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring)
-{
-	struct qlcnic_adapter *adapter = sds_ring->adapter;
-	struct status_desc *desc;
-	struct qlcnic_rx_buffer *rxbuf;
-	u64 sts_data0;
-
-	int opcode, ring, desc_cnt;
-	u32 consumer = sds_ring->consumer;
-
-	desc = &sds_ring->desc_head[consumer];
-	sts_data0 = le64_to_cpu(desc->status_desc_data[0]);
-
-	if (!(sts_data0 & STATUS_OWNER_HOST))
-		return;
-
-	desc_cnt = qlcnic_get_sts_desc_cnt(sts_data0);
-	opcode = qlcnic_get_sts_opcode(sts_data0);
-
-	ring = qlcnic_get_sts_type(sts_data0);
-	rxbuf = qlcnic_process_rcv_diag(adapter, sds_ring,
-					ring, sts_data0);
-
-	desc->status_desc_data[0] = cpu_to_le64(STATUS_OWNER_PHANTOM);
-	consumer = get_next_index(consumer, sds_ring->num_desc);
-
-	sds_ring->consumer = consumer;
-	writel(consumer, sds_ring->crb_sts_consumer);
 }
 
 void

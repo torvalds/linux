@@ -1163,9 +1163,8 @@ static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 static u32 smsc95xx_calc_csum_preamble(struct sk_buff *skb)
 {
-	int len = skb->data - skb->head;
-	u16 high_16 = (u16)(skb->csum_offset + skb->csum_start - len);
-	u16 low_16 = (u16)(skb->csum_start - len);
+	u16 low_16 = (u16)skb_checksum_start_offset(skb);
+	u16 high_16 = low_16 + skb->csum_offset;
 	return (high_16 << 16) | low_16;
 }
 
@@ -1193,7 +1192,7 @@ static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
 		if (skb->len <= 45) {
 			/* workaround - hardware tx checksum does not work
 			 * properly with extremely small packets */
-			long csstart = skb->csum_start - skb_headroom(skb);
+			long csstart = skb_checksum_start_offset(skb);
 			__wsum calc = csum_partial(skb->data + csstart,
 				skb->len - csstart, 0);
 			*((__sum16 *)(skb->data + csstart

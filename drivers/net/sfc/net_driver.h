@@ -136,14 +136,19 @@ struct efx_tx_buffer {
  * @efx: The associated Efx NIC
  * @queue: DMA queue number
  * @channel: The associated channel
+ * @core_txq: The networking core TX queue structure
  * @buffer: The software buffer ring
  * @txd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
  * @flushed: Used when handling queue flushing
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
- * @stopped: Stopped count.
- *	Set if this TX queue is currently stopping its port.
+ * @old_write_count: The value of @write_count when last checked.
+ *	This is here for performance reasons.  The xmit path will
+ *	only get the up-to-date value of @write_count if this
+ *	variable indicates that the queue is empty.  This is to
+ *	avoid cache-line ping-pong between the xmit path and the
+ *	completion path.
  * @insert_count: Current insert pointer
  *	This is the number of buffers that have been added to the
  *	software ring.
@@ -163,13 +168,17 @@ struct efx_tx_buffer {
  * @tso_long_headers: Number of packets with headers too long for standard
  *	blocks
  * @tso_packets: Number of packets via the TSO xmit path
+ * @pushes: Number of times the TX push feature has been used
+ * @empty_read_count: If the completion path has seen the queue as empty
+ *	and the transmission path has not yet checked this, the value of
+ *	@read_count bitwise-added to %EFX_EMPTY_COUNT_VALID; otherwise 0.
  */
 struct efx_tx_queue {
 	/* Members which don't change on the fast path */
 	struct efx_nic *efx ____cacheline_aligned_in_smp;
 	unsigned queue;
 	struct efx_channel *channel;
-	struct efx_nic *nic;
+	struct netdev_queue *core_txq;
 	struct efx_tx_buffer *buffer;
 	struct efx_special_buffer txd;
 	unsigned int ptr_mask;
@@ -177,7 +186,7 @@ struct efx_tx_queue {
 
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;
-	int stopped;
+	unsigned int old_write_count;
 
 	/* Members used only on the xmit path */
 	unsigned int insert_count ____cacheline_aligned_in_smp;
@@ -187,6 +196,11 @@ struct efx_tx_queue {
 	unsigned int tso_bursts;
 	unsigned int tso_long_headers;
 	unsigned int tso_packets;
+	unsigned int pushes;
+
+	/* Members shared between paths and sometimes updated */
+	unsigned int empty_read_count ____cacheline_aligned_in_smp;
+#define EFX_EMPTY_COUNT_VALID 0x80000000
 };
 
 /**
@@ -305,7 +319,6 @@ enum efx_rx_alloc_method {
  * @irq_moderation: IRQ moderation value (in hardware ticks)
  * @napi_dev: Net device used with NAPI
  * @napi_str: NAPI control structure
- * @reset_work: Scheduled reset work thread
  * @work_pending: Is work pending via NAPI?
  * @eventq: Event queue buffer
  * @eventq_mask: Event queue pointer mask
@@ -326,8 +339,6 @@ enum efx_rx_alloc_method {
  * @n_rx_overlength: Count of RX_OVERLENGTH errors
  * @n_skbuff_leaks: Count of skbuffs leaked due to RX overrun
  * @rx_queue: RX queue for this channel
- * @tx_stop_count: Core TX queue stop count
- * @tx_stop_lock: Core TX queue stop lock
  * @tx_queue: TX queues for this channel
  */
 struct efx_channel {
@@ -366,10 +377,6 @@ struct efx_channel {
 	bool rx_pkt_csummed;
 
 	struct efx_rx_queue rx_queue;
-
-	atomic_t tx_stop_count;
-	spinlock_t tx_stop_lock;
-
 	struct efx_tx_queue tx_queue[2];
 };
 
@@ -626,10 +633,8 @@ struct efx_filter_state;
  *	Work items do not hold and must not acquire RTNL.
  * @workqueue_name: Name of workqueue
  * @reset_work: Scheduled reset workitem
- * @monitor_work: Hardware monitor workitem
  * @membase_phys: Memory BAR value as physical address
  * @membase: Memory BAR value
- * @biu_lock: BIU (bus interface unit) lock
  * @interrupt_mode: Interrupt mode
  * @irq_rx_adaptive: Adaptive IRQ moderation enabled for RX event queues
  * @irq_rx_moderation: IRQ moderation time for RX event queues
@@ -648,23 +653,14 @@ struct efx_filter_state;
  * @n_tx_channels: Number of channels used for TX
  * @rx_buffer_len: RX buffer length
  * @rx_buffer_order: Order (log2) of number of pages for each RX buffer
+ * @rx_hash_key: Toeplitz hash key for RSS
  * @rx_indir_table: Indirection table for RSS
  * @int_error_count: Number of internal errors seen recently
  * @int_error_expire: Time at which error count will be expired
  * @irq_status: Interrupt status buffer
- * @last_irq_cpu: Last CPU to handle interrupt.
- *	This register is written with the SMP processor ID whenever an
- *	interrupt is handled.  It is used by efx_nic_test_interrupt()
- *	to verify that an interrupt has occurred.
  * @irq_zero_count: Number of legacy IRQs seen with queue flags == 0
  * @fatal_irq_level: IRQ level (bit number) used for serious errors
- * @spi_flash: SPI flash device
- *	This field will be %NULL if no flash device is present (or for Siena).
- * @spi_eeprom: SPI EEPROM device
- *	This field will be %NULL if no EEPROM device is present (or for Siena).
- * @spi_lock: SPI bus lock
  * @mtd_list: List of MTDs attached to the NIC
- * @n_rx_nodesc_drop_cnt: RX no descriptor drop count
  * @nic_data: Hardware dependant state
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
  *	@port_inhibited, efx_monitor() and efx_reconfigure_port()
@@ -677,21 +673,14 @@ struct efx_filter_state;
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
  * @rx_checksum_enabled: RX checksumming enabled
- * @mac_stats: MAC statistics. These include all statistics the MACs
- *	can provide.  Generic code converts these into a standard
- *	&struct net_device_stats.
  * @stats_buffer: DMA buffer for statistics
- * @stats_lock: Statistics update lock. Serialises statistics fetches
  * @mac_op: MAC interface
- * @mac_address: Permanent MAC address
  * @phy_type: PHY type
- * @mdio_lock: MDIO lock
  * @phy_op: PHY interface
  * @phy_data: PHY private data (including PHY-specific stats)
  * @mdio: PHY MDIO interface
  * @mdio_bus: PHY MDIO bus ID (only used by Siena)
  * @phy_mode: PHY operating mode. Serialised by @mac_lock.
- * @xmac_poll_required: XMAC link state needs polling
  * @link_advertising: Autonegotiation advertising flags
  * @link_state: Current state of the link
  * @n_link_state_changes: Number of times the link has changed state
@@ -702,10 +691,23 @@ struct efx_filter_state;
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
+ * @monitor_work: Hardware monitor workitem
+ * @biu_lock: BIU (bus interface unit) lock
+ * @last_irq_cpu: Last CPU to handle interrupt.
+ *	This register is written with the SMP processor ID whenever an
+ *	interrupt is handled.  It is used by efx_nic_test_interrupt()
+ *	to verify that an interrupt has occurred.
+ * @n_rx_nodesc_drop_cnt: RX no descriptor drop count
+ * @mac_stats: MAC statistics. These include all statistics the MACs
+ *	can provide.  Generic code converts these into a standard
+ *	&struct net_device_stats.
+ * @stats_lock: Statistics update lock. Serialises statistics fetches
  *
  * This is stored in the private area of the &struct net_device.
  */
 struct efx_nic {
+	/* The following fields should be written very rarely */
+
 	char name[IFNAMSIZ];
 	struct pci_dev *pci_dev;
 	const struct efx_nic_type *type;
@@ -714,10 +716,9 @@ struct efx_nic {
 	struct workqueue_struct *workqueue;
 	char workqueue_name[16];
 	struct work_struct reset_work;
-	struct delayed_work monitor_work;
 	resource_size_t membase_phys;
 	void __iomem *membase;
-	spinlock_t biu_lock;
+
 	enum efx_int_mode interrupt_mode;
 	bool irq_rx_adaptive;
 	unsigned int irq_rx_moderation;
@@ -744,18 +745,12 @@ struct efx_nic {
 	unsigned long int_error_expire;
 
 	struct efx_buffer irq_status;
-	volatile signed int last_irq_cpu;
 	unsigned irq_zero_count;
 	unsigned fatal_irq_level;
 
-	struct efx_spi_device *spi_flash;
-	struct efx_spi_device *spi_eeprom;
-	struct mutex spi_lock;
 #ifdef CONFIG_SFC_MTD
 	struct list_head mtd_list;
 #endif
-
-	unsigned n_rx_nodesc_drop_cnt;
 
 	void *nic_data;
 
@@ -768,22 +763,17 @@ struct efx_nic {
 	struct net_device *net_dev;
 	bool rx_checksum_enabled;
 
-	struct efx_mac_stats mac_stats;
 	struct efx_buffer stats_buffer;
-	spinlock_t stats_lock;
 
 	struct efx_mac_operations *mac_op;
-	unsigned char mac_address[ETH_ALEN];
 
 	unsigned int phy_type;
-	struct mutex mdio_lock;
 	struct efx_phy_operations *phy_op;
 	void *phy_data;
 	struct mdio_if_info mdio;
 	unsigned int mdio_bus;
 	enum efx_phy_mode phy_mode;
 
-	bool xmac_poll_required;
 	u32 link_advertising;
 	struct efx_link_state link_state;
 	unsigned int n_link_state_changes;
@@ -799,6 +789,15 @@ struct efx_nic {
 	void *loopback_selftest;
 
 	struct efx_filter_state *filter_state;
+
+	/* The following fields may be written more often */
+
+	struct delayed_work monitor_work ____cacheline_aligned_in_smp;
+	spinlock_t biu_lock;
+	volatile signed int last_irq_cpu;
+	unsigned n_rx_nodesc_drop_cnt;
+	struct efx_mac_stats mac_stats;
+	spinlock_t stats_lock;
 };
 
 static inline int efx_dev_registered(struct efx_nic *efx)
@@ -831,6 +830,7 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  *	be called while the controller is uninitialised.
  * @probe_port: Probe the MAC and PHY
  * @remove_port: Free resources allocated by probe_port()
+ * @handle_global_event: Handle a "global" event (may be %NULL)
  * @prepare_flush: Prepare the hardware for flushing the DMA queues
  * @update_stats: Update statistics not provided by event handling
  * @start_stats: Start the regular fetching of statistics
@@ -875,6 +875,7 @@ struct efx_nic_type {
 	int (*reset)(struct efx_nic *efx, enum reset_type method);
 	int (*probe_port)(struct efx_nic *efx);
 	void (*remove_port)(struct efx_nic *efx);
+	bool (*handle_global_event)(struct efx_channel *channel, efx_qword_t *);
 	void (*prepare_flush)(struct efx_nic *efx);
 	void (*update_stats)(struct efx_nic *efx);
 	void (*start_stats)(struct efx_nic *efx);

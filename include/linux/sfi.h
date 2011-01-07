@@ -77,6 +77,8 @@
 #define SFI_OEM_ID_SIZE		6
 #define SFI_OEM_TABLE_ID_SIZE	8
 
+#define SFI_NAME_LEN		16
+
 #define SFI_SYST_SEARCH_BEGIN		0x000E0000
 #define SFI_SYST_SEARCH_END		0x000FFFFF
 
@@ -156,13 +158,13 @@ struct sfi_device_table_entry {
 	u16	addr;
 	u8	irq;
 	u32	max_freq;
-	char	name[16];
+	char	name[SFI_NAME_LEN];
 } __packed;
 
 struct sfi_gpio_table_entry {
-	char	controller_name[16];
+	char	controller_name[SFI_NAME_LEN];
 	u16	pin_no;
-	char	pin_name[16];
+	char	pin_name[SFI_NAME_LEN];
 } __packed;
 
 typedef int (*sfi_table_handler) (struct sfi_table_header *table);

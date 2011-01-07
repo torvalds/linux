@@ -98,6 +98,8 @@ static void ixgb_alloc_rx_buffers(struct ixgb_adapter *, int);
 static void ixgb_tx_timeout(struct net_device *dev);
 static void ixgb_tx_timeout_task(struct work_struct *work);
 
+static void ixgb_vlan_strip_enable(struct ixgb_adapter *adapter);
+static void ixgb_vlan_strip_disable(struct ixgb_adapter *adapter);
 static void ixgb_vlan_rx_register(struct net_device *netdev,
                                   struct vlan_group *grp);
 static void ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid);
@@ -525,7 +527,7 @@ ixgb_remove(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
-	flush_scheduled_work();
+	cancel_work_sync(&adapter->tx_timeout_task);
 
 	unregister_netdev(netdev);
 
@@ -669,13 +671,12 @@ ixgb_setup_tx_resources(struct ixgb_adapter *adapter)
 	int size;
 
 	size = sizeof(struct ixgb_buffer) * txdr->count;
-	txdr->buffer_info = vmalloc(size);
+	txdr->buffer_info = vzalloc(size);
 	if (!txdr->buffer_info) {
 		netif_err(adapter, probe, adapter->netdev,
 			  "Unable to allocate transmit descriptor ring memory\n");
 		return -ENOMEM;
 	}
-	memset(txdr->buffer_info, 0, size);
 
 	/* round up to nearest 4K */
 
@@ -759,13 +760,12 @@ ixgb_setup_rx_resources(struct ixgb_adapter *adapter)
 	int size;
 
 	size = sizeof(struct ixgb_buffer) * rxdr->count;
-	rxdr->buffer_info = vmalloc(size);
+	rxdr->buffer_info = vzalloc(size);
 	if (!rxdr->buffer_info) {
 		netif_err(adapter, probe, adapter->netdev,
 			  "Unable to allocate receive descriptor ring\n");
 		return -ENOMEM;
 	}
-	memset(rxdr->buffer_info, 0, size);
 
 	/* Round up to nearest 4K */
 
@@ -1078,6 +1078,8 @@ ixgb_set_multi(struct net_device *netdev)
 
 	if (netdev->flags & IFF_PROMISC) {
 		rctl |= (IXGB_RCTL_UPE | IXGB_RCTL_MPE);
+		/* disable VLAN filtering */
+		rctl &= ~IXGB_RCTL_CFIEN;
 		rctl &= ~IXGB_RCTL_VFE;
 	} else {
 		if (netdev->flags & IFF_ALLMULTI) {
@@ -1086,7 +1088,9 @@ ixgb_set_multi(struct net_device *netdev)
 		} else {
 			rctl &= ~(IXGB_RCTL_UPE | IXGB_RCTL_MPE);
 		}
+		/* enable VLAN filtering */
 		rctl |= IXGB_RCTL_VFE;
+		rctl &= ~IXGB_RCTL_CFIEN;
 	}
 
 	if (netdev_mc_count(netdev) > IXGB_MAX_NUM_MULTICAST_ADDRESSES) {
@@ -1105,6 +1109,12 @@ ixgb_set_multi(struct net_device *netdev)
 
 		ixgb_mc_addr_list_update(hw, mta, netdev_mc_count(netdev), 0);
 	}
+
+	if (netdev->features & NETIF_F_HW_VLAN_RX)
+		ixgb_vlan_strip_enable(adapter);
+	else
+		ixgb_vlan_strip_disable(adapter);
+
 }
 
 /**
@@ -1252,7 +1262,7 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		struct ixgb_buffer *buffer_info;
-		css = skb_transport_offset(skb);
+		css = skb_checksum_start_offset(skb);
 		cso = css + skb->csum_offset;
 
 		i = adapter->tx_ring.next_to_use;
@@ -2152,33 +2162,30 @@ static void
 ixgb_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
-	u32 ctrl, rctl;
 
-	ixgb_irq_disable(adapter);
 	adapter->vlgrp = grp;
+}
 
-	if (grp) {
-		/* enable VLAN tag insert/strip */
-		ctrl = IXGB_READ_REG(&adapter->hw, CTRL0);
-		ctrl |= IXGB_CTRL0_VME;
-		IXGB_WRITE_REG(&adapter->hw, CTRL0, ctrl);
+static void
+ixgb_vlan_strip_enable(struct ixgb_adapter *adapter)
+{
+	u32 ctrl;
 
-		/* enable VLAN receive filtering */
+	/* enable VLAN tag insert/strip */
+	ctrl = IXGB_READ_REG(&adapter->hw, CTRL0);
+	ctrl |= IXGB_CTRL0_VME;
+	IXGB_WRITE_REG(&adapter->hw, CTRL0, ctrl);
+}
 
-		rctl = IXGB_READ_REG(&adapter->hw, RCTL);
-		rctl &= ~IXGB_RCTL_CFIEN;
-		IXGB_WRITE_REG(&adapter->hw, RCTL, rctl);
-	} else {
-		/* disable VLAN tag insert/strip */
+static void
+ixgb_vlan_strip_disable(struct ixgb_adapter *adapter)
+{
+	u32 ctrl;
 
-		ctrl = IXGB_READ_REG(&adapter->hw, CTRL0);
-		ctrl &= ~IXGB_CTRL0_VME;
-		IXGB_WRITE_REG(&adapter->hw, CTRL0, ctrl);
-	}
-
-	/* don't enable interrupts unless we are UP */
-	if (adapter->netdev->flags & IFF_UP)
-		ixgb_irq_enable(adapter);
+	/* disable VLAN tag insert/strip */
+	ctrl = IXGB_READ_REG(&adapter->hw, CTRL0);
+	ctrl &= ~IXGB_CTRL0_VME;
+	IXGB_WRITE_REG(&adapter->hw, CTRL0, ctrl);
 }
 
 static void

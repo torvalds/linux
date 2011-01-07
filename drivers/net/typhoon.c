@@ -1004,7 +1004,6 @@ typhoon_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	}
 
 	strcpy(info->driver, KBUILD_MODNAME);
-	strcpy(info->version, UTS_RELEASE);
 	strcpy(info->bus_info, pci_name(pci_dev));
 }
 

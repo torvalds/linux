@@ -54,7 +54,7 @@ int ar9170_write_mem(struct ar9170 *ar, const __le32 *data, size_t len)
 
 int ar9170_write_reg(struct ar9170 *ar, const u32 reg, const u32 val)
 {
-	__le32 buf[2] = {
+	const __le32 buf[2] = {
 		cpu_to_le32(reg),
 		cpu_to_le32(val),
 	};

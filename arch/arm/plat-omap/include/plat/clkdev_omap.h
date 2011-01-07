@@ -8,7 +8,7 @@
 #ifndef __ARCH_ARM_PLAT_OMAP_INCLUDE_PLAT_CLKDEV_OMAP_H
 #define __ARCH_ARM_PLAT_OMAP_INCLUDE_PLAT_CLKDEV_OMAP_H
 
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 
 struct omap_clk {
 	u16				cpu;

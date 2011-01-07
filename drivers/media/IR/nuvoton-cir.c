@@ -603,6 +603,8 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 	count = nvt->pkts;
 	nvt_dbg_verbose("Processing buffer of len %d", count);
 
+	init_ir_raw_event(&rawir);
+
 	for (i = 0; i < count; i++) {
 		nvt->pkts--;
 		sample = nvt->buf[i];
@@ -643,10 +645,14 @@ static void nvt_process_rx_ir_data(struct nvt_dev *nvt)
 		 * indicates end of IR signal, but new data incoming. In both
 		 * cases, it means we're ready to call ir_raw_event_handle
 		 */
-		if (sample == BUF_PULSE_BIT || ((sample != BUF_LEN_MASK) &&
-		    (sample & BUF_REPEAT_MASK) == BUF_REPEAT_BYTE))
+		if ((sample == BUF_PULSE_BIT) && nvt->pkts) {
+			nvt_dbg("Calling ir_raw_event_handle (signal end)\n");
 			ir_raw_event_handle(nvt->rdev);
+		}
 	}
+
+	nvt_dbg("Calling ir_raw_event_handle (buffer empty)\n");
+	ir_raw_event_handle(nvt->rdev);
 
 	if (nvt->pkts) {
 		nvt_dbg("Odd, pkts should be 0 now... (its %u)", nvt->pkts);

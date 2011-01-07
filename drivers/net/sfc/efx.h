@@ -36,8 +36,6 @@ efx_hard_start_xmit(struct sk_buff *skb, struct net_device *net_dev);
 extern netdev_tx_t
 efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
 extern void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
-extern void efx_stop_queue(struct efx_channel *channel);
-extern void efx_wake_queue(struct efx_channel *channel);
 
 /* RX */
 extern int efx_probe_rx_queue(struct efx_rx_queue *rx_queue);
@@ -74,9 +72,8 @@ extern int efx_filter_insert_filter(struct efx_nic *efx,
 				    bool replace);
 extern int efx_filter_remove_filter(struct efx_nic *efx,
 				    struct efx_filter_spec *spec);
-extern void efx_filter_table_clear(struct efx_nic *efx,
-				   enum efx_filter_table_id table_id,
-				   enum efx_filter_priority priority);
+extern void efx_filter_clear_rx(struct efx_nic *efx,
+				enum efx_filter_priority priority);
 
 /* Channels */
 extern void efx_process_channel_now(struct efx_channel *channel);

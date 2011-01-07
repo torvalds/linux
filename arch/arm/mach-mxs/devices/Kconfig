@@ -1,0 +1,5 @@
+config MXS_HAVE_PLATFORM_DUART
+	bool
+
+config MXS_HAVE_PLATFORM_FEC
+	bool

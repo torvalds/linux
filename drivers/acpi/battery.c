@@ -130,8 +130,6 @@ struct acpi_battery {
 	unsigned long flags;
 };
 
-static int acpi_battery_update(struct acpi_battery *battery);
-
 #define to_acpi_battery(x) container_of(x, struct acpi_battery, bat);
 
 inline int acpi_battery_present(struct acpi_battery *battery)
@@ -185,9 +183,6 @@ static int acpi_battery_get_property(struct power_supply *psy,
 {
 	int ret = 0;
 	struct acpi_battery *battery = to_acpi_battery(psy);
-
-	if (acpi_battery_update(battery))
-		return -ENODEV;
 
 	if (acpi_battery_present(battery)) {
 		/* run battery update only if it is present */

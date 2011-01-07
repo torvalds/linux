@@ -10,12 +10,6 @@
 unsigned long long native_sched_clock(void);
 extern int recalibrate_cpu_khz(void);
 
-#if defined(CONFIG_X86_32) && defined(CONFIG_X86_IO_APIC)
-extern int timer_ack;
-#else
-# define timer_ack (0)
-#endif
-
 extern int no_timer_check;
 
 /* Accelerators for sched_clock()

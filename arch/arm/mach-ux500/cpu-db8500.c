@@ -22,23 +22,15 @@
 #include <mach/setup.h>
 #include <mach/devices.h>
 
+#include "devices-db8500.h"
+
 static struct platform_device *platform_devs[] __initdata = {
-	&u8500_gpio_devs[0],
-	&u8500_gpio_devs[1],
-	&u8500_gpio_devs[2],
-	&u8500_gpio_devs[3],
-	&u8500_gpio_devs[4],
-	&u8500_gpio_devs[5],
-	&u8500_gpio_devs[6],
-	&u8500_gpio_devs[7],
-	&u8500_gpio_devs[8],
 	&u8500_dma40_device,
 };
 
 /* minimum static i/o mapping required to boot U8500 platforms */
 static struct map_desc u8500_io_desc[] __initdata = {
 	__IO_DEV_DESC(U8500_PRCMU_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_PRCMU_TCDM_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GPIO0_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GPIO1_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GPIO2_BASE, SZ_4K),
@@ -46,13 +38,18 @@ static struct map_desc u8500_io_desc[] __initdata = {
 	__MEM_DEV_DESC(U8500_BOOT_ROM_BASE, SZ_1M),
 };
 
-static struct map_desc u8500ed_io_desc[] __initdata = {
+static struct map_desc u8500_ed_io_desc[] __initdata = {
 	__IO_DEV_DESC(U8500_MTU0_BASE_ED, SZ_4K),
 	__IO_DEV_DESC(U8500_CLKRST7_BASE_ED, SZ_8K),
 };
 
-static struct map_desc u8500v1_io_desc[] __initdata = {
+static struct map_desc u8500_v1_io_desc[] __initdata = {
 	__IO_DEV_DESC(U8500_MTU0_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_PRCMU_TCDM_BASE_V1, SZ_4K),
+};
+
+static struct map_desc u8500_v2_io_desc[] __initdata = {
+	__IO_DEV_DESC(U8500_PRCMU_TCDM_BASE, SZ_4K),
 };
 
 /*
@@ -125,12 +122,36 @@ void __init u8500_map_io(void)
 	iotable_init(u8500_io_desc, ARRAY_SIZE(u8500_io_desc));
 
 	if (cpu_is_u8500ed())
-		iotable_init(u8500ed_io_desc, ARRAY_SIZE(u8500ed_io_desc));
-	else
-		iotable_init(u8500v1_io_desc, ARRAY_SIZE(u8500v1_io_desc));
+		iotable_init(u8500_ed_io_desc, ARRAY_SIZE(u8500_ed_io_desc));
+	else if (cpu_is_u8500v1())
+		iotable_init(u8500_v1_io_desc, ARRAY_SIZE(u8500_v1_io_desc));
+	else if (cpu_is_u8500v2())
+		iotable_init(u8500_v2_io_desc, ARRAY_SIZE(u8500_v2_io_desc));
 
 	/* Read out the ASIC ID as early as we can */
 	get_db8500_asic_id();
+}
+
+static resource_size_t __initdata db8500_gpio_base[] = {
+	U8500_GPIOBANK0_BASE,
+	U8500_GPIOBANK1_BASE,
+	U8500_GPIOBANK2_BASE,
+	U8500_GPIOBANK3_BASE,
+	U8500_GPIOBANK4_BASE,
+	U8500_GPIOBANK5_BASE,
+	U8500_GPIOBANK6_BASE,
+	U8500_GPIOBANK7_BASE,
+	U8500_GPIOBANK8_BASE,
+};
+
+static void __init db8500_add_gpios(void)
+{
+	struct nmk_gpio_platform_data pdata = {
+		/* No custom data yet */
+	};
+
+	dbx500_add_gpios(ARRAY_AND_SIZE(db8500_gpio_base),
+			 IRQ_DB8500_GPIO0, &pdata);
 }
 
 /*
@@ -152,12 +173,13 @@ void __init u8500_init_devices(void)
 	else
 		pr_warning("ASIC: UNKNOWN SILICON VERSION!\n");
 
-	ux500_init_devices();
-
 	if (cpu_is_u8500ed())
 		dma40_u8500ed_fixup();
 
-	/* Register the platform devices */
+	db8500_add_rtc();
+	db8500_add_gpios();
+
+	platform_device_register_simple("cpufreq-u8500", -1, NULL, 0);
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 
 	return ;

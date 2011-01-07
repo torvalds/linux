@@ -12,95 +12,116 @@
 
 static u32 *flush_words;
 
-struct pci_device_id k8_nb_ids[] = {
+struct pci_device_id amd_nb_misc_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB_MISC) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_10H_NB_MISC) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_15H_NB_MISC) },
 	{}
 };
-EXPORT_SYMBOL(k8_nb_ids);
+EXPORT_SYMBOL(amd_nb_misc_ids);
 
-struct k8_northbridge_info k8_northbridges;
-EXPORT_SYMBOL(k8_northbridges);
+struct amd_northbridge_info amd_northbridges;
+EXPORT_SYMBOL(amd_northbridges);
 
-static struct pci_dev *next_k8_northbridge(struct pci_dev *dev)
+static struct pci_dev *next_northbridge(struct pci_dev *dev,
+					struct pci_device_id *ids)
 {
 	do {
 		dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev);
 		if (!dev)
 			break;
-	} while (!pci_match_id(&k8_nb_ids[0], dev));
+	} while (!pci_match_id(ids, dev));
 	return dev;
 }
 
-int cache_k8_northbridges(void)
+int amd_cache_northbridges(void)
 {
-	int i;
-	struct pci_dev *dev;
+	int i = 0;
+	struct amd_northbridge *nb;
+	struct pci_dev *misc;
 
-	if (k8_northbridges.num)
+	if (amd_nb_num())
 		return 0;
 
-	dev = NULL;
-	while ((dev = next_k8_northbridge(dev)) != NULL)
-		k8_northbridges.num++;
+	misc = NULL;
+	while ((misc = next_northbridge(misc, amd_nb_misc_ids)) != NULL)
+		i++;
+
+	if (i == 0)
+		return 0;
+
+	nb = kzalloc(i * sizeof(struct amd_northbridge), GFP_KERNEL);
+	if (!nb)
+		return -ENOMEM;
+
+	amd_northbridges.nb = nb;
+	amd_northbridges.num = i;
+
+	misc = NULL;
+	for (i = 0; i != amd_nb_num(); i++) {
+		node_to_amd_nb(i)->misc = misc =
+			next_northbridge(misc, amd_nb_misc_ids);
+        }
 
 	/* some CPU families (e.g. family 0x11) do not support GART */
 	if (boot_cpu_data.x86 == 0xf || boot_cpu_data.x86 == 0x10 ||
 	    boot_cpu_data.x86 == 0x15)
-		k8_northbridges.gart_supported = 1;
+		amd_northbridges.flags |= AMD_NB_GART;
 
-	k8_northbridges.nb_misc = kmalloc((k8_northbridges.num + 1) *
-					  sizeof(void *), GFP_KERNEL);
-	if (!k8_northbridges.nb_misc)
-		return -ENOMEM;
+	/*
+	 * Some CPU families support L3 Cache Index Disable. There are some
+	 * limitations because of E382 and E388 on family 0x10.
+	 */
+	if (boot_cpu_data.x86 == 0x10 &&
+	    boot_cpu_data.x86_model >= 0x8 &&
+	    (boot_cpu_data.x86_model > 0x9 ||
+	     boot_cpu_data.x86_mask >= 0x1))
+		amd_northbridges.flags |= AMD_NB_L3_INDEX_DISABLE;
 
-	if (!k8_northbridges.num) {
-		k8_northbridges.nb_misc[0] = NULL;
-		return 0;
-	}
-
-	if (k8_northbridges.gart_supported) {
-		flush_words = kmalloc(k8_northbridges.num * sizeof(u32),
-				      GFP_KERNEL);
-		if (!flush_words) {
-			kfree(k8_northbridges.nb_misc);
-			return -ENOMEM;
-		}
-	}
-
-	dev = NULL;
-	i = 0;
-	while ((dev = next_k8_northbridge(dev)) != NULL) {
-		k8_northbridges.nb_misc[i] = dev;
-		if (k8_northbridges.gart_supported)
-			pci_read_config_dword(dev, 0x9c, &flush_words[i++]);
-	}
-	k8_northbridges.nb_misc[i] = NULL;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cache_k8_northbridges);
+EXPORT_SYMBOL_GPL(amd_cache_northbridges);
 
 /* Ignores subdevice/subvendor but as far as I can figure out
    they're useless anyways */
-int __init early_is_k8_nb(u32 device)
+int __init early_is_amd_nb(u32 device)
 {
 	struct pci_device_id *id;
 	u32 vendor = device & 0xffff;
 	device >>= 16;
-	for (id = k8_nb_ids; id->vendor; id++)
+	for (id = amd_nb_misc_ids; id->vendor; id++)
 		if (vendor == id->vendor && device == id->device)
 			return 1;
 	return 0;
 }
 
-void k8_flush_garts(void)
+int amd_cache_gart(void)
+{
+       int i;
+
+       if (!amd_nb_has_feature(AMD_NB_GART))
+               return 0;
+
+       flush_words = kmalloc(amd_nb_num() * sizeof(u32), GFP_KERNEL);
+       if (!flush_words) {
+               amd_northbridges.flags &= ~AMD_NB_GART;
+               return -ENOMEM;
+       }
+
+       for (i = 0; i != amd_nb_num(); i++)
+               pci_read_config_dword(node_to_amd_nb(i)->misc, 0x9c,
+                                     &flush_words[i]);
+
+       return 0;
+}
+
+void amd_flush_garts(void)
 {
 	int flushed, i;
 	unsigned long flags;
 	static DEFINE_SPINLOCK(gart_lock);
 
-	if (!k8_northbridges.gart_supported)
+	if (!amd_nb_has_feature(AMD_NB_GART))
 		return;
 
 	/* Avoid races between AGP and IOMMU. In theory it's not needed
@@ -109,16 +130,16 @@ void k8_flush_garts(void)
 	   that it doesn't matter to serialize more. -AK */
 	spin_lock_irqsave(&gart_lock, flags);
 	flushed = 0;
-	for (i = 0; i < k8_northbridges.num; i++) {
-		pci_write_config_dword(k8_northbridges.nb_misc[i], 0x9c,
-				       flush_words[i]|1);
+	for (i = 0; i < amd_nb_num(); i++) {
+		pci_write_config_dword(node_to_amd_nb(i)->misc, 0x9c,
+				       flush_words[i] | 1);
 		flushed++;
 	}
-	for (i = 0; i < k8_northbridges.num; i++) {
+	for (i = 0; i < amd_nb_num(); i++) {
 		u32 w;
 		/* Make sure the hardware actually executed the flush*/
 		for (;;) {
-			pci_read_config_dword(k8_northbridges.nb_misc[i],
+			pci_read_config_dword(node_to_amd_nb(i)->misc,
 					      0x9c, &w);
 			if (!(w & 1))
 				break;
@@ -129,19 +150,23 @@ void k8_flush_garts(void)
 	if (!flushed)
 		printk("nothing to flush?\n");
 }
-EXPORT_SYMBOL_GPL(k8_flush_garts);
+EXPORT_SYMBOL_GPL(amd_flush_garts);
 
-static __init int init_k8_nbs(void)
+static __init int init_amd_nbs(void)
 {
 	int err = 0;
 
-	err = cache_k8_northbridges();
+	err = amd_cache_northbridges();
 
 	if (err < 0)
-		printk(KERN_NOTICE "K8 NB: Cannot enumerate AMD northbridges.\n");
+		printk(KERN_NOTICE "AMD NB: Cannot enumerate AMD northbridges.\n");
+
+	if (amd_cache_gart() < 0)
+		printk(KERN_NOTICE "AMD NB: Cannot initialize GART flush words, "
+		       "GART support disabled.\n");
 
 	return err;
 }
 
 /* This has to go after the PCI subsystem */
-fs_initcall(init_k8_nbs);
+fs_initcall(init_amd_nbs);

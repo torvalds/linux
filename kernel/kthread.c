@@ -148,7 +148,7 @@ struct task_struct *kthread_create(int (*threadfn)(void *data),
 	wait_for_completion(&create.done);
 
 	if (!IS_ERR(create.result)) {
-		struct sched_param param = { .sched_priority = 0 };
+		static struct sched_param param = { .sched_priority = 0 };
 		va_list args;
 
 		va_start(args, namefmt);
@@ -264,6 +264,17 @@ int kthreadd(void *unused)
 
 	return 0;
 }
+
+void __init_kthread_worker(struct kthread_worker *worker,
+				const char *name,
+				struct lock_class_key *key)
+{
+	spin_lock_init(&worker->lock);
+	lockdep_set_class_and_name(&worker->lock, key, name);
+	INIT_LIST_HEAD(&worker->work_list);
+	worker->task = NULL;
+}
+EXPORT_SYMBOL_GPL(__init_kthread_worker);
 
 /**
  * kthread_worker_fn - kthread function to process kthread_worker

@@ -434,7 +434,12 @@ struct shared_feat_cfg {				 /* NVRAM Offset */
 #define SHARED_FEAT_CFG_OVERRIDE_PREEMPHASIS_CFG_DISABLED     0x00000000
 #define SHARED_FEAT_CFG_OVERRIDE_PREEMPHASIS_CFG_ENABLED      0x00000002
 
-#define SHARED_FEATURE_MF_MODE_DISABLED 	    0x00000100
+#define SHARED_FEAT_CFG_FORCE_SF_MODE_MASK		      0x00000700
+#define SHARED_FEAT_CFG_FORCE_SF_MODE_SHIFT		      8
+#define SHARED_FEAT_CFG_FORCE_SF_MODE_MF_ALLOWED	      0x00000000
+#define SHARED_FEAT_CFG_FORCE_SF_MODE_FORCED_SF		      0x00000100
+#define SHARED_FEAT_CFG_FORCE_SF_MODE_SPIO4		      0x00000200
+#define SHARED_FEAT_CFG_FORCE_SF_MODE_SWITCH_INDEPT	      0x00000300
 
 };
 
@@ -679,7 +684,7 @@ struct shm_dev_info {						    /* size */
 #define E1VN_MAX			1
 #define E1HVN_MAX			4
 
-
+#define E2_VF_MAX			64
 /* This value (in milliseconds) determines the frequency of the driver
  * issuing the PULSE message code.  The firmware monitors this periodic
  * pulse to determine when to switch to an OS-absent mode. */
@@ -815,6 +820,11 @@ struct drv_func_mb {
 #define DRV_MSG_CODE_VRFY_SPECIFIC_PHY_OPT_MDL	    0xa1000000
 #define REQ_BC_VER_4_VRFY_SPECIFIC_PHY_OPT_MDL	    0x00050234
 
+#define DRV_MSG_CODE_DCBX_ADMIN_PMF_MSG			0xb0000000
+#define DRV_MSG_CODE_DCBX_PMF_DRV_OK			0xb2000000
+#define DRV_MSG_CODE_SET_MF_BW				0xe0000000
+#define REQ_BC_VER_4_SET_MF_BW				0x00060202
+#define DRV_MSG_CODE_SET_MF_BW_ACK			0xe1000000
 #define BIOS_MSG_CODE_LIC_CHALLENGE			0xff010000
 #define BIOS_MSG_CODE_LIC_RESPONSE			0xff020000
 #define BIOS_MSG_CODE_VIRT_MAC_PRIM			0xff030000
@@ -888,6 +898,7 @@ struct drv_func_mb {
 
 	u32 drv_status;
 #define DRV_STATUS_PMF					0x00000001
+#define DRV_STATUS_SET_MF_BW				0x00000004
 
 #define DRV_STATUS_DCC_EVENT_MASK			0x0000ff00
 #define DRV_STATUS_DCC_DISABLE_ENABLE_PF		0x00000100
@@ -896,6 +907,8 @@ struct drv_func_mb {
 #define DRV_STATUS_DCC_RESERVED1			0x00000800
 #define DRV_STATUS_DCC_SET_PROTOCOL			0x00001000
 #define DRV_STATUS_DCC_SET_PRIORITY			0x00002000
+#define DRV_STATUS_DCBX_EVENT_MASK			0x000f0000
+#define DRV_STATUS_DCBX_NEGOTIATION_RESULTS		0x00010000
 
 	u32 virt_mac_upper;
 #define VIRT_MAC_SIGN_MASK				0xffff0000
@@ -988,12 +1001,43 @@ struct func_mf_cfg {
 
 };
 
+/* This structure is not applicable and should not be accessed on 57711 */
+struct func_ext_cfg {
+	u32 func_cfg;
+#define MACP_FUNC_CFG_FLAGS_MASK			      0x000000FF
+#define MACP_FUNC_CFG_FLAGS_SHIFT			      0
+#define MACP_FUNC_CFG_FLAGS_ENABLED			      0x00000001
+#define MACP_FUNC_CFG_FLAGS_ETHERNET			      0x00000002
+#define MACP_FUNC_CFG_FLAGS_ISCSI_OFFLOAD		      0x00000004
+#define MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD		      0x00000008
+
+	u32 iscsi_mac_addr_upper;
+	u32 iscsi_mac_addr_lower;
+
+	u32 fcoe_mac_addr_upper;
+	u32 fcoe_mac_addr_lower;
+
+	u32 fcoe_wwn_port_name_upper;
+	u32 fcoe_wwn_port_name_lower;
+
+	u32 fcoe_wwn_node_name_upper;
+	u32 fcoe_wwn_node_name_lower;
+
+	u32 preserve_data;
+#define MF_FUNC_CFG_PRESERVE_L2_MAC			     (1<<0)
+#define MF_FUNC_CFG_PRESERVE_ISCSI_MAC			     (1<<1)
+#define MF_FUNC_CFG_PRESERVE_FCOE_MAC			     (1<<2)
+#define MF_FUNC_CFG_PRESERVE_FCOE_WWN_P			     (1<<3)
+#define MF_FUNC_CFG_PRESERVE_FCOE_WWN_N			     (1<<4)
+};
+
 struct mf_cfg {
 
 	struct shared_mf_cfg	shared_mf_config;
 	struct port_mf_cfg	port_mf_config[PORT_MAX];
 	struct func_mf_cfg	func_mf_config[E1H_FUNC_MAX];
 
+	struct func_ext_cfg func_ext_config[E1H_FUNC_MAX];
 };
 
 
@@ -1049,6 +1093,251 @@ struct fw_flr_mb {
 	struct	fw_flr_ack ack;
 };
 
+/**** SUPPORT FOR SHMEM ARRRAYS ***
+ * The SHMEM HSI is aligned on 32 bit boundaries which makes it difficult to
+ * define arrays with storage types smaller then unsigned dwords.
+ * The macros below add generic support for SHMEM arrays with numeric elements
+ * that can span 2,4,8 or 16 bits. The array underlying type is a 32 bit dword
+ * array with individual bit-filed elements accessed using shifts and masks.
+ *
+ */
+
+/* eb is the bitwidth of a single element */
+#define SHMEM_ARRAY_MASK(eb)		((1<<(eb))-1)
+#define SHMEM_ARRAY_ENTRY(i, eb)	((i)/(32/(eb)))
+
+/* the bit-position macro allows the used to flip the order of the arrays
+ * elements on a per byte or word boundary.
+ *
+ * example: an array with 8 entries each 4 bit wide. This array will fit into
+ * a single dword. The diagrmas below show the array order of the nibbles.
+ *
+ * SHMEM_ARRAY_BITPOS(i, 4, 4) defines the stadard ordering:
+ *
+ *		|		|		|		|
+ *   0	|   1	|   2	|   3	|   4	|   5	|   6	|   7	|
+ *		|		|		|		|
+ *
+ * SHMEM_ARRAY_BITPOS(i, 4, 8) defines a flip ordering per byte:
+ *
+ *		|		|		|		|
+ *   1	|   0	|   3	|   2	|   5	|   4	|   7	|   6	|
+ *		|		|		|		|
+ *
+ * SHMEM_ARRAY_BITPOS(i, 4, 16) defines a flip ordering per word:
+ *
+ *		|		|		|		|
+ *   3	|   2	|   1	|   0	|   7	|   6	|   5	|   4	|
+ *		|		|		|		|
+ */
+#define SHMEM_ARRAY_BITPOS(i, eb, fb)	\
+	((((32/(fb)) - 1 - ((i)/((fb)/(eb))) % (32/(fb))) * (fb)) + \
+	(((i)%((fb)/(eb))) * (eb)))
+
+#define SHMEM_ARRAY_GET(a, i, eb, fb)					   \
+	((a[SHMEM_ARRAY_ENTRY(i, eb)] >> SHMEM_ARRAY_BITPOS(i, eb, fb)) &  \
+	SHMEM_ARRAY_MASK(eb))
+
+#define SHMEM_ARRAY_SET(a, i, eb, fb, val)				   \
+do {									   \
+	a[SHMEM_ARRAY_ENTRY(i, eb)] &= ~(SHMEM_ARRAY_MASK(eb) <<	   \
+	SHMEM_ARRAY_BITPOS(i, eb, fb));				   \
+	a[SHMEM_ARRAY_ENTRY(i, eb)] |= (((val) & SHMEM_ARRAY_MASK(eb)) <<  \
+	SHMEM_ARRAY_BITPOS(i, eb, fb));				   \
+} while (0)
+
+
+/****START OF DCBX STRUCTURES DECLARATIONS****/
+#define DCBX_MAX_NUM_PRI_PG_ENTRIES	8
+#define DCBX_PRI_PG_BITWIDTH		4
+#define DCBX_PRI_PG_FBITS		8
+#define DCBX_PRI_PG_GET(a, i)		\
+	SHMEM_ARRAY_GET(a, i, DCBX_PRI_PG_BITWIDTH, DCBX_PRI_PG_FBITS)
+#define DCBX_PRI_PG_SET(a, i, val)	\
+	SHMEM_ARRAY_SET(a, i, DCBX_PRI_PG_BITWIDTH, DCBX_PRI_PG_FBITS, val)
+#define DCBX_MAX_NUM_PG_BW_ENTRIES	8
+#define DCBX_BW_PG_BITWIDTH		8
+#define DCBX_PG_BW_GET(a, i)		\
+	SHMEM_ARRAY_GET(a, i, DCBX_BW_PG_BITWIDTH, DCBX_BW_PG_BITWIDTH)
+#define DCBX_PG_BW_SET(a, i, val)	\
+	SHMEM_ARRAY_SET(a, i, DCBX_BW_PG_BITWIDTH, DCBX_BW_PG_BITWIDTH, val)
+#define DCBX_STRICT_PRI_PG		15
+#define DCBX_MAX_APP_PROTOCOL		16
+#define FCOE_APP_IDX			0
+#define ISCSI_APP_IDX			1
+#define PREDEFINED_APP_IDX_MAX		2
+
+struct dcbx_ets_feature {
+	u32 enabled;
+	u32  pg_bw_tbl[2];
+	u32  pri_pg_tbl[1];
+};
+
+struct dcbx_pfc_feature {
+#ifdef __BIG_ENDIAN
+	u8 pri_en_bitmap;
+#define DCBX_PFC_PRI_0 0x01
+#define DCBX_PFC_PRI_1 0x02
+#define DCBX_PFC_PRI_2 0x04
+#define DCBX_PFC_PRI_3 0x08
+#define DCBX_PFC_PRI_4 0x10
+#define DCBX_PFC_PRI_5 0x20
+#define DCBX_PFC_PRI_6 0x40
+#define DCBX_PFC_PRI_7 0x80
+	u8 pfc_caps;
+	u8 reserved;
+	u8 enabled;
+#elif defined(__LITTLE_ENDIAN)
+	u8 enabled;
+	u8 reserved;
+	u8 pfc_caps;
+	u8 pri_en_bitmap;
+#define DCBX_PFC_PRI_0 0x01
+#define DCBX_PFC_PRI_1 0x02
+#define DCBX_PFC_PRI_2 0x04
+#define DCBX_PFC_PRI_3 0x08
+#define DCBX_PFC_PRI_4 0x10
+#define DCBX_PFC_PRI_5 0x20
+#define DCBX_PFC_PRI_6 0x40
+#define DCBX_PFC_PRI_7 0x80
+#endif
+};
+
+struct dcbx_app_priority_entry {
+#ifdef __BIG_ENDIAN
+	u16	app_id;
+	u8	pri_bitmap;
+	u8	appBitfield;
+#define DCBX_APP_ENTRY_VALID	     0x01
+#define DCBX_APP_ENTRY_SF_MASK	     0x30
+#define DCBX_APP_ENTRY_SF_SHIFT	     4
+#define DCBX_APP_SF_ETH_TYPE	     0x10
+#define DCBX_APP_SF_PORT	     0x20
+#elif defined(__LITTLE_ENDIAN)
+	u8 appBitfield;
+#define DCBX_APP_ENTRY_VALID	     0x01
+#define DCBX_APP_ENTRY_SF_MASK	     0x30
+#define DCBX_APP_ENTRY_SF_SHIFT	     4
+#define DCBX_APP_SF_ETH_TYPE	     0x10
+#define DCBX_APP_SF_PORT	     0x20
+	u8	pri_bitmap;
+	u16	app_id;
+#endif
+};
+
+struct dcbx_app_priority_feature {
+#ifdef __BIG_ENDIAN
+	u8 reserved;
+	u8 default_pri;
+	u8 tc_supported;
+	u8 enabled;
+#elif defined(__LITTLE_ENDIAN)
+	u8 enabled;
+	u8 tc_supported;
+	u8 default_pri;
+	u8 reserved;
+#endif
+	struct dcbx_app_priority_entry  app_pri_tbl[DCBX_MAX_APP_PROTOCOL];
+};
+
+struct dcbx_features {
+	struct dcbx_ets_feature ets;
+	struct dcbx_pfc_feature pfc;
+	struct dcbx_app_priority_feature app;
+};
+
+struct lldp_params {
+#ifdef __BIG_ENDIAN
+	u8	msg_fast_tx_interval;
+	u8	msg_tx_hold;
+	u8	msg_tx_interval;
+	u8	admin_status;
+#define LLDP_TX_ONLY  0x01
+#define LLDP_RX_ONLY  0x02
+#define LLDP_TX_RX    0x03
+#define LLDP_DISABLED 0x04
+	u8	reserved1;
+	u8	tx_fast;
+	u8	tx_crd_max;
+	u8	tx_crd;
+#elif defined(__LITTLE_ENDIAN)
+	u8	admin_status;
+#define LLDP_TX_ONLY  0x01
+#define LLDP_RX_ONLY  0x02
+#define LLDP_TX_RX    0x03
+#define LLDP_DISABLED 0x04
+	u8	msg_tx_interval;
+	u8	msg_tx_hold;
+	u8	msg_fast_tx_interval;
+	u8	tx_crd;
+	u8	tx_crd_max;
+	u8	tx_fast;
+	u8	reserved1;
+#endif
+#define REM_CHASSIS_ID_STAT_LEN	4
+#define REM_PORT_ID_STAT_LEN 4
+	u32 peer_chassis_id[REM_CHASSIS_ID_STAT_LEN];
+	u32 peer_port_id[REM_PORT_ID_STAT_LEN];
+};
+
+struct lldp_dcbx_stat {
+#define LOCAL_CHASSIS_ID_STAT_LEN 2
+#define LOCAL_PORT_ID_STAT_LEN 2
+	u32 local_chassis_id[LOCAL_CHASSIS_ID_STAT_LEN];
+	u32 local_port_id[LOCAL_PORT_ID_STAT_LEN];
+	u32 num_tx_dcbx_pkts;
+	u32 num_rx_dcbx_pkts;
+};
+
+struct lldp_admin_mib {
+	u32	ver_cfg_flags;
+#define DCBX_ETS_CONFIG_TX_ENABLED	0x00000001
+#define DCBX_PFC_CONFIG_TX_ENABLED	0x00000002
+#define DCBX_APP_CONFIG_TX_ENABLED	0x00000004
+#define DCBX_ETS_RECO_TX_ENABLED	0x00000008
+#define DCBX_ETS_RECO_VALID		0x00000010
+#define DCBX_ETS_WILLING		0x00000020
+#define DCBX_PFC_WILLING		0x00000040
+#define DCBX_APP_WILLING		0x00000080
+#define DCBX_VERSION_CEE		0x00000100
+#define DCBX_VERSION_IEEE		0x00000200
+#define DCBX_DCBX_ENABLED		0x00000400
+#define DCBX_CEE_VERSION_MASK		0x0000f000
+#define DCBX_CEE_VERSION_SHIFT		12
+#define DCBX_CEE_MAX_VERSION_MASK	0x000f0000
+#define DCBX_CEE_MAX_VERSION_SHIFT	16
+	struct dcbx_features	features;
+};
+
+struct lldp_remote_mib {
+	u32 prefix_seq_num;
+	u32 flags;
+#define DCBX_ETS_TLV_RX	    0x00000001
+#define DCBX_PFC_TLV_RX	    0x00000002
+#define DCBX_APP_TLV_RX	    0x00000004
+#define DCBX_ETS_RX_ERROR   0x00000010
+#define DCBX_PFC_RX_ERROR   0x00000020
+#define DCBX_APP_RX_ERROR   0x00000040
+#define DCBX_ETS_REM_WILLING	0x00000100
+#define DCBX_PFC_REM_WILLING	0x00000200
+#define DCBX_APP_REM_WILLING	0x00000400
+#define DCBX_REMOTE_ETS_RECO_VALID  0x00001000
+	struct dcbx_features features;
+	u32 suffix_seq_num;
+};
+
+struct lldp_local_mib {
+	u32 prefix_seq_num;
+	u32 error;
+#define DCBX_LOCAL_ETS_ERROR	 0x00000001
+#define DCBX_LOCAL_PFC_ERROR	 0x00000002
+#define DCBX_LOCAL_APP_ERROR	 0x00000004
+#define DCBX_LOCAL_PFC_MISMATCH	 0x00000010
+#define DCBX_LOCAL_APP_MISMATCH	 0x00000020
+	struct dcbx_features   features;
+	u32 suffix_seq_num;
+};
+/***END OF DCBX STRUCTURES DECLARATIONS***/
 
 struct shmem2_region {
 
@@ -1072,7 +1361,12 @@ struct shmem2_region {
 #define SHMEM_MF_CFG_ADDR_NONE			    0x00000000
 
 	struct fw_flr_mb flr_mb;
-	u32	reserved[3];
+	u32	dcbx_lldp_params_offset;
+#define SHMEM_LLDP_DCBX_PARAMS_NONE		    0x00000000
+	u32	dcbx_neg_res_offset;
+#define SHMEM_DCBX_NEG_RES_NONE			    0x00000000
+	u32	dcbx_remote_mib_offset;
+#define SHMEM_DCBX_REMOTE_MIB_NONE		    0x00000000
 	/*
 	 * The other shmemX_base_addr holds the other path's shmem address
 	 * required for example in case of common phy init, or for path1 to know
@@ -1081,6 +1375,10 @@ struct shmem2_region {
 	 */
 	u32 other_shmem_base_addr;
 	u32 other_shmem2_base_addr;
+	u32	reserved1[E2_VF_MAX / 32];
+	u32	reserved2[E2_FUNC_MAX][E2_VF_MAX / 32];
+	u32	dcbx_lldp_dcbx_stat_offset;
+#define SHMEM_LLDP_DCBX_STAT_NONE		   0x00000000
 };
 
 
@@ -1534,8 +1832,8 @@ struct host_func_stats {
 
 
 #define BCM_5710_FW_MAJOR_VERSION			6
-#define BCM_5710_FW_MINOR_VERSION			0
-#define BCM_5710_FW_REVISION_VERSION			34
+#define BCM_5710_FW_MINOR_VERSION			2
+#define BCM_5710_FW_REVISION_VERSION			5
 #define BCM_5710_FW_ENGINEERING_VERSION			0
 #define BCM_5710_FW_COMPILE_FLAGS			1
 
@@ -2979,6 +3277,25 @@ struct fairness_vars_per_vn {
 	u32 protocol_credit_delta[NUM_OF_PROTOCOLS];
 	u32 vn_credit_delta;
 	u32 __reserved0;
+};
+
+
+/*
+ * The data for flow control configuration
+ */
+struct flow_control_configuration {
+	struct priority_cos
+		traffic_type_to_priority_cos[MAX_PFC_TRAFFIC_TYPES];
+#if defined(__BIG_ENDIAN)
+	u16 reserved1;
+	u8 dcb_version;
+	u8 dcb_enabled;
+#elif defined(__LITTLE_ENDIAN)
+	u8 dcb_enabled;
+	u8 dcb_version;
+	u16 reserved1;
+#endif
+	u32 reserved2;
 };
 
 

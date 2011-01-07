@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) 82576 Virtual Function Linux driver
-  Copyright(c) 2009 Intel Corporation.
+  Copyright(c) 2009 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -108,11 +108,6 @@ static int igbvf_get_settings(struct net_device *netdev,
 	ecmd->autoneg = AUTONEG_DISABLE;
 
 	return 0;
-}
-
-static u32 igbvf_get_link(struct net_device *netdev)
-{
-	return netif_carrier_ok(netdev);
 }
 
 static int igbvf_set_settings(struct net_device *netdev,
@@ -515,7 +510,7 @@ static const struct ethtool_ops igbvf_ethtool_ops = {
 	.get_msglevel		= igbvf_get_msglevel,
 	.set_msglevel		= igbvf_set_msglevel,
 	.nway_reset		= igbvf_nway_reset,
-	.get_link		= igbvf_get_link,
+	.get_link		= ethtool_op_get_link,
 	.get_eeprom_len		= igbvf_get_eeprom_len,
 	.get_eeprom		= igbvf_get_eeprom,
 	.set_eeprom		= igbvf_set_eeprom,

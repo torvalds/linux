@@ -732,6 +732,9 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 		case 0x14:
 			cpu_type = "x86-64/family14h";
 			break;
+		case 0x15:
+			cpu_type = "x86-64/family15h";
+			break;
 		default:
 			return -ENODEV;
 		}

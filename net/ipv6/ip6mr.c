@@ -1843,9 +1843,7 @@ static int ip6mr_forward2(struct net *net, struct mr6_table *mrt,
 
 	fl = (struct flowi) {
 		.oif = vif->link,
-		.nl_u = { .ip6_u =
-				{ .daddr = ipv6h->daddr, }
-		}
+		.fl6_dst = ipv6h->daddr,
 	};
 
 	dst = ip6_route_output(net, NULL, &fl);

@@ -77,7 +77,8 @@ static inline void device_set_run_wake(struct device *dev, bool enable)
 
 static inline bool pm_runtime_suspended(struct device *dev)
 {
-	return dev->power.runtime_status == RPM_SUSPENDED;
+	return dev->power.runtime_status == RPM_SUSPENDED
+		&& !dev->power.disable_depth;
 }
 
 static inline void pm_runtime_mark_last_busy(struct device *dev)

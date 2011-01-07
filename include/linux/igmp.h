@@ -85,9 +85,9 @@ struct igmpv3_query {
 #define IGMP_DVMRP			0x13	/* DVMRP routing */
 #define IGMP_PIM			0x14	/* PIM routing */
 #define IGMP_TRACE			0x15
-#define IGMPV2_HOST_MEMBERSHIP_REPORT	0x16	/* V2 version of 0x11 */
+#define IGMPV2_HOST_MEMBERSHIP_REPORT	0x16	/* V2 version of 0x12 */
 #define IGMP_HOST_LEAVE_MESSAGE 	0x17
-#define IGMPV3_HOST_MEMBERSHIP_REPORT	0x22	/* V3 version of 0x11 */
+#define IGMPV3_HOST_MEMBERSHIP_REPORT	0x22	/* V3 version of 0x12 */
 
 #define IGMP_MTRACE_RESP		0x1e
 #define IGMP_MTRACE			0x1f
@@ -167,10 +167,10 @@ struct ip_sf_socklist {
  */
 
 struct ip_mc_socklist {
-	struct ip_mc_socklist	*next;
+	struct ip_mc_socklist __rcu *next_rcu;
 	struct ip_mreqn		multi;
 	unsigned int		sfmode;		/* MCAST_{INCLUDE,EXCLUDE} */
-	struct ip_sf_socklist	*sflist;
+	struct ip_sf_socklist __rcu	*sflist;
 	struct rcu_head		rcu;
 };
 
@@ -186,11 +186,14 @@ struct ip_sf_list {
 struct ip_mc_list {
 	struct in_device	*interface;
 	__be32			multiaddr;
+	unsigned int		sfmode;
 	struct ip_sf_list	*sources;
 	struct ip_sf_list	*tomb;
-	unsigned int		sfmode;
 	unsigned long		sfcount[2];
-	struct ip_mc_list	*next;
+	union {
+		struct ip_mc_list *next;
+		struct ip_mc_list __rcu *next_rcu;
+	};
 	struct timer_list	timer;
 	int			users;
 	atomic_t		refcnt;
@@ -201,6 +204,7 @@ struct ip_mc_list {
 	char			loaded;
 	unsigned char		gsquery;	/* check source marks? */
 	unsigned char		crcount;
+	struct rcu_head		rcu;
 };
 
 /* V3 exponential field decoding */
@@ -234,7 +238,7 @@ extern void ip_mc_unmap(struct in_device *);
 extern void ip_mc_remap(struct in_device *);
 extern void ip_mc_dec_group(struct in_device *in_dev, __be32 addr);
 extern void ip_mc_inc_group(struct in_device *in_dev, __be32 addr);
-extern void ip_mc_rejoin_group(struct ip_mc_list *im);
+extern void ip_mc_rejoin_groups(struct in_device *in_dev);
 
 #endif
 #endif

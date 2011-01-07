@@ -41,17 +41,13 @@ static inline unsigned packet_length(const struct sk_buff *skb)
 
 int br_dev_queue_push_xmit(struct sk_buff *skb)
 {
-	/* drop mtu oversized packets except gso */
-	if (packet_length(skb) > skb->dev->mtu && !skb_is_gso(skb))
+	/* ip_fragment doesn't copy the MAC header */
+	if (nf_bridge_maybe_copy_header(skb) ||
+	    (packet_length(skb) > skb->dev->mtu && !skb_is_gso(skb))) {
 		kfree_skb(skb);
-	else {
-		/* ip_fragment doesn't copy the MAC header */
-		if (nf_bridge_maybe_copy_header(skb))
-			kfree_skb(skb);
-		else {
-			skb_push(skb, ETH_HLEN);
-			dev_queue_xmit(skb);
-		}
+	} else {
+		skb_push(skb, ETH_HLEN);
+		dev_queue_xmit(skb);
 	}
 
 	return 0;
@@ -223,7 +219,7 @@ static void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 	struct net_bridge_port_group *p;
 	struct hlist_node *rp;
 
-	rp = rcu_dereference(br->router_list.first);
+	rp = rcu_dereference(hlist_first_rcu(&br->router_list));
 	p = mdst ? rcu_dereference(mdst->ports) : NULL;
 	while (p || rp) {
 		struct net_bridge_port *port, *lport, *rport;
@@ -242,7 +238,7 @@ static void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 		if ((unsigned long)lport >= (unsigned long)port)
 			p = rcu_dereference(p->next);
 		if ((unsigned long)rport >= (unsigned long)port)
-			rp = rcu_dereference(rp->next);
+			rp = rcu_dereference(hlist_next_rcu(rp));
 	}
 
 	if (!prev)

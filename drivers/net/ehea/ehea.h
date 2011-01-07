@@ -130,19 +130,6 @@
 
 /* utility functions */
 
-#define ehea_info(fmt, args...) \
-	printk(KERN_INFO DRV_NAME ": " fmt "\n", ## args)
-
-#define ehea_error(fmt, args...) \
-	printk(KERN_ERR DRV_NAME ": Error in %s: " fmt "\n", __func__, ## args)
-
-#ifdef DEBUG
-#define ehea_debug(fmt, args...) \
-	printk(KERN_DEBUG DRV_NAME ": " fmt, ## args)
-#else
-#define ehea_debug(fmt, args...) do {} while (0)
-#endif
-
 void ehea_dump(void *adr, int len, char *msg);
 
 #define EHEA_BMASK(pos, length) (((pos) << 16) + (length))
@@ -514,7 +501,5 @@ enum ehea_flag_bits {
 void ehea_set_ethtool_ops(struct net_device *netdev);
 int ehea_sense_port_attr(struct ehea_port *port);
 int ehea_set_portspeed(struct ehea_port *port, u32 port_speed);
-
-extern struct work_struct ehea_rereg_mr_task;
 
 #endif	/* __EHEA_H__ */

@@ -47,6 +47,7 @@
 #include <mach/mmc.h>
 #include <mach/irda.h>
 #include <mach/ohci.h>
+#include <mach/smemc.h>
 #include <plat/i2c.h>
 
 #include "generic.h"
@@ -539,10 +540,10 @@ static void __init trizeps4_init(void)
 
 static void __init trizeps4_map_io(void)
 {
-	pxa_map_io();
+	pxa27x_map_io();
 	iotable_init(trizeps4_io_desc, ARRAY_SIZE(trizeps4_io_desc));
 
-	if ((MSC0 & 0x8) && (BOOT_DEF & 0x1)) {
+	if ((__raw_readl(MSC0) & 0x8) && (__raw_readl(BOOT_DEF) & 0x1)) {
 		/* if flash is 16 bit wide its a Trizeps4 WL */
 		__machine_arch_type = MACH_TYPE_TRIZEPS4WL;
 		trizeps4_flash_data[0].width = 2;
