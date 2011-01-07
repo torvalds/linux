@@ -27,7 +27,7 @@
 
 #define IRQ_PCIINTA	5		/* PCI INTA IRQ */
 #define IRQ_PCIINTB	6		/* PCI INTB IRQ */
-#define IRQ_PCIINDC	7		/* PCI INTC IRQ */
+#define IRQ_PCIINTC	7		/* PCI INTC IRQ */
 #define IRQ_PCIINTD	8		/* PCI INTD IRQ */
 #define IRQ_ATA		9		/* ATA IRQ */
 #define IRQ_FATA	10		/* FATA IRQ */
