@@ -36,31 +36,25 @@ struct l3g4200d_platform_data {
 	int poll_interval;
 	int min_interval;
 
-	u8 ctrl_reg_1;
-	u8 ctrl_reg_2;
-	u8 ctrl_reg_3;
-	u8 ctrl_reg_4;
-	u8 ctrl_reg_5;
+	u8 ctrl_reg1;
+	u8 ctrl_reg2;
+	u8 ctrl_reg3;
+	u8 ctrl_reg4;
+	u8 ctrl_reg5;
 
-	u8 int_config;
-	u8 int_source;
+	u8 reference;
 
-	u8 int_th_x_h;
-	u8 int_th_x_l;
-	u8 int_th_y_h;
-	u8 int_th_y_l;
-	u8 int_th_z_h;
-	u8 int_th_z_l;
-	u8 int_duration;
+	u8 fifo_ctrl_reg;
 
-	u8 axis_map_x;
-	u8 axis_map_y;
-	u8 axis_map_z;
+	u8 int1_cfg;
 
-	u8 negate_x;
-	u8 negate_y;
-	u8 negate_z;
-
+	u8 int1_tsh_xh;
+	u8 int1_tsh_xl;
+	u8 int1_tsh_yh;
+	u8 int1_tsh_yl;
+	u8 int1_tsh_zh;
+	u8 int1_tsh_zl;
+	u8 int1_duration;
 };
 #endif /* __KERNEL__ */
 
