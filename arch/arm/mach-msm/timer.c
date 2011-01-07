@@ -137,7 +137,6 @@ static struct msm_clock msm_clocks[] = {
 			.rating         = 200,
 			.read           = msm_gpt_read,
 			.mask           = CLOCKSOURCE_MASK(32),
-			.shift          = 17,
 			.flags          = CLOCK_SOURCE_IS_CONTINUOUS,
 		},
 		.irq = {
@@ -164,7 +163,6 @@ static struct msm_clock msm_clocks[] = {
 			.rating         = 300,
 			.read           = msm_dgt_read,
 			.mask           = CLOCKSOURCE_MASK((32 - MSM_DGT_SHIFT)),
-			.shift          = 24 - MSM_DGT_SHIFT,
 			.flags          = CLOCK_SOURCE_IS_CONTINUOUS,
 		},
 		.irq = {
@@ -205,8 +203,7 @@ static void __init msm_timer_init(void)
 		ce->min_delta_ns = clockevent_delta2ns(4, ce);
 		ce->cpumask = cpumask_of(0);
 
-		cs->mult = clocksource_hz2mult(clock->freq, cs->shift);
-		res = clocksource_register(cs);
+		res = clocksource_register_hz(cs, clock->freq);
 		if (res)
 			printk(KERN_ERR "msm_timer_init: clocksource_register "
 			       "failed for %s\n", cs->name);

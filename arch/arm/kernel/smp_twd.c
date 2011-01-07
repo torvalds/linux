@@ -127,8 +127,6 @@ static void __cpuinit twd_calibrate_rate(void)
  */
 void __cpuinit twd_timer_setup(struct clock_event_device *clk)
 {
-	unsigned long flags;
-
 	twd_calibrate_rate();
 
 	clk->name = "local_timer";
@@ -143,20 +141,7 @@ void __cpuinit twd_timer_setup(struct clock_event_device *clk)
 	clk->min_delta_ns = clockevent_delta2ns(0xf, clk);
 
 	/* Make sure our local interrupt controller has this enabled */
-	local_irq_save(flags);
-	irq_to_desc(clk->irq)->status |= IRQ_NOPROBE;
-	get_irq_chip(clk->irq)->unmask(clk->irq);
-	local_irq_restore(flags);
+	gic_enable_ppi(clk->irq);
 
 	clockevents_register_device(clk);
 }
-
-#ifdef CONFIG_HOTPLUG_CPU
-/*
- * take a local timer down
- */
-void twd_timer_stop(void)
-{
-	__raw_writel(0, twd_base + TWD_TIMER_CONTROL);
-}
-#endif

@@ -17,16 +17,13 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/smp.h>
-#include <linux/completion.h>
 
 #include <asm/cacheflush.h>
 #include <mach/omap4-common.h>
 
-static DECLARE_COMPLETION(cpu_killed);
-
 int platform_cpu_kill(unsigned int cpu)
 {
-	return wait_for_completion_timeout(&cpu_killed, 5000);
+	return 1;
 }
 
 /*
@@ -35,15 +32,6 @@ int platform_cpu_kill(unsigned int cpu)
  */
 void platform_cpu_die(unsigned int cpu)
 {
-	unsigned int this_cpu = hard_smp_processor_id();
-
-	if (cpu != this_cpu) {
-		pr_crit("platform_cpu_die running on %u, should be %u\n",
-			   this_cpu, cpu);
-		BUG();
-	}
-	pr_notice("CPU%u: shutdown\n", cpu);
-	complete(&cpu_killed);
 	flush_cache_all();
 	dsb();
 

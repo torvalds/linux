@@ -8,13 +8,18 @@
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
 #include <linux/io.h>
+#include <linux/irq.h>
 
 #include <asm/mach/map.h>
+
+#include <plat/gpio.h>
 
 #include <mach/hardware.h>
 #include <mach/devices.h>
 #include <mach/setup.h>
 #include <mach/irqs.h>
+
+#include "devices-db5500.h"
 
 static struct map_desc u5500_io_desc[] __initdata = {
 	__IO_DEV_DESC(U5500_GPIO0_BASE, SZ_4K),
@@ -110,18 +115,31 @@ static struct platform_device mbox2_device = {
 };
 
 static struct platform_device *u5500_platform_devs[] __initdata = {
-	&u5500_gpio_devs[0],
-	&u5500_gpio_devs[1],
-	&u5500_gpio_devs[2],
-	&u5500_gpio_devs[3],
-	&u5500_gpio_devs[4],
-	&u5500_gpio_devs[5],
-	&u5500_gpio_devs[6],
-	&u5500_gpio_devs[7],
 	&mbox0_device,
 	&mbox1_device,
 	&mbox2_device,
 };
+
+static resource_size_t __initdata db5500_gpio_base[] = {
+	U5500_GPIOBANK0_BASE,
+	U5500_GPIOBANK1_BASE,
+	U5500_GPIOBANK2_BASE,
+	U5500_GPIOBANK3_BASE,
+	U5500_GPIOBANK4_BASE,
+	U5500_GPIOBANK5_BASE,
+	U5500_GPIOBANK6_BASE,
+	U5500_GPIOBANK7_BASE,
+};
+
+static void __init db5500_add_gpios(void)
+{
+	struct nmk_gpio_platform_data pdata = {
+		/* No custom data yet */
+	};
+
+	dbx500_add_gpios(ARRAY_AND_SIZE(db5500_gpio_base),
+			 IRQ_DB5500_GPIO0, &pdata);
+}
 
 void __init u5500_map_io(void)
 {
@@ -132,7 +150,9 @@ void __init u5500_map_io(void)
 
 void __init u5500_init_devices(void)
 {
-	ux500_init_devices();
+	db5500_add_gpios();
+	db5500_dma_init();
+	db5500_add_rtc();
 
 	platform_add_devices(u5500_platform_devs,
 			     ARRAY_SIZE(u5500_platform_devs));

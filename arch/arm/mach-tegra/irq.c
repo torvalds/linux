@@ -94,8 +94,8 @@ void __init tegra_init_irq(void)
 		writel(0, ictlr_to_virt(i) + ICTLR_CPU_IEP_CLASS);
 	}
 
-	gic_dist_init(0, IO_ADDRESS(TEGRA_ARM_INT_DIST_BASE), 29);
-	gic_cpu_init(0, IO_ADDRESS(TEGRA_ARM_PERIF_BASE + 0x100));
+	gic_init(0, 29, IO_ADDRESS(TEGRA_ARM_INT_DIST_BASE),
+		 IO_ADDRESS(TEGRA_ARM_PERIF_BASE + 0x100));
 
 	gic = get_irq_chip(29);
 	gic_unmask_irq = gic->unmask;

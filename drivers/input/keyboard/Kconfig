@@ -459,6 +459,16 @@ config KEYBOARD_OMAP4
 	  To compile this driver as a module, choose M here: the
 	  module will be called omap4-keypad.
 
+config KEYBOARD_TC3589X
+	tristate "TC3589X Keypad support"
+	depends on MFD_TC3589X
+	help
+	  Say Y here if you want to use the keypad controller on
+	  TC35892/3 I/O expander.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tc3589x-keypad.
+
 config KEYBOARD_TNETV107X
 	tristate "TI TNETV107X keypad support"
 	depends on ARCH_DAVINCI_TNETV107X

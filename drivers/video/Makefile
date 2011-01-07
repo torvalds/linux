@@ -101,6 +101,7 @@ obj-$(CONFIG_FB_CIRRUS)		  += cirrusfb.o
 obj-$(CONFIG_FB_ASILIANT)	  += asiliantfb.o
 obj-$(CONFIG_FB_PXA)		  += pxafb.o
 obj-$(CONFIG_FB_PXA168)		  += pxa168fb.o
+obj-$(CONFIG_PXA3XX_GCU)	  += pxa3xx-gcu.o
 obj-$(CONFIG_FB_W100)		  += w100fb.o
 obj-$(CONFIG_FB_TMIO)		  += tmiofb.o
 obj-$(CONFIG_FB_AU1100)		  += au1100fb.o

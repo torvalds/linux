@@ -31,27 +31,27 @@ const struct imx_mxc_nand_data imx21_mxc_nand_data __initconst =
 	imx_mxc_nand_data_entry_single(MX21, SZ_4K);
 #endif /* ifdef CONFIG_SOC_IMX21 */
 
-#ifdef CONFIG_ARCH_MX25
+#ifdef CONFIG_SOC_IMX25
 const struct imx_mxc_nand_data imx25_mxc_nand_data __initconst =
 	imx_mxc_nand_data_entry_single(MX25, SZ_8K);
-#endif /* ifdef CONFIG_ARCH_MX25 */
+#endif /* ifdef CONFIG_SOC_IMX25 */
 
 #ifdef CONFIG_SOC_IMX27
 const struct imx_mxc_nand_data imx27_mxc_nand_data __initconst =
 	imx_mxc_nand_data_entry_single(MX27, SZ_4K);
 #endif /* ifdef CONFIG_SOC_IMX27 */
 
-#ifdef CONFIG_ARCH_MX31
+#ifdef CONFIG_SOC_IMX31
 const struct imx_mxc_nand_data imx31_mxc_nand_data __initconst =
 	imx_mxc_nand_data_entry_single(MX31, SZ_4K);
 #endif
 
-#ifdef CONFIG_ARCH_MX35
+#ifdef CONFIG_SOC_IMX35
 const struct imx_mxc_nand_data imx35_mxc_nand_data __initconst =
 	imx_mxc_nand_data_entry_single(MX35, SZ_8K);
 #endif
 
-#ifdef CONFIG_ARCH_MX51
+#ifdef CONFIG_SOC_IMX51
 const struct imx_mxc_nand_data imx51_mxc_nand_data __initconst =
 	imx_mxc_nandv3_data_entry_single(MX51, SZ_16K);
 #endif

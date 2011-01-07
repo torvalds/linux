@@ -54,15 +54,15 @@
 #elif defined CONFIG_MXC_TZIC
 	@ Load offset & priority of the highest priority
 	@ interrupt pending.
+	@ 0x080 is INTSEC0 register
 	@ 0xD80 is HIPND0 register
 	mov     \irqnr, #0
-	mov     \irqstat, #0x0D80
-1000:
-	ldr     \tmp,   [\irqstat, \base]
-	cmp     \tmp, #0
-	bne     1001f
-	addeq   \irqnr, \irqnr, #32
-	addeq   \irqstat, \irqstat, #4
+1000:	add	\irqstat, \base, \irqnr, lsr #3
+	ldr	\tmp, [\irqstat, #0xd80]
+	ldr	\irqstat, [\irqstat, #0x080]
+	ands	\tmp, \tmp, \irqstat
+	bne	1001f
+	add	\irqnr, \irqnr, #32
 	cmp     \irqnr, #128
 	blo     1000b
 	b       2001f

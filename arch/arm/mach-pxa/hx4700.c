@@ -871,7 +871,7 @@ static void __init hx4700_init(void)
 
 MACHINE_START(H4700, "HP iPAQ HX4700")
 	.boot_params  = 0xa0000100,
-	.map_io       = pxa_map_io,
+	.map_io       = pxa27x_map_io,
 	.nr_irqs      = HX4700_NR_IRQS,
 	.init_irq     = pxa27x_init_irq,
 	.init_machine = hx4700_init,

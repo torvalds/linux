@@ -500,8 +500,8 @@ ENTRY(cpu_xscale_set_pte_ext)
 	@
 	@ Erratum 40: must set memory to write-through for user read-only pages
 	@
-	and	ip, r1, #(L_PTE_MT_MASK | L_PTE_USER | L_PTE_WRITE) & ~(4 << 2)
-	teq	ip, #L_PTE_MT_WRITEBACK | L_PTE_USER
+	and	ip, r1, #(L_PTE_MT_MASK | L_PTE_USER | L_PTE_RDONLY) & ~(4 << 2)
+	teq	ip, #L_PTE_MT_WRITEBACK | L_PTE_USER | L_PTE_RDONLY
 
 	moveq	r1, #L_PTE_MT_WRITETHROUGH
 	and	r1, r1, #L_PTE_MT_MASK

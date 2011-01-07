@@ -21,6 +21,8 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 
+#include "irq-common.h"
+
 /*
  *****************************************
  * TZIC Registers                        *
@@ -46,6 +48,25 @@
 #define TZIC_ID0	0x0FD0	/* Indentification Register 0 */
 
 void __iomem *tzic_base; /* Used as irq controller base in entry-macro.S */
+
+#ifdef CONFIG_FIQ
+static int tzic_set_irq_fiq(unsigned int irq, unsigned int type)
+{
+	unsigned int index, mask, value;
+
+	index = irq >> 5;
+	if (unlikely(index >= 4))
+		return -EINVAL;
+	mask = 1U << (irq & 0x1F);
+
+	value = __raw_readl(tzic_base + TZIC_INTSEC0(index)) | mask;
+	if (type)
+		value &= ~mask;
+	__raw_writel(value, tzic_base + TZIC_INTSEC0(index));
+
+	return 0;
+}
+#endif
 
 /**
  * tzic_mask_irq() - Disable interrupt number "irq" in the TZIC
@@ -104,12 +125,17 @@ static int tzic_set_wake_irq(unsigned int irq, unsigned int enable)
 	return 0;
 }
 
-static struct irq_chip mxc_tzic_chip = {
-	.name = "MXC_TZIC",
-	.ack = tzic_mask_irq,
-	.mask = tzic_mask_irq,
-	.unmask = tzic_unmask_irq,
-	.set_wake = tzic_set_wake_irq,
+static struct mxc_irq_chip mxc_tzic_chip = {
+	.base = {
+		.name = "MXC_TZIC",
+		.ack = tzic_mask_irq,
+		.mask = tzic_mask_irq,
+		.unmask = tzic_unmask_irq,
+		.set_wake = tzic_set_wake_irq,
+	},
+#ifdef CONFIG_FIQ
+	.set_irq_fiq = tzic_set_irq_fiq,
+#endif
 };
 
 /*
@@ -141,10 +167,16 @@ void __init tzic_init_irq(void __iomem *irqbase)
 	/* all IRQ no FIQ Warning :: No selection */
 
 	for (i = 0; i < MXC_INTERNAL_IRQS; i++) {
-		set_irq_chip(i, &mxc_tzic_chip);
+		set_irq_chip(i, &mxc_tzic_chip.base);
 		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
+
+#ifdef CONFIG_FIQ
+	/* Initialize FIQ */
+	init_FIQ();
+#endif
+
 	pr_info("TrustZone Interrupt Controller (TZIC) initialized\n");
 }
 

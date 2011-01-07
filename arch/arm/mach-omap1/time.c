@@ -208,7 +208,6 @@ static struct clocksource clocksource_mpu = {
 	.rating		= 300,
 	.read		= mpu_read,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 24,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -217,13 +216,10 @@ static void __init omap_init_clocksource(unsigned long rate)
 	static char err[] __initdata = KERN_ERR
 			"%s: can't register clocksource!\n";
 
-	clocksource_mpu.mult
-		= clocksource_khz2mult(rate/1000, clocksource_mpu.shift);
-
 	setup_irq(INT_TIMER2, &omap_mpu_timer2_irq);
 	omap_mpu_timer_start(1, ~0, 1);
 
-	if (clocksource_register(&clocksource_mpu))
+	if (clocksource_register_hz(&clocksource_mpu, rate))
 		printk(err, clocksource_mpu.name);
 }
 

@@ -1932,6 +1932,16 @@ config FB_PXA_PARAMETERS
 
 	  <file:Documentation/fb/pxafb.txt> describes the available parameters.
 
+config PXA3XX_GCU
+	tristate "PXA3xx 2D graphics accelerator driver"
+	depends on FB_PXA
+	help
+	  Kernelspace driver for the 2D graphics controller unit (GCU)
+	  found on PXA3xx processors. There is a counterpart driver in the
+	  DirectFB suite, see http://www.directfb.org/
+
+	  If you compile this as a module, it will be called pxa3xx_gcu.
+
 config FB_MBX
 	tristate "2700G LCD framebuffer support"
 	depends on FB && ARCH_PXA
