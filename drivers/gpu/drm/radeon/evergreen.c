@@ -1384,11 +1384,14 @@ static u32 evergreen_get_tile_pipe_to_backend_map(struct radeon_device *rdev,
 	case CHIP_CEDAR:
 	case CHIP_REDWOOD:
 	case CHIP_PALM:
+	case CHIP_TURKS:
+	case CHIP_CAICOS:
 		force_no_swizzle = false;
 		break;
 	case CHIP_CYPRESS:
 	case CHIP_HEMLOCK:
 	case CHIP_JUNIPER:
+	case CHIP_BARTS:
 	default:
 		force_no_swizzle = true;
 		break;
@@ -1502,6 +1505,7 @@ static void evergreen_program_channel_remap(struct radeon_device *rdev)
 	switch (rdev->family) {
 	case CHIP_HEMLOCK:
 	case CHIP_CYPRESS:
+	case CHIP_BARTS:
 		tcp_chan_steer_lo = 0x54763210;
 		tcp_chan_steer_hi = 0x0000ba98;
 		break;
@@ -1509,6 +1513,8 @@ static void evergreen_program_channel_remap(struct radeon_device *rdev)
 	case CHIP_REDWOOD:
 	case CHIP_CEDAR:
 	case CHIP_PALM:
+	case CHIP_TURKS:
+	case CHIP_CAICOS:
 	default:
 		tcp_chan_steer_lo = 0x76543210;
 		tcp_chan_steer_hi = 0x0000ba98;
@@ -1634,6 +1640,69 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	case CHIP_PALM:
 		rdev->config.evergreen.num_ses = 1;
 		rdev->config.evergreen.max_pipes = 2;
+		rdev->config.evergreen.max_tile_pipes = 2;
+		rdev->config.evergreen.max_simds = 2;
+		rdev->config.evergreen.max_backends = 1 * rdev->config.evergreen.num_ses;
+		rdev->config.evergreen.max_gprs = 256;
+		rdev->config.evergreen.max_threads = 192;
+		rdev->config.evergreen.max_gs_threads = 16;
+		rdev->config.evergreen.max_stack_entries = 256;
+		rdev->config.evergreen.sx_num_of_sets = 4;
+		rdev->config.evergreen.sx_max_export_size = 128;
+		rdev->config.evergreen.sx_max_export_pos_size = 32;
+		rdev->config.evergreen.sx_max_export_smx_size = 96;
+		rdev->config.evergreen.max_hw_contexts = 4;
+		rdev->config.evergreen.sq_num_cf_insts = 1;
+
+		rdev->config.evergreen.sc_prim_fifo_size = 0x40;
+		rdev->config.evergreen.sc_hiz_tile_fifo_size = 0x30;
+		rdev->config.evergreen.sc_earlyz_tile_fifo_size = 0x130;
+		break;
+	case CHIP_BARTS:
+		rdev->config.evergreen.num_ses = 2;
+		rdev->config.evergreen.max_pipes = 4;
+		rdev->config.evergreen.max_tile_pipes = 8;
+		rdev->config.evergreen.max_simds = 7;
+		rdev->config.evergreen.max_backends = 4 * rdev->config.evergreen.num_ses;
+		rdev->config.evergreen.max_gprs = 256;
+		rdev->config.evergreen.max_threads = 248;
+		rdev->config.evergreen.max_gs_threads = 32;
+		rdev->config.evergreen.max_stack_entries = 512;
+		rdev->config.evergreen.sx_num_of_sets = 4;
+		rdev->config.evergreen.sx_max_export_size = 256;
+		rdev->config.evergreen.sx_max_export_pos_size = 64;
+		rdev->config.evergreen.sx_max_export_smx_size = 192;
+		rdev->config.evergreen.max_hw_contexts = 8;
+		rdev->config.evergreen.sq_num_cf_insts = 2;
+
+		rdev->config.evergreen.sc_prim_fifo_size = 0x100;
+		rdev->config.evergreen.sc_hiz_tile_fifo_size = 0x30;
+		rdev->config.evergreen.sc_earlyz_tile_fifo_size = 0x130;
+		break;
+	case CHIP_TURKS:
+		rdev->config.evergreen.num_ses = 1;
+		rdev->config.evergreen.max_pipes = 4;
+		rdev->config.evergreen.max_tile_pipes = 4;
+		rdev->config.evergreen.max_simds = 6;
+		rdev->config.evergreen.max_backends = 2 * rdev->config.evergreen.num_ses;
+		rdev->config.evergreen.max_gprs = 256;
+		rdev->config.evergreen.max_threads = 248;
+		rdev->config.evergreen.max_gs_threads = 32;
+		rdev->config.evergreen.max_stack_entries = 256;
+		rdev->config.evergreen.sx_num_of_sets = 4;
+		rdev->config.evergreen.sx_max_export_size = 256;
+		rdev->config.evergreen.sx_max_export_pos_size = 64;
+		rdev->config.evergreen.sx_max_export_smx_size = 192;
+		rdev->config.evergreen.max_hw_contexts = 8;
+		rdev->config.evergreen.sq_num_cf_insts = 2;
+
+		rdev->config.evergreen.sc_prim_fifo_size = 0x100;
+		rdev->config.evergreen.sc_hiz_tile_fifo_size = 0x30;
+		rdev->config.evergreen.sc_earlyz_tile_fifo_size = 0x130;
+		break;
+	case CHIP_CAICOS:
+		rdev->config.evergreen.num_ses = 1;
+		rdev->config.evergreen.max_pipes = 4;
 		rdev->config.evergreen.max_tile_pipes = 2;
 		rdev->config.evergreen.max_simds = 2;
 		rdev->config.evergreen.max_backends = 1 * rdev->config.evergreen.num_ses;
@@ -1931,6 +2000,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	switch (rdev->family) {
 	case CHIP_CEDAR:
 	case CHIP_PALM:
+	case CHIP_CAICOS:
 		/* no vertex cache */
 		sq_config &= ~VC_ENABLE;
 		break;
@@ -1990,6 +2060,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	switch (rdev->family) {
 	case CHIP_CEDAR:
 	case CHIP_PALM:
+	case CHIP_CAICOS:
 		vgt_cache_invalidation = CACHE_INVALIDATION(TC_ONLY);
 		break;
 	default:
