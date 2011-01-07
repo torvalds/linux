@@ -566,10 +566,9 @@ static void i915_error_work_func(struct work_struct *work)
 
 #ifdef CONFIG_DEBUG_FS
 static struct drm_i915_error_object *
-i915_error_object_create(struct drm_device *dev,
+i915_error_object_create(struct drm_i915_private *dev_priv,
 			 struct drm_i915_gem_object *src)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_object *dst;
 	int page, page_count;
 	u32 reloc_offset;
@@ -642,52 +641,6 @@ i915_error_state_free(struct drm_device *dev,
 	kfree(error);
 }
 
-static u32
-i915_get_bbaddr(struct drm_device *dev, u32 *ring)
-{
-	u32 cmd;
-
-	if (IS_I830(dev) || IS_845G(dev))
-		cmd = MI_BATCH_BUFFER;
-	else if (INTEL_INFO(dev)->gen >= 4)
-		cmd = (MI_BATCH_BUFFER_START | (2 << 6) |
-		       MI_BATCH_NON_SECURE_I965);
-	else
-		cmd = (MI_BATCH_BUFFER_START | (2 << 6));
-
-	return ring[0] == cmd ? ring[1] : 0;
-}
-
-static u32
-i915_ringbuffer_last_batch(struct drm_device *dev,
-			   struct intel_ring_buffer *ring)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 head, bbaddr;
-	u32 *val;
-
-	/* Locate the current position in the ringbuffer and walk back
-	 * to find the most recently dispatched batch buffer.
-	 */
-	head = I915_READ_HEAD(ring) & HEAD_ADDR;
-
-	val = (u32 *)(ring->virtual_start + head);
-	while (--val >= (u32 *)ring->virtual_start) {
-		bbaddr = i915_get_bbaddr(dev, val);
-		if (bbaddr)
-			return bbaddr;
-	}
-
-	val = (u32 *)(ring->virtual_start + ring->size);
-	while (--val >= (u32 *)ring->virtual_start) {
-		bbaddr = i915_get_bbaddr(dev, val);
-		if (bbaddr)
-			return bbaddr;
-	}
-
-	return 0;
-}
-
 static u32 capture_bo_list(struct drm_i915_error_buffer *err,
 			   int count,
 			   struct list_head *head)
@@ -751,6 +704,36 @@ static void i915_gem_record_fences(struct drm_device *dev,
 	}
 }
 
+static struct drm_i915_error_object *
+i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
+			     struct intel_ring_buffer *ring)
+{
+	struct drm_i915_gem_object *obj;
+	u32 seqno;
+
+	if (!ring->get_seqno)
+		return NULL;
+
+	seqno = ring->get_seqno(ring);
+	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
+		if (obj->ring != ring)
+			continue;
+
+		if (!i915_seqno_passed(obj->last_rendering_seqno, seqno))
+			continue;
+
+		if ((obj->base.read_domains & I915_GEM_DOMAIN_COMMAND) == 0)
+			continue;
+
+		/* We need to copy these to an anonymous buffer as the simplest
+		 * method to avoid being overwritten by userspace.
+		 */
+		return i915_error_object_create(dev_priv, obj);
+	}
+
+	return NULL;
+}
+
 /**
  * i915_capture_error_state - capture an error record for later analysis
  * @dev: drm device
@@ -765,10 +748,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	struct drm_i915_error_state *error;
-	struct drm_i915_gem_object *batchbuffer[2];
 	unsigned long flags;
-	u32 bbaddr;
-	int count;
+	int i;
 
 	spin_lock_irqsave(&dev_priv->error_lock, flags);
 	error = dev_priv->first_error;
@@ -827,83 +808,30 @@ static void i915_capture_error_state(struct drm_device *dev)
 	}
 	i915_gem_record_fences(dev, error);
 
-	bbaddr = i915_ringbuffer_last_batch(dev, &dev_priv->ring[RCS]);
-
-	/* Grab the current batchbuffer, most likely to have crashed. */
-	batchbuffer[0] = NULL;
-	batchbuffer[1] = NULL;
-	count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
-		if (batchbuffer[0] == NULL &&
-		    bbaddr >= obj->gtt_offset &&
-		    bbaddr < obj->gtt_offset + obj->base.size)
-			batchbuffer[0] = obj;
-
-		if (batchbuffer[1] == NULL &&
-		    error->acthd >= obj->gtt_offset &&
-		    error->acthd < obj->gtt_offset + obj->base.size)
-			batchbuffer[1] = obj;
-
-		count++;
-	}
-	/* Scan the other lists for completeness for those bizarre errors. */
-	if (batchbuffer[0] == NULL || batchbuffer[1] == NULL) {
-		list_for_each_entry(obj, &dev_priv->mm.flushing_list, mm_list) {
-			if (batchbuffer[0] == NULL &&
-			    bbaddr >= obj->gtt_offset &&
-			    bbaddr < obj->gtt_offset + obj->base.size)
-				batchbuffer[0] = obj;
-
-			if (batchbuffer[1] == NULL &&
-			    error->acthd >= obj->gtt_offset &&
-			    error->acthd < obj->gtt_offset + obj->base.size)
-				batchbuffer[1] = obj;
-
-			if (batchbuffer[0] && batchbuffer[1])
-				break;
-		}
-	}
-	if (batchbuffer[0] == NULL || batchbuffer[1] == NULL) {
-		list_for_each_entry(obj, &dev_priv->mm.inactive_list, mm_list) {
-			if (batchbuffer[0] == NULL &&
-			    bbaddr >= obj->gtt_offset &&
-			    bbaddr < obj->gtt_offset + obj->base.size)
-				batchbuffer[0] = obj;
-
-			if (batchbuffer[1] == NULL &&
-			    error->acthd >= obj->gtt_offset &&
-			    error->acthd < obj->gtt_offset + obj->base.size)
-				batchbuffer[1] = obj;
-
-			if (batchbuffer[0] && batchbuffer[1])
-				break;
-		}
-	}
-
-	/* We need to copy these to an anonymous buffer as the simplest
-	 * method to avoid being overwritten by userspace.
-	 */
-	error->batchbuffer[0] = i915_error_object_create(dev, batchbuffer[0]);
-	if (batchbuffer[1] != batchbuffer[0])
-		error->batchbuffer[1] = i915_error_object_create(dev, batchbuffer[1]);
-	else
-		error->batchbuffer[1] = NULL;
+	/* Record the active batchbuffers */
+	for (i = 0; i < I915_NUM_RINGS; i++)
+		error->batchbuffer[i] =
+			i915_error_first_batchbuffer(dev_priv,
+						     &dev_priv->ring[i]);
 
 	/* Record the ringbuffer */
-	error->ringbuffer = i915_error_object_create(dev,
+	error->ringbuffer = i915_error_object_create(dev_priv,
 						     dev_priv->ring[RCS].obj);
 
 	/* Record buffers on the active and pinned lists. */
 	error->active_bo = NULL;
 	error->pinned_bo = NULL;
 
-	error->active_bo_count = count;
+	i = 0;
+	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list)
+		i++;
+	error->active_bo_count = i;
 	list_for_each_entry(obj, &dev_priv->mm.pinned_list, mm_list)
-		count++;
-	error->pinned_bo_count = count - error->active_bo_count;
+		i++;
+	error->pinned_bo_count = i - error->active_bo_count;
 
-	if (count) {
-		error->active_bo = kmalloc(sizeof(*error->active_bo)*count,
+	if (i) {
+		error->active_bo = kmalloc(sizeof(*error->active_bo)*i,
 					   GFP_ATOMIC);
 		if (error->active_bo)
 			error->pinned_bo =

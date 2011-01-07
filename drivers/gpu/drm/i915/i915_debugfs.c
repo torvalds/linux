@@ -750,7 +750,9 @@ static int i915_error_state(struct seq_file *m, void *unused)
 		if (error->batchbuffer[i]) {
 			struct drm_i915_error_object *obj = error->batchbuffer[i];
 
-			seq_printf(m, "--- gtt_offset = 0x%08x\n", obj->gtt_offset);
+			seq_printf(m, "%s --- gtt_offset = 0x%08x\n",
+				   dev_priv->ring[i].name,
+				   obj->gtt_offset);
 			offset = 0;
 			for (page = 0; page < obj->page_count; page++) {
 				for (elt = 0; elt < PAGE_SIZE/4; elt++) {
