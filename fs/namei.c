@@ -731,7 +731,8 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 	 * to use its own hash..
 	 */
 	if (nd->path.dentry->d_op && nd->path.dentry->d_op->d_hash) {
-		int err = nd->path.dentry->d_op->d_hash(nd->path.dentry, name);
+		int err = nd->path.dentry->d_op->d_hash(nd->path.dentry,
+				nd->path.dentry->d_inode, name);
 		if (err < 0)
 			return err;
 	}
@@ -1134,7 +1135,7 @@ static struct dentry *__lookup_hash(struct qstr *name,
 	 * to use its own hash..
 	 */
 	if (base->d_op && base->d_op->d_hash) {
-		err = base->d_op->d_hash(base, name);
+		err = base->d_op->d_hash(base, inode, name);
 		dentry = ERR_PTR(err);
 		if (err < 0)
 			goto out;

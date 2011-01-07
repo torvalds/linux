@@ -1478,7 +1478,7 @@ struct dentry *d_hash_and_lookup(struct dentry *dir, struct qstr *name)
 	 */
 	name->hash = full_name_hash(name->name, name->len);
 	if (dir->d_op && dir->d_op->d_hash) {
-		if (dir->d_op->d_hash(dir, name) < 0)
+		if (dir->d_op->d_hash(dir, dir->d_inode, name) < 0)
 			goto out;
 	}
 	dentry = d_lookup(dir, name);

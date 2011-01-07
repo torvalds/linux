@@ -454,7 +454,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	lower_name.hash = ecryptfs_dentry->d_name.hash;
 	if (lower_dir_dentry->d_op && lower_dir_dentry->d_op->d_hash) {
 		rc = lower_dir_dentry->d_op->d_hash(lower_dir_dentry,
-						    &lower_name);
+				lower_dir_dentry->d_inode, &lower_name);
 		if (rc < 0)
 			goto out_d_drop;
 	}
@@ -489,7 +489,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	lower_name.hash = full_name_hash(lower_name.name, lower_name.len);
 	if (lower_dir_dentry->d_op && lower_dir_dentry->d_op->d_hash) {
 		rc = lower_dir_dentry->d_op->d_hash(lower_dir_dentry,
-						    &lower_name);
+				lower_dir_dentry->d_inode, &lower_name);
 		if (rc < 0)
 			goto out_d_drop;
 	}

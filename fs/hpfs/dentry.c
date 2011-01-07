@@ -12,7 +12,8 @@
  * Note: the dentry argument is the parent dentry.
  */
 
-static int hpfs_hash_dentry(struct dentry *dentry, struct qstr *qstr)
+static int hpfs_hash_dentry(const struct dentry *dentry, const struct inode *inode,
+		struct qstr *qstr)
 {
 	unsigned long	 hash;
 	int		 i;

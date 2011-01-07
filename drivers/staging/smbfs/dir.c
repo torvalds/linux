@@ -274,7 +274,8 @@ smb_dir_open(struct inode *dir, struct file *file)
  * Dentry operations routines
  */
 static int smb_lookup_validate(struct dentry *, struct nameidata *);
-static int smb_hash_dentry(struct dentry *, struct qstr *);
+static int smb_hash_dentry(const struct dentry *, const struct inode *,
+		struct qstr *);
 static int smb_compare_dentry(const struct dentry *,
 		const struct inode *,
 		const struct dentry *, const struct inode *,
@@ -336,7 +337,8 @@ smb_lookup_validate(struct dentry * dentry, struct nameidata *nd)
 }
 
 static int 
-smb_hash_dentry(struct dentry *dir, struct qstr *this)
+smb_hash_dentry(const struct dentry *dir, const struct inode *inode,
+		struct qstr *this)
 {
 	unsigned long hash;
 	int i;

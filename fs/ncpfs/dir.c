@@ -74,7 +74,8 @@ const struct inode_operations ncp_dir_inode_operations =
  * Dentry operations routines
  */
 static int ncp_lookup_validate(struct dentry *, struct nameidata *);
-static int ncp_hash_dentry(struct dentry *, struct qstr *);
+static int ncp_hash_dentry(const struct dentry *, const struct inode *,
+		struct qstr *);
 static int ncp_compare_dentry(const struct dentry *, const struct inode *,
 		const struct dentry *, const struct inode *,
 		unsigned int, const char *, const struct qstr *);
@@ -129,9 +130,10 @@ static inline int ncp_case_sensitive(const struct inode *i)
  * is case-sensitive.
  */
 static int 
-ncp_hash_dentry(struct dentry *dentry, struct qstr *this)
+ncp_hash_dentry(const struct dentry *dentry, const struct inode *inode,
+		struct qstr *this)
 {
-	if (!ncp_case_sensitive(dentry->d_inode)) {
+	if (!ncp_case_sensitive(inode)) {
 		struct super_block *sb = dentry->d_sb;
 		struct nls_table *t;
 		unsigned long hash;
@@ -597,7 +599,7 @@ ncp_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	qname.hash = full_name_hash(qname.name, qname.len);
 
 	if (dentry->d_op && dentry->d_op->d_hash)
-		if (dentry->d_op->d_hash(dentry, &qname) != 0)
+		if (dentry->d_op->d_hash(dentry, dentry->d_inode, &qname) != 0)
 			goto end_advance;
 
 	newdent = d_lookup(dentry, &qname);

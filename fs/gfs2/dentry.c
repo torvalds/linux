@@ -100,7 +100,8 @@ fail:
 	return 0;
 }
 
-static int gfs2_dhash(struct dentry *dentry, struct qstr *str)
+static int gfs2_dhash(const struct dentry *dentry, const struct inode *inode,
+		struct qstr *str)
 {
 	str->hash = gfs2_disk_hash(str->name, str->len);
 	return 0;

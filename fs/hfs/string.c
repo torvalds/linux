@@ -51,7 +51,8 @@ static unsigned char caseorder[256] = {
 /*
  * Hash a string to an integer in a case-independent way
  */
-int hfs_hash_dentry(struct dentry *dentry, struct qstr *this)
+int hfs_hash_dentry(const struct dentry *dentry, const struct inode *inode,
+		struct qstr *this)
 {
 	const unsigned char *name = this->name;
 	unsigned int hash, len = this->len;

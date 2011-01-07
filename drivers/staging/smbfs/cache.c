@@ -134,7 +134,7 @@ smb_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	qname->hash = full_name_hash(qname->name, qname->len);
 
 	if (dentry->d_op && dentry->d_op->d_hash)
-		if (dentry->d_op->d_hash(dentry, qname) != 0)
+		if (dentry->d_op->d_hash(dentry, inode, qname) != 0)
 			goto end_advance;
 
 	newdent = d_lookup(dentry, qname);

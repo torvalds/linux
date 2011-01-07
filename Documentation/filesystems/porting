@@ -333,3 +333,10 @@ unreferenced dentries, and is now only called when the dentry refcount goes to
 	.d_compare() calling convention and locking rules are significantly
 changed. Read updated documentation in Documentation/filesystems/vfs.txt (and
 look at examples of other filesystems) for guidance.
+
+---
+[mandatory]
+
+	.d_hash() calling convention and locking rules are significantly
+changed. Read updated documentation in Documentation/filesystems/vfs.txt (and
+look at examples of other filesystems) for guidance.

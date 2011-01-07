@@ -201,7 +201,8 @@ const struct file_operations adfs_dir_operations = {
 };
 
 static int
-adfs_hash(struct dentry *parent, struct qstr *qstr)
+adfs_hash(const struct dentry *parent, const struct inode *inode,
+		struct qstr *qstr)
 {
 	const unsigned int name_len = ADFS_SB(parent->d_sb)->s_namelen;
 	const unsigned char *name;

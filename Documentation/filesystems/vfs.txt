@@ -847,7 +847,8 @@ defined:
 
 struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, struct nameidata *);
-	int (*d_hash)(struct dentry *, struct qstr *);
+	int (*d_hash)(const struct dentry *, const struct inode *,
+			struct qstr *);
 	int (*d_compare)(const struct dentry *, const struct inode *,
 			const struct dentry *, const struct inode *,
 			unsigned int, const char *, const struct qstr *);
@@ -864,7 +865,10 @@ struct dentry_operations {
 
   d_hash: called when the VFS adds a dentry to the hash table. The first
 	dentry passed to d_hash is the parent directory that the name is
-	to be hashed into.
+	to be hashed into. The inode is the dentry's inode.
+
+	Same locking and synchronisation rules as d_compare regarding
+	what is safe to dereference etc.
 
   d_compare: called to compare a dentry name with a given name. The first
 	dentry is the parent of the dentry to be compared, the second is
