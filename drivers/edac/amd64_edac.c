@@ -1082,15 +1082,13 @@ static int k8_dbam_to_chip_select(struct amd64_pvt *pvt, int cs_mode)
  * Pass back:
  *	contents of the DCL0_LOW register
  */
-static int f10_early_channel_count(struct amd64_pvt *pvt)
+static int f1x_early_channel_count(struct amd64_pvt *pvt)
 {
 	int i, j, channels = 0;
 
-	/* If we are in 128 bit mode, then we are using 2 channels */
-	if (pvt->dclr0 & F10_WIDTH_128) {
-		channels = 2;
-		return channels;
-	}
+	/* On F10h, if we are in 128 bit mode, then we are using 2 channels */
+	if (boot_cpu_data.x86 == 0x10 && (pvt->dclr0 & F10_WIDTH_128))
+		return 2;
 
 	/*
 	 * Need to check if in unganged mode: In such, there are 2 channels,
@@ -1540,7 +1538,7 @@ static struct amd64_family_type amd64_family_types[] = {
 		.f1_id = PCI_DEVICE_ID_AMD_10H_NB_MAP,
 		.f3_id = PCI_DEVICE_ID_AMD_10H_NB_MISC,
 		.ops = {
-			.early_channel_count	= f10_early_channel_count,
+			.early_channel_count	= f1x_early_channel_count,
 			.get_error_address	= f10_get_error_address,
 			.read_dram_ctl_register	= f10_read_dram_ctl_register,
 			.map_sysaddr_to_csrow	= f10_map_sysaddr_to_csrow,
@@ -1551,6 +1549,7 @@ static struct amd64_family_type amd64_family_types[] = {
 	[F15_CPUS] = {
 		.ctl_name = "F15h",
 		.ops = {
+			.early_channel_count	= f1x_early_channel_count,
 			.read_dct_pci_cfg	= f15_read_dct_pci_cfg,
 		}
 	},
