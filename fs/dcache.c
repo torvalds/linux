@@ -284,6 +284,40 @@ void d_drop(struct dentry *dentry)
 }
 EXPORT_SYMBOL(d_drop);
 
+/*
+ * Finish off a dentry we've decided to kill.
+ * dentry->d_lock must be held, returns with it unlocked.
+ * If ref is non-zero, then decrement the refcount too.
+ * Returns dentry requiring refcount drop, or NULL if we're done.
+ */
+static inline struct dentry *dentry_kill(struct dentry *dentry, int ref)
+	__releases(dentry->d_lock)
+{
+	struct dentry *parent;
+
+	if (!spin_trylock(&dcache_inode_lock)) {
+relock:
+		spin_unlock(&dentry->d_lock);
+		cpu_relax();
+		return dentry; /* try again with same dentry */
+	}
+	if (IS_ROOT(dentry))
+		parent = NULL;
+	else
+		parent = dentry->d_parent;
+	if (parent && !spin_trylock(&parent->d_lock)) {
+		spin_unlock(&dcache_inode_lock);
+		goto relock;
+	}
+	if (ref)
+		dentry->d_count--;
+	/* if dentry was on the d_lru list delete it from there */
+	dentry_lru_del(dentry);
+	/* if it was on the hash then remove it */
+	__d_drop(dentry);
+	return d_kill(dentry, parent);
+}
+
 /* 
  * This is dput
  *
@@ -309,13 +343,9 @@ EXPORT_SYMBOL(d_drop);
  * call the dentry unlink method as well as removing it from the queues and
  * releasing its resources. If the parent dentries were scheduled for release
  * they too may now get deleted.
- *
- * no dcache lock, please.
  */
-
 void dput(struct dentry *dentry)
 {
-	struct dentry *parent;
 	if (!dentry)
 		return;
 
@@ -348,26 +378,7 @@ repeat:
 	return;
 
 kill_it:
-	if (!spin_trylock(&dcache_inode_lock)) {
-relock:
-		spin_unlock(&dentry->d_lock);
-		cpu_relax();
-		goto repeat;
-	}
-	if (IS_ROOT(dentry))
-		parent = NULL;
-	else
-		parent = dentry->d_parent;
-	if (parent && !spin_trylock(&parent->d_lock)) {
-		spin_unlock(&dcache_inode_lock);
-		goto relock;
-	}
-	dentry->d_count--;
-	/* if dentry was on the d_lru list delete it from there */
-	dentry_lru_del(dentry);
-	/* if it was on the hash (d_delete case), then remove it */
-	__d_drop(dentry);
-	dentry = d_kill(dentry, parent);
+	dentry = dentry_kill(dentry, 1);
 	if (dentry)
 		goto repeat;
 }
@@ -563,51 +574,43 @@ restart:
 EXPORT_SYMBOL(d_prune_aliases);
 
 /*
- * Throw away a dentry - free the inode, dput the parent.  This requires that
- * the LRU list has already been removed.
+ * Try to throw away a dentry - free the inode, dput the parent.
+ * Requires dentry->d_lock is held, and dentry->d_count == 0.
+ * Releases dentry->d_lock.
  *
- * Try to prune ancestors as well.  This is necessary to prevent
- * quadratic behavior of shrink_dcache_parent(), but is also expected
- * to be beneficial in reducing dentry cache fragmentation.
+ * This may fail if locks cannot be acquired no problem, just try again.
  */
-static void prune_one_dentry(struct dentry *dentry, struct dentry *parent)
+static void try_prune_one_dentry(struct dentry *dentry)
 	__releases(dentry->d_lock)
-	__releases(parent->d_lock)
-	__releases(dcache_inode_lock)
 {
-	__d_drop(dentry);
-	dentry = d_kill(dentry, parent);
+	struct dentry *parent;
 
+	parent = dentry_kill(dentry, 0);
 	/*
-	 * Prune ancestors.
+	 * If dentry_kill returns NULL, we have nothing more to do.
+	 * if it returns the same dentry, trylocks failed. In either
+	 * case, just loop again.
+	 *
+	 * Otherwise, we need to prune ancestors too. This is necessary
+	 * to prevent quadratic behavior of shrink_dcache_parent(), but
+	 * is also expected to be beneficial in reducing dentry cache
+	 * fragmentation.
 	 */
+	if (!parent)
+		return;
+	if (parent == dentry)
+		return;
+
+	/* Prune ancestors. */
+	dentry = parent;
 	while (dentry) {
-relock:
 		spin_lock(&dentry->d_lock);
 		if (dentry->d_count > 1) {
 			dentry->d_count--;
 			spin_unlock(&dentry->d_lock);
 			return;
 		}
-		if (!spin_trylock(&dcache_inode_lock)) {
-relock2:
-			spin_unlock(&dentry->d_lock);
-			cpu_relax();
-			goto relock;
-		}
-
-		if (IS_ROOT(dentry))
-			parent = NULL;
-		else
-			parent = dentry->d_parent;
-		if (parent && !spin_trylock(&parent->d_lock)) {
-			spin_unlock(&dcache_inode_lock);
-			goto relock2;
-		}
-		dentry->d_count--;
-		dentry_lru_del(dentry);
-		__d_drop(dentry);
-		dentry = d_kill(dentry, parent);
+		dentry = dentry_kill(dentry, 1);
 	}
 }
 
@@ -617,8 +620,6 @@ static void shrink_dentry_list(struct list_head *list)
 
 	rcu_read_lock();
 	for (;;) {
-		struct dentry *parent;
-
 		dentry = list_entry_rcu(list->prev, struct dentry, d_lru);
 		if (&dentry->d_lru == list)
 			break; /* empty */
@@ -639,24 +640,10 @@ static void shrink_dentry_list(struct list_head *list)
 			continue;
 		}
 
-		if (!spin_trylock(&dcache_inode_lock)) {
-relock:
-			spin_unlock(&dentry->d_lock);
-			cpu_relax();
-			continue;
-		}
-		if (IS_ROOT(dentry))
-			parent = NULL;
-		else
-			parent = dentry->d_parent;
-		if (parent && !spin_trylock(&parent->d_lock)) {
-			spin_unlock(&dcache_inode_lock);
-			goto relock;
-		}
-		dentry_lru_del(dentry);
-
 		rcu_read_unlock();
-		prune_one_dentry(dentry, parent);
+
+		try_prune_one_dentry(dentry);
+
 		rcu_read_lock();
 	}
 	rcu_read_unlock();
