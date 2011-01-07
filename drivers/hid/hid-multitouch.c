@@ -33,6 +33,7 @@ MODULE_LICENSE("GPL");
 #define MT_QUIRK_NOT_SEEN_MEANS_UP	(1 << 0)
 #define MT_QUIRK_SLOT_IS_CONTACTID	(1 << 1)
 #define MT_QUIRK_CYPRESS	(1 << 2)
+#define MT_QUIRK_SLOT_IS_CONTACTNUMBER	(1 << 3)
 
 struct mt_slot {
 	__s32 x, y, p, w, h;
@@ -63,7 +64,8 @@ struct mt_class {
 /* classes of device behavior */
 #define MT_CLS_DEFAULT 0
 #define MT_CLS_DUAL1 1
-#define MT_CLS_CYPRESS 2
+#define MT_CLS_DUAL2 2
+#define MT_CLS_CYPRESS 3
 
 /*
  * these device-dependent functions determine what slot corresponds
@@ -73,6 +75,11 @@ struct mt_class {
 static int slot_is_contactid(struct mt_device *td)
 {
 	return td->curdata.contactid;
+}
+
+static int slot_is_contactnumber(struct mt_device *td)
+{
+	return td->num_received;
 }
 
 static int cypress_compute_slot(struct mt_device *td)
@@ -105,6 +112,7 @@ static int find_slot_from_contactid(struct mt_device *td)
 struct mt_class mt_classes[] = {
 	{ 0, 0, 0, 10 },                             /* MT_CLS_DEFAULT */
 	{ MT_QUIRK_SLOT_IS_CONTACTID, 0, 0, 2 },     /* MT_CLS_DUAL1 */
+	{ MT_QUIRK_SLOT_IS_CONTACTNUMBER, 0, 0, 10 },    /* MT_CLS_DUAL2 */
 	{ MT_QUIRK_CYPRESS | MT_QUIRK_NOT_SEEN_MEANS_UP, 0, 0, 10 }, /* MT_CLS_CYPRESS */
 };
 
@@ -236,6 +244,9 @@ static int mt_compute_slot(struct mt_device *td)
 
 	if (cls->quirks & MT_QUIRK_CYPRESS)
 		return cypress_compute_slot(td);
+
+	if (cls->quirks & MT_QUIRK_SLOT_IS_CONTACTNUMBER)
+		return slot_is_contactnumber(td);
 
 	return find_slot_from_contactid(td);
 }
@@ -440,6 +451,11 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_CYPRESS,
 		HID_USB_DEVICE(USB_VENDOR_ID_CYPRESS,
 			USB_DEVICE_ID_CYPRESS_TRUETOUCH) },
+
+	/* GeneralTouch panel */
+	{ .driver_data = MT_CLS_DUAL2,
+		HID_USB_DEVICE(USB_VENDOR_ID_GENERAL_TOUCH,
+			USB_DEVICE_ID_GENERAL_TOUCH_WIN7_TWOFINGERS) },
 
 	/* PixCir-based panels */
 	{ .driver_data = MT_CLS_DUAL1,
