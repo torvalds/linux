@@ -1154,7 +1154,7 @@ static void sel_remove_entries(struct dentry *de)
 		list_del_init(node);
 
 		if (d->d_inode) {
-			dget_locked_dlock(d);
+			dget_dlock(d);
 			spin_unlock(&de->d_lock);
 			spin_unlock(&d->d_lock);
 			d_delete(d);

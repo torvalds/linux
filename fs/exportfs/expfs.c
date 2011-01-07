@@ -49,7 +49,7 @@ find_acceptable_alias(struct dentry *result,
 
 	spin_lock(&dcache_inode_lock);
 	list_for_each_entry(dentry, &result->d_inode->i_dentry, d_alias) {
-		dget_locked(dentry);
+		dget(dentry);
 		spin_unlock(&dcache_inode_lock);
 		if (toput)
 			dput(toput);

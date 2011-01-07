@@ -178,7 +178,7 @@ struct dentry *ocfs2_find_local_alias(struct inode *inode,
 			mlog(0, "dentry found: %.*s\n",
 			     dentry->d_name.len, dentry->d_name.name);
 
-			dget_locked_dlock(dentry);
+			dget_dlock(dentry);
 			spin_unlock(&dentry->d_lock);
 			break;
 		}

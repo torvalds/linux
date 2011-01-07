@@ -287,23 +287,17 @@ extern char *dentry_path(struct dentry *, char *, int);
 /* Allocation counts.. */
 
 /**
- *	dget, dget_locked	-	get a reference to a dentry
+ *	dget, dget_dlock -	get a reference to a dentry
  *	@dentry: dentry to get a reference to
  *
  *	Given a dentry or %NULL pointer increment the reference count
  *	if appropriate and return the dentry. A dentry will not be 
- *	destroyed when it has references. dget() should never be
- *	called for dentries with zero reference counter. For these cases
- *	(preferably none, functions in dcache.c are sufficient for normal
- *	needs and they take necessary precautions) you should hold d_lock
- *	and call dget_dlock() instead of dget().
+ *	destroyed when it has references.
  */
 static inline struct dentry *dget_dlock(struct dentry *dentry)
 {
-	if (dentry) {
-		BUG_ON(!dentry->d_count);
+	if (dentry)
 		dentry->d_count++;
-	}
 	return dentry;
 }
 
@@ -316,9 +310,6 @@ static inline struct dentry *dget(struct dentry *dentry)
 	}
 	return dentry;
 }
-
-extern struct dentry * dget_locked(struct dentry *);
-extern struct dentry * dget_locked_dlock(struct dentry *);
 
 extern struct dentry *dget_parent(struct dentry *dentry);
 

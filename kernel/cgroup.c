@@ -887,7 +887,7 @@ static void cgroup_clear_directory(struct dentry *dentry)
 			/* This should never be called on a cgroup
 			 * directory with child cgroups */
 			BUG_ON(d->d_inode->i_mode & S_IFDIR);
-			dget_locked_dlock(d);
+			dget_dlock(d);
 			spin_unlock(&d->d_lock);
 			spin_unlock(&dentry->d_lock);
 			d_delete(d);
