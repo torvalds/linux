@@ -30,6 +30,8 @@
 
 #define ACM_TIMEOUT 1*HZ
 
+#define DISABLE_3D_POWERGATING
+
 void nvhost_module_busy(struct nvhost_module *mod)
 {
 	mutex_lock(&mod->lock);
@@ -139,6 +141,21 @@ int nvhost_module_init(struct nvhost_module *mod, const char *name,
 	mod->parent = parent;
 	mod->powered = false;
 	mod->powergate_id = get_module_powergate_id(name);
+
+#ifdef DISABLE_3D_POWERGATING
+	/*
+	 * It is possible for the 3d block to generate an invalid memory
+	 * request during the power up sequence in some cases.  Workaround
+	 * is to disable 3d block power gating.
+	 */
+	if (mod->powergate_id == TEGRA_POWERGATE_3D) {
+		tegra_powergate_sequence_power_up(mod->powergate_id,
+			mod->clk[0]);
+		clk_disable(mod->clk[0]);
+		mod->powergate_id = -1;
+	}
+#endif
+
 	mutex_init(&mod->lock);
 	init_waitqueue_head(&mod->idle);
 	INIT_DELAYED_WORK(&mod->powerdown, powerdown_handler);
