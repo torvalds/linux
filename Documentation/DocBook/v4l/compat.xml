@@ -2353,6 +2353,17 @@ that used it. It was originally scheduled for removal in 2.6.35.
 	</listitem>
       </orderedlist>
     </section>
+    <section>
+      <title>V4L2 in Linux 2.6.38</title>
+      <orderedlist>
+        <listitem>
+          <para>Multi-planar API added. Does not affect the compatibility of
+          current drivers and applications. See
+          <link linkend="planar-apis">multi-planar API</link>
+          for details.</para>
+        </listitem>
+      </orderedlist>
+    </section>
 
     <section id="other">
       <title>Relation of V4L2 to other Linux multimedia APIs</title>

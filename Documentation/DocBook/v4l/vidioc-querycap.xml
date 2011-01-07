@@ -142,14 +142,30 @@ this array to zero.</entry>
 	  <row>
 	    <entry><constant>V4L2_CAP_VIDEO_CAPTURE</constant></entry>
 	    <entry>0x00000001</entry>
-	    <entry>The device supports the <link
-linkend="capture">Video Capture</link> interface.</entry>
+	    <entry>The device supports single-planar formats through the <link
+linkend="capture">Video Capture</link> interface. An application can use either
+<link linkend="planar-apis">the single or the multi-planar API</link>.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_VIDEO_CAPTURE_MPLANE</constant></entry>
+	    <entry>0x00001000</entry>
+	    <entry>The device supports multi-planar formats through the <link
+linkend="capture">Video Capture</link> interface. An application has to use the
+<link linkend="planar-apis">multi-planar API</link>.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CAP_VIDEO_OUTPUT</constant></entry>
 	    <entry>0x00000002</entry>
-	    <entry>The device supports the <link
-linkend="output">Video Output</link> interface.</entry>
+	    <entry>The device supports single-planar formats through the <link
+linkend="output">Video Output</link> interface. An application can use either
+<link linkend="planar-apis">the single or the multi-planar API</link>.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_VIDEO_OUTPUT_MPLANE</constant></entry>
+	    <entry>0x00002000</entry>
+	    <entry>The device supports multi-planar formats through the <link
+linkend="output">Video Output</link> interface. An application has to use the
+<link linkend="planar-apis">multi-planar API</link>.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CAP_VIDEO_OVERLAY</constant></entry>

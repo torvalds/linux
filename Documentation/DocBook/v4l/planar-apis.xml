@@ -1,0 +1,81 @@
+<section id="planar-apis">
+  <title>Single- and multi-planar APIs</title>
+
+  <para>Some devices require data for each input or output video frame
+  to be placed in discontiguous memory buffers. In such cases one
+  video frame has to be addressed using more than one memory address, i.e. one
+  pointer per "plane". A plane is a sub-buffer of current frame. For examples
+  of such formats see <xref linkend="pixfmt" />.</para>
+
+  <para>Initially, V4L2 API did not support multi-planar buffers and a set of
+  extensions has been introduced to handle them. Those extensions constitute
+  what is being referred to as the "multi-planar API".</para>
+
+  <para>Some of the V4L2 API calls and structures are interpreted differently,
+  depending on whether single- or multi-planar API is being used. An application
+  can choose whether to use one or the other by passing a corresponding buffer
+  type to its ioctl calls. Multi-planar versions of buffer types are suffixed with
+  an `_MPLANE' string. For a list of available multi-planar buffer types
+  see &v4l2-buf-type;.
+  </para>
+
+  <section>
+    <title>Multi-planar formats</title>
+    <para>Multi-planar API introduces new multi-planar formats. Those formats
+    use a separate set of FourCC codes. It is important to distinguish between
+    the multi-planar API and a multi-planar format. Multi-planar API calls can
+    handle all single-planar formats as well, while the single-planar API cannot
+    handle multi-planar formats. Applications do not have to switch between APIs
+    when handling both single- and multi-planar devices and should use the
+    multi-planar API version for both single- and multi-planar formats.
+    Drivers that do not support multi-planar API can still be handled with it,
+    utilizing a compatibility layer built into standard V4L2 ioctl handling.
+    </para>
+  </section>
+
+  <section>
+    <title>Single and multi-planar API compatibility layer</title>
+    <para>In most cases<footnote><para>The compatibility layer does not cover
+    drivers that do not use video_ioctl2() call.</para></footnote>, applications
+    can use the multi-planar API with older drivers that support
+    only its single-planar version and vice versa. Appropriate conversion is
+    done seamlessly for both applications and drivers in the V4L2 core. The
+    general rule of thumb is: as long as an application uses formats that
+    a driver supports, it can use either API (although use of multi-planar
+    formats is only possible with the multi-planar API). The list of formats
+    supported by a driver can be obtained using the &VIDIOC-ENUM-FMT; call.
+    It is possible, but discouraged, for a driver or an application to support
+    and use both versions of the API.</para>
+  </section>
+
+  <section>
+    <title>Calls that distinguish between single and multi-planar APIs</title>
+    <variablelist>
+      <varlistentry>
+        <term>&VIDIOC-QUERYCAP;</term>
+        <listitem>Two additional multi-planar capabilities are added. They can
+        be set together with non-multi-planar ones for devices that handle
+        both single- and multi-planar formats.</listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>&VIDIOC-G-FMT;, &VIDIOC-S-FMT;, &VIDIOC-TRY-FMT;</term>
+        <listitem>New structures for describing multi-planar formats are added:
+        &v4l2-pix-format-mplane; and &v4l2-plane-pix-format;. Drivers may
+        define new multi-planar formats, which have distinct FourCC codes from
+        the existing single-planar ones.
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>&VIDIOC-QBUF;, &VIDIOC-DQBUF;, &VIDIOC-QUERYBUF;</term>
+        <listitem>A new &v4l2-plane; structure for describing planes is added.
+        Arrays of this structure are passed in the new
+        <structfield>m.planes</structfield> field of &v4l2-buffer;.
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>&VIDIOC-REQBUFS;</term>
+        <listitem>Will allocate multi-planar buffers as requested.</listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+</section>

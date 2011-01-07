@@ -85,6 +85,17 @@ Remote Controller chapter.</contrib>
 	  </address>
 	</affiliation>
       </author>
+
+      <author>
+      	<firstname>Pawel</firstname>
+	<surname>Osciak</surname>
+	<contrib>Designed and documented the multi-planar API.</contrib>
+	<affiliation>
+	  <address>
+	    <email>pawel AT osciak.com</email>
+	  </address>
+	</affiliation>
+      </author>
     </authorgroup>
 
     <copyright>
@@ -102,7 +113,8 @@ Remote Controller chapter.</contrib>
       <year>2010</year>
       <year>2011</year>
       <holder>Bill Dirks, Michael H. Schimek, Hans Verkuil, Martin
-Rubli, Andy Walls, Muralidharan Karicheri, Mauro Carvalho Chehab</holder>
+Rubli, Andy Walls, Muralidharan Karicheri, Mauro Carvalho Chehab,
+	Pawel Osciak</holder>
     </copyright>
     <legalnotice>
     <para>Except when explicitly stated as GPL, programming examples within
@@ -114,6 +126,13 @@ Rubli, Andy Walls, Muralidharan Karicheri, Mauro Carvalho Chehab</holder>
 structs, ioctls) must be noted in more detail in the history chapter
 (compat.xml), along with the possible impact on existing drivers and
 applications. -->
+
+      <revision>
+	<revnumber>2.6.38</revnumber>
+	<authorinitials>po</authorinitials>
+	<revremark>Added the <link linkend="planar-apis">multi-planar API</link>.
+	</revremark>
+      </revision>
 
       <revision>
 	<revnumber>2.6.37</revnumber>
