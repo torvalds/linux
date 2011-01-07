@@ -118,7 +118,7 @@ static uint32_t qtouch_tsdebug;
 module_param_named(tsdebug, qtouch_tsdebug, uint, 0664);
 
 static uint32_t qtouch_disable_touch;
-module_param_named(disable_touch, qtouch_disable_touch, uint, 0664);
+module_param_named(disable_touch, qtouch_disable_touch, uint, 0644);
 
 static irqreturn_t qtouch_ts_irq_handler(int irq, void *dev_id)
 {
@@ -1571,7 +1571,7 @@ static ssize_t qtouch_irq_enable(struct device *dev,
 	return err;
 }
 
-static DEVICE_ATTR(irq_enable, 0777, qtouch_irq_status, qtouch_irq_enable);
+static DEVICE_ATTR(irq_enable, 0644, qtouch_irq_status, qtouch_irq_enable);
 
 static ssize_t qtouch_update_status(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -1583,7 +1583,7 @@ static ssize_t qtouch_update_status(struct device *dev,
 	return sprintf(buf, "%u\n", ts->status);
 }
 
-static DEVICE_ATTR(update_status, 0777, qtouch_update_status, NULL);
+static DEVICE_ATTR(update_status, 0644, qtouch_update_status, NULL);
 
 static ssize_t qtouch_fw_version(struct device *dev,
 				 struct device_attribute *attr, char *buf)
@@ -1595,7 +1595,7 @@ static ssize_t qtouch_fw_version(struct device *dev,
 	return sprintf(buf, "0x%X%X\n", ts->fw_version, ts->build_version);
 }
 
-static DEVICE_ATTR(fw_version, 0777, qtouch_fw_version, NULL);
+static DEVICE_ATTR(fw_version, 0644, qtouch_fw_version, NULL);
 
 static int qtouch_ts_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
