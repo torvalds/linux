@@ -115,8 +115,8 @@ struct hd_struct {
 #else
 	struct disk_stats dkstats;
 #endif
+	atomic_t ref;
 	struct rcu_head rcu_head;
-	struct kref ref;
 };
 
 #define GENHD_FL_REMOVABLE			1
@@ -584,7 +584,7 @@ extern struct hd_struct * __must_check add_partition(struct gendisk *disk,
 						     sector_t len, int flags,
 						     struct partition_meta_info
 						       *info);
-extern void __delete_partition(struct kref *ref);
+extern void __delete_partition(struct hd_struct *);
 extern void delete_partition(struct gendisk *, int);
 extern void printk_all_partitions(void);
 
@@ -612,6 +612,29 @@ extern ssize_t part_fail_store(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count);
 #endif /* CONFIG_FAIL_MAKE_REQUEST */
+
+static inline void hd_ref_init(struct hd_struct *part)
+{
+	atomic_set(&part->ref, 1);
+	smp_mb();
+}
+
+static inline void hd_struct_get(struct hd_struct *part)
+{
+	atomic_inc(&part->ref);
+	smp_mb__after_atomic_inc();
+}
+
+static inline int hd_struct_try_get(struct hd_struct *part)
+{
+	return atomic_inc_not_zero(&part->ref);
+}
+
+static inline void hd_struct_put(struct hd_struct *part)
+{
+	if (atomic_dec_and_test(&part->ref))
+		__delete_partition(part);
+}
 
 #else /* CONFIG_BLOCK */
 

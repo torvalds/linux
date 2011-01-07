@@ -1192,7 +1192,8 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 			return NULL;
 		}
 		disk->part_tbl->part[0] = &disk->part0;
-		kref_init(&disk->part0.ref);
+
+		hd_ref_init(&disk->part0);
 
 		disk->minors = minors;
 		rand_initialize_disk(disk);

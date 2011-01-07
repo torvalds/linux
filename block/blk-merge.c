@@ -356,7 +356,7 @@ static void blk_account_io_merge(struct request *req)
 		part_round_stats(cpu, part);
 		part_dec_in_flight(part, rq_data_dir(req));
 
-		kref_put(&part->ref, __delete_partition);
+		hd_struct_put(part);
 		part_stat_unlock();
 	}
 }

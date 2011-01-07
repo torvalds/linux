@@ -70,7 +70,7 @@ static void drive_stat_acct(struct request *rq, int new_io)
 		part_stat_inc(cpu, part, merges[rw]);
 	} else {
 		part = disk_map_sector_rcu(rq->rq_disk, blk_rq_pos(rq));
-		if (!kref_test_and_get(&part->ref)) {
+		if (!hd_struct_try_get(part)) {
 			/*
 			 * The partition is already being removed,
 			 * the request will be accounted on the disk only
@@ -80,7 +80,7 @@ static void drive_stat_acct(struct request *rq, int new_io)
 			 * it as any other partition.
 			 */
 			part = &rq->rq_disk->part0;
-			kref_get(&part->ref);
+			hd_struct_get(part);
 		}
 		part_round_stats(cpu, part);
 		part_inc_in_flight(part, rw);
@@ -1818,7 +1818,7 @@ static void blk_account_io_done(struct request *req)
 		part_round_stats(cpu, part);
 		part_dec_in_flight(part, rw);
 
-		kref_put(&part->ref, __delete_partition);
+		hd_struct_put(part);
 		part_stat_unlock();
 	}
 }
