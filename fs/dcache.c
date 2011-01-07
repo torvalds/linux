@@ -1350,6 +1350,11 @@ static struct dentry *__d_instantiate_unique(struct dentry *entry,
 	list_for_each_entry(alias, &inode->i_dentry, d_alias) {
 		struct qstr *qstr = &alias->d_name;
 
+		/*
+		 * Don't need alias->d_lock here, because aliases with
+		 * d_parent == entry->d_parent are not subject to name or
+		 * parent changes, because the parent inode i_mutex is held.
+		 */
 		if (qstr->hash != hash)
 			continue;
 		if (alias->d_parent != entry->d_parent)
@@ -2313,7 +2318,9 @@ static int prepend_path(const struct path *path, struct path *root,
 		}
 		parent = dentry->d_parent;
 		prefetch(parent);
+		spin_lock(&dentry->d_lock);
 		error = prepend_name(buffer, buflen, &dentry->d_name);
+		spin_unlock(&dentry->d_lock);
 		if (!error)
 			error = prepend(buffer, buflen, "/", 1);
 		if (error)
@@ -2515,10 +2522,13 @@ static char *__dentry_path(struct dentry *dentry, char *buf, int buflen)
 
 	while (!IS_ROOT(dentry)) {
 		struct dentry *parent = dentry->d_parent;
+		int error;
 
 		prefetch(parent);
-		if ((prepend_name(&end, &buflen, &dentry->d_name) != 0) ||
-		    (prepend(&end, &buflen, "/", 1) != 0))
+		spin_lock(&dentry->d_lock);
+		error = prepend_name(&end, &buflen, &dentry->d_name);
+		spin_unlock(&dentry->d_lock);
+		if (error != 0 || prepend(&end, &buflen, "/", 1) != 0)
 			goto Elong;
 
 		retval = end;
