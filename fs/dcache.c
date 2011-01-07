@@ -582,26 +582,29 @@ static void prune_one_dentry(struct dentry *dentry, struct dentry *parent)
 	 * Prune ancestors.
 	 */
 	while (dentry) {
-		spin_lock(&dcache_inode_lock);
-again:
+relock:
 		spin_lock(&dentry->d_lock);
+		if (dentry->d_count > 1) {
+			dentry->d_count--;
+			spin_unlock(&dentry->d_lock);
+			return;
+		}
+		if (!spin_trylock(&dcache_inode_lock)) {
+relock2:
+			spin_unlock(&dentry->d_lock);
+			cpu_relax();
+			goto relock;
+		}
+
 		if (IS_ROOT(dentry))
 			parent = NULL;
 		else
 			parent = dentry->d_parent;
 		if (parent && !spin_trylock(&parent->d_lock)) {
-			spin_unlock(&dentry->d_lock);
-			goto again;
+			spin_unlock(&dcache_inode_lock);
+			goto relock2;
 		}
 		dentry->d_count--;
-		if (dentry->d_count) {
-			if (parent)
-				spin_unlock(&parent->d_lock);
-			spin_unlock(&dentry->d_lock);
-			spin_unlock(&dcache_inode_lock);
-			return;
-		}
-
 		dentry_lru_del(dentry);
 		__d_drop(dentry);
 		dentry = d_kill(dentry, parent);
