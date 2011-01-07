@@ -215,10 +215,10 @@ static struct regulator_init_data vgen_init = {
 
 static struct mc13783_regulator_init_data mx27_3ds_regulators[] = {
 	{
-		.id = MC13783_REGU_VMMC1,
+		.id = MC13783_REG_VMMC1,
 		.init_data = &vmmc1_init,
 	}, {
-		.id = MC13783_REGU_VGEN,
+		.id = MC13783_REG_VGEN,
 		.init_data = &vgen_init,
 	},
 };
