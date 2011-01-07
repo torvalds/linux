@@ -346,11 +346,11 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 	if (strncmp(usercmd, "DIS", 3) == 0)
 		client_id = VGA_SWITCHEROO_DIS;
 
-	if (strncmp(usercmd, "MIGD", 3) == 0) {
+	if (strncmp(usercmd, "MIGD", 4) == 0) {
 		just_mux = true;
 		client_id = VGA_SWITCHEROO_IGD;
 	}
-	if (strncmp(usercmd, "MDIS", 3) == 0) {
+	if (strncmp(usercmd, "MDIS", 4) == 0) {
 		just_mux = true;
 		client_id = VGA_SWITCHEROO_DIS;
 	}
