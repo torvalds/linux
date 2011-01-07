@@ -16,6 +16,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/input.h>
+#include <linux/keyreset.h>
 #include <linux/gpio_event.h>
 #include <linux/gpio.h>
 #include <asm/mach-types.h>
@@ -82,10 +83,34 @@ static struct platform_device stingray_keypad_device = {
 	},
 };
 
+int stingray_log_reset(void)
+{
+	pr_warn("Hard reset buttons pushed\n");
+	return 0;
+}
+
+static struct keyreset_platform_data stingray_reset_keys_pdata = {
+	.reset_fn = stingray_log_reset,
+	.keys_down = {
+		KEY_END,
+		KEY_VOLUMEUP,
+		0
+	},
+};
+
+struct platform_device stingray_keyreset_device = {
+	.name	= KEYRESET_NAME,
+	.dev	= {
+		.platform_data = &stingray_reset_keys_pdata,
+	},
+};
+
+
 int __init stingray_keypad_init(void)
 {
 	tegra_gpio_enable(TEGRA_GPIO_PR0);
 	tegra_gpio_enable(TEGRA_GPIO_PR1);
 	tegra_gpio_enable(TEGRA_GPIO_PQ0);
+	platform_device_register(&stingray_keyreset_device);
 	return platform_device_register(&stingray_keypad_device);
 }
