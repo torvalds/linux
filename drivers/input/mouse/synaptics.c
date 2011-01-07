@@ -25,7 +25,7 @@
 
 #include <linux/module.h>
 #include <linux/dmi.h>
-#include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/serio.h>
 #include <linux/libps2.h>
 #include <linux/slab.h>
@@ -279,6 +279,25 @@ static void synaptics_set_rate(struct psmouse *psmouse, unsigned int rate)
 	synaptics_mode_cmd(psmouse, priv->mode);
 }
 
+static int synaptics_set_advanced_gesture_mode(struct psmouse *psmouse)
+{
+	static unsigned char param = 0xc8;
+	struct synaptics_data *priv = psmouse->private;
+
+	if (!SYN_CAP_ADV_GESTURE(priv->ext_cap_0c))
+		return 0;
+
+	if (psmouse_sliced_command(psmouse, SYN_QUE_MODEL))
+		return -1;
+	if (ps2_command(&psmouse->ps2dev, &param, PSMOUSE_CMD_SETRATE))
+		return -1;
+
+	/* Advanced gesture mode also sends multi finger data */
+	priv->capabilities |= BIT(1);
+
+	return 0;
+}
+
 /*****************************************************************************
  *	Synaptics pass-through PS/2 port support
  ****************************************************************************/
@@ -380,7 +399,9 @@ static void synaptics_pt_create(struct psmouse *psmouse)
  *	Functions to interpret the absolute mode packets
  ****************************************************************************/
 
-static void synaptics_parse_hw_state(unsigned char buf[], struct synaptics_data *priv, struct synaptics_hw_state *hw)
+static int synaptics_parse_hw_state(const unsigned char buf[],
+				    struct synaptics_data *priv,
+				    struct synaptics_hw_state *hw)
 {
 	memset(hw, 0, sizeof(struct synaptics_hw_state));
 
@@ -396,6 +417,14 @@ static void synaptics_parse_hw_state(unsigned char buf[], struct synaptics_data 
 		hw->w = (((buf[0] & 0x30) >> 2) |
 			 ((buf[0] & 0x04) >> 1) |
 			 ((buf[3] & 0x04) >> 2));
+
+		if (SYN_CAP_ADV_GESTURE(priv->ext_cap_0c) && hw->w == 2) {
+			/* Gesture packet: (x, y, z) at half resolution */
+			priv->mt.x = (((buf[4] & 0x0f) << 8) | buf[1]) << 1;
+			priv->mt.y = (((buf[4] & 0xf0) << 4) | buf[2]) << 1;
+			priv->mt.z = ((buf[3] & 0x30) | (buf[5] & 0x0f)) << 1;
+			return 1;
+		}
 
 		hw->left  = (buf[0] & 0x01) ? 1 : 0;
 		hw->right = (buf[0] & 0x02) ? 1 : 0;
@@ -452,6 +481,36 @@ static void synaptics_parse_hw_state(unsigned char buf[], struct synaptics_data 
 		hw->left  = (buf[0] & 0x01) ? 1 : 0;
 		hw->right = (buf[0] & 0x02) ? 1 : 0;
 	}
+
+	return 0;
+}
+
+static void set_slot(struct input_dev *dev, int slot, bool active, int x, int y)
+{
+	input_mt_slot(dev, slot);
+	input_mt_report_slot_state(dev, MT_TOOL_FINGER, active);
+	if (active) {
+		input_report_abs(dev, ABS_MT_POSITION_X, x);
+		input_report_abs(dev, ABS_MT_POSITION_Y,
+				 YMAX_NOMINAL + YMIN_NOMINAL - y);
+	}
+}
+
+static void synaptics_report_semi_mt_data(struct input_dev *dev,
+					  const struct synaptics_hw_state *a,
+					  const struct synaptics_hw_state *b,
+					  int num_fingers)
+{
+	if (num_fingers >= 2) {
+		set_slot(dev, 0, true, min(a->x, b->x), min(a->y, b->y));
+		set_slot(dev, 1, true, max(a->x, b->x), max(a->y, b->y));
+	} else if (num_fingers == 1) {
+		set_slot(dev, 0, true, a->x, a->y);
+		set_slot(dev, 1, false, 0, 0);
+	} else {
+		set_slot(dev, 0, false, 0, 0);
+		set_slot(dev, 1, false, 0, 0);
+	}
 }
 
 /*
@@ -466,7 +525,8 @@ static void synaptics_process_packet(struct psmouse *psmouse)
 	int finger_width;
 	int i;
 
-	synaptics_parse_hw_state(psmouse->packet, priv, &hw);
+	if (synaptics_parse_hw_state(psmouse->packet, priv, &hw))
+		return;
 
 	if (hw.scroll) {
 		priv->scroll += hw.scroll;
@@ -488,7 +548,7 @@ static void synaptics_process_packet(struct psmouse *psmouse)
 		return;
 	}
 
-	if (hw.z > 0) {
+	if (hw.z > 0 && hw.x > 1) {
 		num_fingers = 1;
 		finger_width = 5;
 		if (SYN_CAP_EXTENDED(priv->capabilities)) {
@@ -512,6 +572,9 @@ static void synaptics_process_packet(struct psmouse *psmouse)
 		finger_width = 0;
 	}
 
+	if (SYN_CAP_ADV_GESTURE(priv->ext_cap_0c))
+		synaptics_report_semi_mt_data(dev, &hw, &priv->mt, num_fingers);
+
 	/* Post events
 	 * BTN_TOUCH has to be first as mousedev relies on it when doing
 	 * absolute -> relative conversion
@@ -519,7 +582,7 @@ static void synaptics_process_packet(struct psmouse *psmouse)
 	if (hw.z > 30) input_report_key(dev, BTN_TOUCH, 1);
 	if (hw.z < 25) input_report_key(dev, BTN_TOUCH, 0);
 
-	if (hw.z > 0) {
+	if (num_fingers > 0) {
 		input_report_abs(dev, ABS_X, hw.x);
 		input_report_abs(dev, ABS_Y, YMAX_NOMINAL + YMIN_NOMINAL - hw.y);
 	}
@@ -622,12 +685,23 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 {
 	int i;
 
+	__set_bit(INPUT_PROP_POINTER, dev->propbit);
+
 	__set_bit(EV_ABS, dev->evbit);
 	input_set_abs_params(dev, ABS_X,
 			     XMIN_NOMINAL, priv->x_max ?: XMAX_NOMINAL, 0, 0);
 	input_set_abs_params(dev, ABS_Y,
 			     YMIN_NOMINAL, priv->y_max ?: YMAX_NOMINAL, 0, 0);
 	input_set_abs_params(dev, ABS_PRESSURE, 0, 255, 0, 0);
+
+	if (SYN_CAP_ADV_GESTURE(priv->ext_cap_0c)) {
+		__set_bit(INPUT_PROP_SEMI_MT, dev->propbit);
+		input_mt_init_slots(dev, 2);
+		input_set_abs_params(dev, ABS_MT_POSITION_X, XMIN_NOMINAL,
+				     priv->x_max ?: XMAX_NOMINAL, 0, 0);
+		input_set_abs_params(dev, ABS_MT_POSITION_Y, YMIN_NOMINAL,
+				     priv->y_max ?: YMAX_NOMINAL, 0, 0);
+	}
 
 	if (SYN_CAP_PALMDETECT(priv->capabilities))
 		input_set_abs_params(dev, ABS_TOOL_WIDTH, 0, 15, 0, 0);
@@ -663,6 +737,7 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 	input_abs_set_res(dev, ABS_Y, priv->y_res);
 
 	if (SYN_CAP_CLICKPAD(priv->ext_cap_0c)) {
+		__set_bit(INPUT_PROP_BUTTONPAD, dev->propbit);
 		/* Clickpads report only left button */
 		__clear_bit(BTN_RIGHT, dev->keybit);
 		__clear_bit(BTN_MIDDLE, dev->keybit);
@@ -699,6 +774,11 @@ static int synaptics_reconnect(struct psmouse *psmouse)
 
 	if (synaptics_set_absolute_mode(psmouse)) {
 		printk(KERN_ERR "Unable to initialize Synaptics hardware.\n");
+		return -1;
+	}
+
+	if (synaptics_set_advanced_gesture_mode(psmouse)) {
+		printk(KERN_ERR "Advanced gesture mode reconnect failed.\n");
 		return -1;
 	}
 
@@ -744,14 +824,44 @@ static const struct dmi_system_id __initconst toshiba_dmi_table[] = {
 #endif
 };
 
+static bool broken_olpc_ec;
+
+static const struct dmi_system_id __initconst olpc_dmi_table[] = {
+#if defined(CONFIG_DMI) && defined(CONFIG_OLPC)
+	{
+		/* OLPC XO-1 or XO-1.5 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "OLPC"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "XO"),
+		},
+	},
+	{ }
+#endif
+};
+
 void __init synaptics_module_init(void)
 {
 	impaired_toshiba_kbc = dmi_check_system(toshiba_dmi_table);
+	broken_olpc_ec = dmi_check_system(olpc_dmi_table);
 }
 
 int synaptics_init(struct psmouse *psmouse)
 {
 	struct synaptics_data *priv;
+
+	/*
+	 * The OLPC XO has issues with Synaptics' absolute mode; similarly to
+	 * the HGPK, it quickly degrades and the hardware becomes jumpy and
+	 * overly sensitive.  Not only that, but the constant packet spew
+	 * (even at a lowered 40pps rate) overloads the EC such that key
+	 * presses on the keyboard are missed.  Given all of that, don't
+	 * even attempt to use Synaptics mode.  Relative mode seems to work
+	 * just fine.
+	 */
+	if (broken_olpc_ec) {
+		printk(KERN_INFO "synaptics: OLPC XO detected, not enabling Synaptics protocol.\n");
+		return -ENODEV;
+	}
 
 	psmouse->private = priv = kzalloc(sizeof(struct synaptics_data), GFP_KERNEL);
 	if (!priv)
@@ -766,6 +876,11 @@ int synaptics_init(struct psmouse *psmouse)
 
 	if (synaptics_set_absolute_mode(psmouse)) {
 		printk(KERN_ERR "Unable to initialize Synaptics hardware.\n");
+		goto init_fail;
+	}
+
+	if (synaptics_set_advanced_gesture_mode(psmouse)) {
+		printk(KERN_ERR "Advanced gesture mode init failed.\n");
 		goto init_fail;
 	}
 
@@ -802,8 +917,8 @@ int synaptics_init(struct psmouse *psmouse)
 
 	/*
 	 * Toshiba's KBC seems to have trouble handling data from
-	 * Synaptics as full rate, switch to lower rate which is roughly
-	 * thye same as rate of standard PS/2 mouse.
+	 * Synaptics at full rate.  Switch to a lower rate (roughly
+	 * the same rate as a standard PS/2 mouse).
 	 */
 	if (psmouse->rate >= 80 && impaired_toshiba_kbc) {
 		printk(KERN_INFO "synaptics: Toshiba %s detected, limiting rate to 40pps.\n",
