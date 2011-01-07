@@ -1228,6 +1228,7 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	int index = 0;
 	bool is_dig = false;
 	bool is_dce5_dac = false;
+	bool is_dce5_dvo = false;
 
 	memset(&args, 0, sizeof(args));
 
@@ -1250,7 +1251,9 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 		index = GetIndexIntoMasterTable(COMMAND, DVOOutputControl);
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
-		if (ASIC_IS_DCE3(rdev))
+		if (ASIC_IS_DCE5(rdev))
+			is_dce5_dvo = true;
+		else if (ASIC_IS_DCE3(rdev))
 			is_dig = true;
 		else
 			index = GetIndexIntoMasterTable(COMMAND, DVOOutputControl);
@@ -1343,6 +1346,17 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 		case DRM_MODE_DPMS_SUSPEND:
 		case DRM_MODE_DPMS_OFF:
 			atombios_dac_setup(encoder, ATOM_DISABLE);
+			break;
+		}
+	} else if (is_dce5_dvo) {
+		switch (mode) {
+		case DRM_MODE_DPMS_ON:
+			atombios_dvo_setup(encoder, ATOM_ENABLE);
+			break;
+		case DRM_MODE_DPMS_STANDBY:
+		case DRM_MODE_DPMS_SUSPEND:
+		case DRM_MODE_DPMS_OFF:
+			atombios_dvo_setup(encoder, ATOM_DISABLE);
 			break;
 		}
 	} else {
