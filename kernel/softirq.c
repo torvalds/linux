@@ -853,7 +853,7 @@ static int __cpuinit cpu_callback(struct notifier_block *nfb,
 			     cpumask_any(cpu_online_mask));
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN: {
-		static struct sched_param param = {
+		static const struct sched_param param = {
 			.sched_priority = MAX_RT_PRIO-1
 		};
 

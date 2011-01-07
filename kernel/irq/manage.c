@@ -577,7 +577,7 @@ irq_thread_check_affinity(struct irq_desc *desc, struct irqaction *action) { }
  */
 static int irq_thread(void *data)
 {
-	static struct sched_param param = {
+	static const struct sched_param param = {
 		.sched_priority = MAX_USER_RT_PRIO/2,
 	};
 	struct irqaction *action = data;
