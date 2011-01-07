@@ -285,6 +285,15 @@ config HID_MONTEREY
 	---help---
 	Support for Monterey Genius KB29E.
 
+config HID_MULTITOUCH
+	tristate "HID Multitouch panels"
+	depends on USB_HID
+	---help---
+	  Generic support for HID multitouch panels.
+
+	  Say Y here if you have one of the following devices:
+	  - PixCir touchscreen
+
 config HID_NTRIG
 	tristate "N-Trig touch screen"
 	depends on USB_HID
