@@ -392,6 +392,7 @@ struct inodes_stat_t {
 #include <linux/capability.h>
 #include <linux/semaphore.h>
 #include <linux/fiemap.h>
+#include <linux/rculist_bl.h>
 
 #include <asm/atomic.h>
 #include <asm/byteorder.h>
@@ -1377,7 +1378,7 @@ struct super_block {
 	const struct xattr_handler **s_xattr;
 
 	struct list_head	s_inodes;	/* all inodes */
-	struct hlist_head	s_anon;		/* anonymous dentries for (nfs) exporting */
+	struct hlist_bl_head	s_anon;		/* anonymous dentries for (nfs) exporting */
 #ifdef CONFIG_SMP
 	struct list_head __percpu *s_files;
 #else

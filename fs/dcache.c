@@ -33,14 +33,18 @@
 #include <linux/bootmem.h>
 #include <linux/fs_struct.h>
 #include <linux/hardirq.h>
+#include <linux/bit_spinlock.h>
+#include <linux/rculist_bl.h>
 #include "internal.h"
 
 /*
  * Usage:
  * dcache_inode_lock protects:
  *   - i_dentry, d_alias, d_inode
- * dcache_hash_lock protects:
- *   - the dcache hash table, s_anon lists
+ * dcache_hash_bucket lock protects:
+ *   - the dcache hash table
+ * s_anon bl list spinlock protects:
+ *   - the s_anon list (see __d_drop)
  * dcache_lru_lock protects:
  *   - the dcache lru lists and counters
  * d_lock protects:
@@ -57,7 +61,8 @@
  * dcache_inode_lock
  *   dentry->d_lock
  *     dcache_lru_lock
- *     dcache_hash_lock
+ *     dcache_hash_bucket lock
+ *     s_anon lock
  *
  * If there is an ancestor relationship:
  * dentry->d_parent->...->d_parent->d_lock
@@ -74,7 +79,6 @@ int sysctl_vfs_cache_pressure __read_mostly = 100;
 EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
 
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(dcache_inode_lock);
-static __cacheline_aligned_in_smp DEFINE_SPINLOCK(dcache_hash_lock);
 static __cacheline_aligned_in_smp DEFINE_SPINLOCK(dcache_lru_lock);
 __cacheline_aligned_in_smp DEFINE_SEQLOCK(rename_lock);
 
@@ -96,7 +100,29 @@ static struct kmem_cache *dentry_cache __read_mostly;
 
 static unsigned int d_hash_mask __read_mostly;
 static unsigned int d_hash_shift __read_mostly;
-static struct hlist_head *dentry_hashtable __read_mostly;
+
+struct dcache_hash_bucket {
+	struct hlist_bl_head head;
+};
+static struct dcache_hash_bucket *dentry_hashtable __read_mostly;
+
+static inline struct dcache_hash_bucket *d_hash(struct dentry *parent,
+					unsigned long hash)
+{
+	hash += ((unsigned long) parent ^ GOLDEN_RATIO_PRIME) / L1_CACHE_BYTES;
+	hash = hash ^ ((hash ^ GOLDEN_RATIO_PRIME) >> D_HASHBITS);
+	return dentry_hashtable + (hash & D_HASHMASK);
+}
+
+static inline void spin_lock_bucket(struct dcache_hash_bucket *b)
+{
+	bit_spin_lock(0, (unsigned long *)&b->head.first);
+}
+
+static inline void spin_unlock_bucket(struct dcache_hash_bucket *b)
+{
+	__bit_spin_unlock(0, (unsigned long *)&b->head.first);
+}
 
 /* Statistics gathering. */
 struct dentry_stat_t dentry_stat = {
@@ -144,7 +170,7 @@ static void d_free(struct dentry *dentry)
 		dentry->d_op->d_release(dentry);
 
 	/* if dentry was never inserted into hash, immediate free is OK */
-	if (hlist_unhashed(&dentry->d_hash))
+	if (hlist_bl_unhashed(&dentry->d_hash))
 		__d_free(&dentry->d_u.d_rcu);
 	else
 		call_rcu(&dentry->d_u.d_rcu, __d_free);
@@ -302,11 +328,27 @@ static struct dentry *d_kill(struct dentry *dentry, struct dentry *parent)
 void __d_drop(struct dentry *dentry)
 {
 	if (!(dentry->d_flags & DCACHE_UNHASHED)) {
-		dentry->d_flags |= DCACHE_UNHASHED;
-		spin_lock(&dcache_hash_lock);
-		hlist_del_rcu(&dentry->d_hash);
-		spin_unlock(&dcache_hash_lock);
-		dentry_rcuwalk_barrier(dentry);
+		if (unlikely(dentry->d_flags & DCACHE_DISCONNECTED)) {
+			bit_spin_lock(0,
+				(unsigned long *)&dentry->d_sb->s_anon.first);
+			dentry->d_flags |= DCACHE_UNHASHED;
+			hlist_bl_del_init(&dentry->d_hash);
+			__bit_spin_unlock(0,
+				(unsigned long *)&dentry->d_sb->s_anon.first);
+		} else {
+			struct dcache_hash_bucket *b;
+			b = d_hash(dentry->d_parent, dentry->d_name.hash);
+			spin_lock_bucket(b);
+			/*
+			 * We may not actually need to put DCACHE_UNHASHED
+			 * manipulations under the hash lock, but follow
+			 * the principle of least surprise.
+			 */
+			dentry->d_flags |= DCACHE_UNHASHED;
+			hlist_bl_del_rcu(&dentry->d_hash);
+			spin_unlock_bucket(b);
+			dentry_rcuwalk_barrier(dentry);
+		}
 	}
 }
 EXPORT_SYMBOL(__d_drop);
@@ -961,8 +1003,8 @@ void shrink_dcache_for_umount(struct super_block *sb)
 	spin_unlock(&dentry->d_lock);
 	shrink_dcache_for_umount_subtree(dentry);
 
-	while (!hlist_empty(&sb->s_anon)) {
-		dentry = hlist_entry(sb->s_anon.first, struct dentry, d_hash);
+	while (!hlist_bl_empty(&sb->s_anon)) {
+		dentry = hlist_bl_entry(hlist_bl_first(&sb->s_anon), struct dentry, d_hash);
 		shrink_dcache_for_umount_subtree(dentry);
 	}
 }
@@ -1263,7 +1305,7 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 	dentry->d_sb = NULL;
 	dentry->d_op = NULL;
 	dentry->d_fsdata = NULL;
-	INIT_HLIST_NODE(&dentry->d_hash);
+	INIT_HLIST_BL_NODE(&dentry->d_hash);
 	INIT_LIST_HEAD(&dentry->d_lru);
 	INIT_LIST_HEAD(&dentry->d_subdirs);
 	INIT_LIST_HEAD(&dentry->d_alias);
@@ -1459,14 +1501,6 @@ struct dentry * d_alloc_root(struct inode * root_inode)
 }
 EXPORT_SYMBOL(d_alloc_root);
 
-static inline struct hlist_head *d_hash(struct dentry *parent,
-					unsigned long hash)
-{
-	hash += ((unsigned long) parent ^ GOLDEN_RATIO_PRIME) / L1_CACHE_BYTES;
-	hash = hash ^ ((hash ^ GOLDEN_RATIO_PRIME) >> D_HASHBITS);
-	return dentry_hashtable + (hash & D_HASHMASK);
-}
-
 /**
  * d_obtain_alias - find or allocate a dentry for a given inode
  * @inode: inode to allocate the dentry for
@@ -1521,11 +1555,11 @@ struct dentry *d_obtain_alias(struct inode *inode)
 	tmp->d_sb = inode->i_sb;
 	tmp->d_inode = inode;
 	tmp->d_flags |= DCACHE_DISCONNECTED;
-	tmp->d_flags &= ~DCACHE_UNHASHED;
 	list_add(&tmp->d_alias, &inode->i_dentry);
-	spin_lock(&dcache_hash_lock);
-	hlist_add_head(&tmp->d_hash, &inode->i_sb->s_anon);
-	spin_unlock(&dcache_hash_lock);
+	bit_spin_lock(0, (unsigned long *)&tmp->d_sb->s_anon.first);
+	tmp->d_flags &= ~DCACHE_UNHASHED;
+	hlist_bl_add_head(&tmp->d_hash, &tmp->d_sb->s_anon);
+	__bit_spin_unlock(0, (unsigned long *)&tmp->d_sb->s_anon.first);
 	spin_unlock(&tmp->d_lock);
 	spin_unlock(&dcache_inode_lock);
 
@@ -1567,7 +1601,7 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 			d_move(new, dentry);
 			iput(inode);
 		} else {
-			/* already taking dcache_inode_lock, so d_add() by hand */
+			/* already got dcache_inode_lock, so d_add() by hand */
 			__d_instantiate(dentry, inode);
 			spin_unlock(&dcache_inode_lock);
 			security_d_instantiate(dentry, inode);
@@ -1702,8 +1736,8 @@ struct dentry *__d_lookup_rcu(struct dentry *parent, struct qstr *name,
 	unsigned int len = name->len;
 	unsigned int hash = name->hash;
 	const unsigned char *str = name->name;
-	struct hlist_head *head = d_hash(parent, hash);
-	struct hlist_node *node;
+	struct dcache_hash_bucket *b = d_hash(parent, hash);
+	struct hlist_bl_node *node;
 	struct dentry *dentry;
 
 	/*
@@ -1726,7 +1760,7 @@ struct dentry *__d_lookup_rcu(struct dentry *parent, struct qstr *name,
 	 *
 	 * See Documentation/vfs/dcache-locking.txt for more details.
 	 */
-	hlist_for_each_entry_rcu(dentry, node, head, d_hash) {
+	hlist_bl_for_each_entry_rcu(dentry, node, &b->head, d_hash) {
 		struct inode *i;
 		const char *tname;
 		int tlen;
@@ -1820,8 +1854,8 @@ struct dentry *__d_lookup(struct dentry *parent, struct qstr *name)
 	unsigned int len = name->len;
 	unsigned int hash = name->hash;
 	const unsigned char *str = name->name;
-	struct hlist_head *head = d_hash(parent,hash);
-	struct hlist_node *node;
+	struct dcache_hash_bucket *b = d_hash(parent, hash);
+	struct hlist_bl_node *node;
 	struct dentry *found = NULL;
 	struct dentry *dentry;
 
@@ -1847,7 +1881,7 @@ struct dentry *__d_lookup(struct dentry *parent, struct qstr *name)
 	 */
 	rcu_read_lock();
 	
-	hlist_for_each_entry_rcu(dentry, node, head, d_hash) {
+	hlist_bl_for_each_entry_rcu(dentry, node, &b->head, d_hash) {
 		const char *tname;
 		int tlen;
 
@@ -1998,11 +2032,13 @@ again:
 }
 EXPORT_SYMBOL(d_delete);
 
-static void __d_rehash(struct dentry * entry, struct hlist_head *list)
+static void __d_rehash(struct dentry * entry, struct dcache_hash_bucket *b)
 {
-
+	BUG_ON(!d_unhashed(entry));
+	spin_lock_bucket(b);
  	entry->d_flags &= ~DCACHE_UNHASHED;
- 	hlist_add_head_rcu(&entry->d_hash, list);
+	hlist_bl_add_head_rcu(&entry->d_hash, &b->head);
+	spin_unlock_bucket(b);
 }
 
 static void _d_rehash(struct dentry * entry)
@@ -2020,9 +2056,7 @@ static void _d_rehash(struct dentry * entry)
 void d_rehash(struct dentry * entry)
 {
 	spin_lock(&entry->d_lock);
-	spin_lock(&dcache_hash_lock);
 	_d_rehash(entry);
-	spin_unlock(&dcache_hash_lock);
 	spin_unlock(&entry->d_lock);
 }
 EXPORT_SYMBOL(d_rehash);
@@ -2165,15 +2199,16 @@ void d_move(struct dentry * dentry, struct dentry * target)
 	write_seqcount_begin(&dentry->d_seq);
 	write_seqcount_begin(&target->d_seq);
 
-	/* Move the dentry to the target hash queue, if on different bucket */
-	spin_lock(&dcache_hash_lock);
-	if (!d_unhashed(dentry))
-		hlist_del_rcu(&dentry->d_hash);
+	/* __d_drop does write_seqcount_barrier, but they're OK to nest. */
+
+	/*
+	 * Move the dentry to the target hash queue. Don't bother checking
+	 * for the same hash queue because of how unlikely it is.
+	 */
+	__d_drop(dentry);
 	__d_rehash(dentry, d_hash(target->d_parent, target->d_name.hash));
-	spin_unlock(&dcache_hash_lock);
 
 	/* Unhash the target: dput() will then get rid of it */
-	/* __d_drop does write_seqcount_barrier, but they're OK to nest. */
 	__d_drop(target);
 
 	list_del(&dentry->d_u.d_child);
@@ -2369,9 +2404,7 @@ struct dentry *d_materialise_unique(struct dentry *dentry, struct inode *inode)
 
 	spin_lock(&actual->d_lock);
 found:
-	spin_lock(&dcache_hash_lock);
 	_d_rehash(actual);
-	spin_unlock(&dcache_hash_lock);
 	spin_unlock(&actual->d_lock);
 	spin_unlock(&dcache_inode_lock);
 out_nolock:
@@ -2953,7 +2986,7 @@ static void __init dcache_init_early(void)
 
 	dentry_hashtable =
 		alloc_large_system_hash("Dentry cache",
-					sizeof(struct hlist_head),
+					sizeof(struct dcache_hash_bucket),
 					dhash_entries,
 					13,
 					HASH_EARLY,
@@ -2962,7 +2995,7 @@ static void __init dcache_init_early(void)
 					0);
 
 	for (loop = 0; loop < (1 << d_hash_shift); loop++)
-		INIT_HLIST_HEAD(&dentry_hashtable[loop]);
+		INIT_HLIST_BL_HEAD(&dentry_hashtable[loop].head);
 }
 
 static void __init dcache_init(void)
@@ -2985,7 +3018,7 @@ static void __init dcache_init(void)
 
 	dentry_hashtable =
 		alloc_large_system_hash("Dentry cache",
-					sizeof(struct hlist_head),
+					sizeof(struct dcache_hash_bucket),
 					dhash_entries,
 					13,
 					0,
@@ -2994,7 +3027,7 @@ static void __init dcache_init(void)
 					0);
 
 	for (loop = 0; loop < (1 << d_hash_shift); loop++)
-		INIT_HLIST_HEAD(&dentry_hashtable[loop]);
+		INIT_HLIST_BL_HEAD(&dentry_hashtable[loop].head);
 }
 
 /* SLAB cache for __getname() consumers */

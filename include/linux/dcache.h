@@ -4,6 +4,7 @@
 #include <asm/atomic.h>
 #include <linux/list.h>
 #include <linux/rculist.h>
+#include <linux/rculist_bl.h>
 #include <linux/spinlock.h>
 #include <linux/seqlock.h>
 #include <linux/cache.h>
@@ -95,7 +96,7 @@ struct dentry {
 	/* RCU lookup touched fields */
 	unsigned int d_flags;		/* protected by d_lock */
 	seqcount_t d_seq;		/* per dentry seqlock */
-	struct hlist_node d_hash;	/* lookup hash list */
+	struct hlist_bl_node d_hash;	/* lookup hash list */
 	struct dentry *d_parent;	/* parent directory */
 	struct qstr d_name;
 	struct inode *d_inode;		/* Where the name belongs to - NULL is
