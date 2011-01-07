@@ -216,7 +216,7 @@ int __mnt_is_readonly(struct vfsmount *mnt)
 }
 EXPORT_SYMBOL_GPL(__mnt_is_readonly);
 
-static inline void inc_mnt_writers(struct vfsmount *mnt)
+static inline void mnt_inc_writers(struct vfsmount *mnt)
 {
 #ifdef CONFIG_SMP
 	(*per_cpu_ptr(mnt->mnt_writers, smp_processor_id()))++;
@@ -225,7 +225,7 @@ static inline void inc_mnt_writers(struct vfsmount *mnt)
 #endif
 }
 
-static inline void dec_mnt_writers(struct vfsmount *mnt)
+static inline void mnt_dec_writers(struct vfsmount *mnt)
 {
 #ifdef CONFIG_SMP
 	(*per_cpu_ptr(mnt->mnt_writers, smp_processor_id()))--;
@@ -234,7 +234,7 @@ static inline void dec_mnt_writers(struct vfsmount *mnt)
 #endif
 }
 
-static unsigned int count_mnt_writers(struct vfsmount *mnt)
+static unsigned int mnt_get_writers(struct vfsmount *mnt)
 {
 #ifdef CONFIG_SMP
 	unsigned int count = 0;
@@ -273,9 +273,9 @@ int mnt_want_write(struct vfsmount *mnt)
 	int ret = 0;
 
 	preempt_disable();
-	inc_mnt_writers(mnt);
+	mnt_inc_writers(mnt);
 	/*
-	 * The store to inc_mnt_writers must be visible before we pass
+	 * The store to mnt_inc_writers must be visible before we pass
 	 * MNT_WRITE_HOLD loop below, so that the slowpath can see our
 	 * incremented count after it has set MNT_WRITE_HOLD.
 	 */
@@ -289,7 +289,7 @@ int mnt_want_write(struct vfsmount *mnt)
 	 */
 	smp_rmb();
 	if (__mnt_is_readonly(mnt)) {
-		dec_mnt_writers(mnt);
+		mnt_dec_writers(mnt);
 		ret = -EROFS;
 		goto out;
 	}
@@ -317,7 +317,7 @@ int mnt_clone_write(struct vfsmount *mnt)
 	if (__mnt_is_readonly(mnt))
 		return -EROFS;
 	preempt_disable();
-	inc_mnt_writers(mnt);
+	mnt_inc_writers(mnt);
 	preempt_enable();
 	return 0;
 }
@@ -351,7 +351,7 @@ EXPORT_SYMBOL_GPL(mnt_want_write_file);
 void mnt_drop_write(struct vfsmount *mnt)
 {
 	preempt_disable();
-	dec_mnt_writers(mnt);
+	mnt_dec_writers(mnt);
 	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(mnt_drop_write);
@@ -384,7 +384,7 @@ static int mnt_make_readonly(struct vfsmount *mnt)
 	 * MNT_WRITE_HOLD, so it can't be decremented by another CPU while
 	 * we're counting up here.
 	 */
-	if (count_mnt_writers(mnt) > 0)
+	if (mnt_get_writers(mnt) > 0)
 		ret = -EBUSY;
 	else
 		mnt->mnt_flags |= MNT_READONLY;
@@ -663,9 +663,9 @@ static inline void __mntput(struct vfsmount *mnt)
 	 */
 	/*
 	 * atomic_dec_and_lock() used to deal with ->mnt_count decrements
-	 * provides barriers, so count_mnt_writers() below is safe.  AV
+	 * provides barriers, so mnt_get_writers() below is safe.  AV
 	 */
-	WARN_ON(count_mnt_writers(mnt));
+	WARN_ON(mnt_get_writers(mnt));
 	fsnotify_vfsmount_delete(mnt);
 	dput(mnt->mnt_root);
 	free_vfsmnt(mnt);
