@@ -984,13 +984,11 @@ cifs_parse_mount_options(char *options, const char *devname,
 				return 1;
 			} else if (strnicmp(value, "krb5", 4) == 0) {
 				vol->secFlg |= CIFSSEC_MAY_KRB5;
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 			} else if (strnicmp(value, "ntlmsspi", 8) == 0) {
 				vol->secFlg |= CIFSSEC_MAY_NTLMSSP |
 					CIFSSEC_MUST_SIGN;
 			} else if (strnicmp(value, "ntlmssp", 7) == 0) {
 				vol->secFlg |= CIFSSEC_MAY_NTLMSSP;
-#endif
 			} else if (strnicmp(value, "ntlmv2i", 7) == 0) {
 				vol->secFlg |= CIFSSEC_MAY_NTLMV2 |
 					CIFSSEC_MUST_SIGN;
@@ -1341,10 +1339,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->no_psx_acl = 0;
 		} else if (strnicmp(data, "noacl", 5) == 0) {
 			vol->no_psx_acl = 1;
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 		} else if (strnicmp(data, "locallease", 6) == 0) {
 			vol->local_lease = 1;
-#endif
 		} else if (strnicmp(data, "sign", 4) == 0) {
 			vol->secFlg |= CIFSSEC_MUST_SIGN;
 		} else if (strnicmp(data, "seal", 4) == 0) {

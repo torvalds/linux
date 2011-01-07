@@ -401,15 +401,12 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	else if ((secFlags & CIFSSEC_AUTH_MASK) == CIFSSEC_MAY_KRB5) {
 		cFYI(1, "Kerberos only mechanism, enable extended security");
 		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
-	}
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-	else if ((secFlags & CIFSSEC_MUST_NTLMSSP) == CIFSSEC_MUST_NTLMSSP)
+	} else if ((secFlags & CIFSSEC_MUST_NTLMSSP) == CIFSSEC_MUST_NTLMSSP)
 		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
 	else if ((secFlags & CIFSSEC_AUTH_MASK) == CIFSSEC_MAY_NTLMSSP) {
 		cFYI(1, "NTLMSSP only mechanism, enable extended security");
 		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
 	}
-#endif
 
 	count = 0;
 	for (i = 0; i < CIFS_NUM_PROT; i++) {
