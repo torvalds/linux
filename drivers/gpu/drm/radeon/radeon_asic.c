@@ -836,6 +836,52 @@ static struct radeon_asic sumo_asic = {
 	.pm_get_dynpm_state = &r600_pm_get_dynpm_state,
 };
 
+static struct radeon_asic btc_asic = {
+	.init = &evergreen_init,
+	.fini = &evergreen_fini,
+	.suspend = &evergreen_suspend,
+	.resume = &evergreen_resume,
+	.cp_commit = &r600_cp_commit,
+	.gpu_is_lockup = &evergreen_gpu_is_lockup,
+	.asic_reset = &evergreen_asic_reset,
+	.vga_set_state = &r600_vga_set_state,
+	.gart_tlb_flush = &evergreen_pcie_gart_tlb_flush,
+	.gart_set_page = &rs600_gart_set_page,
+	.ring_test = &r600_ring_test,
+	.ring_ib_execute = &r600_ring_ib_execute,
+	.irq_set = &evergreen_irq_set,
+	.irq_process = &evergreen_irq_process,
+	.get_vblank_counter = &evergreen_get_vblank_counter,
+	.fence_ring_emit = &r600_fence_ring_emit,
+	.cs_parse = &evergreen_cs_parse,
+	.copy_blit = &evergreen_copy_blit,
+	.copy_dma = &evergreen_copy_blit,
+	.copy = &evergreen_copy_blit,
+	.get_engine_clock = &radeon_atom_get_engine_clock,
+	.set_engine_clock = &radeon_atom_set_engine_clock,
+	.get_memory_clock = &radeon_atom_get_memory_clock,
+	.set_memory_clock = &radeon_atom_set_memory_clock,
+	.get_pcie_lanes = NULL,
+	.set_pcie_lanes = NULL,
+	.set_clock_gating = NULL,
+	.set_surface_reg = r600_set_surface_reg,
+	.clear_surface_reg = r600_clear_surface_reg,
+	.bandwidth_update = &evergreen_bandwidth_update,
+	.hpd_init = &evergreen_hpd_init,
+	.hpd_fini = &evergreen_hpd_fini,
+	.hpd_sense = &evergreen_hpd_sense,
+	.hpd_set_polarity = &evergreen_hpd_set_polarity,
+	.gui_idle = &r600_gui_idle,
+	.pm_misc = &evergreen_pm_misc,
+	.pm_prepare = &evergreen_pm_prepare,
+	.pm_finish = &evergreen_pm_finish,
+	.pm_init_profile = &r600_pm_init_profile,
+	.pm_get_dynpm_state = &r600_pm_get_dynpm_state,
+	.pre_page_flip = &evergreen_pre_page_flip,
+	.page_flip = &evergreen_page_flip,
+	.post_page_flip = &evergreen_post_page_flip,
+};
+
 int radeon_asic_init(struct radeon_device *rdev)
 {
 	radeon_register_accessor_init(rdev);
@@ -922,6 +968,11 @@ int radeon_asic_init(struct radeon_device *rdev)
 		break;
 	case CHIP_PALM:
 		rdev->asic = &sumo_asic;
+		break;
+	case CHIP_BARTS:
+	case CHIP_TURKS:
+	case CHIP_CAICOS:
+		rdev->asic = &btc_asic;
 		break;
 	default:
 		/* FIXME: not supported yet */
