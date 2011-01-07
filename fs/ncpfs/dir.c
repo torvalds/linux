@@ -611,35 +611,12 @@ ncp_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 			shrink_dcache_parent(newdent);
 
 		/*
-		 * It is not as dangerous as it looks.  NetWare's OS2 namespace is
-		 * case preserving yet case insensitive.  So we update dentry's name
-		 * as received from server.  We found dentry via d_lookup with our
-		 * hash, so we know that hash does not change, and so replacing name
-		 * should be reasonably safe.
+		 * NetWare's OS2 namespace is case preserving yet case
+		 * insensitive.  So we update dentry's name as received from
+		 * server. Parent dir's i_mutex is locked because we're in
+		 * readdir.
 		 */
-		if (qname.len == newdent->d_name.len &&
-		    memcmp(newdent->d_name.name, qname.name, newdent->d_name.len)) {
-			struct inode *inode = newdent->d_inode;
-
-			/*
-			 * Inside ncpfs all uses of d_name are either for debugging,
-			 * or on functions which acquire inode mutex (mknod, creat,
-			 * lookup).  So grab i_mutex here, to be sure.  d_path
-			 * uses dcache_lock when generating path, so we should too.
-			 * And finally d_compare is protected by dentry's d_lock, so
-			 * here we go.
-			 */
-			if (inode)
-				mutex_lock(&inode->i_mutex);
-			spin_lock(&dcache_lock);
-			spin_lock(&newdent->d_lock);
-			memcpy((char *) newdent->d_name.name, qname.name,
-								newdent->d_name.len);
-			spin_unlock(&newdent->d_lock);
-			spin_unlock(&dcache_lock);
-			if (inode)
-				mutex_unlock(&inode->i_mutex);
-		}
+		dentry_update_name_case(newdent, &qname);
 	}
 
 	if (!newdent->d_inode) {
@@ -657,7 +634,7 @@ ncp_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	} else {
 		struct inode *inode = newdent->d_inode;
 
-		mutex_lock(&inode->i_mutex);
+		mutex_lock_nested(&inode->i_mutex, I_MUTEX_CHILD);
 		ncp_update_inode2(inode, entry);
 		mutex_unlock(&inode->i_mutex);
 	}

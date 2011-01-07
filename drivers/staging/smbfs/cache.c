@@ -145,8 +145,8 @@ smb_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 			goto end_advance;
 	} else {
 		hashed = 1;
-		memcpy((char *) newdent->d_name.name, qname->name,
-		       newdent->d_name.len);
+		/* dir i_mutex is locked because we're in readdir */
+		dentry_update_name_case(newdent, qname);
 	}
 
 	if (!newdent->d_inode) {

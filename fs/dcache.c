@@ -1589,6 +1589,33 @@ void d_rehash(struct dentry * entry)
 }
 EXPORT_SYMBOL(d_rehash);
 
+/**
+ * dentry_update_name_case - update case insensitive dentry with a new name
+ * @dentry: dentry to be updated
+ * @name: new name
+ *
+ * Update a case insensitive dentry with new case of name.
+ *
+ * dentry must have been returned by d_lookup with name @name. Old and new
+ * name lengths must match (ie. no d_compare which allows mismatched name
+ * lengths).
+ *
+ * Parent inode i_mutex must be held over d_lookup and into this call (to
+ * keep renames and concurrent inserts, and readdir(2) away).
+ */
+void dentry_update_name_case(struct dentry *dentry, struct qstr *name)
+{
+	BUG_ON(!mutex_is_locked(&dentry->d_inode->i_mutex));
+	BUG_ON(dentry->d_name.len != name->len); /* d_lookup gives this */
+
+	spin_lock(&dcache_lock);
+	spin_lock(&dentry->d_lock);
+	memcpy((unsigned char *)dentry->d_name.name, name->name, name->len);
+	spin_unlock(&dentry->d_lock);
+	spin_unlock(&dcache_lock);
+}
+EXPORT_SYMBOL(dentry_update_name_case);
+
 /*
  * When switching names, the actual string doesn't strictly have to
  * be preserved in the target - because we're dropping the target
