@@ -290,6 +290,14 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		goto ignore;
 	}
 
+	if (field->report_type == HID_FEATURE_REPORT) {
+		if (device->driver->feature_mapping) {
+			device->driver->feature_mapping(device, hidinput, field,
+				usage);
+		}
+		goto ignore;
+	}
+
 	if (device->driver->input_mapping) {
 		int ret = device->driver->input_mapping(device, hidinput, field,
 				usage, &bit, &max);
@@ -839,7 +847,6 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 	struct hid_input *hidinput = NULL;
 	struct input_dev *input_dev;
 	int i, j, k;
-	int max_report_type = HID_OUTPUT_REPORT;
 
 	INIT_LIST_HEAD(&hid->inputs);
 
@@ -856,10 +863,11 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 			return -1;
 	}
 
-	if (hid->quirks & HID_QUIRK_SKIP_OUTPUT_REPORTS)
-		max_report_type = HID_INPUT_REPORT;
+	for (k = HID_INPUT_REPORT; k <= HID_FEATURE_REPORT; k++) {
+		if (k == HID_OUTPUT_REPORT &&
+			hid->quirks & HID_QUIRK_SKIP_OUTPUT_REPORTS)
+			continue;
 
-	for (k = HID_INPUT_REPORT; k <= max_report_type; k++)
 		list_for_each_entry(report, &hid->report_enum[k].report_list, list) {
 
 			if (!report->maxfield)
@@ -912,6 +920,7 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 				hidinput = NULL;
 			}
 		}
+	}
 
 	if (hidinput && input_register_device(hidinput->input))
 		goto out_cleanup;
