@@ -32,6 +32,7 @@ MODULE_LICENSE("GPL");
 /* quirks to control the device */
 #define MT_QUIRK_NOT_SEEN_MEANS_UP	(1 << 0)
 #define MT_QUIRK_SLOT_IS_CONTACTID	(1 << 1)
+#define MT_QUIRK_CYPRESS	(1 << 2)
 
 struct mt_slot {
 	__s32 x, y, p, w, h;
@@ -62,6 +63,7 @@ struct mt_class {
 /* classes of device behavior */
 #define MT_CLS_DEFAULT 0
 #define MT_CLS_DUAL1 1
+#define MT_CLS_CYPRESS 2
 
 /*
  * these device-dependent functions determine what slot corresponds
@@ -71,6 +73,14 @@ struct mt_class {
 static int slot_is_contactid(struct mt_device *td)
 {
 	return td->curdata.contactid;
+}
+
+static int cypress_compute_slot(struct mt_device *td)
+{
+	if (td->curdata.contactid != 0 || td->num_received == 0)
+		return td->curdata.contactid;
+	else
+		return -1;
 }
 
 static int find_slot_from_contactid(struct mt_device *td)
@@ -95,6 +105,7 @@ static int find_slot_from_contactid(struct mt_device *td)
 struct mt_class mt_classes[] = {
 	{ 0, 0, 0, 10 },                             /* MT_CLS_DEFAULT */
 	{ MT_QUIRK_SLOT_IS_CONTACTID, 0, 0, 2 },     /* MT_CLS_DUAL1 */
+	{ MT_QUIRK_CYPRESS | MT_QUIRK_NOT_SEEN_MEANS_UP, 0, 0, 10 }, /* MT_CLS_CYPRESS */
 };
 
 static void mt_feature_mapping(struct hid_device *hdev, struct hid_input *hi,
@@ -222,6 +233,9 @@ static int mt_compute_slot(struct mt_device *td)
 
 	if (cls->quirks & MT_QUIRK_SLOT_IS_CONTACTID)
 		return slot_is_contactid(td);
+
+	if (cls->quirks & MT_QUIRK_CYPRESS)
+		return cypress_compute_slot(td);
 
 	return find_slot_from_contactid(td);
 }
@@ -421,6 +435,11 @@ static void mt_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id mt_devices[] = {
+
+	/* Cypress panel */
+	{ .driver_data = MT_CLS_CYPRESS,
+		HID_USB_DEVICE(USB_VENDOR_ID_CYPRESS,
+			USB_DEVICE_ID_CYPRESS_TRUETOUCH) },
 
 	/* PixCir-based panels */
 	{ .driver_data = MT_CLS_DUAL1,

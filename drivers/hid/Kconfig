@@ -293,6 +293,7 @@ config HID_MULTITOUCH
 
 	  Say Y here if you have one of the following devices:
 	  - PixCir touchscreen
+	  - Cypress TrueTouch
 
 config HID_NTRIG
 	tristate "N-Trig touch screen"
