@@ -141,22 +141,16 @@ struct dentry_operations {
 	char *(*d_dname)(struct dentry *, char *, int);
 };
 
-/* the dentry parameter passed to d_hash and d_compare is the parent
+/*
+ * Locking rules for dentry_operations callbacks are to be found in
+ * Documentation/filesystems/Locking. Keep it updated!
+ *
+ * the dentry parameter passed to d_hash and d_compare is the parent
  * directory of the entries to be compared. It is used in case these
  * functions need any directory specific information for determining
  * equivalency classes.  Using the dentry itself might not work, as it
  * might be a negative dentry which has no information associated with
- * it */
-
-/*
-locking rules:
-		big lock	dcache_lock	d_lock   may block
-d_revalidate:	no		no		no       yes
-d_hash		no		no		no       yes
-d_compare:	no		yes		yes      no
-d_delete:	no		yes		no       no
-d_release:	no		no		no       yes
-d_iput:		no		no		no       yes
+ * it.
  */
 
 /* d_flags entries */
