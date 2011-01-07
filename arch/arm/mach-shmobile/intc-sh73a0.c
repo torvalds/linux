@@ -252,10 +252,10 @@ static irqreturn_t sh73a0_intcs_demux(int irq, void *dev_id)
 
 void __init sh73a0_init_irq(void)
 {
+	void __iomem *gic_base = __io(0xf0001000);
 	void __iomem *intevtsa = ioremap_nocache(0xffd20100, PAGE_SIZE);
 
-	gic_dist_init(0, __io(0xf0001000), 29);
-	gic_cpu_init(0, __io(0xf0000100));
+	gic_init(0, 29, gic_base, gic_base);
 
 	register_intc_controller(&intcs_desc);
 
