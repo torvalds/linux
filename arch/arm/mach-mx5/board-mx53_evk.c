@@ -21,6 +21,9 @@
 
 #include <linux/init.h>
 #include <linux/clk.h>
+#include <linux/fec.h>
+#include <linux/delay.h>
+#include <linux/gpio.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -28,6 +31,8 @@
 #include <asm/mach/time.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx53.h>
+
+#define SMD_FEC_PHY_RST		IMX_GPIO_NR(7, 6)
 
 #include "crm_regs.h"
 #include "devices-imx53.h"
@@ -60,11 +65,33 @@ static inline void mx53_evk_init_uart(void)
 	imx53_add_imx_uart(2, &mx53_evk_uart_pdata);
 }
 
+static inline void mx53_evk_fec_reset(void)
+{
+	int ret;
+
+	/* reset FEC PHY */
+	ret = gpio_request(SMD_FEC_PHY_RST, "fec-phy-reset");
+	if (ret) {
+		printk(KERN_ERR"failed to get GPIO_FEC_PHY_RESET: %d\n", ret);
+		return;
+	}
+	gpio_direction_output(SMD_FEC_PHY_RST, 0);
+	gpio_set_value(SMD_FEC_PHY_RST, 0);
+	msleep(1);
+	gpio_set_value(SMD_FEC_PHY_RST, 1);
+}
+
+static struct fec_platform_data mx53_evk_fec_pdata = {
+	.phy = PHY_INTERFACE_MODE_RMII,
+};
+
 static void __init mx53_evk_board_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx53_evk_pads,
 					ARRAY_SIZE(mx53_evk_pads));
 	mx53_evk_init_uart();
+	mx53_evk_fec_reset();
+	imx53_add_fec(&mx53_evk_fec_pdata);
 }
 
 static void __init mx53_evk_timer_init(void)
