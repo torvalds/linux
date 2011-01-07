@@ -1,7 +1,7 @@
 /*
- * linux/kernel/power/hibernate_nvs.c - Routines for handling NVS memory
+ * nvs.c - Routines for saving and restoring ACPI NVS memory region
  *
- * Copyright (C) 2008,2009 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+ * Copyright (C) 2008-2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
  *
  * This file is released under the GPLv2.
  */
@@ -11,7 +11,7 @@
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/suspend.h>
+#include <linux/acpi.h>
 
 /*
  * Platforms, like ACPI, may want us to save some memory used by them during
