@@ -19,7 +19,10 @@ struct nameidata {
 	struct path	path;
 	struct qstr	last;
 	struct path	root;
+	struct file	*file;
+	struct inode	*inode; /* path.dentry.d_inode */
 	unsigned int	flags;
+	unsigned	seq;
 	int		last_type;
 	unsigned	depth;
 	char *saved_names[MAX_NESTED_LINKS + 1];
@@ -43,11 +46,13 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
  *  - internal "there are more path components" flag
  *  - dentry cache is untrusted; force a real lookup
  */
-#define LOOKUP_FOLLOW		 1
-#define LOOKUP_DIRECTORY	 2
-#define LOOKUP_CONTINUE		 4
-#define LOOKUP_PARENT		16
-#define LOOKUP_REVAL		64
+#define LOOKUP_FOLLOW		0x0001
+#define LOOKUP_DIRECTORY	0x0002
+#define LOOKUP_CONTINUE		0x0004
+
+#define LOOKUP_PARENT		0x0010
+#define LOOKUP_REVAL		0x0020
+#define LOOKUP_RCU		0x0040
 /*
  * Intent data
  */

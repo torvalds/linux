@@ -402,6 +402,10 @@ static int proc_sys_compare(const struct dentry *parent,
 		const struct dentry *dentry, const struct inode *inode,
 		unsigned int len, const char *str, const struct qstr *name)
 {
+	/* Although proc doesn't have negative dentries, rcu-walk means
+	 * that inode here can be NULL */
+	if (!inode)
+		return 0;
 	if (name->len != len)
 		return 1;
 	if (memcmp(name->name, str, len))

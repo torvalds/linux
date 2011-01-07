@@ -5,6 +5,7 @@
 #include <linux/list.h>
 #include <linux/rculist.h>
 #include <linux/spinlock.h>
+#include <linux/seqlock.h>
 #include <linux/cache.h>
 #include <linux/rcupdate.h>
 
@@ -90,6 +91,7 @@ struct dentry {
 	unsigned int d_count;		/* protected by d_lock */
 	unsigned int d_flags;		/* protected by d_lock */
 	spinlock_t d_lock;		/* per dentry lock */
+	seqcount_t d_seq;		/* per dentry seqlock */
 	int d_mounted;
 	struct inode *d_inode;		/* Where the name belongs to - NULL is
 					 * negative */
@@ -266,9 +268,33 @@ extern void d_move(struct dentry *, struct dentry *);
 extern struct dentry *d_ancestor(struct dentry *, struct dentry *);
 
 /* appendix may either be NULL or be used for transname suffixes */
-extern struct dentry * d_lookup(struct dentry *, struct qstr *);
-extern struct dentry * __d_lookup(struct dentry *, struct qstr *);
-extern struct dentry * d_hash_and_lookup(struct dentry *, struct qstr *);
+extern struct dentry *d_lookup(struct dentry *, struct qstr *);
+extern struct dentry *d_hash_and_lookup(struct dentry *, struct qstr *);
+extern struct dentry *__d_lookup(struct dentry *, struct qstr *);
+extern struct dentry *__d_lookup_rcu(struct dentry *parent, struct qstr *name,
+				unsigned *seq, struct inode **inode);
+
+/**
+ * __d_rcu_to_refcount - take a refcount on dentry if sequence check is ok
+ * @dentry: dentry to take a ref on
+ * @seq: seqcount to verify against
+ * @Returns: 0 on failure, else 1.
+ *
+ * __d_rcu_to_refcount operates on a dentry,seq pair that was returned
+ * by __d_lookup_rcu, to get a reference on an rcu-walk dentry.
+ */
+static inline int __d_rcu_to_refcount(struct dentry *dentry, unsigned seq)
+{
+	int ret = 0;
+
+	assert_spin_locked(&dentry->d_lock);
+	if (!read_seqcount_retry(&dentry->d_seq, seq)) {
+		ret = 1;
+		dentry->d_count++;
+	}
+
+	return ret;
+}
 
 /* validate "insecure" dentry pointer */
 extern int d_validate(struct dentry *, struct dentry *);
