@@ -170,6 +170,9 @@ static struct irq_info *info_for_irq(unsigned irq)
 
 static unsigned int evtchn_from_irq(unsigned irq)
 {
+	if (unlikely(WARN(irq < 0 || irq >= nr_irqs, "Invalid irq %d!\n", irq)))
+		return 0;
+
 	return info_for_irq(irq)->evtchn;
 }
 
