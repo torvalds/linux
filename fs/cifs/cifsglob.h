@@ -207,7 +207,7 @@ struct TCP_Server_Info {
 	char cryptkey[CIFS_CRYPTO_KEY_SIZE]; /* used by ntlm, ntlmv2 etc */
 	/* 16th byte of RFC1001 workstation name is always null */
 	char workstation_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
-	__u32 sequence_number; /* needed for CIFS PDU signature */
+	__u32 sequence_number; /* for signing, protected by srv_mutex */
 	struct session_key session_key;
 	unsigned long lstrp; /* when we got last response from this server */
 	u16 dialect; /* dialect index that server chose */

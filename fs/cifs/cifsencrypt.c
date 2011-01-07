@@ -72,6 +72,7 @@ static int cifs_calculate_signature(const struct smb_hdr *cifs_pdu,
 	return 0;
 }
 
+/* must be called with server->srv_mutex held */
 int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
 		  __u32 *pexpected_response_sequence_number)
 {
@@ -84,14 +85,12 @@ int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
 	if ((cifs_pdu->Flags2 & SMBFLG2_SECURITY_SIGNATURE) == 0)
 		return rc;
 
-	spin_lock(&GlobalMid_Lock);
 	cifs_pdu->Signature.Sequence.SequenceNumber =
 			cpu_to_le32(server->sequence_number);
 	cifs_pdu->Signature.Sequence.Reserved = 0;
 
 	*pexpected_response_sequence_number = server->sequence_number++;
 	server->sequence_number++;
-	spin_unlock(&GlobalMid_Lock);
 
 	rc = cifs_calculate_signature(cifs_pdu, server, smb_signature);
 	if (rc)
@@ -149,6 +148,7 @@ static int cifs_calc_signature2(const struct kvec *iov, int n_vec,
 	return rc;
 }
 
+/* must be called with server->srv_mutex held */
 int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
 		   __u32 *pexpected_response_sequence_number)
 {
@@ -162,14 +162,12 @@ int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
 	if ((cifs_pdu->Flags2 & SMBFLG2_SECURITY_SIGNATURE) == 0)
 		return rc;
 
-	spin_lock(&GlobalMid_Lock);
 	cifs_pdu->Signature.Sequence.SequenceNumber =
 				cpu_to_le32(server->sequence_number);
 	cifs_pdu->Signature.Sequence.Reserved = 0;
 
 	*pexpected_response_sequence_number = server->sequence_number++;
 	server->sequence_number++;
-	spin_unlock(&GlobalMid_Lock);
 
 	rc = cifs_calc_signature2(iov, n_vec, server, smb_signature);
 	if (rc)
