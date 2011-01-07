@@ -20,3 +20,8 @@ extern const struct imx_imx_uart_1irq_data imx53_imx_uart_data[] __initconst;
 extern const struct imx_imx_i2c_data imx53_imx_i2c_data[] __initconst;
 #define imx53_add_imx_i2c(id, pdata)	\
 	imx_add_imx_i2c(&imx53_imx_i2c_data[id], pdata)
+
+extern const struct imx_sdhci_esdhc_imx_data
+imx53_sdhci_esdhc_imx_data[] __initconst;
+#define imx53_add_sdhci_esdhc_imx(id, pdata)	\
+	imx_add_sdhci_esdhc_imx(&imx53_sdhci_esdhc_imx_data[id], pdata)

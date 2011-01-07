@@ -99,6 +99,9 @@ static void __init mx53_evk_board_init(void)
 
 	imx53_add_imx_i2c(0, &mx53_evk_i2c_data);
 	imx53_add_imx_i2c(1, &mx53_evk_i2c_data);
+
+	imx53_add_sdhci_esdhc_imx(0, NULL);
+	imx53_add_sdhci_esdhc_imx(1, NULL);
 }
 
 static void __init mx53_evk_timer_init(void)
