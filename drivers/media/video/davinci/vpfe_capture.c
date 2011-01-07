@@ -1276,7 +1276,7 @@ static int vpfe_videobuf_prepare(struct videobuf_queue *vq,
 		vb->size = vpfe_dev->fmt.fmt.pix.sizeimage;
 		vb->field = field;
 
-		ret = videobuf_iolock(vq, vb, NULL);;
+		ret = videobuf_iolock(vq, vb, NULL);
 		if (ret < 0)
 			return ret;
 

@@ -1,5 +1,5 @@
   0 -> Unknown EM2800 video grabber             (em2800)        [eb1a:2800]
-  1 -> Unknown EM2750/28xx video grabber        (em2820/em2840) [eb1a:2710,eb1a:2820,eb1a:2821,eb1a:2860,eb1a:2861,eb1a:2862,eb1a:2863,eb1a:2870,eb1a:2881,eb1a:2883,eb1a:2868]
+  1 -> Unknown EM2750/28xx video grabber        (em2820/em2840) [eb1a:2710,eb1a:2820,eb1a:2821,eb1a:2860,eb1a:2861,eb1a:2862,eb1a:2863,eb1a:2870,eb1a:2881,eb1a:2883,eb1a:2868,eb1a:2875]
   2 -> Terratec Cinergy 250 USB                 (em2820/em2840) [0ccd:0036]
   3 -> Pinnacle PCTV USB 2                      (em2820/em2840) [2304:0208]
   4 -> Hauppauge WinTV USB 2                    (em2820/em2840) [2040:4200,2040:4201]
@@ -9,7 +9,7 @@
   8 -> Kworld USB2800                           (em2800)
   9 -> Pinnacle Dazzle DVC 90/100/101/107 / Kaiser Baas Video to DVD maker  (em2820/em2840) [1b80:e302,1b80:e304,2304:0207,2304:021a]
  10 -> Hauppauge WinTV HVR 900                  (em2880)        [2040:6500]
- 11 -> Terratec Hybrid XS                       (em2880)        [0ccd:0042]
+ 11 -> Terratec Hybrid XS                       (em2880)
  12 -> Kworld PVR TV 2800 RF                    (em2820/em2840)
  13 -> Terratec Prodigy XS                      (em2880)        [0ccd:0047]
  14 -> SIIG AVTuner-PVR / Pixelview Prolink PlayTV USB 2.0 (em2820/em2840)
@@ -53,7 +53,7 @@
  52 -> DNT DA2 Hybrid                           (em2881)
  53 -> Pinnacle Hybrid Pro                      (em2881)
  54 -> Kworld VS-DVB-T 323UR                    (em2882)        [eb1a:e323]
- 55 -> Terratec Hybrid XS (em2882)              (em2882)        [0ccd:005e]
+ 55 -> Terratec Cinnergy Hybrid T USB XS (em2882) (em2882)        [0ccd:005e,0ccd:0042]
  56 -> Pinnacle Hybrid Pro (2)                  (em2882)        [2304:0226]
  57 -> Kworld PlusTV HD Hybrid 330              (em2883)        [eb1a:a316]
  58 -> Compro VideoMate ForYou/Stereo           (em2820/em2840) [185b:2041]

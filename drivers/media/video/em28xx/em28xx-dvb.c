@@ -37,6 +37,7 @@
 #include "mt352_priv.h" /* FIXME */
 #include "tda1002x.h"
 #include "tda18271.h"
+#include "s921.h"
 
 MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
@@ -243,6 +244,10 @@ static struct lgdt3305_config em2870_lgdt3304_dev = {
 	.tpvalid_polarity   = LGDT3305_TP_VALID_HIGH,
 	.vsb_if_khz         = 3250,
 	.qam_if_khz         = 4000,
+};
+
+static struct s921_config sharp_isdbt = {
+	.demod_address = 0x30 >> 1
 };
 
 static struct zl10353_config em28xx_zl10353_with_xc3028 = {
@@ -481,6 +486,7 @@ static int dvb_init(struct em28xx *dev)
 
 	if (!dev->board.has_dvb) {
 		/* This device does not support the extension */
+		printk(KERN_INFO "em28xx_dvb: This device does not support the extension\n");
 		return 0;
 	}
 
@@ -496,6 +502,16 @@ static int dvb_init(struct em28xx *dev)
 	em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	/* init frontend */
 	switch (dev->model) {
+	case EM2874_LEADERSHIP_ISDBT:
+		dvb->frontend = dvb_attach(s921_attach,
+				&sharp_isdbt, &dev->i2c_adap);
+
+		if (!dvb->frontend) {
+			result = -EINVAL;
+			goto out_free;
+		}
+
+		break;
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850:
 	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:

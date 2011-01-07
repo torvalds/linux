@@ -443,7 +443,7 @@ static void mx3_camera_init_videobuf(struct videobuf_queue *q,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				       V4L2_FIELD_NONE,
 				       sizeof(struct mx3_camera_buffer), icd,
-				       NULL);
+				       &icd->video_lock);
 }
 
 /* First part of ipu_csi_init_interface() */
@@ -1186,13 +1186,12 @@ static int __devinit mx3_camera_probe(struct platform_device *pdev)
 		goto egetres;
 	}
 
-	mx3_cam = vmalloc(sizeof(*mx3_cam));
+	mx3_cam = vzalloc(sizeof(*mx3_cam));
 	if (!mx3_cam) {
 		dev_err(&pdev->dev, "Could not allocate mx3 camera object\n");
 		err = -ENOMEM;
 		goto ealloc;
 	}
-	memset(mx3_cam, 0, sizeof(*mx3_cam));
 
 	mx3_cam->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(mx3_cam->clk)) {

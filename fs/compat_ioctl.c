@@ -42,7 +42,7 @@
 #include <linux/tty.h>
 #include <linux/vt_kern.h>
 #include <linux/fb.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <linux/netdevice.h>
 #include <linux/raw.h>
 #include <linux/blkdev.h>

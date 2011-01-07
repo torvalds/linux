@@ -268,6 +268,20 @@ static struct em28xx_reg_seq dikom_dk300_digital[] = {
 };
 
 
+/* Reset for the most [digital] boards */
+static struct em28xx_reg_seq leadership_digital[] = {
+	{EM2874_R80_GPIO,	0x70,	0xff,	10},
+	{	-1,		-1,	-1,	-1},
+};
+
+static struct em28xx_reg_seq leadership_reset[] = {
+	{EM2874_R80_GPIO,	0xf0,	0xff,	10},
+	{EM2874_R80_GPIO,	0xb0,	0xff,	10},
+	{EM2874_R80_GPIO,	0xf0,	0xff,	10},
+	{	-1,		-1,	-1,	-1},
+};
+
+
 /*
  *  Board definitions
  */
@@ -1224,6 +1238,19 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_COMPOSITE0,
 		} },
 	},
+
+	[EM2874_LEADERSHIP_ISDBT] = {
+		.i2c_speed      = EM2874_I2C_SECONDARY_BUS_SELECT |
+				  EM28XX_I2C_CLK_WAIT_ENABLE |
+				  EM28XX_I2C_FREQ_100_KHZ,
+		.xclk		= EM28XX_XCLK_FREQUENCY_10MHZ,
+		.name		= "EM2874 Leadership ISDBT",
+		.tuner_type	= TUNER_ABSENT,
+		.tuner_gpio     = leadership_reset,
+		.dvb_gpio       = leadership_digital,
+		.has_dvb	= 1,
+	},
+
 	[EM2880_BOARD_MSI_DIGIVOX_AD] = {
 		.name         = "MSI DigiVox A/D",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
@@ -1469,7 +1496,7 @@ struct em28xx_board em28xx_boards[] = {
 		} },
 	},
 	[EM2882_BOARD_TERRATEC_HYBRID_XS] = {
-		.name         = "Terratec Hybrid XS (em2882)",
+		.name         = "Terratec Cinnergy Hybrid T USB XS (em2882)",
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.mts_firmware = 1,
@@ -1633,11 +1660,11 @@ struct em28xx_board em28xx_boards[] = {
 		.input           = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = EM28XX_AMUX_VIDEO2,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
-			.amux     = EM28XX_AMUX_VIDEO2,
+			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
 	[EM2860_BOARD_TERRATEC_AV350] = {
@@ -1754,6 +1781,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2868),
 			.driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2875),
+			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0xe300),
 			.driver_info = EM2861_BOARD_KWORLD_PVRTV_300U },
 	{ USB_DEVICE(0xeb1a, 0xe303),
@@ -1791,7 +1820,7 @@ struct usb_device_id em28xx_id_table[] = {
 	{ USB_DEVICE(0x0ccd, 0x005e),
 			.driver_info = EM2882_BOARD_TERRATEC_HYBRID_XS },
 	{ USB_DEVICE(0x0ccd, 0x0042),
-			.driver_info = EM2880_BOARD_TERRATEC_HYBRID_XS },
+			.driver_info = EM2882_BOARD_TERRATEC_HYBRID_XS },
 	{ USB_DEVICE(0x0ccd, 0x0043),
 			.driver_info = EM2870_BOARD_TERRATEC_XS },
 	{ USB_DEVICE(0x0ccd, 0x0047),
@@ -1873,6 +1902,7 @@ static struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{0x77800080, EM2860_BOARD_TVP5150_REFERENCE_DESIGN, TUNER_ABSENT},
 	{0xc51200e3, EM2820_BOARD_GADMEI_TVR200, TUNER_LG_PAL_NEW_TAPC},
 	{0x4ba50080, EM2861_BOARD_GADMEI_UTV330PLUS, TUNER_TNF_5335MF},
+	{0x6b800080, EM2874_LEADERSHIP_ISDBT, TUNER_ABSENT},
 };
 
 /* I2C possible address to saa7115, tvp5150, msp3400, tvaudio */
@@ -2408,7 +2438,7 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 		dev->init_data.get_key = em28xx_get_key_em_haup;
 		dev->init_data.name = "i2c IR (EM2840 Hauppauge)";
 	case EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE:
-		dev->init_data.ir_codes = RC_MAP_WINFAST_USBII_DELUXE;;
+		dev->init_data.ir_codes = RC_MAP_WINFAST_USBII_DELUXE;
 		dev->init_data.get_key = em28xx_get_key_winfast_usbii_deluxe;
 		dev->init_data.name = "i2c IR (EM2820 Winfast TV USBII Deluxe)";
 		break;
@@ -2430,8 +2460,36 @@ void em28xx_card_setup(struct em28xx *dev)
 			dev->board.is_webcam = 0;
 		else
 			dev->progressive = 1;
-	} else
-		em28xx_set_model(dev);
+	}
+
+	if (!dev->board.is_webcam) {
+		switch (dev->model) {
+		case EM2820_BOARD_UNKNOWN:
+		case EM2800_BOARD_UNKNOWN:
+		/*
+		 * The K-WORLD DVB-T 310U is detected as an MSI Digivox AD.
+		 *
+		 * This occurs because they share identical USB vendor and
+		 * product IDs.
+		 *
+		 * What we do here is look up the EEPROM hash of the K-WORLD
+		 * and if it is found then we decide that we do not have
+		 * a DIGIVOX and reset the device to the K-WORLD instead.
+		 *
+		 * This solution is only valid if they do not share eeprom
+		 * hash identities which has not been determined as yet.
+		 */
+		if (em28xx_hint_board(dev) < 0)
+			em28xx_errdev("Board not discovered\n");
+		else {
+			em28xx_set_model(dev);
+			em28xx_pre_card_setup(dev);
+		}
+		break;
+		default:
+			em28xx_set_model(dev);
+		}
+	}
 
 	em28xx_info("Identified as %s (card=%d)\n",
 		    dev->board.name, dev->model);
@@ -2749,8 +2807,8 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	em28xx_pre_card_setup(dev);
 
 	if (!dev->board.is_em2800) {
-		/* Sets I2C speed to 100 KHz */
-		retval = em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, 0x40);
+		/* Resets I2C speed */
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
 		if (retval < 0) {
 			em28xx_errdev("%s: em28xx_write_regs_req failed!"
 				      " retval [%d]\n",

@@ -24,6 +24,33 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2,rc=4 (or-able))." DV
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+static int gp8psk_get_fw_version(struct dvb_usb_device *d, u8 *fw_vers)
+{
+	return (gp8psk_usb_in_op(d, GET_FW_VERS, 0, 0, fw_vers, 6));
+}
+
+static int gp8psk_get_fpga_version(struct dvb_usb_device *d, u8 *fpga_vers)
+{
+	return (gp8psk_usb_in_op(d, GET_FPGA_VERS, 0, 0, fpga_vers, 1));
+}
+
+static void gp8psk_info(struct dvb_usb_device *d)
+{
+	u8 fpga_vers, fw_vers[6];
+
+	if (!gp8psk_get_fw_version(d, fw_vers))
+		info("FW Version = %i.%02i.%i (0x%x)  Build %4i/%02i/%02i",
+		fw_vers[2], fw_vers[1], fw_vers[0], GP8PSK_FW_VERS(fw_vers),
+		2000 + fw_vers[5], fw_vers[4], fw_vers[3]);
+	else
+		info("failed to get FW version");
+
+	if (!gp8psk_get_fpga_version(d, &fpga_vers))
+		info("FPGA Version = %i", fpga_vers);
+	else
+		info("failed to get FPGA version");
+}
+
 int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 *b, int blen)
 {
 	int ret = 0,try = 0;
@@ -146,6 +173,7 @@ static int gp8psk_power_ctrl(struct dvb_usb_device *d, int onoff)
 				gp8psk_usb_out_op(d, CW3K_INIT, 1, 0, NULL, 0);
 			if (gp8psk_usb_in_op(d, BOOT_8PSK, 1, 0, &buf, 1))
 				return -EINVAL;
+			gp8psk_info(d);
 		}
 
 		if (gp_product_id == USB_PID_GENPIX_8PSK_REV_1_WARM)

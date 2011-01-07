@@ -52,13 +52,12 @@ static int max2165_write_reg(struct max2165_priv *priv, u8 reg, u8 data)
 	msg.addr = priv->config->i2c_address;
 
 	if (debug >= 2)
-		printk(KERN_DEBUG "%s: reg=0x%02X, data=0x%02X\n",
-			__func__, reg, data);
+		dprintk("%s: reg=0x%02X, data=0x%02X\n", __func__, reg, data);
 
 	ret = i2c_transfer(priv->i2c, &msg, 1);
 
 	if (ret != 1)
-		dprintk(KERN_DEBUG "%s: error reg=0x%x, data=0x%x, ret=%i\n",
+		dprintk("%s: error reg=0x%x, data=0x%x, ret=%i\n",
 			__func__, reg, data, ret);
 
 	return (ret != 1) ? -EIO : 0;
@@ -78,14 +77,13 @@ static int max2165_read_reg(struct max2165_priv *priv, u8 reg, u8 *p_data)
 
 	ret = i2c_transfer(priv->i2c, msg, 2);
 	if (ret != 2) {
-		dprintk(KERN_DEBUG "%s: error reg=0x%x, ret=%i\n",
-			__func__, reg, ret);
+		dprintk("%s: error reg=0x%x, ret=%i\n", __func__, reg, ret);
 		return -EIO;
 	}
 
 	*p_data = b1[0];
 	if (debug >= 2)
-		printk(KERN_DEBUG "%s: reg=0x%02X, data=0x%02X\n",
+		dprintk("%s: reg=0x%02X, data=0x%02X\n",
 			__func__, reg, b1[0]);
 	return 0;
 }

@@ -45,24 +45,23 @@ void sms_ir_event(struct smscore_device_t *coredev, const char *buf, int len)
 		ev.duration = abs(samples[i]) * 1000; /* Convert to ns */
 		ev.pulse = (samples[i] > 0) ? false : true;
 
-		ir_raw_event_store(coredev->ir.input_dev, &ev);
+		ir_raw_event_store(coredev->ir.dev, &ev);
 	}
-	ir_raw_event_handle(coredev->ir.input_dev);
+	ir_raw_event_handle(coredev->ir.dev);
 }
 
 int sms_ir_init(struct smscore_device_t *coredev)
 {
-	struct input_dev *input_dev;
+	int err;
 	int board_id = smscore_get_board_id(coredev);
+	struct rc_dev *dev;
 
-	sms_log("Allocating input device");
-	input_dev = input_allocate_device();
-	if (!input_dev)	{
+	sms_log("Allocating rc device");
+	dev = rc_allocate_device();
+	if (!dev) {
 		sms_err("Not enough memory");
 		return -ENOMEM;
 	}
-
-	coredev->ir.input_dev = input_dev;
 
 	coredev->ir.controller = 0;	/* Todo: vega/nova SPI number */
 	coredev->ir.timeout = IR_DEFAULT_TIMEOUT;
@@ -75,38 +74,41 @@ int sms_ir_init(struct smscore_device_t *coredev)
 	strlcpy(coredev->ir.phys, coredev->devpath, sizeof(coredev->ir.phys));
 	strlcat(coredev->ir.phys, "/ir0", sizeof(coredev->ir.phys));
 
-	input_dev->name = coredev->ir.name;
-	input_dev->phys = coredev->ir.phys;
-	input_dev->dev.parent = coredev->device;
+	dev->input_name = coredev->ir.name;
+	dev->input_phys = coredev->ir.phys;
+	dev->dev.parent = coredev->device;
 
 #if 0
 	/* TODO: properly initialize the parameters bellow */
-	input_dev->id.bustype = BUS_USB;
-	input_dev->id.version = 1;
-	input_dev->id.vendor = le16_to_cpu(dev->udev->descriptor.idVendor);
-	input_dev->id.product = le16_to_cpu(dev->udev->descriptor.idProduct);
+	dev->input_id.bustype = BUS_USB;
+	dev->input_id.version = 1;
+	dev->input_id.vendor = le16_to_cpu(dev->udev->descriptor.idVendor);
+	dev->input_id.product = le16_to_cpu(dev->udev->descriptor.idProduct);
 #endif
 
-	coredev->ir.props.priv = coredev;
-	coredev->ir.props.driver_type = RC_DRIVER_IR_RAW;
-	coredev->ir.props.allowed_protos = IR_TYPE_ALL;
+	dev->priv = coredev;
+	dev->driver_type = RC_DRIVER_IR_RAW;
+	dev->allowed_protos = RC_TYPE_ALL;
+	dev->map_name = sms_get_board(board_id)->rc_codes;
+	dev->driver_name = MODULE_NAME;
 
-	sms_log("Input device (IR) %s is set for key events", input_dev->name);
+	sms_log("Input device (IR) %s is set for key events", dev->input_name);
 
-	if (ir_input_register(input_dev, sms_get_board(board_id)->rc_codes,
-			      &coredev->ir.props, MODULE_NAME)) {
+	err = rc_register_device(dev);
+	if (err < 0) {
 		sms_err("Failed to register device");
-		input_free_device(input_dev);
-		return -EACCES;
+		rc_free_device(dev);
+		return err;
 	}
 
+	coredev->ir.dev = dev;
 	return 0;
 }
 
 void sms_ir_exit(struct smscore_device_t *coredev)
 {
-	if (coredev->ir.input_dev)
-		ir_input_unregister(coredev->ir.input_dev);
+	if (coredev->ir.dev)
+		rc_unregister_device(coredev->ir.dev);
 
 	sms_log("");
 }

@@ -1129,35 +1129,6 @@ static int vidioc_g_chip_ident(struct file *file, void *__fh,
 			core, g_chip_ident, chip);
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *__fh, struct video_mbuf *mbuf)
-{
-	struct saa7146_fh *fh = __fh;
-	struct videobuf_queue *q = &fh->video_q;
-	int err, i;
-
-	/* fixme: number of capture buffers and sizes for v4l apps */
-	int gbuffers = 2;
-	int gbufsize = 768 * 576 * 4;
-
-	DEB_D(("VIDIOCGMBUF \n"));
-
-	q = &fh->video_q;
-	err = videobuf_mmap_setup(q, gbuffers, gbufsize,
-			V4L2_MEMORY_MMAP);
-	if (err < 0)
-		return err;
-
-	gbuffers = err;
-	memset(mbuf, 0, sizeof(*mbuf));
-	mbuf->frames = gbuffers;
-	mbuf->size   = gbuffers * gbufsize;
-	for (i = 0; i < gbuffers; i++)
-		mbuf->offsets[i] = i * gbufsize;
-	return 0;
-}
-#endif
-
 const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_querycap             = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap     = vidioc_enum_fmt_vid_cap,
@@ -1186,9 +1157,6 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_streamon             = vidioc_streamon,
 	.vidioc_streamoff            = vidioc_streamoff,
 	.vidioc_g_parm 		     = vidioc_g_parm,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf                 = vidiocgmbuf,
-#endif
 };
 
 /*********************************************************************************/

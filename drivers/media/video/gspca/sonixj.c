@@ -1598,22 +1598,22 @@ static void i2c_w_seq(struct gspca_dev *gspca_dev,
 	}
 }
 
+/* check the ID of the hv7131 sensor */
+/* this sequence is needed because it activates the sensor */
 static void hv7131r_probe(struct gspca_dev *gspca_dev)
 {
-	i2c_w1(gspca_dev, 0x02, 0);			/* sensor wakeup */
+	i2c_w1(gspca_dev, 0x02, 0);		/* sensor wakeup */
 	msleep(10);
-	reg_w1(gspca_dev, 0x02, 0x66);			/* Gpio on */
+	reg_w1(gspca_dev, 0x02, 0x66);		/* Gpio on */
 	msleep(10);
-	i2c_r(gspca_dev, 0, 5);				/* read sensor id */
-	if (gspca_dev->usb_buf[0] == 0x02
+	i2c_r(gspca_dev, 0, 5);			/* read sensor id */
+	if (gspca_dev->usb_buf[0] == 0x02	/* chip ID (02 is R) */
 	    && gspca_dev->usb_buf[1] == 0x09
-	    && gspca_dev->usb_buf[2] == 0x01
-	    && gspca_dev->usb_buf[3] == 0x00
-	    && gspca_dev->usb_buf[4] == 0x00) {
-		PDEBUG(D_PROBE, "Sensor sn9c102P HV7131R found");
+	    && gspca_dev->usb_buf[2] == 0x01) {
+		PDEBUG(D_PROBE, "Sensor HV7131R found");
 		return;
 	}
-	PDEBUG(D_PROBE, "Sensor 0x%02x 0x%02x 0x%02x - sn9c102P not found",
+	warn("Erroneous HV7131R ID 0x%02x 0x%02x 0x%02x",
 		gspca_dev->usb_buf[0], gspca_dev->usb_buf[1],
 		gspca_dev->usb_buf[2]);
 }
@@ -2533,7 +2533,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		init = om6802_sensor_param1;
 		if (!mode) {			/* if 640x480 */
 			reg17 &= ~MCK_SIZE_MASK;
-			reg17 |= 0x01;		/* clock / 4 */
+			reg17 |= 0x04;		/* clock / 4 */
 		}
 		break;
 	case SENSOR_OV7630:

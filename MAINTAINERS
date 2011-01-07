@@ -5754,12 +5754,6 @@ M:	Ion Badulescu <ionut@badula.org>
 S:	Odd Fixes
 F:	drivers/net/starfire*
 
-STRADIS MPEG-2 DECODER DRIVER
-M:	Nathan Laredo <laredo@gnu.org>
-W:	http://www.stradis.com/
-S:	Maintained
-F:	drivers/media/video/stradis.c
-
 SUN3/3X
 M:	Sam Creasey <sammy@sammy.net>
 W:	http://sammy.net/sun3/
