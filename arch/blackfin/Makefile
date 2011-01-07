@@ -97,8 +97,11 @@ rev-$(CONFIG_BF_REV_0_6)  := 0.6
 rev-$(CONFIG_BF_REV_NONE) := none
 rev-$(CONFIG_BF_REV_ANY)  := any
 
-KBUILD_CFLAGS += -mcpu=$(cpu-y)-$(rev-y)
-KBUILD_AFLAGS += -mcpu=$(cpu-y)-$(rev-y)
+CPU_REV := $(cpu-y)-$(rev-y)
+export CPU_REV
+
+KBUILD_CFLAGS += -mcpu=$(CPU_REV)
+KBUILD_AFLAGS += -mcpu=$(CPU_REV)
 
 # - we utilize the silicon rev from the toolchain, so move it over to the checkflags
 CHECKFLAGS_SILICON = $(shell echo "" | $(CPP) $(KBUILD_CFLAGS) -dD - 2>/dev/null | awk '$$2 == "__SILICON_REVISION__" { print $$3 }')
