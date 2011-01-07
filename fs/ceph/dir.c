@@ -150,7 +150,9 @@ more:
 		di = ceph_dentry(dentry);
 	}
 
-	atomic_inc(&dentry->d_count);
+	spin_lock(&dentry->d_lock);
+	dentry->d_count++;
+	spin_unlock(&dentry->d_lock);
 	spin_unlock(&dcache_lock);
 
 	dout(" %llu (%llu) dentry %p %.*s %p\n", di->offset, filp->f_pos,

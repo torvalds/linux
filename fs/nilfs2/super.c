@@ -838,7 +838,7 @@ static int nilfs_attach_snapshot(struct super_block *s, __u64 cno,
 
 static int nilfs_tree_was_touched(struct dentry *root_dentry)
 {
-	return atomic_read(&root_dentry->d_count) > 1;
+	return root_dentry->d_count > 1;
 }
 
 /**

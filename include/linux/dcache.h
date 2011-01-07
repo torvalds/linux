@@ -87,7 +87,7 @@ full_name_hash(const unsigned char *name, unsigned int len)
 #endif
 
 struct dentry {
-	atomic_t d_count;
+	unsigned int d_count;		/* protected by d_lock */
 	unsigned int d_flags;		/* protected by d_lock */
 	spinlock_t d_lock;		/* per dentry lock */
 	int d_mounted;
@@ -297,17 +297,28 @@ extern char *dentry_path(struct dentry *, char *, int);
  *	needs and they take necessary precautions) you should hold dcache_lock
  *	and call dget_locked() instead of dget().
  */
- 
+static inline struct dentry *dget_dlock(struct dentry *dentry)
+{
+	if (dentry) {
+		BUG_ON(!dentry->d_count);
+		dentry->d_count++;
+	}
+	return dentry;
+}
 static inline struct dentry *dget(struct dentry *dentry)
 {
 	if (dentry) {
-		BUG_ON(!atomic_read(&dentry->d_count));
-		atomic_inc(&dentry->d_count);
+		spin_lock(&dentry->d_lock);
+		dget_dlock(dentry);
+		spin_unlock(&dentry->d_lock);
 	}
 	return dentry;
 }
 
 extern struct dentry * dget_locked(struct dentry *);
+extern struct dentry * dget_locked_dlock(struct dentry *);
+
+extern struct dentry *dget_parent(struct dentry *dentry);
 
 /**
  *	d_unhashed -	is dentry hashed
@@ -336,16 +347,6 @@ static inline void dont_mount(struct dentry *dentry)
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags |= DCACHE_CANT_MOUNT;
 	spin_unlock(&dentry->d_lock);
-}
-
-static inline struct dentry *dget_parent(struct dentry *dentry)
-{
-	struct dentry *ret;
-
-	spin_lock(&dentry->d_lock);
-	ret = dget(dentry->d_parent);
-	spin_unlock(&dentry->d_lock);
-	return ret;
 }
 
 extern void dput(struct dentry *);

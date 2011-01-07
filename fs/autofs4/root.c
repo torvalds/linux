@@ -436,7 +436,7 @@ static struct dentry *autofs4_lookup_active(struct dentry *dentry)
 		spin_lock(&active->d_lock);
 
 		/* Already gone? */
-		if (atomic_read(&active->d_count) == 0)
+		if (active->d_count == 0)
 			goto next;
 
 		qstr = &active->d_name;
@@ -452,7 +452,7 @@ static struct dentry *autofs4_lookup_active(struct dentry *dentry)
 			goto next;
 
 		if (d_unhashed(active)) {
-			dget(active);
+			dget_dlock(active);
 			spin_unlock(&active->d_lock);
 			spin_unlock(&sbi->lookup_lock);
 			spin_unlock(&dcache_lock);
@@ -507,7 +507,7 @@ static struct dentry *autofs4_lookup_expiring(struct dentry *dentry)
 			goto next;
 
 		if (d_unhashed(expiring)) {
-			dget(expiring);
+			dget_dlock(expiring);
 			spin_unlock(&expiring->d_lock);
 			spin_unlock(&sbi->lookup_lock);
 			spin_unlock(&dcache_lock);

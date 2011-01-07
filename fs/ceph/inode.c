@@ -879,8 +879,8 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
 	} else if (realdn) {
 		dout("dn %p (%d) spliced with %p (%d) "
 		     "inode %p ino %llx.%llx\n",
-		     dn, atomic_read(&dn->d_count),
-		     realdn, atomic_read(&realdn->d_count),
+		     dn, dn->d_count,
+		     realdn, realdn->d_count,
 		     realdn->d_inode, ceph_vinop(realdn->d_inode));
 		dput(dn);
 		dn = realdn;
