@@ -893,7 +893,7 @@ static struct omap_mux * __init omap_mux_list_add(
 		return NULL;
 
 	m = &entry->mux;
-	memcpy(m, src, sizeof(struct omap_mux_entry));
+	entry->mux = *src;
 
 #ifdef CONFIG_OMAP_MUX
 	if (omap_mux_copy_names(src, m)) {
