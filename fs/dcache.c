@@ -615,16 +615,16 @@ static void shrink_dentry_list(struct list_head *list)
 {
 	struct dentry *dentry;
 
-	while (!list_empty(list)) {
+	rcu_read_lock();
+	for (;;) {
 		struct dentry *parent;
 
-		dentry = list_entry(list->prev, struct dentry, d_lru);
-
-		if (!spin_trylock(&dentry->d_lock)) {
-relock1:
-			spin_unlock(&dcache_lru_lock);
-			cpu_relax();
-			spin_lock(&dcache_lru_lock);
+		dentry = list_entry_rcu(list->prev, struct dentry, d_lru);
+		if (&dentry->d_lru == list)
+			break; /* empty */
+		spin_lock(&dentry->d_lock);
+		if (dentry != list_entry(list->prev, struct dentry, d_lru)) {
+			spin_unlock(&dentry->d_lock);
 			continue;
 		}
 
@@ -634,14 +634,16 @@ relock1:
 		 * it - just keep it off the LRU list.
 		 */
 		if (dentry->d_count) {
-			__dentry_lru_del(dentry);
+			dentry_lru_del(dentry);
 			spin_unlock(&dentry->d_lock);
 			continue;
 		}
+
 		if (!spin_trylock(&dcache_inode_lock)) {
-relock2:
+relock:
 			spin_unlock(&dentry->d_lock);
-			goto relock1;
+			cpu_relax();
+			continue;
 		}
 		if (IS_ROOT(dentry))
 			parent = NULL;
@@ -649,15 +651,15 @@ relock2:
 			parent = dentry->d_parent;
 		if (parent && !spin_trylock(&parent->d_lock)) {
 			spin_unlock(&dcache_inode_lock);
-			goto relock2;
+			goto relock;
 		}
-		__dentry_lru_del(dentry);
-		spin_unlock(&dcache_lru_lock);
+		dentry_lru_del(dentry);
 
+		rcu_read_unlock();
 		prune_one_dentry(dentry, parent);
-		/* dcache_inode_lock and dentry->d_lock dropped */
-		spin_lock(&dcache_lru_lock);
+		rcu_read_lock();
 	}
+	rcu_read_unlock();
 }
 
 /**
@@ -705,15 +707,15 @@ relock:
 			if (!--cnt)
 				break;
 		}
-		/* XXX: re-add cond_resched_lock when dcache_lock goes away */
+		cond_resched_lock(&dcache_lru_lock);
 	}
-
-	*count = cnt;
-	shrink_dentry_list(&tmp);
-
 	if (!list_empty(&referenced))
 		list_splice(&referenced, &sb->s_dentry_lru);
 	spin_unlock(&dcache_lru_lock);
+
+	shrink_dentry_list(&tmp);
+
+	*count = cnt;
 }
 
 /**
@@ -805,7 +807,9 @@ void shrink_dcache_sb(struct super_block *sb)
 	spin_lock(&dcache_lru_lock);
 	while (!list_empty(&sb->s_dentry_lru)) {
 		list_splice_init(&sb->s_dentry_lru, &tmp);
+		spin_unlock(&dcache_lru_lock);
 		shrink_dentry_list(&tmp);
+		spin_lock(&dcache_lru_lock);
 	}
 	spin_unlock(&dcache_lru_lock);
 }
