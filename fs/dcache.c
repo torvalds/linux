@@ -2171,7 +2171,7 @@ char *dynamic_dname(struct dentry *dentry, char *buffer, int buflen,
 /*
  * Write full pathname from the root of the filesystem into the buffer.
  */
-char *__dentry_path(struct dentry *dentry, char *buf, int buflen)
+static char *__dentry_path(struct dentry *dentry, char *buf, int buflen)
 {
 	char *end = buf + buflen;
 	char *retval;
@@ -2198,7 +2198,18 @@ char *__dentry_path(struct dentry *dentry, char *buf, int buflen)
 Elong:
 	return ERR_PTR(-ENAMETOOLONG);
 }
-EXPORT_SYMBOL(__dentry_path);
+
+char *dentry_path_raw(struct dentry *dentry, char *buf, int buflen)
+{
+	char *retval;
+
+	spin_lock(&dcache_lock);
+	retval = __dentry_path(dentry, buf, buflen);
+	spin_unlock(&dcache_lock);
+
+	return retval;
+}
+EXPORT_SYMBOL(dentry_path_raw);
 
 char *dentry_path(struct dentry *dentry, char *buf, int buflen)
 {

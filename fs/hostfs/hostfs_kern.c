@@ -92,11 +92,9 @@ __uml_setup("hostfs=", hostfs_args,
 
 static char *__dentry_name(struct dentry *dentry, char *name)
 {
-	char *p = __dentry_path(dentry, name, PATH_MAX);
+	char *p = dentry_path_raw(dentry, name, PATH_MAX);
 	char *root;
 	size_t len;
-
-	spin_unlock(&dcache_lock);
 
 	root = dentry->d_sb->s_fs_info;
 	len = strlen(root);
@@ -123,25 +121,23 @@ static char *dentry_name(struct dentry *dentry)
 	if (!name)
 		return NULL;
 
-	spin_lock(&dcache_lock);
 	return __dentry_name(dentry, name); /* will unlock */
 }
 
 static char *inode_name(struct inode *ino)
 {
 	struct dentry *dentry;
-	char *name = __getname();
-	if (!name)
+	char *name;
+
+	dentry = d_find_alias(ino);
+	if (!dentry)
 		return NULL;
 
-	spin_lock(&dcache_lock);
-	if (list_empty(&ino->i_dentry)) {
-		spin_unlock(&dcache_lock);
-		__putname(name);
-		return NULL;
-	}
-	dentry = list_first_entry(&ino->i_dentry, struct dentry, d_alias);
-	return __dentry_name(dentry, name); /* will unlock */
+	name = dentry_name(dentry);
+
+	dput(dentry);
+
+	return name;
 }
 
 static char *follow_link(char *link)
