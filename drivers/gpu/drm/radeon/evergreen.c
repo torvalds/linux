@@ -401,16 +401,28 @@ static u32 evergreen_line_buffer_adjust(struct radeon_device *rdev,
 	case 0:
 	case 4:
 	default:
-		return 3840 * 2;
+		if (ASIC_IS_DCE5(rdev))
+			return 4096 * 2;
+		else
+			return 3840 * 2;
 	case 1:
 	case 5:
-		return 5760 * 2;
+		if (ASIC_IS_DCE5(rdev))
+			return 6144 * 2;
+		else
+			return 5760 * 2;
 	case 2:
 	case 6:
-		return 7680 * 2;
+		if (ASIC_IS_DCE5(rdev))
+			return 8192 * 2;
+		else
+			return 7680 * 2;
 	case 3:
 	case 7:
-		return 1920 * 2;
+		if (ASIC_IS_DCE5(rdev))
+			return 2048 * 2;
+		else
+			return 1920 * 2;
 	}
 }
 
