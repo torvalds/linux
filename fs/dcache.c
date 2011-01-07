@@ -68,14 +68,12 @@ struct dentry_stat_t dentry_stat = {
 };
 
 static struct percpu_counter nr_dentry __cacheline_aligned_in_smp;
-static struct percpu_counter nr_dentry_unused __cacheline_aligned_in_smp;
 
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
 int proc_nr_dentry(ctl_table *table, int write, void __user *buffer,
 		   size_t *lenp, loff_t *ppos)
 {
 	dentry_stat.nr_dentry = percpu_counter_sum_positive(&nr_dentry);
-	dentry_stat.nr_unused = percpu_counter_sum_positive(&nr_dentry_unused);
 	return proc_dointvec(table, write, buffer, lenp, ppos);
 }
 #endif
@@ -140,7 +138,7 @@ static void dentry_lru_add(struct dentry *dentry)
 	if (list_empty(&dentry->d_lru)) {
 		list_add(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
 		dentry->d_sb->s_nr_dentry_unused++;
-		percpu_counter_inc(&nr_dentry_unused);
+		dentry_stat.nr_unused++;
 	}
 }
 
@@ -149,7 +147,7 @@ static void dentry_lru_del(struct dentry *dentry)
 	if (!list_empty(&dentry->d_lru)) {
 		list_del_init(&dentry->d_lru);
 		dentry->d_sb->s_nr_dentry_unused--;
-		percpu_counter_dec(&nr_dentry_unused);
+		dentry_stat.nr_unused--;
 	}
 }
 
@@ -158,7 +156,7 @@ static void dentry_lru_move_tail(struct dentry *dentry)
 	if (list_empty(&dentry->d_lru)) {
 		list_add_tail(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
 		dentry->d_sb->s_nr_dentry_unused++;
-		percpu_counter_inc(&nr_dentry_unused);
+		dentry_stat.nr_unused++;
 	} else {
 		list_move_tail(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
 	}
@@ -546,7 +544,7 @@ static void prune_dcache(int count)
 {
 	struct super_block *sb, *p = NULL;
 	int w_count;
-	int unused = percpu_counter_sum_positive(&nr_dentry_unused);
+	int unused = dentry_stat.nr_unused;
 	int prune_ratio;
 	int pruned;
 
@@ -908,16 +906,13 @@ EXPORT_SYMBOL(shrink_dcache_parent);
  */
 static int shrink_dcache_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
 {
-	int nr_unused;
-
 	if (nr) {
 		if (!(gfp_mask & __GFP_FS))
 			return -1;
 		prune_dcache(nr);
 	}
 
-	nr_unused = percpu_counter_sum_positive(&nr_dentry_unused);
-	return (nr_unused / 100) * sysctl_vfs_cache_pressure;
+	return (dentry_stat.nr_unused / 100) * sysctl_vfs_cache_pressure;
 }
 
 static struct shrinker dcache_shrinker = {
@@ -2424,7 +2419,6 @@ static void __init dcache_init(void)
 	int loop;
 
 	percpu_counter_init(&nr_dentry, 0);
-	percpu_counter_init(&nr_dentry_unused, 0);
 
 	/* 
 	 * A constructor could be added for stable state like the lists,
