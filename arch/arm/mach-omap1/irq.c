@@ -176,26 +176,31 @@ static struct irq_chip omap_irq_chip = {
 
 void __init omap_init_irq(void)
 {
+	extern unsigned int omap_irq_flags;
 	int i, j;
 
 #if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
 	if (cpu_is_omap7xx()) {
+		omap_irq_flags = INT_7XX_IH2_IRQ;
 		irq_banks = omap7xx_irq_banks;
 		irq_bank_count = ARRAY_SIZE(omap7xx_irq_banks);
 	}
 #endif
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
+		omap_irq_flags = INT_1510_IH2_IRQ;
 		irq_banks = omap1510_irq_banks;
 		irq_bank_count = ARRAY_SIZE(omap1510_irq_banks);
 	}
 	if (cpu_is_omap310()) {
+		omap_irq_flags = INT_1510_IH2_IRQ;
 		irq_banks = omap310_irq_banks;
 		irq_bank_count = ARRAY_SIZE(omap310_irq_banks);
 	}
 #endif
 #if defined(CONFIG_ARCH_OMAP16XX)
 	if (cpu_is_omap16xx()) {
+		omap_irq_flags = INT_1510_IH2_IRQ;
 		irq_banks = omap1610_irq_banks;
 		irq_bank_count = ARRAY_SIZE(omap1610_irq_banks);
 	}

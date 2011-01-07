@@ -23,6 +23,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/regulator/machine.h>
 #include <linux/leds.h>
+#include <linux/leds_pwm.h>
 
 #include <mach/hardware.h>
 #include <mach/omap4-common.h>
@@ -35,6 +36,7 @@
 #include <plat/usb.h>
 #include <plat/mmc.h>
 
+#include "mux.h"
 #include "hsmmc.h"
 #include "timer-gp.h"
 #include "control.h"
@@ -94,6 +96,28 @@ static struct gpio_keys_button sdp4430_gpio_keys[] = {
 static struct gpio_led_platform_data sdp4430_led_data = {
 	.leds	= sdp4430_gpio_leds,
 	.num_leds	= ARRAY_SIZE(sdp4430_gpio_leds),
+};
+
+static struct led_pwm sdp4430_pwm_leds[] = {
+	{
+		.name		= "omap4:green:chrg",
+		.pwm_id		= 1,
+		.max_brightness	= 255,
+		.pwm_period_ns	= 7812500,
+	},
+};
+
+static struct led_pwm_platform_data sdp4430_pwm_data = {
+	.num_leds	= ARRAY_SIZE(sdp4430_pwm_leds),
+	.leds		= sdp4430_pwm_leds,
+};
+
+static struct platform_device sdp4430_leds_pwm = {
+	.name	= "leds_pwm",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &sdp4430_pwm_data,
+	},
 };
 
 static int omap_prox_activate(struct device *dev)
@@ -203,6 +227,7 @@ static struct platform_device *sdp4430_devices[] __initdata = {
 	&sdp4430_lcd_device,
 	&sdp4430_gpio_keys_device,
 	&sdp4430_leds_gpio,
+	&sdp4430_leds_pwm,
 };
 
 static struct omap_lcd_config sdp4430_lcd_config __initdata = {
@@ -217,12 +242,12 @@ static void __init omap_4430sdp_init_irq(void)
 {
 	omap_board_config = sdp4430_config;
 	omap_board_config_size = ARRAY_SIZE(sdp4430_config);
-	omap2_init_common_hw(NULL, NULL);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(NULL, NULL);
 #ifdef CONFIG_OMAP_32K_TIMER
 	omap2_gp_clockevent_set_gptimer(1);
 #endif
 	gic_init_irq();
-	omap_gpio_init();
 }
 
 static struct omap_musb_board_data musb_board_data = {
@@ -464,6 +489,9 @@ static struct i2c_board_info __initdata sdp4430_i2c_3_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("tmp105", 0x48),
 	},
+	{
+		I2C_BOARD_INFO("bh1780", 0x29),
+	},
 };
 static struct i2c_board_info __initdata sdp4430_i2c_4_boardinfo[] = {
 	{
@@ -505,9 +533,22 @@ static void __init omap_sfh7741prox_init(void)
 	}
 }
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init omap_4430sdp_init(void)
 {
 	int status;
+	int package = OMAP_PACKAGE_CBS;
+
+	if (omap_rev() == OMAP4430_REV_ES1_0)
+		package = OMAP_PACKAGE_CBL;
+	omap4_mux_init(board_mux, package);
 
 	omap4_i2c_init();
 	omap_sfh7741prox_init();

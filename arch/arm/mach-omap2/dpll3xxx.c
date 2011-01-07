@@ -32,9 +32,7 @@
 #include <plat/clock.h>
 
 #include "clock.h"
-#include "prm.h"
-#include "prm-regbits-34xx.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
 
 /* CM_AUTOIDLE_PLL*.AUTO_* bit values */
@@ -225,9 +223,33 @@ static int _omap3_noncore_dpll_stop(struct clk *clk)
 }
 
 /**
- * lookup_dco_sddiv -  Set j-type DPLL4 compensation variables
+ * _lookup_dco - Lookup DCO used by j-type DPLL
  * @clk: pointer to a DPLL struct clk
  * @dco: digital control oscillator selector
+ * @m: DPLL multiplier to set
+ * @n: DPLL divider to set
+ *
+ * See 36xx TRM section 3.5.3.3.3.2 "Type B DPLL (Low-Jitter)"
+ *
+ * XXX This code is not needed for 3430/AM35xx; can it be optimized
+ * out in non-multi-OMAP builds for those chips?
+ */
+static void _lookup_dco(struct clk *clk, u8 *dco, u16 m, u8 n)
+{
+	unsigned long fint, clkinp; /* watch out for overflow */
+
+	clkinp = clk->parent->rate;
+	fint = (clkinp / n) * m;
+
+	if (fint < 1000000000)
+		*dco = 2;
+	else
+		*dco = 4;
+}
+
+/**
+ * _lookup_sddiv - Calculate sigma delta divider for j-type DPLL
+ * @clk: pointer to a DPLL struct clk
  * @sd_div: target sigma-delta divider
  * @m: DPLL multiplier to set
  * @n: DPLL divider to set
@@ -237,19 +259,13 @@ static int _omap3_noncore_dpll_stop(struct clk *clk)
  * XXX This code is not needed for 3430/AM35xx; can it be optimized
  * out in non-multi-OMAP builds for those chips?
  */
-static void lookup_dco_sddiv(struct clk *clk, u8 *dco, u8 *sd_div, u16 m,
-			     u8 n)
+static void _lookup_sddiv(struct clk *clk, u8 *sd_div, u16 m, u8 n)
 {
-	unsigned long fint, clkinp, sd; /* watch out for overflow */
+	unsigned long clkinp, sd; /* watch out for overflow */
 	int mod1, mod2;
 
 	clkinp = clk->parent->rate;
-	fint = (clkinp / n) * m;
 
-	if (fint < 1000000000)
-		*dco = 2;
-	else
-		*dco = 4;
 	/*
 	 * target sigma-delta to near 250MHz
 	 * sd = ceil[(m/(n+1)) * (clkinp_MHz / 250)]
@@ -278,6 +294,7 @@ static void lookup_dco_sddiv(struct clk *clk, u8 *dco, u8 *sd_div, u16 m,
 static int omap3_noncore_dpll_program(struct clk *clk, u16 m, u8 n, u16 freqsel)
 {
 	struct dpll_data *dd = clk->dpll_data;
+	u8 dco, sd_div;
 	u32 v;
 
 	/* 3430 ES2 TRM: 4.7.6.9 DPLL Programming Sequence */
@@ -300,18 +317,16 @@ static int omap3_noncore_dpll_program(struct clk *clk, u16 m, u8 n, u16 freqsel)
 	v |= m << __ffs(dd->mult_mask);
 	v |= (n - 1) << __ffs(dd->div1_mask);
 
-	/*
-	 * XXX This code is not needed for 3430/AM35XX; can it be optimized
-	 * out in non-multi-OMAP builds for those chips?
-	 */
-	if ((dd->flags & DPLL_J_TYPE) && !(dd->flags & DPLL_NO_DCO_SEL)) {
-		u8 dco, sd_div;
-		lookup_dco_sddiv(clk, &dco, &sd_div, m, n);
-		/* XXX This probably will need revision for OMAP4 */
-		v &= ~(OMAP3630_PERIPH_DPLL_DCO_SEL_MASK
-			| OMAP3630_PERIPH_DPLL_SD_DIV_MASK);
-		v |= dco << __ffs(OMAP3630_PERIPH_DPLL_DCO_SEL_MASK);
-		v |= sd_div << __ffs(OMAP3630_PERIPH_DPLL_SD_DIV_MASK);
+	/* Configure dco and sd_div for dplls that have these fields */
+	if (dd->dco_mask) {
+		_lookup_dco(clk, &dco, m, n);
+		v &= ~(dd->dco_mask);
+		v |= dco << __ffs(dd->dco_mask);
+	}
+	if (dd->sddiv_mask) {
+		_lookup_sddiv(clk, &sd_div, m, n);
+		v &= ~(dd->sddiv_mask);
+		v |= sd_div << __ffs(dd->sddiv_mask);
 	}
 
 	__raw_writel(v, dd->mult_div1_reg);

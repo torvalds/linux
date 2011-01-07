@@ -27,6 +27,8 @@
 #ifndef __ARCH_ARM_MACH_OMAP_COMMON_H
 #define __ARCH_ARM_MACH_OMAP_COMMON_H
 
+#include <linux/delay.h>
+
 #include <plat/i2c.h>
 
 struct sys_timer;

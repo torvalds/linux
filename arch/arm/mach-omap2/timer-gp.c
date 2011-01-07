@@ -202,7 +202,7 @@ static struct clocksource clocksource_gpt = {
 static void __init omap2_gp_clocksource_init(void)
 {
 	static struct omap_dm_timer *gpt;
-	u32 tick_rate, tick_period;
+	u32 tick_rate;
 	static char err1[] __initdata = KERN_ERR
 		"%s: failed to request dm-timer\n";
 	static char err2[] __initdata = KERN_ERR
@@ -215,7 +215,6 @@ static void __init omap2_gp_clocksource_init(void)
 
 	omap_dm_timer_set_source(gpt, OMAP_TIMER_SRC_SYS_CLK);
 	tick_rate = clk_get_rate(omap_dm_timer_get_fclk(gpt));
-	tick_period = (tick_rate / HZ) - 1;
 
 	omap_dm_timer_set_load_start(gpt, 1, 0);
 
