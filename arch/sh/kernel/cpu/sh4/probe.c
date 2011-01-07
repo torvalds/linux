@@ -151,6 +151,7 @@ void __cpuinit cpu_probe(void)
 			boot_cpu_data.flags |= CPU_HAS_L2_CACHE;
 			break;
 		case 0x10:
+		case 0x11:
 			boot_cpu_data.type = CPU_SH7757;
 			break;
 		}
