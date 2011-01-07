@@ -47,6 +47,27 @@ struct dentry_stat_t {
 };
 extern struct dentry_stat_t dentry_stat;
 
+/*
+ * Compare 2 name strings, return 0 if they match, otherwise non-zero.
+ * The strings are both count bytes long, and count is non-zero.
+ */
+static inline int dentry_cmp(const unsigned char *cs, size_t scount,
+				const unsigned char *ct, size_t tcount)
+{
+	int ret;
+	if (scount != tcount)
+		return 1;
+	do {
+		ret = (*cs != *ct);
+		if (ret)
+			break;
+		cs++;
+		ct++;
+		tcount--;
+	} while (tcount);
+	return ret;
+}
+
 /* Name hashing routines. Initial hash value */
 /* Hash courtesy of the R5 hash in reiserfs modulo sign bits */
 #define init_name_hash()		0

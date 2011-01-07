@@ -1454,9 +1454,7 @@ static struct dentry *__d_instantiate_unique(struct dentry *entry,
 			continue;
 		if (alias->d_parent != entry->d_parent)
 			continue;
-		if (qstr->len != len)
-			continue;
-		if (memcmp(qstr->name, name, len))
+		if (dentry_cmp(qstr->name, qstr->len, name, len))
 			continue;
 		__dget(alias);
 		return alias;
@@ -1810,9 +1808,7 @@ seqretry:
 						tlen, tname, name))
 				continue;
 		} else {
-			if (tlen != len)
-				continue;
-			if (memcmp(tname, str, tlen))
+			if (dentry_cmp(tname, tlen, str, len))
 				continue;
 		}
 		/*
@@ -1925,9 +1921,7 @@ struct dentry *__d_lookup(struct dentry *parent, struct qstr *name)
 						tlen, tname, name))
 				goto next;
 		} else {
-			if (tlen != len)
-				goto next;
-			if (memcmp(tname, str, tlen))
+			if (dentry_cmp(tname, tlen, str, len))
 				goto next;
 		}
 
