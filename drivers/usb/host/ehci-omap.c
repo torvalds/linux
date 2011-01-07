@@ -796,7 +796,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	hcd = usb_create_hcd(&ehci_omap_hc_driver, &pdev->dev,
 			dev_name(&pdev->dev));
 	if (!hcd) {
-		dev_dbg(&pdev->dev, "failed to create hcd with err %d\n", ret);
+		dev_err(&pdev->dev, "failed to create hcd with err %d\n", ret);
 		ret = -ENOMEM;
 		goto err_create_hcd;
 	}
@@ -864,7 +864,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 
 	ret = omap_start_ehc(omap, hcd);
 	if (ret) {
-		dev_dbg(&pdev->dev, "failed to start ehci\n");
+		dev_err(&pdev->dev, "failed to start ehci with err %d\n", ret);
 		goto err_start;
 	}
 
@@ -879,7 +879,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 
 	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
 	if (ret) {
-		dev_dbg(&pdev->dev, "failed to add hcd with err %d\n", ret);
+		dev_err(&pdev->dev, "failed to add hcd with err %d\n", ret);
 		goto err_add_hcd;
 	}
 
