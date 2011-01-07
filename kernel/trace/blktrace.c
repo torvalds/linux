@@ -782,7 +782,8 @@ static void blk_add_trace_bio_bounce(void *ignore,
 }
 
 static void blk_add_trace_bio_complete(void *ignore,
-				       struct request_queue *q, struct bio *bio)
+				       struct request_queue *q, struct bio *bio,
+				       int error)
 {
 	blk_add_trace_bio(q, bio, BLK_TA_COMPLETE);
 }
