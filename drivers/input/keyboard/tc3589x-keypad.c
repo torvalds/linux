@@ -469,4 +469,4 @@ module_exit(tc3589x_keypad_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jayeeta Banerjee/Sundar Iyer");
 MODULE_DESCRIPTION("TC35893 Keypad Driver");
-MODULE_ALIAS("platform:tc3589x-keypad")
+MODULE_ALIAS("platform:tc3589x-keypad");
