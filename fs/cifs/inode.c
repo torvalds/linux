@@ -518,6 +518,7 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 
 	fattr->cf_eof = le64_to_cpu(info->EndOfFile);
 	fattr->cf_bytes = le64_to_cpu(info->AllocationSize);
+	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
 
 	if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
 		fattr->cf_mode = S_IFDIR | cifs_sb->mnt_dir_mode;
@@ -779,6 +780,10 @@ cifs_find_inode(struct inode *inode, void *opaque)
 	if (CIFS_I(inode)->uniqueid != fattr->cf_uniqueid)
 		return 0;
 
+	/* use createtime like an i_generation field */
+	if (CIFS_I(inode)->createtime != fattr->cf_createtime)
+		return 0;
+
 	/* don't match inode of different type */
 	if ((inode->i_mode & S_IFMT) != (fattr->cf_mode & S_IFMT))
 		return 0;
@@ -796,6 +801,7 @@ cifs_init_inode(struct inode *inode, void *opaque)
 	struct cifs_fattr *fattr = (struct cifs_fattr *) opaque;
 
 	CIFS_I(inode)->uniqueid = fattr->cf_uniqueid;
+	CIFS_I(inode)->createtime = fattr->cf_createtime;
 	return 0;
 }
 

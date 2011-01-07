@@ -329,6 +329,8 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->invalid_mapping = false;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
 	cifs_inode->server_eof = 0;
+	cifs_inode->uniqueid = 0;
+	cifs_inode->createtime = 0;
 
 	/* Can not set i_flags here - they get immediately overwritten
 	   to zero by the VFS */
