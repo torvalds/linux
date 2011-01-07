@@ -125,7 +125,7 @@ static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, struc
 		return ERR_PTR(error);
 
 exit:
-	entry->d_op = &coda_dentry_operations;
+	d_set_d_op(entry, &coda_dentry_operations);
 
 	if (inode && (type & CODA_NOCACHE))
 		coda_flag_inode(inode, C_VATTR | C_PURGE);

@@ -612,7 +612,7 @@ struct dentry *hostfs_lookup(struct inode *ino, struct dentry *dentry,
 		goto out_put;
 
 	d_add(dentry, inode);
-	dentry->d_op = &hostfs_dentry_ops;
+	d_set_d_op(dentry, &hostfs_dentry_ops);
 	return NULL;
 
  out_put:

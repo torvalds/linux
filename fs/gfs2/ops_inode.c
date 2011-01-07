@@ -106,7 +106,7 @@ static struct dentry *gfs2_lookup(struct inode *dir, struct dentry *dentry,
 {
 	struct inode *inode = NULL;
 
-	dentry->d_op = &gfs2_dops;
+	d_set_d_op(dentry, &gfs2_dops);
 
 	inode = gfs2_lookupi(dir, &dentry->d_name, 0);
 	if (inode && IS_ERR(inode))

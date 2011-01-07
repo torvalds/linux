@@ -439,7 +439,7 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 out_unlock:
 
 	if (inode) {
-		dentry->d_op = &proc_dentry_operations;
+		d_set_d_op(dentry, &proc_dentry_operations);
 		d_add(dentry, inode);
 		return NULL;
 	}

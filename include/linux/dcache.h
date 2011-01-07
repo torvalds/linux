@@ -183,6 +183,11 @@ struct dentry_operations {
 #define DCACHE_GENOCIDE		0x0200
 #define DCACHE_MOUNTED		0x0400	/* is a mountpoint */
 
+#define DCACHE_OP_HASH		0x1000
+#define DCACHE_OP_COMPARE	0x2000
+#define DCACHE_OP_REVALIDATE	0x4000
+#define DCACHE_OP_DELETE	0x8000
+
 
 extern spinlock_t dcache_inode_lock;
 extern seqlock_t rename_lock;
@@ -201,6 +206,7 @@ extern struct dentry * d_materialise_unique(struct dentry *, struct inode *);
 extern void __d_drop(struct dentry *dentry);
 extern void d_drop(struct dentry *dentry);
 extern void d_delete(struct dentry *);
+extern void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op);
 
 /* allocate/de-allocate */
 extern struct dentry * d_alloc(struct dentry *, const struct qstr *);

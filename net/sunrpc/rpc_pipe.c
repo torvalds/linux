@@ -591,7 +591,7 @@ static struct dentry *__rpc_lookup_create(struct dentry *parent,
 		}
 	}
 	if (!dentry->d_inode)
-		dentry->d_op = &rpc_dentry_operations;
+		d_set_d_op(dentry, &rpc_dentry_operations);
 out_err:
 	return dentry;
 }

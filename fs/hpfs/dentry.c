@@ -65,5 +65,5 @@ static const struct dentry_operations hpfs_dentry_operations = {
 
 void hpfs_set_dentry_operations(struct dentry *dentry)
 {
-	dentry->d_op = &hpfs_dentry_operations;
+	d_set_d_op(dentry, &hpfs_dentry_operations);
 }

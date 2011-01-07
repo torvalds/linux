@@ -113,7 +113,7 @@ struct file *anon_inode_getfile(const char *name,
 	 */
 	ihold(anon_inode_inode);
 
-	path.dentry->d_op = &anon_inodefs_dentry_operations;
+	d_set_d_op(path.dentry, &anon_inodefs_dentry_operations);
 	d_instantiate(path.dentry, anon_inode_inode);
 
 	error = -ENFILE;

@@ -398,7 +398,7 @@ repeat:
 		return;
 	}
 
-	if (dentry->d_op && dentry->d_op->d_delete) {
+	if (dentry->d_flags & DCACHE_OP_DELETE) {
 		if (dentry->d_op->d_delete(dentry))
 			goto kill_it;
 	}
@@ -1301,6 +1301,28 @@ struct dentry *d_alloc_name(struct dentry *parent, const char *name)
 }
 EXPORT_SYMBOL(d_alloc_name);
 
+void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op)
+{
+	BUG_ON(dentry->d_op);
+	BUG_ON(dentry->d_flags & (DCACHE_OP_HASH	|
+				DCACHE_OP_COMPARE	|
+				DCACHE_OP_REVALIDATE	|
+				DCACHE_OP_DELETE ));
+	dentry->d_op = op;
+	if (!op)
+		return;
+	if (op->d_hash)
+		dentry->d_flags |= DCACHE_OP_HASH;
+	if (op->d_compare)
+		dentry->d_flags |= DCACHE_OP_COMPARE;
+	if (op->d_revalidate)
+		dentry->d_flags |= DCACHE_OP_REVALIDATE;
+	if (op->d_delete)
+		dentry->d_flags |= DCACHE_OP_DELETE;
+
+}
+EXPORT_SYMBOL(d_set_d_op);
+
 static void __d_instantiate(struct dentry *dentry, struct inode *inode)
 {
 	spin_lock(&dentry->d_lock);
@@ -1731,7 +1753,7 @@ seqretry:
 		 */
 		if (read_seqcount_retry(&dentry->d_seq, *seq))
 			goto seqretry;
-		if (parent->d_op && parent->d_op->d_compare) {
+		if (parent->d_flags & DCACHE_OP_COMPARE) {
 			if (parent->d_op->d_compare(parent, *inode,
 						dentry, i,
 						tlen, tname, name))
@@ -1846,7 +1868,7 @@ struct dentry *__d_lookup(struct dentry *parent, struct qstr *name)
 		 */
 		tlen = dentry->d_name.len;
 		tname = dentry->d_name.name;
-		if (parent->d_op && parent->d_op->d_compare) {
+		if (parent->d_flags & DCACHE_OP_COMPARE) {
 			if (parent->d_op->d_compare(parent, parent->d_inode,
 						dentry, dentry->d_inode,
 						tlen, tname, name))
@@ -1887,7 +1909,7 @@ struct dentry *d_hash_and_lookup(struct dentry *dir, struct qstr *name)
 	 * routine may choose to leave the hash value unchanged.
 	 */
 	name->hash = full_name_hash(name->name, name->len);
-	if (dir->d_op && dir->d_op->d_hash) {
+	if (dir->d_flags & DCACHE_OP_HASH) {
 		if (dir->d_op->d_hash(dir, dir->d_inode, name) < 0)
 			goto out;
 	}

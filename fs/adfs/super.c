@@ -484,7 +484,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		adfs_error(sb, "get root inode failed\n");
 		goto error;
 	} else
-		sb->s_root->d_op = &adfs_dentry_operations;
+		d_set_d_op(sb->s_root, &adfs_dentry_operations);
 	unlock_kernel();
 	return 0;
 

@@ -482,7 +482,7 @@ got_root:
 		printk(KERN_ERR "AFFS: Get root inode failed\n");
 		goto out_error;
 	}
-	sb->s_root->d_op = &affs_dentry_operations;
+	d_set_d_op(sb->s_root, &affs_dentry_operations);
 
 	pr_debug("AFFS: s_flags=%lX\n",sb->s_flags);
 	return 0;

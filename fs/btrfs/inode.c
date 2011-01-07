@@ -4084,7 +4084,7 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 	int index;
 	int ret;
 
-	dentry->d_op = &btrfs_dentry_operations;
+	d_set_d_op(dentry, &btrfs_dentry_operations);
 
 	if (dentry->d_name.len > BTRFS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);

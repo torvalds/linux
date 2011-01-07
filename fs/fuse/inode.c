@@ -626,7 +626,7 @@ static struct dentry *fuse_get_dentry(struct super_block *sb,
 
 	entry = d_obtain_alias(inode);
 	if (!IS_ERR(entry) && get_node_id(inode) != FUSE_ROOT_ID) {
-		entry->d_op = &fuse_dentry_operations;
+		d_set_d_op(entry, &fuse_dentry_operations);
 		fuse_invalidate_entry_cache(entry);
 	}
 
@@ -728,7 +728,7 @@ static struct dentry *fuse_get_parent(struct dentry *child)
 
 	parent = d_obtain_alias(inode);
 	if (!IS_ERR(parent) && get_node_id(inode) != FUSE_ROOT_ID) {
-		parent->d_op = &fuse_dentry_operations;
+		d_set_d_op(parent, &fuse_dentry_operations);
 		fuse_invalidate_entry_cache(parent);
 	}
 

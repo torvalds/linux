@@ -1969,7 +1969,7 @@ static struct dentry *proc_fd_instantiate(struct inode *dir,
 	inode->i_op = &proc_pid_link_inode_operations;
 	inode->i_size = 64;
 	ei->op.proc_get_link = proc_fd_link;
-	dentry->d_op = &tid_fd_dentry_operations;
+	d_set_d_op(dentry, &tid_fd_dentry_operations);
 	d_add(dentry, inode);
 	/* Close the race of the process dying before we return the dentry */
 	if (tid_fd_revalidate(dentry, NULL))
@@ -2137,7 +2137,7 @@ static struct dentry *proc_fdinfo_instantiate(struct inode *dir,
 	ei->fd = fd;
 	inode->i_mode = S_IFREG | S_IRUSR;
 	inode->i_fop = &proc_fdinfo_file_operations;
-	dentry->d_op = &tid_fd_dentry_operations;
+	d_set_d_op(dentry, &tid_fd_dentry_operations);
 	d_add(dentry, inode);
 	/* Close the race of the process dying before we return the dentry */
 	if (tid_fd_revalidate(dentry, NULL))
@@ -2196,7 +2196,7 @@ static struct dentry *proc_pident_instantiate(struct inode *dir,
 	if (p->fop)
 		inode->i_fop = p->fop;
 	ei->op = p->op;
-	dentry->d_op = &pid_dentry_operations;
+	d_set_d_op(dentry, &pid_dentry_operations);
 	d_add(dentry, inode);
 	/* Close the race of the process dying before we return the dentry */
 	if (pid_revalidate(dentry, NULL))
@@ -2615,7 +2615,7 @@ static struct dentry *proc_base_instantiate(struct inode *dir,
 	if (p->fop)
 		inode->i_fop = p->fop;
 	ei->op = p->op;
-	dentry->d_op = &proc_base_dentry_operations;
+	d_set_d_op(dentry, &proc_base_dentry_operations);
 	d_add(dentry, inode);
 	error = NULL;
 out:
@@ -2926,7 +2926,7 @@ static struct dentry *proc_pid_instantiate(struct inode *dir,
 	inode->i_nlink = 2 + pid_entry_count_dirs(tgid_base_stuff,
 		ARRAY_SIZE(tgid_base_stuff));
 
-	dentry->d_op = &pid_dentry_operations;
+	d_set_d_op(dentry, &pid_dentry_operations);
 
 	d_add(dentry, inode);
 	/* Close the race of the process dying before we return the dentry */
@@ -3169,7 +3169,7 @@ static struct dentry *proc_task_instantiate(struct inode *dir,
 	inode->i_nlink = 2 + pid_entry_count_dirs(tid_base_stuff,
 		ARRAY_SIZE(tid_base_stuff));
 
-	dentry->d_op = &pid_dentry_operations;
+	d_set_d_op(dentry, &pid_dentry_operations);
 
 	d_add(dentry, inode);
 	/* Close the race of the process dying before we return the dentry */

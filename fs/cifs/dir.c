@@ -135,9 +135,9 @@ static void setup_cifs_dentry(struct cifsTconInfo *tcon,
 			      struct inode *newinode)
 {
 	if (tcon->nocase)
-		direntry->d_op = &cifs_ci_dentry_ops;
+		d_set_d_op(direntry, &cifs_ci_dentry_ops);
 	else
-		direntry->d_op = &cifs_dentry_ops;
+		d_set_d_op(direntry, &cifs_dentry_ops);
 	d_instantiate(direntry, newinode);
 }
 
@@ -421,9 +421,9 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 		rc = cifs_get_inode_info_unix(&newinode, full_path,
 						inode->i_sb, xid);
 		if (pTcon->nocase)
-			direntry->d_op = &cifs_ci_dentry_ops;
+			d_set_d_op(direntry, &cifs_ci_dentry_ops);
 		else
-			direntry->d_op = &cifs_dentry_ops;
+			d_set_d_op(direntry, &cifs_dentry_ops);
 
 		if (rc == 0)
 			d_instantiate(direntry, newinode);
@@ -604,9 +604,9 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 
 	if ((rc == 0) && (newInode != NULL)) {
 		if (pTcon->nocase)
-			direntry->d_op = &cifs_ci_dentry_ops;
+			d_set_d_op(direntry, &cifs_ci_dentry_ops);
 		else
-			direntry->d_op = &cifs_dentry_ops;
+			d_set_d_op(direntry, &cifs_dentry_ops);
 		d_add(direntry, newInode);
 		if (posix_open) {
 			filp = lookup_instantiate_filp(nd, direntry,
@@ -634,9 +634,9 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		rc = 0;
 		direntry->d_time = jiffies;
 		if (pTcon->nocase)
-			direntry->d_op = &cifs_ci_dentry_ops;
+			d_set_d_op(direntry, &cifs_ci_dentry_ops);
 		else
-			direntry->d_op = &cifs_dentry_ops;
+			d_set_d_op(direntry, &cifs_dentry_ops);
 		d_add(direntry, NULL);
 	/*	if it was once a directory (but how can we tell?) we could do
 		shrink_dcache_parent(direntry); */

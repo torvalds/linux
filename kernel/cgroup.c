@@ -2222,7 +2222,7 @@ static struct dentry *cgroup_lookup(struct inode *dir,
 
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
-	dentry->d_op = &cgroup_dentry_operations;
+	d_set_d_op(dentry, &cgroup_dentry_operations);
 	d_add(dentry, NULL);
 	return NULL;
 }

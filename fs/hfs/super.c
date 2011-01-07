@@ -434,7 +434,7 @@ static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sb->s_root)
 		goto bail_iput;
 
-	sb->s_root->d_op = &hfs_dentry_operations;
+	d_set_d_op(sb->s_root, &hfs_dentry_operations);
 
 	/* everything's okay */
 	return 0;

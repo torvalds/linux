@@ -276,7 +276,7 @@ adfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	struct object_info obj;
 	int error;
 
-	dentry->d_op = &adfs_dentry_operations;	
+	d_set_d_op(dentry, &adfs_dentry_operations);
 	lock_kernel();
 	error = adfs_dir_lookup_byname(dir, &dentry->d_name, &obj);
 	if (error == 0) {

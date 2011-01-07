@@ -368,7 +368,7 @@ static int sock_alloc_file(struct socket *sock, struct file **f, int flags)
 	}
 	path.mnt = mntget(sock_mnt);
 
-	path.dentry->d_op = &sockfs_dentry_operations;
+	d_set_d_op(path.dentry, &sockfs_dentry_operations);
 	d_instantiate(path.dentry, SOCK_INODE(sock));
 	SOCK_INODE(sock)->i_fop = &socket_file_ops;
 

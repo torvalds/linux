@@ -581,7 +581,7 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 	}
 
 success:
-	dentry->d_op = &afs_fs_dentry_operations;
+	d_set_d_op(dentry, &afs_fs_dentry_operations);
 
 	d_add(dentry, inode);
 	_leave(" = 0 { vn=%u u=%u } -> { ino=%lu v=%llu }",

@@ -1004,7 +1004,7 @@ struct file *create_write_pipe(int flags)
 		goto err_inode;
 	path.mnt = mntget(pipe_mnt);
 
-	path.dentry->d_op = &pipefs_dentry_operations;
+	d_set_d_op(path.dentry, &pipefs_dentry_operations);
 	d_instantiate(path.dentry, inode);
 
 	err = -ENFILE;

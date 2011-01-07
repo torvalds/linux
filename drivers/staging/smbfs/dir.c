@@ -398,9 +398,9 @@ smb_new_dentry(struct dentry *dentry)
 	struct smb_sb_info *server = server_from_dentry(dentry);
 
 	if (server->mnt->flags & SMB_MOUNT_CASE)
-		dentry->d_op = &smbfs_dentry_operations_case;
+		d_set_d_op(dentry, &smbfs_dentry_operations_case);
 	else
-		dentry->d_op = &smbfs_dentry_operations;
+		d_set_d_op(dentry, &smbfs_dentry_operations);
 	dentry->d_time = jiffies;
 }
 
@@ -462,9 +462,9 @@ smb_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	add_entry:
 			server = server_from_dentry(dentry);
 			if (server->mnt->flags & SMB_MOUNT_CASE)
-				dentry->d_op = &smbfs_dentry_operations_case;
+				d_set_d_op(dentry, &smbfs_dentry_operations_case);
 			else
-				dentry->d_op = &smbfs_dentry_operations;
+				d_set_d_op(dentry, &smbfs_dentry_operations);
 
 			d_add(dentry, inode);
 			smb_renew_times(dentry);

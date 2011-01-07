@@ -587,6 +587,17 @@ do_revalidate(struct dentry *dentry, struct nameidata *nd)
 	return dentry;
 }
 
+static inline int need_reval_dot(struct dentry *dentry)
+{
+	if (likely(!(dentry->d_flags & DCACHE_OP_REVALIDATE)))
+		return 0;
+
+	if (likely(!(dentry->d_sb->s_type->fs_flags & FS_REVAL_DOT)))
+		return 0;
+
+	return 1;
+}
+
 /*
  * force_reval_path - force revalidation of a dentry
  *
@@ -610,10 +621,9 @@ force_reval_path(struct path *path, struct nameidata *nd)
 
 	/*
 	 * only check on filesystems where it's possible for the dentry to
-	 * become stale. It's assumed that if this flag is set then the
-	 * d_revalidate op will also be defined.
+	 * become stale.
 	 */
-	if (!(dentry->d_sb->s_type->fs_flags & FS_REVAL_DOT))
+	if (!need_reval_dot(dentry))
 		return 0;
 
 	status = dentry->d_op->d_revalidate(dentry, nd);
@@ -1003,7 +1013,7 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 	 * See if the low-level filesystem might want
 	 * to use its own hash..
 	 */
-	if (parent->d_op && parent->d_op->d_hash) {
+	if (unlikely(parent->d_flags & DCACHE_OP_HASH)) {
 		int err = parent->d_op->d_hash(parent, nd->inode, name);
 		if (err < 0)
 			return err;
@@ -1029,7 +1039,7 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 			return -ECHILD;
 
 		nd->seq = seq;
-		if (dentry->d_op && dentry->d_op->d_revalidate) {
+		if (dentry->d_flags & DCACHE_OP_REVALIDATE) {
 			/* We commonly drop rcu-walk here */
 			if (nameidata_dentry_drop_rcu(nd, dentry))
 				return -ECHILD;
@@ -1043,7 +1053,7 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 		if (!dentry)
 			goto need_lookup;
 found:
-		if (dentry->d_op && dentry->d_op->d_revalidate)
+		if (dentry->d_flags & DCACHE_OP_REVALIDATE)
 			goto need_revalidate;
 done:
 		path->mnt = mnt;
@@ -1281,8 +1291,7 @@ return_reval:
 		 * We bypassed the ordinary revalidation routines.
 		 * We may need to check the cached dentry for staleness.
 		 */
-		if (nd->path.dentry && nd->path.dentry->d_sb &&
-		    (nd->path.dentry->d_sb->s_type->fs_flags & FS_REVAL_DOT)) {
+		if (need_reval_dot(nd->path.dentry)) {
 			if (nameidata_drop_rcu_maybe(nd))
 				return -ECHILD;
 			err = -ESTALE;
@@ -1602,7 +1611,7 @@ static struct dentry *__lookup_hash(struct qstr *name,
 	 * See if the low-level filesystem might want
 	 * to use its own hash..
 	 */
-	if (base->d_op && base->d_op->d_hash) {
+	if (base->d_flags & DCACHE_OP_HASH) {
 		err = base->d_op->d_hash(base, inode, name);
 		dentry = ERR_PTR(err);
 		if (err < 0)
@@ -1616,7 +1625,7 @@ static struct dentry *__lookup_hash(struct qstr *name,
 	 */
 	dentry = d_lookup(base, name);
 
-	if (dentry && dentry->d_op && dentry->d_op->d_revalidate)
+	if (dentry && (dentry->d_flags & DCACHE_OP_REVALIDATE))
 		dentry = do_revalidate(dentry, nd);
 
 	if (!dentry)
@@ -2070,7 +2079,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		follow_dotdot(nd);
 		dir = nd->path.dentry;
 	case LAST_DOT:
-		if (nd->path.mnt->mnt_sb->s_type->fs_flags & FS_REVAL_DOT) {
+		if (need_reval_dot(dir)) {
 			if (!dir->d_op->d_revalidate(dir, nd)) {
 				error = -ESTALE;
 				goto exit;

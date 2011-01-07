@@ -121,7 +121,7 @@ struct dentry *nfs_get_root(struct super_block *sb, struct nfs_fh *mntfh)
 	security_d_instantiate(ret, inode);
 
 	if (ret->d_op == NULL)
-		ret->d_op = server->nfs_client->rpc_ops->dentry_ops;
+		d_set_d_op(ret, server->nfs_client->rpc_ops->dentry_ops);
 out:
 	nfs_free_fattr(fsinfo.fattr);
 	return ret;
@@ -228,7 +228,7 @@ struct dentry *nfs4_get_root(struct super_block *sb, struct nfs_fh *mntfh)
 	security_d_instantiate(ret, inode);
 
 	if (ret->d_op == NULL)
-		ret->d_op = server->nfs_client->rpc_ops->dentry_ops;
+		d_set_d_op(ret, server->nfs_client->rpc_ops->dentry_ops);
 
 out:
 	nfs_free_fattr(fattr);

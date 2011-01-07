@@ -717,7 +717,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	sb->s_root = d_alloc_root(root_inode);
         if (!sb->s_root)
 		goto out_no_root;
-	sb->s_root->d_op = &ncp_root_dentry_operations;
+	d_set_d_op(sb->s_root, &ncp_root_dentry_operations);
 	return 0;
 
 out_no_root:

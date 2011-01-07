@@ -701,7 +701,7 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	/* instantiate and hash dentry */
 	ret = d_find_alias(inode);
 	if (!ret) {
-		dentry->d_op = &sysfs_dentry_ops;
+		d_set_d_op(dentry, &sysfs_dentry_ops);
 		dentry->d_fsdata = sysfs_get(sd);
 		d_add(dentry, inode);
 	} else {

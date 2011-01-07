@@ -2233,7 +2233,7 @@ pfm_alloc_file(pfm_context_t *ctx)
 	}
 	path.mnt = mntget(pfmfs_mnt);
 
-	path.dentry->d_op = &pfmfs_dentry_operations;
+	d_set_d_op(path.dentry, &pfmfs_dentry_operations);
 	d_add(path.dentry, inode);
 
 	file = alloc_file(&path, FMODE_READ, &pfm_file_ops);

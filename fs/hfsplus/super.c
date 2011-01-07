@@ -419,7 +419,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 		err = -ENOMEM;
 		goto cleanup;
 	}
-	sb->s_root->d_op = &hfsplus_dentry_operations;
+	d_set_d_op(sb->s_root, &hfsplus_dentry_operations);
 
 	str.len = sizeof(HFSP_HIDDENDIR_NAME) - 1;
 	str.name = HFSP_HIDDENDIR_NAME;

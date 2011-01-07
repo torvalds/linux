@@ -766,11 +766,11 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 
 out:
 	unlock_super(sb);
-	dentry->d_op = sb->s_root->d_op;
+	d_set_d_op(dentry, sb->s_root->d_op);
 	dentry->d_time = dentry->d_parent->d_inode->i_version;
 	dentry = d_splice_alias(inode, dentry);
 	if (dentry) {
-		dentry->d_op = sb->s_root->d_op;
+		d_set_d_op(dentry, sb->s_root->d_op);
 		dentry->d_time = dentry->d_parent->d_inode->i_version;
 	}
 	return dentry;
@@ -1072,9 +1072,9 @@ static int vfat_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	if (MSDOS_SB(sb)->options.name_check != 's')
-		sb->s_root->d_op = &vfat_ci_dentry_ops;
+		d_set_d_op(sb->s_root, &vfat_ci_dentry_ops);
 	else
-		sb->s_root->d_op = &vfat_dentry_ops;
+		d_set_d_op(sb->s_root, &vfat_dentry_ops);
 
 	unlock_super(sb);
 	return 0;

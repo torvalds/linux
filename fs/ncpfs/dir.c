@@ -633,7 +633,7 @@ ncp_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 		entry->ino = iunique(dir->i_sb, 2);
 		inode = ncp_iget(dir->i_sb, entry);
 		if (inode) {
-			newdent->d_op = &ncp_dentry_operations;
+			d_set_d_op(newdent, &ncp_dentry_operations);
 			d_instantiate(newdent, inode);
 			if (!hashed)
 				d_rehash(newdent);
@@ -889,7 +889,7 @@ static struct dentry *ncp_lookup(struct inode *dir, struct dentry *dentry, struc
 	if (inode) {
 		ncp_new_dentry(dentry);
 add_entry:
-		dentry->d_op = &ncp_dentry_operations;
+		d_set_d_op(dentry, &ncp_dentry_operations);
 		d_add(dentry, inode);
 		error = 0;
 	}

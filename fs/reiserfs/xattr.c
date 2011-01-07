@@ -990,7 +990,7 @@ int reiserfs_lookup_privroot(struct super_block *s)
 				strlen(PRIVROOT_NAME));
 	if (!IS_ERR(dentry)) {
 		REISERFS_SB(s)->priv_root = dentry;
-		dentry->d_op = &xattr_lookup_poison_ops;
+		d_set_d_op(dentry, &xattr_lookup_poison_ops);
 		if (dentry->d_inode)
 			dentry->d_inode->i_flags |= S_PRIVATE;
 	} else

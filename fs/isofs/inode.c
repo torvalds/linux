@@ -949,7 +949,7 @@ root_found:
 		table += 2;
 	if (opt.check == 'r')
 		table++;
-	s->s_root->d_op = &isofs_dentry_ops[table];
+	d_set_d_op(s->s_root, &isofs_dentry_ops[table]);
 
 	kfree(opt.iocharset);
 

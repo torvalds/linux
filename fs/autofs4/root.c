@@ -571,7 +571,7 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 		 * we check for the hashed dentry and return the newly
 		 * hashed dentry.
 		 */
-		dentry->d_op = &autofs4_root_dentry_operations;
+		d_set_d_op(dentry, &autofs4_root_dentry_operations);
 
 		/*
 		 * And we need to ensure that the same dentry is used for
@@ -710,9 +710,9 @@ static int autofs4_dir_symlink(struct inode *dir,
 	d_add(dentry, inode);
 
 	if (dir == dir->i_sb->s_root->d_inode)
-		dentry->d_op = &autofs4_root_dentry_operations;
+		d_set_d_op(dentry, &autofs4_root_dentry_operations);
 	else
-		dentry->d_op = &autofs4_dentry_operations;
+		d_set_d_op(dentry, &autofs4_dentry_operations);
 
 	dentry->d_fsdata = ino;
 	ino->dentry = dget(dentry);
@@ -845,9 +845,9 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	d_add(dentry, inode);
 
 	if (dir == dir->i_sb->s_root->d_inode)
-		dentry->d_op = &autofs4_root_dentry_operations;
+		d_set_d_op(dentry, &autofs4_root_dentry_operations);
 	else
-		dentry->d_op = &autofs4_dentry_operations;
+		d_set_d_op(dentry, &autofs4_dentry_operations);
 
 	dentry->d_fsdata = ino;
 	ino->dentry = dget(dentry);

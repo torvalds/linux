@@ -525,7 +525,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_no_root;
 
 	if (sbi->mntflag & JFS_OS2)
-		sb->s_root->d_op = &jfs_ci_dentry_operations;
+		d_set_d_op(sb->s_root, &jfs_ci_dentry_operations);
 
 	/* logical blocks are represented by 40 bits in pxd_t, etc. */
 	sb->s_maxbytes = ((u64) sb->s_blocksize) << 40;

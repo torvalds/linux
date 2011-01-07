@@ -750,7 +750,7 @@ static struct dentry *fat_fh_to_dentry(struct super_block *sb,
 	 */
 	result = d_obtain_alias(inode);
 	if (!IS_ERR(result))
-		result->d_op = sb->s_root->d_op;
+		d_set_d_op(result, sb->s_root->d_op);
 	return result;
 }
 
@@ -800,7 +800,7 @@ static struct dentry *fat_get_parent(struct dentry *child)
 
 	parent = d_obtain_alias(inode);
 	if (!IS_ERR(parent))
-		parent->d_op = sb->s_root->d_op;
+		d_set_d_op(parent, sb->s_root->d_op);
 out:
 	unlock_super(sb);
 

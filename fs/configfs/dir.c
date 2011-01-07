@@ -442,7 +442,7 @@ static int configfs_attach_attr(struct configfs_dirent * sd, struct dentry * den
 		return error;
 	}
 
-	dentry->d_op = &configfs_dentry_ops;
+	d_set_d_op(dentry, &configfs_dentry_ops);
 	d_rehash(dentry);
 
 	return 0;
@@ -489,7 +489,7 @@ static struct dentry * configfs_lookup(struct inode *dir,
 		 */
 		if (dentry->d_name.len > NAME_MAX)
 			return ERR_PTR(-ENAMETOOLONG);
-		dentry->d_op = &configfs_dentry_ops;
+		d_set_d_op(dentry, &configfs_dentry_ops);
 		d_add(dentry, NULL);
 		return NULL;
 	}
@@ -683,7 +683,7 @@ static int create_default_group(struct config_group *parent_group,
 	ret = -ENOMEM;
 	child = d_alloc(parent, &name);
 	if (child) {
-		child->d_op = &configfs_dentry_ops;
+		d_set_d_op(child, &configfs_dentry_ops);
 		d_add(child, NULL);
 
 		ret = configfs_attach_group(&parent_group->cg_item,
@@ -1681,7 +1681,7 @@ int configfs_register_subsystem(struct configfs_subsystem *subsys)
 	err = -ENOMEM;
 	dentry = d_alloc(configfs_sb->s_root, &name);
 	if (dentry) {
-		dentry->d_op = &configfs_dentry_ops;
+		d_set_d_op(dentry, &configfs_dentry_ops);
 		d_add(dentry, NULL);
 
 		err = configfs_attach_group(sd->s_element, &group->cg_item,

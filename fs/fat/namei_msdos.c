@@ -227,10 +227,10 @@ static struct dentry *msdos_lookup(struct inode *dir, struct dentry *dentry,
 	}
 out:
 	unlock_super(sb);
-	dentry->d_op = &msdos_dentry_operations;
+	d_set_d_op(dentry, &msdos_dentry_operations);
 	dentry = d_splice_alias(inode, dentry);
 	if (dentry)
-		dentry->d_op = &msdos_dentry_operations;
+		d_set_d_op(dentry, &msdos_dentry_operations);
 	return dentry;
 
 error:
@@ -673,7 +673,7 @@ static int msdos_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	sb->s_flags |= MS_NOATIME;
-	sb->s_root->d_op = &msdos_dentry_operations;
+	d_set_d_op(sb->s_root, &msdos_dentry_operations);
 	unlock_super(sb);
 	return 0;
 }
