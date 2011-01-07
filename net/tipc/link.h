@@ -2,7 +2,7 @@
  * net/tipc/link.h: Include file for TIPC link code
  *
  * Copyright (c) 1995-2006, Ericsson AB
- * Copyright (c) 2004-2005, Wind River Systems
+ * Copyright (c) 2004-2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -211,7 +211,7 @@ struct link {
 	} stats;
 };
 
-struct port;
+struct tipc_port;
 
 struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
 			      const struct tipc_media_addr *media_addr);
@@ -230,7 +230,7 @@ void tipc_link_reset(struct link *l_ptr);
 int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector);
 int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf);
 u32 tipc_link_get_max_pkt(u32 dest, u32 selector);
-int tipc_link_send_sections_fast(struct port *sender,
+int tipc_link_send_sections_fast(struct tipc_port *sender,
 				 struct iovec const *msg_sect,
 				 const u32 num_sect,
 				 u32 destnode);

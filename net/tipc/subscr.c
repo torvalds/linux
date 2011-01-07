@@ -2,7 +2,7 @@
  * net/tipc/subscr.c: TIPC network topology service
  *
  * Copyright (c) 2000-2006, Ericsson AB
- * Copyright (c) 2005-2007, Wind River Systems
+ * Copyright (c) 2005-2007, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -160,7 +160,7 @@ void tipc_subscr_report_overlap(struct subscription *sub,
 
 static void subscr_timeout(struct subscription *sub)
 {
-	struct port *server_port;
+	struct tipc_port *server_port;
 
 	/* Validate server port reference (in case subscriber is terminating) */
 
@@ -508,7 +508,7 @@ static void subscr_named_msg_event(void *usr_handle,
 
 	/* Lock server port (& save lock address for future use) */
 
-	subscriber->lock = tipc_port_lock(subscriber->port_ref)->publ.lock;
+	subscriber->lock = tipc_port_lock(subscriber->port_ref)->lock;
 
 	/* Add subscriber to topology server's subscriber list */
 
