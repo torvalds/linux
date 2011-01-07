@@ -648,7 +648,7 @@
 #define	PACKET3_NOP					0x10
 #define	PACKET3_SET_BASE				0x11
 #define	PACKET3_CLEAR_STATE				0x12
-#define	PACKET3_INDIRECT_BUFFER_SIZE			0x13
+#define	PACKET3_INDEX_BUFFER_SIZE			0x13
 #define	PACKET3_DISPATCH_DIRECT				0x15
 #define	PACKET3_DISPATCH_INDIRECT			0x16
 #define	PACKET3_INDIRECT_BUFFER_END			0x17
@@ -689,14 +689,14 @@
 #              define PACKET3_CB8_DEST_BASE_ENA    (1 << 15)
 #              define PACKET3_CB9_DEST_BASE_ENA    (1 << 16)
 #              define PACKET3_CB10_DEST_BASE_ENA   (1 << 17)
-#              define PACKET3_CB11_DEST_BASE_ENA   (1 << 17)
+#              define PACKET3_CB11_DEST_BASE_ENA   (1 << 18)
 #              define PACKET3_FULL_CACHE_ENA       (1 << 20)
 #              define PACKET3_TC_ACTION_ENA        (1 << 23)
 #              define PACKET3_VC_ACTION_ENA        (1 << 24)
 #              define PACKET3_CB_ACTION_ENA        (1 << 25)
 #              define PACKET3_DB_ACTION_ENA        (1 << 26)
 #              define PACKET3_SH_ACTION_ENA        (1 << 27)
-#              define PACKET3_SMX_ACTION_ENA       (1 << 28)
+#              define PACKET3_SX_ACTION_ENA        (1 << 28)
 #define	PACKET3_ME_INITIALIZE				0x44
 #define		PACKET3_ME_INITIALIZE_DEVICE_ID(x) ((x) << 16)
 #define	PACKET3_COND_WRITE				0x45
