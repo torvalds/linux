@@ -1330,6 +1330,18 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 }
 EXPORT_SYMBOL(d_alloc);
 
+struct dentry *d_alloc_pseudo(struct super_block *sb, const struct qstr *name)
+{
+	struct dentry *dentry = d_alloc(NULL, name);
+	if (dentry) {
+		dentry->d_sb = sb;
+		dentry->d_parent = dentry;
+		dentry->d_flags |= DCACHE_DISCONNECTED;
+	}
+	return dentry;
+}
+EXPORT_SYMBOL(d_alloc_pseudo);
+
 struct dentry *d_alloc_name(struct dentry *parent, const char *name)
 {
 	struct qstr q;
