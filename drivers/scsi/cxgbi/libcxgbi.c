@@ -1908,13 +1908,16 @@ EXPORT_SYMBOL_GPL(cxgbi_conn_alloc_pdu);
 
 static inline void tx_skb_setmode(struct sk_buff *skb, int hcrc, int dcrc)
 {
-	u8 submode = 0;
+	if (hcrc || dcrc) {
+		u8 submode = 0;
 
-	if (hcrc)
-		submode |= 1;
-	if (dcrc)
-		submode |= 2;
-	cxgbi_skcb_ulp_mode(skb) = (ULP2_MODE_ISCSI << 4) | submode;
+		if (hcrc)
+			submode |= 1;
+		if (dcrc)
+			submode |= 2;
+		cxgbi_skcb_ulp_mode(skb) = (ULP2_MODE_ISCSI << 4) | submode;
+	} else
+		cxgbi_skcb_ulp_mode(skb) = 0;
 }
 
 int cxgbi_conn_init_pdu(struct iscsi_task *task, unsigned int offset,
