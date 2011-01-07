@@ -446,24 +446,27 @@ struct dentry *dget_parent(struct dentry *dentry)
 	struct dentry *ret;
 
 repeat:
-	spin_lock(&dentry->d_lock);
+	/*
+	 * Don't need rcu_dereference because we re-check it was correct under
+	 * the lock.
+	 */
+	rcu_read_lock();
 	ret = dentry->d_parent;
-	if (!ret)
-		goto out;
-	if (dentry == ret) {
-		ret->d_count++;
+	if (!ret) {
+		rcu_read_unlock();
 		goto out;
 	}
-	if (!spin_trylock(&ret->d_lock)) {
-		spin_unlock(&dentry->d_lock);
-		cpu_relax();
+	spin_lock(&ret->d_lock);
+	if (unlikely(ret != dentry->d_parent)) {
+		spin_unlock(&ret->d_lock);
+		rcu_read_unlock();
 		goto repeat;
 	}
+	rcu_read_unlock();
 	BUG_ON(!ret->d_count);
 	ret->d_count++;
 	spin_unlock(&ret->d_lock);
 out:
-	spin_unlock(&dentry->d_lock);
 	return ret;
 }
 EXPORT_SYMBOL(dget_parent);
