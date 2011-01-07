@@ -37,7 +37,8 @@ isofs_cmp(struct dentry *dentry, const char *compare, int dlen)
 
 	qstr.name = compare;
 	qstr.len = dlen;
-	return dentry->d_op->d_compare(dentry, &dentry->d_name, &qstr);
+	return dentry->d_op->d_compare(NULL, NULL, NULL, NULL,
+			dentry->d_name.len, dentry->d_name.name, &qstr);
 }
 
 /*

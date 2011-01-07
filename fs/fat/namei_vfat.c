@@ -85,13 +85,16 @@ static int vfat_revalidate_ci(struct dentry *dentry, struct nameidata *nd)
 }
 
 /* returns the length of a struct qstr, ignoring trailing dots */
-static unsigned int vfat_striptail_len(struct qstr *qstr)
+static unsigned int __vfat_striptail_len(unsigned int len, const char *name)
 {
-	unsigned int len = qstr->len;
-
-	while (len && qstr->name[len - 1] == '.')
+	while (len && name[len - 1] == '.')
 		len--;
 	return len;
+}
+
+static unsigned int vfat_striptail_len(const struct qstr *qstr)
+{
+	return __vfat_striptail_len(qstr->len, qstr->name);
 }
 
 /*
@@ -133,16 +136,18 @@ static int vfat_hashi(struct dentry *dentry, struct qstr *qstr)
 /*
  * Case insensitive compare of two vfat names.
  */
-static int vfat_cmpi(struct dentry *dentry, struct qstr *a, struct qstr *b)
+static int vfat_cmpi(const struct dentry *parent, const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
-	struct nls_table *t = MSDOS_SB(dentry->d_inode->i_sb)->nls_io;
+	struct nls_table *t = MSDOS_SB(parent->d_sb)->nls_io;
 	unsigned int alen, blen;
 
 	/* A filename cannot end in '.' or we treat it like it has none */
-	alen = vfat_striptail_len(a);
-	blen = vfat_striptail_len(b);
+	alen = vfat_striptail_len(name);
+	blen = __vfat_striptail_len(len, str);
 	if (alen == blen) {
-		if (nls_strnicmp(t, a->name, b->name, alen) == 0)
+		if (nls_strnicmp(t, name->name, str, alen) == 0)
 			return 0;
 	}
 	return 1;
@@ -151,15 +156,17 @@ static int vfat_cmpi(struct dentry *dentry, struct qstr *a, struct qstr *b)
 /*
  * Case sensitive compare of two vfat names.
  */
-static int vfat_cmp(struct dentry *dentry, struct qstr *a, struct qstr *b)
+static int vfat_cmp(const struct dentry *parent, const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
 	unsigned int alen, blen;
 
 	/* A filename cannot end in '.' or we treat it like it has none */
-	alen = vfat_striptail_len(a);
-	blen = vfat_striptail_len(b);
+	alen = vfat_striptail_len(name);
+	blen = __vfat_striptail_len(len, str);
 	if (alen == blen) {
-		if (strncmp(a->name, b->name, alen) == 0)
+		if (strncmp(name->name, str, alen) == 0)
 			return 0;
 	}
 	return 1;

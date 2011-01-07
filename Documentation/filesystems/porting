@@ -326,3 +326,10 @@ to it.
 unreferenced dentries, and is now only called when the dentry refcount goes to
 0. Even on 0 refcount transition, it must be able to tolerate being called 0,
 1, or more times (eg. constant, idempotent).
+
+---
+[mandatory]
+
+	.d_compare() calling convention and locking rules are significantly
+changed. Read updated documentation in Documentation/filesystems/vfs.txt (and
+look at examples of other filesystems) for guidance.

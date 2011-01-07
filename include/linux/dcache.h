@@ -134,7 +134,9 @@ enum dentry_d_lock_class
 struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, struct nameidata *);
 	int (*d_hash)(struct dentry *, struct qstr *);
-	int (*d_compare)(struct dentry *, struct qstr *, struct qstr *);
+	int (*d_compare)(const struct dentry *, const struct inode *,
+			const struct dentry *, const struct inode *,
+			unsigned int, const char *, const struct qstr *);
 	int (*d_delete)(const struct dentry *);
 	void (*d_release)(struct dentry *);
 	void (*d_iput)(struct dentry *, struct inode *);
@@ -145,12 +147,8 @@ struct dentry_operations {
  * Locking rules for dentry_operations callbacks are to be found in
  * Documentation/filesystems/Locking. Keep it updated!
  *
- * the dentry parameter passed to d_hash and d_compare is the parent
- * directory of the entries to be compared. It is used in case these
- * functions need any directory specific information for determining
- * equivalency classes.  Using the dentry itself might not work, as it
- * might be a negative dentry which has no information associated with
- * it.
+ * FUrther descriptions are found in Documentation/filesystems/vfs.txt.
+ * Keep it updated too!
  */
 
 /* d_flags entries */

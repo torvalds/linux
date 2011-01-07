@@ -135,7 +135,7 @@ int ncp__vol2io(struct ncp_server *, unsigned char *, unsigned int *,
 				const unsigned char *, unsigned int, int);
 
 #define NCP_ESC			':'
-#define NCP_IO_TABLE(dentry)	(NCP_SERVER((dentry)->d_inode)->nls_io)
+#define NCP_IO_TABLE(sb)	(NCP_SBP(sb)->nls_io)
 #define ncp_tolower(t, c)	nls_tolower(t, c)
 #define ncp_toupper(t, c)	nls_toupper(t, c)
 #define ncp_strnicmp(t, s1, s2, len) \
@@ -150,15 +150,15 @@ int ncp__io2vol(unsigned char *, unsigned int *,
 int ncp__vol2io(unsigned char *, unsigned int *,
 				const unsigned char *, unsigned int, int);
 
-#define NCP_IO_TABLE(dentry)	NULL
+#define NCP_IO_TABLE(sb)	NULL
 #define ncp_tolower(t, c)	tolower(c)
 #define ncp_toupper(t, c)	toupper(c)
 #define ncp_io2vol(S,m,i,n,k,U)	ncp__io2vol(m,i,n,k,U)
 #define ncp_vol2io(S,m,i,n,k,U)	ncp__vol2io(m,i,n,k,U)
 
 
-static inline int ncp_strnicmp(struct nls_table *t, const unsigned char *s1,
-		const unsigned char *s2, int len)
+static inline int ncp_strnicmp(const struct nls_table *t,
+		const unsigned char *s1, const unsigned char *s2, int len)
 {
 	while (len--) {
 		if (tolower(*s1++) != tolower(*s2++))

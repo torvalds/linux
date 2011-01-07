@@ -1587,14 +1587,17 @@ static int jfs_ci_hash(struct dentry *dir, struct qstr *this)
 	return 0;
 }
 
-static int jfs_ci_compare(struct dentry *dir, struct qstr *a, struct qstr *b)
+static int jfs_ci_compare(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
 	int i, result = 1;
 
-	if (a->len != b->len)
+	if (len != name->len)
 		goto out;
-	for (i=0; i < a->len; i++) {
-		if (tolower(a->name[i]) != tolower(b->name[i]))
+	for (i=0; i < len; i++) {
+		if (tolower(str[i]) != tolower(name->name[i]))
 			goto out;
 	}
 	result = 0;

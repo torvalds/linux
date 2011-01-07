@@ -397,15 +397,16 @@ static int proc_sys_delete(const struct dentry *dentry)
 	return !!PROC_I(dentry->d_inode)->sysctl->unregistering;
 }
 
-static int proc_sys_compare(struct dentry *dir, struct qstr *qstr,
-			    struct qstr *name)
+static int proc_sys_compare(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
-	struct dentry *dentry = container_of(qstr, struct dentry, d_name);
-	if (qstr->len != name->len)
+	if (name->len != len)
 		return 1;
-	if (memcmp(qstr->name, name->name, name->len))
+	if (memcmp(name->name, str, len))
 		return 1;
-	return !sysctl_is_seen(PROC_I(dentry->d_inode)->sysctl);
+	return !sysctl_is_seen(PROC_I(inode)->sysctl);
 }
 
 static const struct dentry_operations proc_sys_dentry_operations = {

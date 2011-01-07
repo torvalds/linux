@@ -715,13 +715,15 @@ static int cifs_ci_hash(struct dentry *dentry, struct qstr *q)
 	return 0;
 }
 
-static int cifs_ci_compare(struct dentry *dentry, struct qstr *a,
-			   struct qstr *b)
+static int cifs_ci_compare(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
-	struct nls_table *codepage = CIFS_SB(dentry->d_inode->i_sb)->local_nls;
+	struct nls_table *codepage = CIFS_SB(pinode->i_sb)->local_nls;
 
-	if ((a->len == b->len) &&
-	    (nls_strnicmp(codepage, a->name, b->name, a->len) == 0))
+	if ((name->len == len) &&
+	    (nls_strnicmp(codepage, name->name, str, len) == 0))
 		return 0;
 	return 1;
 }

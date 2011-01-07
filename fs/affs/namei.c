@@ -14,10 +14,16 @@ typedef int (*toupper_t)(int);
 
 static int	 affs_toupper(int ch);
 static int	 affs_hash_dentry(struct dentry *, struct qstr *);
-static int       affs_compare_dentry(struct dentry *, struct qstr *, struct qstr *);
+static int       affs_compare_dentry(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name);
 static int	 affs_intl_toupper(int ch);
 static int	 affs_intl_hash_dentry(struct dentry *, struct qstr *);
-static int       affs_intl_compare_dentry(struct dentry *, struct qstr *, struct qstr *);
+static int       affs_intl_compare_dentry(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name);
 
 const struct dentry_operations affs_dentry_operations = {
 	.d_hash		= affs_hash_dentry,
@@ -88,29 +94,29 @@ affs_intl_hash_dentry(struct dentry *dentry, struct qstr *qstr)
 	return __affs_hash_dentry(dentry, qstr, affs_intl_toupper);
 }
 
-static inline int
-__affs_compare_dentry(struct dentry *dentry, struct qstr *a, struct qstr *b, toupper_t toupper)
+static inline int __affs_compare_dentry(unsigned int len,
+		const char *str, const struct qstr *name, toupper_t toupper)
 {
-	const u8 *aname = a->name;
-	const u8 *bname = b->name;
-	int len;
+	const u8 *aname = str;
+	const u8 *bname = name->name;
 
-	/* 'a' is the qstr of an already existing dentry, so the name
-	 * must be valid. 'b' must be validated first.
+	/*
+	 * 'str' is the name of an already existing dentry, so the name
+	 * must be valid. 'name' must be validated first.
 	 */
 
-	if (affs_check_name(b->name,b->len))
+	if (affs_check_name(name->name, name->len))
 		return 1;
 
-	/* If the names are longer than the allowed 30 chars,
+	/*
+	 * If the names are longer than the allowed 30 chars,
 	 * the excess is ignored, so their length may differ.
 	 */
-	len = a->len;
 	if (len >= 30) {
-		if (b->len < 30)
+		if (name->len < 30)
 			return 1;
 		len = 30;
-	} else if (len != b->len)
+	} else if (len != name->len)
 		return 1;
 
 	for (; len > 0; len--)
@@ -121,14 +127,18 @@ __affs_compare_dentry(struct dentry *dentry, struct qstr *a, struct qstr *b, tou
 }
 
 static int
-affs_compare_dentry(struct dentry *dentry, struct qstr *a, struct qstr *b)
+affs_compare_dentry(const struct dentry *parent, const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
-	return __affs_compare_dentry(dentry, a, b, affs_toupper);
+	return __affs_compare_dentry(len, str, name, affs_toupper);
 }
 static int
-affs_intl_compare_dentry(struct dentry *dentry, struct qstr *a, struct qstr *b)
+affs_intl_compare_dentry(const struct dentry *parent,const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
-	return __affs_compare_dentry(dentry, a, b, affs_intl_toupper);
+	return __affs_compare_dentry(len, str, name, affs_intl_toupper);
 }
 
 /*

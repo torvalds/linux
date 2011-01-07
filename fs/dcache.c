@@ -1437,7 +1437,9 @@ struct dentry * __d_lookup(struct dentry * parent, struct qstr * name)
 		 */
 		qstr = &dentry->d_name;
 		if (parent->d_op && parent->d_op->d_compare) {
-			if (parent->d_op->d_compare(parent, qstr, name))
+			if (parent->d_op->d_compare(parent, parent->d_inode,
+						dentry, dentry->d_inode,
+						qstr->len, qstr->name, name))
 				goto next;
 		} else {
 			if (qstr->len != len)

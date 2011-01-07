@@ -275,7 +275,10 @@ smb_dir_open(struct inode *dir, struct file *file)
  */
 static int smb_lookup_validate(struct dentry *, struct nameidata *);
 static int smb_hash_dentry(struct dentry *, struct qstr *);
-static int smb_compare_dentry(struct dentry *, struct qstr *, struct qstr *);
+static int smb_compare_dentry(const struct dentry *,
+		const struct inode *,
+		const struct dentry *, const struct inode *,
+		unsigned int, const char *, const struct qstr *);
 static int smb_delete_dentry(const struct dentry *);
 
 static const struct dentry_operations smbfs_dentry_operations =
@@ -347,14 +350,17 @@ smb_hash_dentry(struct dentry *dir, struct qstr *this)
 }
 
 static int
-smb_compare_dentry(struct dentry *dir, struct qstr *a, struct qstr *b)
+smb_compare_dentry(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
 	int i, result = 1;
 
-	if (a->len != b->len)
+	if (len != name->len)
 		goto out;
-	for (i=0; i < a->len; i++) {
-		if (tolower(a->name[i]) != tolower(b->name[i]))
+	for (i=0; i < len; i++) {
+		if (tolower(str[i]) != tolower(name->name[i]))
 			goto out;
 	}
 	result = 0;

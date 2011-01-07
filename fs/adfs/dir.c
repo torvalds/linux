@@ -237,17 +237,19 @@ adfs_hash(struct dentry *parent, struct qstr *qstr)
  * requirements of the underlying filesystem.
  */
 static int
-adfs_compare(struct dentry *parent, struct qstr *entry, struct qstr *name)
+adfs_compare(const struct dentry *parent, const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
 	int i;
 
-	if (entry->len != name->len)
+	if (len != name->len)
 		return 1;
 
 	for (i = 0; i < name->len; i++) {
 		char a, b;
 
-		a = entry->name[i];
+		a = str[i];
 		b = name->name[i];
 
 		if (a >= 'A' && a <= 'Z')

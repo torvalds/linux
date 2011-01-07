@@ -75,7 +75,9 @@ const struct inode_operations ncp_dir_inode_operations =
  */
 static int ncp_lookup_validate(struct dentry *, struct nameidata *);
 static int ncp_hash_dentry(struct dentry *, struct qstr *);
-static int ncp_compare_dentry (struct dentry *, struct qstr *, struct qstr *);
+static int ncp_compare_dentry(const struct dentry *, const struct inode *,
+		const struct dentry *, const struct inode *,
+		unsigned int, const char *, const struct qstr *);
 static int ncp_delete_dentry(const struct dentry *);
 
 static const struct dentry_operations ncp_dentry_operations =
@@ -113,10 +115,10 @@ static inline int ncp_preserve_entry_case(struct inode *i, __u32 nscreator)
 
 #define ncp_preserve_case(i)	(ncp_namespace(i) != NW_NS_DOS)
 
-static inline int ncp_case_sensitive(struct dentry *dentry)
+static inline int ncp_case_sensitive(const struct inode *i)
 {
 #ifdef CONFIG_NCPFS_NFS_NS
-	return ncp_namespace(dentry->d_inode) == NW_NS_NFS;
+	return ncp_namespace(i) == NW_NS_NFS;
 #else
 	return 0;
 #endif /* CONFIG_NCPFS_NFS_NS */
@@ -129,12 +131,13 @@ static inline int ncp_case_sensitive(struct dentry *dentry)
 static int 
 ncp_hash_dentry(struct dentry *dentry, struct qstr *this)
 {
-	if (!ncp_case_sensitive(dentry)) {
+	if (!ncp_case_sensitive(dentry->d_inode)) {
+		struct super_block *sb = dentry->d_sb;
 		struct nls_table *t;
 		unsigned long hash;
 		int i;
 
-		t = NCP_IO_TABLE(dentry);
+		t = NCP_IO_TABLE(sb);
 		hash = init_name_hash();
 		for (i=0; i<this->len ; i++)
 			hash = partial_name_hash(ncp_tolower(t, this->name[i]),
@@ -145,15 +148,17 @@ ncp_hash_dentry(struct dentry *dentry, struct qstr *this)
 }
 
 static int
-ncp_compare_dentry(struct dentry *dentry, struct qstr *a, struct qstr *b)
+ncp_compare_dentry(const struct dentry *parent, const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
-	if (a->len != b->len)
+	if (len != name->len)
 		return 1;
 
-	if (ncp_case_sensitive(dentry))
-		return strncmp(a->name, b->name, a->len);
+	if (ncp_case_sensitive(pinode))
+		return strncmp(str, name->name, len);
 
-	return ncp_strnicmp(NCP_IO_TABLE(dentry), a->name, b->name, a->len);
+	return ncp_strnicmp(NCP_IO_TABLE(pinode->i_sb), str, name->name, len);
 }
 
 /*

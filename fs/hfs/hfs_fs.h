@@ -216,7 +216,10 @@ extern const struct dentry_operations hfs_dentry_operations;
 extern int hfs_hash_dentry(struct dentry *, struct qstr *);
 extern int hfs_strcmp(const unsigned char *, unsigned int,
 		      const unsigned char *, unsigned int);
-extern int hfs_compare_dentry(struct dentry *, struct qstr *, struct qstr *);
+extern int hfs_compare_dentry(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name);
 
 /* trans.c */
 extern void hfs_asc2mac(struct super_block *, struct hfs_name *, struct qstr *);

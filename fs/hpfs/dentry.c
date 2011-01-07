@@ -34,19 +34,25 @@ static int hpfs_hash_dentry(struct dentry *dentry, struct qstr *qstr)
 	return 0;
 }
 
-static int hpfs_compare_dentry(struct dentry *dentry, struct qstr *a, struct qstr *b)
+static int hpfs_compare_dentry(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name)
 {
-	unsigned al=a->len;
-	unsigned bl=b->len;
-	hpfs_adjust_length(a->name, &al);
+	unsigned al = len;
+	unsigned bl = name->len;
+
+	hpfs_adjust_length(str, &al);
 	/*hpfs_adjust_length(b->name, &bl);*/
-	/* 'a' is the qstr of an already existing dentry, so the name
-	 * must be valid. 'b' must be validated first.
+
+	/*
+	 * 'str' is the nane of an already existing dentry, so the name
+	 * must be valid. 'name' must be validated first.
 	 */
 
-	if (hpfs_chk_name(b->name, &bl))
+	if (hpfs_chk_name(name->name, &bl))
 		return 1;
-	if (hpfs_compare_names(dentry->d_sb, a->name, al, b->name, bl, 0))
+	if (hpfs_compare_names(parent->d_sb, str, al, name->name, bl, 0))
 		return 1;
 	return 0;
 }
