@@ -95,9 +95,16 @@ static struct inode *affs_alloc_inode(struct super_block *sb)
 	return &i->vfs_inode;
 }
 
+static void affs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(affs_inode_cachep, AFFS_I(inode));
+}
+
 static void affs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(affs_inode_cachep, AFFS_I(inode));
+	call_rcu(&inode->i_rcu, affs_i_callback);
 }
 
 static void init_once(void *foo)

@@ -488,9 +488,17 @@ static struct inode *hfsplus_alloc_inode(struct super_block *sb)
 	return i ? &i->vfs_inode : NULL;
 }
 
+static void hfsplus_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(hfsplus_inode_cachep, HFSPLUS_I(inode));
+}
+
 static void hfsplus_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(hfsplus_inode_cachep, HFSPLUS_I(inode));
+	call_rcu(&inode->i_rcu, hfsplus_i_callback);
 }
 
 #define HFSPLUS_INODE_SIZE	sizeof(struct hfsplus_inode_info)

@@ -262,20 +262,20 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 }
 
 
-static void wq_free_rcu(struct rcu_head *head)
+static void sock_free_rcu(struct rcu_head *head)
 {
-	struct socket_wq *wq = container_of(head, struct socket_wq, rcu);
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	struct socket_alloc *ei = container_of(inode, struct socket_alloc,
+								vfs_inode);
 
-	kfree(wq);
+	kfree(ei->socket.wq);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(sock_inode_cachep, ei);
 }
 
 static void sock_destroy_inode(struct inode *inode)
 {
-	struct socket_alloc *ei;
-
-	ei = container_of(inode, struct socket_alloc, vfs_inode);
-	call_rcu(&ei->socket.wq->rcu, wq_free_rcu);
-	kmem_cache_free(sock_inode_cachep, ei);
+	call_rcu(&inode->i_rcu, sock_free_rcu);
 }
 
 static void init_once(void *foo)

@@ -247,9 +247,16 @@ static void hostfs_evict_inode(struct inode *inode)
 	}
 }
 
+static void hostfs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kfree(HOSTFS_I(inode));
+}
+
 static void hostfs_destroy_inode(struct inode *inode)
 {
-	kfree(HOSTFS_I(inode));
+	call_rcu(&inode->i_rcu, hostfs_i_callback);
 }
 
 static int hostfs_show_options(struct seq_file *seq, struct vfsmount *vfs)

@@ -237,9 +237,16 @@ struct inode *v9fs_alloc_inode(struct super_block *sb)
  *
  */
 
+static void v9fs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(vcookie_cache, v9fs_inode2cookie(inode));
+}
+
 void v9fs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(vcookie_cache, v9fs_inode2cookie(inode));
+	call_rcu(&inode->i_rcu, v9fs_i_callback);
 }
 #endif
 

@@ -346,3 +346,17 @@ look at examples of other filesystems) for guidance.
 for details of what locks to replace dcache_lock with in order to protect
 particular things. Most of the time, a filesystem only needs ->d_lock, which
 protects *all* the dcache state of a given dentry.
+
+--
+[mandatory]
+
+	Filesystems must RCU-free their inodes, if they can have been accessed
+via rcu-walk path walk (basically, if the file can have had a path name in the
+vfs namespace).
+
+	i_dentry and i_rcu share storage in a union, and the vfs expects
+i_dentry to be reinitialized before it is freed, so an:
+
+  INIT_LIST_HEAD(&inode->i_dentry);
+
+must be done in the RCU callback.
