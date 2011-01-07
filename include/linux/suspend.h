@@ -258,23 +258,6 @@ static inline int hibernate(void) { return -ENOSYS; }
 static inline bool system_entering_hibernation(void) { return false; }
 #endif /* CONFIG_HIBERNATION */
 
-#ifdef CONFIG_SUSPEND_NVS
-extern int suspend_nvs_register(unsigned long start, unsigned long size);
-extern int suspend_nvs_alloc(void);
-extern void suspend_nvs_free(void);
-extern int suspend_nvs_save(void);
-extern void suspend_nvs_restore(void);
-#else /* CONFIG_SUSPEND_NVS */
-static inline int suspend_nvs_register(unsigned long a, unsigned long b)
-{
-	return 0;
-}
-static inline int suspend_nvs_alloc(void) { return 0; }
-static inline void suspend_nvs_free(void) {}
-static inline int suspend_nvs_save(void) {}
-static inline void suspend_nvs_restore(void) {}
-#endif /* CONFIG_SUSPEND_NVS */
-
 #ifdef CONFIG_PM_SLEEP
 void save_processor_state(void);
 void restore_processor_state(void);
