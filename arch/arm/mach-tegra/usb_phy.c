@@ -117,6 +117,12 @@
 #define   UTMIP_HS_DISCON_DISABLE	(1 << 8)
 
 #define UTMIP_MISC_CFG0		0x824
+#define   UTMIP_DPDM_OBSERVE		(1 << 26)
+#define   UTMIP_DPDM_OBSERVE_SEL(x)	(((x) & 0xf) << 27)
+#define   UTMIP_DPDM_OBSERVE_SEL_FS_J	UTMIP_DPDM_OBSERVE_SEL(0xf)
+#define   UTMIP_DPDM_OBSERVE_SEL_FS_K	UTMIP_DPDM_OBSERVE_SEL(0xe)
+#define   UTMIP_DPDM_OBSERVE_SEL_FS_SE1 UTMIP_DPDM_OBSERVE_SEL(0xd)
+#define   UTMIP_DPDM_OBSERVE_SEL_FS_SE0 UTMIP_DPDM_OBSERVE_SEL(0xc)
 #define   UTMIP_SUSPEND_EXIT_ON_EDGE	(1 << 22)
 
 #define UTMIP_MISC_CFG1		0x828
@@ -499,6 +505,33 @@ static void utmi_phy_postresume(struct tegra_usb_phy *phy)
 	writel(val, base + UTMIP_TX_CFG0);
 }
 
+static void utmi_phy_restore_start(struct tegra_usb_phy *phy)
+{
+	unsigned long val;
+	void __iomem *base = phy->regs;
+
+	val = readl(base + UTMIP_MISC_CFG0);
+	val |= UTMIP_DPDM_OBSERVE_SEL_FS_J;
+	writel(val, base + UTMIP_MISC_CFG0);
+	udelay(1);
+
+	val = readl(base + UTMIP_MISC_CFG0);
+	val |= UTMIP_DPDM_OBSERVE;
+	writel(val, base + UTMIP_MISC_CFG0);
+	udelay(10);
+}
+
+static void utmi_phy_restore_end(struct tegra_usb_phy *phy)
+{
+	unsigned long val;
+	void __iomem *base = phy->regs;
+
+	val = readl(base + UTMIP_MISC_CFG0);
+	val &= ~UTMIP_DPDM_OBSERVE;
+	writel(val, base + UTMIP_MISC_CFG0);
+	udelay(10);
+}
+
 static void ulpi_viewport_write(struct tegra_usb_phy *phy, u8 addr, u8 data)
 {
 	unsigned long val;
@@ -701,6 +734,20 @@ int tegra_usb_phy_postresume(struct tegra_usb_phy *phy)
 {
 	if (phy->instance != 1)
 		utmi_phy_postresume(phy);
+	return 0;
+}
+
+int tegra_ehci_phy_restore_start(struct tegra_usb_phy *phy)
+{
+	if (phy->instance != 1)
+		utmi_phy_restore_start(phy);
+	return 0;
+}
+
+int tegra_ehci_phy_restore_end(struct tegra_usb_phy *phy)
+{
+	if (phy->instance != 1)
+		utmi_phy_restore_end(phy);
 	return 0;
 }
 
