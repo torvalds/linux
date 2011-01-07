@@ -154,6 +154,7 @@ struct tegra_fb_data {
 
 struct tegra_dc_platform_data {
 	unsigned long		flags;
+	unsigned long		emc_clk_rate;
 	struct tegra_dc_out	*default_out;
 	struct tegra_fb_data	*fb;
 };
