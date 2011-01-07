@@ -1146,22 +1146,30 @@ static void sel_remove_entries(struct dentry *de)
 	struct list_head *node;
 
 	spin_lock(&dcache_lock);
+	spin_lock(&de->d_lock);
 	node = de->d_subdirs.next;
 	while (node != &de->d_subdirs) {
 		struct dentry *d = list_entry(node, struct dentry, d_u.d_child);
+
+		spin_lock_nested(&d->d_lock, DENTRY_D_LOCK_NESTED);
 		list_del_init(node);
 
 		if (d->d_inode) {
-			d = dget_locked(d);
+			dget_locked_dlock(d);
+			spin_unlock(&de->d_lock);
+			spin_unlock(&d->d_lock);
 			spin_unlock(&dcache_lock);
 			d_delete(d);
 			simple_unlink(de->d_inode, d);
 			dput(d);
 			spin_lock(&dcache_lock);
-		}
+			spin_lock(&de->d_lock);
+		} else
+			spin_unlock(&d->d_lock);
 		node = de->d_subdirs.next;
 	}
 
+	spin_unlock(&de->d_lock);
 	spin_unlock(&dcache_lock);
 }
 

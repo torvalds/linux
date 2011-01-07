@@ -305,6 +305,7 @@ static inline struct dentry *dget_dlock(struct dentry *dentry)
 	}
 	return dentry;
 }
+
 static inline struct dentry *dget(struct dentry *dentry)
 {
 	if (dentry) {
