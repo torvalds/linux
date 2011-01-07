@@ -129,6 +129,20 @@ struct event_return_value {
 #define ACER_WMID3_GDS_THREEG		(1<<6)	/* 3G */
 #define ACER_WMID3_GDS_BLUETOOTH	(1<<11)	/* BT */
 
+struct lm_input_params {
+	u8 function_num;        /* Function Number */
+	u16 commun_devices;     /* Communication type devices default status */
+	u16 devices;            /* Other type devices default status */
+	u8 lm_status;           /* Launch Manager Status */
+	u16 reserved;
+} __attribute__((packed));
+
+struct lm_return_value {
+	u8 error_code;          /* Error Code */
+	u8 ec_return_value;     /* EC Return Value */
+	u16 reserved;
+} __attribute__((packed));
+
 struct wmid3_gds_input_param {	/* Get Device Status input parameter */
 	u8 function_num;	/* Function Number */
 	u8 hotkey_number;	/* Hotkey Number */
@@ -179,16 +193,19 @@ static int mailled = -1;
 static int brightness = -1;
 static int threeg = -1;
 static int force_series;
+static bool ec_raw_mode;
 static bool has_type_aa;
 
 module_param(mailled, int, 0444);
 module_param(brightness, int, 0444);
 module_param(threeg, int, 0444);
 module_param(force_series, int, 0444);
+module_param(ec_raw_mode, bool, 0444);
 MODULE_PARM_DESC(mailled, "Set initial state of Mail LED");
 MODULE_PARM_DESC(brightness, "Set initial LCD backlight brightness");
 MODULE_PARM_DESC(threeg, "Set initial state of 3G hardware");
 MODULE_PARM_DESC(force_series, "Force a different laptop series");
+MODULE_PARM_DESC(ec_raw_mode, "Enable EC raw mode");
 
 struct acer_data {
 	int mailled;
@@ -1330,6 +1347,85 @@ static void acer_wmi_notify(u32 value, void *context)
 	}
 }
 
+static acpi_status
+wmid3_set_lm_mode(struct lm_input_params *params,
+		  struct lm_return_value *return_value)
+{
+	acpi_status status;
+	union acpi_object *obj;
+
+	struct acpi_buffer input = { sizeof(struct lm_input_params), params };
+	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+
+	status = wmi_evaluate_method(WMID_GUID3, 0, 0x1, &input, &output);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	obj = output.pointer;
+
+	if (!obj)
+		return AE_ERROR;
+	else if (obj->type != ACPI_TYPE_BUFFER) {
+		kfree(obj);
+		return AE_ERROR;
+	}
+	if (obj->buffer.length != 4) {
+		printk(ACER_WARNING "Unknown buffer length %d\n",
+		       obj->buffer.length);
+		kfree(obj);
+		return AE_ERROR;
+	}
+
+	*return_value = *((struct lm_return_value *)obj->buffer.pointer);
+	kfree(obj);
+
+	return status;
+}
+
+static int acer_wmi_enable_ec_raw(void)
+{
+	struct lm_return_value return_value;
+	acpi_status status;
+	struct lm_input_params params = {
+		.function_num = 0x1,
+		.commun_devices = 0xFFFF,
+		.devices = 0xFFFF,
+		.lm_status = 0x00,            /* Launch Manager Deactive */
+	};
+
+	status = wmid3_set_lm_mode(&params, &return_value);
+
+	if (return_value.error_code || return_value.ec_return_value)
+		printk(ACER_WARNING "Enabling EC raw mode failed: "
+		       "0x%x - 0x%x\n", return_value.error_code,
+		       return_value.ec_return_value);
+	else
+		printk(ACER_INFO "Enabled EC raw mode");
+
+	return status;
+}
+
+static int acer_wmi_enable_lm(void)
+{
+	struct lm_return_value return_value;
+	acpi_status status;
+	struct lm_input_params params = {
+		.function_num = 0x1,
+		.commun_devices = 0xFFFF,
+		.devices = 0xFFFF,
+		.lm_status = 0x01,            /* Launch Manager Active */
+	};
+
+	status = wmid3_set_lm_mode(&params, &return_value);
+
+	if (return_value.error_code || return_value.ec_return_value)
+		printk(ACER_WARNING "Enabling Launch Manager failed: "
+		       "0x%x - 0x%x\n", return_value.error_code,
+		       return_value.ec_return_value);
+
+	return status;
+}
+
 static int __init acer_wmi_input_setup(void)
 {
 	acpi_status status;
@@ -1616,6 +1712,20 @@ static int __init acer_wmi_init(void)
 		interface->capability &= ~ACER_CAP_BRIGHTNESS;
 		printk(ACER_INFO "Brightness must be controlled by "
 		       "generic video driver\n");
+	}
+
+	if (wmi_has_guid(WMID_GUID3)) {
+		if (ec_raw_mode) {
+			if (ACPI_FAILURE(acer_wmi_enable_ec_raw())) {
+				printk(ACER_ERR "Cannot enable EC raw mode\n");
+				return -ENODEV;
+			}
+		} else if (ACPI_FAILURE(acer_wmi_enable_lm())) {
+			printk(ACER_ERR "Cannot enable Launch Manager mode\n");
+			return -ENODEV;
+		}
+	} else if (ec_raw_mode) {
+		printk(ACER_INFO "No WMID EC raw mode enable method\n");
 	}
 
 	if (wmi_has_guid(ACERWMID_EVENT_GUID)) {
