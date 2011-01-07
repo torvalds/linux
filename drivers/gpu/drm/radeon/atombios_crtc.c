@@ -403,6 +403,7 @@ union atom_enable_ss {
 	ENABLE_LVDS_SS_PARAMETERS_V2 lvds_ss_2;
 	ENABLE_SPREAD_SPECTRUM_ON_PPLL_PS_ALLOCATION v1;
 	ENABLE_SPREAD_SPECTRUM_ON_PPLL_V2 v2;
+	ENABLE_SPREAD_SPECTRUM_ON_PPLL_V3 v3;
 };
 
 static void atombios_crtc_program_ss(struct drm_crtc *crtc,
@@ -417,7 +418,30 @@ static void atombios_crtc_program_ss(struct drm_crtc *crtc,
 
 	memset(&args, 0, sizeof(args));
 
-	if (ASIC_IS_DCE4(rdev)) {
+	if (ASIC_IS_DCE5(rdev)) {
+		args.v3.usSpreadSpectrumAmountFrac = 0;
+		args.v3.ucSpreadSpectrumType = ss->type;
+		switch (pll_id) {
+		case ATOM_PPLL1:
+			args.v3.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V3_P1PLL;
+			args.v3.usSpreadSpectrumAmount = ss->amount;
+			args.v3.usSpreadSpectrumStep = ss->step;
+			break;
+		case ATOM_PPLL2:
+			args.v3.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V3_P2PLL;
+			args.v3.usSpreadSpectrumAmount = ss->amount;
+			args.v3.usSpreadSpectrumStep = ss->step;
+			break;
+		case ATOM_DCPLL:
+			args.v3.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V3_DCPLL;
+			args.v3.usSpreadSpectrumAmount = 0;
+			args.v3.usSpreadSpectrumStep = 0;
+			break;
+		case ATOM_PPLL_INVALID:
+			return;
+		}
+		args.v2.ucEnable = enable;
+	} else if (ASIC_IS_DCE4(rdev)) {
 		args.v2.usSpreadSpectrumPercentage = cpu_to_le16(ss->percentage);
 		args.v2.ucSpreadSpectrumType = ss->type;
 		switch (pll_id) {
