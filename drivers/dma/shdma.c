@@ -1110,11 +1110,6 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	list_add_tail_rcu(&shdev->node, &sh_dmae_devices);
 	spin_unlock_irqrestore(&sh_dmae_lock, flags);
 
-	/* Wire up NMI handling before bringing the controller online */
-	err = register_die_notifier(&sh_dmae_nmi_notifier);
-	if (err)
-		goto notifier_err;
-
 	/* reset dma controller */
 	err = sh_dmae_rst(shdev);
 	if (err)
@@ -1218,8 +1213,6 @@ eirqres:
 eirq_err:
 #endif
 rst_err:
-	unregister_die_notifier(&sh_dmae_nmi_notifier);
-notifier_err:
 	spin_lock_irqsave(&sh_dmae_lock, flags);
 	list_del_rcu(&shdev->node);
 	spin_unlock_irqrestore(&sh_dmae_lock, flags);
@@ -1251,8 +1244,6 @@ static int __exit sh_dmae_remove(struct platform_device *pdev)
 
 	if (errirq > 0)
 		free_irq(errirq, shdev);
-
-	unregister_die_notifier(&sh_dmae_nmi_notifier);
 
 	spin_lock_irqsave(&sh_dmae_lock, flags);
 	list_del_rcu(&shdev->node);
@@ -1296,6 +1287,11 @@ static struct platform_driver sh_dmae_driver = {
 
 static int __init sh_dmae_init(void)
 {
+	/* Wire up NMI handling */
+	int err = register_die_notifier(&sh_dmae_nmi_notifier);
+	if (err)
+		return err;
+
 	return platform_driver_probe(&sh_dmae_driver, sh_dmae_probe);
 }
 module_init(sh_dmae_init);
@@ -1303,6 +1299,8 @@ module_init(sh_dmae_init);
 static void __exit sh_dmae_exit(void)
 {
 	platform_driver_unregister(&sh_dmae_driver);
+
+	unregister_die_notifier(&sh_dmae_nmi_notifier);
 }
 module_exit(sh_dmae_exit);
 
