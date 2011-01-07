@@ -81,8 +81,7 @@ static inline u32 xstore(u32 *addr, u32 edx_in)
 	ts_state = irq_ts_save();
 
 	asm(".byte 0x0F,0xA7,0xC0 /* xstore %%edi (addr=%0) */"
-		:"=m"(*addr), "=a"(eax_out)
-		:"D"(addr), "d"(edx_in));
+		: "=m" (*addr), "=a" (eax_out), "+d" (edx_in), "+D" (addr));
 
 	irq_ts_restore(ts_state);
 	return eax_out;
