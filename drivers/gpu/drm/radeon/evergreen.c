@@ -1862,6 +1862,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 		switch (rdev->family) {
 		case CHIP_CYPRESS:
 		case CHIP_HEMLOCK:
+		case CHIP_BARTS:
 			gb_backend_map = 0x66442200;
 			break;
 		case CHIP_JUNIPER:
