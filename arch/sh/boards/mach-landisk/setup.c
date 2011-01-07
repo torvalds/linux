@@ -81,7 +81,7 @@ static int __init landisk_devices_setup(void)
 				    ARRAY_SIZE(landisk_devices));
 }
 
-__initcall(landisk_devices_setup);
+device_initcall(landisk_devices_setup);
 
 static void __init landisk_setup(char **cmdline_p)
 {

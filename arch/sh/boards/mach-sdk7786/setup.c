@@ -135,7 +135,7 @@ static int __init sdk7786_devices_setup(void)
 
 	return sdk7786_i2c_setup();
 }
-__initcall(sdk7786_devices_setup);
+device_initcall(sdk7786_devices_setup);
 
 static int sdk7786_mode_pins(void)
 {
