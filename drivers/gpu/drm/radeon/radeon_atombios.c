@@ -2249,15 +2249,22 @@ static void radeon_atombios_parse_pplib_non_clock_info(struct radeon_device *rde
 		rdev->pm.default_power_state_index = state_index;
 		rdev->pm.power_state[state_index].default_clock_mode =
 			&rdev->pm.power_state[state_index].clock_info[mode_index - 1];
-		/* patch the table values with the default slck/mclk from firmware info */
-		for (j = 0; j < mode_index; j++) {
-			rdev->pm.power_state[state_index].clock_info[j].mclk =
-				rdev->clock.default_mclk;
-			rdev->pm.power_state[state_index].clock_info[j].sclk =
-				rdev->clock.default_sclk;
-			if (vddc)
-				rdev->pm.power_state[state_index].clock_info[j].voltage.voltage =
-					vddc;
+		if (ASIC_IS_DCE5(rdev)) {
+			/* NI chips post without MC ucode, so default clocks are strobe mode only */
+			rdev->pm.default_sclk = rdev->pm.power_state[state_index].clock_info[0].sclk;
+			rdev->pm.default_mclk = rdev->pm.power_state[state_index].clock_info[0].mclk;
+			rdev->pm.default_vddc = rdev->pm.power_state[state_index].clock_info[0].voltage.voltage;
+		} else {
+			/* patch the table values with the default slck/mclk from firmware info */
+			for (j = 0; j < mode_index; j++) {
+				rdev->pm.power_state[state_index].clock_info[j].mclk =
+					rdev->clock.default_mclk;
+				rdev->pm.power_state[state_index].clock_info[j].sclk =
+					rdev->clock.default_sclk;
+				if (vddc)
+					rdev->pm.power_state[state_index].clock_info[j].voltage.voltage =
+						vddc;
+			}
 		}
 	}
 }
