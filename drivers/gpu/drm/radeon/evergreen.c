@@ -2855,11 +2855,26 @@ static int evergreen_startup(struct radeon_device *rdev)
 	/* enable pcie gen2 link */
 	evergreen_pcie_gen2_enable(rdev);
 
-	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
-		r = r600_init_microcode(rdev);
+	if (ASIC_IS_DCE5(rdev)) {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw || !rdev->mc_fw) {
+			r = ni_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
+		}
+		r = btc_mc_load_microcode(rdev);
 		if (r) {
-			DRM_ERROR("Failed to load firmware!\n");
+			DRM_ERROR("Failed to load MC firmware!\n");
 			return r;
+		}
+	} else {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
+			r = r600_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
 		}
 	}
 

@@ -1152,6 +1152,7 @@ struct radeon_device {
 	const struct firmware *me_fw;	/* all family ME firmware */
 	const struct firmware *pfp_fw;	/* r6/700 PFP firmware */
 	const struct firmware *rlc_fw;	/* r6/700 RLC firmware */
+	const struct firmware *mc_fw;	/* NI MC firmware */
 	struct r600_blit r600_blit;
 	struct r700_vram_scratch vram_scratch;
 	int msi_enabled; /* msi enabled */
@@ -1560,6 +1561,9 @@ extern void evergreen_disable_interrupt_state(struct radeon_device *rdev);
 extern int evergreen_irq_set(struct radeon_device *rdev);
 extern int evergreen_blit_init(struct radeon_device *rdev);
 extern void evergreen_blit_fini(struct radeon_device *rdev);
+
+extern int ni_init_microcode(struct radeon_device *rdev);
+extern int btc_mc_load_microcode(struct radeon_device *rdev);
 
 /* radeon_acpi.c */ 
 #if defined(CONFIG_ACPI) 
