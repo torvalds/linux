@@ -173,6 +173,8 @@ struct power_supply {
 	char *full_trig_name;
 	struct led_trigger *online_trig;
 	char *online_trig_name;
+	struct led_trigger *charging_blink_full_solid_trig;
+	char *charging_blink_full_solid_trig_name;
 #endif
 };
 
