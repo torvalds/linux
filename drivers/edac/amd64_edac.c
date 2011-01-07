@@ -229,7 +229,7 @@ static int __amd64_set_scrub_rate(struct pci_dev *ctl, u32 new_bw, u32 min_rate)
 
 	scrubval = scrubrates[i].scrubval;
 
-	pci_write_bits32(ctl, K8_SCRCTRL, scrubval, 0x001F);
+	pci_write_bits32(ctl, SCRCTRL, scrubval, 0x001F);
 
 	if (scrubval)
 		return scrubrates[i].bandwidth;
@@ -250,7 +250,7 @@ static int amd64_get_scrub_rate(struct mem_ctl_info *mci)
 	u32 scrubval = 0;
 	int i, retval = -EINVAL;
 
-	amd64_read_pci_cfg(pvt->F3, K8_SCRCTRL, &scrubval);
+	amd64_read_pci_cfg(pvt->F3, SCRCTRL, &scrubval);
 
 	scrubval = scrubval & 0x001F;
 
@@ -843,11 +843,11 @@ static void dump_misc_regs(struct amd64_pvt *pvt)
 	debugf1("F3xE8 (NB Cap): 0x%08x\n", pvt->nbcap);
 
 	debugf1("  NB two channel DRAM capable: %s\n",
-		(pvt->nbcap & K8_NBCAP_DCT_DUAL) ? "yes" : "no");
+		(pvt->nbcap & NBCAP_DCT_DUAL) ? "yes" : "no");
 
 	debugf1("  ECC capable: %s, ChipKill ECC capable: %s\n",
-		(pvt->nbcap & K8_NBCAP_SECDED) ? "yes" : "no",
-		(pvt->nbcap & K8_NBCAP_CHIPKILL) ? "yes" : "no");
+		(pvt->nbcap & NBCAP_SECDED) ? "yes" : "no",
+		(pvt->nbcap & NBCAP_CHIPKILL) ? "yes" : "no");
 
 	amd64_dump_dramcfg_low(pvt->dclr0, 0);
 
@@ -1814,7 +1814,7 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 	int ecc_type = (info->nbsh >> 13) & 0x3;
 
 	/* Bail early out if this was an 'observed' error */
-	if (PP(ec) == K8_NBSL_PP_OBS)
+	if (PP(ec) == NBSL_PP_OBS)
 		return;
 
 	/* Do only ECC errors */
@@ -1906,7 +1906,7 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 	} else
 		debugf0("  TOP_MEM2 disabled.\n");
 
-	amd64_read_pci_cfg(pvt->F3, K8_NBCAP, &pvt->nbcap);
+	amd64_read_pci_cfg(pvt->F3, NBCAP, &pvt->nbcap);
 
 	if (pvt->ops->read_dram_ctl_register)
 		pvt->ops->read_dram_ctl_register(pvt);
@@ -2126,7 +2126,7 @@ static bool amd64_nb_mce_bank_enabled_on_node(int nid)
 
 	for_each_cpu(cpu, mask) {
 		struct msr *reg = per_cpu_ptr(msrs, cpu);
-		nbe = reg->l & K8_MSR_MCGCTL_NBE;
+		nbe = reg->l & MSR_MCGCTL_NBE;
 
 		debugf0("core: %u, MCG_CTL: 0x%llx, NB MSR is %s\n",
 			cpu, reg->q,
@@ -2161,16 +2161,16 @@ static int toggle_ecc_err_reporting(struct ecc_settings *s, u8 nid, bool on)
 		struct msr *reg = per_cpu_ptr(msrs, cpu);
 
 		if (on) {
-			if (reg->l & K8_MSR_MCGCTL_NBE)
+			if (reg->l & MSR_MCGCTL_NBE)
 				s->flags.nb_mce_enable = 1;
 
-			reg->l |= K8_MSR_MCGCTL_NBE;
+			reg->l |= MSR_MCGCTL_NBE;
 		} else {
 			/*
 			 * Turn off NB MCE reporting only when it was off before
 			 */
 			if (!s->flags.nb_mce_enable)
-				reg->l &= ~K8_MSR_MCGCTL_NBE;
+				reg->l &= ~MSR_MCGCTL_NBE;
 		}
 	}
 	wrmsr_on_cpus(cmask, MSR_IA32_MCG_CTL, msrs);
@@ -2324,10 +2324,10 @@ static void setup_mci_misc_attrs(struct mem_ctl_info *mci)
 	mci->mtype_cap		= MEM_FLAG_DDR2 | MEM_FLAG_RDDR2;
 	mci->edac_ctl_cap	= EDAC_FLAG_NONE;
 
-	if (pvt->nbcap & K8_NBCAP_SECDED)
+	if (pvt->nbcap & NBCAP_SECDED)
 		mci->edac_ctl_cap |= EDAC_FLAG_SECDED;
 
-	if (pvt->nbcap & K8_NBCAP_CHIPKILL)
+	if (pvt->nbcap & NBCAP_CHIPKILL)
 		mci->edac_ctl_cap |= EDAC_FLAG_S4ECD4ED;
 
 	mci->edac_cap		= amd64_determine_edac_cap(pvt);

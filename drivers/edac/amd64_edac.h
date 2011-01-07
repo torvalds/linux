@@ -250,57 +250,11 @@
 #define NBCFG_CHIPKILL			BIT(23)
 #define NBCFG_ECC_ENABLE		BIT(22)
 
-#define K8_NBSL				0x48
-
-/* Family F10h: Normalized Extended Error Codes */
-#define F10_NBSL_EXT_ERR_RES		0x0
+/* F3x48: NBSL */
 #define F10_NBSL_EXT_ERR_ECC		0x8
+#define NBSL_PP_OBS			0x2
 
-/* Next two are overloaded values */
-#define F10_NBSL_EXT_ERR_LINK_PROTO	0xB
-#define F10_NBSL_EXT_ERR_L3_PROTO	0xB
-
-#define F10_NBSL_EXT_ERR_NB_ARRAY	0xC
-#define F10_NBSL_EXT_ERR_DRAM_PARITY	0xD
-#define F10_NBSL_EXT_ERR_LINK_RETRY	0xE
-
-/* Next two are overloaded values */
-#define F10_NBSL_EXT_ERR_GART_WALK	0xF
-#define F10_NBSL_EXT_ERR_DEV_WALK	0xF
-
-/* 0x10 to 0x1B: Reserved */
-#define F10_NBSL_EXT_ERR_L3_DATA	0x1C
-#define F10_NBSL_EXT_ERR_L3_TAG		0x1D
-#define F10_NBSL_EXT_ERR_L3_LRU		0x1E
-
-/* K8: Normalized Extended Error Codes */
-#define K8_NBSL_EXT_ERR_ECC		0x0
-#define K8_NBSL_EXT_ERR_CRC		0x1
-#define K8_NBSL_EXT_ERR_SYNC		0x2
-#define K8_NBSL_EXT_ERR_MST		0x3
-#define K8_NBSL_EXT_ERR_TGT		0x4
-#define K8_NBSL_EXT_ERR_GART		0x5
-#define K8_NBSL_EXT_ERR_RMW		0x6
-#define K8_NBSL_EXT_ERR_WDT		0x7
-#define K8_NBSL_EXT_ERR_CHIPKILL_ECC	0x8
-#define K8_NBSL_EXT_ERR_DRAM_PARITY	0xD
-
-/*
- * The following are for BUS type errors AFTER values have been normalized by
- * shifting right
- */
-#define K8_NBSL_PP_SRC			0x0
-#define K8_NBSL_PP_RES			0x1
-#define K8_NBSL_PP_OBS			0x2
-#define K8_NBSL_PP_GENERIC		0x3
-
-#define EXTRACT_ERR_CPU_MAP(x)		((x) & 0xF)
-
-#define K8_NBEAL			0x50
-#define K8_NBEAH			0x54
-#define K8_SCRCTRL			0x58
-
-#define F10_NB_CFG_LOW			0x88
+#define SCRCTRL				0x58
 
 #define F10_ONLINE_SPARE		0xB0
 #define F10_ONLINE_SPARE_SWAPDONE0(x)	((x) & BIT(1))
@@ -309,36 +263,28 @@
 #define F10_ONLINE_SPARE_BADDRAM_CS1(x) (((x) >> 8) & 0x00000007)
 
 #define F10_NB_ARRAY_ADDR		0xB8
-
-#define F10_NB_ARRAY_DRAM_ECC		0x80000000
+#define F10_NB_ARRAY_DRAM_ECC		BIT(31)
 
 /* Bits [2:1] are used to select 16-byte section within a 64-byte cacheline  */
 #define SET_NB_ARRAY_ADDRESS(section)	(((section) & 0x3) << 1)
 
 #define F10_NB_ARRAY_DATA		0xBC
-
 #define SET_NB_DRAM_INJECTION_WRITE(word, bits)  \
 					(BIT(((word) & 0xF) + 20) | \
 					BIT(17) | bits)
-
 #define SET_NB_DRAM_INJECTION_READ(word, bits)  \
 					(BIT(((word) & 0xF) + 20) | \
 					BIT(16) |  bits)
 
-#define K8_NBCAP			0xE8
-#define K8_NBCAP_CORES			(BIT(12)|BIT(13))
-#define K8_NBCAP_CHIPKILL		BIT(4)
-#define K8_NBCAP_SECDED			BIT(3)
-#define K8_NBCAP_DCT_DUAL		BIT(0)
+#define NBCAP				0xE8
+#define NBCAP_CHIPKILL			BIT(4)
+#define NBCAP_SECDED			BIT(3)
+#define NBCAP_DCT_DUAL			BIT(0)
 
 #define EXT_NB_MCA_CFG			0x180
 
 /* MSRs */
-#define K8_MSR_MCGCTL_NBE		BIT(4)
-
-#define K8_MSR_MC4CTL			0x0410
-#define K8_MSR_MC4STAT			0x0411
-#define K8_MSR_MC4ADDR			0x0412
+#define MSR_MCGCTL_NBE			BIT(4)
 
 /* AMD sets the first MC device at device ID 0x18. */
 static inline int get_node_id(struct pci_dev *pdev)
