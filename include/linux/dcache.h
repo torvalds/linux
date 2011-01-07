@@ -180,6 +180,7 @@ struct dentry_operations {
 #define DCACHE_FSNOTIFY_PARENT_WATCHED	0x0080 /* Parent inode is watched by some fsnotify listener */
 
 #define DCACHE_CANT_MOUNT	0x0100
+#define DCACHE_GENOCIDE		0x0200
 
 extern spinlock_t dcache_inode_lock;
 extern spinlock_t dcache_lock;

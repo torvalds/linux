@@ -83,10 +83,11 @@ out:
 int pohmelfs_path_length(struct pohmelfs_inode *pi)
 {
 	struct dentry *d, *root, *first;
-	int len = 1; /* Root slash */
+	int len;
+	unsigned seq;
 
-	first = d = d_find_alias(&pi->vfs_inode);
-	if (!d) {
+	first = d_find_alias(&pi->vfs_inode);
+	if (!first) {
 		dprintk("%s: ino: %llu, mode: %o.\n", __func__, pi->ino, pi->vfs_inode.i_mode);
 		return -ENOENT;
 	}
@@ -95,6 +96,11 @@ int pohmelfs_path_length(struct pohmelfs_inode *pi)
 	root = dget(current->fs->root.dentry);
 	spin_unlock(&current->fs->lock);
 
+rename_retry:
+	len = 1; /* Root slash */
+	d = first;
+	seq = read_seqbegin(&rename_lock);
+	rcu_read_lock();
 	spin_lock(&dcache_lock);
 
 	if (!IS_ROOT(d) && d_unhashed(d))
@@ -105,6 +111,9 @@ int pohmelfs_path_length(struct pohmelfs_inode *pi)
 		d = d->d_parent;
 	}
 	spin_unlock(&dcache_lock);
+	rcu_read_unlock();
+	if (read_seqretry(&rename_lock, seq))
+		goto rename_retry;
 
 	dput(root);
 	dput(first);

@@ -186,16 +186,25 @@ static int autofs4_getpath(struct autofs_sb_info *sbi,
 {
 	struct dentry *root = sbi->sb->s_root;
 	struct dentry *tmp;
-	char *buf = *name;
+	char *buf;
 	char *p;
-	int len = 0;
+	int len;
+	unsigned seq;
 
+rename_retry:
+	buf = *name;
+	len = 0;
+	seq = read_seqbegin(&rename_lock);
+	rcu_read_lock();
 	spin_lock(&dcache_lock);
 	for (tmp = dentry ; tmp != root ; tmp = tmp->d_parent)
 		len += tmp->d_name.len + 1;
 
 	if (!len || --len > NAME_MAX) {
 		spin_unlock(&dcache_lock);
+		rcu_read_unlock();
+		if (read_seqretry(&rename_lock, seq))
+			goto rename_retry;
 		return 0;
 	}
 
@@ -209,6 +218,9 @@ static int autofs4_getpath(struct autofs_sb_info *sbi,
 		strncpy(p, tmp->d_name.name, tmp->d_name.len);
 	}
 	spin_unlock(&dcache_lock);
+	rcu_read_unlock();
+	if (read_seqretry(&rename_lock, seq))
+		goto rename_retry;
 
 	return len;
 }
