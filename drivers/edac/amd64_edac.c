@@ -1748,7 +1748,7 @@ static void amd64_handle_ce(struct mem_ctl_info *mci,
 	u64 sys_addr;
 
 	/* Ensure that the Error Address is VALID */
-	if (!(info->nbsh & K8_NBSH_VALID_ERROR_ADDR)) {
+	if (!(info->nbsh & NBSH_VALID_ERROR_ADDR)) {
 		amd64_mc_err(mci, "HW has no ERROR_ADDRESS available\n");
 		edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR);
 		return;
@@ -1773,7 +1773,7 @@ static void amd64_handle_ue(struct mem_ctl_info *mci,
 
 	log_mci = mci;
 
-	if (!(info->nbsh & K8_NBSH_VALID_ERROR_ADDR)) {
+	if (!(info->nbsh & NBSH_VALID_ERROR_ADDR)) {
 		amd64_mc_err(mci, "HW has no ERROR_ADDRESS available\n");
 		edac_mc_handle_ue_no_info(log_mci, EDAC_MOD_STR);
 		return;
@@ -1839,17 +1839,6 @@ void amd64_decode_bus_error(int node_id, struct mce *m, u32 nbcfg)
 	regs.nbcfg = nbcfg;
 
 	__amd64_decode_bus_error(mci, &regs);
-
-	/*
-	 * Check the UE bit of the NB status high register, if set generate some
-	 * logs. If NOT a GART error, then process the event as a NO-INFO event.
-	 * If it was a GART error, skip that process.
-	 *
-	 * FIXME: this should go somewhere else, if at all.
-	 */
-	if (regs.nbsh & K8_NBSH_UC_ERR && !report_gart_errors)
-		edac_mc_handle_ue_no_info(mci, "UE bit is set");
-
 }
 
 /*

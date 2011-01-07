@@ -604,7 +604,7 @@ void amd_decode_nb_mce(int node_id, struct mce *m, u32 nbcfg)
 	/* F10h, revD can disable ErrCpu[3:0] through ErrCpuVal */
 	if ((boot_cpu_data.x86 == 0x10) &&
 	    (boot_cpu_data.x86_model > 7)) {
-		if (nbsh & K8_NBSH_ERR_CPU_VAL)
+		if (nbsh & NBSH_ERR_CPU_VAL)
 			core = nbsh & nb_err_cpumask;
 	} else {
 		u8 assoc_cpus = nbsh & nb_err_cpumask;
