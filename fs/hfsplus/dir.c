@@ -37,7 +37,7 @@ static struct dentry *hfsplus_lookup(struct inode *dir, struct dentry *dentry,
 
 	sb = dir->i_sb;
 
-	dentry->d_op = &hfsplus_dentry_operations;
+	d_set_d_op(dentry, &hfsplus_dentry_operations);
 	dentry->d_fsdata = NULL;
 	hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
 	hfsplus_cat_build_key(sb, fd.search_key, dir->i_ino, &dentry->d_name);

@@ -189,7 +189,7 @@ int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
 	if (special_file(lower_inode->i_mode))
 		init_special_inode(inode, lower_inode->i_mode,
 				   lower_inode->i_rdev);
-	dentry->d_op = &ecryptfs_dops;
+	d_set_d_op(dentry, &ecryptfs_dops);
 	fsstack_copy_attr_all(inode, lower_inode);
 	/* This size will be overwritten for real files w/ headers and
 	 * other metadata */
@@ -594,7 +594,7 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 		deactivate_locked_super(s);
 		goto out;
 	}
-	s->s_root->d_op = &ecryptfs_dops;
+	d_set_d_op(s->s_root, &ecryptfs_dops);
 	s->s_root->d_sb = s;
 	s->s_root->d_parent = s->s_root;
 

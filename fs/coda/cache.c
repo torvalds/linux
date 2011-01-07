@@ -93,7 +93,7 @@ static void coda_flag_children(struct dentry *parent, int flag)
 	struct list_head *child;
 	struct dentry *de;
 
-	spin_lock(&dcache_lock);
+	spin_lock(&parent->d_lock);
 	list_for_each(child, &parent->d_subdirs)
 	{
 		de = list_entry(child, struct dentry, d_u.d_child);
@@ -102,7 +102,7 @@ static void coda_flag_children(struct dentry *parent, int flag)
 			continue;
 		coda_flag_inode(de->d_inode, flag);
 	}
-	spin_unlock(&dcache_lock);
+	spin_unlock(&parent->d_lock);
 	return; 
 }
 

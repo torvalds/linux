@@ -65,9 +65,16 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	return inode;
 }
 
+static void proc_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(proc_inode_cachep, PROC_I(inode));
+}
+
 static void proc_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(proc_inode_cachep, PROC_I(inode));
+	call_rcu(&inode->i_rcu, proc_i_callback);
 }
 
 static void init_once(void *foo)

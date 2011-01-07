@@ -514,9 +514,16 @@ static struct inode *fat_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void fat_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(fat_inode_cachep, MSDOS_I(inode));
+}
+
 static void fat_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(fat_inode_cachep, MSDOS_I(inode));
+	call_rcu(&inode->i_rcu, fat_i_callback);
 }
 
 static void init_once(void *foo)
@@ -743,7 +750,7 @@ static struct dentry *fat_fh_to_dentry(struct super_block *sb,
 	 */
 	result = d_obtain_alias(inode);
 	if (!IS_ERR(result))
-		result->d_op = sb->s_root->d_op;
+		d_set_d_op(result, sb->s_root->d_op);
 	return result;
 }
 
@@ -793,7 +800,7 @@ static struct dentry *fat_get_parent(struct dentry *child)
 
 	parent = d_obtain_alias(inode);
 	if (!IS_ERR(parent))
-		parent->d_op = sb->s_root->d_op;
+		d_set_d_op(parent, sb->s_root->d_op);
 out:
 	unlock_super(sb);
 

@@ -260,7 +260,7 @@ int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
 				   ecryptfs_dentry->d_parent));
 	lower_inode = lower_dentry->d_inode;
 	fsstack_copy_attr_atime(ecryptfs_dir_inode, lower_dir_dentry->d_inode);
-	BUG_ON(!atomic_read(&lower_dentry->d_count));
+	BUG_ON(!lower_dentry->d_count);
 	ecryptfs_set_dentry_private(ecryptfs_dentry,
 				    kmem_cache_alloc(ecryptfs_dentry_info_cache,
 						     GFP_KERNEL));
@@ -441,7 +441,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	struct qstr lower_name;
 	int rc = 0;
 
-	ecryptfs_dentry->d_op = &ecryptfs_dops;
+	d_set_d_op(ecryptfs_dentry, &ecryptfs_dops);
 	if ((ecryptfs_dentry->d_name.len == 1
 	     && !strcmp(ecryptfs_dentry->d_name.name, "."))
 	    || (ecryptfs_dentry->d_name.len == 2
@@ -454,7 +454,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	lower_name.hash = ecryptfs_dentry->d_name.hash;
 	if (lower_dir_dentry->d_op && lower_dir_dentry->d_op->d_hash) {
 		rc = lower_dir_dentry->d_op->d_hash(lower_dir_dentry,
-						    &lower_name);
+				lower_dir_dentry->d_inode, &lower_name);
 		if (rc < 0)
 			goto out_d_drop;
 	}
@@ -489,7 +489,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	lower_name.hash = full_name_hash(lower_name.name, lower_name.len);
 	if (lower_dir_dentry->d_op && lower_dir_dentry->d_op->d_hash) {
 		rc = lower_dir_dentry->d_op->d_hash(lower_dir_dentry,
-						    &lower_name);
+				lower_dir_dentry->d_inode, &lower_name);
 		if (rc < 0)
 			goto out_d_drop;
 	}
@@ -980,8 +980,10 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 }
 
 static int
-ecryptfs_permission(struct inode *inode, int mask)
+ecryptfs_permission(struct inode *inode, int mask, unsigned int flags)
 {
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 	return inode_permission(ecryptfs_inode_to_lower(inode), mask);
 }
 

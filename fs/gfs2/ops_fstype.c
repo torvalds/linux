@@ -440,7 +440,7 @@ static int gfs2_lookup_root(struct super_block *sb, struct dentry **dptr,
 		iput(inode);
 		return -ENOMEM;
 	}
-	dentry->d_op = &gfs2_dops;
+	d_set_d_op(dentry, &gfs2_dops);
 	*dptr = dentry;
 	return 0;
 }

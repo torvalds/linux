@@ -624,7 +624,7 @@ extern void afs_clear_permits(struct afs_vnode *);
 extern void afs_cache_permit(struct afs_vnode *, struct key *, long);
 extern void afs_zap_permits(struct rcu_head *);
 extern struct key *afs_request_key(struct afs_cell *);
-extern int afs_permission(struct inode *, int);
+extern int afs_permission(struct inode *, int, unsigned int);
 
 /*
  * server.c
