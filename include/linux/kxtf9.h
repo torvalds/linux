@@ -72,7 +72,6 @@
 #define ODR100			0x03
 #define ODR50			0x02
 #define ODR25			0x01
-#define ODR12_5			0x00
 
 #define SENSITIVITY_REGS 0x07
 

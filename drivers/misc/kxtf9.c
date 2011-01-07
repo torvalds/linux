@@ -40,20 +40,40 @@
 #define SHIFT_ADJ_8G		2
 /* OUTPUT REGISTERS */
 #define XOUT_L			0x06
+#define XOUT_H			0x07
+#define YOUT_L			0x08
+#define YOUT_H			0x09
+#define ZOUT_L			0x0A
+#define ZOUT_H			0x0B
+/* TILT POSITION REGISTERS */
+#define TILT_POS_CUR		0x10
+#define TILT_POS_PRE		0x11
+/* INT SRC REGISTERS */
 #define INT_SRC_REG1		0x15
 #define INT_SRC_REG2		0x16
-#define TILT_POS_CUR		0x10
+#define STATUS_REG		0x18
 #define INT_REL			0x1A
 /* CONTROL REGISTERS */
-#define DATA_CTRL		0x21
 #define CTRL_REG1		0x1B
-#define INT_CTRL1		0x1E
+#define CTRL_REG2		0x1C
 #define CTRL_REG3		0x1D
+#define INT_CTRL1		0x1E
+#define INT_CTRL2		0x1F
+#define INT_CTRL3		0x20
+#define DATA_CTRL		0x21
 #define TILT_TIMER		0x28
 #define WUF_TIMER		0x29
-#define WUF_THRESH		0x5A
 #define TDT_TIMER		0x2B
+#define TDT_H_THRESH		0x2C
+#define TDT_L_THRESH		0x2D
+#define TDT_TAP_TIMER		0x2E
+#define TDT_TOTAL_TIMER		0x2F
+#define TDT_LAT_TIMER		0x30
+#define TDT_WIND_TIMER		0x31
 #define SELF_TEST_REG		0x3A
+#define WUF_THRESH		0x5A
+#define TILT_ANGLE		0x5C
+#define HYST_SET		0x5F
 /* CONTROL REGISTER 1 BITS */
 #define PC1_OFF			0x00
 #define PC1_ON			0x80
@@ -64,8 +84,6 @@
 /* INPUT_ABS CONSTANTS */
 #define FUZZ			32
 #define FLAT			32
-#define I2C_RETRY_DELAY		5
-#define I2C_RETRIES		5
 /* RESUME STATE INDICES */
 #define RES_DATA_CTRL		0
 #define RES_CTRL_REG1		1
@@ -81,12 +99,17 @@
 #define RES_TOTAL_TIMER		11
 #define RES_LAT_TIMER		12
 #define RES_WIN_TIMER		13
-#define RESUME_ENTRIES		14
+#define RES_INT_CTRL3		14
+#define RESUME_ENTRIES		15
 
-#define SENSITIVITY_LEVELS              3
-#define SENSITIVITY_LOW_OFFSET          0
-#define SENSITIVITY_MEDIUM_OFFSET      1
+#define SENSITIVITY_LEVELS           3
+#define SENSITIVITY_LOW_OFFSET       0
+#define SENSITIVITY_MEDIUM_OFFSET    1
 #define SENSITIVITY_HIGH_OFFSET      2
+
+#define I2C_RETRY_DELAY 	5
+#define I2C_RETRIES		5
+#define AUTO_INCREMENT		0x80
 
 static uint32_t kxtf9_dbg;
 module_param(kxtf9_dbg, uint, 0664);
@@ -101,7 +124,6 @@ struct {
 	{20, ODR100},
 	{40, ODR50},
 	{80, ODR25},
-	{0, ODR12_5},
 };
 
 struct tap_sensitivity {
@@ -515,6 +537,9 @@ int kxtf9_update_odr(struct kxtf9_data *tf9, int poll_interval)
 			break;
 	}
 
+	if (poll_interval > kxtf9_odr_table[5].cutoff)
+		config[1] = kxtf9_odr_table[5].mask;
+
 	if (atomic_read(&tf9->enabled)) {
 		err = kxtf9_i2c_write(tf9, buf, 1);
 		if (err < 0)
@@ -529,13 +554,6 @@ int kxtf9_update_odr(struct kxtf9_data *tf9, int poll_interval)
 		err = kxtf9_i2c_write(tf9, buf, 1);
 		if (err < 0)
 			goto error;
-		/* Latch on input_dev - indicates that kxtf9_input_init passed
-		 *  and this workqueue is available */
-		if (tf9->input_dev) {
-			cancel_delayed_work_sync(&tf9->input_work);
-			schedule_delayed_work(&tf9->input_work,
-				      msecs_to_jiffies(poll_interval));
-		}
 	}
 	tf9->resume_state[RES_DATA_CTRL] = config[1];
 
@@ -635,8 +653,12 @@ static void kxtf9_report_values(struct kxtf9_data *tf9, int *xyz)
 	input_report_abs(tf9->input_dev, ABS_X, xyz[0]);
 	input_report_abs(tf9->input_dev, ABS_Y, xyz[1]);
 	input_report_abs(tf9->input_dev, ABS_Z, xyz[2]);
+	input_report_rel(tf9->input_dev, REL_X, xyz[0]);
+	input_report_rel(tf9->input_dev, REL_Y, xyz[1]);
+	input_report_rel(tf9->input_dev, REL_Z, xyz[2]);
+
 	if (kxtf9_dbg & 2)
-		pr_info("%s: REPORT, ABS_X=%d, ABS_Y=%d, ABS_Z=%d\n",
+		pr_info("%s: REPORT, X=%d, Y=%d, Z=%d\n",
 			__func__, xyz[0], xyz[1], xyz[2]);
 	input_sync(tf9->input_dev);
 }
@@ -667,6 +689,10 @@ static int kxtf9_enable(struct kxtf9_data *tf9)
 				input_sync(tf9->input_dev);
 			}
 		}
+		err = kxtf9_update_odr(tf9, tf9->pdata->poll_interval);
+		if (err < 0)
+			dev_err(&tf9->client->dev,
+				"odr write error: %d\n", err);
 		schedule_delayed_work(&tf9->input_work,
 				msecs_to_jiffies(tf9->pdata->poll_interval));
 	}
@@ -997,6 +1023,10 @@ static int kxtf9_input_init(struct kxtf9_data *tf9)
 	input_set_abs_params(tf9->input_dev, ABS_Y, -G_MAX, G_MAX, FUZZ, FLAT);
 	input_set_abs_params(tf9->input_dev, ABS_Z, -G_MAX, G_MAX, FUZZ, FLAT);
 	input_set_abs_params(tf9->input_dev, ABS_MISC, INT_MIN, INT_MAX, 0, 0);
+
+	input_set_capability(tf9->input_dev, EV_REL, REL_X);
+	input_set_capability(tf9->input_dev, EV_REL, REL_Y);
+	input_set_capability(tf9->input_dev, EV_REL, REL_Z);
 
 	tf9->input_dev->name = "accelerometer";
 
