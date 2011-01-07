@@ -6,14 +6,13 @@
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 
-struct perf_evsel *perf_evsel__new(u32 type, u64 config, int idx)
+struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 {
 	struct perf_evsel *evsel = zalloc(sizeof(*evsel));
 
 	if (evsel != NULL) {
 		evsel->idx	   = idx;
-		evsel->attr.type   = type;
-		evsel->attr.config = config;
+		evsel->attr	   = *attr;
 		INIT_LIST_HEAD(&evsel->node);
 	}
 

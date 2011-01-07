@@ -264,6 +264,7 @@ static int test__open_syscall_event(void)
 	int err = -1, fd;
 	struct thread_map *threads;
 	struct perf_evsel *evsel;
+	struct perf_event_attr attr;
 	unsigned int nr_open_calls = 111, i;
 	int id = trace_event__id("sys_enter_open");
 
@@ -278,7 +279,10 @@ static int test__open_syscall_event(void)
 		return -1;
 	}
 
-	evsel = perf_evsel__new(PERF_TYPE_TRACEPOINT, id, 0);
+	memset(&attr, 0, sizeof(attr));
+	attr.type = PERF_TYPE_TRACEPOINT;
+	attr.config = id;
+	evsel = perf_evsel__new(&attr, 0);
 	if (evsel == NULL) {
 		pr_debug("perf_evsel__new\n");
 		goto out_thread_map_delete;

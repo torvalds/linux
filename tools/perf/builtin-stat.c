@@ -683,8 +683,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		nr_counters = ARRAY_SIZE(default_attrs);
 
 		for (c = 0; c < ARRAY_SIZE(default_attrs); ++c) {
-			pos = perf_evsel__new(default_attrs[c].type,
-					      default_attrs[c].config,
+			pos = perf_evsel__new(&default_attrs[c],
 					      nr_counters);
 			if (pos == NULL)
 				goto out;

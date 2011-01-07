@@ -823,7 +823,7 @@ int parse_events(const struct option *opt __used, const char *str, int unset __u
 
 		if (ret != EVT_HANDLED_ALL) {
 			struct perf_evsel *evsel;
-			evsel = perf_evsel__new(attr.type, attr.config,
+			evsel = perf_evsel__new(&attr,
 						nr_counters);
 			if (evsel == NULL)
 				return -1;
@@ -1013,8 +1013,15 @@ void print_events(void)
 
 int perf_evsel_list__create_default(void)
 {
-	struct perf_evsel *evsel = perf_evsel__new(PERF_TYPE_HARDWARE,
-						   PERF_COUNT_HW_CPU_CYCLES, 0);
+	struct perf_evsel *evsel;
+	struct perf_event_attr attr;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.type = PERF_TYPE_HARDWARE;
+	attr.config = PERF_COUNT_HW_CPU_CYCLES;
+
+	evsel = perf_evsel__new(&attr, 0);
+
 	if (evsel == NULL)
 		return -ENOMEM;
 
