@@ -440,6 +440,7 @@ static ssize_t radeon_hwmon_show_temp(struct device *dev,
 		temp = rv770_get_temp(rdev);
 		break;
 	case THERMAL_TYPE_EVERGREEN:
+	case THERMAL_TYPE_NI:
 		temp = evergreen_get_temp(rdev);
 		break;
 	case THERMAL_TYPE_SUMO:

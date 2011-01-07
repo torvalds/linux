@@ -739,6 +739,7 @@ enum radeon_int_thermal_type {
 	THERMAL_TYPE_RV770,
 	THERMAL_TYPE_EVERGREEN,
 	THERMAL_TYPE_SUMO,
+	THERMAL_TYPE_NI,
 };
 
 struct radeon_voltage {
