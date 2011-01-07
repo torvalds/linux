@@ -900,8 +900,6 @@ next_desc:
 
 	adapter->total_rx_bytes += total_rx_bytes;
 	adapter->total_rx_packets += total_rx_packets;
-	netdev->stats.rx_bytes += total_rx_bytes;
-	netdev->stats.rx_packets += total_rx_packets;
 	return cleaned;
 }
 
@@ -1057,8 +1055,6 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter)
 	}
 	adapter->total_tx_bytes += total_tx_bytes;
 	adapter->total_tx_packets += total_tx_packets;
-	netdev->stats.tx_bytes += total_tx_bytes;
-	netdev->stats.tx_packets += total_tx_packets;
 	return count < tx_ring->count;
 }
 
@@ -1245,8 +1241,6 @@ next_desc:
 
 	adapter->total_rx_bytes += total_rx_bytes;
 	adapter->total_rx_packets += total_rx_packets;
-	netdev->stats.rx_bytes += total_rx_bytes;
-	netdev->stats.rx_packets += total_rx_packets;
 	return cleaned;
 }
 
@@ -1426,8 +1420,6 @@ next_desc:
 
 	adapter->total_rx_bytes += total_rx_bytes;
 	adapter->total_rx_packets += total_rx_packets;
-	netdev->stats.rx_bytes += total_rx_bytes;
-	netdev->stats.rx_packets += total_rx_packets;
 	return cleaned;
 }
 
@@ -3338,6 +3330,8 @@ int e1000e_up(struct e1000_adapter *adapter)
 	return 0;
 }
 
+static void e1000e_update_stats(struct e1000_adapter *adapter);
+
 void e1000e_down(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -3372,6 +3366,11 @@ void e1000e_down(struct e1000_adapter *adapter)
 	del_timer_sync(&adapter->phy_info_timer);
 
 	netif_carrier_off(netdev);
+
+	spin_lock(&adapter->stats64_lock);
+	e1000e_update_stats(adapter);
+	spin_unlock(&adapter->stats64_lock);
+
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
 
@@ -3412,6 +3411,8 @@ static int __devinit e1000_sw_init(struct e1000_adapter *adapter)
 	adapter->rx_ps_bsize0 = 128;
 	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
+
+	spin_lock_init(&adapter->stats64_lock);
 
 	e1000e_set_interrupt_capability(adapter);
 
@@ -3886,7 +3887,7 @@ release:
  * e1000e_update_stats - Update the board statistics counters
  * @adapter: board private structure
  **/
-void e1000e_update_stats(struct e1000_adapter *adapter)
+static void e1000e_update_stats(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_hw *hw = &adapter->hw;
@@ -4285,7 +4286,9 @@ static void e1000_watchdog_task(struct work_struct *work)
 	}
 
 link_up:
+	spin_lock(&adapter->stats64_lock);
 	e1000e_update_stats(adapter);
+	spin_unlock(&adapter->stats64_lock);
 
 	mac->tx_packet_delta = adapter->stats.tpt - adapter->tpt_old;
 	adapter->tpt_old = adapter->stats.tpt;
@@ -4897,16 +4900,55 @@ static void e1000_reset_task(struct work_struct *work)
 }
 
 /**
- * e1000_get_stats - Get System Network Statistics
+ * e1000_get_stats64 - Get System Network Statistics
  * @netdev: network interface device structure
+ * @stats: rtnl_link_stats64 pointer
  *
  * Returns the address of the device statistics structure.
- * The statistics are actually updated from the timer callback.
  **/
-static struct net_device_stats *e1000_get_stats(struct net_device *netdev)
+struct rtnl_link_stats64 *e1000e_get_stats64(struct net_device *netdev,
+                                             struct rtnl_link_stats64 *stats)
 {
-	/* only return the current stats */
-	return &netdev->stats;
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+
+	memset(stats, 0, sizeof(struct rtnl_link_stats64));
+	spin_lock(&adapter->stats64_lock);
+	e1000e_update_stats(adapter);
+	/* Fill out the OS statistics structure */
+	stats->rx_bytes = adapter->stats.gorc;
+	stats->rx_packets = adapter->stats.gprc;
+	stats->tx_bytes = adapter->stats.gotc;
+	stats->tx_packets = adapter->stats.gptc;
+	stats->multicast = adapter->stats.mprc;
+	stats->collisions = adapter->stats.colc;
+
+	/* Rx Errors */
+
+	/*
+	 * RLEC on some newer hardware can be incorrect so build
+	 * our own version based on RUC and ROC
+	 */
+	stats->rx_errors = adapter->stats.rxerrc +
+		adapter->stats.crcerrs + adapter->stats.algnerrc +
+		adapter->stats.ruc + adapter->stats.roc +
+		adapter->stats.cexterr;
+	stats->rx_length_errors = adapter->stats.ruc +
+					      adapter->stats.roc;
+	stats->rx_crc_errors = adapter->stats.crcerrs;
+	stats->rx_frame_errors = adapter->stats.algnerrc;
+	stats->rx_missed_errors = adapter->stats.mpc;
+
+	/* Tx Errors */
+	stats->tx_errors = adapter->stats.ecol +
+				       adapter->stats.latecol;
+	stats->tx_aborted_errors = adapter->stats.ecol;
+	stats->tx_window_errors = adapter->stats.latecol;
+	stats->tx_carrier_errors = adapter->stats.tncrs;
+
+	/* Tx Dropped needs to be maintained elsewhere */
+
+	spin_unlock(&adapter->stats64_lock);
+	return stats;
 }
 
 /**
@@ -5675,7 +5717,7 @@ static const struct net_device_ops e1000e_netdev_ops = {
 	.ndo_open		= e1000_open,
 	.ndo_stop		= e1000_close,
 	.ndo_start_xmit		= e1000_xmit_frame,
-	.ndo_get_stats		= e1000_get_stats,
+	.ndo_get_stats64	= e1000e_get_stats64,
 	.ndo_set_multicast_list	= e1000_set_multi,
 	.ndo_set_mac_address	= e1000_set_mac,
 	.ndo_change_mtu		= e1000_change_mtu,
