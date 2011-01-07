@@ -1119,7 +1119,10 @@ int radeon_modeset_init(struct radeon_device *rdev)
 
 	rdev->ddev->mode_config.funcs = (void *)&radeon_mode_funcs;
 
-	if (ASIC_IS_AVIVO(rdev)) {
+	if (ASIC_IS_DCE5(rdev)) {
+		rdev->ddev->mode_config.max_width = 16384;
+		rdev->ddev->mode_config.max_height = 16384;
+	} else if (ASIC_IS_AVIVO(rdev)) {
 		rdev->ddev->mode_config.max_width = 8192;
 		rdev->ddev->mode_config.max_height = 8192;
 	} else {
