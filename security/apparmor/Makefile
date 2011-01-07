@@ -6,7 +6,7 @@ apparmor-y := apparmorfs.o audit.o capability.o context.o ipc.o lib.o match.o \
               path.o domain.o policy.o policy_unpack.o procattr.o lsm.o \
               resource.o sid.o file.o
 
-clean-files: capability_names.h rlim_names.h
+clean-files := capability_names.h rlim_names.h
 
 
 # Build a lower case string table of capability names
