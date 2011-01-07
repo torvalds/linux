@@ -225,9 +225,6 @@ xfs_check_acl(struct inode *inode, int mask, unsigned int flags)
 	struct posix_acl *acl;
 	int error = -EAGAIN;
 
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
-
 	ip = XFS_I(inode);
 	trace_xfs_check_acl(ip);
 
@@ -237,6 +234,12 @@ xfs_check_acl(struct inode *inode, int mask, unsigned int flags)
 	 */
 	if (!XFS_IFORK_Q(ip))
 		return -EAGAIN;
+
+	if (flags & IPERM_FLAG_RCU) {
+		if (!negative_cached_acl(inode, ACL_TYPE_ACCESS))
+			return -ECHILD;
+		return -EAGAIN;
+	}
 
 	acl = xfs_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl))
