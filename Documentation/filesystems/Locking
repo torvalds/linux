@@ -21,14 +21,14 @@ prototypes:
 	char *(*d_dname)((struct dentry *dentry, char *buffer, int buflen);
 
 locking rules:
-		dcache_lock	rename_lock	->d_lock	may block
-d_revalidate:	no		no		no		yes
-d_hash		no		no		no		no
-d_compare:	no		yes		no		no 
-d_delete:	yes		no		yes		no
-d_release:	no		no		no		yes
-d_iput:		no		no		no		yes
-d_dname:	no		no		no		no
+		rename_lock	->d_lock	may block
+d_revalidate:	no		no		yes
+d_hash		no		no		no
+d_compare:	yes		no		no
+d_delete:	no		yes		no
+d_release:	no		no		yes
+d_iput:		no		no		yes
+d_dname:	no		no		no
 
 --------------------------- inode_operations --------------------------- 
 prototypes:

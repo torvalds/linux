@@ -183,7 +183,6 @@ struct dentry_operations {
 #define DCACHE_GENOCIDE		0x0200
 
 extern spinlock_t dcache_inode_lock;
-extern spinlock_t dcache_lock;
 extern seqlock_t rename_lock;
 
 static inline int dname_external(struct dentry *dentry)
@@ -296,8 +295,8 @@ extern char *dentry_path(struct dentry *, char *, int);
  *	destroyed when it has references. dget() should never be
  *	called for dentries with zero reference counter. For these cases
  *	(preferably none, functions in dcache.c are sufficient for normal
- *	needs and they take necessary precautions) you should hold dcache_lock
- *	and call dget_locked() instead of dget().
+ *	needs and they take necessary precautions) you should hold d_lock
+ *	and call dget_dlock() instead of dget().
  */
 static inline struct dentry *dget_dlock(struct dentry *dentry)
 {

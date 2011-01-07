@@ -128,7 +128,6 @@ affs_fix_dcache(struct dentry *dentry, u32 entry_ino)
 	void *data = dentry->d_fsdata;
 	struct list_head *head, *next;
 
-	spin_lock(&dcache_lock);
 	spin_lock(&dcache_inode_lock);
 	head = &inode->i_dentry;
 	next = head->next;
@@ -141,7 +140,6 @@ affs_fix_dcache(struct dentry *dentry, u32 entry_ino)
 		next = next->next;
 	}
 	spin_unlock(&dcache_inode_lock);
-	spin_unlock(&dcache_lock);
 }
 
 

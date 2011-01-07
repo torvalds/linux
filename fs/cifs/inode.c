@@ -809,17 +809,14 @@ inode_has_hashed_dentries(struct inode *inode)
 {
 	struct dentry *dentry;
 
-	spin_lock(&dcache_lock);
 	spin_lock(&dcache_inode_lock);
 	list_for_each_entry(dentry, &inode->i_dentry, d_alias) {
 		if (!d_unhashed(dentry) || IS_ROOT(dentry)) {
 			spin_unlock(&dcache_inode_lock);
-			spin_unlock(&dcache_lock);
 			return true;
 		}
 	}
 	spin_unlock(&dcache_inode_lock);
-	spin_unlock(&dcache_lock);
 	return false;
 }
 

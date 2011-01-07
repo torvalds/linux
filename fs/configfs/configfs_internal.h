@@ -120,7 +120,6 @@ static inline struct config_item *configfs_get_config_item(struct dentry *dentry
 {
 	struct config_item * item = NULL;
 
-	spin_lock(&dcache_lock);
 	spin_lock(&dentry->d_lock);
 	if (!d_unhashed(dentry)) {
 		struct configfs_dirent * sd = dentry->d_fsdata;
@@ -131,7 +130,6 @@ static inline struct config_item *configfs_get_config_item(struct dentry *dentry
 			item = config_item_get(sd->s_element);
 	}
 	spin_unlock(&dentry->d_lock);
-	spin_unlock(&dcache_lock);
 
 	return item;
 }

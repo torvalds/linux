@@ -1378,7 +1378,7 @@ struct super_block {
 #else
 	struct list_head	s_files;
 #endif
-	/* s_dentry_lru and s_nr_dentry_unused are protected by dcache_lock */
+	/* s_dentry_lru, s_nr_dentry_unused protected by dcache.c lru locks */
 	struct list_head	s_dentry_lru;	/* unused dentry lru */
 	int			s_nr_dentry_unused;	/* # of dentry on lru */
 
@@ -2446,6 +2446,10 @@ static inline ino_t parent_ino(struct dentry *dentry)
 {
 	ino_t res;
 
+	/*
+	 * Don't strictly need d_lock here? If the parent ino could change
+	 * then surely we'd have a deeper race in the caller?
+	 */
 	spin_lock(&dentry->d_lock);
 	res = dentry->d_parent->d_inode->i_ino;
 	spin_unlock(&dentry->d_lock);

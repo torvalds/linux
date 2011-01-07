@@ -612,8 +612,8 @@ int follow_up(struct path *path)
 	return 1;
 }
 
-/* no need for dcache_lock, as serialization is taken care in
- * namespace.c
+/*
+ * serialization is taken care of in namespace.c
  */
 static int __follow_mount(struct path *path)
 {
@@ -645,9 +645,6 @@ static void follow_mount(struct path *path)
 	}
 }
 
-/* no need for dcache_lock, as serialization is taken care in
- * namespace.c
- */
 int follow_down(struct path *path)
 {
 	struct vfsmount *mounted;
@@ -2131,12 +2128,10 @@ void dentry_unhash(struct dentry *dentry)
 {
 	dget(dentry);
 	shrink_dcache_parent(dentry);
-	spin_lock(&dcache_lock);
 	spin_lock(&dentry->d_lock);
 	if (dentry->d_count == 2)
 		__d_drop(dentry);
 	spin_unlock(&dentry->d_lock);
-	spin_unlock(&dcache_lock);
 }
 
 int vfs_rmdir(struct inode *dir, struct dentry *dentry)

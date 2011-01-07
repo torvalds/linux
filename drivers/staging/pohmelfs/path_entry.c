@@ -101,7 +101,6 @@ rename_retry:
 	d = first;
 	seq = read_seqbegin(&rename_lock);
 	rcu_read_lock();
-	spin_lock(&dcache_lock);
 
 	if (!IS_ROOT(d) && d_unhashed(d))
 		len += UNHASHED_OBSCURE_STRING_SIZE; /* Obscure " (deleted)" string */
@@ -110,7 +109,6 @@ rename_retry:
 		len += d->d_name.len + 1; /* Plus slash */
 		d = d->d_parent;
 	}
-	spin_unlock(&dcache_lock);
 	rcu_read_unlock();
 	if (read_seqretry(&rename_lock, seq))
 		goto rename_retry;

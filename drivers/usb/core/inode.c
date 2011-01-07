@@ -343,7 +343,6 @@ static int usbfs_empty (struct dentry *dentry)
 {
 	struct list_head *list;
 
-	spin_lock(&dcache_lock);
 	spin_lock(&dentry->d_lock);
 	list_for_each(list, &dentry->d_subdirs) {
 		struct dentry *de = list_entry(list, struct dentry, d_u.d_child);
@@ -352,13 +351,11 @@ static int usbfs_empty (struct dentry *dentry)
 		if (usbfs_positive(de)) {
 			spin_unlock(&de->d_lock);
 			spin_unlock(&dentry->d_lock);
-			spin_unlock(&dcache_lock);
 			return 0;
 		}
 		spin_unlock(&de->d_lock);
 	}
 	spin_unlock(&dentry->d_lock);
-	spin_unlock(&dcache_lock);
 	return 1;
 }
 

@@ -112,7 +112,6 @@ static int __dcache_readdir(struct file *filp,
 	dout("__dcache_readdir %p at %llu (last %p)\n", dir, filp->f_pos,
 	     last);
 
-	spin_lock(&dcache_lock);
 	spin_lock(&parent->d_lock);
 
 	/* start at beginning? */
@@ -156,7 +155,6 @@ more:
 	dget_dlock(dentry);
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&parent->d_lock);
-	spin_unlock(&dcache_lock);
 
 	dout(" %llu (%llu) dentry %p %.*s %p\n", di->offset, filp->f_pos,
 	     dentry, dentry->d_name.len, dentry->d_name.name, dentry->d_inode);
@@ -182,21 +180,19 @@ more:
 
 	filp->f_pos++;
 
-	/* make sure a dentry wasn't dropped while we didn't have dcache_lock */
+	/* make sure a dentry wasn't dropped while we didn't have parent lock */
 	if (!ceph_i_test(dir, CEPH_I_COMPLETE)) {
 		dout(" lost I_COMPLETE on %p; falling back to mds\n", dir);
 		err = -EAGAIN;
 		goto out;
 	}
 
-	spin_lock(&dcache_lock);
 	spin_lock(&parent->d_lock);
 	p = p->prev;	/* advance to next dentry */
 	goto more;
 
 out_unlock:
 	spin_unlock(&parent->d_lock);
-	spin_unlock(&dcache_lock);
 out:
 	if (last)
 		dput(last);

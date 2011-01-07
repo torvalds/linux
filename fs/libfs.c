@@ -100,7 +100,6 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 			struct dentry *cursor = file->private_data;
 			loff_t n = file->f_pos - 2;
 
-			spin_lock(&dcache_lock);
 			spin_lock(&dentry->d_lock);
 			/* d_lock not required for cursor */
 			list_del(&cursor->d_u.d_child);
@@ -116,7 +115,6 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 			}
 			list_add_tail(&cursor->d_u.d_child, p);
 			spin_unlock(&dentry->d_lock);
-			spin_unlock(&dcache_lock);
 		}
 	}
 	mutex_unlock(&dentry->d_inode->i_mutex);
@@ -159,7 +157,6 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
 			i++;
 			/* fallthrough */
 		default:
-			spin_lock(&dcache_lock);
 			spin_lock(&dentry->d_lock);
 			if (filp->f_pos == 2)
 				list_move(q, &dentry->d_subdirs);
@@ -175,13 +172,11 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
 
 				spin_unlock(&next->d_lock);
 				spin_unlock(&dentry->d_lock);
-				spin_unlock(&dcache_lock);
 				if (filldir(dirent, next->d_name.name, 
 					    next->d_name.len, filp->f_pos, 
 					    next->d_inode->i_ino, 
 					    dt_type(next->d_inode)) < 0)
 					return 0;
-				spin_lock(&dcache_lock);
 				spin_lock(&dentry->d_lock);
 				spin_lock_nested(&next->d_lock, DENTRY_D_LOCK_NESTED);
 				/* next is still alive */
@@ -191,7 +186,6 @@ int dcache_readdir(struct file * filp, void * dirent, filldir_t filldir)
 				filp->f_pos++;
 			}
 			spin_unlock(&dentry->d_lock);
-			spin_unlock(&dcache_lock);
 	}
 	return 0;
 }
@@ -285,7 +279,6 @@ int simple_empty(struct dentry *dentry)
 	struct dentry *child;
 	int ret = 0;
 
-	spin_lock(&dcache_lock);
 	spin_lock(&dentry->d_lock);
 	list_for_each_entry(child, &dentry->d_subdirs, d_u.d_child) {
 		spin_lock_nested(&child->d_lock, DENTRY_D_LOCK_NESTED);
@@ -298,7 +291,6 @@ int simple_empty(struct dentry *dentry)
 	ret = 1;
 out:
 	spin_unlock(&dentry->d_lock);
-	spin_unlock(&dcache_lock);
 	return ret;
 }
 

@@ -62,7 +62,6 @@ smb_invalidate_dircache_entries(struct dentry *parent)
 	struct list_head *next;
 	struct dentry *dentry;
 
-	spin_lock(&dcache_lock);
 	spin_lock(&parent->d_lock);
 	next = parent->d_subdirs.next;
 	while (next != &parent->d_subdirs) {
@@ -72,7 +71,6 @@ smb_invalidate_dircache_entries(struct dentry *parent)
 		next = next->next;
 	}
 	spin_unlock(&parent->d_lock);
-	spin_unlock(&dcache_lock);
 }
 
 /*
@@ -98,7 +96,6 @@ smb_dget_fpos(struct dentry *dentry, struct dentry *parent, unsigned long fpos)
 	}
 
 	/* If a pointer is invalid, we search the dentry. */
-	spin_lock(&dcache_lock);
 	spin_lock(&parent->d_lock);
 	next = parent->d_subdirs.next;
 	while (next != &parent->d_subdirs) {
@@ -115,7 +112,6 @@ smb_dget_fpos(struct dentry *dentry, struct dentry *parent, unsigned long fpos)
 	dent = NULL;
 out_unlock:
 	spin_unlock(&parent->d_lock);
-	spin_unlock(&dcache_lock);
 	return dent;
 }
 

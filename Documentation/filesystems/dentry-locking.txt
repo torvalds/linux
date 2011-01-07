@@ -31,6 +31,7 @@ significant change is the way d_lookup traverses the hash chain, it
 doesn't acquire the dcache_lock for this and rely on RCU to ensure
 that the dentry has not been *freed*.
 
+dcache_lock no longer exists, dentry locking is explained in fs/dcache.c
 
 Dcache locking details
 ======================
@@ -50,14 +51,12 @@ Safe lock-free look-up of dcache hash table
 
 Dcache is a complex data structure with the hash table entries also
 linked together in other lists. In 2.4 kernel, dcache_lock protected
-all the lists. We applied RCU only on hash chain walking. The rest of
-the lists are still protected by dcache_lock.  Some of the important
-changes are :
+all the lists. RCU dentry hash walking works like this:
 
 1. The deletion from hash chain is done using hlist_del_rcu() macro
    which doesn't initialize next pointer of the deleted dentry and
    this allows us to walk safely lock-free while a deletion is
-   happening.
+   happening. This is a standard hlist_rcu iteration.
 
 2. Insertion of a dentry into the hash table is done using
    hlist_add_head_rcu() which take care of ordering the writes - the
@@ -66,19 +65,18 @@ changes are :
    which has since been replaced by hlist_for_each_entry_rcu(), while
    walking the hash chain. The only requirement is that all
    initialization to the dentry must be done before
-   hlist_add_head_rcu() since we don't have dcache_lock protection
-   while traversing the hash chain. This isn't different from the
-   existing code.
+   hlist_add_head_rcu() since we don't have lock protection
+   while traversing the hash chain.
 
-3. The dentry looked up without holding dcache_lock by cannot be
-   returned for walking if it is unhashed. It then may have a NULL
-   d_inode or other bogosity since RCU doesn't protect the other
-   fields in the dentry. We therefore use a flag DCACHE_UNHASHED to
-   indicate unhashed dentries and use this in conjunction with a
-   per-dentry lock (d_lock). Once looked up without the dcache_lock,
-   we acquire the per-dentry lock (d_lock) and check if the dentry is
-   unhashed. If so, the look-up is failed. If not, the reference count
-   of the dentry is increased and the dentry is returned.
+3. The dentry looked up without holding locks cannot be returned for
+   walking if it is unhashed. It then may have a NULL d_inode or other
+   bogosity since RCU doesn't protect the other fields in the dentry. We
+   therefore use a flag DCACHE_UNHASHED to indicate unhashed dentries
+   and use this in conjunction with a per-dentry lock (d_lock). Once
+   looked up without locks, we acquire the per-dentry lock (d_lock) and
+   check if the dentry is unhashed. If so, the look-up is failed. If not,
+   the reference count of the dentry is increased and the dentry is
+   returned.
 
 4. Once a dentry is looked up, it must be ensured during the path walk
    for that component it doesn't go away. In pre-2.5.10 code, this was
@@ -86,10 +84,10 @@ changes are :
    In some sense, dcache_rcu path walking looks like the pre-2.5.10
    version.
 
-5. All dentry hash chain updates must take the dcache_lock as well as
-   the per-dentry lock in that order. dput() does this to ensure that
-   a dentry that has just been looked up in another CPU doesn't get
-   deleted before dget() can be done on it.
+5. All dentry hash chain updates must take the per-dentry lock (see
+   fs/dcache.c). This excludes dput() to ensure that a dentry that has
+   been looked up concurrently does not get deleted before dget() can
+   take a ref.
 
 6. There are several ways to do reference counting of RCU protected
    objects. One such example is in ipv4 route cache where deferred

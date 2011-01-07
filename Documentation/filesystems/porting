@@ -216,7 +216,6 @@ had ->revalidate()) add calls in ->follow_link()/->readlink().
 ->d_parent changes are not protected by BKL anymore.  Read access is safe
 if at least one of the following is true:
 	* filesystem has no cross-directory rename()
-	* dcache_lock is held
 	* we know that parent had been locked (e.g. we are looking at
 ->d_parent of ->lookup() argument).
 	* we are called from ->rename().
@@ -340,3 +339,10 @@ look at examples of other filesystems) for guidance.
 	.d_hash() calling convention and locking rules are significantly
 changed. Read updated documentation in Documentation/filesystems/vfs.txt (and
 look at examples of other filesystems) for guidance.
+
+---
+[mandatory]
+	dcache_lock is gone, replaced by fine grained locks. See fs/dcache.c
+for details of what locks to replace dcache_lock with in order to protect
+particular things. Most of the time, a filesystem only needs ->d_lock, which
+protects *all* the dcache state of a given dentry.

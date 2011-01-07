@@ -16,6 +16,7 @@
 #include <linux/auto_fs4.h>
 #include <linux/auto_dev-ioctl.h>
 #include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/list.h>
 
 /* This is the range of ioctl() numbers we claim as ours */
@@ -59,6 +60,8 @@ do {							\
 	printk(KERN_ERR "pid %d: %s: " fmt "\n",	\
 		current->pid, __func__, ##args);	\
 } while (0)
+
+extern spinlock_t autofs4_lock;
 
 /* Unified info structure.  This is pointed to by both the dentry and
    inode structures.  Each file in the filesystem has an instance of this
