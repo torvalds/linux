@@ -21,8 +21,6 @@
 #include <mach-landisk/mach/iodata_landisk.h>
 #include <asm/io.h>
 
-void init_landisk_IRQ(void);
-
 static void landisk_power_off(void)
 {
         __raw_writeb(0x01, PA_SHUTDOWN);

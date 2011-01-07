@@ -2,7 +2,7 @@
 #define __ASM_SH_IODATA_LANDISK_H
 
 /*
- * linux/include/asm-sh/landisk/iodata_landisk.h
+ * arch/sh/include/mach-landisk/mach/iodata_landisk.h
  *
  * Copyright (C) 2000  Atom Create Engineering Co., Ltd.
  *
@@ -34,6 +34,8 @@
 #define IRQ_POWER	11		/* Power Switch IRQ */
 #define IRQ_BUTTON	12		/* USL-5P Button IRQ */
 #define IRQ_FAULT	13		/* USL-5P Fault  IRQ */
+
+void init_landisk_IRQ(void);
 
 #define __IO_PREFIX landisk
 #include <asm/io_generic.h>
