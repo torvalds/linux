@@ -181,6 +181,7 @@ struct dentry_operations {
 
 #define DCACHE_CANT_MOUNT	0x0100
 
+extern spinlock_t dcache_inode_lock;
 extern spinlock_t dcache_lock;
 extern seqlock_t rename_lock;
 

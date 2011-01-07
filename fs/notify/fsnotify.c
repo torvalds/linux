@@ -60,6 +60,7 @@ void __fsnotify_update_child_dentry_flags(struct inode *inode)
 	watched = fsnotify_inode_watches_children(inode);
 
 	spin_lock(&dcache_lock);
+	spin_lock(&dcache_inode_lock);
 	/* run all of the dentries associated with this inode.  Since this is a
 	 * directory, there damn well better only be one item on this list */
 	list_for_each_entry(alias, &inode->i_dentry, d_alias) {
@@ -82,6 +83,7 @@ void __fsnotify_update_child_dentry_flags(struct inode *inode)
 		}
 		spin_unlock(&alias->d_lock);
 	}
+	spin_unlock(&dcache_inode_lock);
 	spin_unlock(&dcache_lock);
 }
 
