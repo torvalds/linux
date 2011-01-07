@@ -1227,6 +1227,7 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	DISPLAY_DEVICE_OUTPUT_CONTROL_PS_ALLOCATION args;
 	int index = 0;
 	bool is_dig = false;
+	bool is_dce5_dac = false;
 
 	memset(&args, 0, sizeof(args));
 
@@ -1265,12 +1266,16 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
-		if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT))
-			index = GetIndexIntoMasterTable(COMMAND, TV1OutputControl);
-		else if (radeon_encoder->active_device & (ATOM_DEVICE_CV_SUPPORT))
-			index = GetIndexIntoMasterTable(COMMAND, CV1OutputControl);
-		else
-			index = GetIndexIntoMasterTable(COMMAND, DAC1OutputControl);
+		if (ASIC_IS_DCE5(rdev))
+			is_dce5_dac = true;
+		else {
+			if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT))
+				index = GetIndexIntoMasterTable(COMMAND, TV1OutputControl);
+			else if (radeon_encoder->active_device & (ATOM_DEVICE_CV_SUPPORT))
+				index = GetIndexIntoMasterTable(COMMAND, CV1OutputControl);
+			else
+				index = GetIndexIntoMasterTable(COMMAND, DAC1OutputControl);
+		}
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
@@ -1327,6 +1332,17 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 			}
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
 				atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_LCD_BLOFF, 0, 0);
+			break;
+		}
+	} else if (is_dce5_dac) {
+		switch (mode) {
+		case DRM_MODE_DPMS_ON:
+			atombios_dac_setup(encoder, ATOM_ENABLE);
+			break;
+		case DRM_MODE_DPMS_STANDBY:
+		case DRM_MODE_DPMS_SUSPEND:
+		case DRM_MODE_DPMS_OFF:
+			atombios_dac_setup(encoder, ATOM_DISABLE);
 			break;
 		}
 	} else {
