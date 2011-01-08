@@ -124,9 +124,32 @@ int tegra_powergate_remove_clamping(int id)
 }
 
 /* Must be called with clk disabled, and returns with clk enabled */
+static int tegra_powergate_reset_module(struct clk *clk)
+{
+	int ret;
+
+	tegra_periph_reset_assert(clk);
+
+	udelay(10);
+
+	ret = clk_enable(clk);
+	if (ret)
+		return ret;
+
+	udelay(10);
+
+	tegra_periph_reset_deassert(clk);
+
+	return 0;
+}
+
+/* Must be called with clk disabled, and returns with clk enabled */
 int tegra_powergate_sequence_power_up(int id, struct clk *clk)
 {
 	int ret;
+
+	if (tegra_powergate_is_powered(id))
+		return tegra_powergate_reset_module(clk);
 
 	tegra_periph_reset_assert(clk);
 
