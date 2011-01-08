@@ -37,8 +37,13 @@
 
 /* Secure Monitor mode APIs */
 #define OMAP4_MON_SCU_PWR_INDEX		0x108
+#define OMAP4_MON_L2X0_DBG_CTRL_INDEX	0x100
+#define OMAP4_MON_L2X0_CTRL_INDEX	0x102
+#define OMAP4_MON_L2X0_AUXCTRL_INDEX	0x109
+#define OMAP4_MON_L2X0_PREFETCH_INDEX	0x113
 
 /* Secure PPA(Primary Protected Application) APIs */
+#define OMAP4_PPA_L2_POR_INDEX		0x23
 #define OMAP4_PPA_CPU_ACTRL_SMP_INDEX	0x25
 
 #ifndef __ASSEMBLER__

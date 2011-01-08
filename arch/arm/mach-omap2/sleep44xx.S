@@ -32,6 +32,9 @@
 ppa_zero_params:
 	.word		0x0
 
+ppa_por_params:
+	.word		1, 0
+
 /*
  * =============================
  * == CPU suspend finisher ==
@@ -132,6 +135,54 @@ skip_scu_gp_set:
 	mcrne	p15, 0, r0, c1, c0, 1
 	isb
 	dsb
+#ifdef CONFIG_CACHE_L2X0
+	/*
+	 * Clean and invalidate the L2 cache.
+	 * Common cache-l2x0.c functions can't be used here since it
+	 * uses spinlocks. We are out of coherency here with data cache
+	 * disabled. The spinlock implementation uses exclusive load/store
+	 * instruction which can fail without data cache being enabled.
+	 * OMAP4 hardware doesn't support exclusive monitor which can
+	 * overcome exclusive access issue. Because of this, CPU can
+	 * lead to deadlock.
+	 */
+	bl	omap4_get_sar_ram_base
+	mov	r8, r0
+	mrc	p15, 0, r5, c0, c0, 5		@ Read MPIDR
+	ands	r5, r5, #0x0f
+	ldreq	r0, [r8, #L2X0_SAVE_OFFSET0]	@ Retrieve L2 state from SAR
+	ldrne	r0, [r8, #L2X0_SAVE_OFFSET1]	@ memory.
+	cmp	r0, #3
+	bne	do_WFI
+#ifdef CONFIG_PL310_ERRATA_727915
+	mov	r0, #0x03
+	mov	r12, #OMAP4_MON_L2X0_DBG_CTRL_INDEX
+	DO_SMC
+#endif
+	bl	omap4_get_l2cache_base
+	mov	r2, r0
+	ldr	r0, =0xffff
+	str	r0, [r2, #L2X0_CLEAN_INV_WAY]
+wait:
+	ldr	r0, [r2, #L2X0_CLEAN_INV_WAY]
+	ldr	r1, =0xffff
+	ands	r0, r0, r1
+	bne	wait
+#ifdef CONFIG_PL310_ERRATA_727915
+	mov	r0, #0x00
+	mov	r12, #OMAP4_MON_L2X0_DBG_CTRL_INDEX
+	DO_SMC
+#endif
+l2x_sync:
+	bl	omap4_get_l2cache_base
+	mov	r2, r0
+	mov	r0, #0x0
+	str	r0, [r2, #L2X0_CACHE_SYNC]
+sync:
+	ldr	r0, [r2, #L2X0_CACHE_SYNC]
+	ands	r0, r0, #0x1
+	bne	sync
+#endif
 
 do_WFI:
 	bl	omap_do_wfi
@@ -225,6 +276,50 @@ enable_smp_bit:
 	mcreq	p15, 0, r0, c1, c0, 1
 	isb
 skip_ns_smp_enable:
+#ifdef CONFIG_CACHE_L2X0
+	/*
+	 * Restore the L2 AUXCTRL and enable the L2 cache.
+	 * OMAP4_MON_L2X0_AUXCTRL_INDEX =  Program the L2X0 AUXCTRL
+	 * OMAP4_MON_L2X0_CTRL_INDEX =  Enable the L2 using L2X0 CTRL
+	 * register r0 contains value to be programmed.
+	 * L2 cache is already invalidate by ROM code as part
+	 * of MPUSS OFF wakeup path.
+	 */
+	ldr	r2, =OMAP44XX_L2CACHE_BASE
+	ldr	r0, [r2, #L2X0_CTRL]
+	and	r0, #0x0f
+	cmp	r0, #1
+	beq	skip_l2en			@ Skip if already enabled
+	ldr	r3, =OMAP44XX_SAR_RAM_BASE
+	ldr	r1, [r3, #OMAP_TYPE_OFFSET]
+	cmp	r1, #0x1			@ Check for HS device
+	bne     set_gp_por
+	ldr     r0, =OMAP4_PPA_L2_POR_INDEX
+	ldr     r1, =OMAP44XX_SAR_RAM_BASE
+	ldr     r4, [r1, #L2X0_PREFETCH_CTRL_OFFSET]
+	adr     r3, ppa_por_params
+	str     r4, [r3, #0x04]
+	mov	r1, #0x0			@ Process ID
+	mov	r2, #0x4			@ Flag
+	mov	r6, #0xff
+	mov	r12, #0x00			@ Secure Service ID
+	DO_SMC
+	b	set_aux_ctrl
+set_gp_por:
+	ldr     r1, =OMAP44XX_SAR_RAM_BASE
+	ldr     r0, [r1, #L2X0_PREFETCH_CTRL_OFFSET]
+	ldr	r12, =OMAP4_MON_L2X0_PREFETCH_INDEX	@ Setup L2 PREFETCH
+	DO_SMC
+set_aux_ctrl:
+	ldr     r1, =OMAP44XX_SAR_RAM_BASE
+	ldr	r0, [r1, #L2X0_AUXCTRL_OFFSET]
+	ldr	r12, =OMAP4_MON_L2X0_AUXCTRL_INDEX	@ Setup L2 AUXCTRL
+	DO_SMC
+	mov	r0, #0x1
+	ldr	r12, =OMAP4_MON_L2X0_CTRL_INDEX		@ Enable L2 cache
+	DO_SMC
+skip_l2en:
+#endif
 
 	b	cpu_resume			@ Jump to generic resume
 ENDPROC(omap4_cpu_resume)
