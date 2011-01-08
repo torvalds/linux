@@ -3069,15 +3069,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rtl8168_driver_start(tp);
 	}
 
-	rtl8169_init_phy(dev, tp);
-
-	/*
-	 * Pretend we are using VLANs; This bypasses a nasty bug where
-	 * Interrupts stop flowing on high load on 8110SCd controllers.
-	 */
-	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
-		RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) | RxVlan);
-
 	device_set_wakeup_enable(&pdev->dev, tp->features & RTL_FEATURE_WOL);
 
 	if (pci_dev_run_wake(pdev))
@@ -3127,6 +3118,7 @@ static void __devexit rtl8169_remove_one(struct pci_dev *pdev)
 static int rtl8169_open(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
 	struct pci_dev *pdev = tp->pci_dev;
 	int retval = -ENOMEM;
 
@@ -3162,6 +3154,15 @@ static int rtl8169_open(struct net_device *dev)
 
 	napi_enable(&tp->napi);
 
+	rtl8169_init_phy(dev, tp);
+
+	/*
+	 * Pretend we are using VLANs; This bypasses a nasty bug where
+	 * Interrupts stop flowing on high load on 8110SCd controllers.
+	 */
+	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
+		RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) | RxVlan);
+
 	rtl_pll_power_up(tp);
 
 	rtl_hw_start(dev);
@@ -3171,7 +3172,7 @@ static int rtl8169_open(struct net_device *dev)
 	tp->saved_wolopts = 0;
 	pm_runtime_put_noidle(&pdev->dev);
 
-	rtl8169_check_link_status(dev, tp, tp->mmio_addr);
+	rtl8169_check_link_status(dev, tp, ioaddr);
 out:
 	return retval;
 
