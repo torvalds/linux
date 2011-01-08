@@ -109,3 +109,17 @@ int v4l2_fh_release(struct file *filp)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_fh_release);
+
+int v4l2_fh_is_singular(struct v4l2_fh *fh)
+{
+	unsigned long flags;
+	int is_singular;
+
+	if (fh == NULL || fh->vdev == NULL)
+		return 0;
+	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
+	is_singular = list_is_singular(&fh->list);
+	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
+	return is_singular;
+}
+EXPORT_SYMBOL_GPL(v4l2_fh_is_singular);

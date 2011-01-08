@@ -77,5 +77,18 @@ void v4l2_fh_exit(struct v4l2_fh *fh);
  * v4l2_fh struct) is NULL. This function always returns 0.
  */
 int v4l2_fh_release(struct file *filp);
+/*
+ * Returns 1 if this filehandle is the only filehandle opened for the
+ * associated video_device. If fh is NULL, then it returns 0.
+ */
+int v4l2_fh_is_singular(struct v4l2_fh *fh);
+/*
+ * Helper function with struct file as argument. If filp->private_data is
+ * NULL, then it will return 0.
+ */
+static inline int v4l2_fh_is_singular_file(struct file *filp)
+{
+	return v4l2_fh_is_singular(filp->private_data);
+}
 
 #endif /* V4L2_EVENT_H */
