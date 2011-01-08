@@ -247,13 +247,17 @@ struct iwl_eeprom_enhanced_txpwr {
 #define EEPROM_6050_TX_POWER_VERSION    (4)
 #define EEPROM_6050_EEPROM_VERSION	(0x532)
 
-/* 6x50g2 Specific */
-#define EEPROM_6050G2_TX_POWER_VERSION    (6)
-#define EEPROM_6050G2_EEPROM_VERSION	(0x553)
+/* 6150 Specific */
+#define EEPROM_6150_TX_POWER_VERSION    (6)
+#define EEPROM_6150_EEPROM_VERSION	(0x553)
 
-/* 6x00g2 Specific */
-#define EEPROM_6000G2_TX_POWER_VERSION    (6)
-#define EEPROM_6000G2_EEPROM_VERSION	(0x709)
+/* 6x05 Specific */
+#define EEPROM_6005_TX_POWER_VERSION    (6)
+#define EEPROM_6005_EEPROM_VERSION	(0x709)
+
+/* 6x30 Specific */
+#define EEPROM_6030_TX_POWER_VERSION    (6)
+#define EEPROM_6030_EEPROM_VERSION	(0x709)
 
 /* OTP */
 /* lower blocks contain EEPROM image and calibration data */
