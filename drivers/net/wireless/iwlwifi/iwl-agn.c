@@ -4512,6 +4512,49 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0896, 0x5025, iwl130_bgn_cfg)},
 	{IWL_PCI_DEVICE(0x0896, 0x5027, iwl130_bg_cfg)},
 
+/* 2x00 Series */
+	{IWL_PCI_DEVICE(0x0890, 0x4022, iwl2000_2bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0891, 0x4222, iwl2000_2bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0890, 0x4422, iwl2000_2bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0890, 0x4026, iwl2000_2bg_cfg)},
+	{IWL_PCI_DEVICE(0x0891, 0x4226, iwl2000_2bg_cfg)},
+	{IWL_PCI_DEVICE(0x0890, 0x4426, iwl2000_2bg_cfg)},
+
+/* 2x30 Series */
+	{IWL_PCI_DEVICE(0x0887, 0x4062, iwl2030_2bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0888, 0x4262, iwl2030_2bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0887, 0x4462, iwl2030_2bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0887, 0x4066, iwl2030_2bg_cfg)},
+	{IWL_PCI_DEVICE(0x0888, 0x4266, iwl2030_2bg_cfg)},
+	{IWL_PCI_DEVICE(0x0887, 0x4466, iwl2030_2bg_cfg)},
+
+/* 6x35 Series */
+	{IWL_PCI_DEVICE(0x088E, 0x4060, iwl6035_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x088F, 0x4260, iwl6035_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x088E, 0x4460, iwl6035_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x088E, 0x4064, iwl6035_2abg_cfg)},
+	{IWL_PCI_DEVICE(0x088F, 0x4264, iwl6035_2abg_cfg)},
+	{IWL_PCI_DEVICE(0x088E, 0x4464, iwl6035_2abg_cfg)},
+	{IWL_PCI_DEVICE(0x088E, 0x4066, iwl6035_2bg_cfg)},
+	{IWL_PCI_DEVICE(0x088F, 0x4266, iwl6035_2bg_cfg)},
+	{IWL_PCI_DEVICE(0x088E, 0x4466, iwl6035_2bg_cfg)},
+
+/* 200 Series */
+	{IWL_PCI_DEVICE(0x0894, 0x0022, iwl200_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0895, 0x0222, iwl200_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0894, 0x0422, iwl200_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0894, 0x0026, iwl200_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0895, 0x0226, iwl200_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0894, 0x0426, iwl200_bg_cfg)},
+
+/* 230 Series */
+	{IWL_PCI_DEVICE(0x0892, 0x0062, iwl230_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0893, 0x0262, iwl230_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0892, 0x0462, iwl230_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0892, 0x0066, iwl230_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0893, 0x0266, iwl230_bg_cfg)},
+	{IWL_PCI_DEVICE(0x0892, 0x0466, iwl230_bg_cfg)},
+
 #endif /* CONFIG_IWL5000 */
 
 	{0}
