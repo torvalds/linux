@@ -310,6 +310,7 @@ static struct of_device_id mpc8xxx_gpio_ids[] __initdata = {
 	{ .compatible = "fsl,mpc8572-gpio", },
 	{ .compatible = "fsl,mpc8610-gpio", },
 	{ .compatible = "fsl,mpc5121-gpio", .data = mpc512x_irq_set_type, },
+	{ .compatible = "fsl,qoriq-gpio",   },
 	{}
 };
 
@@ -387,9 +388,6 @@ static int __init mpc8xxx_add_gpiochips(void)
 	struct device_node *np;
 
 	for_each_matching_node(np, mpc8xxx_gpio_ids)
-		mpc8xxx_add_controller(np);
-
-	for_each_compatible_node(np, NULL, "fsl,qoriq-gpio")
 		mpc8xxx_add_controller(np);
 
 	return 0;
