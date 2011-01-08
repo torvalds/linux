@@ -23,6 +23,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
@@ -60,6 +61,20 @@ void v4l2_fh_add(struct v4l2_fh *fh)
 }
 EXPORT_SYMBOL_GPL(v4l2_fh_add);
 
+int v4l2_fh_open(struct file *filp)
+{
+	struct video_device *vdev = video_devdata(filp);
+	struct v4l2_fh *fh = kzalloc(sizeof(*fh), GFP_KERNEL);
+
+	filp->private_data = fh;
+	if (fh == NULL)
+		return -ENOMEM;
+	v4l2_fh_init(fh, vdev);
+	v4l2_fh_add(fh);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_fh_open);
+
 void v4l2_fh_del(struct v4l2_fh *fh)
 {
 	unsigned long flags;
@@ -81,3 +96,16 @@ void v4l2_fh_exit(struct v4l2_fh *fh)
 	v4l2_event_free(fh);
 }
 EXPORT_SYMBOL_GPL(v4l2_fh_exit);
+
+int v4l2_fh_release(struct file *filp)
+{
+	struct v4l2_fh *fh = filp->private_data;
+
+	if (fh) {
+		v4l2_fh_del(fh);
+		v4l2_fh_exit(fh);
+		kfree(fh);
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_fh_release);
