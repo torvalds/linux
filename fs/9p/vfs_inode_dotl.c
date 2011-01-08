@@ -755,30 +755,6 @@ error:
 	return err;
 }
 
-static int
-v9fs_vfs_readlink_dotl(struct dentry *dentry, char *buffer, int buflen)
-{
-	int retval;
-	struct p9_fid *fid;
-	char *target = NULL;
-
-	P9_DPRINTK(P9_DEBUG_VFS, " %s\n", dentry->d_name.name);
-	retval = -EPERM;
-	fid = v9fs_fid_lookup(dentry);
-	if (IS_ERR(fid))
-		return PTR_ERR(fid);
-
-	retval = p9_client_readlink(fid, &target);
-	if (retval < 0)
-		return retval;
-
-	strncpy(buffer, target, buflen);
-	P9_DPRINTK(P9_DEBUG_VFS, "%s -> %s\n", dentry->d_name.name, buffer);
-
-	retval = strnlen(buffer, buflen);
-	return retval;
-}
-
 /**
  * v9fs_vfs_follow_link_dotl - follow a symlink path
  * @dentry: dentry for symlink
@@ -789,23 +765,33 @@ v9fs_vfs_readlink_dotl(struct dentry *dentry, char *buffer, int buflen)
 static void *
 v9fs_vfs_follow_link_dotl(struct dentry *dentry, struct nameidata *nd)
 {
-	int len = 0;
+	int retval;
+	struct p9_fid *fid;
 	char *link = __getname();
+	char *target;
 
-	P9_DPRINTK(P9_DEBUG_VFS, "%s n", dentry->d_name.name);
+	P9_DPRINTK(P9_DEBUG_VFS, "%s\n", dentry->d_name.name);
 
-	if (!link)
+	if (!link) {
 		link = ERR_PTR(-ENOMEM);
-	else {
-		len = v9fs_vfs_readlink_dotl(dentry, link, PATH_MAX);
-		if (len < 0) {
-			__putname(link);
-			link = ERR_PTR(len);
-		} else
-			link[min(len, PATH_MAX-1)] = 0;
+		goto ndset;
 	}
+	fid = v9fs_fid_lookup(dentry);
+	if (IS_ERR(fid)) {
+		__putname(link);
+		link = ERR_PTR(PTR_ERR(fid));
+		goto ndset;
+	}
+	retval = p9_client_readlink(fid, &target);
+	if (!retval) {
+		strcpy(link, target);
+		kfree(target);
+		goto ndset;
+	}
+	__putname(link);
+	link = ERR_PTR(retval);
+ndset:
 	nd_set_link(nd, link);
-
 	return NULL;
 }
 
@@ -839,7 +825,7 @@ const struct inode_operations v9fs_file_inode_operations_dotl = {
 };
 
 const struct inode_operations v9fs_symlink_inode_operations_dotl = {
-	.readlink = v9fs_vfs_readlink_dotl,
+	.readlink = generic_readlink,
 	.follow_link = v9fs_vfs_follow_link_dotl,
 	.put_link = v9fs_vfs_put_link,
 	.getattr = v9fs_vfs_getattr_dotl,
