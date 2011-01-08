@@ -710,7 +710,7 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	for (i = 0; i < spec->num_channels; i++) {
 		rt2x00lib_channel(&channels[i],
 				  spec->channels[i].channel,
-				  spec->channels_info[i].tx_power1, i);
+				  spec->channels_info[i].max_power, i);
 	}
 
 	/*

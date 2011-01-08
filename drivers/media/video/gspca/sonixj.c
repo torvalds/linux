@@ -56,6 +56,7 @@ struct sd {
 	u8 jpegqual;			/* webcam quality */
 
 	u8 reg18;
+	u8 flags;
 
 	s8 ag_cnt;
 #define AG_CNT_START 13
@@ -86,6 +87,9 @@ enum sensors {
 	SENSOR_SOI768,
 	SENSOR_SP80708,
 };
+
+/* device flags */
+#define PDN_INV	1		/* inverse pin S_PWR_DN / sn_xxx tables */
 
 /* V4L2 controls supported by the driver */
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
@@ -1777,7 +1781,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 
 	sd->bridge = id->driver_info >> 16;
-	sd->sensor = id->driver_info;
+	sd->sensor = id->driver_info >> 8;
+	sd->flags = id->driver_info;
 
 	cam = &gspca_dev->cam;
 	if (sd->sensor == SENSOR_ADCM1700) {
@@ -2984,14 +2989,18 @@ static const struct sd_desc sd_desc = {
 /* -- module initialisation -- */
 #define BS(bridge, sensor) \
 	.driver_info = (BRIDGE_ ## bridge << 16) \
-			| SENSOR_ ## sensor
+			| (SENSOR_ ## sensor << 8)
+#define BSF(bridge, sensor, flags) \
+	.driver_info = (BRIDGE_ ## bridge << 16) \
+			| (SENSOR_ ## sensor << 8) \
+			| (flags)
 static const __devinitdata struct usb_device_id device_table[] = {
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0458, 0x7025), BS(SN9C120, MI0360)},
 	{USB_DEVICE(0x0458, 0x702e), BS(SN9C120, OV7660)},
 #endif
-	{USB_DEVICE(0x045e, 0x00f5), BS(SN9C105, OV7660)},
-	{USB_DEVICE(0x045e, 0x00f7), BS(SN9C105, OV7660)},
+	{USB_DEVICE(0x045e, 0x00f5), BSF(SN9C105, OV7660, PDN_INV)},
+	{USB_DEVICE(0x045e, 0x00f7), BSF(SN9C105, OV7660, PDN_INV)},
 	{USB_DEVICE(0x0471, 0x0327), BS(SN9C105, MI0360)},
 	{USB_DEVICE(0x0471, 0x0328), BS(SN9C105, MI0360)},
 	{USB_DEVICE(0x0471, 0x0330), BS(SN9C105, MI0360)},

@@ -2044,9 +2044,11 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 				reg = I915_READ(trans_dp_ctl);
 				reg &= ~(TRANS_DP_PORT_SEL_MASK |
-					 TRANS_DP_SYNC_MASK);
+					 TRANS_DP_SYNC_MASK |
+					 TRANS_DP_BPC_MASK);
 				reg |= (TRANS_DP_OUTPUT_ENABLE |
 					TRANS_DP_ENH_FRAMING);
+				reg |= TRANS_DP_8BPC;
 
 				if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
 				      reg |= TRANS_DP_HSYNC_ACTIVE_HIGH;

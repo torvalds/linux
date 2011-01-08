@@ -212,6 +212,13 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	childregs->sp = sp;  /* override with new user stack pointer */
 
 	/*
+	 * If CLONE_SETTLS is set, set "tp" in the new task to "r4",
+	 * which is passed in as arg #5 to sys_clone().
+	 */
+	if (clone_flags & CLONE_SETTLS)
+		childregs->tp = regs->regs[4];
+
+	/*
 	 * Copy the callee-saved registers from the passed pt_regs struct
 	 * into the context-switch callee-saved registers area.
 	 * We have to restore the callee-saved registers since we may

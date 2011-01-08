@@ -531,6 +531,12 @@ struct drm_nouveau_private {
 	struct work_struct irq_work;
 	struct work_struct hpd_work;
 
+	struct {
+		spinlock_t lock;
+		uint32_t hpd0_bits;
+		uint32_t hpd1_bits;
+	} hpd_state;
+
 	struct list_head vbl_waiting;
 
 	struct {

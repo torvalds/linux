@@ -33,6 +33,7 @@
 #include <linux/interrupt.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/workqueue.h>
 
 #include <mach/arb_sema.h>
 #include <mach/clk.h>
@@ -144,8 +145,7 @@ struct tegra_aes_reqctx {
 	unsigned long mode;
 };
 
-#define TEGRA_AES_QUEUE_LENGTH 1
-#define TEGRA_AES_CACHE_SIZE 0
+#define TEGRA_AES_QUEUE_LENGTH 50
 
 struct tegra_aes_dev {
 	struct device *dev;
@@ -196,6 +196,9 @@ static struct tegra_aes_ctx rng_ctx = {
 static LIST_HEAD(dev_list);
 static DEFINE_SPINLOCK(list_lock);
 static DEFINE_MUTEX(aes_lock);
+
+static void aes_workqueue_handler(struct work_struct *work);
+static DECLARE_WORK(aes_wq, aes_workqueue_handler);
 
 extern unsigned long long tegra_chip_uid(void);
 
@@ -350,7 +353,6 @@ static void aes_release_key_slot(struct tegra_aes_dev *dd)
 	spin_lock(&list_lock);
 	dd->ctx->slot->available = true;
 	dd->ctx->slot = NULL;
-	dd->ctx = NULL;
 	spin_unlock(&list_lock);
 }
 
@@ -379,6 +381,11 @@ static int aes_set_key(struct tegra_aes_dev *dd)
 	struct tegra_aes_ctx *ctx = dd->ctx;
 	int i, eng_busy, icq_empty, dma_busy, ret = 0;
 	bool use_ssk = false;
+
+	if (!ctx) {
+		dev_err(dd->dev, "%s: context invalid\n", __func__);
+		return -EINVAL;
+	}
 
 	/* use ssk? */
 	if (!dd->ctx->slot) {
@@ -472,10 +479,8 @@ static int tegra_aes_handle_req(struct tegra_aes_dev *dd)
 		clear_bit(FLAGS_BUSY, &dd->flags);
 	spin_unlock_irqrestore(&dd->lock, flags);
 
-	if (!async_req) {
-		dev_err(dd->dev, "no request");
-		return 0;
-	}
+	if (!async_req)
+		return -ENODATA;
 
 	if (backlog)
 		backlog->complete(backlog, -EINPROGRESS);
@@ -483,6 +488,9 @@ static int tegra_aes_handle_req(struct tegra_aes_dev *dd)
 	req = ablkcipher_request_cast(async_req);
 
 	dev_dbg(dd->dev, "%s: get new req\n", __func__);
+
+	/* take mutex to access the aes hw */
+	mutex_lock(&aes_lock);
 
 	/* assign new request to device */
 	dd->req = req;
@@ -492,6 +500,15 @@ static int tegra_aes_handle_req(struct tegra_aes_dev *dd)
 	dd->out_offset = 0;
 	dd->out_sg = req->dst;
 
+	in_sg = dd->in_sg;
+	out_sg = dd->out_sg;
+
+	if (!in_sg || !out_sg) {
+		mutex_unlock(&aes_lock);
+		return -EINVAL;
+	}
+
+	total = dd->total;
 	rctx = ablkcipher_request_ctx(req);
 	ctx = crypto_ablkcipher_ctx(crypto_ablkcipher_reqtfm(req));
 	rctx->mode &= FLAGS_MODE_MASK;
@@ -512,9 +529,6 @@ static int tegra_aes_handle_req(struct tegra_aes_dev *dd)
 		ctx->flags |= FLAGS_NEW_KEY;
 	}
 
-	/* take mutex to access the aes hw */
-	mutex_lock(&aes_lock);
-
 	/* take the hardware semaphore */
 	if (tegra_arb_mutex_lock_timeout(dd->res_id, ARB_SEMA_TIMEOUT) < 0) {
 		dev_err(dd->dev, "aes hardware not available\n");
@@ -522,15 +536,17 @@ static int tegra_aes_handle_req(struct tegra_aes_dev *dd)
 		return -EBUSY;
 	}
 
-	total = dd->total;
-	in_sg = dd->in_sg;
-	out_sg = dd->out_sg;
-
 	aes_set_key(dd);
 
 	/* set iv to the aes hw slot */
 	memset(dd->buf_in, 0 , AES_BLOCK_SIZE);
-	memcpy(dd->buf_in, dd->iv, dd->ivlen);
+	ret = copy_from_user((void *)dd->buf_in, (void __user *)dd->iv,
+		dd->ivlen);
+	if (ret < 0) {
+		dev_err(dd->dev, "copy_from_user fail(%d)\n", ret);
+		goto out;
+	}
+
 	ret = aes_start_crypt(dd, (u32)dd->dma_buf_in,
 	  (u32)dd->dma_buf_out, 1, FLAGS_CBC, false);
 	if (ret < 0) {
@@ -586,45 +602,16 @@ out:
 	/* release the hardware semaphore */
 	tegra_arb_mutex_unlock(dd->res_id);
 
+	dd->total = total;
+
 	/* release the mutex */
 	mutex_unlock(&aes_lock);
 
-	dd->total = total;
-	if (!dd->total) {
-		clear_bit(FLAGS_BUSY, &dd->flags);
-		aes_release_key_slot(dd);
-	}
-
-	dev_dbg(dd->dev, "exit\n");
-	return ret;
-}
-
-static int tegra_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
-{
-	struct tegra_aes_reqctx *rctx = ablkcipher_request_ctx(req);
-	struct tegra_aes_dev *dd = aes_dev;
-	unsigned long flags;
-	int err = 0;
-
-	dev_dbg(dd->dev, "nbytes: %d, enc: %d, cbc: %d\n", req->nbytes,
-		!!(mode & FLAGS_ENCRYPT),
-		!!(mode & FLAGS_CBC));
-
-	rctx->mode = mode;
-
-	spin_lock_irqsave(&dd->lock, flags);
-	err = ablkcipher_enqueue_request(&dd->queue, req);
-	spin_unlock_irqrestore(&dd->lock, flags);
-
-	if (!test_and_set_bit(FLAGS_BUSY, &dd->flags))
-		err = tegra_aes_handle_req(dd);
-	else
-		err = -EBUSY;
-
 	if (dd->req->base.complete)
-		dd->req->base.complete(&dd->req->base, err);
+		dd->req->base.complete(&dd->req->base, ret);
 
-	return err;
+	dev_dbg(dd->dev, "%s: exit\n", __func__);
+	return ret;
 }
 
 static int tegra_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
@@ -648,14 +635,17 @@ static int tegra_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 
 	dev_dbg(dd->dev, "keylen: %d\n", keylen);
 
+	ctx->dd = dd;
+	dd->ctx = ctx;
+
+	if (ctx->slot)
+		aes_release_key_slot(dd);
+
 	key_slot = aes_find_key_slot(dd);
 	if (!key_slot) {
 		dev_err(dd->dev, "no empty slot\n");
 		return -ENOMEM;
 	}
-
-	ctx->dd = dd;
-	dd->ctx = ctx;
 
 	ctx->slot = key_slot;
 	ctx->keylen = keylen;
@@ -667,6 +657,55 @@ static int tegra_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 
 	dev_dbg(dd->dev, "done\n");
 	return 0;
+}
+
+static void aes_workqueue_handler(struct work_struct *work)
+{
+	struct tegra_aes_dev *dd = aes_dev;
+	int ret;
+
+	set_bit(FLAGS_BUSY, &dd->flags);
+
+	do {
+		ret = tegra_aes_handle_req(dd);
+	} while (!ret);
+}
+
+static irqreturn_t aes_irq(int irq, void *dev_id)
+{
+	struct tegra_aes_dev *dd = (struct tegra_aes_dev *)dev_id;
+	u32 value = aes_readl(dd, INTR_STATUS);
+
+	dev_dbg(dd->dev, "irq_stat: 0x%x", value);
+	if (!((value & ENGINE_BUSY_FIELD) & !(value & ICQ_EMPTY_FIELD)))
+		complete(&dd->op_complete);
+
+	return IRQ_HANDLED;
+}
+
+static int tegra_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
+{
+	struct tegra_aes_reqctx *rctx = ablkcipher_request_ctx(req);
+	struct tegra_aes_dev *dd = aes_dev;
+	unsigned long flags;
+	int err = 0;
+	int busy;
+
+	dev_dbg(dd->dev, "nbytes: %d, enc: %d, cbc: %d\n", req->nbytes,
+		!!(mode & FLAGS_ENCRYPT),
+		!!(mode & FLAGS_CBC));
+
+	rctx->mode = mode;
+
+	spin_lock_irqsave(&dd->lock, flags);
+	err = ablkcipher_enqueue_request(&dd->queue, req);
+	busy = test_and_set_bit(FLAGS_BUSY, &dd->flags);
+	spin_unlock_irqrestore(&dd->lock, flags);
+
+	if (!busy)
+		schedule_work(&aes_wq);
+
+	return err;
 }
 
 static int tegra_aes_ecb_encrypt(struct ablkcipher_request *req)
@@ -893,18 +932,6 @@ static struct crypto_alg algs[] = {
 	}
 };
 
-static irqreturn_t aes_irq(int irq, void *dev_id)
-{
-	struct tegra_aes_dev *dd = (struct tegra_aes_dev *)dev_id;
-	u32 value = aes_readl(dd, INTR_STATUS);
-
-	dev_dbg(dd->dev, "irq_stat: 0x%x", value);
-	if (!((value & ENGINE_BUSY_FIELD) & !(value & ICQ_EMPTY_FIELD)))
-		complete(&dd->op_complete);
-
-	return IRQ_HANDLED;
-}
-
 static int tegra_aes_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1067,6 +1094,7 @@ static int __devexit tegra_aes_remove(struct platform_device *pdev)
 	if (!dd)
 		return -ENODEV;
 
+	cancel_work_sync(&aes_wq);
 	free_irq(INT_VDE_BSE_V, dd);
 	spin_lock(&list_lock);
 	list_del(&dev_list);
