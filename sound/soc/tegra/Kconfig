@@ -1,0 +1,27 @@
+config SND_TEGRA_SOC
+	tristate "SoC Audio for the Tegra System-on-Chip"
+	depends on ARCH_TEGRA && TEGRA_SYSTEM_DMA
+	default m
+	help
+	  Say Y or M here if you want support for SoC audio on Tegra.
+
+config SND_TEGRA_SOC_I2S
+	tristate
+	depends on SND_TEGRA_SOC
+	depends on !TEGRA_I2S_AUDIO
+	default m
+	help
+	  Say Y or M if you want to add support for codecs attached to the
+	  Tegra I2S interface. You will also need to select the individual
+	  machine drivers to support below.
+
+config SND_TEGRA_SOC_HARMONY
+	tristate "SoC Audio support for Tegra Harmony reference board"
+	depends on SND_TEGRA_SOC && MACH_HARMONY && I2C
+	default m
+	select SND_TEGRA_SOC_I2S
+	select SND_SOC_WM8903
+	help
+	  Say Y or M here if you want to add support for SoC audio on the
+	  Tegra Harmony reference board.
+
