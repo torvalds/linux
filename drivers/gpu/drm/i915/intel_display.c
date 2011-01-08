@@ -3425,8 +3425,9 @@ static bool ironlake_compute_wm0(struct drm_device *dev,
 				 int *cursor_wm)
 {
 	struct drm_crtc *crtc;
-	int htotal, hdisplay, clock, pixel_size = 0;
-	int line_time_us, line_count, entries;
+	int htotal, hdisplay, clock, pixel_size;
+	int line_time_us, line_count;
+	int entries, tlb_miss;
 
 	crtc = intel_get_crtc_for_pipe(dev, pipe);
 	if (crtc->fb == NULL || !crtc->enabled)
@@ -3439,6 +3440,9 @@ static bool ironlake_compute_wm0(struct drm_device *dev,
 
 	/* Use the small buffer method to calculate plane watermark */
 	entries = ((clock * pixel_size / 1000) * display_latency_ns) / 1000;
+	tlb_miss = display->fifo_size*display->cacheline_size - hdisplay * 8;
+	if (tlb_miss > 0)
+		entries += tlb_miss;
 	entries = DIV_ROUND_UP(entries, display->cacheline_size);
 	*plane_wm = entries + display->guard_size;
 	if (*plane_wm > (int)display->max_wm)
@@ -3448,6 +3452,9 @@ static bool ironlake_compute_wm0(struct drm_device *dev,
 	line_time_us = ((htotal * 1000) / clock);
 	line_count = (cursor_latency_ns / line_time_us + 1000) / 1000;
 	entries = line_count * 64 * pixel_size;
+	tlb_miss = cursor->fifo_size*cursor->cacheline_size - hdisplay * 8;
+	if (tlb_miss > 0)
+		entries += tlb_miss;
 	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
 	*cursor_wm = entries + cursor->guard_size;
 	if (*cursor_wm > (int)cursor->max_wm)
