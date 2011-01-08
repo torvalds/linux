@@ -1841,6 +1841,13 @@ struct mac_iveiv_entry {
 #define EEPROM_RSSI_A2_LNA_A2		FIELD16(0xff00)
 
 /*
+ * EEPROM Maximum TX power values
+ */
+#define EEPROM_MAX_TX_POWER		0x0027
+#define EEPROM_MAX_TX_POWER_24GHZ	FIELD16(0x00ff)
+#define EEPROM_MAX_TX_POWER_5GHZ	FIELD16(0xff00)
+
+/*
  * EEPROM TXpower delta: 20MHZ AND 40 MHZ use different power.
  *	This is delta in 40MHZ.
  * VALUE: Tx Power dalta value (MAX=4)

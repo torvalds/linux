@@ -1488,8 +1488,10 @@ static int rt2400pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	spec->channels_info = info;
 
 	tx_power = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_START);
-	for (i = 0; i < 14; i++)
-		info[i].tx_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+	for (i = 0; i < 14; i++) {
+		info[i].max_power = TXPOWER_FROM_DEV(MAX_TXPOWER);
+		info[i].default_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+	}
 
 	return 0;
 }

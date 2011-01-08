@@ -377,7 +377,8 @@ static int watchdog_nmi_enable(int cpu)
 		goto out_save;
 	}
 
-	printk(KERN_ERR "NMI watchdog failed to create perf event on cpu%i: %p\n", cpu, event);
+	printk(KERN_ERR "NMI watchdog disabled for cpu%i: unable to create perf event: %ld\n",
+	       cpu, PTR_ERR(event));
 	return -1;
 
 	/* success path */

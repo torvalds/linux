@@ -212,8 +212,9 @@ struct channel_info {
 	unsigned int flags;
 #define GEOGRAPHY_ALLOWED	0x00000001
 
-	short tx_power1;
-	short tx_power2;
+	short max_power;
+	short default_power1;
+	short default_power2;
 };
 
 /*

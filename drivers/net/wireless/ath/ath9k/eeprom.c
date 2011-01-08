@@ -240,16 +240,16 @@ u16 ath9k_hw_get_max_edge_power(u16 freq, struct cal_ctl_edges *pRdEdgesPower,
 	for (i = 0; (i < num_band_edges) &&
 		     (pRdEdgesPower[i].bChannel != AR5416_BCHAN_UNUSED); i++) {
 		if (freq == ath9k_hw_fbin2freq(pRdEdgesPower[i].bChannel, is2GHz)) {
-			twiceMaxEdgePower = pRdEdgesPower[i].tPower;
+			twiceMaxEdgePower = CTL_EDGE_TPOWER(pRdEdgesPower[i].ctl);
 			break;
 		} else if ((i > 0) &&
 			   (freq < ath9k_hw_fbin2freq(pRdEdgesPower[i].bChannel,
 						      is2GHz))) {
 			if (ath9k_hw_fbin2freq(pRdEdgesPower[i - 1].bChannel,
 					       is2GHz) < freq &&
-			    pRdEdgesPower[i - 1].flag) {
+			    CTL_EDGE_FLAGS(pRdEdgesPower[i - 1].ctl)) {
 				twiceMaxEdgePower =
-					pRdEdgesPower[i - 1].tPower;
+					CTL_EDGE_TPOWER(pRdEdgesPower[i - 1].ctl);
 			}
 			break;
 		}
