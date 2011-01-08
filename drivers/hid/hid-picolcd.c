@@ -1544,7 +1544,7 @@ static ssize_t picolcd_debug_eeprom_read(struct file *f, char __user *u,
 
 	/* prepare buffer with info about what we want to read (addr & len) */
 	raw_data[0] = *off & 0xff;
-	raw_data[1] = (*off >> 8) && 0xff;
+	raw_data[1] = (*off >> 8) & 0xff;
 	raw_data[2] = s < 20 ? s : 20;
 	if (*off + raw_data[2] > 0xff)
 		raw_data[2] = 0x100 - *off;
@@ -1583,7 +1583,7 @@ static ssize_t picolcd_debug_eeprom_write(struct file *f, const char __user *u,
 
 	memset(raw_data, 0, sizeof(raw_data));
 	raw_data[0] = *off & 0xff;
-	raw_data[1] = (*off >> 8) && 0xff;
+	raw_data[1] = (*off >> 8) & 0xff;
 	raw_data[2] = s < 20 ? s : 20;
 	if (*off + raw_data[2] > 0xff)
 		raw_data[2] = 0x100 - *off;
@@ -1867,6 +1867,7 @@ static void picolcd_debug_out_report(struct picolcd_data *data,
 			report->id, raw_size);
 	hid_debug_event(hdev, buff);
 	if (raw_size + 5 > sizeof(raw_data)) {
+		kfree(buff);
 		hid_debug_event(hdev, " TOO BIG\n");
 		return;
 	} else {
