@@ -364,8 +364,8 @@ void rcu_irq_exit(void)
 	WARN_ON_ONCE(rdtp->dynticks & 0x1);
 
 	/* If the interrupt queued a callback, get out of dyntick mode. */
-	if (__get_cpu_var(rcu_sched_data).nxtlist ||
-	    __get_cpu_var(rcu_bh_data).nxtlist)
+	if (__this_cpu_read(rcu_sched_data.nxtlist) ||
+	    __this_cpu_read(rcu_bh_data.nxtlist))
 		set_need_resched();
 }
 

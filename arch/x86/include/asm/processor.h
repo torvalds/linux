@@ -141,10 +141,9 @@ extern __u32			cpu_caps_set[NCAPINTS];
 #ifdef CONFIG_SMP
 DECLARE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
 #define cpu_data(cpu)		per_cpu(cpu_info, cpu)
-#define current_cpu_data	__get_cpu_var(cpu_info)
 #else
+#define cpu_info		boot_cpu_data
 #define cpu_data(cpu)		boot_cpu_data
-#define current_cpu_data	boot_cpu_data
 #endif
 
 extern const struct seq_operations cpuinfo_op;

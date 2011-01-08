@@ -659,7 +659,7 @@ void restore_sched_clock_state(void)
 
 	local_irq_save(flags);
 
-	__get_cpu_var(cyc2ns_offset) = 0;
+	__this_cpu_write(cyc2ns_offset, 0);
 	offset = cyc2ns_suspend - sched_clock();
 
 	for_each_possible_cpu(cpu)

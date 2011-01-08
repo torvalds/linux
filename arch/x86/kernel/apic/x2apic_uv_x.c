@@ -120,8 +120,8 @@ static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 		else if (!strcmp(oem_table_id, "UVX"))
 			uv_system_type = UV_X2APIC;
 		else if (!strcmp(oem_table_id, "UVH")) {
-			__get_cpu_var(x2apic_extra_bits) =
-				pnodeid << uvh_apicid.s.pnode_shift;
+			__this_cpu_write(x2apic_extra_bits,
+				pnodeid << uvh_apicid.s.pnode_shift);
 			uv_system_type = UV_NON_UNIQUE_APIC;
 			uv_set_apicid_hibit();
 			return 1;
@@ -286,7 +286,7 @@ static unsigned int x2apic_get_apic_id(unsigned long x)
 	unsigned int id;
 
 	WARN_ON(preemptible() && num_online_cpus() > 1);
-	id = x | __get_cpu_var(x2apic_extra_bits);
+	id = x | __this_cpu_read(x2apic_extra_bits);
 
 	return id;
 }
@@ -378,7 +378,7 @@ struct apic __refdata apic_x2apic_uv_x = {
 
 static __cpuinit void set_x2apic_extra_bits(int pnode)
 {
-	__get_cpu_var(x2apic_extra_bits) = (pnode << 6);
+	__this_cpu_write(x2apic_extra_bits, (pnode << 6));
 }
 
 /*

@@ -2329,7 +2329,7 @@ asmlinkage void smp_irq_move_cleanup_interrupt(void)
 		unsigned int irr;
 		struct irq_desc *desc;
 		struct irq_cfg *cfg;
-		irq = __get_cpu_var(vector_irq)[vector];
+		irq = __this_cpu_read(vector_irq[vector]);
 
 		if (irq == -1)
 			continue;
@@ -2363,7 +2363,7 @@ asmlinkage void smp_irq_move_cleanup_interrupt(void)
 			apic->send_IPI_self(IRQ_MOVE_CLEANUP_VECTOR);
 			goto unlock;
 		}
-		__get_cpu_var(vector_irq)[vector] = -1;
+		__this_cpu_write(vector_irq[vector], -1);
 unlock:
 		raw_spin_unlock(&desc->lock);
 	}

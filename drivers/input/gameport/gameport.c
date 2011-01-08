@@ -121,7 +121,7 @@ static int gameport_measure_speed(struct gameport *gameport)
 	}
 
 	gameport_close(gameport);
-	return (cpu_data(raw_smp_processor_id()).loops_per_jiffy *
+	return (this_cpu_read(cpu_info.loops_per_jiffy) *
 		(unsigned long)HZ / (1000 / 50)) / (tx < 1 ? 1 : tx);
 
 #else
