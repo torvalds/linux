@@ -1273,7 +1273,7 @@ config FB_MATROX
 	  module will be called matroxfb.
 
 	  You can pass several parameters to the driver at boot time or at
-	  module load time. The parameters look like "video=matrox:XXX", and
+	  module load time. The parameters look like "video=matroxfb:XXX", and
 	  are described in <file:Documentation/fb/matroxfb.txt>.
 
 config FB_MATROX_MILLENIUM
