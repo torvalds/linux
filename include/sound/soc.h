@@ -756,4 +756,8 @@ static inline void *snd_soc_pcm_get_drvdata(struct snd_soc_pcm_runtime *rtd)
 
 #include <sound/soc-dai.h>
 
+#ifdef CONFIG_DEBUG_FS
+extern struct dentry *asoc_debugfs_root;
+#endif
+
 #endif
