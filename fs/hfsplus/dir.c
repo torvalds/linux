@@ -66,11 +66,17 @@ again:
 			goto fail;
 		}
 		cnid = be32_to_cpu(entry.file.id);
-		if (entry.file.user_info.fdType == cpu_to_be32(HFSP_HARDLINK_TYPE) &&
-		    entry.file.user_info.fdCreator == cpu_to_be32(HFSP_HFSPLUS_CREATOR) &&
-		    (entry.file.create_date == HFSPLUS_I(HFSPLUS_SB(sb)->hidden_dir)->create_date ||
-		     entry.file.create_date == HFSPLUS_I(sb->s_root->d_inode)->create_date) &&
-		    HFSPLUS_SB(sb)->hidden_dir) {
+		if (entry.file.user_info.fdType ==
+				cpu_to_be32(HFSP_HARDLINK_TYPE) &&
+				entry.file.user_info.fdCreator ==
+				cpu_to_be32(HFSP_HFSPLUS_CREATOR) &&
+				(entry.file.create_date ==
+					HFSPLUS_I(HFSPLUS_SB(sb)->hidden_dir)->
+						create_date ||
+				entry.file.create_date ==
+					HFSPLUS_I(sb->s_root->d_inode)->
+						create_date) &&
+				HFSPLUS_SB(sb)->hidden_dir) {
 			struct qstr str;
 			char name[32];
 
@@ -83,11 +89,13 @@ again:
 				linkid = 0;
 			} else {
 				dentry->d_fsdata = (void *)(unsigned long)cnid;
-				linkid = be32_to_cpu(entry.file.permissions.dev);
+				linkid =
+					be32_to_cpu(entry.file.permissions.dev);
 				str.len = sprintf(name, "iNode%d", linkid);
 				str.name = name;
 				hfsplus_cat_build_key(sb, fd.search_key,
-					HFSPLUS_SB(sb)->hidden_dir->i_ino, &str);
+					HFSPLUS_SB(sb)->hidden_dir->i_ino,
+					&str);
 				goto again;
 			}
 		} else if (!dentry->d_fsdata)
@@ -139,7 +147,8 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		filp->f_pos++;
 		/* fall through */
 	case 1:
-		hfs_bnode_read(fd.bnode, &entry, fd.entryoffset, fd.entrylength);
+		hfs_bnode_read(fd.bnode, &entry, fd.entryoffset,
+			fd.entrylength);
 		if (be16_to_cpu(entry.type) != HFSPLUS_FOLDER_THREAD) {
 			printk(KERN_ERR "hfs: bad catalog folder thread\n");
 			err = -EIO;
@@ -169,14 +178,16 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			err = -EIO;
 			goto out;
 		}
-		hfs_bnode_read(fd.bnode, &entry, fd.entryoffset, fd.entrylength);
+		hfs_bnode_read(fd.bnode, &entry, fd.entryoffset,
+			fd.entrylength);
 		type = be16_to_cpu(entry.type);
 		len = HFSPLUS_MAX_STRLEN;
 		err = hfsplus_uni2asc(sb, &fd.key->cat.name, strbuf, &len);
 		if (err)
 			goto out;
 		if (type == HFSPLUS_FOLDER) {
-			if (fd.entrylength < sizeof(struct hfsplus_cat_folder)) {
+			if (fd.entrylength <
+					sizeof(struct hfsplus_cat_folder)) {
 				printk(KERN_ERR "hfs: small dir entry\n");
 				err = -EIO;
 				goto out;
@@ -202,7 +213,7 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			err = -EIO;
 			goto out;
 		}
-	next:
+next:
 		filp->f_pos++;
 		if (filp->f_pos >= inode->i_size)
 			goto out;
@@ -273,7 +284,8 @@ static int hfsplus_link(struct dentry *src_dentry, struct inode *dst_dir,
 		HFSPLUS_I(inode)->linkid = id;
 		cnid = sbi->next_cnid++;
 		src_dentry->d_fsdata = (void *)(unsigned long)cnid;
-		res = hfsplus_create_cat(cnid, src_dir, &src_dentry->d_name, inode);
+		res = hfsplus_create_cat(cnid, src_dir,
+			&src_dentry->d_name, inode);
 		if (res)
 			/* panic? */
 			goto out;
@@ -485,6 +497,7 @@ const struct inode_operations hfsplus_dir_inode_operations = {
 };
 
 const struct file_operations hfsplus_dir_operations = {
+	.fsync		= hfsplus_file_fsync,
 	.read		= generic_read_dir,
 	.readdir	= hfsplus_readdir,
 	.unlocked_ioctl = hfsplus_ioctl,

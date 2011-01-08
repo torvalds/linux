@@ -17,14 +17,14 @@
 /* Returns folded char, or 0 if ignorable */
 static inline u16 case_fold(u16 c)
 {
-        u16 tmp;
+	u16 tmp;
 
-        tmp = hfsplus_case_fold_table[c >> 8];
-        if (tmp)
-                tmp = hfsplus_case_fold_table[tmp + (c & 0xff)];
-        else
-                tmp = c;
-        return tmp;
+	tmp = hfsplus_case_fold_table[c >> 8];
+	if (tmp)
+		tmp = hfsplus_case_fold_table[tmp + (c & 0xff)];
+	else
+		tmp = c;
+	return tmp;
 }
 
 /* Compare unicode strings, return values like normal strcmp */
@@ -118,7 +118,9 @@ static u16 *hfsplus_compose_lookup(u16 *p, u16 cc)
 	return NULL;
 }
 
-int hfsplus_uni2asc(struct super_block *sb, const struct hfsplus_unistr *ustr, char *astr, int *len_p)
+int hfsplus_uni2asc(struct super_block *sb,
+		const struct hfsplus_unistr *ustr,
+		char *astr, int *len_p)
 {
 	const hfsplus_unichr *ip;
 	struct nls_table *nls = HFSPLUS_SB(sb)->nls;
@@ -171,7 +173,8 @@ int hfsplus_uni2asc(struct super_block *sb, const struct hfsplus_unistr *ustr, c
 				goto same;
 			c1 = be16_to_cpu(*ip);
 			if (likely(compose))
-				ce1 = hfsplus_compose_lookup(hfsplus_compose_table, c1);
+				ce1 = hfsplus_compose_lookup(
+					hfsplus_compose_table, c1);
 			if (ce1)
 				break;
 			switch (c0) {
@@ -199,7 +202,8 @@ int hfsplus_uni2asc(struct super_block *sb, const struct hfsplus_unistr *ustr, c
 		if (ce2) {
 			i = 1;
 			while (i < ustrlen) {
-				ce1 = hfsplus_compose_lookup(ce2, be16_to_cpu(ip[i]));
+				ce1 = hfsplus_compose_lookup(ce2,
+					be16_to_cpu(ip[i]));
 				if (!ce1)
 					break;
 				i++;
@@ -211,7 +215,7 @@ int hfsplus_uni2asc(struct super_block *sb, const struct hfsplus_unistr *ustr, c
 				goto done;
 			}
 		}
-	same:
+same:
 		switch (c0) {
 		case 0:
 			cc = 0x2400;
@@ -222,7 +226,7 @@ int hfsplus_uni2asc(struct super_block *sb, const struct hfsplus_unistr *ustr, c
 		default:
 			cc = c0;
 		}
-	done:
+done:
 		res = nls->uni2char(cc, op, len);
 		if (res < 0) {
 			if (res == -ENAMETOOLONG)
@@ -392,7 +396,9 @@ int hfsplus_compare_dentry(const struct dentry *parent,
 			astr1 += size;
 			len1 -= size;
 
-			if (!decompose || !(dstr1 = decompose_unichar(c, &dsize1))) {
+			if (decompose)
+				dstr1 = decompose_unichar(c, &dsize1);
+			if (!decompose || !dstr1) {
 				c1 = c;
 				dstr1 = &c1;
 				dsize1 = 1;
@@ -404,7 +410,9 @@ int hfsplus_compare_dentry(const struct dentry *parent,
 			astr2 += size;
 			len2 -= size;
 
-			if (!decompose || !(dstr2 = decompose_unichar(c, &dsize2))) {
+			if (decompose)
+				dstr2 = decompose_unichar(c, &dsize2);
+			if (!decompose || !dstr2) {
 				c2 = c;
 				dstr2 = &c2;
 				dsize2 = 1;
