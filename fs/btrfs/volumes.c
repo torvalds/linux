@@ -600,8 +600,10 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		set_blocksize(bdev, 4096);
 
 		bh = btrfs_read_dev_super(bdev);
-		if (!bh)
+		if (!bh) {
+			ret = -EINVAL;
 			goto error_close;
+		}
 
 		disk_super = (struct btrfs_super_block *)bh->b_data;
 		devid = btrfs_stack_device_id(&disk_super->dev_item);
@@ -702,7 +704,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 		goto error_close;
 	bh = btrfs_read_dev_super(bdev);
 	if (!bh) {
-		ret = -EIO;
+		ret = -EINVAL;
 		goto error_close;
 	}
 	disk_super = (struct btrfs_super_block *)bh->b_data;
@@ -1302,7 +1304,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		set_blocksize(bdev, 4096);
 		bh = btrfs_read_dev_super(bdev);
 		if (!bh) {
-			ret = -EIO;
+			ret = -EINVAL;
 			goto error_close;
 		}
 		disk_super = (struct btrfs_super_block *)bh->b_data;

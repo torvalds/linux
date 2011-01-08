@@ -1713,8 +1713,10 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
 
 	bh = btrfs_read_dev_super(fs_devices->latest_bdev);
-	if (!bh)
+	if (!bh) {
+		err = -EINVAL;
 		goto fail_iput;
+	}
 
 	memcpy(&fs_info->super_copy, bh->b_data, sizeof(fs_info->super_copy));
 	memcpy(&fs_info->super_for_commit, &fs_info->super_copy,
