@@ -259,6 +259,15 @@ struct iwl_eeprom_enhanced_txpwr {
 #define EEPROM_6030_TX_POWER_VERSION    (6)
 #define EEPROM_6030_EEPROM_VERSION	(0x709)
 
+/* 2x00 Specific */
+#define EEPROM_2000_TX_POWER_VERSION    (6)
+#define EEPROM_2000_EEPROM_VERSION	(0x805)
+
+/* 6x35 Specific */
+#define EEPROM_6035_TX_POWER_VERSION    (6)
+#define EEPROM_6035_EEPROM_VERSION	(0x753)
+
+
 /* OTP */
 /* lower blocks contain EEPROM image and calibration data */
 #define OTP_LOW_IMAGE_SIZE		(2 * 512 * sizeof(u16)) /* 2 KB */
@@ -268,6 +277,7 @@ struct iwl_eeprom_enhanced_txpwr {
 #define OTP_MAX_LL_ITEMS_1000		(3)	/* OTP blocks for 1000 */
 #define OTP_MAX_LL_ITEMS_6x00		(4)	/* OTP blocks for 6x00 */
 #define OTP_MAX_LL_ITEMS_6x50		(7)	/* OTP blocks for 6x50 */
+#define OTP_MAX_LL_ITEMS_2x00		(4)	/* OTP blocks for 2x00 */
 
 /* 2.4 GHz */
 extern const u8 iwl_eeprom_band_1[14];
