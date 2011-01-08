@@ -2,6 +2,14 @@
 # SATA/PATA driver configuration
 #
 
+config HAVE_PATA_PLATFORM
+	bool
+	help
+	  This is an internal configuration node for any machine that
+	  uses pata-platform driver to enable the relevant driver in the
+	  configuration structure without having to submit endless patches
+	  to update the PATA_PLATFORM entry.
+
 menuconfig ATA
 	tristate "Serial ATA and Parallel ATA drivers"
 	depends on HAS_IOMEM
@@ -772,14 +780,6 @@ config PATA_PCMCIA
 	  compact flash card adapters via the new ATA layer.
 
 	  If unsure, say N.
-
-config HAVE_PATA_PLATFORM
-	bool
-	help
-	  This is an internal configuration node for any machine that
-	  uses pata-platform driver to enable the relevant driver in the
-	  configuration structure without having to submit endless patches
-	  to update the PATA_PLATFORM entry.
 
 config PATA_PLATFORM
 	tristate "Generic platform device PATA support"
