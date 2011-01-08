@@ -2711,7 +2711,7 @@ static bool ieee80211_prepare_and_rx_handle(struct ieee80211_rx_data *rx,
 		if (!skb) {
 			if (net_ratelimit())
 				wiphy_debug(local->hw.wiphy,
-					"failed to copy multicast frame for %s\n",
+					"failed to copy skb for %s\n",
 					sdata->name);
 			return true;
 		}
