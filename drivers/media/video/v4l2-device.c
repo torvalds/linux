@@ -126,11 +126,19 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	WARN_ON(sd->v4l2_dev != NULL);
 	if (!try_module_get(sd->owner))
 		return -ENODEV;
+	sd->v4l2_dev = v4l2_dev;
+	if (sd->internal_ops && sd->internal_ops->registered) {
+		err = sd->internal_ops->registered(sd);
+		if (err)
+			return err;
+	}
 	/* This just returns 0 if either of the two args is NULL */
 	err = v4l2_ctrl_add_handler(v4l2_dev->ctrl_handler, sd->ctrl_handler);
-	if (err)
+	if (err) {
+		if (sd->internal_ops && sd->internal_ops->unregistered)
+			sd->internal_ops->unregistered(sd);
 		return err;
-	sd->v4l2_dev = v4l2_dev;
+	}
 	spin_lock(&v4l2_dev->lock);
 	list_add_tail(&sd->list, &v4l2_dev->subdevs);
 	spin_unlock(&v4l2_dev->lock);
@@ -146,6 +154,8 @@ void v4l2_device_unregister_subdev(struct v4l2_subdev *sd)
 	spin_lock(&sd->v4l2_dev->lock);
 	list_del(&sd->list);
 	spin_unlock(&sd->v4l2_dev->lock);
+	if (sd->internal_ops && sd->internal_ops->unregistered)
+		sd->internal_ops->unregistered(sd);
 	sd->v4l2_dev = NULL;
 	module_put(sd->owner);
 }

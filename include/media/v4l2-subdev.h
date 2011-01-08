@@ -411,6 +411,21 @@ struct v4l2_subdev_ops {
 	const struct v4l2_subdev_sensor_ops	*sensor;
 };
 
+/*
+ * Internal ops. Never call this from drivers, only the v4l2 framework can call
+ * these ops.
+ *
+ * registered: called when this subdev is registered. When called the v4l2_dev
+ *	field is set to the correct v4l2_device.
+ *
+ * unregistered: called when this subdev is unregistered. When called the
+ *	v4l2_dev field is still set to the correct v4l2_device.
+ */
+struct v4l2_subdev_internal_ops {
+	int (*registered)(struct v4l2_subdev *sd);
+	void (*unregistered)(struct v4l2_subdev *sd);
+};
+
 #define V4L2_SUBDEV_NAME_SIZE 32
 
 /* Set this flag if this subdev is a i2c device. */
@@ -427,6 +442,8 @@ struct v4l2_subdev {
 	u32 flags;
 	struct v4l2_device *v4l2_dev;
 	const struct v4l2_subdev_ops *ops;
+	/* Never call these internal ops from within a driver! */
+	const struct v4l2_subdev_internal_ops *internal_ops;
 	/* The control handler of this subdev. May be NULL. */
 	struct v4l2_ctrl_handler *ctrl_handler;
 	/* name must be unique */
