@@ -1,5 +1,5 @@
 /*
- *  ssp.h
+ *  pxa2xx_ssp.h
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
  *
@@ -16,8 +16,8 @@
  *       PXA3xx     SSP1, SSP2, SSP3, SSP4
  */
 
-#ifndef __ASM_ARCH_SSP_H
-#define __ASM_ARCH_SSP_H
+#ifndef __LINUX_SSP_H
+#define __LINUX_SSP_H
 
 #include <linux/list.h>
 #include <linux/io.h>
@@ -71,11 +71,8 @@
 #define SSCR1_SPO	(1 << 3)	/* Motorola SPI SSPSCLK polarity setting */
 #define SSCR1_SPH	(1 << 4)	/* Motorola SPI SSPSCLK phase setting */
 #define SSCR1_MWDS	(1 << 5)	/* Microwire Transmit Data Size */
-#define SSCR1_TFT	(0x000003c0)	/* Transmit FIFO Threshold (mask) */
-#define SSCR1_TxTresh(x) (((x) - 1) << 6) /* level [1..16] */
-#define SSCR1_RFT	(0x00003c00)	/* Receive FIFO Threshold (mask) */
-#define SSCR1_RxTresh(x) (((x) - 1) << 10) /* level [1..16] */
 
+#define SSSR_ALT_FRM_MASK	3	/* Masks the SFRM signal number */
 #define SSSR_TNF	(1 << 2)	/* Transmit FIFO Not Full */
 #define SSSR_RNE	(1 << 3)	/* Receive FIFO Not Empty */
 #define SSSR_BSY	(1 << 4)	/* SSP Busy */
@@ -83,6 +80,31 @@
 #define SSSR_RFS	(1 << 6)	/* Receive FIFO Service Request */
 #define SSSR_ROR	(1 << 7)	/* Receive FIFO Overrun */
 
+#ifdef CONFIG_ARCH_PXA
+#define RX_THRESH_DFLT	8
+#define TX_THRESH_DFLT	8
+
+#define SSSR_TFL_MASK	(0xf << 8)	/* Transmit FIFO Level mask */
+#define SSSR_RFL_MASK	(0xf << 12)	/* Receive FIFO Level mask */
+
+#define SSCR1_TFT	(0x000003c0)	/* Transmit FIFO Threshold (mask) */
+#define SSCR1_TxTresh(x) (((x) - 1) << 6) /* level [1..16] */
+#define SSCR1_RFT	(0x00003c00)	/* Receive FIFO Threshold (mask) */
+#define SSCR1_RxTresh(x) (((x) - 1) << 10) /* level [1..16] */
+
+#else
+
+#define RX_THRESH_DFLT	2
+#define TX_THRESH_DFLT	2
+
+#define SSSR_TFL_MASK	(0x3 << 8)	/* Transmit FIFO Level mask */
+#define SSSR_RFL_MASK	(0x3 << 12)	/* Receive FIFO Level mask */
+
+#define SSCR1_TFT	(0x000000c0)	/* Transmit FIFO Threshold (mask) */
+#define SSCR1_TxTresh(x) (((x) - 1) << 6) /* level [1..4] */
+#define SSCR1_RFT	(0x00000c00)	/* Receive FIFO Threshold (mask) */
+#define SSCR1_RxTresh(x) (((x) - 1) << 10) /* level [1..4] */
+#endif
 
 /* extra bits in PXA255, PXA26x and PXA27x SSP ports */
 #define SSCR0_TISSP		(1 << 4)	/* TI Sync Serial Protocol */
@@ -139,6 +161,7 @@ enum pxa_ssp_type {
 	PXA25x_NSSP, /* pxa 255, 26x (including ASSP) */
 	PXA27x_SSP,
 	PXA168_SSP,
+	CE4100_SSP,
 };
 
 struct ssp_device {
@@ -183,4 +206,4 @@ static inline u32 pxa_ssp_read_reg(struct ssp_device *dev, u32 reg)
 
 struct ssp_device *pxa_ssp_request(int port, const char *label);
 void pxa_ssp_free(struct ssp_device *);
-#endif /* __ASM_ARCH_SSP_H */
+#endif
