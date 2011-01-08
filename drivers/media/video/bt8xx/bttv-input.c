@@ -319,16 +319,13 @@ static void bttv_ir_start(struct bttv *btv, struct bttv_ir *ir)
 
 static void bttv_ir_stop(struct bttv *btv)
 {
-	if (btv->remote->polling) {
+	if (btv->remote->polling)
 		del_timer_sync(&btv->remote->timer);
-		flush_scheduled_work();
-	}
 
 	if (btv->remote->rc5_gpio) {
 		u32 gpio;
 
 		del_timer_sync(&btv->remote->timer);
-		flush_scheduled_work();
 
 		gpio = bttv_gpio_read(&btv->c);
 		bttv_gpio_write(&btv->c, gpio & ~(1 << 4));

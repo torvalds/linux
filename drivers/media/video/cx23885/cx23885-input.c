@@ -229,8 +229,6 @@ static void cx23885_input_ir_stop(struct cx23885_dev *dev)
 		v4l2_subdev_call(dev->sd_ir, ir, rx_s_parameters, &params);
 		v4l2_subdev_call(dev->sd_ir, ir, rx_g_parameters, &params);
 	}
-
-	flush_scheduled_work();
 }
 
 static void cx23885_input_ir_close(struct rc_dev *rc)

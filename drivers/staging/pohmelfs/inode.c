@@ -1325,8 +1325,8 @@ static void pohmelfs_put_super(struct super_block *sb)
 	}
 
 	psb->trans_scan_timeout = psb->drop_scan_timeout = 0;
-	cancel_rearming_delayed_work(&psb->dwork);
-	cancel_rearming_delayed_work(&psb->drop_dwork);
+	cancel_delayed_work_sync(&psb->dwork);
+	cancel_delayed_work_sync(&psb->drop_dwork);
 	flush_scheduled_work();
 
 	dprintk("%s: stopped workqueues.\n", __func__);

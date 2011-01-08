@@ -551,7 +551,7 @@ void em28xx_deregister_snapshot_button(struct em28xx *dev)
 {
 	if (dev->sbutton_input_dev != NULL) {
 		em28xx_info("Deregistering snapshot button\n");
-		cancel_rearming_delayed_work(&dev->sbutton_query_work);
+		cancel_delayed_work_sync(&dev->sbutton_query_work);
 		input_unregister_device(dev->sbutton_input_dev);
 		dev->sbutton_input_dev = NULL;
 	}

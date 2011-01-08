@@ -189,8 +189,14 @@ static void request_modules(struct bttv *dev)
 	INIT_WORK(&dev->request_module_wk, request_module_async);
 	schedule_work(&dev->request_module_wk);
 }
+
+static void flush_request_modules(struct bttv *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
 #else
 #define request_modules(dev)
+#define flush_request_modules(dev)
 #endif /* CONFIG_MODULES */
 
 
@@ -4428,6 +4434,9 @@ static void __devexit bttv_remove(struct pci_dev *pci_dev)
 
 	if (bttv_verbose)
 		printk("bttv%d: unloading\n",btv->c.nr);
+
+	if (bttv_tvcards[btv->c.type].has_dvb)
+		flush_request_modules(btv);
 
 	/* shutdown everything (DMA+IRQs) */
 	btand(~15, BT848_GPIO_DMA_CTL);

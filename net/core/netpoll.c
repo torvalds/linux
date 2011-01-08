@@ -923,7 +923,7 @@ void __netpoll_cleanup(struct netpoll *np)
 
 		skb_queue_purge(&npinfo->arp_tx);
 		skb_queue_purge(&npinfo->txq);
-		cancel_rearming_delayed_work(&npinfo->tx_work);
+		cancel_delayed_work_sync(&npinfo->tx_work);
 
 		/* clean after last, unfinished work */
 		__skb_queue_purge(&npinfo->txq);

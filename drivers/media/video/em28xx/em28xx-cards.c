@@ -2690,8 +2690,14 @@ static void request_modules(struct em28xx *dev)
 	INIT_WORK(&dev->request_module_wk, request_module_async);
 	schedule_work(&dev->request_module_wk);
 }
+
+static void flush_request_modules(struct em28xx *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
 #else
 #define request_modules(dev)
+#define flush_request_modules(dev)
 #endif /* CONFIG_MODULES */
 
 /*
@@ -3117,6 +3123,8 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		return;
 
 	em28xx_info("disconnecting %s\n", dev->vdev->name);
+
+	flush_request_modules(dev);
 
 	/* wait until all current v4l2 io is finished then deallocate
 	   resources */

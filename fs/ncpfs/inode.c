@@ -317,7 +317,12 @@ static void ncp_stop_tasks(struct ncp_server *server) {
 	sk->sk_write_space  = server->write_space;
 	release_sock(sk);
 	del_timer_sync(&server->timeout_tm);
-	flush_scheduled_work();
+
+	flush_work_sync(&server->rcv.tq);
+	if (sk->sk_socket->type == SOCK_STREAM)
+		flush_work_sync(&server->tx.tq);
+	else
+		flush_work_sync(&server->timeout_tq);
 }
 
 static int  ncp_show_options(struct seq_file *seq, struct vfsmount *mnt)

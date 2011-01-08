@@ -267,8 +267,14 @@ static void request_modules(struct cx18 *dev)
 	INIT_WORK(&dev->request_module_wk, request_module_async);
 	schedule_work(&dev->request_module_wk);
 }
+
+static void flush_request_modules(struct cx18 *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
 #else
 #define request_modules(dev)
+#define flush_request_modules(dev)
 #endif /* CONFIG_MODULES */
 
 /* Generic utility functions */
@@ -1232,6 +1238,8 @@ static void cx18_remove(struct pci_dev *pci_dev)
 	int i;
 
 	CX18_DEBUG_INFO("Removing Card\n");
+
+	flush_request_modules(cx);
 
 	/* Stop all captures */
 	CX18_DEBUG_INFO("Stopping all streams\n");

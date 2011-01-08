@@ -566,3 +566,13 @@ Why:	This field is deprecated. I2C device drivers shouldn't change their
 Who:	Jean Delvare <khali@linux-fr.org>
 
 ----------------------------
+
+What:	cancel_rearming_delayed_work[queue]()
+When:	2.6.39
+
+Why:	The functions have been superceded by cancel_delayed_work_sync()
+	quite some time ago.  The conversion is trivial and there is no
+	in-kernel user left.
+Who:	Tejun Heo <tj@kernel.org>
+
+----------------------------

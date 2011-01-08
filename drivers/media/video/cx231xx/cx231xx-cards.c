@@ -813,8 +813,14 @@ static void request_modules(struct cx231xx *dev)
 	INIT_WORK(&dev->request_module_wk, request_module_async);
 	schedule_work(&dev->request_module_wk);
 }
+
+static void flush_request_modules(struct cx231xx *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
 #else
 #define request_modules(dev)
+#define flush_request_modules(dev)
 #endif /* CONFIG_MODULES */
 
 /*
@@ -1146,6 +1152,8 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 
 	if (!dev->udev)
 		return;
+
+	flush_request_modules(dev);
 
 	/* delete v4l2 device */
 	v4l2_device_unregister(&dev->v4l2_dev);

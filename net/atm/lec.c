@@ -1607,7 +1607,7 @@ static void lec_arp_destroy(struct lec_priv *priv)
 	struct lec_arp_table *entry;
 	int i;
 
-	cancel_rearming_delayed_work(&priv->lec_arp_work);
+	cancel_delayed_work_sync(&priv->lec_arp_work);
 
 	/*
 	 * Remove all entries
