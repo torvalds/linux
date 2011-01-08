@@ -191,6 +191,60 @@ static int ts78xx_ts_nand_dev_ready(struct mtd_info *mtd)
 	return readb(TS_NAND_CTRL) & 0x20;
 }
 
+static void ts78xx_ts_nand_write_buf(struct mtd_info *mtd,
+			const uint8_t *buf, int len)
+{
+	struct nand_chip *chip = mtd->priv;
+	void __iomem *io_base = chip->IO_ADDR_W;
+	unsigned long off = ((unsigned long)buf & 3);
+	int sz;
+
+	if (off) {
+		sz = min(4 - off, len);
+		writesb(io_base, buf, sz);
+		buf += sz;
+		len -= sz;
+	}
+
+	sz = len >> 2;
+	if (sz) {
+		u32 *buf32 = (u32 *)buf;
+		writesl(io_base, buf32, sz);
+		buf += sz << 2;
+		len -= sz << 2;
+	}
+
+	if (len)
+		writesb(io_base, buf, len);
+}
+
+static void ts78xx_ts_nand_read_buf(struct mtd_info *mtd,
+			uint8_t *buf, int len)
+{
+	struct nand_chip *chip = mtd->priv;
+	void __iomem *io_base = chip->IO_ADDR_R;
+	unsigned long off = ((unsigned long)buf & 3);
+	int sz;
+
+	if (off) {
+		sz = min(4 - off, len);
+		readsb(io_base, buf, sz);
+		buf += sz;
+		len -= sz;
+	}
+
+	sz = len >> 2;
+	if (sz) {
+		u32 *buf32 = (u32 *)buf;
+		readsl(io_base, buf32, sz);
+		buf += sz << 2;
+		len -= sz << 2;
+	}
+
+	if (len)
+		readsb(io_base, buf, len);
+}
+
 const char *ts_nand_part_probes[] = { "cmdlinepart", NULL };
 
 static struct mtd_partition ts78xx_ts_nand_parts[] = {
@@ -233,6 +287,8 @@ static struct platform_nand_data ts78xx_ts_nand_data = {
 		 */
 		.cmd_ctrl		= ts78xx_ts_nand_cmd_ctrl,
 		.dev_ready		= ts78xx_ts_nand_dev_ready,
+		.write_buf		= ts78xx_ts_nand_write_buf,
+		.read_buf		= ts78xx_ts_nand_read_buf,
 	},
 };
 
