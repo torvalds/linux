@@ -1069,7 +1069,6 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct buffer_head *dibh;
 	u32 ouid, ogid, nuid, ngid;
 	int error;
 
@@ -1100,24 +1099,9 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	if (error)
 		goto out_gunlock_q;
 
-	error = gfs2_meta_inode_buffer(ip, &dibh);
+	error = gfs2_setattr_simple(ip, attr);
 	if (error)
 		goto out_end_trans;
-
-	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		int error;
-
-		error = vmtruncate(inode, attr->ia_size);
-		gfs2_assert_warn(sdp, !error);
-	}
-
-	setattr_copy(inode, attr);
-	mark_inode_dirty(inode);
-
-	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-	gfs2_dinode_out(ip, dibh->b_data);
-	brelse(dibh);
 
 	if (ouid != NO_QUOTA_CHANGE || ogid != NO_QUOTA_CHANGE) {
 		u64 blocks = gfs2_get_inode_blocks(&ip->i_inode);

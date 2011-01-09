@@ -1933,8 +1933,7 @@ void disable_IO_APIC(void)
  *
  * by Matt Domsch <Matt_Domsch@dell.com>  Tue Dec 21 12:25:05 CST 1999
  */
-
-void __init setup_ioapic_ids_from_mpc(void)
+void __init setup_ioapic_ids_from_mpc_nocheck(void)
 {
 	union IO_APIC_reg_00 reg_00;
 	physid_mask_t phys_id_present_map;
@@ -1943,15 +1942,6 @@ void __init setup_ioapic_ids_from_mpc(void)
 	unsigned char old_id;
 	unsigned long flags;
 
-	if (acpi_ioapic)
-		return;
-	/*
-	 * Don't check I/O APIC IDs for xAPIC systems.  They have
-	 * no meaning without the serial APIC bus.
-	 */
-	if (!(boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
-		|| APIC_XAPIC(apic_version[boot_cpu_physical_apicid]))
-		return;
 	/*
 	 * This is broken; anything with a real cpu count has to
 	 * circumvent this idiocy regardless.
@@ -2005,7 +1995,6 @@ void __init setup_ioapic_ids_from_mpc(void)
 			physids_or(phys_id_present_map, phys_id_present_map, tmp);
 		}
 
-
 		/*
 		 * We need to adjust the IRQ routing table
 		 * if the ID changed.
@@ -2040,6 +2029,21 @@ void __init setup_ioapic_ids_from_mpc(void)
 		else
 			apic_printk(APIC_VERBOSE, " ok.\n");
 	}
+}
+
+void __init setup_ioapic_ids_from_mpc(void)
+{
+
+	if (acpi_ioapic)
+		return;
+	/*
+	 * Don't check I/O APIC IDs for xAPIC systems.  They have
+	 * no meaning without the serial APIC bus.
+	 */
+	if (!(boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		|| APIC_XAPIC(apic_version[boot_cpu_physical_apicid]))
+		return;
+	setup_ioapic_ids_from_mpc_nocheck();
 }
 #endif
 
@@ -3593,7 +3597,7 @@ int __init io_apic_get_redir_entries (int ioapic)
 	return reg_01.bits.entries + 1;
 }
 
-void __init probe_nr_irqs_gsi(void)
+static void __init probe_nr_irqs_gsi(void)
 {
 	int nr;
 
@@ -3910,7 +3914,7 @@ static struct resource * __init ioapic_setup_resources(int nr_ioapics)
 	return res;
 }
 
-void __init ioapic_init_mappings(void)
+void __init ioapic_and_gsi_init(void)
 {
 	unsigned long ioapic_phys, idx = FIX_IO_APIC_BASE_0;
 	struct resource *ioapic_res;
@@ -3948,6 +3952,8 @@ fake_ioapic_page:
 		ioapic_res->end = ioapic_phys + IO_APIC_SLOT_SIZE - 1;
 		ioapic_res++;
 	}
+
+	probe_nr_irqs_gsi();
 }
 
 void __init ioapic_insert_resources(void)
@@ -4057,7 +4063,8 @@ void __init pre_init_apic_IRQ0(void)
 
 	printk(KERN_INFO "Early APIC setup for system timer0\n");
 #ifndef CONFIG_SMP
-	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
+	physid_set_mask_of_physid(boot_cpu_physical_apicid,
+					 &phys_cpu_present_map);
 #endif
 	/* Make sure the irq descriptor is set up */
 	cfg = alloc_irq_and_cfg_at(0, 0);

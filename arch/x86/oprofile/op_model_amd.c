@@ -610,6 +610,7 @@ static int force_ibs_eilvt_setup(void)
 		ret = setup_ibs_ctl(i);
 		if (ret)
 			return ret;
+		pr_err(FW_BUG "using offset %d for IBS interrupts\n", i);
 		return 0;
 	}
 

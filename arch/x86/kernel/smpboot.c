@@ -1161,6 +1161,20 @@ out:
 	preempt_enable();
 }
 
+void arch_disable_nonboot_cpus_begin(void)
+{
+	/*
+	 * Avoid the smp alternatives switch during the disable_nonboot_cpus().
+	 * In the suspend path, we will be back in the SMP mode shortly anyways.
+	 */
+	skip_smp_alternatives = true;
+}
+
+void arch_disable_nonboot_cpus_end(void)
+{
+	skip_smp_alternatives = false;
+}
+
 void arch_enable_nonboot_cpus_begin(void)
 {
 	set_mtrr_aps_delayed_init();
