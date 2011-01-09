@@ -307,7 +307,7 @@ extern struct dentry *__d_lookup_rcu(struct dentry *parent, struct qstr *name,
  * __d_rcu_to_refcount - take a refcount on dentry if sequence check is ok
  * @dentry: dentry to take a ref on
  * @seq: seqcount to verify against
- * @Returns: 0 on failure, else 1.
+ * Returns: 0 on failure, else 1.
  *
  * __d_rcu_to_refcount operates on a dentry,seq pair that was returned
  * by __d_lookup_rcu, to get a reference on an rcu-walk dentry.
