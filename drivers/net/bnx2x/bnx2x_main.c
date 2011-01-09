@@ -9508,8 +9508,14 @@ static void __devexit bnx2x_remove_one(struct pci_dev *pdev)
 	/* Delete all NAPI objects */
 	bnx2x_del_all_napi(bp);
 
+	/* Power on: we can't let PCI layer write to us while we are in D3 */
+	bnx2x_set_power_state(bp, PCI_D0);
+
 	/* Disable MSI/MSI-X */
 	bnx2x_disable_msi(bp);
+
+	/* Power off */
+	bnx2x_set_power_state(bp, PCI_D3hot);
 
 	/* Make sure RESET task is not scheduled before continuing */
 	cancel_delayed_work_sync(&bp->reset_task);
