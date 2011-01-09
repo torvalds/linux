@@ -48,8 +48,10 @@ extern int eth_validate_addr(struct net_device *dev);
 
 
 
-extern struct net_device *alloc_etherdev_mq(int sizeof_priv, unsigned int queue_count);
+extern struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
+					    unsigned int rxqs);
 #define alloc_etherdev(sizeof_priv) alloc_etherdev_mq(sizeof_priv, 1)
+#define alloc_etherdev_mq(sizeof_priv, count) alloc_etherdev_mqs(sizeof_priv, count, count)
 
 /**
  * is_zero_ether_addr - Determine if give Ethernet address is all zeros.

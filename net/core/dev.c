@@ -5617,18 +5617,20 @@ struct netdev_queue *dev_ingress_queue_create(struct net_device *dev)
 }
 
 /**
- *	alloc_netdev_mq - allocate network device
+ *	alloc_netdev_mqs - allocate network device
  *	@sizeof_priv:	size of private data to allocate space for
  *	@name:		device name format string
  *	@setup:		callback to initialize device
- *	@queue_count:	the number of subqueues to allocate
+ *	@txqs:		the number of TX subqueues to allocate
+ *	@rxqs:		the number of RX subqueues to allocate
  *
  *	Allocates a struct net_device with private data area for driver use
  *	and performs basic initialization.  Also allocates subquue structs
- *	for each queue on the device at the end of the netdevice.
+ *	for each queue on the device.
  */
-struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
-		void (*setup)(struct net_device *), unsigned int queue_count)
+struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
+		void (*setup)(struct net_device *),
+		unsigned int txqs, unsigned int rxqs)
 {
 	struct net_device *dev;
 	size_t alloc_size;
@@ -5636,11 +5638,19 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
-	if (queue_count < 1) {
+	if (txqs < 1) {
 		pr_err("alloc_netdev: Unable to allocate device "
 		       "with zero queues.\n");
 		return NULL;
 	}
+
+#ifdef CONFIG_RPS
+	if (rxqs < 1) {
+		pr_err("alloc_netdev: Unable to allocate device "
+		       "with zero RX queues.\n");
+		return NULL;
+	}
+#endif
 
 	alloc_size = sizeof(struct net_device);
 	if (sizeof_priv) {
@@ -5672,14 +5682,14 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 
 	dev_net_set(dev, &init_net);
 
-	dev->num_tx_queues = queue_count;
-	dev->real_num_tx_queues = queue_count;
+	dev->num_tx_queues = txqs;
+	dev->real_num_tx_queues = txqs;
 	if (netif_alloc_netdev_queues(dev))
 		goto free_pcpu;
 
 #ifdef CONFIG_RPS
-	dev->num_rx_queues = queue_count;
-	dev->real_num_rx_queues = queue_count;
+	dev->num_rx_queues = rxqs;
+	dev->real_num_rx_queues = rxqs;
 	if (netif_alloc_rx_queues(dev))
 		goto free_pcpu;
 #endif
@@ -5707,7 +5717,7 @@ free_p:
 	kfree(p);
 	return NULL;
 }
-EXPORT_SYMBOL(alloc_netdev_mq);
+EXPORT_SYMBOL(alloc_netdev_mqs);
 
 /**
  *	free_netdev - free network device
