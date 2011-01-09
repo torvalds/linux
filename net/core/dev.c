@@ -1971,16 +1971,14 @@ static void dev_gso_skb_destructor(struct sk_buff *skb)
 /**
  *	dev_gso_segment - Perform emulated hardware segmentation on skb.
  *	@skb: buffer to segment
+ *	@features: device features as applicable to this skb
  *
  *	This function segments the given skb and stores the list of segments
  *	in skb->next.
  */
-static int dev_gso_segment(struct sk_buff *skb)
+static int dev_gso_segment(struct sk_buff *skb, int features)
 {
-	struct net_device *dev = skb->dev;
 	struct sk_buff *segs;
-	int features = dev->features & ~(illegal_highdma(dev, skb) ?
-					 NETIF_F_SG : 0);
 
 	segs = skb_gso_segment(skb, features);
 
@@ -2112,7 +2110,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 		}
 
 		if (netif_needs_gso(skb, features)) {
-			if (unlikely(dev_gso_segment(skb)))
+			if (unlikely(dev_gso_segment(skb, features)))
 				goto out_kfree_skb;
 			if (skb->next)
 				goto gso;
