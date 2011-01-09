@@ -3152,7 +3152,6 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 #define LOAD_COUNTER_MASK	(((u32)0x1 << LOAD_COUNTER_BITS) - 1)
 #define RESET_DONE_FLAG_MASK	(~LOAD_COUNTER_MASK)
 #define RESET_DONE_FLAG_SHIFT	LOAD_COUNTER_BITS
-#define CHIP_PARITY_SUPPORTED(bp)   (CHIP_IS_E1(bp) || CHIP_IS_E1H(bp))
 
 /*
  * should be run under rtnl lock
@@ -3527,7 +3526,7 @@ static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
 	   try to handle this event */
 	bnx2x_acquire_alr(bp);
 
-	if (bnx2x_chk_parity_attn(bp)) {
+	if (CHIP_PARITY_ENABLED(bp) && bnx2x_chk_parity_attn(bp)) {
 		bp->recovery_state = BNX2X_RECOVERY_INIT;
 		bnx2x_set_reset_in_progress(bp);
 		schedule_delayed_work(&bp->reset_task, 0);
@@ -4754,7 +4753,7 @@ static int bnx2x_int_mem_test(struct bnx2x *bp)
 	return 0; /* OK */
 }
 
-static void enable_blocks_attention(struct bnx2x *bp)
+static void bnx2x_enable_blocks_attention(struct bnx2x *bp)
 {
 	REG_WR(bp, PXP_REG_PXP_INT_MASK_0, 0);
 	if (CHIP_IS_E2(bp))
@@ -4808,52 +4807,8 @@ static void enable_blocks_attention(struct bnx2x *bp)
 	REG_WR(bp, CDU_REG_CDU_INT_MASK, 0);
 	REG_WR(bp, DMAE_REG_DMAE_INT_MASK, 0);
 /*	REG_WR(bp, MISC_REG_MISC_INT_MASK, 0); */
-	REG_WR(bp, PBF_REG_PBF_INT_MASK, 0X18);		/* bit 3,4 masked */
+	REG_WR(bp, PBF_REG_PBF_INT_MASK, 0x18);		/* bit 3,4 masked */
 }
-
-static const struct {
-	u32 addr;
-	u32 mask;
-} bnx2x_parity_mask[] = {
-	{PXP_REG_PXP_PRTY_MASK,		0x3ffffff},
-	{PXP2_REG_PXP2_PRTY_MASK_0,	0xffffffff},
-	{PXP2_REG_PXP2_PRTY_MASK_1,	0x7f},
-	{HC_REG_HC_PRTY_MASK,		0x7},
-	{MISC_REG_MISC_PRTY_MASK,	0x1},
-	{QM_REG_QM_PRTY_MASK,		0x0},
-	{DORQ_REG_DORQ_PRTY_MASK,	0x0},
-	{GRCBASE_UPB + PB_REG_PB_PRTY_MASK, 0x0},
-	{GRCBASE_XPB + PB_REG_PB_PRTY_MASK, 0x0},
-	{SRC_REG_SRC_PRTY_MASK,		0x4}, /* bit 2 */
-	{CDU_REG_CDU_PRTY_MASK,		0x0},
-	{CFC_REG_CFC_PRTY_MASK,		0x0},
-	{DBG_REG_DBG_PRTY_MASK,		0x0},
-	{DMAE_REG_DMAE_PRTY_MASK,	0x0},
-	{BRB1_REG_BRB1_PRTY_MASK,	0x0},
-	{PRS_REG_PRS_PRTY_MASK,		(1<<6)},/* bit 6 */
-	{TSDM_REG_TSDM_PRTY_MASK,	0x18},	/* bit 3,4 */
-	{CSDM_REG_CSDM_PRTY_MASK,	0x8},	/* bit 3 */
-	{USDM_REG_USDM_PRTY_MASK,	0x38},  /* bit 3,4,5 */
-	{XSDM_REG_XSDM_PRTY_MASK,	0x8},	/* bit 3 */
-	{TSEM_REG_TSEM_PRTY_MASK_0,	0x0},
-	{TSEM_REG_TSEM_PRTY_MASK_1,	0x0},
-	{USEM_REG_USEM_PRTY_MASK_0,	0x0},
-	{USEM_REG_USEM_PRTY_MASK_1,	0x0},
-	{CSEM_REG_CSEM_PRTY_MASK_0,	0x0},
-	{CSEM_REG_CSEM_PRTY_MASK_1,	0x0},
-	{XSEM_REG_XSEM_PRTY_MASK_0,	0x0},
-	{XSEM_REG_XSEM_PRTY_MASK_1,	0x0}
-};
-
-static void enable_blocks_parity(struct bnx2x *bp)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(bnx2x_parity_mask); i++)
-		REG_WR(bp, bnx2x_parity_mask[i].addr,
-			bnx2x_parity_mask[i].mask);
-}
-
 
 static void bnx2x_reset_common(struct bnx2x *bp)
 {
@@ -5350,9 +5305,9 @@ static int bnx2x_init_hw_common(struct bnx2x *bp, u32 load_code)
 	/* clear PXP2 attentions */
 	REG_RD(bp, PXP2_REG_PXP2_INT_STS_CLR_0);
 
-	enable_blocks_attention(bp);
-	if (CHIP_PARITY_SUPPORTED(bp))
-		enable_blocks_parity(bp);
+	bnx2x_enable_blocks_attention(bp);
+	if (CHIP_PARITY_ENABLED(bp))
+		bnx2x_enable_blocks_parity(bp);
 
 	if (!BP_NOMCP(bp)) {
 		/* In E2 2-PORT mode, same ext phy is used for the two paths */

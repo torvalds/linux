@@ -636,6 +636,7 @@ struct bnx2x_common {
 
 #define CHIP_METAL(bp)			(bp->common.chip_id & 0x00000ff0)
 #define CHIP_BOND_ID(bp)		(bp->common.chip_id & 0x0000000f)
+#define CHIP_PARITY_ENABLED(bp)	(CHIP_IS_E1(bp) || CHIP_IS_E1H(bp))
 
 	int			flash_size;
 #define NVRAM_1MB_SIZE			0x20000	/* 1M bit in bytes */
