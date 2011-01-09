@@ -113,7 +113,7 @@ static const struct net_device_ops hydra_netdev_ops = {
 static int hydra_init(struct zorro_dev *z)
 {
     struct net_device *dev;
-    unsigned long board = ZTWO_VADDR(z->resource.start);
+    unsigned long board = (unsigned long)ZTWO_VADDR(z->resource.start);
     unsigned long ioaddr = board+HYDRA_NIC_BASE;
     const char name[] = "NE2000";
     int start_page, stop_page;

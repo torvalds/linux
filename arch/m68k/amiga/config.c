@@ -618,7 +618,7 @@ static int __init amiga_savekmsg_setup(char *arg)
 
 	/* Just steal the block, the chipram allocator isn't functional yet */
 	amiga_chip_size -= SAVEKMSG_MAXMEM;
-	savekmsg = (void *)ZTWO_VADDR(CHIP_PHYSADDR + amiga_chip_size);
+	savekmsg = ZTWO_VADDR(CHIP_PHYSADDR + amiga_chip_size);
 	savekmsg->magic1 = SAVEKMSG_MAGIC1;
 	savekmsg->magic2 = SAVEKMSG_MAGIC2;
 	savekmsg->magicptr = ZTWO_PADDR(savekmsg);

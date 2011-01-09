@@ -287,7 +287,7 @@ static const struct net_device_ops zorro8390_netdev_ops = {
 };
 
 static int zorro8390_init(struct net_device *dev, unsigned long board,
-			  const char *name, unsigned long ioaddr)
+			  const char *name, void __iomem *ioaddr)
 {
 	int i;
 	int err;
@@ -354,7 +354,7 @@ static int zorro8390_init(struct net_device *dev, unsigned long board,
 	start_page = NESM_START_PG;
 	stop_page = NESM_STOP_PG;
 
-	dev->base_addr = ioaddr;
+	dev->base_addr = (unsigned long)ioaddr;
 	dev->irq = IRQ_AMIGA_PORTS;
 
 	/* Install the Interrupt handler */

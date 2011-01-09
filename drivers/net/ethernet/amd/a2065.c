@@ -713,8 +713,8 @@ static int a2065_init_one(struct zorro_dev *z,
 	dev->dev_addr[3] = (z->rom.er_SerialNumber >> 16) & 0xff;
 	dev->dev_addr[4] = (z->rom.er_SerialNumber >> 8) & 0xff;
 	dev->dev_addr[5] = z->rom.er_SerialNumber & 0xff;
-	dev->base_addr = ZTWO_VADDR(base_addr);
-	dev->mem_start = ZTWO_VADDR(mem_start);
+	dev->base_addr = (unsigned long)ZTWO_VADDR(base_addr);
+	dev->mem_start = (unsigned long)ZTWO_VADDR(mem_start);
 	dev->mem_end = dev->mem_start + A2065_RAM_SIZE;
 
 	priv->ll = (volatile struct lance_regs *)dev->base_addr;

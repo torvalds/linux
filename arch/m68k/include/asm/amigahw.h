@@ -266,7 +266,7 @@ struct CIA {
 
 #define zTwoBase (0x80000000)
 #define ZTWO_PADDR(x) (((unsigned long)(x))-zTwoBase)
-#define ZTWO_VADDR(x) (((unsigned long)(x))+zTwoBase)
+#define ZTWO_VADDR(x) ((void __iomem *)(((unsigned long)(x))+zTwoBase))
 
 #define CUSTOM_PHYSADDR     (0xdff000)
 #define amiga_custom ((*(volatile struct CUSTOM *)(zTwoBase+CUSTOM_PHYSADDR)))

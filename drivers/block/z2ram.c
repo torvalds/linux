@@ -116,8 +116,8 @@ get_z2ram( void )
 	if ( test_bit( i, zorro_unused_z2ram ) )
 	{
 	    z2_count++;
-	    z2ram_map[ z2ram_size++ ] = 
-		ZTWO_VADDR( Z2RAM_START ) + ( i << Z2RAM_CHUNKSHIFT );
+	    z2ram_map[z2ram_size++] = (unsigned long)ZTWO_VADDR(Z2RAM_START) +
+				      (i << Z2RAM_CHUNKSHIFT);
 	    clear_bit( i, zorro_unused_z2ram );
 	}
     }
