@@ -202,7 +202,7 @@ static int acl_permission_check(struct inode *inode, int mask, unsigned int flag
  * @inode:	inode to check access rights for
  * @mask:	right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC)
  * @check_acl:	optional callback to check for Posix ACLs
- * @flags	IPERM_FLAG_ flags.
+ * @flags:	IPERM_FLAG_ flags.
  *
  * Used to check for read/write/execute permissions on a file.
  * We use "fsuid" for this, letting us set arbitrary permissions
@@ -407,7 +407,7 @@ void path_put_long(struct path *path)
 /**
  * nameidata_drop_rcu - drop this nameidata out of rcu-walk
  * @nd: nameidata pathwalk data to drop
- * @Returns: 0 on success, -ECHLID on failure
+ * Returns: 0 on success, -ECHILD on failure
  *
  * Path walking has 2 modes, rcu-walk and ref-walk (see
  * Documentation/filesystems/path-lookup.txt). __drop_rcu* functions attempt
@@ -468,7 +468,7 @@ static inline int nameidata_drop_rcu_maybe(struct nameidata *nd)
  * nameidata_dentry_drop_rcu - drop nameidata and dentry out of rcu-walk
  * @nd: nameidata pathwalk data to drop
  * @dentry: dentry to drop
- * @Returns: 0 on success, -ECHLID on failure
+ * Returns: 0 on success, -ECHILD on failure
  *
  * nameidata_dentry_drop_rcu attempts to drop the current nd->path and nd->root,
  * and dentry into ref-walk. @dentry must be a path found by a do_lookup call on
@@ -530,7 +530,7 @@ static inline int nameidata_dentry_drop_rcu_maybe(struct nameidata *nd, struct d
 /**
  * nameidata_drop_rcu_last - drop nameidata ending path walk out of rcu-walk
  * @nd: nameidata pathwalk data to drop
- * @Returns: 0 on success, -ECHLID on failure
+ * Returns: 0 on success, -ECHILD on failure
  *
  * nameidata_drop_rcu_last attempts to drop the current nd->path into ref-walk.
  * nd->path should be the final element of the lookup, so nd->root is discarded.
