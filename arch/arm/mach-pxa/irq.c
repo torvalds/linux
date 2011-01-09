@@ -226,7 +226,7 @@ static int pxa_irq_resume(struct sys_device *dev)
 		__raw_writel(0, base + ICLR);
 	}
 
-	if (!cpu_is_pxa25x())
+	if (cpu_has_ipr())
 		for (i = 0; i < pxa_internal_irq_nr; i++)
 			__raw_writel(saved_ipr[i], IRQ_BASE + IPR(i));
 
