@@ -703,10 +703,12 @@ information.</para>
     &sub-vyuy;
     &sub-y41p;
     &sub-yuv420;
+    &sub-yuv420m;
     &sub-yuv410;
     &sub-yuv422p;
     &sub-yuv411p;
     &sub-nv12;
+    &sub-nv12m;
     &sub-nv16;
   </section>
 
