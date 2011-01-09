@@ -274,6 +274,16 @@ config SENSORS_ATXP1
 	  This driver can also be built as a module.  If so, the module
 	  will be called atxp1.
 
+config SENSORS_DS620
+	tristate "Dallas Semiconductor DS620"
+	depends on I2C
+	help
+	  If you say yes here you get support for Dallas Semiconductor
+	  DS620 sensor chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ds620.
+
 config SENSORS_DS1621
 	tristate "Dallas Semiconductor DS1621 and DS1625"
 	depends on I2C
