@@ -379,6 +379,7 @@ struct radeon_encoder {
 	int hdmi_audio_workaround;
 	int hdmi_buffer_status;
 	bool is_ext_encoder;
+	u16 caps;
 };
 
 struct radeon_connector_atom_dig {

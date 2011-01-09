@@ -37,7 +37,7 @@ radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device,
 extern void radeon_link_encoder_connector(struct drm_device *dev);
 extern void
 radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum,
-			uint32_t supported_device);
+			uint32_t supported_device, u16 caps);
 
 /* from radeon_connector.c */
 extern void
@@ -537,6 +537,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 	u16 size, data_offset;
 	u8 frev, crev;
 	ATOM_CONNECTOR_OBJECT_TABLE *con_obj;
+	ATOM_ENCODER_OBJECT_TABLE *enc_obj;
 	ATOM_OBJECT_TABLE *router_obj;
 	ATOM_DISPLAY_OBJECT_PATH_TABLE *path_obj;
 	ATOM_OBJECT_HEADER *obj_header;
@@ -561,6 +562,9 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 	con_obj = (ATOM_CONNECTOR_OBJECT_TABLE *)
 	    (ctx->bios + data_offset +
 	     le16_to_cpu(obj_header->usConnectorObjectTableOffset));
+	enc_obj = (ATOM_ENCODER_OBJECT_TABLE *)
+	    (ctx->bios + data_offset +
+	     le16_to_cpu(obj_header->usEncoderObjectTableOffset));
 	router_obj = (ATOM_OBJECT_TABLE *)
 		(ctx->bios + data_offset +
 		 le16_to_cpu(obj_header->usRouterObjectTableOffset));
@@ -666,14 +670,35 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 				     OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
 
 				if (grph_obj_type == GRAPH_OBJECT_TYPE_ENCODER) {
-					u16 encoder_obj = le16_to_cpu(path->usGraphicObjIds[j]);
+					for (k = 0; k < enc_obj->ucNumberOfObjects; k++) {
+						u16 encoder_obj = le16_to_cpu(enc_obj->asObjects[k].usObjectID);
+						if (le16_to_cpu(path->usGraphicObjIds[j]) == encoder_obj) {
+							ATOM_COMMON_RECORD_HEADER *record = (ATOM_COMMON_RECORD_HEADER *)
+								(ctx->bios + data_offset +
+								 le16_to_cpu(enc_obj->asObjects[k].usRecordOffset));
+							ATOM_ENCODER_CAP_RECORD *cap_record;
+							u16 caps = 0;
 
-					radeon_add_atom_encoder(dev,
-								encoder_obj,
-								le16_to_cpu
-								(path->
-								 usDeviceTag));
-
+							while (record->ucRecordType > 0 &&
+							       record->ucRecordType <= ATOM_MAX_OBJECT_RECORD_NUMBER) {
+								switch (record->ucRecordType) {
+								case ATOM_ENCODER_CAP_RECORD_TYPE:
+									cap_record =(ATOM_ENCODER_CAP_RECORD *)
+										record;
+									caps = le16_to_cpu(cap_record->usEncoderCap);
+									break;
+								}
+								record = (ATOM_COMMON_RECORD_HEADER *)
+									((char *)record + record->ucRecordSize);
+							}
+							radeon_add_atom_encoder(dev,
+										encoder_obj,
+										le16_to_cpu
+										(path->
+										 usDeviceTag),
+										caps);
+						}
+					}
 				} else if (grph_obj_type == GRAPH_OBJECT_TYPE_ROUTER) {
 					for (k = 0; k < router_obj->ucNumberOfObjects; k++) {
 						u16 router_obj_id = le16_to_cpu(router_obj->asObjects[k].usObjectID);
@@ -1007,7 +1032,8 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 						radeon_get_encoder_enum(dev,
 								      (1 << i),
 								      dac),
-						(1 << i));
+						(1 << i),
+						0);
 		else
 			radeon_add_legacy_encoder(dev,
 						  radeon_get_encoder_enum(dev,
@@ -1086,6 +1112,7 @@ union firmware_info {
 	ATOM_FIRMWARE_INFO_V1_3 info_13;
 	ATOM_FIRMWARE_INFO_V1_4 info_14;
 	ATOM_FIRMWARE_INFO_V2_1 info_21;
+	ATOM_FIRMWARE_INFO_V2_2 info_22;
 };
 
 bool radeon_atom_get_clock_info(struct drm_device *dev)
@@ -1160,8 +1187,12 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		*p2pll = *p1pll;
 
 		/* system clock */
-		spll->reference_freq =
-		    le16_to_cpu(firmware_info->info.usReferenceClock);
+		if (ASIC_IS_DCE4(rdev))
+			spll->reference_freq =
+				le16_to_cpu(firmware_info->info_21.usCoreReferenceClock);
+		else
+			spll->reference_freq =
+				le16_to_cpu(firmware_info->info.usReferenceClock);
 		spll->reference_div = 0;
 
 		spll->pll_out_min =
@@ -1183,8 +1214,12 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		    le16_to_cpu(firmware_info->info.usMaxEngineClockPLL_Input);
 
 		/* memory clock */
-		mpll->reference_freq =
-		    le16_to_cpu(firmware_info->info.usReferenceClock);
+		if (ASIC_IS_DCE4(rdev))
+			mpll->reference_freq =
+				le16_to_cpu(firmware_info->info_21.usMemoryReferenceClock);
+		else
+			mpll->reference_freq =
+				le16_to_cpu(firmware_info->info.usReferenceClock);
 		mpll->reference_div = 0;
 
 		mpll->pll_out_min =
@@ -1213,8 +1248,12 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		if (ASIC_IS_DCE4(rdev)) {
 			rdev->clock.default_dispclk =
 				le32_to_cpu(firmware_info->info_21.ulDefaultDispEngineClkFreq);
-			if (rdev->clock.default_dispclk == 0)
-				rdev->clock.default_dispclk = 60000; /* 600 Mhz */
+			if (rdev->clock.default_dispclk == 0) {
+				if (ASIC_IS_DCE5(rdev))
+					rdev->clock.default_dispclk = 54000; /* 540 Mhz */
+				else
+					rdev->clock.default_dispclk = 60000; /* 600 Mhz */
+			}
 			rdev->clock.dp_extclk =
 				le16_to_cpu(firmware_info->info_21.usUniphyDPModeExtClkFreq);
 		}
@@ -1852,6 +1891,7 @@ static const char *pp_lib_thermal_controller_names[] = {
 	"Evergreen",
 	"emc2103",
 	"Sumo",
+	"Northern Islands",
 };
 
 union power_info {
@@ -2115,6 +2155,11 @@ static void radeon_atombios_add_pplib_thermal_controller(struct radeon_device *r
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			rdev->pm.int_thermal_type = THERMAL_TYPE_SUMO;
+		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_NISLANDS) {
+			DRM_INFO("Internal thermal controller %s fan control\n",
+				 (controller->ucFanParameters &
+				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+			rdev->pm.int_thermal_type = THERMAL_TYPE_NI;
 		} else if ((controller->ucType ==
 			    ATOM_PP_THERMALCONTROLLER_EXTERNAL_GPIO) ||
 			   (controller->ucType ==
@@ -2204,15 +2249,22 @@ static void radeon_atombios_parse_pplib_non_clock_info(struct radeon_device *rde
 		rdev->pm.default_power_state_index = state_index;
 		rdev->pm.power_state[state_index].default_clock_mode =
 			&rdev->pm.power_state[state_index].clock_info[mode_index - 1];
-		/* patch the table values with the default slck/mclk from firmware info */
-		for (j = 0; j < mode_index; j++) {
-			rdev->pm.power_state[state_index].clock_info[j].mclk =
-				rdev->clock.default_mclk;
-			rdev->pm.power_state[state_index].clock_info[j].sclk =
-				rdev->clock.default_sclk;
-			if (vddc)
-				rdev->pm.power_state[state_index].clock_info[j].voltage.voltage =
-					vddc;
+		if (ASIC_IS_DCE5(rdev)) {
+			/* NI chips post without MC ucode, so default clocks are strobe mode only */
+			rdev->pm.default_sclk = rdev->pm.power_state[state_index].clock_info[0].sclk;
+			rdev->pm.default_mclk = rdev->pm.power_state[state_index].clock_info[0].mclk;
+			rdev->pm.default_vddc = rdev->pm.power_state[state_index].clock_info[0].voltage.voltage;
+		} else {
+			/* patch the table values with the default slck/mclk from firmware info */
+			for (j = 0; j < mode_index; j++) {
+				rdev->pm.power_state[state_index].clock_info[j].mclk =
+					rdev->clock.default_mclk;
+				rdev->pm.power_state[state_index].clock_info[j].sclk =
+					rdev->clock.default_sclk;
+				if (vddc)
+					rdev->pm.power_state[state_index].clock_info[j].voltage.voltage =
+						vddc;
+			}
 		}
 	}
 }

@@ -82,6 +82,9 @@ static const char radeon_family_name[][16] = {
 	"CYPRESS",
 	"HEMLOCK",
 	"PALM",
+	"BARTS",
+	"TURKS",
+	"CAICOS",
 	"LAST",
 };
 
@@ -224,6 +227,11 @@ int radeon_wb_init(struct radeon_device *rdev)
 			if (rdev->family >= CHIP_R600)
 				rdev->wb.use_event = true;
 		}
+	}
+	/* always use writeback/events on NI */
+	if (ASIC_IS_DCE5(rdev)) {
+		rdev->wb.enabled = true;
+		rdev->wb.use_event = true;
 	}
 
 	dev_info(rdev->dev, "WB %sabled\n", rdev->wb.enabled ? "en" : "dis");

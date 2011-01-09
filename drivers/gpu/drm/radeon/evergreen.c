@@ -39,6 +39,7 @@
 
 static void evergreen_gpu_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
+static void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 
 void evergreen_pre_page_flip(struct radeon_device *rdev, int crtc)
 {
@@ -400,16 +401,28 @@ static u32 evergreen_line_buffer_adjust(struct radeon_device *rdev,
 	case 0:
 	case 4:
 	default:
-		return 3840 * 2;
+		if (ASIC_IS_DCE5(rdev))
+			return 4096 * 2;
+		else
+			return 3840 * 2;
 	case 1:
 	case 5:
-		return 5760 * 2;
+		if (ASIC_IS_DCE5(rdev))
+			return 6144 * 2;
+		else
+			return 5760 * 2;
 	case 2:
 	case 6:
-		return 7680 * 2;
+		if (ASIC_IS_DCE5(rdev))
+			return 8192 * 2;
+		else
+			return 7680 * 2;
 	case 3:
 	case 7:
-		return 1920 * 2;
+		if (ASIC_IS_DCE5(rdev))
+			return 2048 * 2;
+		else
+			return 1920 * 2;
 	}
 }
 
@@ -1146,7 +1159,7 @@ static void evergreen_mc_program(struct radeon_device *rdev)
 	tmp |= ((rdev->mc.vram_start >> 24) & 0xFFFF);
 	WREG32(MC_VM_FB_LOCATION, tmp);
 	WREG32(HDP_NONSURFACE_BASE, (rdev->mc.vram_start >> 8));
-	WREG32(HDP_NONSURFACE_INFO, (2 << 7));
+	WREG32(HDP_NONSURFACE_INFO, (2 << 7) | (1 << 30));
 	WREG32(HDP_NONSURFACE_SIZE, 0x3FFFFFFF);
 	if (rdev->flags & RADEON_IS_AGP) {
 		WREG32(MC_VM_AGP_TOP, rdev->mc.gtt_end >> 16);
@@ -1371,11 +1384,14 @@ static u32 evergreen_get_tile_pipe_to_backend_map(struct radeon_device *rdev,
 	case CHIP_CEDAR:
 	case CHIP_REDWOOD:
 	case CHIP_PALM:
+	case CHIP_TURKS:
+	case CHIP_CAICOS:
 		force_no_swizzle = false;
 		break;
 	case CHIP_CYPRESS:
 	case CHIP_HEMLOCK:
 	case CHIP_JUNIPER:
+	case CHIP_BARTS:
 	default:
 		force_no_swizzle = true;
 		break;
@@ -1489,6 +1505,7 @@ static void evergreen_program_channel_remap(struct radeon_device *rdev)
 	switch (rdev->family) {
 	case CHIP_HEMLOCK:
 	case CHIP_CYPRESS:
+	case CHIP_BARTS:
 		tcp_chan_steer_lo = 0x54763210;
 		tcp_chan_steer_hi = 0x0000ba98;
 		break;
@@ -1496,6 +1513,8 @@ static void evergreen_program_channel_remap(struct radeon_device *rdev)
 	case CHIP_REDWOOD:
 	case CHIP_CEDAR:
 	case CHIP_PALM:
+	case CHIP_TURKS:
+	case CHIP_CAICOS:
 	default:
 		tcp_chan_steer_lo = 0x76543210;
 		tcp_chan_steer_hi = 0x0000ba98;
@@ -1621,6 +1640,69 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	case CHIP_PALM:
 		rdev->config.evergreen.num_ses = 1;
 		rdev->config.evergreen.max_pipes = 2;
+		rdev->config.evergreen.max_tile_pipes = 2;
+		rdev->config.evergreen.max_simds = 2;
+		rdev->config.evergreen.max_backends = 1 * rdev->config.evergreen.num_ses;
+		rdev->config.evergreen.max_gprs = 256;
+		rdev->config.evergreen.max_threads = 192;
+		rdev->config.evergreen.max_gs_threads = 16;
+		rdev->config.evergreen.max_stack_entries = 256;
+		rdev->config.evergreen.sx_num_of_sets = 4;
+		rdev->config.evergreen.sx_max_export_size = 128;
+		rdev->config.evergreen.sx_max_export_pos_size = 32;
+		rdev->config.evergreen.sx_max_export_smx_size = 96;
+		rdev->config.evergreen.max_hw_contexts = 4;
+		rdev->config.evergreen.sq_num_cf_insts = 1;
+
+		rdev->config.evergreen.sc_prim_fifo_size = 0x40;
+		rdev->config.evergreen.sc_hiz_tile_fifo_size = 0x30;
+		rdev->config.evergreen.sc_earlyz_tile_fifo_size = 0x130;
+		break;
+	case CHIP_BARTS:
+		rdev->config.evergreen.num_ses = 2;
+		rdev->config.evergreen.max_pipes = 4;
+		rdev->config.evergreen.max_tile_pipes = 8;
+		rdev->config.evergreen.max_simds = 7;
+		rdev->config.evergreen.max_backends = 4 * rdev->config.evergreen.num_ses;
+		rdev->config.evergreen.max_gprs = 256;
+		rdev->config.evergreen.max_threads = 248;
+		rdev->config.evergreen.max_gs_threads = 32;
+		rdev->config.evergreen.max_stack_entries = 512;
+		rdev->config.evergreen.sx_num_of_sets = 4;
+		rdev->config.evergreen.sx_max_export_size = 256;
+		rdev->config.evergreen.sx_max_export_pos_size = 64;
+		rdev->config.evergreen.sx_max_export_smx_size = 192;
+		rdev->config.evergreen.max_hw_contexts = 8;
+		rdev->config.evergreen.sq_num_cf_insts = 2;
+
+		rdev->config.evergreen.sc_prim_fifo_size = 0x100;
+		rdev->config.evergreen.sc_hiz_tile_fifo_size = 0x30;
+		rdev->config.evergreen.sc_earlyz_tile_fifo_size = 0x130;
+		break;
+	case CHIP_TURKS:
+		rdev->config.evergreen.num_ses = 1;
+		rdev->config.evergreen.max_pipes = 4;
+		rdev->config.evergreen.max_tile_pipes = 4;
+		rdev->config.evergreen.max_simds = 6;
+		rdev->config.evergreen.max_backends = 2 * rdev->config.evergreen.num_ses;
+		rdev->config.evergreen.max_gprs = 256;
+		rdev->config.evergreen.max_threads = 248;
+		rdev->config.evergreen.max_gs_threads = 32;
+		rdev->config.evergreen.max_stack_entries = 256;
+		rdev->config.evergreen.sx_num_of_sets = 4;
+		rdev->config.evergreen.sx_max_export_size = 256;
+		rdev->config.evergreen.sx_max_export_pos_size = 64;
+		rdev->config.evergreen.sx_max_export_smx_size = 192;
+		rdev->config.evergreen.max_hw_contexts = 8;
+		rdev->config.evergreen.sq_num_cf_insts = 2;
+
+		rdev->config.evergreen.sc_prim_fifo_size = 0x100;
+		rdev->config.evergreen.sc_hiz_tile_fifo_size = 0x30;
+		rdev->config.evergreen.sc_earlyz_tile_fifo_size = 0x130;
+		break;
+	case CHIP_CAICOS:
+		rdev->config.evergreen.num_ses = 1;
+		rdev->config.evergreen.max_pipes = 4;
 		rdev->config.evergreen.max_tile_pipes = 2;
 		rdev->config.evergreen.max_simds = 2;
 		rdev->config.evergreen.max_backends = 1 * rdev->config.evergreen.num_ses;
@@ -1780,6 +1862,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 		switch (rdev->family) {
 		case CHIP_CYPRESS:
 		case CHIP_HEMLOCK:
+		case CHIP_BARTS:
 			gb_backend_map = 0x66442200;
 			break;
 		case CHIP_JUNIPER:
@@ -1918,6 +2001,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	switch (rdev->family) {
 	case CHIP_CEDAR:
 	case CHIP_PALM:
+	case CHIP_CAICOS:
 		/* no vertex cache */
 		sq_config &= ~VC_ENABLE;
 		break;
@@ -1977,6 +2061,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	switch (rdev->family) {
 	case CHIP_CEDAR:
 	case CHIP_PALM:
+	case CHIP_CAICOS:
 		vgt_cache_invalidation = CACHE_INVALIDATION(TC_ONLY);
 		break;
 	default:
@@ -2767,11 +2852,30 @@ static int evergreen_startup(struct radeon_device *rdev)
 {
 	int r;
 
-	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
-		r = r600_init_microcode(rdev);
+	/* enable pcie gen2 link */
+	if (!ASIC_IS_DCE5(rdev))
+		evergreen_pcie_gen2_enable(rdev);
+
+	if (ASIC_IS_DCE5(rdev)) {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw || !rdev->mc_fw) {
+			r = ni_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
+		}
+		r = btc_mc_load_microcode(rdev);
 		if (r) {
-			DRM_ERROR("Failed to load firmware!\n");
+			DRM_ERROR("Failed to load MC firmware!\n");
 			return r;
+		}
+	} else {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
+			r = r600_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
 		}
 	}
 
@@ -3048,4 +3152,53 @@ void evergreen_fini(struct radeon_device *rdev)
 	kfree(rdev->bios);
 	rdev->bios = NULL;
 	radeon_dummy_page_fini(rdev);
+}
+
+static void evergreen_pcie_gen2_enable(struct radeon_device *rdev)
+{
+	u32 link_width_cntl, speed_cntl;
+
+	if (rdev->flags & RADEON_IS_IGP)
+		return;
+
+	if (!(rdev->flags & RADEON_IS_PCIE))
+		return;
+
+	/* x2 cards have a special sequence */
+	if (ASIC_IS_X2(rdev))
+		return;
+
+	speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+	if ((speed_cntl & LC_OTHER_SIDE_EVER_SENT_GEN2) ||
+	    (speed_cntl & LC_OTHER_SIDE_SUPPORTS_GEN2)) {
+
+		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		link_width_cntl &= ~LC_UPCONFIGURE_DIS;
+		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+
+		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl &= ~LC_TARGET_LINK_SPEED_OVERRIDE_EN;
+		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+
+		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl |= LC_CLR_FAILED_SPD_CHANGE_CNT;
+		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+
+		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl &= ~LC_CLR_FAILED_SPD_CHANGE_CNT;
+		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+
+		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl |= LC_GEN2_EN_STRAP;
+		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+
+	} else {
+		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		/* XXX: only disable it if gen1 bridge vendor == 0x111d or 0x1106 */
+		if (1)
+			link_width_cntl |= LC_UPCONFIGURE_DIS;
+		else
+			link_width_cntl &= ~LC_UPCONFIGURE_DIS;
+		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+	}
 }

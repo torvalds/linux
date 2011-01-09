@@ -403,6 +403,7 @@ union atom_enable_ss {
 	ENABLE_LVDS_SS_PARAMETERS_V2 lvds_ss_2;
 	ENABLE_SPREAD_SPECTRUM_ON_PPLL_PS_ALLOCATION v1;
 	ENABLE_SPREAD_SPECTRUM_ON_PPLL_V2 v2;
+	ENABLE_SPREAD_SPECTRUM_ON_PPLL_V3 v3;
 };
 
 static void atombios_crtc_program_ss(struct drm_crtc *crtc,
@@ -417,7 +418,30 @@ static void atombios_crtc_program_ss(struct drm_crtc *crtc,
 
 	memset(&args, 0, sizeof(args));
 
-	if (ASIC_IS_DCE4(rdev)) {
+	if (ASIC_IS_DCE5(rdev)) {
+		args.v3.usSpreadSpectrumAmountFrac = 0;
+		args.v3.ucSpreadSpectrumType = ss->type;
+		switch (pll_id) {
+		case ATOM_PPLL1:
+			args.v3.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V3_P1PLL;
+			args.v3.usSpreadSpectrumAmount = ss->amount;
+			args.v3.usSpreadSpectrumStep = ss->step;
+			break;
+		case ATOM_PPLL2:
+			args.v3.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V3_P2PLL;
+			args.v3.usSpreadSpectrumAmount = ss->amount;
+			args.v3.usSpreadSpectrumStep = ss->step;
+			break;
+		case ATOM_DCPLL:
+			args.v3.ucSpreadSpectrumType |= ATOM_PPLL_SS_TYPE_V3_DCPLL;
+			args.v3.usSpreadSpectrumAmount = 0;
+			args.v3.usSpreadSpectrumStep = 0;
+			break;
+		case ATOM_PPLL_INVALID:
+			return;
+		}
+		args.v2.ucEnable = enable;
+	} else if (ASIC_IS_DCE4(rdev)) {
 		args.v2.usSpreadSpectrumPercentage = cpu_to_le16(ss->percentage);
 		args.v2.ucSpreadSpectrumType = ss->type;
 		switch (pll_id) {
@@ -673,9 +697,14 @@ union set_pixel_clock {
 	PIXEL_CLOCK_PARAMETERS_V2 v2;
 	PIXEL_CLOCK_PARAMETERS_V3 v3;
 	PIXEL_CLOCK_PARAMETERS_V5 v5;
+	PIXEL_CLOCK_PARAMETERS_V6 v6;
 };
 
-static void atombios_crtc_set_dcpll(struct drm_crtc *crtc)
+/* on DCE5, make sure the voltage is high enough to support the
+ * required disp clk.
+ */
+static void atombios_crtc_set_dcpll(struct drm_crtc *crtc,
+				    u32 dispclk)
 {
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -698,8 +727,15 @@ static void atombios_crtc_set_dcpll(struct drm_crtc *crtc)
 			 * SetPixelClock provides the dividers
 			 */
 			args.v5.ucCRTC = ATOM_CRTC_INVALID;
-			args.v5.usPixelClock = rdev->clock.default_dispclk;
+			args.v5.usPixelClock = dispclk;
 			args.v5.ucPpll = ATOM_DCPLL;
+			break;
+		case 6:
+			/* if the default dcpll clock is specified,
+			 * SetPixelClock provides the dividers
+			 */
+			args.v6.ulDispEngClkFreq = dispclk;
+			args.v6.ucPpll = ATOM_DCPLL;
 			break;
 		default:
 			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
@@ -783,6 +819,18 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 			args.v5.ucTransmitterID = encoder_id;
 			args.v5.ucEncoderMode = encoder_mode;
 			args.v5.ucPpll = pll_id;
+			break;
+		case 6:
+			args.v6.ulCrtcPclkFreq.ucCRTC = crtc_id;
+			args.v6.ulCrtcPclkFreq.ulPixelClock = cpu_to_le32(clock / 10);
+			args.v6.ucRefDiv = ref_div;
+			args.v6.usFbDiv = cpu_to_le16(fb_div);
+			args.v6.ulFbDivDecFrac = cpu_to_le32(frac_fb_div * 100000);
+			args.v6.ucPostDiv = post_div;
+			args.v6.ucMiscInfo = 0; /* HDMI depth, etc. */
+			args.v6.ucTransmitterID = encoder_id;
+			args.v6.ucEncoderMode = encoder_mode;
+			args.v6.ucPpll = pll_id;
 			break;
 		default:
 			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
@@ -1377,7 +1425,8 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 								   rdev->clock.default_dispclk);
 		if (ss_enabled)
 			atombios_crtc_program_ss(crtc, ATOM_DISABLE, ATOM_DCPLL, &ss);
-		atombios_crtc_set_dcpll(crtc);
+		/* XXX: DCE5, make sure voltage, dispclk is high enough */
+		atombios_crtc_set_dcpll(crtc, rdev->clock.default_dispclk);
 		if (ss_enabled)
 			atombios_crtc_program_ss(crtc, ATOM_ENABLE, ATOM_DCPLL, &ss);
 	}

@@ -167,13 +167,13 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 	if (radeon_gui_idle(rdev)) {
 		sclk = rdev->pm.power_state[rdev->pm.requested_power_state_index].
 			clock_info[rdev->pm.requested_clock_mode_index].sclk;
-		if (sclk > rdev->clock.default_sclk)
-			sclk = rdev->clock.default_sclk;
+		if (sclk > rdev->pm.default_sclk)
+			sclk = rdev->pm.default_sclk;
 
 		mclk = rdev->pm.power_state[rdev->pm.requested_power_state_index].
 			clock_info[rdev->pm.requested_clock_mode_index].mclk;
-		if (mclk > rdev->clock.default_mclk)
-			mclk = rdev->clock.default_mclk;
+		if (mclk > rdev->pm.default_mclk)
+			mclk = rdev->pm.default_mclk;
 
 		/* upvolt before raising clocks, downvolt after lowering clocks */
 		if (sclk < rdev->pm.current_sclk)
@@ -440,6 +440,7 @@ static ssize_t radeon_hwmon_show_temp(struct device *dev,
 		temp = rv770_get_temp(rdev);
 		break;
 	case THERMAL_TYPE_EVERGREEN:
+	case THERMAL_TYPE_NI:
 		temp = evergreen_get_temp(rdev);
 		break;
 	case THERMAL_TYPE_SUMO:
@@ -529,12 +530,21 @@ void radeon_pm_suspend(struct radeon_device *rdev)
 
 void radeon_pm_resume(struct radeon_device *rdev)
 {
+	/* set up the default clocks if the MC ucode is loaded */
+	if (ASIC_IS_DCE5(rdev) && rdev->mc_fw) {
+		if (rdev->pm.default_vddc)
+			radeon_atom_set_voltage(rdev, rdev->pm.default_vddc);
+		if (rdev->pm.default_sclk)
+			radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
+		if (rdev->pm.default_mclk)
+			radeon_set_memory_clock(rdev, rdev->pm.default_mclk);
+	}
 	/* asic init will reset the default power state */
 	mutex_lock(&rdev->pm.mutex);
 	rdev->pm.current_power_state_index = rdev->pm.default_power_state_index;
 	rdev->pm.current_clock_mode_index = 0;
-	rdev->pm.current_sclk = rdev->clock.default_sclk;
-	rdev->pm.current_mclk = rdev->clock.default_mclk;
+	rdev->pm.current_sclk = rdev->pm.default_sclk;
+	rdev->pm.current_mclk = rdev->pm.default_mclk;
 	rdev->pm.current_vddc = rdev->pm.power_state[rdev->pm.default_power_state_index].clock_info[0].voltage.voltage;
 	if (rdev->pm.pm_method == PM_METHOD_DYNPM
 	    && rdev->pm.dynpm_state == DYNPM_STATE_SUSPENDED) {
@@ -557,6 +567,8 @@ int radeon_pm_init(struct radeon_device *rdev)
 	rdev->pm.dynpm_planned_action = DYNPM_ACTION_NONE;
 	rdev->pm.dynpm_can_upclock = true;
 	rdev->pm.dynpm_can_downclock = true;
+	rdev->pm.default_sclk = rdev->clock.default_sclk;
+	rdev->pm.default_mclk = rdev->clock.default_mclk;
 	rdev->pm.current_sclk = rdev->clock.default_sclk;
 	rdev->pm.current_mclk = rdev->clock.default_mclk;
 	rdev->pm.int_thermal_type = THERMAL_TYPE_NONE;
@@ -568,6 +580,15 @@ int radeon_pm_init(struct radeon_device *rdev)
 			radeon_combios_get_power_modes(rdev);
 		radeon_pm_print_states(rdev);
 		radeon_pm_init_profile(rdev);
+		/* set up the default clocks if the MC ucode is loaded */
+		if (ASIC_IS_DCE5(rdev) && rdev->mc_fw) {
+			if (rdev->pm.default_vddc)
+				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc);
+			if (rdev->pm.default_sclk)
+				radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
+			if (rdev->pm.default_mclk)
+				radeon_set_memory_clock(rdev, rdev->pm.default_mclk);
+		}
 	}
 
 	/* set up the internal thermal sensor if applicable */
@@ -803,9 +824,9 @@ static int radeon_debugfs_pm_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
-	seq_printf(m, "default engine clock: %u0 kHz\n", rdev->clock.default_sclk);
+	seq_printf(m, "default engine clock: %u0 kHz\n", rdev->pm.default_sclk);
 	seq_printf(m, "current engine clock: %u0 kHz\n", radeon_get_engine_clock(rdev));
-	seq_printf(m, "default memory clock: %u0 kHz\n", rdev->clock.default_mclk);
+	seq_printf(m, "default memory clock: %u0 kHz\n", rdev->pm.default_mclk);
 	if (rdev->asic->get_memory_clock)
 		seq_printf(m, "current memory clock: %u0 kHz\n", radeon_get_memory_clock(rdev));
 	if (rdev->pm.current_vddc)
