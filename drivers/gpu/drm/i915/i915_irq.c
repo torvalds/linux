@@ -1337,6 +1337,22 @@ int i915_irq_wait(struct drm_device *dev, void *data,
 	return i915_wait_irq(dev, irqwait->irq_seq);
 }
 
+static void i915_vblank_work_func(struct work_struct *work)
+{
+	drm_i915_private_t *dev_priv =
+		container_of(work, drm_i915_private_t, vblank_work);
+
+	if (atomic_read(&dev_priv->vblank_enabled)) {
+		if (!dev_priv->vblank_pm_qos.pm_qos_class)
+			pm_qos_add_request(&dev_priv->vblank_pm_qos,
+					   PM_QOS_CPU_DMA_LATENCY,
+					   15); //>=20 won't work
+	} else {
+		if (dev_priv->vblank_pm_qos.pm_qos_class)
+			pm_qos_remove_request(&dev_priv->vblank_pm_qos);
+	}
+}
+
 /* Called from drm generic code, passed 'crtc' which
  * we use as a pipe index
  */
@@ -1359,6 +1375,16 @@ int i915_enable_vblank(struct drm_device *dev, int pipe)
 		i915_enable_pipestat(dev_priv, pipe,
 				     PIPE_VBLANK_INTERRUPT_ENABLE);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+	/* gen3 platforms have an issue with vsync interrupts not reaching
+	 * cpu during deep c-state sleep (>C1), so we need to install a
+	 * PM QoS handle to prevent C-state starvation of the GPU.
+	 */
+	if (dev_priv->info->gen == 3 && !dev_priv->info->is_g33) {
+		atomic_inc(&dev_priv->vblank_enabled);
+		queue_work(dev_priv->wq, &dev_priv->vblank_work);
+	}
+
 	return 0;
 }
 
@@ -1369,6 +1395,11 @@ void i915_disable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
+
+	if (dev_priv->info->gen == 3 && !dev_priv->info->is_g33) {
+		atomic_dec(&dev_priv->vblank_enabled);
+		queue_work(dev_priv->wq, &dev_priv->vblank_work);
+	}
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	if (HAS_PCH_SPLIT(dev))
@@ -1659,9 +1690,11 @@ void i915_driver_irq_preinstall(struct drm_device * dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
 	atomic_set(&dev_priv->irq_received, 0);
+	atomic_set(&dev_priv->vblank_enabled, 0);
 
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
+	INIT_WORK(&dev_priv->vblank_work, i915_vblank_work_func);
 
 	if (HAS_PCH_SPLIT(dev)) {
 		ironlake_irq_preinstall(dev);

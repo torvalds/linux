@@ -35,6 +35,7 @@
 #include "intel_ringbuffer.h"
 #include <linux/io-mapping.h>
 #include <linux/i2c.h>
+#include <linux/pm_qos_params.h>
 #include <drm/intel-gtt.h>
 
 /* General customization:
@@ -309,6 +310,10 @@ typedef struct drm_i915_private {
 	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
 	int vblank_pipe;
 	int num_pipe;
+
+	atomic_t vblank_enabled;
+	struct pm_qos_request_list vblank_pm_qos;
+	struct work_struct vblank_work;
 
 	/* For hangcheck timer */
 #define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
