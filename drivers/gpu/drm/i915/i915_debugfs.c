@@ -624,6 +624,15 @@ static const char *ring_str(int ring)
 	}
 }
 
+static const char *agp_type_str(int type)
+{
+	switch (type) {
+	case 0: return " uncached";
+	case 1: return " snooped";
+	default: return "";
+	}
+}
+
 static const char *pin_flag(int pinned)
 {
 	if (pinned > 0)
@@ -662,7 +671,7 @@ static void print_error_buffers(struct seq_file *m,
 	seq_printf(m, "%s [%d]:\n", name, count);
 
 	while (count--) {
-		seq_printf(m, "  %08x %8zd %04x %04x %08x%s%s%s%s%s",
+		seq_printf(m, "  %08x %8zd %04x %04x %08x%s%s%s%s%s%s",
 			   err->gtt_offset,
 			   err->size,
 			   err->read_domains,
@@ -672,7 +681,8 @@ static void print_error_buffers(struct seq_file *m,
 			   tiling_flag(err->tiling),
 			   dirty_flag(err->dirty),
 			   purgeable_flag(err->purgeable),
-			   ring_str(err->ring));
+			   ring_str(err->ring),
+			   agp_type_str(err->agp_type));
 
 		if (err->name)
 			seq_printf(m, " (name: %d)", err->name);

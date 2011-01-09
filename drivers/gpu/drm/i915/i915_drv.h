@@ -174,18 +174,19 @@ struct drm_i915_error_state {
 		u32 *pages[0];
 	} *ringbuffer, *batchbuffer[I915_NUM_RINGS];
 	struct drm_i915_error_buffer {
-		size_t size;
+		u32 size;
 		u32 name;
 		u32 seqno;
 		u32 gtt_offset;
 		u32 read_domains;
 		u32 write_domain;
-		u32 fence_reg;
+		s32 fence_reg:5;
 		s32 pinned:2;
 		u32 tiling:2;
 		u32 dirty:1;
 		u32 purgeable:1;
 		u32 ring:4;
+		u32 agp_type:1;
 	} *active_bo, *pinned_bo;
 	u32 active_bo_count, pinned_bo_count;
 	struct intel_overlay_error_state *overlay;
