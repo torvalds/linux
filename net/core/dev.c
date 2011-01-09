@@ -2086,6 +2086,8 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 	int rc = NETDEV_TX_OK;
 
 	if (likely(!skb->next)) {
+		int features;
+
 		/*
 		 * If device doesnt need skb->dst, release it right now while
 		 * its hot in this cpu cache
@@ -2098,8 +2100,10 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 
 		skb_orphan_try(skb);
 
+		features = netif_skb_features(skb);
+
 		if (vlan_tx_tag_present(skb) &&
-		    !(dev->features & NETIF_F_HW_VLAN_TX)) {
+		    !(features & NETIF_F_HW_VLAN_TX)) {
 			skb = __vlan_put_tag(skb, vlan_tx_tag_get(skb));
 			if (unlikely(!skb))
 				goto out;
@@ -2107,7 +2111,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			skb->vlan_tci = 0;
 		}
 
-		if (netif_needs_gso(dev, skb)) {
+		if (netif_needs_gso(skb, features)) {
 			if (unlikely(dev_gso_segment(skb)))
 				goto out_kfree_skb;
 			if (skb->next)

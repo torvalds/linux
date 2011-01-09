@@ -2317,16 +2317,10 @@ static inline int skb_gso_ok(struct sk_buff *skb, int features)
 	       (!skb_has_frag_list(skb) || (features & NETIF_F_FRAGLIST));
 }
 
-static inline int netif_needs_gso(struct net_device *dev, struct sk_buff *skb)
+static inline int netif_needs_gso(struct sk_buff *skb, int features)
 {
-	if (skb_is_gso(skb)) {
-		int features = netif_skb_features(skb);
-
-		return (!skb_gso_ok(skb, features) ||
-			unlikely(skb->ip_summed != CHECKSUM_PARTIAL));
-	}
-
-	return 0;
+	return skb_is_gso(skb) && (!skb_gso_ok(skb, features) ||
+		unlikely(skb->ip_summed != CHECKSUM_PARTIAL));
 }
 
 static inline void netif_set_gso_max_size(struct net_device *dev,
