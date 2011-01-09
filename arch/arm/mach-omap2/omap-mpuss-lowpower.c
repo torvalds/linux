@@ -256,6 +256,8 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
 		return -ENXIO;
 	}
 
+	pwrdm_pre_transition();
+
 	/*
 	 * Check MPUSS next state and save interrupt controller if needed.
 	 * In MPUSS OSWR or device OFF, interrupt controller  contest is lost.
@@ -287,6 +289,8 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
 	 */
 	wakeup_cpu = smp_processor_id();
 	set_cpu_next_pwrst(wakeup_cpu, PWRDM_POWER_ON);
+
+	pwrdm_post_transition();
 
 	return 0;
 }
