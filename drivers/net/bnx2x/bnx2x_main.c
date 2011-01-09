@@ -8751,13 +8751,6 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 		dev_err(&bp->pdev->dev, "MCP disabled, "
 					"must load devices in order!\n");
 
-	/* Set multi queue mode */
-	if ((multi_mode != ETH_RSS_MODE_DISABLED) &&
-	    ((int_mode == INT_MODE_INTx) || (int_mode == INT_MODE_MSI))) {
-		dev_err(&bp->pdev->dev, "Multi disabled since int_mode "
-					"requested is not MSI-X\n");
-		multi_mode = ETH_RSS_MODE_DISABLED;
-	}
 	bp->multi_mode = multi_mode;
 	bp->int_mode = int_mode;
 
