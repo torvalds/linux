@@ -4270,11 +4270,9 @@ static struct drbd_request *_ack_id_to_req(struct drbd_conf *mdev,
 	return NULL;
 }
 
-typedef struct drbd_request *(req_validator_fn)
-	(struct drbd_conf *mdev, u64 id, sector_t sector);
-
 static int validate_req_change_req_state(struct drbd_conf *mdev,
-	u64 id, sector_t sector, req_validator_fn validator,
+	u64 id, sector_t sector,
+	struct drbd_request *(*validator)(struct drbd_conf *, u64, sector_t),
 	const char *func, enum drbd_req_event what)
 {
 	struct drbd_request *req;
