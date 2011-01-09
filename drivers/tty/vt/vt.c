@@ -2994,7 +2994,7 @@ int __init vty_init(const struct file_operations *console_fops)
 	if (IS_ERR(tty0dev))
 		tty0dev = NULL;
 	else
-		device_create_file(tty0dev, &dev_attr_active);
+		WARN_ON(device_create_file(tty0dev, &dev_attr_active) < 0);
 
 	vcs_init();
 
