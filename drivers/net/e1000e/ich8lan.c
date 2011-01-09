@@ -338,12 +338,17 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	}
 
 	phy->id = e1000_phy_unknown;
-	ret_val = e1000e_get_phy_id(hw);
-	if (ret_val)
-		goto out;
-	if ((phy->id == 0) || (phy->id == PHY_REVISION_MASK)) {
+	switch (hw->mac.type) {
+	default:
+		ret_val = e1000e_get_phy_id(hw);
+		if (ret_val)
+			goto out;
+		if ((phy->id != 0) && (phy->id != PHY_REVISION_MASK))
+			break;
+		/* fall-through */
+	case e1000_pch2lan:
 		/*
-		 * In case the PHY needs to be in mdio slow mode (eg. 82577),
+		 * In case the PHY needs to be in mdio slow mode,
 		 * set slow mode and try to get the PHY id again.
 		 */
 		ret_val = e1000_set_mdio_slow_mode_hv(hw);
@@ -352,6 +357,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 		ret_val = e1000e_get_phy_id(hw);
 		if (ret_val)
 			goto out;
+		break;
 	}
 	phy->type = e1000e_get_phy_type_from_id(phy->id);
 
@@ -2303,11 +2309,10 @@ static s32 e1000_read_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 		 */
 		if (ret_val == 0) {
 			flash_data = er32flash(ICH_FLASH_FDATA0);
-			if (size == 1) {
+			if (size == 1)
 				*data = (u8)(flash_data & 0x000000FF);
-			} else if (size == 2) {
+			else if (size == 2)
 				*data = (u16)(flash_data & 0x0000FFFF);
-			}
 			break;
 		} else {
 			/*
@@ -3591,7 +3596,7 @@ void e1000e_disable_gig_wol_ich8lan(struct e1000_hw *hw)
 	ew32(PHY_CTRL, phy_ctrl);
 
 	if (hw->mac.type >= e1000_pchlan) {
-		e1000_oem_bits_config_ich8lan(hw, true);
+		e1000_oem_bits_config_ich8lan(hw, false);
 		ret_val = hw->phy.ops.acquire(hw);
 		if (ret_val)
 			return;

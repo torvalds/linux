@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2006 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -706,18 +706,22 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 	dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
 
 	/* don't poll if reset is going on */
-	if (!test_bit(DPC_RESET_ACTIVE, &ha->dpc_flags)) {
+	if (!(test_bit(DPC_RESET_ACTIVE, &ha->dpc_flags) ||
+	    test_bit(DPC_RESET_HA, &ha->dpc_flags) ||
+	    test_bit(DPC_RESET_ACTIVE, &ha->dpc_flags))) {
 		if (dev_state == QLA82XX_DEV_NEED_RESET &&
 		    !test_bit(DPC_RESET_HA, &ha->dpc_flags)) {
-			printk("scsi%ld: %s: HW State: NEED RESET!\n",
-			    ha->host_no, __func__);
-			set_bit(DPC_RESET_HA, &ha->dpc_flags);
-			qla4xxx_wake_dpc(ha);
-			qla4xxx_mailbox_premature_completion(ha);
+			if (!ql4xdontresethba) {
+				ql4_printk(KERN_INFO, ha, "%s: HW State: "
+				    "NEED RESET!\n", __func__);
+				set_bit(DPC_RESET_HA, &ha->dpc_flags);
+				qla4xxx_wake_dpc(ha);
+				qla4xxx_mailbox_premature_completion(ha);
+			}
 		} else if (dev_state == QLA82XX_DEV_NEED_QUIESCENT &&
 		    !test_bit(DPC_HA_NEED_QUIESCENT, &ha->dpc_flags)) {
-			printk("scsi%ld: %s: HW State: NEED QUIES!\n",
-			    ha->host_no, __func__);
+			ql4_printk(KERN_INFO, ha, "%s: HW State: NEED QUIES!\n",
+			    __func__);
 			set_bit(DPC_HA_NEED_QUIESCENT, &ha->dpc_flags);
 			qla4xxx_wake_dpc(ha);
 		} else  {
@@ -1721,6 +1725,14 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	if (!test_bit(AF_ONLINE, &ha->flags)) {
 		ql4_printk(KERN_WARNING, ha, "Failed to initialize adapter\n");
 
+		if (is_qla8022(ha) && ql4xdontresethba) {
+			/* Put the device in failed state. */
+			DEBUG2(printk(KERN_ERR "HW STATE: FAILED\n"));
+			qla4_8xxx_idc_lock(ha);
+			qla4_8xxx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
+			    QLA82XX_DEV_FAILED);
+			qla4_8xxx_idc_unlock(ha);
+		}
 		ret = -ENODEV;
 		goto probe_failed;
 	}

@@ -661,6 +661,9 @@ static int __init omap_pm_init(void)
 	int error;
 #endif
 
+	if (!cpu_class_is_omap1())
+		return -ENODEV;
+
 	printk("Power Management for TI OMAP.\n");
 
 	/*

@@ -1247,7 +1247,7 @@ static int __exit isp1301_remove(struct i2c_client *i2c)
 	isp->timer.data = 0;
 	set_bit(WORK_STOP, &isp->todo);
 	del_timer_sync(&isp->timer);
-	flush_scheduled_work();
+	flush_work_sync(&isp->work);
 
 	put_device(&i2c->dev);
 	the_transceiver = NULL;

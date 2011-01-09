@@ -2174,7 +2174,7 @@ static int atl1_tx_csum(struct atl1_adapter *adapter, struct sk_buff *skb,
 	u8 css, cso;
 
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
-		css = (u8) (skb->csum_start - skb_headroom(skb));
+		css = skb_checksum_start_offset(skb);
 		cso = css + (u8) skb->csum_offset;
 		if (unlikely(css & 0x1)) {
 			/* L1 hardware requires an even number here */

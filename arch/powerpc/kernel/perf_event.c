@@ -1379,7 +1379,7 @@ int register_power_pmu(struct power_pmu *pmu)
 		freeze_events_kernel = MMCR0_FCHV;
 #endif /* CONFIG_PPC64 */
 
-	perf_pmu_register(&power_pmu);
+	perf_pmu_register(&power_pmu, "cpu", PERF_TYPE_RAW);
 	perf_cpu_notifier(power_pmu_notifier);
 
 	return 0;

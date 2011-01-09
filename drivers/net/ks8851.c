@@ -1545,6 +1545,37 @@ static int ks8851_read_selftest(struct ks8851_net *ks)
 
 /* driver bus management functions */
 
+#ifdef CONFIG_PM
+static int ks8851_suspend(struct spi_device *spi, pm_message_t state)
+{
+	struct ks8851_net *ks = dev_get_drvdata(&spi->dev);
+	struct net_device *dev = ks->netdev;
+
+	if (netif_running(dev)) {
+		netif_device_detach(dev);
+		ks8851_net_stop(dev);
+	}
+
+	return 0;
+}
+
+static int ks8851_resume(struct spi_device *spi)
+{
+	struct ks8851_net *ks = dev_get_drvdata(&spi->dev);
+	struct net_device *dev = ks->netdev;
+
+	if (netif_running(dev)) {
+		ks8851_net_open(dev);
+		netif_device_attach(dev);
+	}
+
+	return 0;
+}
+#else
+#define ks8851_suspend NULL
+#define ks8851_resume NULL
+#endif
+
 static int __devinit ks8851_probe(struct spi_device *spi)
 {
 	struct net_device *ndev;
@@ -1679,6 +1710,8 @@ static struct spi_driver ks8851_driver = {
 	},
 	.probe = ks8851_probe,
 	.remove = __devexit_p(ks8851_remove),
+	.suspend = ks8851_suspend,
+	.resume = ks8851_resume,
 };
 
 static int __init ks8851_init(void)

@@ -600,6 +600,7 @@ Protocol:	2.07+
   0x00000001	lguest
   0x00000002	Xen
   0x00000003	Moorestown MID
+  0x00000004	CE4100 TV Platform
 
 Field name:	hardware_subarch_data
 Type:		write (subarch-dependent)

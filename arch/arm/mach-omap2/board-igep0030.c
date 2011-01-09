@@ -289,9 +289,10 @@ static struct twl4030_usb_data igep3_twl4030_usb_data = {
 
 static void __init igep3_init_irq(void)
 {
-	omap2_init_common_hw(m65kxxxxam_sdrc_params, m65kxxxxam_sdrc_params);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(m65kxxxxam_sdrc_params,
+				  m65kxxxxam_sdrc_params);
 	omap_init_irq();
-	omap_gpio_init();
 }
 
 static struct twl4030_platform_data igep3_twl4030_pdata = {
@@ -366,8 +367,6 @@ void __init igep3_wifi_bt_init(void) {}
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
-#else
-#define board_mux	NULL
 #endif
 
 static void __init igep3_init(void)

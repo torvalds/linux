@@ -1,6 +1,6 @@
 /*
  * include/linux/tipc_config.h: Include file for TIPC configuration interface
- * 
+ *
  * Copyright (c) 2003-2006, Ericsson AB
  * Copyright (c) 2005-2007, Wind River Systems
  * All rights reserved.
@@ -54,19 +54,19 @@
  * which specify parameters or results for the operation.
  *
  * For many operations, the request and reply messages have a fixed number
- * of TLVs (usually zero or one); however, some reply messages may return 
+ * of TLVs (usually zero or one); however, some reply messages may return
  * a variable number of TLVs.  A failed request is denoted by the presence
  * of an "error string" TLV in the reply message instead of the TLV(s) the
  * reply should contain if the request succeeds.
  */
- 
-/* 
+
+/*
  * Public commands:
  * May be issued by any process.
- * Accepted by own node, or by remote node only if remote management enabled.                       
+ * Accepted by own node, or by remote node only if remote management enabled.
  */
- 
-#define  TIPC_CMD_NOOP   	    0x0000    /* tx none, rx none */
+
+#define  TIPC_CMD_NOOP              0x0000    /* tx none, rx none */
 #define  TIPC_CMD_GET_NODES         0x0001    /* tx net_addr, rx node_info(s) */
 #define  TIPC_CMD_GET_MEDIA_NAMES   0x0002    /* tx none, rx media_name(s) */
 #define  TIPC_CMD_GET_BEARER_NAMES  0x0003    /* tx none, rx bearer_name(s) */
@@ -83,21 +83,21 @@
 #define  TIPC_CMD_GET_LINK_PEER     0x000D    /* tx link_name, rx ? */
 #endif
 
-/* 
+/*
  * Protected commands:
  * May only be issued by "network administration capable" process.
  * Accepted by own node, or by remote node only if remote management enabled
- * and this node is zone manager.                       
+ * and this node is zone manager.
  */
 
 #define  TIPC_CMD_GET_REMOTE_MNG    0x4003    /* tx none, rx unsigned */
 #define  TIPC_CMD_GET_MAX_PORTS     0x4004    /* tx none, rx unsigned */
 #define  TIPC_CMD_GET_MAX_PUBL      0x4005    /* tx none, rx unsigned */
 #define  TIPC_CMD_GET_MAX_SUBSCR    0x4006    /* tx none, rx unsigned */
-#define  TIPC_CMD_GET_MAX_ZONES     0x4007    /* tx none, rx unsigned */
-#define  TIPC_CMD_GET_MAX_CLUSTERS  0x4008    /* tx none, rx unsigned */
+#define  TIPC_CMD_GET_MAX_ZONES     0x4007    /* obsoleted */
+#define  TIPC_CMD_GET_MAX_CLUSTERS  0x4008    /* obsoleted */
 #define  TIPC_CMD_GET_MAX_NODES     0x4009    /* tx none, rx unsigned */
-#define  TIPC_CMD_GET_MAX_SLAVES    0x400A    /* tx none, rx unsigned */
+#define  TIPC_CMD_GET_MAX_SLAVES    0x400A    /* obsoleted */
 #define  TIPC_CMD_GET_NETID         0x400B    /* tx none, rx unsigned */
 
 #define  TIPC_CMD_ENABLE_BEARER     0x4101    /* tx bearer_config, rx none */
@@ -116,10 +116,10 @@
 #define  TIPC_CMD_UNBLOCK_LINK      0x4106    /* tx link_name, rx none */
 #endif
 
-/* 
+/*
  * Private commands:
  * May only be issued by "network administration capable" process.
- * Accepted by own node only; cannot be used on a remote node.                       
+ * Accepted by own node only; cannot be used on a remote node.
  */
 
 #define  TIPC_CMD_SET_NODE_ADDR     0x8001    /* tx net_addr, rx none */
@@ -130,10 +130,10 @@
 #define  TIPC_CMD_SET_MAX_PORTS     0x8004    /* tx unsigned, rx none */
 #define  TIPC_CMD_SET_MAX_PUBL      0x8005    /* tx unsigned, rx none */
 #define  TIPC_CMD_SET_MAX_SUBSCR    0x8006    /* tx unsigned, rx none */
-#define  TIPC_CMD_SET_MAX_ZONES     0x8007    /* tx unsigned, rx none */
-#define  TIPC_CMD_SET_MAX_CLUSTERS  0x8008    /* tx unsigned, rx none */
+#define  TIPC_CMD_SET_MAX_ZONES     0x8007    /* obsoleted */
+#define  TIPC_CMD_SET_MAX_CLUSTERS  0x8008    /* obsoleted */
 #define  TIPC_CMD_SET_MAX_NODES     0x8009    /* tx unsigned, rx none */
-#define  TIPC_CMD_SET_MAX_SLAVES    0x800A    /* tx unsigned, rx none */
+#define  TIPC_CMD_SET_MAX_SLAVES    0x800A    /* obsoleted */
 #define  TIPC_CMD_SET_NETID         0x800B    /* tx unsigned, rx none */
 
 /*
@@ -156,20 +156,20 @@
 #define TIPC_TLV_ULTRA_STRING	5	/* char[32768] (max) */
 
 #define TIPC_TLV_ERROR_STRING	16	/* char[128] containing "error code" */
-#define TIPC_TLV_NET_ADDR   	17	/* 32-bit integer denoting <Z.C.N> */
+#define TIPC_TLV_NET_ADDR	17	/* 32-bit integer denoting <Z.C.N> */
 #define TIPC_TLV_MEDIA_NAME	18	/* char[TIPC_MAX_MEDIA_NAME] */
 #define TIPC_TLV_BEARER_NAME	19	/* char[TIPC_MAX_BEARER_NAME] */
 #define TIPC_TLV_LINK_NAME	20	/* char[TIPC_MAX_LINK_NAME] */
 #define TIPC_TLV_NODE_INFO	21	/* struct tipc_node_info */
 #define TIPC_TLV_LINK_INFO	22	/* struct tipc_link_info */
-#define TIPC_TLV_BEARER_CONFIG  23	/* struct tipc_bearer_config */
-#define TIPC_TLV_LINK_CONFIG    24	/* struct tipc_link_config */
+#define TIPC_TLV_BEARER_CONFIG	23	/* struct tipc_bearer_config */
+#define TIPC_TLV_LINK_CONFIG	24	/* struct tipc_link_config */
 #define TIPC_TLV_NAME_TBL_QUERY	25	/* struct tipc_name_table_query */
-#define TIPC_TLV_PORT_REF   	26	/* 32-bit port reference */
+#define TIPC_TLV_PORT_REF	26	/* 32-bit port reference */
 
 /*
  * Maximum sizes of TIPC bearer-related names (including terminating NUL)
- */ 
+ */
 
 #define TIPC_MAX_MEDIA_NAME	16	/* format = media */
 #define TIPC_MAX_IF_NAME	16	/* format = interface */
@@ -234,7 +234,7 @@ struct tipc_name_table_query {
 };
 
 /*
- * The error string TLV is a null-terminated string describing the cause 
+ * The error string TLV is a null-terminated string describing the cause
  * of the request failure.  To simplify error processing (and to save space)
  * the first character of the string can be a special error code character
  * (lying by the range 0x80 to 0xFF) which represents a pre-defined reason.
@@ -254,16 +254,11 @@ struct tipc_link_create {
 	struct tipc_media_addr peer_addr;
 	char bearer_name[TIPC_MAX_BEARER_NAME];
 };
-
-struct tipc_route_info {
-	__u32 dest;
-	__u32 router;
-};
 #endif
 
 /*
  * A TLV consists of a descriptor, followed by the TLV value.
- * TLV descriptor fields are stored in network byte order; 
+ * TLV descriptor fields are stored in network byte order;
  * TLV values must also be stored in network byte order (where applicable).
  * TLV descriptors must be aligned to addresses which are multiple of 4,
  * so up to 3 bytes of padding may exist at the end of the TLV value area.
@@ -299,7 +294,7 @@ static inline int TLV_OK(const void *tlv, __u16 space)
 
 static inline int TLV_CHECK(const void *tlv, __u16 space, __u16 exp_type)
 {
-	return TLV_OK(tlv, space) && 
+	return TLV_OK(tlv, space) &&
 		(ntohs(((struct tlv_desc *)tlv)->tlv_type) == exp_type);
 }
 
@@ -318,7 +313,7 @@ static inline int TLV_SET(void *tlv, __u16 type, void *data, __u16 len)
 }
 
 /*
- * A TLV list descriptor simplifies processing of messages 
+ * A TLV list descriptor simplifies processing of messages
  * containing multiple TLVs.
  */
 
@@ -327,15 +322,15 @@ struct tlv_list_desc {
 	__u32 tlv_space;		/* # bytes from curr TLV to list end */
 };
 
-static inline void TLV_LIST_INIT(struct tlv_list_desc *list, 
+static inline void TLV_LIST_INIT(struct tlv_list_desc *list,
 				 void *data, __u32 space)
 {
 	list->tlv_ptr = (struct tlv_desc *)data;
 	list->tlv_space = space;
 }
-	     
+
 static inline int TLV_LIST_EMPTY(struct tlv_list_desc *list)
-{ 
+{
 	return (list->tlv_space == 0);
 }
 
@@ -353,7 +348,7 @@ static inline void TLV_LIST_STEP(struct tlv_list_desc *list)
 {
 	__u16 tlv_space = TLV_ALIGN(ntohs(list->tlv_ptr->tlv_len));
 
-        list->tlv_ptr = (struct tlv_desc *)((char *)list->tlv_ptr + tlv_space);
+	list->tlv_ptr = (struct tlv_desc *)((char *)list->tlv_ptr + tlv_space);
 	list->tlv_space -= tlv_space;
 }
 
@@ -377,15 +372,14 @@ struct tipc_genlmsghdr {
 #define TIPC_GENL_HDRLEN	NLMSG_ALIGN(sizeof(struct tipc_genlmsghdr))
 
 /*
- * Configuration messages exchanged via TIPC sockets use the TIPC configuration 
- * message header, which is defined below.  This structure is analogous 
- * to the Netlink message header, but fields are stored in network byte order 
- * and no padding is permitted between the header and the message data 
+ * Configuration messages exchanged via TIPC sockets use the TIPC configuration
+ * message header, which is defined below.  This structure is analogous
+ * to the Netlink message header, but fields are stored in network byte order
+ * and no padding is permitted between the header and the message data
  * that follows.
  */
 
-struct tipc_cfg_msg_hdr
-{
+struct tipc_cfg_msg_hdr {
 	__be32 tcm_len;		/* Message length (including header) */
 	__be16 tcm_type;	/* Command type */
 	__be16 tcm_flags;	/* Additional flags */

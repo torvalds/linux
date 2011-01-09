@@ -2969,10 +2969,8 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 {
 	struct atyfb_par *par = info->par;
 	struct device_node *dp;
-	char prop[128];
-	phandle node;
-	int len, i, j, ret;
 	u32 mem, chip_id;
+	int i, j, ret;
 
 	/*
 	 * Map memory-mapped registers.
@@ -3088,23 +3086,8 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 		aty_st_le32(MEM_CNTL, mem, par);
 	}
 
-	/*
-	 * If this is the console device, we will set default video
-	 * settings to what the PROM left us with.
-	 */
-	node = prom_getchild(prom_root_node);
-	node = prom_searchsiblings(node, "aliases");
-	if (node) {
-		len = prom_getproperty(node, "screen", prop, sizeof(prop));
-		if (len > 0) {
-			prop[len] = '\0';
-			node = prom_finddevice(prop);
-		} else
-			node = 0;
-	}
-
 	dp = pci_device_to_OF_node(pdev);
-	if (node == dp->phandle) {
+	if (dp == of_console_device) {
 		struct fb_var_screeninfo *var = &default_var;
 		unsigned int N, P, Q, M, T, R;
 		u32 v_total, h_total;
@@ -3112,9 +3095,9 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 		u8 pll_regs[16];
 		u8 clock_cntl;
 
-		crtc.vxres = prom_getintdefault(node, "width", 1024);
-		crtc.vyres = prom_getintdefault(node, "height", 768);
-		var->bits_per_pixel = prom_getintdefault(node, "depth", 8);
+		crtc.vxres = of_getintprop_default(dp, "width", 1024);
+		crtc.vyres = of_getintprop_default(dp, "height", 768);
+		var->bits_per_pixel = of_getintprop_default(dp, "depth", 8);
 		var->xoffset = var->yoffset = 0;
 		crtc.h_tot_disp = aty_ld_le32(CRTC_H_TOTAL_DISP, par);
 		crtc.h_sync_strt_wid = aty_ld_le32(CRTC_H_SYNC_STRT_WID, par);

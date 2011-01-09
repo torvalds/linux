@@ -92,54 +92,6 @@ MODULE_PARM_DESC(barkers,
 		 "signal; values are appended to a list--setting one value "
 		 "as zero cleans the existing list and starts a new one.");
 
-static
-struct i2400m_work *__i2400m_work_setup(
-	struct i2400m *i2400m, void (*fn)(struct work_struct *),
-	gfp_t gfp_flags, const void *pl, size_t pl_size)
-{
-	struct i2400m_work *iw;
-
-	iw = kzalloc(sizeof(*iw) + pl_size, gfp_flags);
-	if (iw == NULL)
-		return NULL;
-	iw->i2400m = i2400m_get(i2400m);
-	iw->pl_size = pl_size;
-	memcpy(iw->pl, pl, pl_size);
-	INIT_WORK(&iw->ws, fn);
-	return iw;
-}
-
-
-/*
- * Schedule i2400m's specific work on the system's queue.
- *
- * Used for a few cases where we really need it; otherwise, identical
- * to i2400m_queue_work().
- *
- * Returns < 0 errno code on error, 1 if ok.
- *
- * If it returns zero, something really bad happened, as it means the
- * works struct was already queued, but we have just allocated it, so
- * it should not happen.
- */
-static int i2400m_schedule_work(struct i2400m *i2400m,
-			 void (*fn)(struct work_struct *), gfp_t gfp_flags,
-			 const void *pl, size_t pl_size)
-{
-	int result;
-	struct i2400m_work *iw;
-
-	result = -ENOMEM;
-	iw = __i2400m_work_setup(i2400m, fn, gfp_flags, pl, pl_size);
-	if (iw != NULL) {
-		result = schedule_work(&iw->ws);
-		if (WARN_ON(result == 0))
-			result = -ENXIO;
-	}
-	return result;
-}
-
-
 /*
  * WiMAX stack operation: relay a message from user space
  *
@@ -648,17 +600,11 @@ EXPORT_SYMBOL_GPL(i2400m_post_reset);
 static
 void __i2400m_dev_reset_handle(struct work_struct *ws)
 {
-	int result;
-	struct i2400m_work *iw = container_of(ws, struct i2400m_work, ws);
-	const char *reason;
-	struct i2400m *i2400m = iw->i2400m;
+	struct i2400m *i2400m = container_of(ws, struct i2400m, reset_ws);
+	const char *reason = i2400m->reset_reason;
 	struct device *dev = i2400m_dev(i2400m);
 	struct i2400m_reset_ctx *ctx = i2400m->reset_ctx;
-
-	if (WARN_ON(iw->pl_size != sizeof(reason)))
-		reason = "SW BUG: reason n/a";
-	else
-		memcpy(&reason, iw->pl, sizeof(reason));
+	int result;
 
 	d_fnstart(3, dev, "(ws %p i2400m %p reason %s)\n", ws, i2400m, reason);
 
@@ -733,8 +679,6 @@ void __i2400m_dev_reset_handle(struct work_struct *ws)
 		}
 	}
 out:
-	i2400m_put(i2400m);
-	kfree(iw);
 	d_fnend(3, dev, "(ws %p i2400m %p reason %s) = void\n",
 		ws, i2400m, reason);
 }
@@ -754,8 +698,8 @@ out:
  */
 int i2400m_dev_reset_handle(struct i2400m *i2400m, const char *reason)
 {
-	return i2400m_schedule_work(i2400m, __i2400m_dev_reset_handle,
-				    GFP_ATOMIC, &reason, sizeof(reason));
+	i2400m->reset_reason = reason;
+	return schedule_work(&i2400m->reset_ws);
 }
 EXPORT_SYMBOL_GPL(i2400m_dev_reset_handle);
 
@@ -768,14 +712,9 @@ EXPORT_SYMBOL_GPL(i2400m_dev_reset_handle);
 static
 void __i2400m_error_recovery(struct work_struct *ws)
 {
-	struct i2400m_work *iw = container_of(ws, struct i2400m_work, ws);
-	struct i2400m *i2400m = iw->i2400m;
+	struct i2400m *i2400m = container_of(ws, struct i2400m, recovery_ws);
 
 	i2400m_reset(i2400m, I2400M_RT_BUS);
-
-	i2400m_put(i2400m);
-	kfree(iw);
-	return;
 }
 
 /*
@@ -805,18 +744,10 @@ void __i2400m_error_recovery(struct work_struct *ws)
  */
 void i2400m_error_recovery(struct i2400m *i2400m)
 {
-	struct device *dev = i2400m_dev(i2400m);
-
-	if (atomic_add_return(1, &i2400m->error_recovery) == 1) {
-		if (i2400m_schedule_work(i2400m, __i2400m_error_recovery,
-			GFP_ATOMIC, NULL, 0) < 0) {
-			dev_err(dev, "run out of memory for "
-				"scheduling an error recovery ?\n");
-			atomic_dec(&i2400m->error_recovery);
-		}
-	} else
+	if (atomic_add_return(1, &i2400m->error_recovery) == 1)
+		schedule_work(&i2400m->recovery_ws);
+	else
 		atomic_dec(&i2400m->error_recovery);
-	return;
 }
 EXPORT_SYMBOL_GPL(i2400m_error_recovery);
 
@@ -886,6 +817,10 @@ void i2400m_init(struct i2400m *i2400m)
 
 	mutex_init(&i2400m->init_mutex);
 	/* wake_tx_ws is initialized in i2400m_tx_setup() */
+
+	INIT_WORK(&i2400m->reset_ws, __i2400m_dev_reset_handle);
+	INIT_WORK(&i2400m->recovery_ws, __i2400m_error_recovery);
+
 	atomic_set(&i2400m->bus_reset_retries, 0);
 
 	i2400m->alive = 0;
@@ -1040,6 +975,9 @@ void i2400m_release(struct i2400m *i2400m)
 
 	i2400m_dev_stop(i2400m);
 
+	cancel_work_sync(&i2400m->reset_ws);
+	cancel_work_sync(&i2400m->recovery_ws);
+
 	i2400m_debugfs_rm(i2400m);
 	sysfs_remove_group(&i2400m->wimax_dev.net_dev->dev.kobj,
 			   &i2400m_dev_attr_group);
@@ -1083,8 +1021,6 @@ module_init(i2400m_driver_init);
 static
 void __exit i2400m_driver_exit(void)
 {
-	/* for scheds i2400m_dev_reset_handle() */
-	flush_scheduled_work();
 	i2400m_barker_db_exit();
 }
 module_exit(i2400m_driver_exit);

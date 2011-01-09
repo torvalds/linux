@@ -5,24 +5,29 @@
 
 #include <linux/mm_types.h>
 #include <linux/scatterlist.h>
+#include <linux/dma-debug.h>
 
 #include <asm-generic/dma-coherent.h>
 #include <asm/memory.h>
 
+#ifdef __arch_page_to_dma
+#error Please update to __arch_pfn_to_dma
+#endif
+
 /*
- * page_to_dma/dma_to_virt/virt_to_dma are architecture private functions
- * used internally by the DMA-mapping API to provide DMA addresses. They
- * must not be used by drivers.
+ * dma_to_pfn/pfn_to_dma/dma_to_virt/virt_to_dma are architecture private
+ * functions used internally by the DMA-mapping API to provide DMA
+ * addresses. They must not be used by drivers.
  */
-#ifndef __arch_page_to_dma
-static inline dma_addr_t page_to_dma(struct device *dev, struct page *page)
+#ifndef __arch_pfn_to_dma
+static inline dma_addr_t pfn_to_dma(struct device *dev, unsigned long pfn)
 {
-	return (dma_addr_t)__pfn_to_bus(page_to_pfn(page));
+	return (dma_addr_t)__pfn_to_bus(pfn);
 }
 
-static inline struct page *dma_to_page(struct device *dev, dma_addr_t addr)
+static inline unsigned long dma_to_pfn(struct device *dev, dma_addr_t addr)
 {
-	return pfn_to_page(__bus_to_pfn(addr));
+	return __bus_to_pfn(addr);
 }
 
 static inline void *dma_to_virt(struct device *dev, dma_addr_t addr)
@@ -35,14 +40,14 @@ static inline dma_addr_t virt_to_dma(struct device *dev, void *addr)
 	return (dma_addr_t)__virt_to_bus((unsigned long)(addr));
 }
 #else
-static inline dma_addr_t page_to_dma(struct device *dev, struct page *page)
+static inline dma_addr_t pfn_to_dma(struct device *dev, unsigned long pfn)
 {
-	return __arch_page_to_dma(dev, page);
+	return __arch_pfn_to_dma(dev, pfn);
 }
 
-static inline struct page *dma_to_page(struct device *dev, dma_addr_t addr)
+static inline unsigned long dma_to_pfn(struct device *dev, dma_addr_t addr)
 {
-	return __arch_dma_to_page(dev, addr);
+	return __arch_dma_to_pfn(dev, addr);
 }
 
 static inline void *dma_to_virt(struct device *dev, dma_addr_t addr)
@@ -293,13 +298,13 @@ extern int dma_needs_bounce(struct device*, dma_addr_t, size_t);
 /*
  * The DMA API, implemented by dmabounce.c.  See below for descriptions.
  */
-extern dma_addr_t dma_map_single(struct device *, void *, size_t,
+extern dma_addr_t __dma_map_single(struct device *, void *, size_t,
 		enum dma_data_direction);
-extern void dma_unmap_single(struct device *, dma_addr_t, size_t,
+extern void __dma_unmap_single(struct device *, dma_addr_t, size_t,
 		enum dma_data_direction);
-extern dma_addr_t dma_map_page(struct device *, struct page *,
+extern dma_addr_t __dma_map_page(struct device *, struct page *,
 		unsigned long, size_t, enum dma_data_direction);
-extern void dma_unmap_page(struct device *, dma_addr_t, size_t,
+extern void __dma_unmap_page(struct device *, dma_addr_t, size_t,
 		enum dma_data_direction);
 
 /*
@@ -323,6 +328,34 @@ static inline int dmabounce_sync_for_device(struct device *d, dma_addr_t addr,
 }
 
 
+static inline dma_addr_t __dma_map_single(struct device *dev, void *cpu_addr,
+		size_t size, enum dma_data_direction dir)
+{
+	__dma_single_cpu_to_dev(cpu_addr, size, dir);
+	return virt_to_dma(dev, cpu_addr);
+}
+
+static inline dma_addr_t __dma_map_page(struct device *dev, struct page *page,
+	     unsigned long offset, size_t size, enum dma_data_direction dir)
+{
+	__dma_page_cpu_to_dev(page, offset, size, dir);
+	return pfn_to_dma(dev, page_to_pfn(page)) + offset;
+}
+
+static inline void __dma_unmap_single(struct device *dev, dma_addr_t handle,
+		size_t size, enum dma_data_direction dir)
+{
+	__dma_single_dev_to_cpu(dma_to_virt(dev, handle), size, dir);
+}
+
+static inline void __dma_unmap_page(struct device *dev, dma_addr_t handle,
+		size_t size, enum dma_data_direction dir)
+{
+	__dma_page_dev_to_cpu(pfn_to_page(dma_to_pfn(dev, handle)),
+		handle & ~PAGE_MASK, size, dir);
+}
+#endif /* CONFIG_DMABOUNCE */
+
 /**
  * dma_map_single - map a single buffer for streaming DMA
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
@@ -340,11 +373,16 @@ static inline int dmabounce_sync_for_device(struct device *d, dma_addr_t addr,
 static inline dma_addr_t dma_map_single(struct device *dev, void *cpu_addr,
 		size_t size, enum dma_data_direction dir)
 {
+	dma_addr_t addr;
+
 	BUG_ON(!valid_dma_direction(dir));
 
-	__dma_single_cpu_to_dev(cpu_addr, size, dir);
+	addr = __dma_map_single(dev, cpu_addr, size, dir);
+	debug_dma_map_page(dev, virt_to_page(cpu_addr),
+			(unsigned long)cpu_addr & ~PAGE_MASK, size,
+			dir, addr, true);
 
-	return virt_to_dma(dev, cpu_addr);
+	return addr;
 }
 
 /**
@@ -364,11 +402,14 @@ static inline dma_addr_t dma_map_single(struct device *dev, void *cpu_addr,
 static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
 	     unsigned long offset, size_t size, enum dma_data_direction dir)
 {
+	dma_addr_t addr;
+
 	BUG_ON(!valid_dma_direction(dir));
 
-	__dma_page_cpu_to_dev(page, offset, size, dir);
+	addr = __dma_map_page(dev, page, offset, size, dir);
+	debug_dma_map_page(dev, page, offset, size, dir, addr, false);
 
-	return page_to_dma(dev, page) + offset;
+	return addr;
 }
 
 /**
@@ -388,7 +429,8 @@ static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
 static inline void dma_unmap_single(struct device *dev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir)
 {
-	__dma_single_dev_to_cpu(dma_to_virt(dev, handle), size, dir);
+	debug_dma_unmap_page(dev, handle, size, dir, true);
+	__dma_unmap_single(dev, handle, size, dir);
 }
 
 /**
@@ -408,10 +450,9 @@ static inline void dma_unmap_single(struct device *dev, dma_addr_t handle,
 static inline void dma_unmap_page(struct device *dev, dma_addr_t handle,
 		size_t size, enum dma_data_direction dir)
 {
-	__dma_page_dev_to_cpu(dma_to_page(dev, handle), handle & ~PAGE_MASK,
-		size, dir);
+	debug_dma_unmap_page(dev, handle, size, dir, false);
+	__dma_unmap_page(dev, handle, size, dir);
 }
-#endif /* CONFIG_DMABOUNCE */
 
 /**
  * dma_sync_single_range_for_cpu
@@ -437,6 +478,8 @@ static inline void dma_sync_single_range_for_cpu(struct device *dev,
 {
 	BUG_ON(!valid_dma_direction(dir));
 
+	debug_dma_sync_single_for_cpu(dev, handle + offset, size, dir);
+
 	if (!dmabounce_sync_for_cpu(dev, handle, offset, size, dir))
 		return;
 
@@ -448,6 +491,8 @@ static inline void dma_sync_single_range_for_device(struct device *dev,
 		enum dma_data_direction dir)
 {
 	BUG_ON(!valid_dma_direction(dir));
+
+	debug_dma_sync_single_for_device(dev, handle + offset, size, dir);
 
 	if (!dmabounce_sync_for_device(dev, handle, offset, size, dir))
 		return;

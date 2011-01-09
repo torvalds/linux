@@ -3,36 +3,53 @@
 
 #include <linux/pci.h>
 
-extern struct pci_device_id k8_nb_ids[];
+extern struct pci_device_id amd_nb_misc_ids[];
 struct bootnode;
 
-extern int early_is_k8_nb(u32 value);
-extern int cache_k8_northbridges(void);
-extern void k8_flush_garts(void);
-extern int k8_get_nodes(struct bootnode *nodes);
-extern int k8_numa_init(unsigned long start_pfn, unsigned long end_pfn);
-extern int k8_scan_nodes(void);
+extern int early_is_amd_nb(u32 value);
+extern int amd_cache_northbridges(void);
+extern void amd_flush_garts(void);
+extern int amd_get_nodes(struct bootnode *nodes);
+extern int amd_numa_init(unsigned long start_pfn, unsigned long end_pfn);
+extern int amd_scan_nodes(void);
 
-struct k8_northbridge_info {
-	u16 num;
-	u8 gart_supported;
-	struct pci_dev **nb_misc;
+struct amd_northbridge {
+	struct pci_dev *misc;
 };
-extern struct k8_northbridge_info k8_northbridges;
+
+struct amd_northbridge_info {
+	u16 num;
+	u64 flags;
+	struct amd_northbridge *nb;
+};
+extern struct amd_northbridge_info amd_northbridges;
+
+#define AMD_NB_GART			0x1
+#define AMD_NB_L3_INDEX_DISABLE		0x2
 
 #ifdef CONFIG_AMD_NB
 
-static inline struct pci_dev *node_to_k8_nb_misc(int node)
+static inline int amd_nb_num(void)
 {
-	return (node < k8_northbridges.num) ? k8_northbridges.nb_misc[node] : NULL;
+	return amd_northbridges.num;
+}
+
+static inline int amd_nb_has_feature(int feature)
+{
+	return ((amd_northbridges.flags & feature) == feature);
+}
+
+static inline struct amd_northbridge *node_to_amd_nb(int node)
+{
+	return (node < amd_northbridges.num) ? &amd_northbridges.nb[node] : NULL;
 }
 
 #else
 
-static inline struct pci_dev *node_to_k8_nb_misc(int node)
-{
-	return NULL;
-}
+#define amd_nb_num(x)		0
+#define amd_nb_has_feature(x)	false
+#define node_to_amd_nb(x)	NULL
+
 #endif
 
 

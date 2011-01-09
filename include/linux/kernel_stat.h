@@ -47,7 +47,7 @@ extern unsigned long long nr_context_switches(void);
 
 #ifndef CONFIG_GENERIC_HARDIRQS
 #define kstat_irqs_this_cpu(irq) \
-	(kstat_this_cpu.irqs[irq])
+	(this_cpu_read(kstat.irqs[irq])
 
 struct irq_desc;
 

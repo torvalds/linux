@@ -275,11 +275,12 @@ static uint_t *sift_rel_mcount(uint_t *mlocp,
 			Elf_Sym const *const symp =
 				&sym0[Elf_r_sym(relp)];
 			char const *symname = &str0[w(symp->st_name)];
+			char const *mcount = '_' == gpfx ? "_mcount" : "mcount";
 
 			if ('.' == symname[0])
 				++symname;  /* ppc64 hack */
-			if (0 == strcmp((('_' == gpfx) ? "_mcount" : "mcount"),
-					symname))
+			if (0 == strcmp(mcount, symname) ||
+			    (altmcount && 0 == strcmp(altmcount, symname)))
 				mcountsym = Elf_r_sym(relp);
 		}
 

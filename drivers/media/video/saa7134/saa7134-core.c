@@ -166,8 +166,14 @@ static void request_submodules(struct saa7134_dev *dev)
 	schedule_work(&dev->request_module_wk);
 }
 
+static void flush_request_submodules(struct saa7134_dev *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
+
 #else
 #define request_submodules(dev)
+#define flush_request_submodules(dev)
 #endif /* CONFIG_MODULES */
 
 /* ------------------------------------------------------------------ */
@@ -1010,8 +1016,6 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		}
 	}
 
-	request_submodules(dev);
-
 	v4l2_prio_init(&dev->prio);
 
 	mutex_lock(&saa7134_devlist_lock);
@@ -1066,6 +1070,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	if (saa7134_dmasound_init && !dev->dmasound.priv_data)
 		saa7134_dmasound_init(dev);
 
+	request_submodules(dev);
 	return 0;
 
  fail4:
@@ -1090,6 +1095,8 @@ static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
 	struct saa7134_dev *dev = container_of(v4l2_dev, struct saa7134_dev, v4l2_dev);
 	struct saa7134_mpeg_ops *mops;
+
+	flush_request_submodules(dev);
 
 	/* Release DMA sound modules if present */
 	if (saa7134_dmasound_exit && dev->dmasound.priv_data) {

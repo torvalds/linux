@@ -66,7 +66,6 @@ enum spi_imx_devtype {
 	SPI_IMX_VER_0_5,
 	SPI_IMX_VER_0_7,
 	SPI_IMX_VER_2_3,
-	SPI_IMX_VER_AUTODETECT,
 };
 
 struct spi_imx_data;
@@ -720,9 +719,6 @@ static void spi_imx_cleanup(struct spi_device *spi)
 
 static struct platform_device_id spi_imx_devtype[] = {
 	{
-		.name = DRIVER_NAME,
-		.driver_data = SPI_IMX_VER_AUTODETECT,
-	}, {
 		.name = "imx1-cspi",
 		.driver_data = SPI_IMX_VER_IMX1,
 	}, {
@@ -802,30 +798,8 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 
 	init_completion(&spi_imx->xfer_done);
 
-	if (pdev->id_entry->driver_data == SPI_IMX_VER_AUTODETECT) {
-		if (cpu_is_mx25() || cpu_is_mx35())
-			spi_imx->devtype_data =
-				spi_imx_devtype_data[SPI_IMX_VER_0_7];
-		else if (cpu_is_mx25() || cpu_is_mx31() || cpu_is_mx35())
-			spi_imx->devtype_data =
-				spi_imx_devtype_data[SPI_IMX_VER_0_4];
-		else if (cpu_is_mx27() || cpu_is_mx21())
-			spi_imx->devtype_data =
-				spi_imx_devtype_data[SPI_IMX_VER_0_0];
-		else if (cpu_is_mx1())
-			spi_imx->devtype_data =
-				spi_imx_devtype_data[SPI_IMX_VER_IMX1];
-		else
-			BUG();
-	} else
-		spi_imx->devtype_data =
-			spi_imx_devtype_data[pdev->id_entry->driver_data];
-
-	if (!spi_imx->devtype_data.intctrl) {
-		dev_err(&pdev->dev, "no support for this device compiled in\n");
-		ret = -ENODEV;
-		goto out_gpio_free;
-	}
+	spi_imx->devtype_data =
+		spi_imx_devtype_data[pdev->id_entry->driver_data];
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -847,7 +821,7 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 	}
 
 	spi_imx->irq = platform_get_irq(pdev, 0);
-	if (spi_imx->irq <= 0) {
+	if (spi_imx->irq < 0) {
 		ret = -EINVAL;
 		goto out_iounmap;
 	}

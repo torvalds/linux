@@ -177,6 +177,14 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
 	struct cmd_ds_host_sleep cmd_config;
 	int ret;
 
+	/*
+	 * Certain firmware versions do not support EHS_REMOVE_WAKEUP command
+	 * and the card will return a failure.  Since we need to be
+	 * able to reset the mask, in those cases we set a 0 mask instead.
+	 */
+	if (criteria == EHS_REMOVE_WAKEUP && !priv->ehs_remove_supported)
+		criteria = 0;
+
 	cmd_config.hdr.size = cpu_to_le16(sizeof(cmd_config));
 	cmd_config.criteria = cpu_to_le32(criteria);
 	cmd_config.gpio = priv->wol_gpio;

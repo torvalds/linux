@@ -37,12 +37,12 @@ static struct kmem_cache *srb_cachep;
 static struct kmem_cache *ctx_cachep;
 
 int ql2xlogintimeout = 20;
-module_param(ql2xlogintimeout, int, S_IRUGO|S_IRUSR);
+module_param(ql2xlogintimeout, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xlogintimeout,
 		"Login timeout value in seconds.");
 
 int qlport_down_retry;
-module_param(qlport_down_retry, int, S_IRUGO|S_IRUSR);
+module_param(qlport_down_retry, int, S_IRUGO);
 MODULE_PARM_DESC(qlport_down_retry,
 		"Maximum number of command retries to a port that returns "
 		"a PORT-DOWN status.");
@@ -55,12 +55,12 @@ MODULE_PARM_DESC(ql2xplogiabsentdevice,
 		"Default is 0 - no PLOGI. 1 - perfom PLOGI.");
 
 int ql2xloginretrycount = 0;
-module_param(ql2xloginretrycount, int, S_IRUGO|S_IRUSR);
+module_param(ql2xloginretrycount, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xloginretrycount,
 		"Specify an alternate value for the NVRAM login retry count.");
 
 int ql2xallocfwdump = 1;
-module_param(ql2xallocfwdump, int, S_IRUGO|S_IRUSR);
+module_param(ql2xallocfwdump, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xallocfwdump,
 		"Option to enable allocation of memory for a firmware dump "
 		"during HBA initialization.  Memory allocation requirements "
@@ -73,7 +73,7 @@ MODULE_PARM_DESC(ql2xextended_error_logging,
 		"Default is 0 - no logging. 1 - log errors.");
 
 int ql2xshiftctondsd = 6;
-module_param(ql2xshiftctondsd, int, S_IRUGO|S_IRUSR);
+module_param(ql2xshiftctondsd, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xshiftctondsd,
 		"Set to control shifting of command type processing "
 		"based on total number of SG elements.");
@@ -81,7 +81,7 @@ MODULE_PARM_DESC(ql2xshiftctondsd,
 static void qla2x00_free_device(scsi_qla_host_t *);
 
 int ql2xfdmienable=1;
-module_param(ql2xfdmienable, int, S_IRUGO|S_IRUSR);
+module_param(ql2xfdmienable, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xfdmienable,
 		"Enables FDMI registrations. "
 		"0 - no FDMI. Default is 1 - perform FDMI.");
@@ -106,27 +106,27 @@ MODULE_PARM_DESC(ql2xenablehba_err_chk,
 		" Default is 0 - Error isolation disabled, 1 - Enable it");
 
 int ql2xiidmaenable=1;
-module_param(ql2xiidmaenable, int, S_IRUGO|S_IRUSR);
+module_param(ql2xiidmaenable, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xiidmaenable,
 		"Enables iIDMA settings "
 		"Default is 1 - perform iIDMA. 0 - no iIDMA.");
 
 int ql2xmaxqueues = 1;
-module_param(ql2xmaxqueues, int, S_IRUGO|S_IRUSR);
+module_param(ql2xmaxqueues, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xmaxqueues,
 		"Enables MQ settings "
 		"Default is 1 for single queue. Set it to number "
 		"of queues in MQ mode.");
 
 int ql2xmultique_tag;
-module_param(ql2xmultique_tag, int, S_IRUGO|S_IRUSR);
+module_param(ql2xmultique_tag, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xmultique_tag,
 		"Enables CPU affinity settings for the driver "
 		"Default is 0 for no affinity of request and response IO. "
 		"Set it to 1 to turn on the cpu affinity.");
 
 int ql2xfwloadbin;
-module_param(ql2xfwloadbin, int, S_IRUGO|S_IRUSR);
+module_param(ql2xfwloadbin, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xfwloadbin,
 		"Option to specify location from which to load ISP firmware:\n"
 		" 2 -- load firmware via the request_firmware() (hotplug)\n"
@@ -135,39 +135,32 @@ MODULE_PARM_DESC(ql2xfwloadbin,
 		" 0 -- use default semantics.\n");
 
 int ql2xetsenable;
-module_param(ql2xetsenable, int, S_IRUGO|S_IRUSR);
+module_param(ql2xetsenable, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xetsenable,
 		"Enables firmware ETS burst."
 		"Default is 0 - skip ETS enablement.");
 
 int ql2xdbwr = 1;
-module_param(ql2xdbwr, int, S_IRUGO|S_IRUSR);
+module_param(ql2xdbwr, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xdbwr,
 	"Option to specify scheme for request queue posting\n"
 	" 0 -- Regular doorbell.\n"
 	" 1 -- CAMRAM doorbell (faster).\n");
 
-int ql2xdontresethba;
-module_param(ql2xdontresethba, int, S_IRUGO|S_IRUSR);
-MODULE_PARM_DESC(ql2xdontresethba,
-	"Option to specify reset behaviour\n"
-	" 0 (Default) -- Reset on failure.\n"
-	" 1 -- Do not reset on failure.\n");
-
 int ql2xtargetreset = 1;
-module_param(ql2xtargetreset, int, S_IRUGO|S_IRUSR);
+module_param(ql2xtargetreset, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xtargetreset,
 		 "Enable target reset."
 		 "Default is 1 - use hw defaults.");
 
 int ql2xgffidenable;
-module_param(ql2xgffidenable, int, S_IRUGO|S_IRUSR);
+module_param(ql2xgffidenable, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xgffidenable,
 		"Enables GFF_ID checks of port type. "
 		"Default is 0 - Do not use GFF_ID information.");
 
 int ql2xasynctmfenable;
-module_param(ql2xasynctmfenable, int, S_IRUGO|S_IRUSR);
+module_param(ql2xasynctmfenable, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xasynctmfenable,
 		"Enables issue of TM IOCBs asynchronously via IOCB mechanism"
 		"Default is 0 - Issue TM IOCBs via mailbox mechanism.");
@@ -2371,7 +2364,7 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	list_for_each_entry(vha, &ha->vp_list, list) {
 		atomic_inc(&vha->vref_count);
 
-		if (vha && vha->fc_vport) {
+		if (vha->fc_vport) {
 			spin_unlock_irqrestore(&ha->vport_slock, flags);
 
 			fc_vport_terminate(vha->fc_vport);
@@ -3386,6 +3379,21 @@ qla2x00_do_dpc(void *data)
 			clear_bit(FCPORT_UPDATE_NEEDED, &base_vha->dpc_flags);
 		}
 
+		if (test_bit(ISP_QUIESCE_NEEDED, &base_vha->dpc_flags)) {
+			DEBUG(printk(KERN_INFO "scsi(%ld): dpc: sched "
+			    "qla2x00_quiesce_needed ha = %p\n",
+			    base_vha->host_no, ha));
+			qla82xx_device_state_handler(base_vha);
+			clear_bit(ISP_QUIESCE_NEEDED, &base_vha->dpc_flags);
+			if (!ha->flags.quiesce_owner) {
+				qla2x00_perform_loop_resync(base_vha);
+
+				qla82xx_idc_lock(ha);
+				qla82xx_clear_qsnt_ready(base_vha);
+				qla82xx_idc_unlock(ha);
+			}
+		}
+
 		if (test_and_clear_bit(RESET_MARKER_NEEDED,
 							&base_vha->dpc_flags) &&
 		    (!(test_and_set_bit(RESET_ACTIVE, &base_vha->dpc_flags)))) {
@@ -3589,12 +3597,15 @@ qla2x00_timer(scsi_qla_host_t *vha)
 		return;
 	}
 
-	if (IS_QLA82XX(ha))
-		qla82xx_watchdog(vha);
-
 	/* Hardware read to raise pending EEH errors during mailbox waits. */
 	if (!pci_channel_offline(ha->pdev))
 		pci_read_config_word(ha->pdev, PCI_VENDOR_ID, &w);
+
+	if (IS_QLA82XX(ha)) {
+		if (test_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags))
+			start_dpc++;
+		qla82xx_watchdog(vha);
+	}
 
 	/* Loop down handler. */
 	if (atomic_read(&vha->loop_down_timer) > 0 &&

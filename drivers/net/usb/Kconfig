@@ -196,6 +196,25 @@ config USB_NET_CDC_EEM
 	  IEEE 802 "local assignment" bit is set in the address, a "usbX"
 	  name is used instead.
 
+config USB_NET_CDC_NCM
+	tristate "CDC NCM support"
+	depends on USB_USBNET
+	default y
+	help
+	  This driver provides support for CDC NCM (Network Control Model
+	  Device USB Class Specification). The CDC NCM specification is
+	  available from <http://www.usb.org/>.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module.
+
+	  This driver should work with at least the following devices:
+	    * ST-Ericsson M700 LTE FDD/TDD Mobile Broadband Modem (ref. design)
+	    * ST-Ericsson M5730 HSPA+ Mobile Broadband Modem (reference design)
+	    * ST-Ericsson M570 HSPA+ Mobile Broadband Modem (reference design)
+	    * ST-Ericsson M343 HSPA Mobile Broadband Modem (reference design)
+	    * Ericsson F5521gw Mobile Broadband Module
+
 config USB_NET_DM9601
 	tristate "Davicom DM9601 based USB 1.1 10/100 ethernet devices"
 	depends on USB_USBNET

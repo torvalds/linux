@@ -143,7 +143,7 @@ static inline int has_mux(void)
 
 inline int op_x86_phys_to_virt(int phys)
 {
-	return __get_cpu_var(switch_index) + phys;
+	return __this_cpu_read(switch_index) + phys;
 }
 
 inline int op_x86_virt_to_phys(int virt)
@@ -731,6 +731,9 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 			break;
 		case 0x14:
 			cpu_type = "x86-64/family14h";
+			break;
+		case 0x15:
+			cpu_type = "x86-64/family15h";
 			break;
 		default:
 			return -ENODEV;

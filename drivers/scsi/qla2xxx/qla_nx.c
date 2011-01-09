@@ -1079,11 +1079,55 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 
 	/* Halt all the indiviual PEGs and other blocks of the ISP */
 	qla82xx_rom_lock(ha);
+
+	/* mask all niu interrupts */
+	qla82xx_wr_32(ha, QLA82XX_CRB_NIU + 0x40, 0xff);
+	/* disable xge rx/tx */
+	qla82xx_wr_32(ha, QLA82XX_CRB_NIU + 0x70000, 0x00);
+	/* disable xg1 rx/tx */
+	qla82xx_wr_32(ha, QLA82XX_CRB_NIU + 0x80000, 0x00);
+
+	/* halt sre */
+	val = qla82xx_rd_32(ha, QLA82XX_CRB_SRE + 0x1000);
+	qla82xx_wr_32(ha, QLA82XX_CRB_SRE + 0x1000, val & (~(0x1)));
+
+	/* halt epg */
+	qla82xx_wr_32(ha, QLA82XX_CRB_EPG + 0x1300, 0x1);
+
+	/* halt timers */
+	qla82xx_wr_32(ha, QLA82XX_CRB_TIMER + 0x0, 0x0);
+	qla82xx_wr_32(ha, QLA82XX_CRB_TIMER + 0x8, 0x0);
+	qla82xx_wr_32(ha, QLA82XX_CRB_TIMER + 0x10, 0x0);
+	qla82xx_wr_32(ha, QLA82XX_CRB_TIMER + 0x18, 0x0);
+	qla82xx_wr_32(ha, QLA82XX_CRB_TIMER + 0x100, 0x0);
+
+	/* halt pegs */
+	qla82xx_wr_32(ha, QLA82XX_CRB_PEG_NET_0 + 0x3c, 1);
+	qla82xx_wr_32(ha, QLA82XX_CRB_PEG_NET_1 + 0x3c, 1);
+	qla82xx_wr_32(ha, QLA82XX_CRB_PEG_NET_2 + 0x3c, 1);
+	qla82xx_wr_32(ha, QLA82XX_CRB_PEG_NET_3 + 0x3c, 1);
+	qla82xx_wr_32(ha, QLA82XX_CRB_PEG_NET_4 + 0x3c, 1);
+
+	/* big hammer */
+	msleep(1000);
 	if (test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags))
 		/* don't reset CAM block on reset */
 		qla82xx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0xfeffffff);
 	else
 		qla82xx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0xffffffff);
+
+	/* reset ms */
+	val = qla82xx_rd_32(ha, QLA82XX_CRB_QDR_NET + 0xe4);
+	val |= (1 << 1);
+	qla82xx_wr_32(ha, QLA82XX_CRB_QDR_NET + 0xe4, val);
+	msleep(20);
+
+	/* unreset ms */
+	val = qla82xx_rd_32(ha, QLA82XX_CRB_QDR_NET + 0xe4);
+	val &= ~(1 << 1);
+	qla82xx_wr_32(ha, QLA82XX_CRB_QDR_NET + 0xe4, val);
+	msleep(20);
+
 	qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_UNLOCK));
 
 	/* Read the signature value from the flash.
@@ -1210,25 +1254,6 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 }
 
 static int
-qla82xx_check_for_bad_spd(struct qla_hw_data *ha)
-{
-	u32 val = 0;
-	val = qla82xx_rd_32(ha, BOOT_LOADER_DIMM_STATUS);
-	val &= QLA82XX_BOOT_LOADER_MN_ISSUE;
-	if (val & QLA82XX_PEG_TUNE_MN_SPD_ZEROED) {
-		qla_printk(KERN_INFO, ha,
-			"Memory DIMM SPD not programmed. "
-			" Assumed valid.\n");
-		return 1;
-	} else if (val) {
-		qla_printk(KERN_INFO, ha,
-			"Memory DIMM type incorrect.Info:%08X.\n", val);
-		return 2;
-	}
-	return 0;
-}
-
-static int
 qla82xx_pci_mem_write_2M(struct qla_hw_data *ha,
 		u64 off, void *data, int size)
 {
@@ -1293,11 +1318,6 @@ qla82xx_pci_mem_write_2M(struct qla_hw_data *ha,
 		word[startword+1] |= tmpw >> (sz[0] * 8);
 	}
 
-	/*
-	 * don't lock here - write_wx gets the lock if each time
-	 * write_lock_irqsave(&adapter->adapter_lock, flags);
-	 * netxen_nic_pci_change_crbwindow_128M(adapter, 0);
-	 */
 	for (i = 0; i < loop; i++) {
 		temp = off8 + (i << shift_amount);
 		qla82xx_wr_32(ha, mem_crb+MIU_TEST_AGT_ADDR_LO, temp);
@@ -1399,12 +1419,6 @@ qla82xx_pci_mem_read_2M(struct qla_hw_data *ha,
 	off0[1] = 0;
 	sz[1] = size - sz[0];
 
-	/*
-	 * don't lock here - write_wx gets the lock if each time
-	 * write_lock_irqsave(&adapter->adapter_lock, flags);
-	 * netxen_nic_pci_change_crbwindow_128M(adapter, 0);
-	 */
-
 	for (i = 0; i < loop; i++) {
 		temp = off8 + (i << shift_amount);
 		qla82xx_wr_32(ha, mem_crb + MIU_TEST_AGT_ADDR_LO, temp);
@@ -1436,11 +1450,6 @@ qla82xx_pci_mem_read_2M(struct qla_hw_data *ha,
 			word[i] |= ((uint64_t)temp << (32 * (k & 1)));
 		}
 	}
-
-	/*
-	 * netxen_nic_pci_change_crbwindow_128M(adapter, 1);
-	 * write_unlock_irqrestore(&adapter->adapter_lock, flags);
-	 */
 
 	if (j >= MAX_CTL_CHECK)
 		return -1;
@@ -1872,7 +1881,6 @@ qla82xx_check_cmdpeg_state(struct qla_hw_data *ha)
 	qla_printk(KERN_INFO, ha,
 	    "Cmd Peg initialization failed: 0x%x.\n", val);
 
-	qla82xx_check_for_bad_spd(ha);
 	val = qla82xx_rd_32(ha, QLA82XX_ROMUSB_GLB_PEGTUNE_DONE);
 	read_lock(&ha->hw_lock);
 	qla82xx_wr_32(ha, CRB_CMDPEG_STATE, PHAN_INITIALIZE_FAILED);
@@ -2343,6 +2351,17 @@ qla82xx_set_qsnt_ready(struct qla_hw_data *ha)
 	qla82xx_wr_32(ha, QLA82XX_CRB_DRV_STATE, qsnt_state);
 }
 
+void
+qla82xx_clear_qsnt_ready(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t qsnt_state;
+
+	qsnt_state = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_STATE);
+	qsnt_state &= ~(QLA82XX_DRVST_QSNT_RDY << (ha->portnum * 4));
+	qla82xx_wr_32(ha, QLA82XX_CRB_DRV_STATE, qsnt_state);
+}
+
 static int
 qla82xx_load_fw(scsi_qla_host_t *vha)
 {
@@ -2542,7 +2561,7 @@ qla2xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 			*cur_dsd++ = cpu_to_le32(LSD(sle_dma));
 			*cur_dsd++ = cpu_to_le32(MSD(sle_dma));
 			*cur_dsd++ = cpu_to_le32(sg_dma_len(cur_seg));
-			cur_seg++;
+			cur_seg = sg_next(cur_seg);
 			avail_dsds--;
 		}
 	}
@@ -3261,6 +3280,104 @@ dev_ready:
 	return QLA_SUCCESS;
 }
 
+/*
+* qla82xx_need_qsnt_handler
+*    Code to start quiescence sequence
+*
+* Note:
+*      IDC lock must be held upon entry
+*
+* Return: void
+*/
+
+static void
+qla82xx_need_qsnt_handler(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t dev_state, drv_state, drv_active;
+	unsigned long reset_timeout;
+
+	if (vha->flags.online) {
+		/*Block any further I/O and wait for pending cmnds to complete*/
+		qla82xx_quiescent_state_cleanup(vha);
+	}
+
+	/* Set the quiescence ready bit */
+	qla82xx_set_qsnt_ready(ha);
+
+	/*wait for 30 secs for other functions to ack */
+	reset_timeout = jiffies + (30 * HZ);
+
+	drv_state = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_STATE);
+	drv_active = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_ACTIVE);
+	/* Its 2 that is written when qsnt is acked, moving one bit */
+	drv_active = drv_active << 0x01;
+
+	while (drv_state != drv_active) {
+
+		if (time_after_eq(jiffies, reset_timeout)) {
+			/* quiescence timeout, other functions didn't ack
+			 * changing the state to DEV_READY
+			 */
+			qla_printk(KERN_INFO, ha,
+			    "%s: QUIESCENT TIMEOUT\n", QLA2XXX_DRIVER_NAME);
+			qla_printk(KERN_INFO, ha,
+			    "DRV_ACTIVE:%d DRV_STATE:%d\n", drv_active,
+			    drv_state);
+			qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
+						QLA82XX_DEV_READY);
+			qla_printk(KERN_INFO, ha,
+			    "HW State: DEV_READY\n");
+			qla82xx_idc_unlock(ha);
+			qla2x00_perform_loop_resync(vha);
+			qla82xx_idc_lock(ha);
+
+			qla82xx_clear_qsnt_ready(vha);
+			return;
+		}
+
+		qla82xx_idc_unlock(ha);
+		msleep(1000);
+		qla82xx_idc_lock(ha);
+
+		drv_state = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_STATE);
+		drv_active = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_ACTIVE);
+		drv_active = drv_active << 0x01;
+	}
+	dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+	/* everyone acked so set the state to DEV_QUIESCENCE */
+	if (dev_state == QLA82XX_DEV_NEED_QUIESCENT) {
+		qla_printk(KERN_INFO, ha, "HW State: DEV_QUIESCENT\n");
+		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA82XX_DEV_QUIESCENT);
+	}
+}
+
+/*
+* qla82xx_wait_for_state_change
+*    Wait for device state to change from given current state
+*
+* Note:
+*     IDC lock must not be held upon entry
+*
+* Return:
+*    Changed device state.
+*/
+uint32_t
+qla82xx_wait_for_state_change(scsi_qla_host_t *vha, uint32_t curr_state)
+{
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t dev_state;
+
+	do {
+		msleep(1000);
+		qla82xx_idc_lock(ha);
+		dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+		qla82xx_idc_unlock(ha);
+	} while (dev_state == curr_state);
+
+	return dev_state;
+}
+
 static void
 qla82xx_dev_failed_handler(scsi_qla_host_t *vha)
 {
@@ -3439,15 +3556,28 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 			qla82xx_idc_lock(ha);
 			break;
 		case QLA82XX_DEV_NEED_RESET:
-			if (!ql2xdontresethba)
-				qla82xx_need_reset_handler(vha);
+			qla82xx_need_reset_handler(vha);
 			break;
 		case QLA82XX_DEV_NEED_QUIESCENT:
-			qla82xx_set_qsnt_ready(ha);
+			qla82xx_need_qsnt_handler(vha);
+			/* Reset timeout value after quiescence handler */
+			dev_init_timeout = jiffies + (ha->nx_dev_init_timeout\
+							 * HZ);
+			break;
 		case QLA82XX_DEV_QUIESCENT:
+			/* Owner will exit and other will wait for the state
+			 * to get changed
+			 */
+			if (ha->flags.quiesce_owner)
+				goto exit;
+
 			qla82xx_idc_unlock(ha);
 			msleep(1000);
 			qla82xx_idc_lock(ha);
+
+			/* Reset timeout value after quiescence handler */
+			dev_init_timeout = jiffies + (ha->nx_dev_init_timeout\
+							 * HZ);
 			break;
 		case QLA82XX_DEV_FAILED:
 			qla82xx_dev_failed_handler(vha);
@@ -3490,6 +3620,13 @@ void qla82xx_watchdog(scsi_qla_host_t *vha)
 					&ha->mbx_cmd_flags))
 					complete(&ha->mbx_intr_comp);
 			}
+		} else if (dev_state == QLA82XX_DEV_NEED_QUIESCENT &&
+			!test_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags)) {
+			DEBUG(qla_printk(KERN_INFO, ha,
+				"scsi(%ld) %s - detected quiescence needed\n",
+				vha->host_no, __func__));
+			set_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags);
+			qla2xxx_wake_dpc(vha);
 		} else {
 			qla82xx_check_fw_alive(vha);
 		}

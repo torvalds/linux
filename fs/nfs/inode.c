@@ -1438,9 +1438,16 @@ struct inode *nfs_alloc_inode(struct super_block *sb)
 	return &nfsi->vfs_inode;
 }
 
+static void nfs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(nfs_inode_cachep, NFS_I(inode));
+}
+
 void nfs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(nfs_inode_cachep, NFS_I(inode));
+	call_rcu(&inode->i_rcu, nfs_i_callback);
 }
 
 static inline void nfs4_init_once(struct nfs_inode *nfsi)

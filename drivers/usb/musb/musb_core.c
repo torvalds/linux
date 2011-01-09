@@ -99,18 +99,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#ifdef	CONFIG_ARM
-#include <mach/hardware.h>
-#include <mach/memory.h>
-#include <asm/mach-types.h>
-#endif
-
 #include "musb_core.h"
-
-
-#ifdef CONFIG_ARCH_DAVINCI
-#include "davinci.h"
-#endif
 
 #define TA_WAIT_BCON(m) max_t(int, (m)->a_wait_bcon, OTG_TIME_A_WAIT_BCON)
 
@@ -126,7 +115,7 @@ MODULE_PARM_DESC(debug, "Debug message level. Default = 0");
 
 #define DRIVER_INFO DRIVER_DESC ", v" MUSB_VERSION
 
-#define MUSB_DRIVER_NAME "musb_hdrc"
+#define MUSB_DRIVER_NAME "musb-hdrc"
 const char musb_driver_name[] = MUSB_DRIVER_NAME;
 
 MODULE_DESCRIPTION(DRIVER_INFO);
@@ -230,7 +219,7 @@ static struct otg_io_access_ops musb_ulpi_access = {
 
 /*-------------------------------------------------------------------------*/
 
-#if !defined(CONFIG_USB_TUSB6010) && !defined(CONFIG_BLACKFIN)
+#if !defined(CONFIG_USB_MUSB_TUSB6010) && !defined(CONFIG_USB_MUSB_BLACKFIN)
 
 /*
  * Load an endpoint's FIFO
@@ -390,7 +379,7 @@ void musb_otg_timer_func(unsigned long data)
 	case OTG_STATE_A_SUSPEND:
 	case OTG_STATE_A_WAIT_BCON:
 		DBG(1, "HNP: %s timeout\n", otg_state_string(musb));
-		musb_set_vbus(musb, 0);
+		musb_platform_set_vbus(musb, 0);
 		musb->xceiv->state = OTG_STATE_A_WAIT_VFALL;
 		break;
 	default:
@@ -571,7 +560,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		musb->ep0_stage = MUSB_EP0_START;
 		musb->xceiv->state = OTG_STATE_A_IDLE;
 		MUSB_HST_MODE(musb);
-		musb_set_vbus(musb, 1);
+		musb_platform_set_vbus(musb, 1);
 
 		handled = IRQ_HANDLED;
 	}
@@ -642,7 +631,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 
 		/* go through A_WAIT_VFALL then start a new session */
 		if (!ignore)
-			musb_set_vbus(musb, 0);
+			musb_platform_set_vbus(musb, 0);
 		handled = IRQ_HANDLED;
 	}
 
@@ -1049,8 +1038,6 @@ static void musb_shutdown(struct platform_device *pdev)
 	spin_lock_irqsave(&musb->lock, flags);
 	musb_platform_disable(musb);
 	musb_generic_disable(musb);
-	if (musb->clock)
-		clk_put(musb->clock);
 	spin_unlock_irqrestore(&musb->lock, flags);
 
 	if (!is_otg_enabled(musb) && is_host_enabled(musb))
@@ -1074,10 +1061,11 @@ static void musb_shutdown(struct platform_device *pdev)
  * We don't currently use dynamic fifo setup capability to do anything
  * more than selecting one of a bunch of predefined configurations.
  */
-#if defined(CONFIG_USB_TUSB6010) || \
-	defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) \
-	|| defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_USB_MUSB_TUSB6010) || defined(CONFIG_USB_MUSB_OMAP2PLUS) \
+	|| defined(CONFIG_USB_MUSB_AM35X)
 static ushort __initdata fifo_mode = 4;
+#elif defined(CONFIG_USB_MUSB_UX500)
+static ushort __initdata fifo_mode = 5;
 #else
 static ushort __initdata fifo_mode = 2;
 #endif
@@ -1501,7 +1489,7 @@ static int __init musb_core_init(u16 musb_type, struct musb *musb)
 		struct musb_hw_ep	*hw_ep = musb->endpoints + i;
 
 		hw_ep->fifo = MUSB_FIFO_OFFSET(i) + mbase;
-#ifdef CONFIG_USB_TUSB6010
+#ifdef CONFIG_USB_MUSB_TUSB6010
 		hw_ep->fifo_async = musb->async + 0x400 + MUSB_FIFO_OFFSET(i);
 		hw_ep->fifo_sync = musb->sync + 0x400 + MUSB_FIFO_OFFSET(i);
 		hw_ep->fifo_sync_va =
@@ -1548,7 +1536,8 @@ static int __init musb_core_init(u16 musb_type, struct musb *musb)
 /*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3430) || \
-	defined(CONFIG_ARCH_OMAP4)
+	defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_ARCH_U8500) || \
+	defined(CONFIG_ARCH_U5500)
 
 static irqreturn_t generic_interrupt(int irq, void *__hci)
 {
@@ -1904,6 +1893,7 @@ allocate_instance(struct device *dev,
 	}
 
 	musb->controller = dev;
+
 	return musb;
 }
 
@@ -2000,30 +1990,14 @@ bad_config:
 	spin_lock_init(&musb->lock);
 	musb->board_mode = plat->mode;
 	musb->board_set_power = plat->set_power;
-	musb->set_clock = plat->set_clock;
 	musb->min_power = plat->min_power;
-
-	/* Clock usage is chip-specific ... functional clock (DaVinci,
-	 * OMAP2430), or PHY ref (some TUSB6010 boards).  All this core
-	 * code does is make sure a clock handle is available; platform
-	 * code manages it during start/stop and suspend/resume.
-	 */
-	if (plat->clock) {
-		musb->clock = clk_get(dev, plat->clock);
-		if (IS_ERR(musb->clock)) {
-			status = PTR_ERR(musb->clock);
-			musb->clock = NULL;
-			goto fail1;
-		}
-	}
+	musb->ops = plat->platform_ops;
 
 	/* The musb_platform_init() call:
 	 *   - adjusts musb->mregs and musb->isr if needed,
 	 *   - may initialize an integrated tranceiver
 	 *   - initializes musb->xceiv, usually by otg_get_transceiver()
-	 *   - activates clocks.
 	 *   - stops powering VBUS
-	 *   - assigns musb->board_set_vbus if host mode is enabled
 	 *
 	 * There are various transciever configurations.  Blackfin,
 	 * DaVinci, TUSB60x0, and others integrate them.  OMAP3 uses
@@ -2031,9 +2005,9 @@ bad_config:
 	 * isp1504, non-OTG, etc) mostly hooking up through ULPI.
 	 */
 	musb->isr = generic_interrupt;
-	status = musb_platform_init(musb, plat->board_data);
+	status = musb_platform_init(musb);
 	if (status < 0)
-		goto fail2;
+		goto fail1;
 
 	if (!musb->isr) {
 		status = -ENODEV;
@@ -2186,10 +2160,6 @@ fail3:
 		device_init_wakeup(dev, 0);
 	musb_platform_exit(musb);
 
-fail2:
-	if (musb->clock)
-		clk_put(musb->clock);
-
 fail1:
 	dev_err(musb->controller,
 		"musb_init_controller failed with status %d\n", status);
@@ -2215,7 +2185,7 @@ static u64	*orig_dma_mask;
 static int __init musb_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
-	int		irq = platform_get_irq(pdev, 0);
+	int		irq = platform_get_irq_byname(pdev, "mc");
 	int		status;
 	struct resource	*iomem;
 	void __iomem	*base;
@@ -2265,144 +2235,138 @@ static int __exit musb_remove(struct platform_device *pdev)
 
 #ifdef	CONFIG_PM
 
-static struct musb_context_registers musb_context;
-
-void musb_save_context(struct musb *musb)
+static void musb_save_context(struct musb *musb)
 {
 	int i;
 	void __iomem *musb_base = musb->mregs;
 	void __iomem *epio;
 
 	if (is_host_enabled(musb)) {
-		musb_context.frame = musb_readw(musb_base, MUSB_FRAME);
-		musb_context.testmode = musb_readb(musb_base, MUSB_TESTMODE);
-		musb_context.busctl = musb_read_ulpi_buscontrol(musb->mregs);
+		musb->context.frame = musb_readw(musb_base, MUSB_FRAME);
+		musb->context.testmode = musb_readb(musb_base, MUSB_TESTMODE);
+		musb->context.busctl = musb_read_ulpi_buscontrol(musb->mregs);
 	}
-	musb_context.power = musb_readb(musb_base, MUSB_POWER);
-	musb_context.intrtxe = musb_readw(musb_base, MUSB_INTRTXE);
-	musb_context.intrrxe = musb_readw(musb_base, MUSB_INTRRXE);
-	musb_context.intrusbe = musb_readb(musb_base, MUSB_INTRUSBE);
-	musb_context.index = musb_readb(musb_base, MUSB_INDEX);
-	musb_context.devctl = musb_readb(musb_base, MUSB_DEVCTL);
+	musb->context.power = musb_readb(musb_base, MUSB_POWER);
+	musb->context.intrtxe = musb_readw(musb_base, MUSB_INTRTXE);
+	musb->context.intrrxe = musb_readw(musb_base, MUSB_INTRRXE);
+	musb->context.intrusbe = musb_readb(musb_base, MUSB_INTRUSBE);
+	musb->context.index = musb_readb(musb_base, MUSB_INDEX);
+	musb->context.devctl = musb_readb(musb_base, MUSB_DEVCTL);
 
 	for (i = 0; i < musb->config->num_eps; ++i) {
 		epio = musb->endpoints[i].regs;
-		musb_context.index_regs[i].txmaxp =
+		musb->context.index_regs[i].txmaxp =
 			musb_readw(epio, MUSB_TXMAXP);
-		musb_context.index_regs[i].txcsr =
+		musb->context.index_regs[i].txcsr =
 			musb_readw(epio, MUSB_TXCSR);
-		musb_context.index_regs[i].rxmaxp =
+		musb->context.index_regs[i].rxmaxp =
 			musb_readw(epio, MUSB_RXMAXP);
-		musb_context.index_regs[i].rxcsr =
+		musb->context.index_regs[i].rxcsr =
 			musb_readw(epio, MUSB_RXCSR);
 
 		if (musb->dyn_fifo) {
-			musb_context.index_regs[i].txfifoadd =
+			musb->context.index_regs[i].txfifoadd =
 					musb_read_txfifoadd(musb_base);
-			musb_context.index_regs[i].rxfifoadd =
+			musb->context.index_regs[i].rxfifoadd =
 					musb_read_rxfifoadd(musb_base);
-			musb_context.index_regs[i].txfifosz =
+			musb->context.index_regs[i].txfifosz =
 					musb_read_txfifosz(musb_base);
-			musb_context.index_regs[i].rxfifosz =
+			musb->context.index_regs[i].rxfifosz =
 					musb_read_rxfifosz(musb_base);
 		}
 		if (is_host_enabled(musb)) {
-			musb_context.index_regs[i].txtype =
+			musb->context.index_regs[i].txtype =
 				musb_readb(epio, MUSB_TXTYPE);
-			musb_context.index_regs[i].txinterval =
+			musb->context.index_regs[i].txinterval =
 				musb_readb(epio, MUSB_TXINTERVAL);
-			musb_context.index_regs[i].rxtype =
+			musb->context.index_regs[i].rxtype =
 				musb_readb(epio, MUSB_RXTYPE);
-			musb_context.index_regs[i].rxinterval =
+			musb->context.index_regs[i].rxinterval =
 				musb_readb(epio, MUSB_RXINTERVAL);
 
-			musb_context.index_regs[i].txfunaddr =
+			musb->context.index_regs[i].txfunaddr =
 				musb_read_txfunaddr(musb_base, i);
-			musb_context.index_regs[i].txhubaddr =
+			musb->context.index_regs[i].txhubaddr =
 				musb_read_txhubaddr(musb_base, i);
-			musb_context.index_regs[i].txhubport =
+			musb->context.index_regs[i].txhubport =
 				musb_read_txhubport(musb_base, i);
 
-			musb_context.index_regs[i].rxfunaddr =
+			musb->context.index_regs[i].rxfunaddr =
 				musb_read_rxfunaddr(musb_base, i);
-			musb_context.index_regs[i].rxhubaddr =
+			musb->context.index_regs[i].rxhubaddr =
 				musb_read_rxhubaddr(musb_base, i);
-			musb_context.index_regs[i].rxhubport =
+			musb->context.index_regs[i].rxhubport =
 				musb_read_rxhubport(musb_base, i);
 		}
 	}
-
-	musb_platform_save_context(musb, &musb_context);
 }
 
-void musb_restore_context(struct musb *musb)
+static void musb_restore_context(struct musb *musb)
 {
 	int i;
 	void __iomem *musb_base = musb->mregs;
 	void __iomem *ep_target_regs;
 	void __iomem *epio;
 
-	musb_platform_restore_context(musb, &musb_context);
-
 	if (is_host_enabled(musb)) {
-		musb_writew(musb_base, MUSB_FRAME, musb_context.frame);
-		musb_writeb(musb_base, MUSB_TESTMODE, musb_context.testmode);
-		musb_write_ulpi_buscontrol(musb->mregs, musb_context.busctl);
+		musb_writew(musb_base, MUSB_FRAME, musb->context.frame);
+		musb_writeb(musb_base, MUSB_TESTMODE, musb->context.testmode);
+		musb_write_ulpi_buscontrol(musb->mregs, musb->context.busctl);
 	}
-	musb_writeb(musb_base, MUSB_POWER, musb_context.power);
-	musb_writew(musb_base, MUSB_INTRTXE, musb_context.intrtxe);
-	musb_writew(musb_base, MUSB_INTRRXE, musb_context.intrrxe);
-	musb_writeb(musb_base, MUSB_INTRUSBE, musb_context.intrusbe);
-	musb_writeb(musb_base, MUSB_DEVCTL, musb_context.devctl);
+	musb_writeb(musb_base, MUSB_POWER, musb->context.power);
+	musb_writew(musb_base, MUSB_INTRTXE, musb->context.intrtxe);
+	musb_writew(musb_base, MUSB_INTRRXE, musb->context.intrrxe);
+	musb_writeb(musb_base, MUSB_INTRUSBE, musb->context.intrusbe);
+	musb_writeb(musb_base, MUSB_DEVCTL, musb->context.devctl);
 
 	for (i = 0; i < musb->config->num_eps; ++i) {
 		epio = musb->endpoints[i].regs;
 		musb_writew(epio, MUSB_TXMAXP,
-			musb_context.index_regs[i].txmaxp);
+			musb->context.index_regs[i].txmaxp);
 		musb_writew(epio, MUSB_TXCSR,
-			musb_context.index_regs[i].txcsr);
+			musb->context.index_regs[i].txcsr);
 		musb_writew(epio, MUSB_RXMAXP,
-			musb_context.index_regs[i].rxmaxp);
+			musb->context.index_regs[i].rxmaxp);
 		musb_writew(epio, MUSB_RXCSR,
-			musb_context.index_regs[i].rxcsr);
+			musb->context.index_regs[i].rxcsr);
 
 		if (musb->dyn_fifo) {
 			musb_write_txfifosz(musb_base,
-				musb_context.index_regs[i].txfifosz);
+				musb->context.index_regs[i].txfifosz);
 			musb_write_rxfifosz(musb_base,
-				musb_context.index_regs[i].rxfifosz);
+				musb->context.index_regs[i].rxfifosz);
 			musb_write_txfifoadd(musb_base,
-				musb_context.index_regs[i].txfifoadd);
+				musb->context.index_regs[i].txfifoadd);
 			musb_write_rxfifoadd(musb_base,
-				musb_context.index_regs[i].rxfifoadd);
+				musb->context.index_regs[i].rxfifoadd);
 		}
 
 		if (is_host_enabled(musb)) {
 			musb_writeb(epio, MUSB_TXTYPE,
-				musb_context.index_regs[i].txtype);
+				musb->context.index_regs[i].txtype);
 			musb_writeb(epio, MUSB_TXINTERVAL,
-				musb_context.index_regs[i].txinterval);
+				musb->context.index_regs[i].txinterval);
 			musb_writeb(epio, MUSB_RXTYPE,
-				musb_context.index_regs[i].rxtype);
+				musb->context.index_regs[i].rxtype);
 			musb_writeb(epio, MUSB_RXINTERVAL,
 
-			musb_context.index_regs[i].rxinterval);
+			musb->context.index_regs[i].rxinterval);
 			musb_write_txfunaddr(musb_base, i,
-				musb_context.index_regs[i].txfunaddr);
+				musb->context.index_regs[i].txfunaddr);
 			musb_write_txhubaddr(musb_base, i,
-				musb_context.index_regs[i].txhubaddr);
+				musb->context.index_regs[i].txhubaddr);
 			musb_write_txhubport(musb_base, i,
-				musb_context.index_regs[i].txhubport);
+				musb->context.index_regs[i].txhubport);
 
 			ep_target_regs =
 				musb_read_target_reg_base(i, musb_base);
 
 			musb_write_rxfunaddr(ep_target_regs,
-				musb_context.index_regs[i].rxfunaddr);
+				musb->context.index_regs[i].rxfunaddr);
 			musb_write_rxhubaddr(ep_target_regs,
-				musb_context.index_regs[i].rxhubaddr);
+				musb->context.index_regs[i].rxhubaddr);
 			musb_write_rxhubport(ep_target_regs,
-				musb_context.index_regs[i].rxhubport);
+				musb->context.index_regs[i].rxhubport);
 		}
 	}
 }
@@ -2427,12 +2391,6 @@ static int musb_suspend(struct device *dev)
 
 	musb_save_context(musb);
 
-	if (musb->clock) {
-		if (musb->set_clock)
-			musb->set_clock(musb->clock, 0);
-		else
-			clk_disable(musb->clock);
-	}
 	spin_unlock_irqrestore(&musb->lock, flags);
 	return 0;
 }
@@ -2441,13 +2399,6 @@ static int musb_resume_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct musb	*musb = dev_to_musb(&pdev->dev);
-
-	if (musb->clock) {
-		if (musb->set_clock)
-			musb->set_clock(musb->clock, 1);
-		else
-			clk_enable(musb->clock);
-	}
 
 	musb_restore_context(musb);
 

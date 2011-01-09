@@ -1,0 +1,118 @@
+perf-script(1)
+=============
+
+NAME
+----
+perf-script - Read perf.data (created by perf record) and display trace output
+
+SYNOPSIS
+--------
+[verse]
+'perf script' [<options>]
+'perf script' [<options>] record <script> [<record-options>] <command>
+'perf script' [<options>] report <script> [script-args]
+'perf script' [<options>] <script> <required-script-args> [<record-options>] <command>
+'perf script' [<options>] <top-script> [script-args]
+
+DESCRIPTION
+-----------
+This command reads the input file and displays the trace recorded.
+
+There are several variants of perf script:
+
+  'perf script' to see a detailed trace of the workload that was
+  recorded.
+
+  You can also run a set of pre-canned scripts that aggregate and
+  summarize the raw trace data in various ways (the list of scripts is
+  available via 'perf script -l').  The following variants allow you to
+  record and run those scripts:
+
+  'perf script record <script> <command>' to record the events required
+  for 'perf script report'.  <script> is the name displayed in the
+  output of 'perf script --list' i.e. the actual script name minus any
+  language extension.  If <command> is not specified, the events are
+  recorded using the -a (system-wide) 'perf record' option.
+
+  'perf script report <script> [args]' to run and display the results
+  of <script>.  <script> is the name displayed in the output of 'perf
+  trace --list' i.e. the actual script name minus any language
+  extension.  The perf.data output from a previous run of 'perf script
+  record <script>' is used and should be present for this command to
+  succeed.  [args] refers to the (mainly optional) args expected by
+  the script.
+
+  'perf script <script> <required-script-args> <command>' to both
+  record the events required for <script> and to run the <script>
+  using 'live-mode' i.e. without writing anything to disk.  <script>
+  is the name displayed in the output of 'perf script --list' i.e. the
+  actual script name minus any language extension.  If <command> is
+  not specified, the events are recorded using the -a (system-wide)
+  'perf record' option.  If <script> has any required args, they
+  should be specified before <command>.  This mode doesn't allow for
+  optional script args to be specified; if optional script args are
+  desired, they can be specified using separate 'perf script record'
+  and 'perf script report' commands, with the stdout of the record step
+  piped to the stdin of the report script, using the '-o -' and '-i -'
+  options of the corresponding commands.
+
+  'perf script <top-script>' to both record the events required for
+  <top-script> and to run the <top-script> using 'live-mode'
+  i.e. without writing anything to disk.  <top-script> is the name
+  displayed in the output of 'perf script --list' i.e. the actual
+  script name minus any language extension; a <top-script> is defined
+  as any script name ending with the string 'top'.
+
+  [<record-options>] can be passed to the record steps of 'perf script
+  record' and 'live-mode' variants; this isn't possible however for
+  <top-script> 'live-mode' or 'perf script report' variants.
+
+  See the 'SEE ALSO' section for links to language-specific
+  information on how to write and run your own trace scripts.
+
+OPTIONS
+-------
+<command>...::
+	Any command you can specify in a shell.
+
+-D::
+--dump-raw-script=::
+        Display verbose dump of the trace data.
+
+-L::
+--Latency=::
+        Show latency attributes (irqs/preemption disabled, etc).
+
+-l::
+--list=::
+        Display a list of available trace scripts.
+
+-s ['lang']::
+--script=::
+        Process trace data with the given script ([lang]:script[.ext]).
+	If the string 'lang' is specified in place of a script name, a
+        list of supported languages will be displayed instead.
+
+-g::
+--gen-script=::
+        Generate perf-script.[ext] starter script for given language,
+        using current perf.data.
+
+-a::
+        Force system-wide collection.  Scripts run without a <command>
+        normally use -a by default, while scripts run with a <command>
+        normally don't - this option allows the latter to be run in
+        system-wide mode.
+
+-i::
+--input=::
+        Input file name.
+
+-d::
+--debug-mode::
+        Do various checks like samples ordering and lost events.
+
+SEE ALSO
+--------
+linkperf:perf-record[1], linkperf:perf-script-perl[1],
+linkperf:perf-script-python[1]

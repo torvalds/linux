@@ -809,14 +809,14 @@ inode_has_hashed_dentries(struct inode *inode)
 {
 	struct dentry *dentry;
 
-	spin_lock(&dcache_lock);
+	spin_lock(&inode->i_lock);
 	list_for_each_entry(dentry, &inode->i_dentry, d_alias) {
 		if (!d_unhashed(dentry) || IS_ROOT(dentry)) {
-			spin_unlock(&dcache_lock);
+			spin_unlock(&inode->i_lock);
 			return true;
 		}
 	}
-	spin_unlock(&dcache_lock);
+	spin_unlock(&inode->i_lock);
 	return false;
 }
 
@@ -1319,9 +1319,9 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 	to set uid/gid */
 			inc_nlink(inode);
 			if (pTcon->nocase)
-				direntry->d_op = &cifs_ci_dentry_ops;
+				d_set_d_op(direntry, &cifs_ci_dentry_ops);
 			else
-				direntry->d_op = &cifs_dentry_ops;
+				d_set_d_op(direntry, &cifs_dentry_ops);
 
 			cifs_unix_basic_to_fattr(&fattr, pInfo, cifs_sb);
 			cifs_fill_uniqueid(inode->i_sb, &fattr);
@@ -1363,9 +1363,9 @@ mkdir_get_info:
 						 inode->i_sb, xid, NULL);
 
 		if (pTcon->nocase)
-			direntry->d_op = &cifs_ci_dentry_ops;
+			d_set_d_op(direntry, &cifs_ci_dentry_ops);
 		else
-			direntry->d_op = &cifs_dentry_ops;
+			d_set_d_op(direntry, &cifs_dentry_ops);
 		d_instantiate(direntry, newinode);
 		 /* setting nlink not necessary except in cases where we
 		  * failed to get it from the server or was set bogus */

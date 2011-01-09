@@ -51,19 +51,18 @@
 #define PALMTT_MMC_WP_GPIO	8
 #define PALMTT_HDQ_GPIO		11
 
-static int palmtt_keymap[] = {
+static const unsigned int palmtt_keymap[] = {
 	KEY(0, 0, KEY_ESC),
-	KEY(0, 1, KEY_SPACE),
-	KEY(0, 2, KEY_LEFTCTRL),
-	KEY(0, 3, KEY_TAB),
-	KEY(0, 4, KEY_ENTER),
-	KEY(1, 0, KEY_LEFT),
+	KEY(1, 0, KEY_SPACE),
+	KEY(2, 0, KEY_LEFTCTRL),
+	KEY(3, 0, KEY_TAB),
+	KEY(4, 0, KEY_ENTER),
+	KEY(0, 1, KEY_LEFT),
 	KEY(1, 1, KEY_DOWN),
-	KEY(1, 2, KEY_UP),
-	KEY(1, 3, KEY_RIGHT),
-	KEY(2, 0, KEY_SLEEP),
-	KEY(2, 4, KEY_Y),
-	0
+	KEY(2, 1, KEY_UP),
+	KEY(3, 1, KEY_RIGHT),
+	KEY(0, 2, KEY_SLEEP),
+	KEY(4, 2, KEY_Y),
 };
 
 static struct mtd_partition palmtt_partitions[] = {
@@ -136,10 +135,15 @@ static struct resource palmtt_kp_resources[] = {
 	},
 };
 
+static const struct matrix_keymap_data palmtt_keymap_data = {
+	.keymap		= palmtt_keymap,
+	.keymap_size	= ARRAY_SIZE(palmtt_keymap),
+};
+
 static struct omap_kp_platform_data palmtt_kp_data = {
 	.rows	= 6,
 	.cols	= 3,
-	.keymap = palmtt_keymap,
+	.keymap_data = &palmtt_keymap_data,
 };
 
 static struct platform_device palmtt_kp_device = {

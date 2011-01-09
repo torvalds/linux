@@ -301,6 +301,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x2770, 0x905c)},
 	{USB_DEVICE(0x2770, 0x9050)},
+	{USB_DEVICE(0x2770, 0x9051)},
 	{USB_DEVICE(0x2770, 0x9052)},
 	{USB_DEVICE(0x2770, 0x913d)},
 	{}

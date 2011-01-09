@@ -14,8 +14,6 @@
  * published by the Free Software Foundation.
  */
 
-#include "cm.h"
-
 /* Bits shared between registers */
 
 /* CM_FCLKEN1_CORE and CM_ICLKEN1_CORE shared bits */
@@ -126,8 +124,12 @@
 #define OMAP24XX_ST_HDQ_MASK				(1 << 23)
 #define OMAP2420_ST_I2C2_SHIFT				20
 #define OMAP2420_ST_I2C2_MASK				(1 << 20)
+#define OMAP2430_ST_I2CHS1_SHIFT			19
+#define OMAP2430_ST_I2CHS1_MASK				(1 << 19)
 #define OMAP2420_ST_I2C1_SHIFT				19
 #define OMAP2420_ST_I2C1_MASK				(1 << 19)
+#define OMAP2430_ST_I2CHS2_SHIFT			20
+#define OMAP2430_ST_I2CHS2_MASK				(1 << 20)
 #define OMAP24XX_ST_MCBSP2_SHIFT			16
 #define OMAP24XX_ST_MCBSP2_MASK				(1 << 16)
 #define OMAP24XX_ST_MCBSP1_SHIFT			15
@@ -431,5 +433,10 @@
 /* 2430 only */
 #define OMAP2430_AUTOSTATE_MDM_SHIFT			0
 #define OMAP2430_AUTOSTATE_MDM_MASK			(1 << 0)
+
+/* OMAP24XX CM_CLKSTCTRL_*.AUTOSTATE_* register bit values */
+#define OMAP24XX_CLKSTCTRL_DISABLE_AUTO		0x0
+#define OMAP24XX_CLKSTCTRL_ENABLE_AUTO		0x1
+
 
 #endif

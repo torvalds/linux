@@ -539,7 +539,11 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 		 ieee80211_is_robust_mgmt_frame(hdr) &&
 		 (key = rcu_dereference(tx->sdata->default_mgmt_key)))
 		tx->key = key;
-	else if ((key = rcu_dereference(tx->sdata->default_key)))
+	else if (is_multicast_ether_addr(hdr->addr1) &&
+		 (key = rcu_dereference(tx->sdata->default_multicast_key)))
+		tx->key = key;
+	else if (!is_multicast_ether_addr(hdr->addr1) &&
+		 (key = rcu_dereference(tx->sdata->default_unicast_key)))
 		tx->key = key;
 	else if (tx->sdata->drop_unencrypted &&
 		 (tx->skb->protocol != tx->sdata->control_port_protocol) &&
@@ -622,7 +626,8 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 		txrc.max_rate_idx = -1;
 	else
 		txrc.max_rate_idx = fls(txrc.rate_idx_mask) - 1;
-	txrc.ap = tx->sdata->vif.type == NL80211_IFTYPE_AP;
+	txrc.bss = (tx->sdata->vif.type == NL80211_IFTYPE_AP ||
+		    tx->sdata->vif.type == NL80211_IFTYPE_ADHOC);
 
 	/* set up RTS protection if desired */
 	if (len > tx->local->hw.wiphy->rts_threshold) {
@@ -665,10 +670,11 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	if (unlikely(info->control.rates[0].idx < 0))
 		return TX_DROP;
 
-	if (txrc.reported_rate.idx < 0)
+	if (txrc.reported_rate.idx < 0) {
 		txrc.reported_rate = info->control.rates[0];
-
-	if (tx->sta)
+		if (tx->sta && ieee80211_is_data(hdr->frame_control))
+			tx->sta->last_tx_rate = txrc.reported_rate;
+	} else if (tx->sta)
 		tx->sta->last_tx_rate = txrc.reported_rate;
 
 	if (unlikely(!info->control.rates[0].count))
@@ -1033,6 +1039,7 @@ static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 	struct ieee80211_radiotap_header *rthdr =
 		(struct ieee80211_radiotap_header *) skb->data;
 	struct ieee80211_supported_band *sband;
+	bool hw_frag;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int ret = ieee80211_radiotap_iterator_init(&iterator, rthdr, skb->len,
 						   NULL);
@@ -1041,6 +1048,9 @@ static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 
 	info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 	tx->flags &= ~IEEE80211_TX_FRAGMENTED;
+
+	/* packet is fragmented in HW if we have a non-NULL driver callback */
+	hw_frag = (tx->local->ops->set_frag_threshold != NULL);
 
 	/*
 	 * for every radiotap entry that is present
@@ -1078,7 +1088,8 @@ static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 			}
 			if (*iterator.this_arg & IEEE80211_RADIOTAP_F_WEP)
 				info->flags &= ~IEEE80211_TX_INTFL_DONT_ENCRYPT;
-			if (*iterator.this_arg & IEEE80211_RADIOTAP_F_FRAG)
+			if ((*iterator.this_arg & IEEE80211_RADIOTAP_F_FRAG) &&
+								!hw_frag)
 				tx->flags |= IEEE80211_TX_FRAGMENTED;
 			break;
 
@@ -1181,8 +1192,10 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	/*
 	 * Set this flag (used below to indicate "automatic fragmentation"),
 	 * it will be cleared/left by radiotap as desired.
+	 * Only valid when fragmentation is done by the stack.
 	 */
-	tx->flags |= IEEE80211_TX_FRAGMENTED;
+	if (!local->ops->set_frag_threshold)
+		tx->flags |= IEEE80211_TX_FRAGMENTED;
 
 	/* process and remove the injection radiotap header */
 	if (unlikely(info->flags & IEEE80211_TX_INTFL_HAS_RADIOTAP)) {
@@ -1284,6 +1297,7 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 
 	while (skb) {
 		int q = skb_get_queue_mapping(skb);
+		__le16 fc;
 
 		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 		ret = IEEE80211_TX_OK;
@@ -1326,6 +1340,7 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 		else
 			info->control.sta = NULL;
 
+		fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
 		ret = drv_tx(local, skb);
 		if (WARN_ON(ret != NETDEV_TX_OK && skb->len != len)) {
 			dev_kfree_skb(skb);
@@ -1336,6 +1351,7 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 			return IEEE80211_TX_AGAIN;
 		}
 
+		ieee80211_tpt_led_trig_tx(local, fc, len);
 		*skbp = skb = next;
 		ieee80211_led_tx(local, 1);
 		fragm = true;
@@ -1533,8 +1549,10 @@ static int ieee80211_skb_resize(struct ieee80211_local *local,
 
 	if (skb_header_cloned(skb))
 		I802_DEBUG_INC(local->tx_expand_skb_head_cloned);
-	else
+	else if (head_need || tail_need)
 		I802_DEBUG_INC(local->tx_expand_skb_head);
+	else
+		return 0;
 
 	if (pskb_expand_head(skb, head_need, tail_need, GFP_ATOMIC)) {
 		wiphy_debug(local->hw.wiphy,
@@ -1726,12 +1744,13 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_tx_info *info;
 	int ret = NETDEV_TX_BUSY, head_need;
 	u16 ethertype, hdrlen,  meshhdrlen = 0;
 	__le16 fc;
 	struct ieee80211_hdr hdr;
 	struct ieee80211s_hdr mesh_hdr __maybe_unused;
+	struct mesh_path *mppath = NULL;
 	const u8 *encaps_data;
 	int encaps_len, skip_header_bytes;
 	int nh_pos, h_pos;
@@ -1792,16 +1811,23 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			ret = NETDEV_TX_OK;
 			goto fail;
 		}
+		if (!is_multicast_ether_addr(skb->data))
+			mppath = mpp_path_lookup(skb->data, sdata);
 
+		/*
+		 * Do not use address extension, if it is a packet from
+		 * the same interface and the destination is not being
+		 * proxied by any other mest point.
+		 */
 		if (compare_ether_addr(sdata->vif.addr,
-				       skb->data + ETH_ALEN) == 0) {
+				       skb->data + ETH_ALEN) == 0 &&
+		    (!mppath || !compare_ether_addr(mppath->mpp, skb->data))) {
 			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
 					skb->data, skb->data + ETH_ALEN);
 			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr,
-					sdata, NULL, NULL, NULL);
+					sdata, NULL, NULL);
 		} else {
 			/* packet from other interface */
-			struct mesh_path *mppath;
 			int is_mesh_mcast = 1;
 			const u8 *mesh_da;
 
@@ -1812,8 +1838,6 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			else {
 				static const u8 bcast[ETH_ALEN] =
 					{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-
-				mppath = mpp_path_lookup(skb->data, sdata);
 				if (mppath) {
 					/* RA TA mDA mSA AE:DA SA */
 					mesh_da = mppath->mpp;
@@ -1831,13 +1855,11 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 					ieee80211_new_mesh_header(&mesh_hdr,
 							sdata,
 							skb->data + ETH_ALEN,
-							NULL,
 							NULL);
 			else
 				meshhdrlen =
 					ieee80211_new_mesh_header(&mesh_hdr,
 							sdata,
-							NULL,
 							skb->data,
 							skb->data + ETH_ALEN);
 
@@ -1921,7 +1943,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 */
 	if (skb_shared(skb)) {
 		tmp_skb = skb;
-		skb = skb_copy(skb, GFP_ATOMIC);
+		skb = skb_clone(skb, GFP_ATOMIC);
 		kfree_skb(tmp_skb);
 
 		if (!skb) {
@@ -2017,6 +2039,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	skb_set_network_header(skb, nh_pos);
 	skb_set_transport_header(skb, h_pos);
 
+	info = IEEE80211_SKB_CB(skb);
 	memset(info, 0, sizeof(*info));
 
 	dev->trans_start = jiffies;
@@ -2277,7 +2300,8 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		u8 *pos;
 
 		/* headroom, head length, tail length and maximum TIM length */
-		skb = dev_alloc_skb(local->tx_headroom + 400);
+		skb = dev_alloc_skb(local->tx_headroom + 400 +
+				sdata->u.mesh.vendor_ie_len);
 		if (!skb)
 			goto out;
 
@@ -2321,7 +2345,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		txrc.max_rate_idx = -1;
 	else
 		txrc.max_rate_idx = fls(txrc.rate_idx_mask) - 1;
-	txrc.ap = true;
+	txrc.bss = true;
 	rate_control_get_rate(sdata, NULL, &txrc);
 
 	info->control.vif = vif;

@@ -45,18 +45,18 @@ config MACH_GURUPLUG
 	  Marvell GuruPlug Reference Board.
 
 config MACH_TS219
-	bool "QNAP TS-110, TS-119, TS-210, TS-219 and TS-219P Turbo NAS"
+	bool "QNAP TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and TS-219P+ Turbo NAS"
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  QNAP TS-110, TS-119, TS-210, TS-219 and TS-219P Turbo NAS
-	  devices.
+	  QNAP TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and
+	  TS-219P+ Turbo NAS devices.
 
 config MACH_TS41X
-	bool "QNAP TS-410, TS-410U, TS-419P and TS-419U Turbo NAS"
+	bool "QNAP TS-410, TS-410U, TS-419P, TS-419P+ and TS-419U Turbo NAS"
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  QNAP TS-410, TS-410U, TS-419P and TS-419U Turbo NAS
-	  devices.
+	  QNAP TS-410, TS-410U, TS-419P, TS-419P+ and TS-419U Turbo
+	  NAS devices.
 
 config MACH_DOCKSTAR
 	bool "Seagate FreeAgent DockStar"

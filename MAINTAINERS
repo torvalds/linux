@@ -166,9 +166,8 @@ F:	drivers/serial/8250*
 F:	include/linux/serial_8250.h
 
 8390 NETWORK DRIVERS [WD80x3/SMC-ELITE, SMC-ULTRA, NE2000, 3C503, etc.]
-M:	Paul Gortmaker <p_gortmaker@yahoo.com>
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Orphan / Obsolete
 F:	drivers/net/*8390*
 F:	drivers/net/ax88796.c
 
@@ -1095,6 +1094,12 @@ S:	Supported
 F:	Documentation/aoe/
 F:	drivers/block/aoe/
 
+ATHEROS ATH GENERIC UTILITIES
+M:	"Luis R. Rodriguez" <lrodriguez@atheros.com>
+L:	linux-wireless@vger.kernel.org
+S:	Supported
+F:	drivers/net/wireless/ath/*
+
 ATHEROS ATH5K WIRELESS DRIVER
 M:	Jiri Slaby <jirislaby@gmail.com>
 M:	Nick Kossifidis <mickflemm@gmail.com>
@@ -1272,6 +1277,15 @@ M:	Richard Purdie <rpurdie@rpsys.net>
 S:	Maintained
 F:	drivers/video/backlight/
 F:	include/linux/backlight.h
+
+BATMAN ADVANCED
+M:	Marek Lindner <lindner_marek@yahoo.de>
+M:	Simon Wunderlich <siwu@hrz.tu-chemnitz.de>
+M:	Sven Eckelmann <sven@narfation.org>
+L:	b.a.t.m.a.n@lists.open-mesh.org
+W:	http://www.open-mesh.org/
+S:	Maintained
+F:	net/batman-adv/
 
 BAYCOM/HDLCDRV DRIVERS FOR AX.25
 M:	Thomas Sailer <t.sailer@alumni.ethz.ch>
@@ -2812,6 +2826,10 @@ M:	Thomas Gleixner <tglx@linutronix.de>
 S:	Maintained
 F:	Documentation/timers/
 F:	kernel/hrtimer.c
+F:	kernel/time/clockevents.c
+F:	kernel/time/tick*.*
+F:	kernel/time/timer_*.c
+F	include/linux/clockevents.h
 F:	include/linux/hrtimer.h
 
 HIGH-SPEED SCC DRIVER FOR AX.25
@@ -3047,8 +3065,10 @@ F:	drivers/input/
 INPUT MULTITOUCH (MT) PROTOCOL
 M:	Henrik Rydberg <rydberg@euromail.se>
 L:	linux-input@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rydberg/input-mt.git
 S:	Maintained
 F:	Documentation/input/multi-touch-protocol.txt
+F:	drivers/input/input-mt.c
 K:	\b(ABS|SYN)_MT_
 
 INTEL IDLE DRIVER
@@ -3135,6 +3155,8 @@ M:	Alex Duyck <alexander.h.duyck@intel.com>
 M:	John Ronciak <john.ronciak@intel.com>
 L:	e1000-devel@lists.sourceforge.net
 W:	http://e1000.sourceforge.net/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/net-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jkirsher/net-next-2.6.git
 S:	Supported
 F:	Documentation/networking/e100.txt
 F:	Documentation/networking/e1000.txt
@@ -4343,6 +4365,20 @@ M:	Deepak Saxena <dsaxena@plexity.net>
 S:	Maintained
 F:	drivers/char/hw_random/omap-rng.c
 
+OMAP HWMOD SUPPORT
+M:	Benoît Cousson <b-cousson@ti.com>
+M:	Paul Walmsley <paul@pwsan.com>
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	arch/arm/mach-omap2/omap_hwmod.c
+F:	arch/arm/plat-omap/include/plat/omap_hwmod.h
+
+OMAP HWMOD DATA FOR OMAP4-BASED DEVICES
+M:	Benoît Cousson <b-cousson@ti.com>
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	arch/arm/mach-omap2/omap_hwmod_44xx_data.c
+
 OMAP USB SUPPORT
 M:	Felipe Balbi <balbi@ti.com>
 M:	David Brownell <dbrownell@users.sourceforge.net>
@@ -4617,6 +4653,16 @@ S:	Maintained
 F:	crypto/pcrypt.c
 F:	include/crypto/pcrypt.h
 
+PER-CPU MEMORY ALLOCATOR
+M:	Tejun Heo <tj@kernel.org>
+M:	Christoph Lameter <cl@linux-foundation.org>
+L:	linux-kernel@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/percpu.git
+S:	Maintained
+F:	include/linux/percpu*.h
+F:	mm/percpu*.c
+F:	arch/*/include/asm/percpu.h
+
 PER-TASK DELAY ACCOUNTING
 M:	Balbir Singh <balbir@linux.vnet.ibm.com>
 S:	Maintained
@@ -4627,7 +4673,7 @@ PERFORMANCE EVENTS SUBSYSTEM
 M:	Peter Zijlstra <a.p.zijlstra@chello.nl>
 M:	Paul Mackerras <paulus@samba.org>
 M:	Ingo Molnar <mingo@elte.hu>
-M:	Arnaldo Carvalho de Melo <acme@redhat.com>
+M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
 S:	Supported
 F:	kernel/perf_event*.c
 F:	include/linux/perf_event.h
@@ -5052,7 +5098,7 @@ L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
-F:	drivers/net/wireless/rtl818x/rtl8180*
+F:	drivers/net/wireless/rtl818x/rtl8180/
 
 RTL8187 WIRELESS DRIVER
 M:	Herton Ronaldo Krzesinski <herton@mandriva.com.br>
@@ -5062,7 +5108,17 @@ L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
 S:	Maintained
-F:	drivers/net/wireless/rtl818x/rtl8187*
+F:	drivers/net/wireless/rtl818x/rtl8187/
+
+RTL8192CE WIRELESS DRIVER
+M:	Larry Finger <Larry.Finger@lwfinger.net>
+M:	Chaoming Li <chaoming_li@realsil.com.cn>
+L:	linux-wireless@vger.kernel.org
+W:	http://linuxwireless.org/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
+S:	Maintained
+F:	drivers/net/wireless/rtlwifi/
+F:	drivers/net/wireless/rtlwifi/rtl8192ce/
 
 S3 SAVAGE FRAMEBUFFER DRIVER
 M:	Antonino Daplas <adaplas@gmail.com>
@@ -5141,6 +5197,18 @@ M:	Jassi Brar <jassi.brar@samsung.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
 F:	sound/soc/s3c24xx
+
+TIMEKEEPING, NTP
+M:	John Stultz <johnstul@us.ibm.com>
+M:	Thomas Gleixner <tglx@linutronix.de>
+S:	Supported
+F:	include/linux/clocksource.h
+F:	include/linux/time.h
+F:	include/linux/timex.h
+F:	include/linux/timekeeping.h
+F:	kernel/time/clocksource.c
+F:	kernel/time/time*.c
+F:	kernel/time/ntp.c
 
 TLG2300 VIDEO4LINUX-2 DRIVER
 M:	Huang Shijie <shijie8@gmail.com>
@@ -5711,12 +5779,6 @@ STARFIRE/DURALAN NETWORK DRIVER
 M:	Ion Badulescu <ionut@badula.org>
 S:	Odd Fixes
 F:	drivers/net/starfire*
-
-STRADIS MPEG-2 DECODER DRIVER
-M:	Nathan Laredo <laredo@gnu.org>
-W:	http://www.stradis.com/
-S:	Maintained
-F:	drivers/media/video/stradis.c
 
 SUN3/3X
 M:	Sam Creasey <sammy@sammy.net>

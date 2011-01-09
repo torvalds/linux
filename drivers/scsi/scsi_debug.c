@@ -1805,6 +1805,7 @@ static int resp_read(struct scsi_cmnd *SCpnt, unsigned long long lba,
 			devip->sense_buff[5] = (ret >> 8) & 0xff;
 			devip->sense_buff[6] = ret & 0xff;
 		}
+	        scsi_set_resid(SCpnt, scsi_bufflen(SCpnt));
 		return check_condition_result;
 	}
 

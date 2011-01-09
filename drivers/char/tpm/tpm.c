@@ -986,7 +986,7 @@ int tpm_release(struct inode *inode, struct file *file)
 	struct tpm_chip *chip = file->private_data;
 
 	del_singleshot_timer_sync(&chip->user_read_timer);
-	flush_scheduled_work();
+	flush_work_sync(&chip->work);
 	file->private_data = NULL;
 	atomic_set(&chip->data_pending, 0);
 	kfree(chip->data_buffer);
@@ -1038,7 +1038,7 @@ ssize_t tpm_read(struct file *file, char __user *buf,
 	ssize_t ret_size;
 
 	del_singleshot_timer_sync(&chip->user_read_timer);
-	flush_scheduled_work();
+	flush_work_sync(&chip->work);
 	ret_size = atomic_read(&chip->data_pending);
 	atomic_set(&chip->data_pending, 0);
 	if (ret_size > 0) {	/* relay data */
