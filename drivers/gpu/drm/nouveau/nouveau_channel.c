@@ -121,7 +121,6 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 		      uint32_t vram_handle, uint32_t gart_handle)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_channel *chan;
 	unsigned long flags;
@@ -202,15 +201,6 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	/* disable the fifo caches */
 	pfifo->reassign(dev, false);
 
-	/* Create a graphics context for new channel */
-	if (dev_priv->card_type < NV_50) {
-		ret = pgraph->create_context(chan);
-		if (ret) {
-			nouveau_channel_put(&chan);
-			return ret;
-		}
-	}
-
 	/* Construct inital RAMFC for new channel */
 	ret = pfifo->create_context(chan);
 	if (ret) {
@@ -252,6 +242,9 @@ nouveau_channel_get(struct drm_device *dev, struct drm_file *file_priv, int id)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan;
 	unsigned long flags;
+
+	if (unlikely(id < 0 || id >= NOUVEAU_MAX_CHANNEL_NR))
+		return ERR_PTR(-EINVAL);
 
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
 	chan = nouveau_channel_get_unlocked(dev_priv->channels.ptr[id]);
@@ -443,14 +436,20 @@ nouveau_ioctl_fifo_alloc(struct drm_device *dev, void *data,
 	else
 		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_GART;
 
-	init->subchan[0].handle = NvM2MF;
-	if (dev_priv->card_type < NV_50)
-		init->subchan[0].grclass = 0x0039;
-	else
-		init->subchan[0].grclass = 0x5039;
-	init->subchan[1].handle = NvSw;
-	init->subchan[1].grclass = NV_SW;
-	init->nr_subchan = 2;
+	if (dev_priv->card_type < NV_C0) {
+		init->subchan[0].handle = NvM2MF;
+		if (dev_priv->card_type < NV_50)
+			init->subchan[0].grclass = 0x0039;
+		else
+			init->subchan[0].grclass = 0x5039;
+		init->subchan[1].handle = NvSw;
+		init->subchan[1].grclass = NV_SW;
+		init->nr_subchan = 2;
+	} else {
+		init->subchan[0].handle  = 0x9039;
+		init->subchan[0].grclass = 0x9039;
+		init->nr_subchan = 1;
+	}
 
 	/* Named memory object area */
 	ret = drm_gem_handle_create(file_priv, chan->notifier_bo->gem,

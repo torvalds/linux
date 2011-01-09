@@ -1557,7 +1557,7 @@ nvc0_grctx_generate_unk47xx(struct drm_device *dev)
 }
 
 static void
-nvc0_grctx_generate_unk58xx(struct drm_device *dev)
+nvc0_grctx_generate_shaders(struct drm_device *dev)
 {
 	nv_wr32(dev, 0x405800, 0x078000bf);
 	nv_wr32(dev, 0x405830, 0x02180000);
@@ -1593,7 +1593,7 @@ nvc0_grctx_generate_unk64xx(struct drm_device *dev)
 }
 
 static void
-nvc0_grctx_generate_unk78xx(struct drm_device *dev)
+nvc0_grctx_generate_tpbus(struct drm_device *dev)
 {
 	nv_wr32(dev, 0x407804, 0x00000023);
 	nv_wr32(dev, 0x40780c, 0x0a418820);
@@ -1606,7 +1606,7 @@ nvc0_grctx_generate_unk78xx(struct drm_device *dev)
 }
 
 static void
-nvc0_grctx_generate_unk80xx(struct drm_device *dev)
+nvc0_grctx_generate_ccache(struct drm_device *dev)
 {
 	nv_wr32(dev, 0x408000, 0x00000000);
 	nv_wr32(dev, 0x408004, 0x00000000);
@@ -1801,7 +1801,7 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 	struct nvc0_graph_chan *grch = chan->pgraph_ctx;
 	struct drm_device *dev = chan->dev;
 	int i, gpc, tp, id;
-	u32 r000260;
+	u32 r000260, tmp;
 
 	r000260 = nv_rd32(dev, 0x000260);
 	nv_wr32(dev, 0x000260, r000260 & ~1);
@@ -1811,11 +1811,11 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 	nvc0_grctx_generate_macro(dev);
 	nvc0_grctx_generate_m2mf(dev);
 	nvc0_grctx_generate_unk47xx(dev);
-	nvc0_grctx_generate_unk58xx(dev);
+	nvc0_grctx_generate_shaders(dev);
 	nvc0_grctx_generate_unk60xx(dev);
 	nvc0_grctx_generate_unk64xx(dev);
-	nvc0_grctx_generate_unk78xx(dev);
-	nvc0_grctx_generate_unk80xx(dev);
+	nvc0_grctx_generate_tpbus(dev);
+	nvc0_grctx_generate_ccache(dev);
 	nvc0_grctx_generate_rop(dev);
 	nvc0_grctx_generate_gpc(dev);
 	nvc0_grctx_generate_tp(dev);
@@ -1843,8 +1843,12 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 		}
 	}
 
-	nv_wr32(dev, 0x406028, 0x00000443);
-	nv_wr32(dev, 0x405870, 0x00000443);
+	tmp = 0;
+	for (i = 0; i < priv->gpc_nr; i++)
+		tmp |= priv->tp_nr[i] << (i * 4);
+	nv_wr32(dev, 0x406028, tmp);
+	nv_wr32(dev, 0x405870, tmp);
+
 	nv_wr32(dev, 0x40602c, 0x00000000);
 	nv_wr32(dev, 0x405874, 0x00000000);
 	nv_wr32(dev, 0x406030, 0x00000000);
@@ -1875,9 +1879,11 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 	}
 
 	if (1) {
-		u32 data[6] = {};
+		u32 data[6] = {}, data2[2] = {};
 		u8 tpnr[GPC_MAX];
+		u8 shift, ntpcv;
 
+		/* calculate first set of magics */
 		memcpy(tpnr, priv->tp_nr, sizeof(priv->tp_nr));
 
 		for (tp = 0; tp < priv->tp_total; tp++) {
@@ -1892,6 +1898,20 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 		for (; tp < 32; tp++)
 			data[tp / 6] |= 7 << ((tp % 6) * 5);
 
+		/* and the second... */
+		shift = 0;
+		ntpcv = priv->tp_total;
+		while (!(ntpcv & (1 << 4))) {
+			ntpcv <<= 1;
+			shift++;
+		}
+
+		data2[0]  = (ntpcv << 16);
+		data2[0] |= (shift << 21);
+		data2[0] |= (((1 << (0 + 5)) % ntpcv) << 24);
+		for (i = 1; i < 7; i++)
+			data2[1] |= ((1 << (i + 5)) % ntpcv) << ((i - 1) * 5);
+
 		// GPC_BROADCAST
 		nv_wr32(dev, 0x418bb8, (priv->tp_total << 8) |
 					priv->magic_not_rop_nr);
@@ -1900,9 +1920,9 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 
 		// GPC_BROADCAST.TP_BROADCAST
 		nv_wr32(dev, 0x419bd0, (priv->tp_total << 8) |
-					priv->magic_not_rop_nr |
-					priv->magic419bd0);
-		nv_wr32(dev, 0x419be4, priv->magic419be4);
+				       priv->magic_not_rop_nr |
+				       data2[0]);
+		nv_wr32(dev, 0x419be4, data2[1]);
 		for (i = 0; i < 6; i++)
 			nv_wr32(dev, 0x419b00 + (i * 4), data[i]);
 

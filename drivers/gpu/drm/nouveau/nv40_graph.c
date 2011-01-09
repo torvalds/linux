@@ -62,6 +62,7 @@ nv40_graph_create_context(struct nouveau_channel *chan)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	struct nouveau_grctx ctx = {};
+	unsigned long flags;
 	int ret;
 
 	ret = nouveau_gpuobj_new(dev, chan, pgraph->grctx_size, 16,
@@ -76,6 +77,17 @@ nv40_graph_create_context(struct nouveau_channel *chan)
 	nv40_grctx_init(&ctx);
 
 	nv_wo32(chan->ramin_grctx, 0, chan->ramin_grctx->pinst);
+
+	/* init grctx pointer in ramfc, and on PFIFO if channel is
+	 * already active there
+	 */
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	nv_wo32(chan->ramfc, 0x38, chan->ramin_grctx->pinst >> 4);
+	nv_mask(dev, 0x002500, 0x00000001, 0x00000000);
+	if ((nv_rd32(dev, 0x003204) & 0x0000001f) == chan->id)
+		nv_wr32(dev, 0x0032e0, chan->ramin_grctx->pinst >> 4);
+	nv_mask(dev, 0x002500, 0x00000001, 0x00000001);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 	return 0;
 }
 

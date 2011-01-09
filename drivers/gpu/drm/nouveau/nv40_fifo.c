@@ -64,7 +64,6 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 			      NV_PFIFO_CACHE1_BIG_ENDIAN |
 #endif
 			      0x30000000 /* no idea.. */);
-	nv_wi32(dev, fc + 56, chan->ramin_grctx->pinst >> 4);
 	nv_wi32(dev, fc + 60, 0x0001FFFF);
 
 	/* enable the fifo dma operation */

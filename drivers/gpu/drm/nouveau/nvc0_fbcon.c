@@ -200,8 +200,6 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 		return ret;
 	}
 
-	printk(KERN_ERR "fb vma 0x%010llx\n", nvbo->vma.offset);
-
 	BEGIN_NVC0(chan, 2, NvSub2D, 0x0000, 1);
 	OUT_RING  (chan, 0x0000902d);
 	BEGIN_NVC0(chan, 2, NvSub2D, 0x0104, 2);

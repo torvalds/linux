@@ -422,8 +422,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 		return ret;
 	}
 	dev_set_drvdata(hwmon_dev, dev);
-	ret = sysfs_create_group(&hwmon_dev->kobj,
-					&hwmon_attrgroup);
+	ret = sysfs_create_group(&dev->pdev->dev.kobj, &hwmon_attrgroup);
 	if (ret) {
 		NV_ERROR(dev,
 			"Unable to create hwmon sysfs file: %d\n", ret);

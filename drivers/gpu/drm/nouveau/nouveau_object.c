@@ -651,7 +651,8 @@ found:
 		}
 		break;
 	case NVOBJ_ENGINE_GR:
-		if (dev_priv->card_type >= NV_50 && !chan->ramin_grctx) {
+		if ((dev_priv->card_type >= NV_20 && !chan->ramin_grctx) ||
+		    (dev_priv->card_type  < NV_20 && !chan->pgraph_ctx)) {
 			struct nouveau_pgraph_engine *pgraph =
 				&dev_priv->engine.graph;
 
