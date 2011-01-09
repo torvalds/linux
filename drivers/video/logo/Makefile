@@ -13,7 +13,6 @@ obj-$(CONFIG_LOGO_GENTOO_CLUT224)	+= logo_gentoo_clut224.o
 obj-$(CONFIG_LOGO_EXHERBO_CLUT224)	+= logo_exherbo_clut224.o
 obj-$(CONFIG_LOGO_SLACKWARE_CLUT224)	+= logo_slackware_clut224.o
 obj-$(CONFIG_LOGO_DEBIAN_CLUT224)       += logo_debian_clut224.o
-obj-$(CONFIG_LOGO_SIDUX_CLUT224)	+= logo_sidux_clut224.o
 obj-$(CONFIG_LOGO_FEDORASIMPLE_CLUT224) += logo_fedorasimple_clut224.o
 obj-$(CONFIG_LOGO_FEDORAGLOSSY_CLUT224) += logo_fedoraglossy_clut224.o
 obj-$(CONFIG_LOGO_TITS_CLUT224)		+= logo_tits_clut224.o

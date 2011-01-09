@@ -102,9 +102,6 @@ static const struct linux_logo *logo_clut224[] = {
 #ifdef CONFIG_LOGO_DEBIAN_CLUT224
 	&logo_debian_clut224,		/* Debian Linux logo */
 #endif
-#ifdef CONFIG_LOGO_SIDUX_CLUT224
-	&logo_sidux_clut224,		/* Sidux Linux Logo */
-#endif
 #ifdef CONFIG_LOGO_FEDORASIMPLE_CLUT224
 	&logo_fedorasimple_clut224,	/* Fedora Simple logo */
 #endif
