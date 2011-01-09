@@ -1131,7 +1131,7 @@ static int sony_nc_setup_rfkill(struct acpi_device *device,
 	return err;
 }
 
-static void sony_nc_rfkill_update()
+static void sony_nc_rfkill_update(void)
 {
 	enum sony_nc_rfkill i;
 	int result;
