@@ -4336,7 +4336,7 @@ __nfs4_state_shutdown(void)
 void
 nfs4_state_shutdown(void)
 {
-	cancel_rearming_delayed_workqueue(laundry_wq, &laundromat_work);
+	cancel_delayed_work_sync(&laundromat_work);
 	destroy_workqueue(laundry_wq);
 	locks_end_grace(&nfsd4_manager);
 	nfs4_lock_state();

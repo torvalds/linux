@@ -142,6 +142,8 @@ static inline bool cpu_is_u5500(void)
 #endif
 }
 
+#define ARRAY_AND_SIZE(x)	(x), ARRAY_SIZE(x)
+
 #endif
 
 #endif				/* __MACH_HARDWARE_H */

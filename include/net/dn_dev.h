@@ -5,13 +5,14 @@
 struct dn_dev;
 
 struct dn_ifaddr {
-	struct dn_ifaddr *ifa_next;
+	struct dn_ifaddr __rcu *ifa_next;
 	struct dn_dev    *ifa_dev;
 	__le16            ifa_local;
 	__le16            ifa_address;
 	__u8              ifa_flags;
 	__u8              ifa_scope;
 	char              ifa_label[IFNAMSIZ];
+	struct rcu_head   rcu;
 };
 
 #define DN_DEV_S_RU  0 /* Run - working normally   */
@@ -83,7 +84,7 @@ struct dn_dev_parms {
 
 
 struct dn_dev {
-	struct dn_ifaddr *ifa_list;
+	struct dn_ifaddr __rcu *ifa_list;
 	struct net_device *dev;
 	struct dn_dev_parms parms;
 	char use_long;
@@ -171,19 +172,27 @@ extern int unregister_dnaddr_notifier(struct notifier_block *nb);
 
 static inline int dn_dev_islocal(struct net_device *dev, __le16 addr)
 {
-	struct dn_dev *dn_db = dev->dn_ptr;
+	struct dn_dev *dn_db;
 	struct dn_ifaddr *ifa;
+	int res = 0;
 
+	rcu_read_lock();
+	dn_db = rcu_dereference(dev->dn_ptr);
 	if (dn_db == NULL) {
 		printk(KERN_DEBUG "dn_dev_islocal: Called for non DECnet device\n");
-		return 0;
+		goto out;
 	}
 
-	for(ifa = dn_db->ifa_list; ifa; ifa = ifa->ifa_next)
-		if ((addr ^ ifa->ifa_local) == 0)
-			return 1;
-
-	return 0;
+	for (ifa = rcu_dereference(dn_db->ifa_list);
+	     ifa != NULL;
+	     ifa = rcu_dereference(ifa->ifa_next))
+		if ((addr ^ ifa->ifa_local) == 0) {
+			res = 1;
+			break;
+		}
+out:
+	rcu_read_unlock();
+	return res;
 }
 
 #endif /* _NET_DN_DEV_H */

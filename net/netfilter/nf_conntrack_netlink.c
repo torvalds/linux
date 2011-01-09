@@ -254,7 +254,7 @@ ctnetlink_dump_secctx(struct sk_buff *skb, const struct nf_conn *ct)
 
 	ret = security_secid_to_secctx(ct->secmark, &secctx, &len);
 	if (ret)
-		return ret;
+		return 0;
 
 	ret = -1;
 	nest_secctx = nla_nest_start(skb, CTA_SECCTX | NLA_F_NESTED);
@@ -453,16 +453,22 @@ ctnetlink_counters_size(const struct nf_conn *ct)
 	       ;
 }
 
-#ifdef CONFIG_NF_CONNTRACK_SECMARK
-static int ctnetlink_nlmsg_secctx_size(const struct nf_conn *ct)
+static inline int
+ctnetlink_secctx_size(const struct nf_conn *ct)
 {
-	int len;
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+	int len, ret;
 
-	security_secid_to_secctx(ct->secmark, NULL, &len);
+	ret = security_secid_to_secctx(ct->secmark, NULL, &len);
+	if (ret)
+		return 0;
 
-	return sizeof(char) * len;
-}
+	return nla_total_size(0) /* CTA_SECCTX */
+	       + nla_total_size(sizeof(char) * len); /* CTA_SECCTX_NAME */
+#else
+	return 0;
 #endif
+}
 
 static inline size_t
 ctnetlink_nlmsg_size(const struct nf_conn *ct)
@@ -479,10 +485,7 @@ ctnetlink_nlmsg_size(const struct nf_conn *ct)
 	       + nla_total_size(0) /* CTA_PROTOINFO */
 	       + nla_total_size(0) /* CTA_HELP */
 	       + nla_total_size(NF_CT_HELPER_NAME_LEN) /* CTA_HELP_NAME */
-#ifdef CONFIG_NF_CONNTRACK_SECMARK
-	       + nla_total_size(0) /* CTA_SECCTX */
-	       + nla_total_size(ctnetlink_nlmsg_secctx_size(ct)) /* CTA_SECCTX_NAME */
-#endif
+	       + ctnetlink_secctx_size(ct)
 #ifdef CONFIG_NF_NAT_NEEDED
 	       + 2 * nla_total_size(0) /* CTA_NAT_SEQ_ADJ_ORIG|REPL */
 	       + 6 * nla_total_size(sizeof(u_int32_t)) /* CTA_NAT_SEQ_OFFSET */

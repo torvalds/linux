@@ -251,6 +251,8 @@ static struct pci_device_id hopper_pci_table[] = {
 	{ }
 };
 
+MODULE_DEVICE_TABLE(pci, hopper_pci_table);
+
 static struct pci_driver hopper_pci_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= hopper_pci_table,

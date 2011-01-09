@@ -189,6 +189,9 @@ static void hdmi_update_short_audio_desc(struct cea_sad *a,
 	a->channels = GRAB_BITS(buf, 0, 0, 3);
 	a->channels++;
 
+	a->sample_bits = 0;
+	a->max_bitrate = 0;
+
 	a->format = GRAB_BITS(buf, 0, 3, 4);
 	switch (a->format) {
 	case AUDIO_CODING_TYPE_REF_STREAM_HEADER:
@@ -198,7 +201,6 @@ static void hdmi_update_short_audio_desc(struct cea_sad *a,
 
 	case AUDIO_CODING_TYPE_LPCM:
 		val = GRAB_BITS(buf, 2, 0, 3);
-		a->sample_bits = 0;
 		for (i = 0; i < 3; i++)
 			if (val & (1 << i))
 				a->sample_bits |= cea_sample_sizes[i + 1];
@@ -598,24 +600,19 @@ void hdmi_eld_update_pcm_info(struct hdmi_eld *eld, struct hda_pcm_stream *pcm,
 {
 	int i;
 
-	pcm->rates = 0;
-	pcm->formats = 0;
-	pcm->maxbps = 0;
-	pcm->channels_min = -1;
-	pcm->channels_max = 0;
+	/* assume basic audio support (the basic audio flag is not in ELD;
+	 * however, all audio capable sinks are required to support basic
+	 * audio) */
+	pcm->rates = SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000;
+	pcm->formats = SNDRV_PCM_FMTBIT_S16_LE;
+	pcm->maxbps = 16;
+	pcm->channels_max = 2;
 	for (i = 0; i < eld->sad_count; i++) {
 		struct cea_sad *a = &eld->sad[i];
 		pcm->rates |= a->rates;
-		if (a->channels < pcm->channels_min)
-			pcm->channels_min = a->channels;
 		if (a->channels > pcm->channels_max)
 			pcm->channels_max = a->channels;
 		if (a->format == AUDIO_CODING_TYPE_LPCM) {
-			if (a->sample_bits & AC_SUPPCM_BITS_16) {
-				pcm->formats |= SNDRV_PCM_FMTBIT_S16_LE;
-				if (pcm->maxbps < 16)
-					pcm->maxbps = 16;
-			}
 			if (a->sample_bits & AC_SUPPCM_BITS_20) {
 				pcm->formats |= SNDRV_PCM_FMTBIT_S32_LE;
 				if (pcm->maxbps < 20)
@@ -635,7 +632,6 @@ void hdmi_eld_update_pcm_info(struct hdmi_eld *eld, struct hda_pcm_stream *pcm,
 	/* restrict the parameters by the values the codec provides */
 	pcm->rates &= codec_pars->rates;
 	pcm->formats &= codec_pars->formats;
-	pcm->channels_min = max(pcm->channels_min, codec_pars->channels_min);
 	pcm->channels_max = min(pcm->channels_max, codec_pars->channels_max);
 	pcm->maxbps = min(pcm->maxbps, codec_pars->maxbps);
 }

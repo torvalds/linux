@@ -21,9 +21,8 @@
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
 #include <linux/gfp.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
-#include <mach/clkdev.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
 #include <asm/irq.h>
@@ -41,7 +40,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <plat/timer-sp.h>
+#include <asm/hardware/timer-sp.h>
 
 #include "common.h"
 

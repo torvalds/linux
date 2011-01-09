@@ -155,11 +155,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 
 u64 __read_mostly host_xcr0;
 
-static inline u32 bit(int bitno)
-{
-	return 1 << (bitno & 31);
-}
-
 static void kvm_on_user_return(struct user_return_notifier *urn)
 {
 	unsigned slot;
@@ -981,7 +976,7 @@ static inline u64 nsec_to_cycles(u64 nsec)
 	if (kvm_tsc_changes_freq())
 		printk_once(KERN_WARNING
 		 "kvm: unreliable cycle conversion on adjustable rate TSC\n");
-	ret = nsec * __get_cpu_var(cpu_tsc_khz);
+	ret = nsec * __this_cpu_read(cpu_tsc_khz);
 	do_div(ret, USEC_PER_SEC);
 	return ret;
 }
@@ -1066,7 +1061,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	local_irq_save(flags);
 	kvm_get_msr(v, MSR_IA32_TSC, &tsc_timestamp);
 	kernel_ns = get_kernel_ns();
-	this_tsc_khz = __get_cpu_var(cpu_tsc_khz);
+	this_tsc_khz = __this_cpu_read(cpu_tsc_khz);
 
 	if (unlikely(this_tsc_khz == 0)) {
 		local_irq_restore(flags);
@@ -4432,7 +4427,7 @@ EXPORT_SYMBOL_GPL(kvm_fast_pio_out);
 
 static void tsc_bad(void *info)
 {
-	__get_cpu_var(cpu_tsc_khz) = 0;
+	__this_cpu_write(cpu_tsc_khz, 0);
 }
 
 static void tsc_khz_changed(void *data)
@@ -4446,7 +4441,7 @@ static void tsc_khz_changed(void *data)
 		khz = cpufreq_quick_get(raw_smp_processor_id());
 	if (!khz)
 		khz = tsc_khz;
-	__get_cpu_var(cpu_tsc_khz) = khz;
+	__this_cpu_write(cpu_tsc_khz, khz);
 }
 
 static int kvmclock_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
@@ -4569,9 +4564,11 @@ static void kvm_timer_init(void)
 #ifdef CONFIG_CPU_FREQ
 		struct cpufreq_policy policy;
 		memset(&policy, 0, sizeof(policy));
-		cpufreq_get_policy(&policy, get_cpu());
+		cpu = get_cpu();
+		cpufreq_get_policy(&policy, cpu);
 		if (policy.cpuinfo.max_freq)
 			max_tsc_khz = policy.cpuinfo.max_freq;
+		put_cpu();
 #endif
 		cpufreq_register_notifier(&kvmclock_cpufreq_notifier_block,
 					  CPUFREQ_TRANSITION_NOTIFIER);
@@ -5522,6 +5519,8 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 
 	mmu_reset_needed |= kvm_read_cr4(vcpu) != sregs->cr4;
 	kvm_x86_ops->set_cr4(vcpu, sregs->cr4);
+	if (sregs->cr4 & X86_CR4_OSXSAVE)
+		update_cpuid(vcpu);
 	if (!is_long_mode(vcpu) && is_pae(vcpu)) {
 		load_pdptrs(vcpu, vcpu->arch.walk_mmu, vcpu->arch.cr3);
 		mmu_reset_needed = 1;

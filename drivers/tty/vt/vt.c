@@ -236,6 +236,14 @@ enum {
 };
 
 /*
+ * /sys/class/tty/tty0/
+ *
+ * the attribute 'active' contains the name of the current vc
+ * console and it supports poll() to detect vc switches
+ */
+static struct device *tty0dev;
+
+/*
  * Notifier list for console events.
  */
 static ATOMIC_NOTIFIER_HEAD(vt_notifier_list);
@@ -688,6 +696,8 @@ void redraw_screen(struct vc_data *vc, int is_switch)
 			save_screen(old_vc);
 			set_origin(old_vc);
 		}
+		if (tty0dev)
+			sysfs_notify(&tty0dev->kobj, NULL, "active");
 	} else {
 		hide_cursor(vc);
 		redraw = 1;
@@ -2967,13 +2977,24 @@ static const struct tty_operations con_ops = {
 
 static struct cdev vc0_cdev;
 
+static ssize_t show_tty_active(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "tty%d\n", fg_console + 1);
+}
+static DEVICE_ATTR(active, S_IRUGO, show_tty_active, NULL);
+
 int __init vty_init(const struct file_operations *console_fops)
 {
 	cdev_init(&vc0_cdev, console_fops);
 	if (cdev_add(&vc0_cdev, MKDEV(TTY_MAJOR, 0), 1) ||
 	    register_chrdev_region(MKDEV(TTY_MAJOR, 0), 1, "/dev/vc/0") < 0)
 		panic("Couldn't register /dev/tty0 driver\n");
-	device_create(tty_class, NULL, MKDEV(TTY_MAJOR, 0), NULL, "tty0");
+	tty0dev = device_create(tty_class, NULL, MKDEV(TTY_MAJOR, 0), NULL, "tty0");
+	if (IS_ERR(tty0dev))
+		tty0dev = NULL;
+	else
+		device_create_file(tty0dev, &dev_attr_active);
 
 	vcs_init();
 

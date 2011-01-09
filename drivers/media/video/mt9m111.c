@@ -1092,7 +1092,6 @@ static int mt9m111_remove(struct i2c_client *client)
 	struct soc_camera_device *icd = client->dev.platform_data;
 
 	icd->ops = NULL;
-	client->driver = NULL;
 	kfree(mt9m111);
 
 	return 0;

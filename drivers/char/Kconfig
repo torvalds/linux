@@ -682,6 +682,15 @@ config HVC_UDBG
        select HVC_DRIVER
        default n
 
+config HVC_DCC
+       bool "ARM JTAG DCC console"
+       depends on ARM
+       select HVC_DRIVER
+       help
+         This console uses the JTAG DCC on ARM to create a console under the HVC
+	 driver. This console is used through a JTAG only on ARM. If you don't have
+	 a JTAG then you probably don't want this option.
+
 config VIRTIO_CONSOLE
 	tristate "Virtio console"
 	depends on VIRTIO

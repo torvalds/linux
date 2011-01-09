@@ -102,9 +102,6 @@
  *    ->inode_lock		(zap_pte_range->set_page_dirty)
  *    ->private_lock		(zap_pte_range->__set_page_dirty_buffers)
  *
- *  ->task->proc_lock
- *    ->dcache_lock		(proc_pid_lookup)
- *
  *  (code doesn't rely on that order, so you could switch it around)
  *  ->tasklist_lock             (memory_failure, collect_procs_ao)
  *    ->i_mmap_lock
@@ -143,13 +140,18 @@ void __remove_from_page_cache(struct page *page)
 void remove_from_page_cache(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
+	void (*freepage)(struct page *);
 
 	BUG_ON(!PageLocked(page));
 
+	freepage = mapping->a_ops->freepage;
 	spin_lock_irq(&mapping->tree_lock);
 	__remove_from_page_cache(page);
 	spin_unlock_irq(&mapping->tree_lock);
 	mem_cgroup_uncharge_cache_page(page);
+
+	if (freepage)
+		freepage(page);
 }
 EXPORT_SYMBOL(remove_from_page_cache);
 

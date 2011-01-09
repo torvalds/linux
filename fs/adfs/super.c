@@ -240,9 +240,16 @@ static struct inode *adfs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void adfs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(adfs_inode_cachep, ADFS_I(inode));
+}
+
 static void adfs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(adfs_inode_cachep, ADFS_I(inode));
+	call_rcu(&inode->i_rcu, adfs_i_callback);
 }
 
 static void init_once(void *foo)
@@ -477,7 +484,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		adfs_error(sb, "get root inode failed\n");
 		goto error;
 	} else
-		sb->s_root->d_op = &adfs_dentry_operations;
+		d_set_d_op(sb->s_root, &adfs_dentry_operations);
 	unlock_kernel();
 	return 0;
 

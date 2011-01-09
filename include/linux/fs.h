@@ -392,6 +392,7 @@ struct inodes_stat_t {
 #include <linux/capability.h>
 #include <linux/semaphore.h>
 #include <linux/fiemap.h>
+#include <linux/rculist_bl.h>
 
 #include <asm/atomic.h>
 #include <asm/byteorder.h>
@@ -602,6 +603,7 @@ struct address_space_operations {
 	sector_t (*bmap)(struct address_space *, sector_t);
 	void (*invalidatepage) (struct page *, unsigned long);
 	int (*releasepage) (struct page *, gfp_t);
+	void (*freepage)(struct page *);
 	ssize_t (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs);
 	int (*get_xip_mem)(struct address_space *, pgoff_t, int,
@@ -732,16 +734,31 @@ struct posix_acl;
 #define ACL_NOT_CACHED ((void *)(-1))
 
 struct inode {
+	/* RCU path lookup touches following: */
+	umode_t			i_mode;
+	uid_t			i_uid;
+	gid_t			i_gid;
+	const struct inode_operations	*i_op;
+	struct super_block	*i_sb;
+
+	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
+	unsigned int		i_flags;
+	struct mutex		i_mutex;
+
+	unsigned long		i_state;
+	unsigned long		dirtied_when;	/* jiffies of first dirtying */
+
 	struct hlist_node	i_hash;
 	struct list_head	i_wb_list;	/* backing dev IO list */
 	struct list_head	i_lru;		/* inode LRU list */
 	struct list_head	i_sb_list;
-	struct list_head	i_dentry;
+	union {
+		struct list_head	i_dentry;
+		struct rcu_head		i_rcu;
+	};
 	unsigned long		i_ino;
 	atomic_t		i_count;
 	unsigned int		i_nlink;
-	uid_t			i_uid;
-	gid_t			i_gid;
 	dev_t			i_rdev;
 	unsigned int		i_blkbits;
 	u64			i_version;
@@ -754,13 +771,8 @@ struct inode {
 	struct timespec		i_ctime;
 	blkcnt_t		i_blocks;
 	unsigned short          i_bytes;
-	umode_t			i_mode;
-	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
-	struct mutex		i_mutex;
 	struct rw_semaphore	i_alloc_sem;
-	const struct inode_operations	*i_op;
 	const struct file_operations	*i_fop;	/* former ->i_op->default_file_ops */
-	struct super_block	*i_sb;
 	struct file_lock	*i_flock;
 	struct address_space	*i_mapping;
 	struct address_space	i_data;
@@ -780,11 +792,6 @@ struct inode {
 	__u32			i_fsnotify_mask; /* all events this inode cares about */
 	struct hlist_head	i_fsnotify_marks;
 #endif
-
-	unsigned long		i_state;
-	unsigned long		dirtied_when;	/* jiffies of first dirtying */
-
-	unsigned int		i_flags;
 
 #ifdef CONFIG_IMA
 	/* protected by i_lock */
@@ -1371,13 +1378,13 @@ struct super_block {
 	const struct xattr_handler **s_xattr;
 
 	struct list_head	s_inodes;	/* all inodes */
-	struct hlist_head	s_anon;		/* anonymous dentries for (nfs) exporting */
+	struct hlist_bl_head	s_anon;		/* anonymous dentries for (nfs) exporting */
 #ifdef CONFIG_SMP
 	struct list_head __percpu *s_files;
 #else
 	struct list_head	s_files;
 #endif
-	/* s_dentry_lru and s_nr_dentry_unused are protected by dcache_lock */
+	/* s_dentry_lru, s_nr_dentry_unused protected by dcache.c lru locks */
 	struct list_head	s_dentry_lru;	/* unused dentry lru */
 	int			s_nr_dentry_unused;	/* # of dentry on lru */
 
@@ -1544,9 +1551,18 @@ struct file_operations {
 	int (*setlease)(struct file *, long, struct file_lock **);
 };
 
+#define IPERM_FLAG_RCU	0x0001
+
 struct inode_operations {
-	int (*create) (struct inode *,struct dentry *,int, struct nameidata *);
 	struct dentry * (*lookup) (struct inode *,struct dentry *, struct nameidata *);
+	void * (*follow_link) (struct dentry *, struct nameidata *);
+	int (*permission) (struct inode *, int, unsigned int);
+	int (*check_acl)(struct inode *, int, unsigned int);
+
+	int (*readlink) (struct dentry *, char __user *,int);
+	void (*put_link) (struct dentry *, struct nameidata *, void *);
+
+	int (*create) (struct inode *,struct dentry *,int, struct nameidata *);
 	int (*link) (struct dentry *,struct inode *,struct dentry *);
 	int (*unlink) (struct inode *,struct dentry *);
 	int (*symlink) (struct inode *,struct dentry *,const char *);
@@ -1555,12 +1571,7 @@ struct inode_operations {
 	int (*mknod) (struct inode *,struct dentry *,int,dev_t);
 	int (*rename) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *);
-	int (*readlink) (struct dentry *, char __user *,int);
-	void * (*follow_link) (struct dentry *, struct nameidata *);
-	void (*put_link) (struct dentry *, struct nameidata *, void *);
 	void (*truncate) (struct inode *);
-	int (*permission) (struct inode *, int);
-	int (*check_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *mnt, struct dentry *, struct kstat *);
 	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
@@ -1572,7 +1583,7 @@ struct inode_operations {
 			  loff_t len);
 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
 		      u64 len);
-};
+} ____cacheline_aligned;
 
 struct seq_file;
 
@@ -2157,8 +2168,8 @@ extern sector_t bmap(struct inode *, sector_t);
 #endif
 extern int notify_change(struct dentry *, struct iattr *);
 extern int inode_permission(struct inode *, int);
-extern int generic_permission(struct inode *, int,
-		int (*check_acl)(struct inode *, int));
+extern int generic_permission(struct inode *, int, unsigned int,
+		int (*check_acl)(struct inode *, int, unsigned int));
 
 static inline bool execute_ok(struct inode *inode)
 {
@@ -2229,6 +2240,7 @@ extern void iget_failed(struct inode *);
 extern void end_writeback(struct inode *);
 extern void __destroy_inode(struct inode *);
 extern struct inode *new_inode(struct super_block *);
+extern void free_inode_nonrcu(struct inode *inode);
 extern int should_remove_suid(struct dentry *);
 extern int file_remove_suid(struct file *);
 
@@ -2445,6 +2457,10 @@ static inline ino_t parent_ino(struct dentry *dentry)
 {
 	ino_t res;
 
+	/*
+	 * Don't strictly need d_lock here? If the parent ino could change
+	 * then surely we'd have a deeper race in the caller?
+	 */
 	spin_lock(&dentry->d_lock);
 	res = dentry->d_parent->d_inode->i_ino;
 	spin_unlock(&dentry->d_lock);

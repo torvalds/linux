@@ -424,6 +424,9 @@ static int __init omap_init_lcd_dma(void)
 {
 	int r;
 
+	if (!cpu_class_is_omap1())
+		return -ENODEV;
+
 	if (cpu_is_omap16xx()) {
 		u16 w;
 

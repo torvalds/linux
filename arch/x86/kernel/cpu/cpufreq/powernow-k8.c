@@ -521,7 +521,7 @@ static void check_supported_cpu(void *_rc)
 
 	*rc = -ENODEV;
 
-	if (current_cpu_data.x86_vendor != X86_VENDOR_AMD)
+	if (__this_cpu_read(cpu_info.x86_vendor) != X86_VENDOR_AMD)
 		return;
 
 	eax = cpuid_eax(CPUID_PROCESSOR_SIGNATURE);
@@ -1377,7 +1377,7 @@ static int __devexit powernowk8_cpu_exit(struct cpufreq_policy *pol)
 static void query_values_on_cpu(void *_err)
 {
 	int *err = _err;
-	struct powernow_k8_data *data = __get_cpu_var(powernow_data);
+	struct powernow_k8_data *data = __this_cpu_read(powernow_data);
 
 	*err = query_current_values_with_pending_wait(data);
 }

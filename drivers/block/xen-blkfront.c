@@ -72,7 +72,7 @@ struct blk_shadow {
 static DEFINE_MUTEX(blkfront_mutex);
 static const struct block_device_operations xlvbd_block_fops;
 
-#define BLK_RING_SIZE __RING_SIZE((struct blkif_sring *)0, PAGE_SIZE)
+#define BLK_RING_SIZE __CONST_RING_SIZE(blkif, PAGE_SIZE)
 
 /*
  * We have one of these per vbd, whether ide, scsi or 'other'.  They
@@ -547,7 +547,7 @@ static void xlvbd_release_gendisk(struct blkfront_info *info)
 	spin_unlock_irqrestore(&blkif_io_lock, flags);
 
 	/* Flush gnttab callback work. Must be done with no locks held. */
-	flush_scheduled_work();
+	flush_work_sync(&info->work);
 
 	del_gendisk(info->gd);
 
@@ -596,7 +596,7 @@ static void blkif_free(struct blkfront_info *info, int suspend)
 	spin_unlock_irq(&blkif_io_lock);
 
 	/* Flush gnttab callback work. Must be done with no locks held. */
-	flush_scheduled_work();
+	flush_work_sync(&info->work);
 
 	/* Free resources associated with old device channel. */
 	if (info->ring_ref != GRANT_INVALID_REF) {

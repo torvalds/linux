@@ -21,4 +21,4 @@ elif [ "$n_args" -gt 0 ] ; then
     interval=$1
     shift
 fi
-perf trace $@ -s "$PERF_EXEC_PATH"/scripts/python/sctop.py $comm $interval
+perf script $@ -s "$PERF_EXEC_PATH"/scripts/python/sctop.py $comm $interval

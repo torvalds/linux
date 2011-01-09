@@ -2206,8 +2206,11 @@ static int uea_boot(struct uea_softc *sc)
 		goto err1;
 	}
 
-	sc->kthread = kthread_run(uea_kthread, sc, "ueagle-atm");
-	if (sc->kthread == ERR_PTR(-ENOMEM)) {
+	/* Create worker thread, but don't start it here.  Start it after
+	 * all usbatm generic initialization is done.
+	 */
+	sc->kthread = kthread_create(uea_kthread, sc, "ueagle-atm");
+	if (IS_ERR(sc->kthread)) {
 		uea_err(INS_TO_USBDEV(sc), "failed to create thread\n");
 		goto err2;
 	}
@@ -2624,6 +2627,7 @@ static struct usbatm_driver uea_usbatm_driver = {
 static int uea_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device *usb = interface_to_usbdev(intf);
+	int ret;
 
 	uea_enters(usb);
 	uea_info(usb, "ADSL device founded vid (%#X) pid (%#X) Rev (%#X): %s\n",
@@ -2637,7 +2641,19 @@ static int uea_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (UEA_IS_PREFIRM(id))
 		return uea_load_firmware(usb, UEA_CHIP_VERSION(id));
 
-	return usbatm_usb_probe(intf, id, &uea_usbatm_driver);
+	ret = usbatm_usb_probe(intf, id, &uea_usbatm_driver);
+	if (ret == 0) {
+		struct usbatm_data *usbatm = usb_get_intfdata(intf);
+		struct uea_softc *sc = usbatm->driver_data;
+
+		/* Ensure carrier is initialized to off as early as possible */
+		UPDATE_ATM_SIGNAL(ATM_PHY_SIG_LOST);
+
+		/* Only start the worker thread when all init is done */
+		wake_up_process(sc->kthread);
+	}
+
+	return ret;
 }
 
 static void uea_disconnect(struct usb_interface *intf)

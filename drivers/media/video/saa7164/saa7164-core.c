@@ -40,12 +40,12 @@ MODULE_AUTHOR("Steven Toth <stoth@kernellabs.com>");
 MODULE_LICENSE("GPL");
 
 /*
-  1 Basic
-  2
-  4 i2c
-  8 api
- 16 cmd
- 32 bus
+ *  1 Basic
+ *  2
+ *  4 i2c
+ *  8 api
+ * 16 cmd
+ * 32 bus
  */
 
 unsigned int saa_debug;
@@ -82,7 +82,8 @@ MODULE_PARM_DESC(crc_checking, "enable crc sanity checking on buffers");
 
 unsigned int guard_checking = 1;
 module_param(guard_checking, int, 0644);
-MODULE_PARM_DESC(guard_checking, "enable dma sanity checking for buffer overruns");
+MODULE_PARM_DESC(guard_checking,
+	"enable dma sanity checking for buffer overruns");
 
 static unsigned int saa7164_devcount;
 
@@ -123,7 +124,9 @@ static void saa7164_pack_verifier(struct saa7164_buffer *buf)
 		if ((*(p + i + 0) != 0x00) || (*(p + i + 1) != 0x00) ||
 			(*(p + i + 2) != 0x01) || (*(p + i + 3) != 0xBA)) {
 			printk(KERN_ERR "No pack at 0x%x\n", i);
-//			saa7164_dumphex16FF(buf->port->dev, (p + i), 32);
+#if 0
+			saa7164_dumphex16FF(buf->port->dev, (p + i), 32);
+#endif
 		}
 	}
 }
@@ -199,19 +202,16 @@ static void saa7164_histogram_reset(struct saa7164_histogram *hg, char *name)
 	strcpy(hg->name, name);
 
 	/* First 30ms x 1ms */
-	for (i = 0; i < 30; i++) {
+	for (i = 0; i < 30; i++)
 		hg->counter1[0 + i].val = i;
-	}
 
 	/* 30 - 200ms x 10ms  */
-	for (i = 0; i < 18; i++) {
+	for (i = 0; i < 18; i++)
 		hg->counter1[30 + i].val = 30 + (i * 10);
-	}
 
 	/* 200 - 2000ms x 100ms  */
-	for (i = 0; i < 15; i++) {
+	for (i = 0; i < 15; i++)
 		hg->counter1[48 + i].val = 200 + (i * 200);
-	}
 
 	/* Catch all massive value (2secs) */
 	hg->counter1[55].val = 2000;
@@ -315,7 +315,9 @@ static void saa7164_work_enchandler_helper(struct saa7164_port *port, int bufnr)
 					(*(p + buf->actual_size + 0x13) != 0xff)) {
 						printk(KERN_ERR "%s() buf %p guard buffer breach\n",
 							__func__, buf);
-//						saa7164_dumphex16FF(dev, (p + buf->actual_size) - 32 , 64);
+#if 0
+						saa7164_dumphex16FF(dev, (p + buf->actual_size) - 32 , 64);
+#endif
 				}
 			}
 
@@ -961,9 +963,7 @@ static int saa7164_port_init(struct saa7164_dev *dev, int portnr)
 
 		/* We need a deferred interrupt handler for cmd handling */
 		INIT_WORK(&port->workenc, saa7164_work_enchandler);
-	}
-	else
-	if ((portnr == SAA7164_PORT_VBI1) || (portnr == SAA7164_PORT_VBI2)) {
+	} else if ((portnr == SAA7164_PORT_VBI1) || (portnr == SAA7164_PORT_VBI2)) {
 		port->type = SAA7164_MPEG_VBI;
 
 		/* We need a deferred interrupt handler for cmd handling */
@@ -1001,7 +1001,7 @@ static int saa7164_dev_setup(struct saa7164_dev *dev)
 	atomic_inc(&dev->refcount);
 	dev->nr = saa7164_devcount++;
 
-	sprintf(dev->name, "saa7164[%d]", dev->nr);
+	snprintf(dev->name, sizeof(dev->name), "saa7164[%d]", dev->nr);
 
 	mutex_lock(&devlist);
 	list_add_tail(&dev->devlist, &saa7164_devlist);
@@ -1169,7 +1169,7 @@ static int saa7164_proc_open(struct inode *inode, struct file *filp)
 	return single_open(filp, saa7164_proc_show, NULL);
 }
 
-static struct file_operations saa7164_proc_fops = {
+static const struct file_operations saa7164_proc_fops = {
 	.open		= saa7164_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

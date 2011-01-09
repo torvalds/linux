@@ -363,7 +363,7 @@ static int ipheth_tx(struct sk_buff *skb, struct net_device *net)
 
 	/* Paranoid */
 	if (skb->len > IPHETH_BUF_SIZE) {
-		WARN(1, "%s: skb too large: %d bytes", __func__, skb->len);
+		WARN(1, "%s: skb too large: %d bytes\n", __func__, skb->len);
 		dev->net->stats.tx_dropped++;
 		dev_kfree_skb_irq(skb);
 		return NETDEV_TX_OK;

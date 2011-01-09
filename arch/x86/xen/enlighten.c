@@ -574,8 +574,8 @@ static void xen_write_idt_entry(gate_desc *dt, int entrynum, const gate_desc *g)
 
 	preempt_disable();
 
-	start = __get_cpu_var(idt_desc).address;
-	end = start + __get_cpu_var(idt_desc).size + 1;
+	start = __this_cpu_read(idt_desc.address);
+	end = start + __this_cpu_read(idt_desc.size) + 1;
 
 	xen_mc_flush();
 
@@ -1020,10 +1020,6 @@ static const struct pv_apic_ops xen_apic_ops __initdata = {
 static void xen_reboot(int reason)
 {
 	struct sched_shutdown r = { .reason = reason };
-
-#ifdef CONFIG_SMP
-	stop_other_cpus();
-#endif
 
 	if (HYPERVISOR_sched_op(SCHEDOP_shutdown, &r))
 		BUG();

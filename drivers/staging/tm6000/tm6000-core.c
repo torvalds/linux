@@ -542,6 +542,26 @@ int tm6000_init(struct tm6000_core *dev)
 	int board, rc = 0, i, size;
 	struct reg_init *tab;
 
+	/* Check board revision */
+	board = tm6000_get_reg32(dev, REQ_40_GET_VERSION, 0, 0);
+	if (board >= 0) {
+		switch (board & 0xff) {
+		case 0xf3:
+			printk(KERN_INFO "Found tm6000\n");
+			if (dev->dev_type != TM6000)
+				dev->dev_type = TM6000;
+			break;
+		case 0xf4:
+			printk(KERN_INFO "Found tm6010\n");
+			if (dev->dev_type != TM6010)
+				dev->dev_type = TM6010;
+			break;
+		default:
+			printk(KERN_INFO "Unknown board version = 0x%08x\n", board);
+		}
+	} else
+		printk(KERN_ERR "Error %i while retrieving board version\n", board);
+
 	if (dev->dev_type == TM6010) {
 		tab = tm6010_init_tab;
 		size = ARRAY_SIZE(tm6010_init_tab);
@@ -562,13 +582,6 @@ int tm6000_init(struct tm6000_core *dev)
 	}
 
 	msleep(5); /* Just to be conservative */
-
-	/* Check board version - maybe 10Moons specific */
-	board = tm6000_get_reg32(dev, REQ_40_GET_VERSION, 0, 0);
-	if (board >= 0)
-		printk(KERN_INFO "Board version = 0x%08x\n", board);
-	else
-		printk(KERN_ERR "Error %i while retrieving board version\n", board);
 
 	rc = tm6000_cards_setup(dev);
 
@@ -709,5 +722,5 @@ void tm6000_close_extension(struct tm6000_core *dev)
 				ops->fini(dev);
 		}
 	}
-	mutex_lock(&tm6000_devlist_mutex);
+	mutex_unlock(&tm6000_devlist_mutex);
 }

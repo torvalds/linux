@@ -1381,6 +1381,16 @@ config SERIAL_MSM_CONSOLE
 	depends on SERIAL_MSM=y
 	select SERIAL_CORE_CONSOLE
 
+config SERIAL_VT8500
+	bool "VIA VT8500 on-chip serial port support"
+	depends on ARM && ARCH_VT8500
+	select SERIAL_CORE
+
+config SERIAL_VT8500_CONSOLE
+	bool "VIA VT8500 serial console support"
+	depends on SERIAL_VT8500=y
+	select SERIAL_CORE_CONSOLE
+
 config SERIAL_NETX
 	tristate "NetX serial port support"
 	depends on ARM && ARCH_NETX
@@ -1632,4 +1642,19 @@ config SERIAL_ALTERA_UART_CONSOLE
 	help
 	  Enable a Altera UART port to be the system console.
 
+config SERIAL_IFX6X60
+        tristate "SPI protocol driver for Infineon 6x60 modem (EXPERIMENTAL)"
+	depends on GPIOLIB && SPI && EXPERIMENTAL
+	help
+	  Support for the IFX6x60 modem devices on Intel MID platforms.
+
+config SERIAL_PCH_UART
+	tristate "Intel EG20T PCH UART"
+	depends on PCI && DMADEVICES
+	select SERIAL_CORE
+	select PCH_DMA
+	help
+	  This driver is for PCH(Platform controller Hub) UART of Intel EG20T
+	  which is an IOH(Input/Output Hub) for x86 embedded processor.
+	  Enabling PCH_DMA, this PCH UART works as DMA mode.
 endmenu

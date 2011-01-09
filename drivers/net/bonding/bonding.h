@@ -119,26 +119,22 @@
 
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-extern cpumask_var_t netpoll_block_tx;
+extern atomic_t netpoll_block_tx;
 
 static inline void block_netpoll_tx(void)
 {
-	preempt_disable();
-	BUG_ON(cpumask_test_and_set_cpu(smp_processor_id(),
-					netpoll_block_tx));
+	atomic_inc(&netpoll_block_tx);
 }
 
 static inline void unblock_netpoll_tx(void)
 {
-	BUG_ON(!cpumask_test_and_clear_cpu(smp_processor_id(),
-					   netpoll_block_tx));
-	preempt_enable();
+	atomic_dec(&netpoll_block_tx);
 }
 
 static inline int is_netpoll_tx_blocked(struct net_device *dev)
 {
 	if (unlikely(dev->priv_flags & IFF_IN_NETPOLL))
-		return cpumask_test_cpu(smp_processor_id(), netpoll_block_tx);
+		return atomic_read(&netpoll_block_tx);
 	return 0;
 }
 #else
@@ -259,6 +255,10 @@ struct bonding {
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	struct   in6_addr master_ipv6;
 #endif
+#ifdef CONFIG_DEBUG_FS
+	/* debugging suport via debugfs */
+	struct	 dentry *debug_dir;
+#endif /* CONFIG_DEBUG_FS */
 };
 
 /**
@@ -273,11 +273,11 @@ static inline struct slave *bond_get_slave_by_dev(struct bonding *bond, struct n
 
 	bond_for_each_slave(bond, slave, i) {
 		if (slave->dev == slave_dev) {
-			break;
+			return slave;
 		}
 	}
 
-	return slave;
+	return 0;
 }
 
 static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
@@ -286,7 +286,7 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 		return NULL;
 	}
 
-	return (struct bonding *)netdev_priv(slave->dev->master);
+	return netdev_priv(slave->dev->master);
 }
 
 static inline bool bond_is_lb(const struct bonding *bond)
@@ -380,6 +380,11 @@ void bond_select_active_slave(struct bonding *bond);
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
 void bond_register_arp(struct bonding *);
 void bond_unregister_arp(struct bonding *);
+void bond_create_debugfs(void);
+void bond_destroy_debugfs(void);
+void bond_debug_register(struct bonding *bond);
+void bond_debug_unregister(struct bonding *bond);
+void bond_debug_reregister(struct bonding *bond);
 
 struct bond_net {
 	struct net *		net;	/* Associated network namespace */

@@ -99,6 +99,13 @@
 #define UART_LCR_WLEN7		0x02 /* Wordlength: 7 bits */
 #define UART_LCR_WLEN8		0x03 /* Wordlength: 8 bits */
 
+/*
+ * Access to some registers depends on register access / configuration
+ * mode.
+ */
+#define UART_LCR_CONF_MODE_A	UART_LCR_DLAB	/* Configutation mode A */
+#define UART_LCR_CONF_MODE_B	0xBF		/* Configutation mode B */
+
 #define UART_MCR	4	/* Out: Modem Control Register */
 #define UART_MCR_CLKSEL		0x80 /* Divide clock by 4 (TI16C752, EFR[4]=1) */
 #define UART_MCR_TCRTLR		0x40 /* Access TCR/TLR (TI16C752, EFR[4]=1) */
@@ -340,6 +347,18 @@
 #define UART_OMAP_SYSC		0x15	/* System configuration register */
 #define UART_OMAP_SYSS		0x16	/* System status register */
 #define UART_OMAP_WER		0x17	/* Wake-up enable register */
+
+/*
+ * These are the definitions for the MDR1 register
+ */
+#define UART_OMAP_MDR1_16X_MODE		0x00	/* UART 16x mode */
+#define UART_OMAP_MDR1_SIR_MODE		0x01	/* SIR mode */
+#define UART_OMAP_MDR1_16X_ABAUD_MODE	0x02	/* UART 16x auto-baud */
+#define UART_OMAP_MDR1_13X_MODE		0x03	/* UART 13x mode */
+#define UART_OMAP_MDR1_MIR_MODE		0x04	/* MIR mode */
+#define UART_OMAP_MDR1_FIR_MODE		0x05	/* FIR mode */
+#define UART_OMAP_MDR1_CIR_MODE		0x06	/* CIR mode */
+#define UART_OMAP_MDR1_DISABLE		0x07	/* Disable (default state) */
 
 #endif /* _LINUX_SERIAL_REG_H */
 

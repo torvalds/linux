@@ -53,13 +53,11 @@
 #define IWL6000_UCODE_API_MAX 4
 #define IWL6050_UCODE_API_MAX 5
 #define IWL6000G2_UCODE_API_MAX 5
-#define IWL130_UCODE_API_MAX 5
 
 /* Lowest firmware API version supported */
 #define IWL6000_UCODE_API_MIN 4
 #define IWL6050_UCODE_API_MIN 4
 #define IWL6000G2_UCODE_API_MIN 4
-#define IWL130_UCODE_API_MIN 5
 
 #define IWL6000_FW_PRE "iwlwifi-6000-"
 #define _IWL6000_MODULE_FIRMWARE(api) IWL6000_FW_PRE #api ".ucode"
@@ -76,10 +74,6 @@
 #define IWL6000G2B_FW_PRE "iwlwifi-6000g2b-"
 #define _IWL6000G2B_MODULE_FIRMWARE(api) IWL6000G2B_FW_PRE #api ".ucode"
 #define IWL6000G2B_MODULE_FIRMWARE(api) _IWL6000G2B_MODULE_FIRMWARE(api)
-
-#define IWL130_FW_PRE "iwlwifi-130-"
-#define _IWL130_MODULE_FIRMWARE(api) IWL130_FW_PRE #api ".ucode"
-#define IWL130_MODULE_FIRMWARE(api) _IWL130_MODULE_FIRMWARE(api)
 
 static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 {
@@ -188,7 +182,11 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
 
 	priv->hw_params.tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
-	priv->hw_params.rx_chains_num = num_of_ant(priv->cfg->valid_rx_ant);
+	if (priv->cfg->rx_with_siso_diversity)
+		priv->hw_params.rx_chains_num = 1;
+	else
+		priv->hw_params.rx_chains_num =
+			num_of_ant(priv->cfg->valid_rx_ant);
 	priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
 	priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
 
@@ -328,14 +326,16 @@ static struct iwl_lib_ops iwl6000_lib = {
 		.query_addr = iwlagn_eeprom_query_addr,
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
-	.post_associate = iwl_post_associate,
-	.isr = iwl_isr_ict,
-	.config_ap = iwl_config_ap,
+	.isr_ops = {
+		.isr = iwl_isr_ict,
+		.free = iwl_free_isr_ict,
+		.alloc = iwl_alloc_isr_ict,
+		.reset = iwl_reset_ict,
+		.disable = iwl_disable_ict,
+	},
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
 	 },
-	.manage_ibss_station = iwlagn_manage_ibss_station,
-	.update_bcast_stations = iwl_update_bcast_stations,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
@@ -343,7 +343,6 @@ static struct iwl_lib_ops iwl6000_lib = {
 		.bt_stats_read = iwl_ucode_bt_stats_read,
 		.reply_tx_error = iwl_reply_tx_error_read,
 	},
-	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
 	.check_ack_health = iwl_good_ack_health,
 	.txfifo_flush = iwlagn_txfifo_flush,
@@ -399,14 +398,16 @@ static struct iwl_lib_ops iwl6000g2b_lib = {
 		.query_addr = iwlagn_eeprom_query_addr,
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
-	.post_associate = iwl_post_associate,
-	.isr = iwl_isr_ict,
-	.config_ap = iwl_config_ap,
+	.isr_ops = {
+		.isr = iwl_isr_ict,
+		.free = iwl_free_isr_ict,
+		.alloc = iwl_alloc_isr_ict,
+		.reset = iwl_reset_ict,
+		.disable = iwl_disable_ict,
+	},
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
 	 },
-	.manage_ibss_station = iwlagn_manage_ibss_station,
-	.update_bcast_stations = iwl_update_bcast_stations,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
@@ -414,7 +415,6 @@ static struct iwl_lib_ops iwl6000g2b_lib = {
 		.bt_stats_read = iwl_ucode_bt_stats_read,
 		.reply_tx_error = iwl_reply_tx_error_read,
 	},
-	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
 	.check_ack_health = iwl_good_ack_health,
 	.txfifo_flush = iwlagn_txfifo_flush,
@@ -439,6 +439,7 @@ static const struct iwl_ops iwl6000_ops = {
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
+	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static const struct iwl_ops iwl6050_ops = {
@@ -447,6 +448,7 @@ static const struct iwl_ops iwl6050_ops = {
 	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
 	.nic = &iwl6050_nic_ops,
+	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static const struct iwl_ops iwl6050g2_ops = {
@@ -455,6 +457,7 @@ static const struct iwl_ops iwl6050g2_ops = {
 	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
 	.nic = &iwl6050g2_nic_ops,
+	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static const struct iwl_ops iwl6000g2b_ops = {
@@ -462,6 +465,7 @@ static const struct iwl_ops iwl6000g2b_ops = {
 	.hcmd = &iwlagn_bt_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
+	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static struct iwl_base_params iwl6000_base_params = {
@@ -480,11 +484,12 @@ static struct iwl_base_params iwl6000_base_params = {
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
+	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 512,
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.shadow_reg_enable = true,
 };
 
 static struct iwl_base_params iwl6050_base_params = {
@@ -503,13 +508,14 @@ static struct iwl_base_params iwl6050_base_params = {
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1500,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
+	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 1024,
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.shadow_reg_enable = true,
 };
-static struct iwl_base_params iwl6000_coex_base_params = {
+static struct iwl_base_params iwl6000_g2_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
@@ -518,18 +524,19 @@ static struct iwl_base_params iwl6000_coex_base_params = {
 	.use_bsm = false,
 	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
 	.shadow_ram_support = true,
-	.led_compensation = 51,
+	.led_compensation = 57,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.supports_idle = true,
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
+	.wd_timeout = IWL_LONG_WD_TIMEOUT,
 	.max_event_log_size = 512,
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.shadow_reg_enable = true,
 };
 
 static struct iwl_ht_params iwl6000_ht_params = {
@@ -541,262 +548,164 @@ static struct iwl_bt_params iwl6000_bt_params = {
 	.bt_statistics = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.advanced_bt_coexist = true,
+	.agg_time_limit = BT_AGG_THRESHOLD_DEF,
 	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
 	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
+	.bt_sco_disable = true,
 };
 
-struct iwl_cfg iwl6000g2a_2agn_cfg = {
-	.name = "6000 Series 2x2 AGN Gen2a",
-	.fw_name_pre = IWL6000G2A_FW_PRE,
-	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
-	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.ops = &iwl6000_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_base_params,
+#define IWL_DEVICE_6005						\
+	.fw_name_pre = IWL6000G2A_FW_PRE,			\
+	.ucode_api_max = IWL6000G2_UCODE_API_MAX,		\
+	.ucode_api_min = IWL6000G2_UCODE_API_MIN,		\
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,		\
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,	\
+	.ops = &iwl6000_ops,					\
+	.mod_params = &iwlagn_mod_params,			\
+	.base_params = &iwl6000_g2_base_params,			\
+	.need_dc_calib = true,					\
+	.need_temp_offset_calib = true,				\
+	.led_mode = IWL_LED_RF_STATE
+
+struct iwl_cfg iwl6005_2agn_cfg = {
+	.name = "Intel(R) Centrino(R) Advanced-N 6205 AGN",
+	IWL_DEVICE_6005,
 	.ht_params = &iwl6000_ht_params,
-	.need_dc_calib = true,
-	.need_temp_offset_calib = true,
 };
 
-struct iwl_cfg iwl6000g2a_2abg_cfg = {
-	.name = "6000 Series 2x2 ABG Gen2a",
-	.fw_name_pre = IWL6000G2A_FW_PRE,
-	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
-	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.ops = &iwl6000_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_base_params,
-	.need_dc_calib = true,
-	.need_temp_offset_calib = true,
+struct iwl_cfg iwl6005_2abg_cfg = {
+	.name = "Intel(R) Centrino(R) Advanced-N 6205 ABG",
+	IWL_DEVICE_6005,
 };
 
-struct iwl_cfg iwl6000g2a_2bg_cfg = {
-	.name = "6000 Series 2x2 BG Gen2a",
-	.fw_name_pre = IWL6000G2A_FW_PRE,
-	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
-	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_G,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.ops = &iwl6000_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_base_params,
-	.need_dc_calib = true,
-	.need_temp_offset_calib = true,
+struct iwl_cfg iwl6005_2bg_cfg = {
+	.name = "Intel(R) Centrino(R) Advanced-N 6205 BG",
+	IWL_DEVICE_6005,
 };
 
-struct iwl_cfg iwl6000g2b_2agn_cfg = {
-	.name = "6000 Series 2x2 AGN Gen2b",
-	.fw_name_pre = IWL6000G2B_FW_PRE,
-	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
-	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.ops = &iwl6000g2b_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_coex_base_params,
-	.bt_params = &iwl6000_bt_params,
+#define IWL_DEVICE_6030						\
+	.fw_name_pre = IWL6000G2B_FW_PRE,			\
+	.ucode_api_max = IWL6000G2_UCODE_API_MAX,		\
+	.ucode_api_min = IWL6000G2_UCODE_API_MIN,		\
+	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,		\
+	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,	\
+	.ops = &iwl6000g2b_ops,					\
+	.mod_params = &iwlagn_mod_params,			\
+	.base_params = &iwl6000_g2_base_params,			\
+	.bt_params = &iwl6000_bt_params,			\
+	.need_dc_calib = true,					\
+	.need_temp_offset_calib = true,				\
+	.led_mode = IWL_LED_RF_STATE,				\
+	.adv_pm = true						\
+
+struct iwl_cfg iwl6030_2agn_cfg = {
+	.name = "Intel(R) Centrino(R) Advanced-N 6230 AGN",
+	IWL_DEVICE_6030,
 	.ht_params = &iwl6000_ht_params,
-	.need_dc_calib = true,
-	.need_temp_offset_calib = true,
-	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
-	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
 
-struct iwl_cfg iwl6000g2b_2abg_cfg = {
-	.name = "6000 Series 2x2 ABG Gen2b",
-	.fw_name_pre = IWL6000G2B_FW_PRE,
-	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
-	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.ops = &iwl6000g2b_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_coex_base_params,
-	.bt_params = &iwl6000_bt_params,
-	.need_dc_calib = true,
-	.need_temp_offset_calib = true,
-	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
-	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+struct iwl_cfg iwl6030_2abg_cfg = {
+	.name = "Intel(R) Centrino(R) Advanced-N 6230 ABG",
+	IWL_DEVICE_6030,
 };
 
-struct iwl_cfg iwl6000g2b_2bgn_cfg = {
-	.name = "6000 Series 2x2 BGN Gen2b",
-	.fw_name_pre = IWL6000G2B_FW_PRE,
-	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
-	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_G|IWL_SKU_N,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.ops = &iwl6000g2b_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_coex_base_params,
-	.bt_params = &iwl6000_bt_params,
+struct iwl_cfg iwl6030_2bgn_cfg = {
+	.name = "Intel(R) Centrino(R) Advanced-N 6230 BGN",
+	IWL_DEVICE_6030,
 	.ht_params = &iwl6000_ht_params,
-	.need_dc_calib = true,
-	.need_temp_offset_calib = true,
-	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
-	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
 
-struct iwl_cfg iwl6000g2b_2bg_cfg = {
-	.name = "6000 Series 2x2 BG Gen2b",
-	.fw_name_pre = IWL6000G2B_FW_PRE,
-	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
-	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_G,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.ops = &iwl6000g2b_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_coex_base_params,
-	.bt_params = &iwl6000_bt_params,
-	.need_dc_calib = true,
-	.need_temp_offset_calib = true,
-	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
-	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+struct iwl_cfg iwl6030_2bg_cfg = {
+	.name = "Intel(R) Centrino(R) Advanced-N 6230 BG",
+	IWL_DEVICE_6030,
 };
 
-struct iwl_cfg iwl6000g2b_bgn_cfg = {
-	.name = "6000 Series 1x2 BGN Gen2b",
-	.fw_name_pre = IWL6000G2B_FW_PRE,
-	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
-	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_G|IWL_SKU_N,
-	.valid_tx_ant = ANT_A,
-	.valid_rx_ant = ANT_AB,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.ops = &iwl6000g2b_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_coex_base_params,
-	.bt_params = &iwl6000_bt_params,
+struct iwl_cfg iwl1030_bgn_cfg = {
+	.name = "Intel(R) Centrino(R) Wireless-N 1030 BGN",
+	IWL_DEVICE_6030,
 	.ht_params = &iwl6000_ht_params,
-	.need_dc_calib = true,
-	.need_temp_offset_calib = true,
-	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
-	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
 
-struct iwl_cfg iwl6000g2b_bg_cfg = {
-	.name = "6000 Series 1x2 BG Gen2b",
-	.fw_name_pre = IWL6000G2B_FW_PRE,
-	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
-	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_G,
-	.valid_tx_ant = ANT_A,
-	.valid_rx_ant = ANT_AB,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.ops = &iwl6000g2b_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_coex_base_params,
-	.bt_params = &iwl6000_bt_params,
-	.need_dc_calib = true,
-	.need_temp_offset_calib = true,
-	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
-	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+struct iwl_cfg iwl1030_bg_cfg = {
+	.name = "Intel(R) Centrino(R) Wireless-N 1030 BG",
+	IWL_DEVICE_6030,
+};
+
+struct iwl_cfg iwl130_bgn_cfg = {
+	.name = "Intel(R) Centrino(R) Wireless-N 130 BGN",
+	IWL_DEVICE_6030,
+	.ht_params = &iwl6000_ht_params,
+	.rx_with_siso_diversity = true,
+};
+
+struct iwl_cfg iwl130_bg_cfg = {
+	.name = "Intel(R) Centrino(R) Wireless-N 130 BG",
+	IWL_DEVICE_6030,
+	.rx_with_siso_diversity = true,
 };
 
 /*
  * "i": Internal configuration, use internal Power Amplifier
  */
+#define IWL_DEVICE_6000i					\
+	.fw_name_pre = IWL6000_FW_PRE,				\
+	.ucode_api_max = IWL6000_UCODE_API_MAX,			\
+	.ucode_api_min = IWL6000_UCODE_API_MIN,			\
+	.valid_tx_ant = ANT_BC,		/* .cfg overwrite */	\
+	.valid_rx_ant = ANT_BC,		/* .cfg overwrite */	\
+	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,		\
+	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,	\
+	.ops = &iwl6000_ops,					\
+	.mod_params = &iwlagn_mod_params,			\
+	.base_params = &iwl6000_base_params,			\
+	.pa_type = IWL_PA_INTERNAL,				\
+	.led_mode = IWL_LED_BLINK
+
 struct iwl_cfg iwl6000i_2agn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6200 AGN",
-	.fw_name_pre = IWL6000_FW_PRE,
-	.ucode_api_max = IWL6000_UCODE_API_MAX,
-	.ucode_api_min = IWL6000_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.valid_tx_ant = ANT_BC,
-	.valid_rx_ant = ANT_BC,
-	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
-	.ops = &iwl6000_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_base_params,
+	IWL_DEVICE_6000i,
 	.ht_params = &iwl6000_ht_params,
-	.pa_type = IWL_PA_INTERNAL,
 };
 
 struct iwl_cfg iwl6000i_2abg_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6200 ABG",
-	.fw_name_pre = IWL6000_FW_PRE,
-	.ucode_api_max = IWL6000_UCODE_API_MAX,
-	.ucode_api_min = IWL6000_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G,
-	.valid_tx_ant = ANT_BC,
-	.valid_rx_ant = ANT_BC,
-	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
-	.ops = &iwl6000_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_base_params,
-	.pa_type = IWL_PA_INTERNAL,
+	IWL_DEVICE_6000i,
 };
 
 struct iwl_cfg iwl6000i_2bg_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6200 BG",
-	.fw_name_pre = IWL6000_FW_PRE,
-	.ucode_api_max = IWL6000_UCODE_API_MAX,
-	.ucode_api_min = IWL6000_UCODE_API_MIN,
-	.sku = IWL_SKU_G,
-	.valid_tx_ant = ANT_BC,
-	.valid_rx_ant = ANT_BC,
-	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
-	.ops = &iwl6000_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_base_params,
-	.pa_type = IWL_PA_INTERNAL,
+	IWL_DEVICE_6000i,
 };
+
+#define IWL_DEVICE_6050						\
+	.fw_name_pre = IWL6050_FW_PRE,				\
+	.ucode_api_max = IWL6050_UCODE_API_MAX,			\
+	.ucode_api_min = IWL6050_UCODE_API_MIN,			\
+	.ops = &iwl6050_ops,					\
+	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,		\
+	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,	\
+	.mod_params = &iwlagn_mod_params,			\
+	.base_params = &iwl6050_base_params,			\
+	.need_dc_calib = true,					\
+	.led_mode = IWL_LED_BLINK,				\
+	.internal_wimax_coex = true
 
 struct iwl_cfg iwl6050_2agn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 AGN",
-	.fw_name_pre = IWL6050_FW_PRE,
-	.ucode_api_max = IWL6050_UCODE_API_MAX,
-	.ucode_api_min = IWL6050_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
-	.ops = &iwl6050_ops,
-	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6050_base_params,
+	IWL_DEVICE_6050,
 	.ht_params = &iwl6000_ht_params,
-	.need_dc_calib = true,
 };
 
-struct iwl_cfg iwl6050g2_bgn_cfg = {
-	.name = "6050 Series 1x2 BGN Gen2",
+struct iwl_cfg iwl6050_2abg_cfg = {
+	.name = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 ABG",
+	IWL_DEVICE_6050,
+};
+
+struct iwl_cfg iwl6150_bgn_cfg = {
+	.name = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BGN",
 	.fw_name_pre = IWL6050_FW_PRE,
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
-	.sku = IWL_SKU_G|IWL_SKU_N,
-	.valid_tx_ant = ANT_A,
-	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6050G2_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6050G2_TX_POWER_VERSION,
 	.ops = &iwl6050g2_ops,
@@ -804,22 +713,8 @@ struct iwl_cfg iwl6050g2_bgn_cfg = {
 	.base_params = &iwl6050_base_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
-};
-
-struct iwl_cfg iwl6050_2abg_cfg = {
-	.name = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 ABG",
-	.fw_name_pre = IWL6050_FW_PRE,
-	.ucode_api_max = IWL6050_UCODE_API_MAX,
-	.ucode_api_min = IWL6050_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
-	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,
-	.ops = &iwl6050_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6050_base_params,
-	.need_dc_calib = true,
+	.led_mode = IWL_LED_RF_STATE,
+	.internal_wimax_coex = true,
 };
 
 struct iwl_cfg iwl6000_3agn_cfg = {
@@ -827,9 +722,6 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.valid_tx_ant = ANT_ABC,
-	.valid_rx_ant = ANT_ABC,
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
 	.ops = &iwl6000_ops,
@@ -837,49 +729,10 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.base_params = &iwl6000_base_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
-};
-
-struct iwl_cfg iwl130_bgn_cfg = {
-	.name = "Intel(R) 130 Series 1x1 BGN",
-	.fw_name_pre = IWL6000G2B_FW_PRE,
-	.ucode_api_max = IWL130_UCODE_API_MAX,
-	.ucode_api_min = IWL130_UCODE_API_MIN,
-	.sku = IWL_SKU_G|IWL_SKU_N,
-	.valid_tx_ant = ANT_A,
-	.valid_rx_ant = ANT_A,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.ops = &iwl6000g2b_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_coex_base_params,
-	.bt_params = &iwl6000_bt_params,
-	.ht_params = &iwl6000_ht_params,
-	.need_dc_calib = true,
-	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
-	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
-};
-
-struct iwl_cfg iwl130_bg_cfg = {
-	.name = "Intel(R) 130 Series 1x2 BG",
-	.fw_name_pre = IWL6000G2B_FW_PRE,
-	.ucode_api_max = IWL130_UCODE_API_MAX,
-	.ucode_api_min = IWL130_UCODE_API_MIN,
-	.sku = IWL_SKU_G,
-	.valid_tx_ant = ANT_A,
-	.valid_rx_ant = ANT_A,
-	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
-	.ops = &iwl6000g2b_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl6000_coex_base_params,
-	.bt_params = &iwl6000_bt_params,
-	.need_dc_calib = true,
-	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
-	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.led_mode = IWL_LED_BLINK,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL6050_MODULE_FIRMWARE(IWL6050_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL6000G2A_MODULE_FIRMWARE(IWL6000G2_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL6000G2B_MODULE_FIRMWARE(IWL6000G2_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL130_MODULE_FIRMWARE(IWL130_UCODE_API_MAX));

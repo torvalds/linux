@@ -140,6 +140,20 @@ struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *e
 		}
 		if (current_entry->prompt && current_entry != &rootmenu)
 			prop_warn(prop, "prompt redefined");
+
+		/* Apply all upper menus' visibilities to actual prompts. */
+		if(type == P_PROMPT) {
+			struct menu *menu = current_entry;
+
+			while ((menu = menu->parent) != NULL) {
+				if (!menu->visibility)
+					continue;
+				prop->visible.expr
+					= expr_alloc_and(prop->visible.expr,
+							 menu->visibility);
+			}
+		}
+
 		current_entry->prompt = prop;
 	}
 	prop->text = prompt;
@@ -150,6 +164,12 @@ struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *e
 struct property *menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep)
 {
 	return menu_add_prop(type, prompt, NULL, dep);
+}
+
+void menu_add_visibility(struct expr *expr)
+{
+	current_entry->visibility = expr_alloc_and(current_entry->visibility,
+	    expr);
 }
 
 void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep)
@@ -409,6 +429,11 @@ bool menu_is_visible(struct menu *menu)
 
 	if (!menu->prompt)
 		return false;
+
+	if (menu->visibility) {
+		if (expr_calc_value(menu->visibility) == no)
+			return no;
+	}
 
 	sym = menu->sym;
 	if (sym) {

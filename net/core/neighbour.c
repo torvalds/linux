@@ -41,7 +41,6 @@
 
 #define NEIGH_PRINTK(x...) printk(x)
 #define NEIGH_NOPRINTK(x...) do { ; } while(0)
-#define NEIGH_PRINTK0 NEIGH_PRINTK
 #define NEIGH_PRINTK1 NEIGH_NOPRINTK
 #define NEIGH_PRINTK2 NEIGH_NOPRINTK
 

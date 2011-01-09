@@ -623,9 +623,9 @@ static void __init omap3_evm_init_irq(void)
 {
 	omap_board_config = omap3_evm_config;
 	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params, NULL);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(mt46h32m32lf6_sdrc_params, NULL);
 	omap_init_irq();
-	omap_gpio_init();
 }
 
 static struct platform_device *omap3_evm_devices[] __initdata = {
@@ -654,8 +654,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 				OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
-#else
-#define board_mux	NULL
 #endif
 
 static struct omap_musb_board_data musb_board_data = {

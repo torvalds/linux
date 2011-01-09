@@ -1553,7 +1553,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 
 	for (i = 0; i < subdev_count; i++) {
 		vpif_obj.sd[i] = v4l2_i2c_new_subdev_board(&vpif_obj.v4l2_dev,
-						i2c_adap, NULL,
+						i2c_adap,
 						&subdevdata[i].board_info,
 						NULL);
 		if (!vpif_obj.sd[i]) {

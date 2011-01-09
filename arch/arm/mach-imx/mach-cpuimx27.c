@@ -28,7 +28,6 @@
 #include <linux/serial_8250.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
-#include <linux/fsl_devices.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -40,11 +39,9 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx27.h>
 #include <mach/mxc_nand.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 static const int eukrea_cpuimx27_pins[] __initconst = {
 	/* UART1 */
@@ -157,8 +154,6 @@ cpuimx27_nand_board_info __initconst = {
 
 static struct platform_device *platform_devices[] __initdata = {
 	&eukrea_cpuimx27_nor_mtd_device,
-	&mxc_wdt,
-	&mxc_w1_master_device,
 };
 
 static const struct imxi2c_platform_data cpuimx27_i2c1_data __initconst = {
@@ -215,18 +210,18 @@ static struct platform_device serial_device = {
 #endif
 
 #if defined(CONFIG_USB_ULPI)
-static struct mxc_usbh_platform_data otg_pdata = {
+static struct mxc_usbh_platform_data otg_pdata __initdata = {
 	.portsc	= MXC_EHCI_MODE_ULPI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
-static struct mxc_usbh_platform_data usbh2_pdata = {
+static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.portsc	= MXC_EHCI_MODE_ULPI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 #endif
 
-static struct fsl_usb2_platform_data otg_device_pdata = {
+static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
 	.phy_mode       = FSL_USB2_PHY_ULPI,
 };
@@ -262,10 +257,12 @@ static void __init eukrea_cpuimx27_init(void)
 
 	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	imx27_add_imx2_wdt(NULL);
+	imx27_add_mxc_w1(NULL);
 
 #if defined(CONFIG_MACH_EUKREA_CPUIMX27_USESDHC2)
 	/* SDHC2 can be used for Wifi */
-	mxc_register_device(&mxc_sdhc_device1, NULL);
+	imx27_add_mxc_mmc(1, NULL);
 #endif
 #if defined(MACH_EUKREA_CPUIMX27_USEUART4)
 	/* in which case UART4 is also used for Bluetooth */
@@ -281,16 +278,16 @@ static void __init eukrea_cpuimx27_init(void)
 		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-		mxc_register_device(&mxc_otg_host, &otg_pdata);
+		imx27_add_mxc_ehci_otg(&otg_pdata);
 	}
 
 	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+	imx27_add_mxc_ehci_hs(2, &usbh2_pdata);
 #endif
 	if (!otg_mode_host)
-		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
+		imx27_add_fsl_usb2_udc(&otg_device_pdata);
 
 #ifdef CONFIG_MACH_EUKREA_MBIMX27_BASEBOARD
 	eukrea_mbimx27_baseboard_init();

@@ -2471,6 +2471,9 @@
 # define MARIUNIT_CLOCK_GATE_DISABLE		(1 << 18)
 # define SVSMUNIT_CLOCK_GATE_DISABLE		(1 << 1)
 
+#define PCH_3DCGDIS1		0x46024
+# define VFMUNIT_CLOCK_GATE_DISABLE		(1 << 11)
+
 #define FDI_PLL_FREQ_CTL        0x46030
 #define  FDI_PLL_FREQ_CHANGE_REQUEST    (1<<24)
 #define  FDI_PLL_FREQ_LOCK_LIMIT_MASK   0xfff00
@@ -2588,6 +2591,13 @@
 #define ILK_DISPLAY_CHICKEN2	0x42004
 #define  ILK_DPARB_GATE	(1<<22)
 #define  ILK_VSDPFD_FULL	(1<<21)
+#define ILK_DISPLAY_CHICKEN_FUSES	0x42014
+#define  ILK_INTERNAL_GRAPHICS_DISABLE	(1<<31)
+#define  ILK_INTERNAL_DISPLAY_DISABLE	(1<<30)
+#define  ILK_DISPLAY_DEBUG_DISABLE	(1<<29)
+#define  ILK_HDCP_DISABLE		(1<<25)
+#define  ILK_eDP_A_DISABLE		(1<<24)
+#define  ILK_DESKTOP			(1<<23)
 #define ILK_DSPCLK_GATE		0x42020
 #define  ILK_DPARB_CLK_GATE	(1<<5)
 /* According to spec this bit 7/8/9 of 0x42020 should be set to enable FBC */
@@ -3033,6 +3043,7 @@
 #define  TRANS_DP_10BPC		(1<<9)
 #define  TRANS_DP_6BPC		(2<<9)
 #define  TRANS_DP_12BPC		(3<<9)
+#define  TRANS_DP_BPC_MASK	(3<<9)
 #define  TRANS_DP_VSYNC_ACTIVE_HIGH	(1<<4)
 #define  TRANS_DP_VSYNC_ACTIVE_LOW	0
 #define  TRANS_DP_HSYNC_ACTIVE_HIGH	(1<<3)

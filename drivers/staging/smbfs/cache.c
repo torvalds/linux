@@ -62,7 +62,7 @@ smb_invalidate_dircache_entries(struct dentry *parent)
 	struct list_head *next;
 	struct dentry *dentry;
 
-	spin_lock(&dcache_lock);
+	spin_lock(&parent->d_lock);
 	next = parent->d_subdirs.next;
 	while (next != &parent->d_subdirs) {
 		dentry = list_entry(next, struct dentry, d_u.d_child);
@@ -70,7 +70,7 @@ smb_invalidate_dircache_entries(struct dentry *parent)
 		smb_age_dentry(server, dentry);
 		next = next->next;
 	}
-	spin_unlock(&dcache_lock);
+	spin_unlock(&parent->d_lock);
 }
 
 /*
@@ -96,13 +96,13 @@ smb_dget_fpos(struct dentry *dentry, struct dentry *parent, unsigned long fpos)
 	}
 
 	/* If a pointer is invalid, we search the dentry. */
-	spin_lock(&dcache_lock);
+	spin_lock(&parent->d_lock);
 	next = parent->d_subdirs.next;
 	while (next != &parent->d_subdirs) {
 		dent = list_entry(next, struct dentry, d_u.d_child);
 		if ((unsigned long)dent->d_fsdata == fpos) {
 			if (dent->d_inode)
-				dget_locked(dent);
+				dget(dent);
 			else
 				dent = NULL;
 			goto out_unlock;
@@ -111,7 +111,7 @@ smb_dget_fpos(struct dentry *dentry, struct dentry *parent, unsigned long fpos)
 	}
 	dent = NULL;
 out_unlock:
-	spin_unlock(&dcache_lock);
+	spin_unlock(&parent->d_lock);
 	return dent;
 }
 
@@ -134,7 +134,7 @@ smb_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	qname->hash = full_name_hash(qname->name, qname->len);
 
 	if (dentry->d_op && dentry->d_op->d_hash)
-		if (dentry->d_op->d_hash(dentry, qname) != 0)
+		if (dentry->d_op->d_hash(dentry, inode, qname) != 0)
 			goto end_advance;
 
 	newdent = d_lookup(dentry, qname);
@@ -145,8 +145,8 @@ smb_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 			goto end_advance;
 	} else {
 		hashed = 1;
-		memcpy((char *) newdent->d_name.name, qname->name,
-		       newdent->d_name.len);
+		/* dir i_mutex is locked because we're in readdir */
+		dentry_update_name_case(newdent, qname);
 	}
 
 	if (!newdent->d_inode) {

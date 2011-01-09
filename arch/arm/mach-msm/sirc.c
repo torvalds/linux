@@ -40,9 +40,6 @@ static struct sirc_cascade_regs sirc_reg_table[] = {
 	}
 };
 
-static unsigned int save_type;
-static unsigned int save_polarity;
-
 /* Mask off the given interrupt. Keep the int_enable mask in sync with
    the enable reg, so it can be restored after power collapse. */
 static void sirc_irq_mask(unsigned int irq)

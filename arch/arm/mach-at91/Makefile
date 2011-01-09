@@ -24,8 +24,8 @@ obj-$(CONFIG_ARCH_AT91X40)	+= at91x40.o at91x40_time.o
 
 # AT91RM9200 board-specific support
 obj-$(CONFIG_MACH_ONEARM)	+= board-1arm.o
-obj-$(CONFIG_ARCH_AT91RM9200DK)	+= board-dk.o
-obj-$(CONFIG_MACH_AT91RM9200EK)	+= board-ek.o
+obj-$(CONFIG_ARCH_AT91RM9200DK)	+= board-rm9200dk.o
+obj-$(CONFIG_MACH_AT91RM9200EK)	+= board-rm9200ek.o
 obj-$(CONFIG_MACH_CSB337)	+= board-csb337.o
 obj-$(CONFIG_MACH_CSB637)	+= board-csb637.o
 obj-$(CONFIG_MACH_CARMEVA)	+= board-carmeva.o
@@ -65,7 +65,7 @@ obj-$(CONFIG_MACH_AT91SAM9G20EK) += board-sam9g20ek.o
 obj-$(CONFIG_MACH_CPU9G20)	+= board-cpu9krea.o
 obj-$(CONFIG_MACH_STAMP9G20)	+= board-stamp9g20.o
 obj-$(CONFIG_MACH_PORTUXG20)	+= board-stamp9g20.o
-obj-$(CONFIG_MACH_PCONTROL_G20)	+= board-pcontrol-g20.o
+obj-$(CONFIG_MACH_PCONTROL_G20)	+= board-pcontrol-g20.o board-stamp9g20.o
 
 # AT91SAM9260/AT91SAM9G20 board-specific support
 obj-$(CONFIG_MACH_SNAPPER_9260)	+= board-snapper9260.o

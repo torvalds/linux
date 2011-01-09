@@ -309,7 +309,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 		goto fail_iput;
 	pipe = NULL;
 
-	root->d_op = &autofs4_sb_dentry_operations;
+	d_set_d_op(root, &autofs4_sb_dentry_operations);
 	root->d_fsdata = ino;
 
 	/* Can this call block? */

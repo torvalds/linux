@@ -175,4 +175,7 @@ config HAVE_PERF_EVENTS_NMI
 config HAVE_ARCH_JUMP_LABEL
 	bool
 
+config HAVE_ARCH_MUTEX_CPU_RELAX
+	bool
+
 source "kernel/gcov/Kconfig"

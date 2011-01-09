@@ -830,8 +830,7 @@ static void da850_set_async3_src(int pllnum)
  * According to the TRM, minimum PLLM results in maximum power savings.
  * The OPP definitions below should keep the PLLM as low as possible.
  *
- * The output of the PLLM must be between 400 to 600 MHz.
- * This rules out prediv of anything but divide-by-one for 24Mhz OSC input.
+ * The output of the PLLM must be between 300 to 600 MHz.
  */
 struct da850_opp {
 	unsigned int	freq;	/* in KHz */
@@ -840,6 +839,33 @@ struct da850_opp {
 	unsigned int	postdiv;
 	unsigned int	cvdd_min; /* in uV */
 	unsigned int	cvdd_max; /* in uV */
+};
+
+static const struct da850_opp da850_opp_456 = {
+	.freq		= 456000,
+	.prediv		= 1,
+	.mult		= 19,
+	.postdiv	= 1,
+	.cvdd_min	= 1300000,
+	.cvdd_max	= 1350000,
+};
+
+static const struct da850_opp da850_opp_408 = {
+	.freq		= 408000,
+	.prediv		= 1,
+	.mult		= 17,
+	.postdiv	= 1,
+	.cvdd_min	= 1300000,
+	.cvdd_max	= 1350000,
+};
+
+static const struct da850_opp da850_opp_372 = {
+	.freq		= 372000,
+	.prediv		= 2,
+	.mult		= 31,
+	.postdiv	= 1,
+	.cvdd_min	= 1200000,
+	.cvdd_max	= 1320000,
 };
 
 static const struct da850_opp da850_opp_300 = {
@@ -876,6 +902,9 @@ static const struct da850_opp da850_opp_96 = {
 	}
 
 static struct cpufreq_frequency_table da850_freq_table[] = {
+	OPP(456),
+	OPP(408),
+	OPP(372),
 	OPP(300),
 	OPP(200),
 	OPP(96),
@@ -883,6 +912,19 @@ static struct cpufreq_frequency_table da850_freq_table[] = {
 		.index		= 0,
 		.frequency	= CPUFREQ_TABLE_END,
 	},
+};
+
+#ifdef CONFIG_REGULATOR
+static int da850_set_voltage(unsigned int index);
+static int da850_regulator_init(void);
+#endif
+
+static struct davinci_cpufreq_config cpufreq_info = {
+	.freq_table = da850_freq_table,
+#ifdef CONFIG_REGULATOR
+	.init = da850_regulator_init,
+	.set_voltage = da850_set_voltage,
+#endif
 };
 
 #ifdef CONFIG_REGULATOR
@@ -895,7 +937,7 @@ static int da850_set_voltage(unsigned int index)
 	if (!cvdd)
 		return -ENODEV;
 
-	opp = (struct da850_opp *) da850_freq_table[index].index;
+	opp = (struct da850_opp *) cpufreq_info.freq_table[index].index;
 
 	return regulator_set_voltage(cvdd, opp->cvdd_min, opp->cvdd_max);
 }
@@ -912,14 +954,6 @@ static int da850_regulator_init(void)
 }
 #endif
 
-static struct davinci_cpufreq_config cpufreq_info = {
-	.freq_table = &da850_freq_table[0],
-#ifdef CONFIG_REGULATOR
-	.init = da850_regulator_init,
-	.set_voltage = da850_set_voltage,
-#endif
-};
-
 static struct platform_device da850_cpufreq_device = {
 	.name			= "cpufreq-davinci",
 	.dev = {
@@ -928,12 +962,22 @@ static struct platform_device da850_cpufreq_device = {
 	.id = -1,
 };
 
+unsigned int da850_max_speed = 300000;
+
 int __init da850_register_cpufreq(char *async_clk)
 {
+	int i;
+
 	/* cpufreq driver can help keep an "async" clock constant */
 	if (async_clk)
 		clk_add_alias("async", da850_cpufreq_device.name,
 							async_clk, NULL);
+	for (i = 0; i < ARRAY_SIZE(da850_freq_table); i++) {
+		if (da850_freq_table[i].frequency <= da850_max_speed) {
+			cpufreq_info.freq_table = &da850_freq_table[i];
+			break;
+		}
+	}
 
 	return platform_device_register(&da850_cpufreq_device);
 }
@@ -942,17 +986,18 @@ static int da850_round_armrate(struct clk *clk, unsigned long rate)
 {
 	int i, ret = 0, diff;
 	unsigned int best = (unsigned int) -1;
+	struct cpufreq_frequency_table *table = cpufreq_info.freq_table;
 
 	rate /= 1000; /* convert to kHz */
 
-	for (i = 0; da850_freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		diff = da850_freq_table[i].frequency - rate;
+	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		diff = table[i].frequency - rate;
 		if (diff < 0)
 			diff = -diff;
 
 		if (diff < best) {
 			best = diff;
-			ret = da850_freq_table[i].frequency;
+			ret = table[i].frequency;
 		}
 	}
 
@@ -973,7 +1018,7 @@ static int da850_set_pll0rate(struct clk *clk, unsigned long index)
 	struct pll_data *pll = clk->pll_data;
 	int ret;
 
-	opp = (struct da850_opp *) da850_freq_table[index].index;
+	opp = (struct da850_opp *) cpufreq_info.freq_table[index].index;
 	prediv = opp->prediv;
 	mult = opp->mult;
 	postdiv = opp->postdiv;

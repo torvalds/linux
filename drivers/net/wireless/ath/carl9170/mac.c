@@ -205,8 +205,8 @@ int carl9170_init_mac(struct ar9170 *ar)
 	carl9170_regwrite(AR9170_MAC_REG_BACKOFF_PROTECT, 0x105);
 
 	/* Aggregation MAX number and timeout */
-	carl9170_regwrite(AR9170_MAC_REG_AMPDU_FACTOR, 0xa);
-	carl9170_regwrite(AR9170_MAC_REG_AMPDU_DENSITY, 0x140a00);
+	carl9170_regwrite(AR9170_MAC_REG_AMPDU_FACTOR, 0x8000a);
+	carl9170_regwrite(AR9170_MAC_REG_AMPDU_DENSITY, 0x140a07);
 
 	carl9170_regwrite(AR9170_MAC_REG_FRAMETYPE_FILTER,
 			  AR9170_MAC_FTF_DEFAULTS);
@@ -457,8 +457,9 @@ int carl9170_set_beacon_timers(struct ar9170 *ar)
 
 int carl9170_update_beacon(struct ar9170 *ar, const bool submit)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	struct carl9170_vif_info *cvif;
+	struct ieee80211_tx_info *txinfo;
 	__le32 *data, *old = NULL;
 	u32 word, off, addr, len;
 	int i = 0, err = 0;
@@ -487,7 +488,13 @@ found:
 
 	if (!skb) {
 		err = -ENOMEM;
-		goto out_unlock;
+		goto err_free;
+	}
+
+	txinfo = IEEE80211_SKB_CB(skb);
+	if (txinfo->control.rates[0].flags & IEEE80211_TX_RC_MCS) {
+		err = -EINVAL;
+		goto err_free;
 	}
 
 	spin_lock_bh(&ar->beacon_lock);
@@ -504,11 +511,8 @@ found:
 			wiphy_err(ar->hw->wiphy, "beacon does not "
 				  "fit into device memory!\n");
 		}
-
-		spin_unlock_bh(&ar->beacon_lock);
-		dev_kfree_skb_any(skb);
 		err = -EINVAL;
-		goto out_unlock;
+		goto err_unlock;
 	}
 
 	if (len > AR9170_MAC_BCN_LENGTH_MAX) {
@@ -518,22 +522,22 @@ found:
 				 AR9170_MAC_BCN_LENGTH_MAX, len);
 		}
 
-		spin_unlock_bh(&ar->beacon_lock);
-		dev_kfree_skb_any(skb);
 		err = -EMSGSIZE;
-		goto out_unlock;
+		goto err_unlock;
 	}
+
+	i = txinfo->control.rates[0].idx;
+	if (txinfo->band != IEEE80211_BAND_2GHZ)
+		i += 4;
+
+	word = __carl9170_ratetable[i].hw_value & 0xf;
+	if (i < 4)
+		word |= ((skb->len + FCS_LEN) << (3 + 16)) + 0x0400;
+	else
+		word |= ((skb->len + FCS_LEN) << 16) + 0x0010;
 
 	carl9170_async_regwrite_begin(ar);
-
-	/* XXX: use skb->cb info */
-	if (ar->hw->conf.channel->band == IEEE80211_BAND_2GHZ) {
-		carl9170_async_regwrite(AR9170_MAC_REG_BCN_PLCP,
-				((skb->len + FCS_LEN) << (3 + 16)) + 0x0400);
-	} else {
-		carl9170_async_regwrite(AR9170_MAC_REG_BCN_PLCP,
-				((skb->len + FCS_LEN) << 16) + 0x001b);
-	}
+	carl9170_async_regwrite(AR9170_MAC_REG_BCN_PLCP, word);
 
 	for (i = 0; i < DIV_ROUND_UP(skb->len, 4); i++) {
 		/*
@@ -557,7 +561,7 @@ found:
 		cvif->beacon = skb;
 	spin_unlock_bh(&ar->beacon_lock);
 	if (err)
-		goto out_unlock;
+		goto err_free;
 
 	if (submit) {
 		err = carl9170_bcn_ctrl(ar, cvif->id,
@@ -565,10 +569,18 @@ found:
 					addr, skb->len + FCS_LEN);
 
 		if (err)
-			goto out_unlock;
+			goto err_free;
 	}
 out_unlock:
 	rcu_read_unlock();
+	return 0;
+
+err_unlock:
+	spin_unlock_bh(&ar->beacon_lock);
+
+err_free:
+	rcu_read_unlock();
+	dev_kfree_skb_any(skb);
 	return err;
 }
 

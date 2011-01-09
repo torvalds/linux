@@ -65,7 +65,6 @@ struct omap_kp {
 
 static DECLARE_TASKLET_DISABLED(kp_tasklet, omap_kp_tasklet, 0);
 
-static int *keymap;
 static unsigned int *row_gpios;
 static unsigned int *col_gpios;
 
@@ -162,20 +161,11 @@ static void omap_kp_scan_keypad(struct omap_kp *omap_kp, unsigned char *state)
 	}
 }
 
-static inline int omap_kp_find_key(int col, int row)
-{
-	int i, key;
-
-	key = KEY(col, row, 0);
-	for (i = 0; keymap[i] != 0; i++)
-		if ((keymap[i] & 0xff000000) == key)
-			return keymap[i] & 0x00ffffff;
-	return -1;
-}
-
 static void omap_kp_tasklet(unsigned long data)
 {
 	struct omap_kp *omap_kp_data = (struct omap_kp *) data;
+	unsigned short *keycodes = omap_kp_data->input->keycode;
+	unsigned int row_shift = get_count_order(omap_kp_data->cols);
 	unsigned char new_state[8], changed, key_down = 0;
 	int col, row;
 	int spurious = 0;
@@ -199,7 +189,7 @@ static void omap_kp_tasklet(unsigned long data)
 			       row, (new_state[col] & (1 << row)) ?
 			       "pressed" : "released");
 #else
-			key = omap_kp_find_key(col, row);
+			key = keycodes[MATRIX_SCAN_CODE(row, col, row_shift)];
 			if (key < 0) {
 				printk(KERN_WARNING
 				      "omap-keypad: Spurious key event %d-%d\n",
@@ -298,13 +288,18 @@ static int __devinit omap_kp_probe(struct platform_device *pdev)
 	struct input_dev *input_dev;
 	struct omap_kp_platform_data *pdata =  pdev->dev.platform_data;
 	int i, col_idx, row_idx, irq_idx, ret;
+	unsigned int row_shift, keycodemax;
 
-	if (!pdata->rows || !pdata->cols || !pdata->keymap) {
-		printk(KERN_ERR "No rows, cols or keymap from pdata\n");
+	if (!pdata->rows || !pdata->cols || !pdata->keymap_data) {
+		printk(KERN_ERR "No rows, cols or keymap_data from pdata\n");
 		return -EINVAL;
 	}
 
-	omap_kp = kzalloc(sizeof(struct omap_kp), GFP_KERNEL);
+	row_shift = get_count_order(pdata->cols);
+	keycodemax = pdata->rows << row_shift;
+
+	omap_kp = kzalloc(sizeof(struct omap_kp) +
+			keycodemax * sizeof(unsigned short), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!omap_kp || !input_dev) {
 		kfree(omap_kp);
@@ -320,7 +315,9 @@ static int __devinit omap_kp_probe(struct platform_device *pdev)
 	if (!cpu_is_omap24xx())
 		omap_writew(1, OMAP1_MPUIO_BASE + OMAP_MPUIO_KBD_MASKIT);
 
-	keymap = pdata->keymap;
+	input_dev->keycode      = &omap_kp[1];
+	input_dev->keycodesize  = sizeof(unsigned short);
+	input_dev->keycodemax   = keycodemax;
 
 	if (pdata->rep)
 		__set_bit(EV_REP, input_dev->evbit);
@@ -374,8 +371,8 @@ static int __devinit omap_kp_probe(struct platform_device *pdev)
 
 	/* setup input device */
 	__set_bit(EV_KEY, input_dev->evbit);
-	for (i = 0; keymap[i] != 0; i++)
-		__set_bit(keymap[i] & KEY_MAX, input_dev->keybit);
+	matrix_keypad_build_keymap(pdata->keymap_data, row_shift,
+			input_dev->keycode, input_dev->keybit);
 	input_dev->name = "omap-keypad";
 	input_dev->phys = "omap-keypad/input0";
 	input_dev->dev.parent = &pdev->dev;
@@ -416,7 +413,7 @@ static int __devinit omap_kp_probe(struct platform_device *pdev)
 	return 0;
 err5:
 	for (i = irq_idx - 1; i >=0; i--)
-		free_irq(row_gpios[i], 0);
+		free_irq(row_gpios[i], NULL);
 err4:
 	input_unregister_device(omap_kp->input);
 	input_dev = NULL;
@@ -447,11 +444,11 @@ static int __devexit omap_kp_remove(struct platform_device *pdev)
 			gpio_free(col_gpios[i]);
 		for (i = 0; i < omap_kp->rows; i++) {
 			gpio_free(row_gpios[i]);
-			free_irq(gpio_to_irq(row_gpios[i]), 0);
+			free_irq(gpio_to_irq(row_gpios[i]), NULL);
 		}
 	} else {
 		omap_writew(1, OMAP1_MPUIO_BASE + OMAP_MPUIO_KBD_MASKIT);
-		free_irq(omap_kp->irq, 0);
+		free_irq(omap_kp->irq, NULL);
 	}
 
 	del_timer_sync(&omap_kp->timer);

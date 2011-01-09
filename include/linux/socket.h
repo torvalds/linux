@@ -30,12 +30,10 @@ struct cred;
 #define __sockaddr_check_size(size)	\
 	BUILD_BUG_ON(((size) > sizeof(struct __kernel_sockaddr_storage)))
 
-#ifdef __KERNEL__
-# ifdef CONFIG_PROC_FS
+#ifdef CONFIG_PROC_FS
 struct seq_file;
 extern void socket_seq_show(struct seq_file *seq);
-# endif
-#endif /* __KERNEL__ */
+#endif
 
 typedef unsigned short	sa_family_t;
 
@@ -311,7 +309,6 @@ struct ucred {
 /* IPX options */
 #define IPX_TYPE	1
 
-#ifdef __KERNEL__
 extern void cred_to_ucred(struct pid *pid, const struct cred *cred, struct ucred *ucred);
 
 extern int memcpy_fromiovec(unsigned char *kdata, struct iovec *iov, int len);
@@ -333,6 +330,5 @@ struct timespec;
 
 extern int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 			  unsigned int flags, struct timespec *timeout);
-#endif
 #endif /* not kernel and not glibc */
 #endif /* _LINUX_SOCKET_H */

@@ -522,39 +522,33 @@ static irqreturn_t t4_nondata_intr(int irq, void *cookie)
  */
 static void name_msix_vecs(struct adapter *adap)
 {
-	int i, j, msi_idx = 2, n = sizeof(adap->msix_info[0].desc) - 1;
+	int i, j, msi_idx = 2, n = sizeof(adap->msix_info[0].desc);
 
 	/* non-data interrupts */
-	snprintf(adap->msix_info[0].desc, n, "%s", adap->name);
-	adap->msix_info[0].desc[n] = 0;
+	snprintf(adap->msix_info[0].desc, n, "%s", adap->port[0]->name);
 
 	/* FW events */
-	snprintf(adap->msix_info[1].desc, n, "%s-FWeventq", adap->name);
-	adap->msix_info[1].desc[n] = 0;
+	snprintf(adap->msix_info[1].desc, n, "%s-FWeventq",
+		 adap->port[0]->name);
 
 	/* Ethernet queues */
 	for_each_port(adap, j) {
 		struct net_device *d = adap->port[j];
 		const struct port_info *pi = netdev_priv(d);
 
-		for (i = 0; i < pi->nqsets; i++, msi_idx++) {
+		for (i = 0; i < pi->nqsets; i++, msi_idx++)
 			snprintf(adap->msix_info[msi_idx].desc, n, "%s-Rx%d",
 				 d->name, i);
-			adap->msix_info[msi_idx].desc[n] = 0;
-		}
 	}
 
 	/* offload queues */
-	for_each_ofldrxq(&adap->sge, i) {
-		snprintf(adap->msix_info[msi_idx].desc, n, "%s-ofld%d",
-			 adap->name, i);
-		adap->msix_info[msi_idx++].desc[n] = 0;
-	}
-	for_each_rdmarxq(&adap->sge, i) {
-		snprintf(adap->msix_info[msi_idx].desc, n, "%s-rdma%d",
-			 adap->name, i);
-		adap->msix_info[msi_idx++].desc[n] = 0;
-	}
+	for_each_ofldrxq(&adap->sge, i)
+		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-ofld%d",
+			 adap->port[0]->name, i);
+
+	for_each_rdmarxq(&adap->sge, i)
+		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-rdma%d",
+			 adap->port[0]->name, i);
 }
 
 static int request_msix_queue_irqs(struct adapter *adap)
@@ -868,12 +862,10 @@ out:	release_firmware(fw);
  */
 void *t4_alloc_mem(size_t size)
 {
-	void *p = kmalloc(size, GFP_KERNEL);
+	void *p = kzalloc(size, GFP_KERNEL);
 
 	if (!p)
-		p = vmalloc(size);
-	if (p)
-		memset(p, 0, size);
+		p = vzalloc(size);
 	return p;
 }
 
@@ -1377,7 +1369,12 @@ static unsigned int from_fw_linkcaps(unsigned int type, unsigned int caps)
 	} else if (type == FW_PORT_TYPE_KR)
 		v |= SUPPORTED_Backplane | SUPPORTED_10000baseKR_Full;
 	else if (type == FW_PORT_TYPE_BP_AP)
-		v |= SUPPORTED_Backplane | SUPPORTED_10000baseR_FEC;
+		v |= SUPPORTED_Backplane | SUPPORTED_10000baseR_FEC |
+		     SUPPORTED_10000baseKR_Full | SUPPORTED_1000baseKX_Full;
+	else if (type == FW_PORT_TYPE_BP4_AP)
+		v |= SUPPORTED_Backplane | SUPPORTED_10000baseR_FEC |
+		     SUPPORTED_10000baseKR_Full | SUPPORTED_1000baseKX_Full |
+		     SUPPORTED_10000baseKX4_Full;
 	else if (type == FW_PORT_TYPE_FIBER_XFI ||
 		 type == FW_PORT_TYPE_FIBER_XAUI || type == FW_PORT_TYPE_SFP)
 		v |= SUPPORTED_FIBRE;
@@ -2668,7 +2665,7 @@ static int cxgb_up(struct adapter *adap)
 	} else {
 		err = request_irq(adap->pdev->irq, t4_intr_handler(adap),
 				  (adap->flags & USING_MSI) ? 0 : IRQF_SHARED,
-				  adap->name, adap);
+				  adap->port[0]->name, adap);
 		if (err)
 			goto irq_err;
 	}
@@ -2719,10 +2716,6 @@ static int cxgb_open(struct net_device *dev)
 			return err;
 	}
 
-	netif_set_real_num_tx_queues(dev, pi->nqsets);
-	err = netif_set_real_num_rx_queues(dev, pi->nqsets);
-	if (err)
-		return err;
 	err = link_start(dev);
 	if (!err)
 		netif_tx_start_all_queues(dev);
@@ -3491,49 +3484,53 @@ static int __devinit init_rss(struct adapter *adap)
 	return 0;
 }
 
-static void __devinit print_port_info(struct adapter *adap)
+static void __devinit print_port_info(const struct net_device *dev)
 {
 	static const char *base[] = {
 		"R XFI", "R XAUI", "T SGMII", "T XFI", "T XAUI", "KX4", "CX4",
-		"KX", "KR", "KR SFP+", "KR FEC"
+		"KX", "KR", "R SFP+", "KR/KX", "KR/KX/KX4"
 	};
 
-	int i;
 	char buf[80];
+	char *bufp = buf;
 	const char *spd = "";
+	const struct port_info *pi = netdev_priv(dev);
+	const struct adapter *adap = pi->adapter;
 
 	if (adap->params.pci.speed == PCI_EXP_LNKSTA_CLS_2_5GB)
 		spd = " 2.5 GT/s";
 	else if (adap->params.pci.speed == PCI_EXP_LNKSTA_CLS_5_0GB)
 		spd = " 5 GT/s";
 
-	for_each_port(adap, i) {
-		struct net_device *dev = adap->port[i];
-		const struct port_info *pi = netdev_priv(dev);
-		char *bufp = buf;
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100M)
+		bufp += sprintf(bufp, "100/");
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
+		bufp += sprintf(bufp, "1000/");
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
+		bufp += sprintf(bufp, "10G/");
+	if (bufp != buf)
+		--bufp;
+	sprintf(bufp, "BASE-%s", base[pi->port_type]);
 
-		if (!test_bit(i, &adap->registered_device_map))
-			continue;
+	netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s%s\n",
+		    adap->params.vpd.id, adap->params.rev, buf,
+		    is_offload(adap) ? "R" : "", adap->params.pci.width, spd,
+		    (adap->flags & USING_MSIX) ? " MSI-X" :
+		    (adap->flags & USING_MSI) ? " MSI" : "");
+	netdev_info(dev, "S/N: %s, E/C: %s\n",
+		    adap->params.vpd.sn, adap->params.vpd.ec);
+}
 
-		if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100M)
-			bufp += sprintf(bufp, "100/");
-		if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
-			bufp += sprintf(bufp, "1000/");
-		if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
-			bufp += sprintf(bufp, "10G/");
-		if (bufp != buf)
-			--bufp;
-		sprintf(bufp, "BASE-%s", base[pi->port_type]);
+static void __devinit enable_pcie_relaxed_ordering(struct pci_dev *dev)
+{
+	u16 v;
+	int pos;
 
-		netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s%s\n",
-			    adap->params.vpd.id, adap->params.rev,
-			    buf, is_offload(adap) ? "R" : "",
-			    adap->params.pci.width, spd,
-			    (adap->flags & USING_MSIX) ? " MSI-X" :
-			    (adap->flags & USING_MSI) ? " MSI" : "");
-		if (adap->name == dev->name)
-			netdev_info(dev, "S/N: %s, E/C: %s\n",
-				    adap->params.vpd.sn, adap->params.vpd.ec);
+	pos = pci_pcie_cap(dev);
+	if (pos > 0) {
+		pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &v);
+		v |= PCI_EXP_DEVCTL_RELAX_EN;
+		pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, v);
 	}
 }
 
@@ -3611,6 +3608,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 	}
 
 	pci_enable_pcie_error_reporting(pdev);
+	enable_pcie_relaxed_ordering(pdev);
 	pci_set_master(pdev);
 	pci_save_state(pdev);
 
@@ -3630,7 +3628,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 	adapter->pdev = pdev;
 	adapter->pdev_dev = &pdev->dev;
 	adapter->fn = func;
-	adapter->name = pci_name(pdev);
 	adapter->msg_enable = dflt_msg_enable;
 	memset(adapter->chan_map, 0xff, sizeof(adapter->chan_map));
 
@@ -3721,27 +3718,24 @@ static int __devinit init_one(struct pci_dev *pdev,
 	 * register at least one net device.
 	 */
 	for_each_port(adapter, i) {
+		pi = adap2pinfo(adapter, i);
+		netif_set_real_num_tx_queues(adapter->port[i], pi->nqsets);
+		netif_set_real_num_rx_queues(adapter->port[i], pi->nqsets);
+
 		err = register_netdev(adapter->port[i]);
 		if (err)
-			dev_warn(&pdev->dev,
-				 "cannot register net device %s, skipping\n",
-				 adapter->port[i]->name);
-		else {
-			/*
-			 * Change the name we use for messages to the name of
-			 * the first successfully registered interface.
-			 */
-			if (!adapter->registered_device_map)
-				adapter->name = adapter->port[i]->name;
-
-			__set_bit(i, &adapter->registered_device_map);
-			adapter->chan_map[adap2pinfo(adapter, i)->tx_chan] = i;
-		}
+			break;
+		adapter->chan_map[pi->tx_chan] = i;
+		print_port_info(adapter->port[i]);
 	}
-	if (!adapter->registered_device_map) {
+	if (i == 0) {
 		dev_err(&pdev->dev, "could not register any net devices\n");
 		goto out_free_dev;
 	}
+	if (err) {
+		dev_warn(&pdev->dev, "only %d net devices registered\n", i);
+		err = 0;
+	};
 
 	if (cxgb4_debugfs_root) {
 		adapter->debugfs_root = debugfs_create_dir(pci_name(pdev),
@@ -3751,8 +3745,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 	if (is_offload(adapter))
 		attach_ulds(adapter);
-
-	print_port_info(adapter);
 
 sriov:
 #ifdef CONFIG_PCI_IOV
@@ -3792,7 +3784,7 @@ static void __devexit remove_one(struct pci_dev *pdev)
 			detach_ulds(adapter);
 
 		for_each_port(adapter, i)
-			if (test_bit(i, &adapter->registered_device_map))
+			if (adapter->port[i]->reg_state == NETREG_REGISTERED)
 				unregister_netdev(adapter->port[i]);
 
 		if (adapter->debugfs_root)

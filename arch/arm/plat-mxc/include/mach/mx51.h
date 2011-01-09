@@ -2,31 +2,6 @@
 #define __MACH_MX51_H__
 
 /*
- * MX51 memory map:
- *
- *
- * Virt		Phys		Size	What
- * ---------------------------------------------------------------------------
- * fa3e0000	1ffe0000	128K	IRAM (SCCv2 RAM)
- *         	30000000	256M	GPU
- *         	40000000	512M	IPU
- * fa200000	60000000	1M	DEBUG
- * fb100000	70000000	1M	SPBA 0
- * fb000000	73f00000	1M	AIPS 1
- * fb200000	83f00000	1M	AIPS 2
- *		8fffc000	16K	TZIC (interrupt controller)
- *         	90000000	256M	CSD0 SDRAM/DDR
- *         	a0000000	256M	CSD1 SDRAM/DDR
- *         	b0000000	128M	CS0 Flash
- *         	b8000000	128M	CS1 Flash
- *         	c0000000	128M	CS2 Flash
- *         	c8000000	64M	CS3 Flash
- *         	cc000000	32M	CS4 SRAM
- *         	ce000000	32M	CS5 SRAM
- *		cfff0000	64K	NFC (NAND Flash AXI)
- */
-
-/*
  * IROM
  */
 #define MX51_IROM_BASE_ADDR		0x0
@@ -36,7 +11,6 @@
  * IRAM
  */
 #define MX51_IRAM_BASE_ADDR		0x1ffe0000	/* internal ram */
-#define MX51_IRAM_BASE_ADDR_VIRT	0xfa3e0000
 #define MX51_IRAM_PARTITIONS		16
 #define MX51_IRAM_SIZE		(MX51_IRAM_PARTITIONS * SZ_8K)	/* 128KB */
 
@@ -45,7 +19,6 @@
 #define MX51_IPU_CTRL_BASE_ADDR		0x40000000
 
 #define MX51_DEBUG_BASE_ADDR		0x60000000
-#define MX51_DEBUG_BASE_ADDR_VIRT	0xfa200000
 #define MX51_DEBUG_SIZE			SZ_1M
 
 #define MX51_ETB_BASE_ADDR		(MX51_DEBUG_BASE_ADDR + 0x01000)
@@ -61,7 +34,6 @@
  * SPBA global module enabled #0
  */
 #define MX51_SPBA0_BASE_ADDR		0x70000000
-#define MX51_SPBA0_BASE_ADDR_VIRT	0xfb100000
 #define MX51_SPBA0_SIZE			SZ_1M
 
 #define MX51_ESDHC1_BASE_ADDR		(MX51_SPBA0_BASE_ADDR + 0x04000)
@@ -81,7 +53,6 @@
  * AIPS 1
  */
 #define MX51_AIPS1_BASE_ADDR		0x73f00000
-#define MX51_AIPS1_BASE_ADDR_VIRT	0xfb000000
 #define MX51_AIPS1_SIZE			SZ_1M
 
 #define MX51_OTG_BASE_ADDR		(MX51_AIPS1_BASE_ADDR + 0x80000)
@@ -90,7 +61,7 @@
 #define MX51_GPIO3_BASE_ADDR		(MX51_AIPS1_BASE_ADDR + 0x8c000)
 #define MX51_GPIO4_BASE_ADDR		(MX51_AIPS1_BASE_ADDR + 0x90000)
 #define MX51_KPP_BASE_ADDR		(MX51_AIPS1_BASE_ADDR + 0x94000)
-#define MX51_WDOG_BASE_ADDR		(MX51_AIPS1_BASE_ADDR + 0x98000)
+#define MX51_WDOG1_BASE_ADDR		(MX51_AIPS1_BASE_ADDR + 0x98000)
 #define MX51_WDOG2_BASE_ADDR		(MX51_AIPS1_BASE_ADDR + 0x9c000)
 #define MX51_GPT1_BASE_ADDR		(MX51_AIPS1_BASE_ADDR + 0xa0000)
 #define MX51_SRTC_BASE_ADDR		(MX51_AIPS1_BASE_ADDR + 0xa4000)
@@ -109,7 +80,6 @@
  * AIPS 2
  */
 #define MX51_AIPS2_BASE_ADDR		0x83f00000
-#define MX51_AIPS2_BASE_ADDR_VIRT	0xfb200000
 #define MX51_AIPS2_SIZE			SZ_1M
 
 #define MX51_PLL1_BASE_ADDR		(MX51_AIPS2_BASE_ADDR + 0x80000)
@@ -139,7 +109,7 @@
 #define MX51_MIPI_HSC_BASE_ADDR		(MX51_AIPS2_BASE_ADDR + 0xdc000)
 #define MX51_ATA_BASE_ADDR		(MX51_AIPS2_BASE_ADDR + 0xe0000)
 #define MX51_SIM_BASE_ADDR		(MX51_AIPS2_BASE_ADDR + 0xe4000)
-#define MX51_SSI3BASE_ADDR		(MX51_AIPS2_BASE_ADDR + 0xe8000)
+#define MX51_SSI3_BASE_ADDR		(MX51_AIPS2_BASE_ADDR + 0xe8000)
 #define MX51_FEC_BASE_ADDR		(MX51_AIPS2_BASE_ADDR + 0xec000)
 #define MX51_TVE_BASE_ADDR		(MX51_AIPS2_BASE_ADDR + 0xf0000)
 #define MX51_VPU_BASE_ADDR		(MX51_AIPS2_BASE_ADDR + 0xf4000)
@@ -163,16 +133,8 @@
 #define MX51_GPU2D_BASE_ADDR		0xd0000000
 #define MX51_TZIC_BASE_ADDR		0xe0000000
 
-#define MX51_IO_ADDRESS(x) (						\
-	IMX_IO_ADDRESS(x, MX51_IRAM) ?:					\
-	IMX_IO_ADDRESS(x, MX51_DEBUG) ?:				\
-	IMX_IO_ADDRESS(x, MX51_SPBA0) ?:				\
-	IMX_IO_ADDRESS(x, MX51_AIPS1) ?:				\
-	IMX_IO_ADDRESS(x, MX51_AIPS2))
-
-/* This is currently used in <mach/debug-macro.S>, but should go away */
-#define MX51_AIPS1_IO_ADDRESS(x)  \
-	(((x) - MX51_AIPS1_BASE_ADDR) + MX51_AIPS1_BASE_ADDR_VIRT)
+#define MX51_IO_P2V(x)			IMX_IO_P2V(x)
+#define MX51_IO_ADDRESS(x)		IOMEM(MX51_IO_P2V(x))
 
 /*
  * defines for SPBA modules
@@ -261,9 +223,9 @@
 #define MX51_DMA_REQ_EMI_WR		32
 #define MX51_DMA_REQ_CTI2_1		33
 #define MX51_DMA_REQ_EPIT2		34
-#define MX51_DMA_REQ_SSI3_RX2		35
+#define MX51_DMA_REQ_SSI3_RX1		35
 #define MX51_DMA_REQ_IPU		36
-#define MX51_DMA_REQ_SSI3_TX2		37
+#define MX51_DMA_REQ_SSI3_TX1		37
 #define MX51_DMA_REQ_CSPI_RX		38
 #define MX51_DMA_REQ_CSPI_TX		39
 #define MX51_DMA_REQ_SDHC3		40
@@ -272,8 +234,8 @@
 #define MX51_DMA_REQ_UART3_RX		43
 #define MX51_DMA_REQ_UART3_TX		44
 #define MX51_DMA_REQ_SPDIF		45
-#define MX51_DMA_REQ_SSI3_RX1		46
-#define MX51_DMA_REQ_SSI3_TX1		47
+#define MX51_DMA_REQ_SSI3_RX0		46
+#define MX51_DMA_REQ_SSI3_TX0		47
 
 /*
  * Interrupt numbers
@@ -289,8 +251,8 @@
 #define MX51_MXC_INT_IOMUX		7
 #define MX51_INT_NFC			8
 #define MX51_MXC_INT_VPU		9
-#define MX51_MXC_INT_IPU_ERR		10
-#define MX51_MXC_INT_IPU_SYN		11
+#define MX51_INT_IPU_ERR		10
+#define MX51_INT_IPU_SYN		11
 #define MX51_MXC_INT_GPU		12
 #define MX51_MXC_INT_RESV13		13
 #define MX51_MXC_INT_USB_H1		14
@@ -375,26 +337,13 @@
 #define MX51_MXC_INT_FIRI		93
 #define MX51_MXC_INT_PWM2		94
 #define MX51_MXC_INT_SLIM_EXP		95
-#define MX51_MXC_INT_SSI3		96
+#define MX51_INT_SSI3			96
 #define MX51_MXC_INT_EMI_BOOT		97
 #define MX51_MXC_INT_CTI1_TG3		98
 #define MX51_MXC_INT_SMC_RX		99
 #define MX51_MXC_INT_VPU_IDLE		100
 #define MX51_MXC_INT_EMI_NFC		101
 #define MX51_MXC_INT_GPU_IDLE		102
-
-/* silicon revisions specific to i.MX51 */
-#define MX51_CHIP_REV_1_0		0x10
-#define MX51_CHIP_REV_1_1		0x11
-#define MX51_CHIP_REV_1_2		0x12
-#define MX51_CHIP_REV_1_3		0x13
-#define MX51_CHIP_REV_2_0		0x20
-#define MX51_CHIP_REV_2_1		0x21
-#define MX51_CHIP_REV_2_2		0x22
-#define MX51_CHIP_REV_2_3		0x23
-#define MX51_CHIP_REV_3_0		0x30
-#define MX51_CHIP_REV_3_1		0x31
-#define MX51_CHIP_REV_3_2		0x32
 
 #if !defined(__ASSEMBLY__) && !defined(__MXC_BOOT_UNCOMPRESS)
 extern int mx51_revision(void);

@@ -196,7 +196,7 @@ struct wl12xx_platform_data omap_zoom_wlan_data __initdata = {
 	.board_ref_clock = 1,
 };
 
-static struct omap2_hsmmc_info mmc[] __initdata = {
+static struct omap2_hsmmc_info mmc[] = {
 	{
 		.name		= "external",
 		.mmc		= 1,
@@ -216,7 +216,7 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 	{
 		.name		= "wl1271",
 		.mmc		= 3,
-		.caps		= MMC_CAP_4_BIT_DATA,
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_POWER_OFF_CARD,
 		.gpio_wp	= -EINVAL,
 		.gpio_cd	= -EINVAL,
 		.nonremovable	= true,

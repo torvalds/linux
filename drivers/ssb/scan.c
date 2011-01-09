@@ -405,10 +405,10 @@ int ssb_bus_scan(struct ssb_bus *bus,
 				/* Ignore PCI cores on PCI-E cards.
 				 * Ignore PCI-E cores on PCI cards. */
 				if (dev->id.coreid == SSB_DEV_PCI) {
-					if (bus->host_pci->is_pcie)
+					if (pci_is_pcie(bus->host_pci))
 						continue;
 				} else {
-					if (!bus->host_pci->is_pcie)
+					if (!pci_is_pcie(bus->host_pci))
 						continue;
 				}
 			}

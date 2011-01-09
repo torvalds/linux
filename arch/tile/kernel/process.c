@@ -212,6 +212,13 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	childregs->sp = sp;  /* override with new user stack pointer */
 
 	/*
+	 * If CLONE_SETTLS is set, set "tp" in the new task to "r4",
+	 * which is passed in as arg #5 to sys_clone().
+	 */
+	if (clone_flags & CLONE_SETTLS)
+		childregs->tp = regs->regs[4];
+
+	/*
 	 * Copy the callee-saved registers from the passed pt_regs struct
 	 * into the context-switch callee-saved registers area.
 	 * This way when we start the interrupt-return sequence, the
@@ -539,6 +546,7 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 	return __switch_to(prev, next, next_current_ksp0(next));
 }
 
+/* Note there is an implicit fifth argument if (clone_flags & CLONE_SETTLS). */
 SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
 		void __user *, parent_tidptr, void __user *, child_tidptr,
 		struct pt_regs *, regs)

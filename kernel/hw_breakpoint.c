@@ -641,7 +641,7 @@ int __init init_hw_breakpoint(void)
 
 	constraints_initialized = 1;
 
-	perf_pmu_register(&perf_breakpoint);
+	perf_pmu_register(&perf_breakpoint, "breakpoint", PERF_TYPE_BREAKPOINT);
 
 	return register_die_notifier(&hw_breakpoint_exceptions_nb);
 

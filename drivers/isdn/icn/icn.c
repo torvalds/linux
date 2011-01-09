@@ -1627,7 +1627,7 @@ __setup("icn=", icn_setup);
 static int __init icn_init(void)
 {
 	char *p;
-	char rev[10];
+	char rev[20];
 
 	memset(&dev, 0, sizeof(icn_dev));
 	dev.memaddr = (membase & 0x0ffc000);
@@ -1637,9 +1637,10 @@ static int __init icn_init(void)
 	spin_lock_init(&dev.devlock);
 
 	if ((p = strchr(revision, ':'))) {
-		strcpy(rev, p + 1);
+		strncpy(rev, p + 1, 20);
 		p = strchr(rev, '$');
-		*p = 0;
+		if (p)
+			*p = 0;
 	} else
 		strcpy(rev, " ??? ");
 	printk(KERN_NOTICE "ICN-ISDN-driver Rev%smem=0x%08lx\n", rev,

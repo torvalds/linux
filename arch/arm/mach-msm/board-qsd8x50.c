@@ -20,6 +20,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/usb/msm_hsusb.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -74,9 +75,24 @@ static int __init msm_init_smc91x(void)
 }
 module_init(msm_init_smc91x);
 
+static int hsusb_phy_init_seq[] = {
+	0x08, 0x31,	/* Increase HS Driver Amplitude */
+	0x20, 0x32,	/* Enable and set Pre-Emphasis Depth to 10% */
+	-1
+};
+
+static struct msm_otg_platform_data msm_otg_pdata = {
+	.phy_init_seq		= hsusb_phy_init_seq,
+	.mode                   = USB_PERIPHERAL,
+	.otg_control		= OTG_PHY_CONTROL,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&msm_device_uart3,
 	&msm_device_smd,
+	&msm_device_otg,
+	&msm_device_hsusb,
+	&msm_device_hsusb_host,
 };
 
 static void __init qsd8x50_map_io(void)
@@ -93,6 +109,9 @@ static void __init qsd8x50_init_irq(void)
 
 static void __init qsd8x50_init(void)
 {
+	msm_device_otg.dev.platform_data = &msm_otg_pdata;
+	msm_device_hsusb.dev.parent = &msm_device_otg.dev;
+	msm_device_hsusb_host.dev.parent = &msm_device_otg.dev;
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 

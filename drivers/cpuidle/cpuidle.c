@@ -49,7 +49,7 @@ static int __cpuidle_register_device(struct cpuidle_device *dev);
  */
 static void cpuidle_idle_call(void)
 {
-	struct cpuidle_device *dev = __get_cpu_var(cpuidle_devices);
+	struct cpuidle_device *dev = __this_cpu_read(cpuidle_devices);
 	struct cpuidle_state *target_state;
 	int next_state;
 
@@ -107,6 +107,7 @@ static void cpuidle_idle_call(void)
 	if (cpuidle_curr_governor->reflect)
 		cpuidle_curr_governor->reflect(dev);
 	trace_power_end(smp_processor_id());
+	trace_cpu_idle(PWR_EVENT_EXIT, smp_processor_id());
 }
 
 /**

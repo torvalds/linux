@@ -1210,12 +1210,6 @@ static const struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
 };
 #endif
 
-static struct timewait_sock_ops tcp_timewait_sock_ops = {
-	.twsk_obj_size	= sizeof(struct tcp_timewait_sock),
-	.twsk_unique	= tcp_twsk_unique,
-	.twsk_destructor= tcp_twsk_destructor,
-};
-
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_extend_values tmp_ext;
@@ -1347,7 +1341,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		    tcp_death_row.sysctl_tw_recycle &&
 		    (dst = inet_csk_route_req(sk, req)) != NULL &&
 		    (peer = rt_get_peer((struct rtable *)dst)) != NULL &&
-		    peer->v4daddr == saddr) {
+		    peer->daddr.a4 == saddr) {
 			inet_peer_refcheck(peer);
 			if ((u32)get_seconds() - peer->tcp_ts_stamp < TCP_PAWS_MSL &&
 			    (s32)(peer->tcp_ts - req->ts_recent) >
@@ -1442,7 +1436,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	tcp_mtup_init(newsk);
 	tcp_sync_mss(newsk, dst_mtu(dst));
-	newtp->advmss = dst_metric(dst, RTAX_ADVMSS);
+	newtp->advmss = dst_metric_advmss(dst);
 	if (tcp_sk(sk)->rx_opt.user_mss &&
 	    tcp_sk(sk)->rx_opt.user_mss < newtp->advmss)
 		newtp->advmss = tcp_sk(sk)->rx_opt.user_mss;
@@ -1763,64 +1757,40 @@ do_time_wait:
 	goto discard_it;
 }
 
-/* VJ's idea. Save last timestamp seen from this destination
- * and hold it at least for normal timewait interval to use for duplicate
- * segment detection in subsequent connections, before they enter synchronized
- * state.
- */
-
-int tcp_v4_remember_stamp(struct sock *sk)
+struct inet_peer *tcp_v4_get_peer(struct sock *sk, bool *release_it)
 {
+	struct rtable *rt = (struct rtable *) __sk_dst_get(sk);
 	struct inet_sock *inet = inet_sk(sk);
-	struct tcp_sock *tp = tcp_sk(sk);
-	struct rtable *rt = (struct rtable *)__sk_dst_get(sk);
-	struct inet_peer *peer = NULL;
-	int release_it = 0;
+	struct inet_peer *peer;
 
 	if (!rt || rt->rt_dst != inet->inet_daddr) {
-		peer = inet_getpeer(inet->inet_daddr, 1);
-		release_it = 1;
+		peer = inet_getpeer_v4(inet->inet_daddr, 1);
+		*release_it = true;
 	} else {
 		if (!rt->peer)
 			rt_bind_peer(rt, 1);
 		peer = rt->peer;
+		*release_it = false;
 	}
 
-	if (peer) {
-		if ((s32)(peer->tcp_ts - tp->rx_opt.ts_recent) <= 0 ||
-		    ((u32)get_seconds() - peer->tcp_ts_stamp > TCP_PAWS_MSL &&
-		     peer->tcp_ts_stamp <= (u32)tp->rx_opt.ts_recent_stamp)) {
-			peer->tcp_ts_stamp = (u32)tp->rx_opt.ts_recent_stamp;
-			peer->tcp_ts = tp->rx_opt.ts_recent;
-		}
-		if (release_it)
-			inet_putpeer(peer);
-		return 1;
-	}
-
-	return 0;
+	return peer;
 }
-EXPORT_SYMBOL(tcp_v4_remember_stamp);
+EXPORT_SYMBOL(tcp_v4_get_peer);
 
-int tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw)
+void *tcp_v4_tw_get_peer(struct sock *sk)
 {
-	struct inet_peer *peer = inet_getpeer(tw->tw_daddr, 1);
+	struct inet_timewait_sock *tw = inet_twsk(sk);
 
-	if (peer) {
-		const struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);
-
-		if ((s32)(peer->tcp_ts - tcptw->tw_ts_recent) <= 0 ||
-		    ((u32)get_seconds() - peer->tcp_ts_stamp > TCP_PAWS_MSL &&
-		     peer->tcp_ts_stamp <= (u32)tcptw->tw_ts_recent_stamp)) {
-			peer->tcp_ts_stamp = (u32)tcptw->tw_ts_recent_stamp;
-			peer->tcp_ts	   = tcptw->tw_ts_recent;
-		}
-		inet_putpeer(peer);
-		return 1;
-	}
-
-	return 0;
+	return inet_getpeer_v4(tw->tw_daddr, 1);
 }
+EXPORT_SYMBOL(tcp_v4_tw_get_peer);
+
+static struct timewait_sock_ops tcp_timewait_sock_ops = {
+	.twsk_obj_size	= sizeof(struct tcp_timewait_sock),
+	.twsk_unique	= tcp_twsk_unique,
+	.twsk_destructor= tcp_twsk_destructor,
+	.twsk_getpeer	= tcp_v4_tw_get_peer,
+};
 
 const struct inet_connection_sock_af_ops ipv4_specific = {
 	.queue_xmit	   = ip_queue_xmit,
@@ -1828,7 +1798,7 @@ const struct inet_connection_sock_af_ops ipv4_specific = {
 	.rebuild_header	   = inet_sk_rebuild_header,
 	.conn_request	   = tcp_v4_conn_request,
 	.syn_recv_sock	   = tcp_v4_syn_recv_sock,
-	.remember_stamp	   = tcp_v4_remember_stamp,
+	.get_peer	   = tcp_v4_get_peer,
 	.net_header_len	   = sizeof(struct iphdr),
 	.setsockopt	   = ip_setsockopt,
 	.getsockopt	   = ip_getsockopt,
@@ -2030,7 +2000,7 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 get_req:
 			req = icsk->icsk_accept_queue.listen_opt->syn_table[st->sbucket];
 		}
-		sk	  = sk_next(st->syn_wait_sk);
+		sk	  = sk_nulls_next(st->syn_wait_sk);
 		st->state = TCP_SEQ_STATE_LISTENING;
 		read_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 	} else {
@@ -2039,11 +2009,13 @@ get_req:
 		if (reqsk_queue_len(&icsk->icsk_accept_queue))
 			goto start_req;
 		read_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
-		sk = sk_next(sk);
+		sk = sk_nulls_next(sk);
 	}
 get_sk:
 	sk_nulls_for_each_from(sk, node) {
-		if (sk->sk_family == st->family && net_eq(sock_net(sk), net)) {
+		if (!net_eq(sock_net(sk), net))
+			continue;
+		if (sk->sk_family == st->family) {
 			cur = sk;
 			goto out;
 		}

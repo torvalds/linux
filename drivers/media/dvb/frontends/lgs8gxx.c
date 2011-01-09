@@ -60,13 +60,12 @@ static int lgs8gxx_write_reg(struct lgs8gxx_state *priv, u8 reg, u8 data)
 		msg.addr += 0x02;
 
 	if (debug >= 2)
-		printk(KERN_DEBUG "%s: reg=0x%02X, data=0x%02X\n",
-			__func__, reg, data);
+		dprintk("%s: reg=0x%02X, data=0x%02X\n", __func__, reg, data);
 
 	ret = i2c_transfer(priv->i2c, &msg, 1);
 
 	if (ret != 1)
-		dprintk(KERN_DEBUG "%s: error reg=0x%x, data=0x%x, ret=%i\n",
+		dprintk("%s: error reg=0x%x, data=0x%x, ret=%i\n",
 			__func__, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
@@ -91,15 +90,13 @@ static int lgs8gxx_read_reg(struct lgs8gxx_state *priv, u8 reg, u8 *p_data)
 
 	ret = i2c_transfer(priv->i2c, msg, 2);
 	if (ret != 2) {
-		dprintk(KERN_DEBUG "%s: error reg=0x%x, ret=%i\n",
-			__func__, reg, ret);
+		dprintk("%s: error reg=0x%x, ret=%i\n", __func__, reg, ret);
 		return -1;
 	}
 
 	*p_data = b1[0];
 	if (debug >= 2)
-		printk(KERN_DEBUG "%s: reg=0x%02X, data=0x%02X\n",
-			__func__, reg, b1[0]);
+		dprintk("%s: reg=0x%02X, data=0x%02X\n", __func__, reg, b1[0]);
 	return 0;
 }
 

@@ -51,9 +51,11 @@ source "drivers/staging/cx25821/Kconfig"
 
 source "drivers/staging/tm6000/Kconfig"
 
-source "drivers/staging/cpia/Kconfig"
+source "drivers/staging/dabusb/Kconfig"
 
-source "drivers/staging/stradis/Kconfig"
+source "drivers/staging/se401/Kconfig"
+
+source "drivers/staging/usbvideo/Kconfig"
 
 source "drivers/staging/usbip/Kconfig"
 
@@ -110,8 +112,6 @@ source "drivers/staging/quatech_usb2/Kconfig"
 source "drivers/staging/vt6655/Kconfig"
 
 source "drivers/staging/vt6656/Kconfig"
-
-source "drivers/staging/udlfb/Kconfig"
 
 source "drivers/staging/hv/Kconfig"
 

@@ -165,7 +165,7 @@ static void ath_rx_addbuffer_edma(struct ath_softc *sc,
 	u32 nbuf = 0;
 
 	if (list_empty(&sc->rx.rxbuf)) {
-		ath_print(common, ATH_DBG_QUEUE, "No free rx buf available\n");
+		ath_dbg(common, ATH_DBG_QUEUE, "No free rx buf available\n");
 		return;
 	}
 
@@ -269,7 +269,7 @@ static int ath_rx_edma_init(struct ath_softc *sc, int nbufs)
 				dev_kfree_skb_any(skb);
 				bf->bf_mpdu = NULL;
 				bf->bf_buf_addr = 0;
-				ath_print(common, ATH_DBG_FATAL,
+				ath_err(common,
 					"dma_mapping_error() on RX init\n");
 				error = -ENOMEM;
 				goto rx_init_fail;
@@ -317,7 +317,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	struct ath_buf *bf;
 	int error = 0;
 
-	spin_lock_init(&sc->rx.pcu_lock);
+	spin_lock_init(&sc->sc_pcu_lock);
 	sc->sc_flags &= ~SC_OP_RXFLUSH;
 	spin_lock_init(&sc->rx.rxbuflock);
 
@@ -327,17 +327,17 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 		common->rx_bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
 				min(common->cachelsz, (u16)64));
 
-		ath_print(common, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
-				common->cachelsz, common->rx_bufsize);
+		ath_dbg(common, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
+			common->cachelsz, common->rx_bufsize);
 
 		/* Initialize rx descriptors */
 
 		error = ath_descdma_setup(sc, &sc->rx.rxdma, &sc->rx.rxbuf,
 				"rx", nbufs, 1, 0);
 		if (error != 0) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "failed to allocate rx descriptors: %d\n",
-				  error);
+			ath_err(common,
+				"failed to allocate rx descriptors: %d\n",
+				error);
 			goto err;
 		}
 
@@ -358,8 +358,8 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 				dev_kfree_skb_any(skb);
 				bf->bf_mpdu = NULL;
 				bf->bf_buf_addr = 0;
-				ath_print(common, ATH_DBG_FATAL,
-					  "dma_mapping_error() on RX init\n");
+				ath_err(common,
+					"dma_mapping_error() on RX init\n");
 				error = -ENOMEM;
 				goto err;
 			}
@@ -518,7 +518,7 @@ bool ath_stoprecv(struct ath_softc *sc)
 	bool stopped;
 
 	spin_lock_bh(&sc->rx.rxbuflock);
-	ath9k_hw_stoppcurecv(ah);
+	ath9k_hw_abortpcurecv(ah);
 	ath9k_hw_setrxfilter(ah, 0);
 	stopped = ath9k_hw_stopdmarecv(ah);
 
@@ -528,6 +528,13 @@ bool ath_stoprecv(struct ath_softc *sc)
 		sc->rx.rxlink = NULL;
 	spin_unlock_bh(&sc->rx.rxbuflock);
 
+	if (!(ah->ah_flags & AH_UNPLUGGED) &&
+	    unlikely(!stopped)) {
+		ath_err(ath9k_hw_common(sc->sc_ah),
+			"Could not stop RX, we could be "
+			"confusing the DMA engine when we start RX up\n");
+		ATH_DBG_WARN_ON_ONCE(!stopped);
+	}
 	return stopped;
 }
 
@@ -588,9 +595,8 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 
 	if (sc->ps_flags & PS_BEACON_SYNC) {
 		sc->ps_flags &= ~PS_BEACON_SYNC;
-		ath_print(common, ATH_DBG_PS,
-			  "Reconfigure Beacon timers based on "
-			  "timestamp from the AP\n");
+		ath_dbg(common, ATH_DBG_PS,
+			"Reconfigure Beacon timers based on timestamp from the AP\n");
 		ath_beacon_config(sc, NULL);
 	}
 
@@ -602,8 +608,8 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		 * a backup trigger for returning into NETWORK SLEEP state,
 		 * so we are waiting for it as well.
 		 */
-		ath_print(common, ATH_DBG_PS, "Received DTIM beacon indicating "
-			  "buffered broadcast/multicast frame(s)\n");
+		ath_dbg(common, ATH_DBG_PS,
+			"Received DTIM beacon indicating buffered broadcast/multicast frame(s)\n");
 		sc->ps_flags |= PS_WAIT_FOR_CAB | PS_WAIT_FOR_BEACON;
 		return;
 	}
@@ -615,8 +621,8 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		 * been delivered.
 		 */
 		sc->ps_flags &= ~PS_WAIT_FOR_CAB;
-		ath_print(common, ATH_DBG_PS,
-			  "PS wait for CAB frames timed out\n");
+		ath_dbg(common, ATH_DBG_PS,
+			"PS wait for CAB frames timed out\n");
 	}
 }
 
@@ -641,15 +647,14 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 		 * point.
 		 */
 		sc->ps_flags &= ~(PS_WAIT_FOR_CAB | PS_WAIT_FOR_BEACON);
-		ath_print(common, ATH_DBG_PS,
-			  "All PS CAB frames received, back to sleep\n");
+		ath_dbg(common, ATH_DBG_PS,
+			"All PS CAB frames received, back to sleep\n");
 	} else if ((sc->ps_flags & PS_WAIT_FOR_PSPOLL_DATA) &&
 		   !is_multicast_ether_addr(hdr->addr1) &&
 		   !ieee80211_has_morefrags(hdr->frame_control)) {
 		sc->ps_flags &= ~PS_WAIT_FOR_PSPOLL_DATA;
-		ath_print(common, ATH_DBG_PS,
-			  "Going back to sleep after having received "
-			  "PS-Poll data (0x%lx)\n",
+		ath_dbg(common, ATH_DBG_PS,
+			"Going back to sleep after having received PS-Poll data (0x%lx)\n",
 			sc->ps_flags & (PS_WAIT_FOR_BEACON |
 					PS_WAIT_FOR_CAB |
 					PS_WAIT_FOR_PSPOLL_DATA |
@@ -658,8 +663,7 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 }
 
 static void ath_rx_send_to_mac80211(struct ieee80211_hw *hw,
-				    struct ath_softc *sc, struct sk_buff *skb,
-				    struct ieee80211_rx_status *rxs)
+				    struct ath_softc *sc, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 
@@ -838,6 +842,10 @@ static bool ath9k_rx_accept(struct ath_common *common,
 			    struct ath_rx_status *rx_stats,
 			    bool *decrypt_error)
 {
+#define is_mc_or_valid_tkip_keyix ((is_mc ||			\
+		(rx_stats->rs_keyix != ATH9K_RXKEYIX_INVALID && \
+		test_bit(rx_stats->rs_keyix, common->tkip_keymap))))
+
 	struct ath_hw *ah = common->ah;
 	__le16 fc;
 	u8 rx_status_len = ah->caps.rx_status_len;
@@ -879,15 +887,18 @@ static bool ath9k_rx_accept(struct ath_common *common,
 		if (rx_stats->rs_status & ATH9K_RXERR_DECRYPT) {
 			*decrypt_error = true;
 		} else if (rx_stats->rs_status & ATH9K_RXERR_MIC) {
+			bool is_mc;
 			/*
 			 * The MIC error bit is only valid if the frame
 			 * is not a control frame or fragment, and it was
 			 * decrypted using a valid TKIP key.
 			 */
+			is_mc = !!is_multicast_ether_addr(hdr->addr1);
+
 			if (!ieee80211_is_ctl(fc) &&
 			    !ieee80211_has_morefrags(fc) &&
 			    !(le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG) &&
-			    test_bit(rx_stats->rs_keyix, common->tkip_keymap))
+			    is_mc_or_valid_tkip_keyix)
 				rxs->flag |= RX_FLAG_MMIC_ERROR;
 			else
 				rx_stats->rs_status &= ~ATH9K_RXERR_MIC;
@@ -951,8 +962,9 @@ static int ath9k_process_rate(struct ath_common *common,
 	 * No valid hardware bitrate found -- we should not get here
 	 * because hardware has already validated this frame as OK.
 	 */
-	ath_print(common, ATH_DBG_XMIT, "unsupported hw bitrate detected "
-		  "0x%02x using 1 Mbit\n", rx_stats->rs_rate);
+	ath_dbg(common, ATH_DBG_XMIT,
+		"unsupported hw bitrate detected 0x%02x using 1 Mbit\n",
+		rx_stats->rs_rate);
 
 	return -EINVAL;
 }
@@ -962,36 +974,23 @@ static void ath9k_process_rssi(struct ath_common *common,
 			       struct ieee80211_hdr *hdr,
 			       struct ath_rx_status *rx_stats)
 {
+	struct ath_wiphy *aphy = hw->priv;
 	struct ath_hw *ah = common->ah;
-	struct ieee80211_sta *sta;
-	struct ath_node *an;
-	int last_rssi = ATH_RSSI_DUMMY_MARKER;
+	int last_rssi;
 	__le16 fc;
 
+	if (ah->opmode != NL80211_IFTYPE_STATION)
+		return;
+
 	fc = hdr->frame_control;
+	if (!ieee80211_is_beacon(fc) ||
+	    compare_ether_addr(hdr->addr3, common->curbssid))
+		return;
 
-	rcu_read_lock();
-	/*
-	 * XXX: use ieee80211_find_sta! This requires quite a bit of work
-	 * under the current ath9k virtual wiphy implementation as we have
-	 * no way of tying a vif to wiphy. Typically vifs are attached to
-	 * at least one sdata of a wiphy on mac80211 but with ath9k virtual
-	 * wiphy you'd have to iterate over every wiphy and each sdata.
-	 */
-	if (is_multicast_ether_addr(hdr->addr1))
-		sta = ieee80211_find_sta_by_ifaddr(hw, hdr->addr2, NULL);
-	else
-		sta = ieee80211_find_sta_by_ifaddr(hw, hdr->addr2, hdr->addr1);
+	if (rx_stats->rs_rssi != ATH9K_RSSI_BAD && !rx_stats->rs_moreaggr)
+		ATH_RSSI_LPF(aphy->last_rssi, rx_stats->rs_rssi);
 
-	if (sta) {
-		an = (struct ath_node *) sta->drv_priv;
-		if (rx_stats->rs_rssi != ATH9K_RSSI_BAD &&
-		   !rx_stats->rs_moreaggr)
-			ATH_RSSI_LPF(an->last_rssi, rx_stats->rs_rssi);
-		last_rssi = an->last_rssi;
-	}
-	rcu_read_unlock();
-
+	last_rssi = aphy->last_rssi;
 	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
 		rx_stats->rs_rssi = ATH_EP_RND(last_rssi,
 					      ATH_RSSI_EP_MULTIPLIER);
@@ -999,8 +998,7 @@ static void ath9k_process_rssi(struct ath_common *common,
 		rx_stats->rs_rssi = 0;
 
 	/* Update Beacon RSSI, this is used by ANI. */
-	if (ieee80211_is_beacon(fc))
-		ah->stats.avgbrssi = rx_stats->rs_rssi;
+	ah->stats.avgbrssi = rx_stats->rs_rssi;
 }
 
 /*
@@ -1630,7 +1628,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	/*
-	 * The hw can techncically differ from common->hw when using ath9k
+	 * The hw can technically differ from common->hw when using ath9k
 	 * virtual wiphy so to account for that we iterate over the active
 	 * wiphys and find the appropriate wiphy and therefore hw.
 	 */
@@ -1737,9 +1735,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			dev_kfree_skb_any(requeue_skb);
 			bf->bf_mpdu = NULL;
 			bf->bf_buf_addr = 0;
-			ath_print(common, ATH_DBG_FATAL,
-				  "dma_mapping_error() on RX\n");
-			ath_rx_send_to_mac80211(hw, sc, skb, rxs);
+			ath_err(common, "dma_mapping_error() on RX\n");
+			ath_rx_send_to_mac80211(hw, sc, skb);
 			break;
 		}
 
@@ -1755,17 +1752,18 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		}
 
 		spin_lock_irqsave(&sc->sc_pm_lock, flags);
-		if (unlikely(ath9k_check_auto_sleep(sc) ||
-			     (sc->ps_flags & (PS_WAIT_FOR_BEACON |
+
+		if ((sc->ps_flags & (PS_WAIT_FOR_BEACON |
 					      PS_WAIT_FOR_CAB |
-					      PS_WAIT_FOR_PSPOLL_DATA))))
+					      PS_WAIT_FOR_PSPOLL_DATA)) ||
+					unlikely(ath9k_check_auto_sleep(sc)))
 			ath_rx_ps(sc, skb);
 		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
 		if (ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)
 			ath_ant_comb_scan(sc, &rs);
 
-		ath_rx_send_to_mac80211(hw, sc, skb, rxs);
+		ath_rx_send_to_mac80211(hw, sc, skb);
 
 requeue:
 		if (edma) {

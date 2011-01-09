@@ -372,7 +372,6 @@ static struct clocksource clocksource_timersp = {
 	.rating		= 200,
 	.read		= timersp_read,
 	.mask		= CLOCKSOURCE_MASK(16),
-	.shift		= 16,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -390,8 +389,7 @@ static void integrator_clocksource_init(u32 khz)
 	writel(ctrl, base + TIMER_CTRL);
 	writel(0xffff, base + TIMER_LOAD);
 
-	cs->mult = clocksource_khz2mult(khz, cs->shift);
-	clocksource_register(cs);
+	clocksource_register_khz(cs, khz);
 }
 
 static void __iomem * const clkevt_base = (void __iomem *)TIMER1_VA_BASE;

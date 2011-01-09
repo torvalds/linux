@@ -40,35 +40,6 @@ config VIDEO_V4L2_COMMON
 	depends on (I2C || I2C=n) && VIDEO_DEV
 	default (I2C || I2C=n) && VIDEO_DEV
 
-config VIDEO_ALLOW_V4L1
-	bool "Enable Video For Linux API 1 (DEPRECATED)"
-	depends on VIDEO_DEV && VIDEO_V4L2_COMMON
-	default VIDEO_DEV && VIDEO_V4L2_COMMON
-	---help---
-	  Enables drivers based on the legacy V4L1 API.
-
-	  This api were developed to be used at Kernel 2.2 and 2.4, but
-	  lacks support for several video standards. There are several
-	  drivers at kernel that still depends on it.
-
-	  If you are unsure as to whether this is required, answer Y.
-
-config VIDEO_V4L1_COMPAT
-	bool "Enable Video For Linux API 1 compatible Layer" if !VIDEO_ALLOW_V4L1
-	depends on VIDEO_DEV
-	default y
-	---help---
-	  Enables a compatibility API used by most V4L2 devices to allow
-	  its usage with legacy applications that supports only V4L1 api.
-
-	  Documentation for the original API is included in the file
-	  <Documentation/video4linux/API.html>.
-
-	  User tools for this are available from
-	  <ftp://ftp.uk.linux.org/pub/linux/video4linux/>.
-
-	  If you are unsure as to whether this is required, answer Y.
-
 #
 # DVB Core
 #
@@ -99,7 +70,7 @@ config VIDEO_MEDIA
 comment "Multimedia drivers"
 
 source "drivers/media/common/Kconfig"
-source "drivers/media/IR/Kconfig"
+source "drivers/media/rc/Kconfig"
 
 #
 # Tuner drivers for DVB and V4L
@@ -120,27 +91,5 @@ source "drivers/media/radio/Kconfig"
 #
 
 source "drivers/media/dvb/Kconfig"
-
-config DAB
-	boolean "DAB adapters"
-	---help---
-	  Allow selecting support for Digital Audio Broadcasting (DAB)
-	  Receiver adapters.
-
-if DAB
-config USB_DABUSB
-	tristate "DABUSB driver"
-	depends on USB
-	---help---
-	  A Digital Audio Broadcasting (DAB) Receiver for USB and Linux
-	  brought to you by the DAB-Team
-	  <http://wwwbode.cs.tum.edu/Par/arch/dab/>.  This driver can be taken
-	  as an example for URB-based bulk, control, and isochronous
-	  transactions. URB's are explained in
-	  <Documentation/usb/URB.txt>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dabusb.
-endif # DAB
 
 endif # MEDIA_SUPPORT

@@ -105,7 +105,6 @@ struct irq_info
 
 static struct irq_info *irq_info;
 static int *pirq_to_irq;
-static int nr_pirqs;
 
 static int *evtchn_to_irq;
 struct cpu_evtchn_s {
@@ -356,7 +355,7 @@ static void unmask_evtchn(int port)
 		struct evtchn_unmask unmask = { .port = port };
 		(void)HYPERVISOR_event_channel_op(EVTCHNOP_unmask, &unmask);
 	} else {
-		struct vcpu_info *vcpu_info = __get_cpu_var(xen_vcpu);
+		struct vcpu_info *vcpu_info = __this_cpu_read(xen_vcpu);
 
 		sync_clear_bit(port, &s->evtchn_mask[0]);
 
@@ -385,12 +384,17 @@ static int get_nr_hw_irqs(void)
 	return ret;
 }
 
-/* callers of this function should make sure that PHYSDEVOP_get_nr_pirqs
- * succeeded otherwise nr_pirqs won't hold the right value */
-static int find_unbound_pirq(void)
+static int find_unbound_pirq(int type)
 {
-	int i;
-	for (i = nr_pirqs-1; i >= 0; i--) {
+	int rc, i;
+	struct physdev_get_free_pirq op_get_free_pirq;
+	op_get_free_pirq.type = type;
+
+	rc = HYPERVISOR_physdev_op(PHYSDEVOP_get_free_pirq, &op_get_free_pirq);
+	if (!rc)
+		return op_get_free_pirq.pirq;
+
+	for (i = 0; i < nr_irqs; i++) {
 		if (pirq_to_irq[i] < 0)
 			return i;
 	}
@@ -423,7 +427,7 @@ static int find_unbound_irq(void)
 	if (irq == start)
 		goto no_irqs;
 
-	res = irq_alloc_desc_at(irq, 0);
+	res = irq_alloc_desc_at(irq, -1);
 
 	if (WARN_ON(res != irq))
 		return -1;
@@ -611,10 +615,10 @@ int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name)
 
 	spin_lock(&irq_mapping_update_lock);
 
-	if ((pirq > nr_pirqs) || (gsi > nr_irqs)) {
+	if ((pirq > nr_irqs) || (gsi > nr_irqs)) {
 		printk(KERN_WARNING "xen_map_pirq_gsi: %s %s is incorrect!\n",
-			pirq > nr_pirqs ? "nr_pirqs" :"",
-			gsi > nr_irqs ? "nr_irqs" : "");
+			pirq > nr_irqs ? "pirq" :"",
+			gsi > nr_irqs ? "gsi" : "");
 		goto out;
 	}
 
@@ -630,7 +634,7 @@ int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name)
 	if (identity_mapped_irq(gsi) || (!xen_initial_domain() &&
 				xen_pv_domain())) {
 		irq = gsi;
-		irq_alloc_desc_at(irq, 0);
+		irq_alloc_desc_at(irq, -1);
 	} else
 		irq = find_unbound_irq();
 
@@ -664,17 +668,21 @@ out:
 #include <linux/msi.h>
 #include "../pci/msi.h"
 
-void xen_allocate_pirq_msi(char *name, int *irq, int *pirq)
+void xen_allocate_pirq_msi(char *name, int *irq, int *pirq, int alloc)
 {
 	spin_lock(&irq_mapping_update_lock);
 
-	*irq = find_unbound_irq();
-	if (*irq == -1)
-		goto out;
+	if (alloc & XEN_ALLOC_IRQ) {
+		*irq = find_unbound_irq();
+		if (*irq == -1)
+			goto out;
+	}
 
-	*pirq = find_unbound_pirq();
-	if (*pirq == -1)
-		goto out;
+	if (alloc & XEN_ALLOC_PIRQ) {
+		*pirq = find_unbound_pirq(MAP_PIRQ_TYPE_MSI);
+		if (*pirq == -1)
+			goto out;
+	}
 
 	set_irq_chip_and_handler_name(*irq, &xen_pirq_chip,
 				      handle_level_irq, name);
@@ -762,6 +770,7 @@ int xen_destroy_irq(int irq)
 			printk(KERN_WARNING "unmap irq failed %d\n", rc);
 			goto out;
 		}
+		pirq_to_irq[info->u.pirq.pirq] = -1;
 	}
 	irq_info[irq] = mk_unbound_info();
 
@@ -780,6 +789,11 @@ int xen_vector_from_irq(unsigned irq)
 int xen_gsi_from_irq(unsigned irq)
 {
 	return gsi_from_irq(irq);
+}
+
+int xen_irq_from_pirq(unsigned pirq)
+{
+	return pirq_to_irq[pirq];
 }
 
 int bind_evtchn_to_irq(unsigned int evtchn)
@@ -1087,7 +1101,7 @@ static void __xen_evtchn_do_upcall(void)
 {
 	int cpu = get_cpu();
 	struct shared_info *s = HYPERVISOR_shared_info;
-	struct vcpu_info *vcpu_info = __get_cpu_var(xen_vcpu);
+	struct vcpu_info *vcpu_info = __this_cpu_read(xen_vcpu);
  	unsigned count;
 
 	do {
@@ -1095,7 +1109,7 @@ static void __xen_evtchn_do_upcall(void)
 
 		vcpu_info->evtchn_upcall_pending = 0;
 
-		if (__get_cpu_var(xed_nesting_count)++)
+		if (__this_cpu_inc_return(xed_nesting_count) - 1)
 			goto out;
 
 #ifndef CONFIG_X86 /* No need for a barrier -- XCHG is a barrier on x86. */
@@ -1127,8 +1141,8 @@ static void __xen_evtchn_do_upcall(void)
 
 		BUG_ON(!irqs_disabled());
 
-		count = __get_cpu_var(xed_nesting_count);
-		__get_cpu_var(xed_nesting_count) = 0;
+		count = __this_cpu_read(xed_nesting_count);
+		__this_cpu_write(xed_nesting_count, 0);
 	} while (count != 1 || vcpu_info->evtchn_upcall_pending);
 
 out:
@@ -1279,6 +1293,42 @@ static int retrigger_dynirq(unsigned int irq)
 	return ret;
 }
 
+static void restore_cpu_pirqs(void)
+{
+	int pirq, rc, irq, gsi;
+	struct physdev_map_pirq map_irq;
+
+	for (pirq = 0; pirq < nr_irqs; pirq++) {
+		irq = pirq_to_irq[pirq];
+		if (irq == -1)
+			continue;
+
+		/* save/restore of PT devices doesn't work, so at this point the
+		 * only devices present are GSI based emulated devices */
+		gsi = gsi_from_irq(irq);
+		if (!gsi)
+			continue;
+
+		map_irq.domid = DOMID_SELF;
+		map_irq.type = MAP_PIRQ_TYPE_GSI;
+		map_irq.index = gsi;
+		map_irq.pirq = pirq;
+
+		rc = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq);
+		if (rc) {
+			printk(KERN_WARNING "xen map irq failed gsi=%d irq=%d pirq=%d rc=%d\n",
+					gsi, irq, pirq, rc);
+			irq_info[irq] = mk_unbound_info();
+			pirq_to_irq[pirq] = -1;
+			continue;
+		}
+
+		printk(KERN_DEBUG "xen: --> irq=%d, pirq=%d\n", irq, map_irq.pirq);
+
+		startup_pirq(irq);
+	}
+}
+
 static void restore_cpu_virqs(unsigned int cpu)
 {
 	struct evtchn_bind_virq bind_virq;
@@ -1422,6 +1472,8 @@ void xen_irq_resume(void)
 
 		unmask_evtchn(evtchn);
 	}
+
+	restore_cpu_pirqs();
 }
 
 static struct irq_chip xen_dynamic_chip __read_mostly = {
@@ -1506,26 +1558,17 @@ void xen_callback_vector(void) {}
 
 void __init xen_init_IRQ(void)
 {
-	int i, rc;
-	struct physdev_nr_pirqs op_nr_pirqs;
+	int i;
 
 	cpu_evtchn_mask_p = kcalloc(nr_cpu_ids, sizeof(struct cpu_evtchn_s),
 				    GFP_KERNEL);
 	irq_info = kcalloc(nr_irqs, sizeof(*irq_info), GFP_KERNEL);
 
-	rc = HYPERVISOR_physdev_op(PHYSDEVOP_get_nr_pirqs, &op_nr_pirqs);
-	if (rc < 0) {
-		nr_pirqs = nr_irqs;
-		if (rc != -ENOSYS)
-			printk(KERN_WARNING "PHYSDEVOP_get_nr_pirqs returned rc=%d\n", rc);
-	} else {
-		if (xen_pv_domain() && !xen_initial_domain())
-			nr_pirqs = max((int)op_nr_pirqs.nr_pirqs, nr_irqs);
-		else
-			nr_pirqs = op_nr_pirqs.nr_pirqs;
-	}
-	pirq_to_irq = kcalloc(nr_pirqs, sizeof(*pirq_to_irq), GFP_KERNEL);
-	for (i = 0; i < nr_pirqs; i++)
+	/* We are using nr_irqs as the maximum number of pirq available but
+	 * that number is actually chosen by Xen and we don't know exactly
+	 * what it is. Be careful choosing high pirq numbers. */
+	pirq_to_irq = kcalloc(nr_irqs, sizeof(*pirq_to_irq), GFP_KERNEL);
+	for (i = 0; i < nr_irqs; i++)
 		pirq_to_irq[i] = -1;
 
 	evtchn_to_irq = kcalloc(NR_EVENT_CHANNELS, sizeof(*evtchn_to_irq),

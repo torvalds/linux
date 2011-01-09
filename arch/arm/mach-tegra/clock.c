@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/regulator/consumer.h>
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 
 #include "clock.h"
 #include "board.h"

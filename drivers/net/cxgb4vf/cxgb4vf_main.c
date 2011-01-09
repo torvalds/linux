@@ -280,9 +280,7 @@ static void name_msix_vecs(struct adapter *adapter)
 		const struct port_info *pi = netdev_priv(dev);
 		int qs, msi;
 
-		for (qs = 0, msi = MSIX_NIQFLINT;
-		     qs < pi->nqsets;
-		     qs++, msi++) {
+		for (qs = 0, msi = MSIX_IQFLINT; qs < pi->nqsets; qs++, msi++) {
 			snprintf(adapter->msix_info[msi].desc, namelen,
 				 "%s-%d", dev->name, qs);
 			adapter->msix_info[msi].desc[namelen] = 0;
@@ -309,7 +307,7 @@ static int request_msix_queue_irqs(struct adapter *adapter)
 	/*
 	 * Ethernet queues.
 	 */
-	msi = MSIX_NIQFLINT;
+	msi = MSIX_IQFLINT;
 	for_each_ethrxq(s, rxq) {
 		err = request_irq(adapter->msix_info[msi].vec,
 				  t4vf_sge_intr_msix, 0,
@@ -337,7 +335,7 @@ static void free_msix_queue_irqs(struct adapter *adapter)
 	int rxq, msi;
 
 	free_irq(adapter->msix_info[MSIX_FW].vec, &s->fw_evtq);
-	msi = MSIX_NIQFLINT;
+	msi = MSIX_IQFLINT;
 	for_each_ethrxq(s, rxq)
 		free_irq(adapter->msix_info[msi++].vec,
 			 &s->ethrxq[rxq].rspq);
@@ -527,7 +525,7 @@ static int setup_sge_queues(struct adapter *adapter)
 	 * brought up at which point lots of things get nailed down
 	 * permanently ...
 	 */
-	msix = MSIX_NIQFLINT;
+	msix = MSIX_IQFLINT;
 	for_each_port(adapter, pidx) {
 		struct net_device *dev = adapter->port[pidx];
 		struct port_info *pi = netdev_priv(dev);
@@ -816,40 +814,48 @@ static struct net_device_stats *cxgb4vf_get_stats(struct net_device *dev)
 }
 
 /*
- * Collect up to maxaddrs worth of a netdevice's unicast addresses into an
- * array of addrss pointers and return the number collected.
+ * Collect up to maxaddrs worth of a netdevice's unicast addresses, starting
+ * at a specified offset within the list, into an array of addrss pointers and
+ * return the number collected.
  */
-static inline int collect_netdev_uc_list_addrs(const struct net_device *dev,
-					       const u8 **addr,
-					       unsigned int maxaddrs)
+static inline unsigned int collect_netdev_uc_list_addrs(const struct net_device *dev,
+							const u8 **addr,
+							unsigned int offset,
+							unsigned int maxaddrs)
 {
+	unsigned int index = 0;
 	unsigned int naddr = 0;
 	const struct netdev_hw_addr *ha;
 
-	for_each_dev_addr(dev, ha) {
-		addr[naddr++] = ha->addr;
-		if (naddr >= maxaddrs)
-			break;
-	}
+	for_each_dev_addr(dev, ha)
+		if (index++ >= offset) {
+			addr[naddr++] = ha->addr;
+			if (naddr >= maxaddrs)
+				break;
+		}
 	return naddr;
 }
 
 /*
- * Collect up to maxaddrs worth of a netdevice's multicast addresses into an
- * array of addrss pointers and return the number collected.
+ * Collect up to maxaddrs worth of a netdevice's multicast addresses, starting
+ * at a specified offset within the list, into an array of addrss pointers and
+ * return the number collected.
  */
-static inline int collect_netdev_mc_list_addrs(const struct net_device *dev,
-					       const u8 **addr,
-					       unsigned int maxaddrs)
+static inline unsigned int collect_netdev_mc_list_addrs(const struct net_device *dev,
+							const u8 **addr,
+							unsigned int offset,
+							unsigned int maxaddrs)
 {
+	unsigned int index = 0;
 	unsigned int naddr = 0;
 	const struct netdev_hw_addr *ha;
 
-	netdev_for_each_mc_addr(ha, dev) {
-		addr[naddr++] = ha->addr;
-		if (naddr >= maxaddrs)
-			break;
-	}
+	netdev_for_each_mc_addr(ha, dev)
+		if (index++ >= offset) {
+			addr[naddr++] = ha->addr;
+			if (naddr >= maxaddrs)
+				break;
+		}
 	return naddr;
 }
 
@@ -862,16 +868,20 @@ static int set_addr_filters(const struct net_device *dev, bool sleep)
 	u64 mhash = 0;
 	u64 uhash = 0;
 	bool free = true;
-	u16 filt_idx[7];
+	unsigned int offset, naddr;
 	const u8 *addr[7];
-	int ret, naddr = 0;
+	int ret;
 	const struct port_info *pi = netdev_priv(dev);
 
 	/* first do the secondary unicast addresses */
-	naddr = collect_netdev_uc_list_addrs(dev, addr, ARRAY_SIZE(addr));
-	if (naddr > 0) {
+	for (offset = 0; ; offset += naddr) {
+		naddr = collect_netdev_uc_list_addrs(dev, addr, offset,
+						     ARRAY_SIZE(addr));
+		if (naddr == 0)
+			break;
+
 		ret = t4vf_alloc_mac_filt(pi->adapter, pi->viid, free,
-					  naddr, addr, filt_idx, &uhash, sleep);
+					  naddr, addr, NULL, &uhash, sleep);
 		if (ret < 0)
 			return ret;
 
@@ -879,12 +889,17 @@ static int set_addr_filters(const struct net_device *dev, bool sleep)
 	}
 
 	/* next set up the multicast addresses */
-	naddr = collect_netdev_mc_list_addrs(dev, addr, ARRAY_SIZE(addr));
-	if (naddr > 0) {
+	for (offset = 0; ; offset += naddr) {
+		naddr = collect_netdev_mc_list_addrs(dev, addr, offset,
+						     ARRAY_SIZE(addr));
+		if (naddr == 0)
+			break;
+
 		ret = t4vf_alloc_mac_filt(pi->adapter, pi->viid, free,
-					  naddr, addr, filt_idx, &mhash, sleep);
+					  naddr, addr, NULL, &mhash, sleep);
 		if (ret < 0)
 			return ret;
+		free = false;
 	}
 
 	return t4vf_set_addr_hash(pi->adapter, pi->viid, uhash != 0,
@@ -1348,6 +1363,8 @@ struct queue_port_stats {
 	u64 rx_csum;
 	u64 vlan_ex;
 	u64 vlan_ins;
+	u64 lro_pkts;
+	u64 lro_merged;
 };
 
 /*
@@ -1385,6 +1402,8 @@ static const char stats_strings[][ETH_GSTRING_LEN] = {
 	"RxCsumGood        ",
 	"VLANextractions   ",
 	"VLANinsertions    ",
+	"GROPackets        ",
+	"GROMerged         ",
 };
 
 /*
@@ -1434,6 +1453,8 @@ static void collect_sge_port_stats(const struct adapter *adapter,
 		stats->rx_csum += rxq->stats.rx_cso;
 		stats->vlan_ex += rxq->stats.vlan_ex;
 		stats->vlan_ins += txq->vlan_ins;
+		stats->lro_pkts += rxq->stats.lro_pkts;
+		stats->lro_merged += rxq->stats.lro_merged;
 	}
 }
 
@@ -1530,14 +1551,19 @@ static void cxgb4vf_get_wol(struct net_device *dev,
 }
 
 /*
+ * TCP Segmentation Offload flags which we support.
+ */
+#define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
+
+/*
  * Set TCP Segmentation Offloading feature capabilities.
  */
 static int cxgb4vf_set_tso(struct net_device *dev, u32 tso)
 {
 	if (tso)
-		dev->features |= NETIF_F_TSO | NETIF_F_TSO6;
+		dev->features |= TSO_FLAGS;
 	else
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
+		dev->features &= ~TSO_FLAGS;
 	return 0;
 }
 
@@ -2028,7 +2054,7 @@ static int __devinit setup_debugfs(struct adapter *adapter)
  * Tear down the /sys/kernel/debug/cxgb4vf sub-nodes created above.  We leave
  * it to our caller to tear down the directory (debugfs_root).
  */
-static void __devexit cleanup_debugfs(struct adapter *adapter)
+static void cleanup_debugfs(struct adapter *adapter)
 {
 	BUG_ON(adapter->debugfs_root == NULL);
 
@@ -2046,7 +2072,7 @@ static void __devexit cleanup_debugfs(struct adapter *adapter)
  * adapter parameters we're going to be using and initialize basic adapter
  * hardware support.
  */
-static int adap_init0(struct adapter *adapter)
+static int __devinit adap_init0(struct adapter *adapter)
 {
 	struct vf_resources *vfres = &adapter->params.vfres;
 	struct sge_params *sge_params = &adapter->params.sge;
@@ -2252,6 +2278,7 @@ static void __devinit cfg_queues(struct adapter *adapter)
 {
 	struct sge *s = &adapter->sge;
 	int q10g, n10g, qidx, pidx, qs;
+	size_t iqe_size;
 
 	/*
 	 * We should not be called till we know how many Queue Sets we can
@@ -2296,6 +2323,13 @@ static void __devinit cfg_queues(struct adapter *adapter)
 	s->ethqsets = qidx;
 
 	/*
+	 * The Ingress Queue Entry Size for our various Response Queues needs
+	 * to be big enough to accommodate the largest message we can receive
+	 * from the chip/firmware; which is 64 bytes ...
+	 */
+	iqe_size = 64;
+
+	/*
 	 * Set up default Queue Set parameters ...  Start off with the
 	 * shortest interrupt holdoff timer.
 	 */
@@ -2303,7 +2337,7 @@ static void __devinit cfg_queues(struct adapter *adapter)
 		struct sge_eth_rxq *rxq = &s->ethrxq[qs];
 		struct sge_eth_txq *txq = &s->ethtxq[qs];
 
-		init_rspq(&rxq->rspq, 0, 0, 1024, L1_CACHE_BYTES);
+		init_rspq(&rxq->rspq, 0, 0, 1024, iqe_size);
 		rxq->fl.size = 72;
 		txq->q.size = 1024;
 	}
@@ -2312,8 +2346,7 @@ static void __devinit cfg_queues(struct adapter *adapter)
 	 * The firmware event queue is used for link state changes and
 	 * notifications of TX DMA completions.
 	 */
-	init_rspq(&s->fw_evtq, SGE_TIMER_RSTRT_CNTR, 0, 512,
-		  L1_CACHE_BYTES);
+	init_rspq(&s->fw_evtq, SGE_TIMER_RSTRT_CNTR, 0, 512, iqe_size);
 
 	/*
 	 * The forwarded interrupt queue is used when we're in MSI interrupt
@@ -2329,7 +2362,7 @@ static void __devinit cfg_queues(struct adapter *adapter)
 	 * any time ...
 	 */
 	init_rspq(&s->intrq, SGE_TIMER_RSTRT_CNTR, 0, MSIX_ENTRIES + 1,
-		  L1_CACHE_BYTES);
+		  iqe_size);
 }
 
 /*
@@ -2470,7 +2503,6 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		version_printed = 1;
 	}
 
-
 	/*
 	 * Initialize generic PCI device state.
 	 */
@@ -2607,7 +2639,7 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netif_carrier_off(netdev);
 		netdev->irq = pdev->irq;
 
-		netdev->features = (NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
+		netdev->features = (NETIF_F_SG | TSO_FLAGS |
 				    NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 				    NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
 				    NETIF_F_GRO);

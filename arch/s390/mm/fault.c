@@ -10,6 +10,7 @@
  *    Copyright (C) 1995  Linus Torvalds
  */
 
+#include <linux/kernel_stat.h>
 #include <linux/perf_event.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -234,13 +235,13 @@ static noinline int signal_return(struct pt_regs *regs, long int_code,
 	rc = __get_user(instruction, (u16 __user *) regs->psw.addr);
 
 	if (!rc && instruction == 0x0a77) {
-		clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
+		clear_tsk_thread_flag(current, TIF_PER_TRAP);
 		if (is_compat_task())
 			sys32_sigreturn();
 		else
 			sys_sigreturn();
 	} else if (!rc && instruction == 0x0aad) {
-		clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
+		clear_tsk_thread_flag(current, TIF_PER_TRAP);
 		if (is_compat_task())
 			sys32_rt_sigreturn();
 		else
@@ -378,7 +379,7 @@ static inline int do_exception(struct pt_regs *regs, int access,
 	 * The instruction that caused the program check will
 	 * be repeated. Don't signal single step via SIGTRAP.
 	 */
-	clear_tsk_thread_flag(tsk, TIF_SINGLE_STEP);
+	clear_tsk_thread_flag(tsk, TIF_PER_TRAP);
 	fault = 0;
 out_up:
 	up_read(&mm->mmap_sem);
@@ -480,8 +481,7 @@ int __handle_fault(unsigned long uaddr, unsigned long pgm_int_code, int write)
 /*
  * 'pfault' pseudo page faults routines.
  */
-static ext_int_info_t ext_int_pfault;
-static int pfault_disable = 0;
+static int pfault_disable;
 
 static int __init nopfault(char *str)
 {
@@ -543,6 +543,7 @@ static void pfault_interrupt(unsigned int ext_int_code,
 	struct task_struct *tsk;
 	__u16 subcode;
 
+	kstat_cpu(smp_processor_id()).irqs[EXTINT_PFL]++;
 	/*
 	 * Get the external interruption subcode & pfault
 	 * initial/completion signal bit. VM stores this 
@@ -592,24 +593,28 @@ static void pfault_interrupt(unsigned int ext_int_code,
 	}
 }
 
-void __init pfault_irq_init(void)
+static int __init pfault_irq_init(void)
 {
-	if (!MACHINE_IS_VM)
-		return;
+	int rc;
 
+	if (!MACHINE_IS_VM)
+		return 0;
 	/*
 	 * Try to get pfault pseudo page faults going.
 	 */
-	if (register_early_external_interrupt(0x2603, pfault_interrupt,
-					      &ext_int_pfault) != 0)
-		panic("Couldn't request external interrupt 0x2603");
-
+	rc = register_external_interrupt(0x2603, pfault_interrupt);
+	if (rc) {
+		pfault_disable = 1;
+		return rc;
+	}
 	if (pfault_init() == 0)
-		return;
+		return 0;
 
 	/* Tough luck, no pfault. */
 	pfault_disable = 1;
-	unregister_early_external_interrupt(0x2603, pfault_interrupt,
-					    &ext_int_pfault);
+	unregister_external_interrupt(0x2603, pfault_interrupt);
+	return 0;
 }
+early_initcall(pfault_irq_init);
+
 #endif

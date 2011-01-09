@@ -2120,9 +2120,11 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		reg = TRANS_DP_CTL(pipe);
 		temp = I915_READ(reg);
 		temp &= ~(TRANS_DP_PORT_SEL_MASK |
-			  TRANS_DP_SYNC_MASK);
+			  TRANS_DP_SYNC_MASK |
+			  TRANS_DP_BPC_MASK);
 		temp |= (TRANS_DP_OUTPUT_ENABLE |
 			 TRANS_DP_ENH_FRAMING);
+		temp |= TRANS_DP_8BPC;
 
 		if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
 			temp |= TRANS_DP_HSYNC_ACTIVE_HIGH;
@@ -2712,27 +2714,19 @@ fdi_reduce_ratio(u32 *num, u32 *den)
 	}
 }
 
-#define DATA_N 0x800000
-#define LINK_N 0x80000
-
 static void
 ironlake_compute_m_n(int bits_per_pixel, int nlanes, int pixel_clock,
 		     int link_clock, struct fdi_m_n *m_n)
 {
-	u64 temp;
-
 	m_n->tu = 64; /* default size */
 
-	temp = (u64) DATA_N * pixel_clock;
-	temp = div_u64(temp, link_clock);
-	m_n->gmch_m = div_u64(temp * bits_per_pixel, nlanes);
-	m_n->gmch_m >>= 3; /* convert to bytes_per_pixel */
-	m_n->gmch_n = DATA_N;
+	/* BUG_ON(pixel_clock > INT_MAX / 36); */
+	m_n->gmch_m = bits_per_pixel * pixel_clock;
+	m_n->gmch_n = link_clock * nlanes * 8;
 	fdi_reduce_ratio(&m_n->gmch_m, &m_n->gmch_n);
 
-	temp = (u64) LINK_N * pixel_clock;
-	m_n->link_m = div_u64(temp, link_clock);
-	m_n->link_n = LINK_N;
+	m_n->link_m = pixel_clock;
+	m_n->link_n = link_clock;
 	fdi_reduce_ratio(&m_n->link_m, &m_n->link_n);
 }
 
@@ -3716,6 +3710,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* FDI link */
 	if (HAS_PCH_SPLIT(dev)) {
+		int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
 		int lane = 0, link_bw, bpp;
 		/* CPU eDP doesn't require FDI link, so just set DP M/N
 		   according to current link config */
@@ -3799,6 +3794,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 		intel_crtc->fdi_lanes = lane;
 
+		if (pixel_multiplier > 1)
+			link_bw *= pixel_multiplier;
 		ironlake_compute_m_n(bpp, lane, target_clock, link_bw, &m_n);
 	}
 
@@ -5236,6 +5233,55 @@ static const struct drm_crtc_funcs intel_crtc_funcs = {
 	.page_flip = intel_crtc_page_flip,
 };
 
+static void intel_sanitize_modesetting(struct drm_device *dev,
+				       int pipe, int plane)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 reg, val;
+
+	if (HAS_PCH_SPLIT(dev))
+		return;
+
+	/* Who knows what state these registers were left in by the BIOS or
+	 * grub?
+	 *
+	 * If we leave the registers in a conflicting state (e.g. with the
+	 * display plane reading from the other pipe than the one we intend
+	 * to use) then when we attempt to teardown the active mode, we will
+	 * not disable the pipes and planes in the correct order -- leaving
+	 * a plane reading from a disabled pipe and possibly leading to
+	 * undefined behaviour.
+	 */
+
+	reg = DSPCNTR(plane);
+	val = I915_READ(reg);
+
+	if ((val & DISPLAY_PLANE_ENABLE) == 0)
+		return;
+	if (!!(val & DISPPLANE_SEL_PIPE_MASK) == pipe)
+		return;
+
+	/* This display plane is active and attached to the other CPU pipe. */
+	pipe = !pipe;
+
+	/* Disable the plane and wait for it to stop reading from the pipe. */
+	I915_WRITE(reg, val & ~DISPLAY_PLANE_ENABLE);
+	intel_flush_display_plane(dev, plane);
+
+	if (IS_GEN2(dev))
+		intel_wait_for_vblank(dev, pipe);
+
+	if (pipe == 0 && (dev_priv->quirks & QUIRK_PIPEA_FORCE))
+		return;
+
+	/* Switch off the pipe. */
+	reg = PIPECONF(pipe);
+	val = I915_READ(reg);
+	if (val & PIPECONF_ENABLE) {
+		I915_WRITE(reg, val & ~PIPECONF_ENABLE);
+		intel_wait_for_pipe_off(dev, pipe);
+	}
+}
 
 static void intel_crtc_init(struct drm_device *dev, int pipe)
 {
@@ -5287,6 +5333,8 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 
 	setup_timer(&intel_crtc->idle_timer, intel_crtc_idle_timer,
 		    (unsigned long)intel_crtc);
+
+	intel_sanitize_modesetting(dev, intel_crtc->pipe, intel_crtc->plane);
 }
 
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
@@ -5331,19 +5379,41 @@ static int intel_encoder_clones(struct drm_device *dev, int type_mask)
 	return index_mask;
 }
 
+static bool has_edp_a(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_MOBILE(dev))
+		return false;
+
+	if ((I915_READ(DP_A) & DP_DETECTED) == 0)
+		return false;
+
+	if (IS_GEN5(dev) &&
+	    (I915_READ(ILK_DISPLAY_CHICKEN_FUSES) & ILK_eDP_A_DISABLE))
+		return false;
+
+	return true;
+}
+
 static void intel_setup_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
 	bool dpd_is_edp = false;
+	bool has_lvds = false;
 
 	if (IS_MOBILE(dev) && !IS_I830(dev))
-		intel_lvds_init(dev);
+		has_lvds = intel_lvds_init(dev);
+	if (!has_lvds && !HAS_PCH_SPLIT(dev)) {
+		/* disable the panel fitter on everything but LVDS */
+		I915_WRITE(PFIT_CONTROL, 0);
+	}
 
 	if (HAS_PCH_SPLIT(dev)) {
 		dpd_is_edp = intel_dpd_is_edp(dev);
 
-		if (IS_MOBILE(dev) && (I915_READ(DP_A) & DP_DETECTED))
+		if (has_edp_a(dev))
 			intel_dp_init(dev, DP_A);
 
 		if (dpd_is_edp && (I915_READ(PCH_DP_D) & DP_DETECTED))
@@ -5772,6 +5842,8 @@ void intel_init_clock_gating(struct drm_device *dev)
 			I915_WRITE(PCH_3DCGDIS0,
 				   MARIUNIT_CLOCK_GATE_DISABLE |
 				   SVSMUNIT_CLOCK_GATE_DISABLE);
+			I915_WRITE(PCH_3DCGDIS1,
+				   VFMUNIT_CLOCK_GATE_DISABLE);
 		}
 
 		I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);

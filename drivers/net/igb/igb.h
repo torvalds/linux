@@ -324,6 +324,7 @@ struct igb_adapter {
 	unsigned int vfs_allocated_count;
 	struct vf_data_storage *vf_data;
 	u32 rss_queues;
+	u32 wvbr;
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)

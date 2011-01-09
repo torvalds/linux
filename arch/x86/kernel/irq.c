@@ -234,7 +234,7 @@ unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 	exit_idle();
 	irq_enter();
 
-	irq = __get_cpu_var(vector_irq)[vector];
+	irq = __this_cpu_read(vector_irq[vector]);
 
 	if (!handle_irq(irq, regs)) {
 		ack_APIC_irq();
@@ -350,12 +350,12 @@ void fixup_irqs(void)
 	for (vector = FIRST_EXTERNAL_VECTOR; vector < NR_VECTORS; vector++) {
 		unsigned int irr;
 
-		if (__get_cpu_var(vector_irq)[vector] < 0)
+		if (__this_cpu_read(vector_irq[vector]) < 0)
 			continue;
 
 		irr = apic_read(APIC_IRR + (vector / 32 * 0x10));
 		if (irr  & (1 << (vector % 32))) {
-			irq = __get_cpu_var(vector_irq)[vector];
+			irq = __this_cpu_read(vector_irq[vector]);
 
 			data = irq_get_irq_data(irq);
 			raw_spin_lock(&desc->lock);

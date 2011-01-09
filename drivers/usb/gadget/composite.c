@@ -1047,9 +1047,9 @@ composite_unbind(struct usb_gadget *gadget)
 		kfree(cdev->req->buf);
 		usb_ep_free_request(gadget->ep0, cdev->req);
 	}
+	device_remove_file(&gadget->dev, &dev_attr_suspended);
 	kfree(cdev);
 	set_gadget_data(gadget, NULL);
-	device_remove_file(&gadget->dev, &dev_attr_suspended);
 	composite = NULL;
 }
 
@@ -1107,14 +1107,6 @@ static int composite_bind(struct usb_gadget *gadget)
 	 */
 	usb_ep_autoconfig_reset(cdev->gadget);
 
-	/* standardized runtime overrides for device ID data */
-	if (idVendor)
-		cdev->desc.idVendor = cpu_to_le16(idVendor);
-	if (idProduct)
-		cdev->desc.idProduct = cpu_to_le16(idProduct);
-	if (bcdDevice)
-		cdev->desc.bcdDevice = cpu_to_le16(bcdDevice);
-
 	/* composite gadget needs to assign strings for whole device (like
 	 * serial number), register function drivers, potentially update
 	 * power state and consumption, etc
@@ -1126,7 +1118,15 @@ static int composite_bind(struct usb_gadget *gadget)
 	cdev->desc = *composite->dev;
 	cdev->desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
 
-	/* stirng overrides */
+	/* standardized runtime overrides for device ID data */
+	if (idVendor)
+		cdev->desc.idVendor = cpu_to_le16(idVendor);
+	if (idProduct)
+		cdev->desc.idProduct = cpu_to_le16(idProduct);
+	if (bcdDevice)
+		cdev->desc.bcdDevice = cpu_to_le16(bcdDevice);
+
+	/* string overrides */
 	if (iManufacturer || !cdev->desc.iManufacturer) {
 		if (!iManufacturer && !composite->iManufacturer &&
 		    !*composite_manufacturer)
@@ -1188,6 +1188,8 @@ composite_suspend(struct usb_gadget *gadget)
 		composite->suspend(cdev);
 
 	cdev->suspended = 1;
+
+	usb_gadget_vbus_draw(gadget, 2);
 }
 
 static void
@@ -1195,6 +1197,7 @@ composite_resume(struct usb_gadget *gadget)
 {
 	struct usb_composite_dev	*cdev = get_gadget_data(gadget);
 	struct usb_function		*f;
+	u8				maxpower;
 
 	/* REVISIT:  should we have config level
 	 * suspend/resume callbacks?
@@ -1207,6 +1210,11 @@ composite_resume(struct usb_gadget *gadget)
 			if (f->resume)
 				f->resume(f);
 		}
+
+		maxpower = cdev->config->bMaxPower;
+
+		usb_gadget_vbus_draw(gadget, maxpower ?
+			(2 * maxpower) : CONFIG_USB_GADGET_VBUS_DRAW);
 	}
 
 	cdev->suspended = 0;

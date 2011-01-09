@@ -284,10 +284,16 @@ befs_alloc_inode(struct super_block *sb)
         return &bi->vfs_inode;
 }
 
-static void
-befs_destroy_inode(struct inode *inode)
+static void befs_i_callback(struct rcu_head *head)
 {
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
         kmem_cache_free(befs_inode_cachep, BEFS_I(inode));
+}
+
+static void befs_destroy_inode(struct inode *inode)
+{
+	call_rcu(&inode->i_rcu, befs_i_callback);
 }
 
 static void init_once(void *foo)

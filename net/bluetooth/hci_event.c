@@ -39,7 +39,7 @@
 #include <net/sock.h>
 
 #include <asm/system.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -58,7 +58,7 @@ static void hci_cc_inquiry_cancel(struct hci_dev *hdev, struct sk_buff *skb)
 
 	clear_bit(HCI_INQUIRY, &hdev->flags);
 
-	hci_req_complete(hdev, status);
+	hci_req_complete(hdev, HCI_OP_INQUIRY_CANCEL, status);
 
 	hci_conn_check_pending(hdev);
 }
@@ -174,7 +174,7 @@ static void hci_cc_write_def_link_policy(struct hci_dev *hdev, struct sk_buff *s
 	if (!status)
 		hdev->link_policy = get_unaligned_le16(sent);
 
-	hci_req_complete(hdev, status);
+	hci_req_complete(hdev, HCI_OP_WRITE_DEF_LINK_POLICY, status);
 }
 
 static void hci_cc_reset(struct hci_dev *hdev, struct sk_buff *skb)
@@ -183,7 +183,7 @@ static void hci_cc_reset(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("%s status 0x%x", hdev->name, status);
 
-	hci_req_complete(hdev, status);
+	hci_req_complete(hdev, HCI_OP_RESET, status);
 }
 
 static void hci_cc_write_local_name(struct hci_dev *hdev, struct sk_buff *skb)
@@ -235,7 +235,7 @@ static void hci_cc_write_auth_enable(struct hci_dev *hdev, struct sk_buff *skb)
 			clear_bit(HCI_AUTH, &hdev->flags);
 	}
 
-	hci_req_complete(hdev, status);
+	hci_req_complete(hdev, HCI_OP_WRITE_AUTH_ENABLE, status);
 }
 
 static void hci_cc_write_encrypt_mode(struct hci_dev *hdev, struct sk_buff *skb)
@@ -258,7 +258,7 @@ static void hci_cc_write_encrypt_mode(struct hci_dev *hdev, struct sk_buff *skb)
 			clear_bit(HCI_ENCRYPT, &hdev->flags);
 	}
 
-	hci_req_complete(hdev, status);
+	hci_req_complete(hdev, HCI_OP_WRITE_ENCRYPT_MODE, status);
 }
 
 static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
@@ -285,7 +285,7 @@ static void hci_cc_write_scan_enable(struct hci_dev *hdev, struct sk_buff *skb)
 			set_bit(HCI_PSCAN, &hdev->flags);
 	}
 
-	hci_req_complete(hdev, status);
+	hci_req_complete(hdev, HCI_OP_WRITE_SCAN_ENABLE, status);
 }
 
 static void hci_cc_read_class_of_dev(struct hci_dev *hdev, struct sk_buff *skb)
@@ -383,7 +383,7 @@ static void hci_cc_host_buffer_size(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("%s status 0x%x", hdev->name, status);
 
-	hci_req_complete(hdev, status);
+	hci_req_complete(hdev, HCI_OP_HOST_BUFFER_SIZE, status);
 }
 
 static void hci_cc_read_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
@@ -536,7 +536,16 @@ static void hci_cc_read_bd_addr(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!rp->status)
 		bacpy(&hdev->bdaddr, &rp->bdaddr);
 
-	hci_req_complete(hdev, rp->status);
+	hci_req_complete(hdev, HCI_OP_READ_BD_ADDR, rp->status);
+}
+
+static void hci_cc_write_ca_timeout(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	hci_req_complete(hdev, HCI_OP_WRITE_CA_TIMEOUT, status);
 }
 
 static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
@@ -544,7 +553,7 @@ static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 	BT_DBG("%s status 0x%x", hdev->name, status);
 
 	if (status) {
-		hci_req_complete(hdev, status);
+		hci_req_complete(hdev, HCI_OP_INQUIRY, status);
 
 		hci_conn_check_pending(hdev);
 	} else
@@ -677,9 +686,50 @@ static void hci_cs_set_conn_encrypt(struct hci_dev *hdev, __u8 status)
 	hci_dev_unlock(hdev);
 }
 
+static int hci_outgoing_auth_needed(struct hci_dev *hdev,
+						struct hci_conn *conn)
+{
+	if (conn->state != BT_CONFIG || !conn->out)
+		return 0;
+
+	if (conn->sec_level == BT_SECURITY_SDP)
+		return 0;
+
+	/* Only request authentication for SSP connections or non-SSP
+	 * devices with sec_level HIGH */
+	if (!(hdev->ssp_mode > 0 && conn->ssp_mode > 0) &&
+					conn->sec_level != BT_SECURITY_HIGH)
+		return 0;
+
+	return 1;
+}
+
 static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 {
+	struct hci_cp_remote_name_req *cp;
+	struct hci_conn *conn;
+
 	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	/* If successful wait for the name req complete event before
+	 * checking for the need to do authentication */
+	if (!status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_REMOTE_NAME_REQ);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
+	if (conn && hci_outgoing_auth_needed(hdev, conn)) {
+		struct hci_cp_auth_requested cp;
+		cp.handle = __cpu_to_le16(conn->handle);
+		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED, sizeof(cp), &cp);
+	}
+
+	hci_dev_unlock(hdev);
 }
 
 static void hci_cs_read_remote_features(struct hci_dev *hdev, __u8 status)
@@ -830,7 +880,7 @@ static inline void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff
 
 	clear_bit(HCI_INQUIRY, &hdev->flags);
 
-	hci_req_complete(hdev, status);
+	hci_req_complete(hdev, HCI_OP_INQUIRY, status);
 
 	hci_conn_check_pending(hdev);
 }
@@ -955,12 +1005,14 @@ static inline void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *sk
 
 		hci_dev_lock(hdev);
 
-		if ((ie = hci_inquiry_cache_lookup(hdev, &ev->bdaddr)))
+		ie = hci_inquiry_cache_lookup(hdev, &ev->bdaddr);
+		if (ie)
 			memcpy(ie->data.dev_class, ev->dev_class, 3);
 
 		conn = hci_conn_hash_lookup_ba(hdev, ev->link_type, &ev->bdaddr);
 		if (!conn) {
-			if (!(conn = hci_conn_add(hdev, ev->link_type, &ev->bdaddr))) {
+			conn = hci_conn_add(hdev, ev->link_type, &ev->bdaddr);
+			if (!conn) {
 				BT_ERR("No memory for new connection");
 				hci_dev_unlock(hdev);
 				return;
@@ -1090,9 +1142,23 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 
 static inline void hci_remote_name_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
+	struct hci_ev_remote_name *ev = (void *) skb->data;
+	struct hci_conn *conn;
+
 	BT_DBG("%s", hdev->name);
 
 	hci_conn_check_pending(hdev);
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
+	if (conn && hci_outgoing_auth_needed(hdev, conn)) {
+		struct hci_cp_auth_requested cp;
+		cp.handle = __cpu_to_le16(conn->handle);
+		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED, sizeof(cp), &cp);
+	}
+
+	hci_dev_unlock(hdev);
 }
 
 static inline void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -1162,33 +1228,39 @@ static inline void hci_remote_features_evt(struct hci_dev *hdev, struct sk_buff 
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
-	if (conn) {
-		if (!ev->status)
-			memcpy(conn->features, ev->features, 8);
+	if (!conn)
+		goto unlock;
 
-		if (conn->state == BT_CONFIG) {
-			if (!ev->status && lmp_ssp_capable(hdev) &&
-						lmp_ssp_capable(conn)) {
-				struct hci_cp_read_remote_ext_features cp;
-				cp.handle = ev->handle;
-				cp.page = 0x01;
-				hci_send_cmd(hdev,
-					HCI_OP_READ_REMOTE_EXT_FEATURES,
+	if (!ev->status)
+		memcpy(conn->features, ev->features, 8);
+
+	if (conn->state != BT_CONFIG)
+		goto unlock;
+
+	if (!ev->status && lmp_ssp_capable(hdev) && lmp_ssp_capable(conn)) {
+		struct hci_cp_read_remote_ext_features cp;
+		cp.handle = ev->handle;
+		cp.page = 0x01;
+		hci_send_cmd(hdev, HCI_OP_READ_REMOTE_EXT_FEATURES,
 							sizeof(cp), &cp);
-			} else if (!ev->status && conn->out &&
-					conn->sec_level == BT_SECURITY_HIGH) {
-				struct hci_cp_auth_requested cp;
-				cp.handle = ev->handle;
-				hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED,
-							sizeof(cp), &cp);
-			} else {
-				conn->state = BT_CONNECTED;
-				hci_proto_connect_cfm(conn, ev->status);
-				hci_conn_put(conn);
-			}
-		}
+		goto unlock;
 	}
 
+	if (!ev->status) {
+		struct hci_cp_remote_name_req cp;
+		memset(&cp, 0, sizeof(cp));
+		bacpy(&cp.bdaddr, &conn->dst);
+		cp.pscan_rep_mode = 0x02;
+		hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ, sizeof(cp), &cp);
+	}
+
+	if (!hci_outgoing_auth_needed(hdev, conn)) {
+		conn->state = BT_CONNECTED;
+		hci_proto_connect_cfm(conn, ev->status);
+		hci_conn_put(conn);
+	}
+
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -1314,6 +1386,10 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 
 	case HCI_OP_READ_BD_ADDR:
 		hci_cc_read_bd_addr(hdev, skb);
+		break;
+
+	case HCI_OP_WRITE_CA_TIMEOUT:
+		hci_cc_write_ca_timeout(hdev, skb);
 		break;
 
 	default:
@@ -1449,10 +1525,12 @@ static inline void hci_num_comp_pkts_evt(struct hci_dev *hdev, struct sk_buff *s
 			conn->sent -= count;
 
 			if (conn->type == ACL_LINK) {
-				if ((hdev->acl_cnt += count) > hdev->acl_pkts)
+				hdev->acl_cnt += count;
+				if (hdev->acl_cnt > hdev->acl_pkts)
 					hdev->acl_cnt = hdev->acl_pkts;
 			} else {
-				if ((hdev->sco_cnt += count) > hdev->sco_pkts)
+				hdev->sco_cnt += count;
+				if (hdev->sco_cnt > hdev->sco_pkts)
 					hdev->sco_cnt = hdev->sco_pkts;
 			}
 		}
@@ -1547,7 +1625,8 @@ static inline void hci_clock_offset_evt(struct hci_dev *hdev, struct sk_buff *sk
 	if (conn && !ev->status) {
 		struct inquiry_entry *ie;
 
-		if ((ie = hci_inquiry_cache_lookup(hdev, &conn->dst))) {
+		ie = hci_inquiry_cache_lookup(hdev, &conn->dst);
+		if (ie) {
 			ie->data.clock_offset = ev->clock_offset;
 			ie->timestamp = jiffies;
 		}
@@ -1581,7 +1660,8 @@ static inline void hci_pscan_rep_mode_evt(struct hci_dev *hdev, struct sk_buff *
 
 	hci_dev_lock(hdev);
 
-	if ((ie = hci_inquiry_cache_lookup(hdev, &ev->bdaddr))) {
+	ie = hci_inquiry_cache_lookup(hdev, &ev->bdaddr);
+	if (ie) {
 		ie->data.pscan_rep_mode = ev->pscan_rep_mode;
 		ie->timestamp = jiffies;
 	}
@@ -1646,32 +1726,37 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
-	if (conn) {
-		if (!ev->status && ev->page == 0x01) {
-			struct inquiry_entry *ie;
+	if (!conn)
+		goto unlock;
 
-			if ((ie = hci_inquiry_cache_lookup(hdev, &conn->dst)))
-				ie->data.ssp_mode = (ev->features[0] & 0x01);
+	if (!ev->status && ev->page == 0x01) {
+		struct inquiry_entry *ie;
 
-			conn->ssp_mode = (ev->features[0] & 0x01);
-		}
+		ie = hci_inquiry_cache_lookup(hdev, &conn->dst);
+		if (ie)
+			ie->data.ssp_mode = (ev->features[0] & 0x01);
 
-		if (conn->state == BT_CONFIG) {
-			if (!ev->status && hdev->ssp_mode > 0 &&
-					conn->ssp_mode > 0 && conn->out &&
-					conn->sec_level != BT_SECURITY_SDP) {
-				struct hci_cp_auth_requested cp;
-				cp.handle = ev->handle;
-				hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED,
-							sizeof(cp), &cp);
-			} else {
-				conn->state = BT_CONNECTED;
-				hci_proto_connect_cfm(conn, ev->status);
-				hci_conn_put(conn);
-			}
-		}
+		conn->ssp_mode = (ev->features[0] & 0x01);
 	}
 
+	if (conn->state != BT_CONFIG)
+		goto unlock;
+
+	if (!ev->status) {
+		struct hci_cp_remote_name_req cp;
+		memset(&cp, 0, sizeof(cp));
+		bacpy(&cp.bdaddr, &conn->dst);
+		cp.pscan_rep_mode = 0x02;
+		hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ, sizeof(cp), &cp);
+	}
+
+	if (!hci_outgoing_auth_needed(hdev, conn)) {
+		conn->state = BT_CONNECTED;
+		hci_proto_connect_cfm(conn, ev->status);
+		hci_conn_put(conn);
+	}
+
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -1821,7 +1906,8 @@ static inline void hci_remote_host_features_evt(struct hci_dev *hdev, struct sk_
 
 	hci_dev_lock(hdev);
 
-	if ((ie = hci_inquiry_cache_lookup(hdev, &ev->bdaddr)))
+	ie = hci_inquiry_cache_lookup(hdev, &ev->bdaddr);
+	if (ie)
 		ie->data.ssp_mode = (ev->features[0] & 0x01);
 
 	hci_dev_unlock(hdev);

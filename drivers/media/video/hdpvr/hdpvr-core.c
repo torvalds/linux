@@ -385,6 +385,11 @@ static int hdpvr_probe(struct usb_interface *interface,
 		v4l2_err(&dev->v4l2_dev, "registering i2c adapter failed\n");
 		goto error;
 	}
+
+	/* until i2c is working properly */
+	retval = 0; /* hdpvr_register_i2c_ir(dev); */
+	if (retval < 0)
+		v4l2_err(&dev->v4l2_dev, "registering i2c IR devices failed\n");
 #endif /* CONFIG_I2C */
 
 	/* let the user know what node this device is now attached to */

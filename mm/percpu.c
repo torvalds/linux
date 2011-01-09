@@ -293,12 +293,8 @@ static void *pcpu_mem_alloc(size_t size)
 
 	if (size <= PAGE_SIZE)
 		return kzalloc(size, GFP_KERNEL);
-	else {
-		void *ptr = vmalloc(size);
-		if (ptr)
-			memset(ptr, 0, size);
-		return ptr;
-	}
+	else
+		return vzalloc(size);
 }
 
 /**
@@ -1268,7 +1264,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 
 	/* we're done parsing the input, undefine BUG macro and dump config */
 #undef PCPU_SETUP_BUG_ON
-	pcpu_dump_alloc_info(KERN_INFO, ai);
+	pcpu_dump_alloc_info(KERN_DEBUG, ai);
 
 	pcpu_nr_groups = ai->nr_groups;
 	pcpu_group_offsets = group_offsets;

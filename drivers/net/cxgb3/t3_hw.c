@@ -1562,7 +1562,7 @@ static void tp_intr_handler(struct adapter *adapter)
 		{0}
 	};
 
-	static struct intr_info tp_intr_info_t3c[] = {
+	static const struct intr_info tp_intr_info_t3c[] = {
 		{0x1fffffff, "TP parity error", -1, 1},
 		{F_FLMRXFLSTEMPTY, "TP out of Rx pages", -1, 1},
 		{F_FLMTXFLSTEMPTY, "TP out of Tx pages", -1, 1},

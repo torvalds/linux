@@ -15,6 +15,7 @@
  * General Public License for more details.
  */
 
+#include "bfad_drv.h"
 #include "bfa_modules.h"
 #include "bfi_ctreg.h"
 
@@ -116,7 +117,7 @@ bfa_hwct_msix_getvecs(struct bfa_s *bfa, u32 *msix_vecs_bmap,
 void
 bfa_hwct_msix_init(struct bfa_s *bfa, int nvecs)
 {
-	bfa_assert((nvecs == 1) || (nvecs == BFA_MSIX_CT_MAX));
+	WARN_ON((nvecs != 1) && (nvecs != BFA_MSIX_CT_MAX));
 	bfa_trc(bfa, nvecs);
 
 	bfa->msix.nvecs = nvecs;
@@ -143,7 +144,7 @@ bfa_hwct_msix_install(struct bfa_s *bfa)
 	for (; i <= BFA_MSIX_RME_Q3; i++)
 		bfa->msix.handler[i] = bfa_msix_rspq;
 
-	bfa_assert(i == BFA_MSIX_LPU_ERR);
+	WARN_ON(i != BFA_MSIX_LPU_ERR);
 	bfa->msix.handler[BFA_MSIX_LPU_ERR] = bfa_msix_lpu_err;
 }
 

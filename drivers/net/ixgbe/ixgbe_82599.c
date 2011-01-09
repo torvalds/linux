@@ -56,9 +56,6 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
                                ixgbe_link_speed speed,
                                bool autoneg,
                                bool autoneg_wait_to_complete);
-static s32 ixgbe_get_copper_link_capabilities_82599(struct ixgbe_hw *hw,
-                                             ixgbe_link_speed *speed,
-                                             bool *autoneg);
 static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw,
                                          ixgbe_link_speed speed,
                                          bool autoneg,
@@ -68,9 +65,9 @@ static s32 ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw);
 static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
-	if (hw->phy.multispeed_fiber) {
-		/* Set up dual speed SFP+ support */
-		mac->ops.setup_link = &ixgbe_setup_mac_link_multispeed_fiber;
+
+	/* enable the laser control functions for SFP+ fiber */
+	if (mac->ops.get_media_type(hw) == ixgbe_media_type_fiber) {
 		mac->ops.disable_tx_laser =
 		                       &ixgbe_disable_tx_laser_multispeed_fiber;
 		mac->ops.enable_tx_laser =
@@ -80,6 +77,12 @@ static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 		mac->ops.disable_tx_laser = NULL;
 		mac->ops.enable_tx_laser = NULL;
 		mac->ops.flap_tx_laser = NULL;
+	}
+
+	if (hw->phy.multispeed_fiber) {
+		/* Set up dual speed SFP+ support */
+		mac->ops.setup_link = &ixgbe_setup_mac_link_multispeed_fiber;
+	} else {
 		if ((mac->ops.get_media_type(hw) ==
 		     ixgbe_media_type_backplane) &&
 		    (hw->phy.smart_speed == ixgbe_smart_speed_auto ||
@@ -93,6 +96,8 @@ static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 {
 	s32 ret_val = 0;
+	u32 reg_anlp1 = 0;
+	u32 i = 0;
 	u16 list_offset, data_offset, data_value;
 
 	if (hw->phy.sfp_type != ixgbe_sfp_type_unknown) {
@@ -119,14 +124,34 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 			IXGBE_WRITE_FLUSH(hw);
 			hw->eeprom.ops.read(hw, ++data_offset, &data_value);
 		}
-		/* Now restart DSP by setting Restart_AN */
-		IXGBE_WRITE_REG(hw, IXGBE_AUTOC,
-		    (IXGBE_READ_REG(hw, IXGBE_AUTOC) | IXGBE_AUTOC_AN_RESTART));
 
 		/* Release the semaphore */
 		ixgbe_release_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
 		/* Delay obtaining semaphore again to allow FW access */
 		msleep(hw->eeprom.semaphore_delay);
+
+		/* Now restart DSP by setting Restart_AN and clearing LMS */
+		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, ((IXGBE_READ_REG(hw,
+		                IXGBE_AUTOC) & ~IXGBE_AUTOC_LMS_MASK) |
+		                IXGBE_AUTOC_AN_RESTART));
+
+		/* Wait for AN to leave state 0 */
+		for (i = 0; i < 10; i++) {
+			msleep(4);
+			reg_anlp1 = IXGBE_READ_REG(hw, IXGBE_ANLP1);
+			if (reg_anlp1 & IXGBE_ANLP1_AN_STATE_MASK)
+				break;
+		}
+		if (!(reg_anlp1 & IXGBE_ANLP1_AN_STATE_MASK)) {
+			hw_dbg(hw, "sfp module setup not complete\n");
+			ret_val = IXGBE_ERR_SFP_SETUP_NOT_COMPLETE;
+			goto setup_sfp_out;
+		}
+
+		/* Restart DSP by setting Restart_AN and return to SFI mode */
+		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, (IXGBE_READ_REG(hw,
+		                IXGBE_AUTOC) | IXGBE_AUTOC_LMS_10G_SERIAL |
+		                IXGBE_AUTOC_AN_RESTART));
 	}
 
 setup_sfp_out:
@@ -174,7 +199,7 @@ static s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
 	if (mac->ops.get_media_type(hw) == ixgbe_media_type_copper) {
 		mac->ops.setup_link = &ixgbe_setup_copper_link_82599;
 		mac->ops.get_link_capabilities =
-		                  &ixgbe_get_copper_link_capabilities_82599;
+			&ixgbe_get_copper_link_capabilities_generic;
 	}
 
 	/* Set necessary function pointers based on phy type */
@@ -183,6 +208,10 @@ static s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
 		phy->ops.check_link = &ixgbe_check_phy_link_tnx;
 		phy->ops.get_firmware_version =
 		             &ixgbe_get_phy_firmware_version_tnx;
+		break;
+	case ixgbe_phy_aq:
+		phy->ops.get_firmware_version =
+			&ixgbe_get_phy_firmware_version_generic;
 		break;
 	default:
 		break;
@@ -290,37 +319,6 @@ out:
 }
 
 /**
- *  ixgbe_get_copper_link_capabilities_82599 - Determines link capabilities
- *  @hw: pointer to hardware structure
- *  @speed: pointer to link speed
- *  @autoneg: boolean auto-negotiation value
- *
- *  Determines the link capabilities by reading the AUTOC register.
- **/
-static s32 ixgbe_get_copper_link_capabilities_82599(struct ixgbe_hw *hw,
-                                                    ixgbe_link_speed *speed,
-                                                    bool *autoneg)
-{
-	s32 status = IXGBE_ERR_LINK_SETUP;
-	u16 speed_ability;
-
-	*speed = 0;
-	*autoneg = true;
-
-	status = hw->phy.ops.read_reg(hw, MDIO_SPEED, MDIO_MMD_PMAPMD,
-	                              &speed_ability);
-
-	if (status == 0) {
-		if (speed_ability & MDIO_SPEED_10G)
-		    *speed |= IXGBE_LINK_SPEED_10GB_FULL;
-		if (speed_ability & MDIO_PMA_SPEED_1000)
-		    *speed |= IXGBE_LINK_SPEED_1GB_FULL;
-	}
-
-	return status;
-}
-
-/**
  *  ixgbe_get_media_type_82599 - Get media type
  *  @hw: pointer to hardware structure
  *
@@ -332,7 +330,8 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 
 	/* Detect if there is a copper PHY attached. */
 	if (hw->phy.type == ixgbe_phy_cu_unknown ||
-	    hw->phy.type == ixgbe_phy_tn) {
+	    hw->phy.type == ixgbe_phy_tn ||
+	    hw->phy.type == ixgbe_phy_aq) {
 		media_type = ixgbe_media_type_copper;
 		goto out;
 	}
@@ -342,11 +341,13 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_82599_KX4_MEZZ:
 	case IXGBE_DEV_ID_82599_COMBO_BACKPLANE:
 	case IXGBE_DEV_ID_82599_KR:
+	case IXGBE_DEV_ID_82599_BACKPLANE_FCOE:
 	case IXGBE_DEV_ID_82599_XAUI_LOM:
 		/* Default device ID is mezzanine card KX/KX4 */
 		media_type = ixgbe_media_type_backplane;
 		break;
 	case IXGBE_DEV_ID_82599_SFP:
+	case IXGBE_DEV_ID_82599_SFP_FCOE:
 	case IXGBE_DEV_ID_82599_SFP_EM:
 		media_type = ixgbe_media_type_fiber;
 		break;
@@ -1924,6 +1925,7 @@ static u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 	hw->phy.ops.identify(hw);
 
 	if (hw->phy.type == ixgbe_phy_tn ||
+	    hw->phy.type == ixgbe_phy_aq ||
 	    hw->phy.type == ixgbe_phy_cu_unknown) {
 		hw->phy.ops.read_reg(hw, MDIO_PMA_EXTABLE, MDIO_MMD_PMAPMD,
 				     &ext_ability);
@@ -2125,51 +2127,6 @@ fw_version_out:
 	return status;
 }
 
-/**
- *  ixgbe_get_wwn_prefix_82599 - Get alternative WWNN/WWPN prefix from
- *  the EEPROM
- *  @hw: pointer to hardware structure
- *  @wwnn_prefix: the alternative WWNN prefix
- *  @wwpn_prefix: the alternative WWPN prefix
- *
- *  This function will read the EEPROM from the alternative SAN MAC address
- *  block to check the support for the alternative WWNN/WWPN prefix support.
- **/
-static s32 ixgbe_get_wwn_prefix_82599(struct ixgbe_hw *hw, u16 *wwnn_prefix,
-                                      u16 *wwpn_prefix)
-{
-	u16 offset, caps;
-	u16 alt_san_mac_blk_offset;
-
-	/* clear output first */
-	*wwnn_prefix = 0xFFFF;
-	*wwpn_prefix = 0xFFFF;
-
-	/* check if alternative SAN MAC is supported */
-	hw->eeprom.ops.read(hw, IXGBE_ALT_SAN_MAC_ADDR_BLK_PTR,
-	                    &alt_san_mac_blk_offset);
-
-	if ((alt_san_mac_blk_offset == 0) ||
-	    (alt_san_mac_blk_offset == 0xFFFF))
-		goto wwn_prefix_out;
-
-	/* check capability in alternative san mac address block */
-	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_CAPS_OFFSET;
-	hw->eeprom.ops.read(hw, offset, &caps);
-	if (!(caps & IXGBE_ALT_SAN_MAC_ADDR_CAPS_ALTWWN))
-		goto wwn_prefix_out;
-
-	/* get the corresponding prefix for WWNN/WWPN */
-	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_WWNN_OFFSET;
-	hw->eeprom.ops.read(hw, offset, wwnn_prefix);
-
-	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_WWPN_OFFSET;
-	hw->eeprom.ops.read(hw, offset, wwpn_prefix);
-
-wwn_prefix_out:
-	return 0;
-}
-
 static struct ixgbe_mac_operations mac_ops_82599 = {
 	.init_hw                = &ixgbe_init_hw_generic,
 	.reset_hw               = &ixgbe_reset_hw_82599,
@@ -2181,7 +2138,7 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.get_mac_addr           = &ixgbe_get_mac_addr_generic,
 	.get_san_mac_addr       = &ixgbe_get_san_mac_addr_generic,
 	.get_device_caps        = &ixgbe_get_device_caps_82599,
-	.get_wwn_prefix         = &ixgbe_get_wwn_prefix_82599,
+	.get_wwn_prefix         = &ixgbe_get_wwn_prefix_generic,
 	.stop_adapter           = &ixgbe_stop_adapter_generic,
 	.get_bus_info           = &ixgbe_get_bus_info_generic,
 	.set_lan_id             = &ixgbe_set_lan_id_multi_port_pcie,
@@ -2208,12 +2165,15 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.fc_enable              = &ixgbe_fc_enable_generic,
 	.init_uta_tables        = &ixgbe_init_uta_tables_generic,
 	.setup_sfp              = &ixgbe_setup_sfp_modules_82599,
+	.set_mac_anti_spoofing  = &ixgbe_set_mac_anti_spoofing,
+	.set_vlan_anti_spoofing = &ixgbe_set_vlan_anti_spoofing,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_82599 = {
 	.init_params            = &ixgbe_init_eeprom_params_generic,
 	.read                   = &ixgbe_read_eerd_generic,
 	.write                  = &ixgbe_write_eeprom_generic,
+	.calc_checksum          = &ixgbe_calc_eeprom_checksum_generic,
 	.validate_checksum      = &ixgbe_validate_eeprom_checksum_generic,
 	.update_checksum        = &ixgbe_update_eeprom_checksum_generic,
 };
@@ -2240,5 +2200,5 @@ struct ixgbe_info ixgbe_82599_info = {
 	.mac_ops                = &mac_ops_82599,
 	.eeprom_ops             = &eeprom_ops_82599,
 	.phy_ops                = &phy_ops_82599,
-	.mbx_ops                = &mbx_ops_82599,
+	.mbx_ops                = &mbx_ops_generic,
 };

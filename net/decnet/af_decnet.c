@@ -829,7 +829,7 @@ static int dn_confirm_accept(struct sock *sk, long *timeo, gfp_t allocation)
 		return -EINVAL;
 
 	scp->state = DN_CC;
-	scp->segsize_loc = dst_metric(__sk_dst_get(sk), RTAX_ADVMSS);
+	scp->segsize_loc = dst_metric_advmss(__sk_dst_get(sk));
 	dn_send_conn_conf(sk, allocation);
 
 	prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
@@ -958,7 +958,7 @@ static int __dn_connect(struct sock *sk, struct sockaddr_dn *addr, int addrlen, 
 	sk->sk_route_caps = sk->sk_dst_cache->dev->features;
 	sock->state = SS_CONNECTING;
 	scp->state = DN_CI;
-	scp->segsize_loc = dst_metric(sk->sk_dst_cache, RTAX_ADVMSS);
+	scp->segsize_loc = dst_metric_advmss(sk->sk_dst_cache);
 
 	dn_nsp_send_conninit(sk, NSP_CI);
 	err = -EINPROGRESS;
@@ -1556,6 +1556,8 @@ static int __dn_getsockopt(struct socket *sock, int level,int optname, char __us
 			if (r_len > sizeof(struct linkinfo_dn))
 				r_len = sizeof(struct linkinfo_dn);
 
+			memset(&link, 0, sizeof(link));
+
 			switch(sock->state) {
 				case SS_CONNECTING:
 					link.idn_linkstate = LL_CONNECTING;
@@ -1848,7 +1850,7 @@ unsigned dn_mss_from_pmtu(struct net_device *dev, int mtu)
 {
 	unsigned mss = 230 - DN_MAX_NSP_DATA_HEADER;
 	if (dev) {
-		struct dn_dev *dn_db = dev->dn_ptr;
+		struct dn_dev *dn_db = rcu_dereference_raw(dev->dn_ptr);
 		mtu -= LL_RESERVED_SPACE(dev);
 		if (dn_db->use_long)
 			mtu -= 21;

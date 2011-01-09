@@ -1472,8 +1472,7 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 	list_del(&bdev->device_list);
 	mutex_unlock(&glob->device_list_mutex);
 
-	if (!cancel_delayed_work(&bdev->wq))
-		flush_scheduled_work();
+	cancel_delayed_work_sync(&bdev->wq);
 
 	while (ttm_bo_delayed_delete(bdev, true))
 		;

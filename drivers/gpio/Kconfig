@@ -230,11 +230,11 @@ config GPIO_STMPE
 	  This enables support for the GPIOs found on the STMPE I/O
 	  Expanders.
 
-config GPIO_TC35892
-	bool "TC35892 GPIOs"
-	depends on MFD_TC35892
+config GPIO_TC3589X
+	bool "TC3589X GPIOs"
+	depends on MFD_TC3589X
 	help
-	  This enables support for the GPIOs found on the TC35892
+	  This enables support for the GPIOs found on the TC3589X
 	  I/O Expander.
 
 config GPIO_TWL4030
