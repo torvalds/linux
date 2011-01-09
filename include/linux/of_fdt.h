@@ -59,6 +59,8 @@ struct boot_param_header {
 
 #if defined(CONFIG_OF_FLATTREE)
 
+struct device_node;
+
 /* For scanning an arbitrary device-tree at any time */
 extern char *of_fdt_get_string(struct boot_param_header *blob, u32 offset);
 extern void *of_fdt_get_property(struct boot_param_header *blob,
