@@ -1935,6 +1935,8 @@ i915_gem_retire_work_handler(struct work_struct *work)
 {
 	drm_i915_private_t *dev_priv;
 	struct drm_device *dev;
+	bool idle;
+	int i;
 
 	dev_priv = container_of(work, drm_i915_private_t,
 				mm.retire_work.work);
@@ -1948,11 +1950,31 @@ i915_gem_retire_work_handler(struct work_struct *work)
 
 	i915_gem_retire_requests(dev);
 
-	if (!dev_priv->mm.suspended &&
-		(!list_empty(&dev_priv->ring[RCS].request_list) ||
-		 !list_empty(&dev_priv->ring[VCS].request_list) ||
-		 !list_empty(&dev_priv->ring[BCS].request_list)))
+	/* Send a periodic flush down the ring so we don't hold onto GEM
+	 * objects indefinitely.
+	 */
+	idle = true;
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		struct intel_ring_buffer *ring = &dev_priv->ring[i];
+
+		if (!list_empty(&ring->gpu_write_list)) {
+			struct drm_i915_gem_request *request;
+			int ret;
+
+			ret = i915_gem_flush_ring(dev, ring, 0,
+						  I915_GEM_GPU_DOMAINS);
+			request = kzalloc(sizeof(*request), GFP_KERNEL);
+			if (ret || request == NULL ||
+			    i915_add_request(dev, NULL, request, ring))
+			    kfree(request);
+		}
+
+		idle &= list_empty(&ring->request_list);
+	}
+
+	if (!dev_priv->mm.suspended && !idle)
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, HZ);
+
 	mutex_unlock(&dev->struct_mutex);
 }
 
