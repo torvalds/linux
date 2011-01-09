@@ -2297,7 +2297,10 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 		 */
 		if (!(dev->priv_flags & IFF_XMIT_DST_RELEASE))
 			skb_dst_force(skb);
-		__qdisc_update_bstats(q, skb->len);
+
+		qdisc_skb_cb(skb)->pkt_len = skb->len;
+		qdisc_bstats_update(q, skb);
+
 		if (sch_direct_xmit(skb, q, dev, txq, root_lock)) {
 			if (unlikely(contended)) {
 				spin_unlock(&q->busylock);
