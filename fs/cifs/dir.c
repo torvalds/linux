@@ -724,17 +724,10 @@ static int cifs_ci_compare(const struct dentry *parent,
 		const struct dentry *dentry, const struct inode *inode,
 		unsigned int len, const char *str, const struct qstr *name)
 {
-<<<<<<< HEAD
-	struct nls_table *codepage = CIFS_SB(dentry->d_inode->i_sb)->local_nls;
-
-	if ((a->len == b->len) &&
-	    (nls_strnicmp(codepage, a->name, b->name, a->len) == 0))
-=======
 	struct nls_table *codepage = CIFS_SB(pinode->i_sb)->local_nls;
 
 	if ((name->len == len) &&
 	    (nls_strnicmp(codepage, name->name, str, len) == 0))
->>>>>>> 0c21e3aaf6ae85bee804a325aa29c325209180fd
 		return 0;
 	return 1;
 }
