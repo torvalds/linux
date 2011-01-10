@@ -436,6 +436,7 @@ static struct pci_driver ngene_pci_driver = {
 	.probe       = ngene_probe,
 	.remove      = __devexit_p(ngene_remove),
 	.err_handler = &ngene_errors,
+	.shutdown    = ngene_shutdown,
 };
 
 static __init int module_init_ngene(void)

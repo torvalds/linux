@@ -45,6 +45,10 @@ static int one_adapter = 1;
 module_param(one_adapter, int, 0444);
 MODULE_PARM_DESC(one_adapter, "Use only one adapter.");
 
+static int shutdown_workaround;
+module_param(shutdown_workaround, int, 0644);
+MODULE_PARM_DESC(one_adapter, "Activate workaround for shutdown problem with some chipsets.");
+
 static int debug;
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "Print debugging information.");
@@ -1572,6 +1576,39 @@ static void cxd_detach(struct ngene *dev)
 	dvb_ca_en50221_release(ci->en);
 	kfree(ci->en);
 	ci->en = 0;
+}
+
+/***********************************/
+/* workaround for shutdown failure */
+/***********************************/
+
+static void ngene_unlink(struct ngene *dev)
+{
+	struct ngene_command com;
+
+	com.cmd.hdr.Opcode = CMD_MEM_WRITE;
+	com.cmd.hdr.Length = 3;
+	com.cmd.MemoryWrite.address = 0x910c;
+	com.cmd.MemoryWrite.data = 0xff;
+	com.in_len = 3;
+	com.out_len = 1;
+
+	down(&dev->cmd_mutex);
+	ngwritel(0, NGENE_INT_ENABLE);
+	ngene_command_mutex(dev, &com);
+	up(&dev->cmd_mutex);
+}
+
+void ngene_shutdown(struct pci_dev *pdev)
+{
+	struct ngene *dev = (struct ngene *)pci_get_drvdata(pdev);
+
+	if (!dev || !shutdown_workaround)
+		return;
+
+	printk(KERN_INFO DEVICE_NAME ": shutdown workaround...\n");
+	ngene_unlink(dev);
+	pci_disable_device(pdev);
 }
 
 /****************************************************************************/
