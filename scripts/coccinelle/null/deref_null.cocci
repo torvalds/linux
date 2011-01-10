@@ -11,21 +11,10 @@
 // Options:
 
 virtual context
-virtual patch
 virtual org
 virtual report
 
-@initialize:python depends on !context && patch && !org && !report@
-
-import sys
-print >> sys.stderr, "This semantic patch does not support the 'patch' mode."
-
-@depends on patch@
-@@
-
-this_rule_should_never_matches();
-
-@ifm depends on !patch@
+@ifm@
 expression *E;
 statement S1,S2;
 position p1;
@@ -35,7 +24,7 @@ if@p1 ((E == NULL && ...) || ...) S1 else S2
 
 // The following two rules are separate, because both can match a single
 // expression in different ways
-@pr1 depends on !patch expression@
+@pr1 expression@
 expression *ifm.E;
 identifier f;
 position p1;
@@ -43,7 +32,7 @@ position p1;
 
  (E != NULL && ...) ? <+...E->f@p1...+> : ...
 
-@pr2 depends on !patch expression@
+@pr2 expression@
 expression *ifm.E;
 identifier f;
 position p2;
@@ -59,7 +48,7 @@ position p2;
 
 // For org and report modes
 
-@r depends on !context && !patch && (org || report) exists@
+@r depends on !context && (org || report) exists@
 expression subE <= ifm.E;
 expression *ifm.E;
 expression E1,E2;
@@ -99,7 +88,7 @@ if@p1 ((E == NULL && ...) || ...)
 }
 else S3
 
-@script:python depends on !context && !patch && !org && report@
+@script:python depends on !context && !org && report@
 p << r.p;
 p1 << ifm.p1;
 x << ifm.E;
@@ -109,7 +98,7 @@ msg="ERROR: %s is NULL but dereferenced." % (x)
 coccilib.report.print_report(p[0], msg)
 cocci.include_match(False)
 
-@script:python depends on !context && !patch && org && !report@
+@script:python depends on !context && org && !report@
 p << r.p;
 p1 << ifm.p1;
 x << ifm.E;
@@ -120,7 +109,7 @@ msg_safe=msg.replace("[","@(").replace("]",")")
 cocci.print_main(msg_safe,p)
 cocci.include_match(False)
 
-@s depends on !context && !patch && (org || report) exists@
+@s depends on !context && (org || report) exists@
 expression subE <= ifm.E;
 expression *ifm.E;
 expression E1,E2;
@@ -159,7 +148,7 @@ if@p1 ((E == NULL && ...) || ...)
 }
 else S3
 
-@script:python depends on !context && !patch && !org && report@
+@script:python depends on !context && !org && report@
 p << s.p;
 p1 << ifm.p1;
 x << ifm.E;
@@ -168,7 +157,7 @@ x << ifm.E;
 msg="ERROR: %s is NULL but dereferenced." % (x)
 coccilib.report.print_report(p[0], msg)
 
-@script:python depends on !context && !patch && org && !report@
+@script:python depends on !context && org && !report@
 p << s.p;
 p1 << ifm.p1;
 x << ifm.E;
@@ -180,7 +169,7 @@ cocci.print_main(msg_safe,p)
 
 // For context mode
 
-@depends on context && !patch && !org && !report exists@
+@depends on context && !org && !report exists@
 expression subE <= ifm.E;
 expression *ifm.E;
 expression E1,E2;
@@ -223,7 +212,7 @@ else S3
 // The following three rules are duplicates of ifm, pr1 and pr2 respectively.
 // It is need because the previous rule as already made a "change".
 
-@ifm1 depends on !patch@
+@ifm1@
 expression *E;
 statement S1,S2;
 position p1;
@@ -231,7 +220,7 @@ position p1;
 
 if@p1 ((E == NULL && ...) || ...) S1 else S2
 
-@pr11 depends on !patch expression@
+@pr11 expression@
 expression *ifm1.E;
 identifier f;
 position p1;
@@ -239,7 +228,7 @@ position p1;
 
  (E != NULL && ...) ? <+...E->f@p1...+> : ...
 
-@pr12 depends on !patch expression@
+@pr12 expression@
 expression *ifm1.E;
 identifier f;
 position p2;
@@ -253,7 +242,7 @@ position p2;
  sizeof(<+...E->f@p2...+>)
 )
 
-@depends on context && !patch && !org && !report exists@
+@depends on context && !org && !report exists@
 expression subE <= ifm1.E;
 expression *ifm1.E;
 expression E1,E2;
