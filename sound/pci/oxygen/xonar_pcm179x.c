@@ -335,10 +335,6 @@ static void pcm1796_init(struct oxygen *chip)
 		data->h6 ? PCM1796_OS_64 : PCM1796_OS_128;
 	pcm1796_registers_init(chip);
 	data->current_rate = 48000;
-	if (!data->h6)
-		oxygen_write16_masked(chip, OXYGEN_I2S_MULTICH_FORMAT,
-				      OXYGEN_I2S_MCLK_512,
-				      OXYGEN_I2S_MCLK_MASK);
 }
 
 static void xonar_d2_init(struct oxygen *chip)
@@ -476,7 +472,7 @@ static void xonar_st_init(struct oxygen *chip)
 	oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
 		       OXYGEN_RATE_48000 |
 		       OXYGEN_I2S_FORMAT_I2S |
-		       (data->h6 ? OXYGEN_I2S_MCLK_256 : OXYGEN_I2S_MCLK_512) |
+		       OXYGEN_I2S_MCLK(data->h6 ? MCLK_256 : MCLK_512) |
 		       OXYGEN_I2S_BITS_16 |
 		       OXYGEN_I2S_MASTER |
 		       OXYGEN_I2S_BCLK_64);
@@ -560,26 +556,6 @@ static void xonar_st_resume(struct oxygen *chip)
 	xonar_stx_resume(chip);
 }
 
-static unsigned int mclk_from_rate(struct oxygen *chip, unsigned int rate)
-{
-	struct xonar_pcm179x *data = chip->model_data;
-
-	if (rate <= 48000)
-		return data->h6 ? OXYGEN_I2S_MCLK_256 : OXYGEN_I2S_MCLK_512;
-	else
-		return OXYGEN_I2S_MCLK_128;
-}
-
-static unsigned int get_pcm1796_i2s_mclk(struct oxygen *chip,
-					 unsigned int channel,
-					 struct snd_pcm_hw_params *params)
-{
-	if (channel == PCM_MULTICH)
-		return mclk_from_rate(chip, params_rate(params));
-	else
-		return oxygen_default_i2s_mclk(chip, channel, params);
-}
-
 static void update_pcm1796_oversampling(struct oxygen *chip)
 {
 	struct xonar_pcm179x *data = chip->model_data;
@@ -640,45 +616,32 @@ static void update_cs2000_rate(struct oxygen *chip, unsigned int rate)
 
 	switch (rate) {
 	case 32000:
-		if (data->h6)
-			rate_mclk = OXYGEN_RATE_32000 | OXYGEN_I2S_MCLK_256;
-		else
-			rate_mclk = OXYGEN_RATE_32000 | OXYGEN_I2S_MCLK_512;
+	case 64000:
+		rate_mclk = OXYGEN_RATE_32000;
 		break;
 	case 44100:
-		if (data->h6)
-			rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_256;
-		else
-			rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_512;
-		break;
-	default: /* 48000 */
-		if (data->h6)
-			rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_256;
-		else
-			rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_512;
-		break;
-	case 64000:
-		rate_mclk = OXYGEN_RATE_32000 | OXYGEN_I2S_MCLK_256;
-		break;
 	case 88200:
-		rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_256;
-		break;
-	case 96000:
-		rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_256;
-		break;
 	case 176400:
-		rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_512;
+		rate_mclk = OXYGEN_RATE_44100;
 		break;
+	default:
+	case 48000:
+	case 96000:
 	case 192000:
-		rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_512;
+		rate_mclk = OXYGEN_RATE_48000;
 		break;
 	}
+
+	if (rate <= 96000 && (rate > 48000 || data->h6)) {
+		rate_mclk |= OXYGEN_I2S_MCLK(MCLK_256);
+		reg = CS2000_REF_CLK_DIV_1;
+	} else {
+		rate_mclk |= OXYGEN_I2S_MCLK(MCLK_512);
+		reg = CS2000_REF_CLK_DIV_2;
+	}
+
 	oxygen_write16_masked(chip, OXYGEN_I2S_A_FORMAT, rate_mclk,
 			      OXYGEN_I2S_RATE_MASK | OXYGEN_I2S_MCLK_MASK);
-	if ((rate_mclk & OXYGEN_I2S_MCLK_MASK) <= OXYGEN_I2S_MCLK_256)
-		reg = CS2000_REF_CLK_DIV_1;
-	else
-		reg = CS2000_REF_CLK_DIV_2;
 	cs2000_write_cached(chip, CS2000_FUN_CFG_1, reg);
 	msleep(3); /* PLL lock delay */
 }
@@ -1047,7 +1010,6 @@ static const struct oxygen_model model_xonar_d2 = {
 	.cleanup = xonar_d2_cleanup,
 	.suspend = xonar_d2_suspend,
 	.resume = xonar_d2_resume,
-	.get_i2s_mclk = get_pcm1796_i2s_mclk,
 	.set_dac_params = set_pcm1796_params,
 	.set_adc_params = xonar_set_cs53x1_params,
 	.update_dac_volume = update_pcm1796_volume,
@@ -1069,6 +1031,8 @@ static const struct oxygen_model model_xonar_d2 = {
 	.misc_flags = OXYGEN_MISC_MIDI,
 	.function_flags = OXYGEN_FUNCTION_SPI |
 			  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
+	.dac_mclks = OXYGEN_MCLKS(512, 128, 128),
+	.adc_mclks = OXYGEN_MCLKS(256, 256, 128),
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_I2S,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
@@ -1082,7 +1046,6 @@ static const struct oxygen_model model_xonar_hdav = {
 	.suspend = xonar_hdav_suspend,
 	.resume = xonar_hdav_resume,
 	.pcm_hardware_filter = xonar_hdmi_pcm_hardware_filter,
-	.get_i2s_mclk = get_pcm1796_i2s_mclk,
 	.set_dac_params = set_hdav_params,
 	.set_adc_params = xonar_set_cs53x1_params,
 	.update_dac_volume = update_pcm1796_volume,
@@ -1102,6 +1065,8 @@ static const struct oxygen_model model_xonar_hdav = {
 	.dac_volume_max = 255,
 	.misc_flags = OXYGEN_MISC_MIDI,
 	.function_flags = OXYGEN_FUNCTION_2WIRE,
+	.dac_mclks = OXYGEN_MCLKS(512, 128, 128),
+	.adc_mclks = OXYGEN_MCLKS(256, 256, 128),
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_I2S,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
@@ -1114,7 +1079,6 @@ static const struct oxygen_model model_xonar_st = {
 	.cleanup = xonar_st_cleanup,
 	.suspend = xonar_st_suspend,
 	.resume = xonar_st_resume,
-	.get_i2s_mclk = get_pcm1796_i2s_mclk,
 	.set_dac_params = set_st_params,
 	.set_adc_params = xonar_set_cs53x1_params,
 	.update_dac_volume = update_pcm1796_volume,
@@ -1132,6 +1096,8 @@ static const struct oxygen_model model_xonar_st = {
 	.dac_volume_min = 255 - 2*60,
 	.dac_volume_max = 255,
 	.function_flags = OXYGEN_FUNCTION_2WIRE,
+	.dac_mclks = OXYGEN_MCLKS(512, 128, 128),
+	.adc_mclks = OXYGEN_MCLKS(256, 256, 128),
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_I2S,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
@@ -1159,6 +1125,7 @@ int __devinit get_xonar_pcm179x_model(struct oxygen *chip,
 		case GPIO_DB_H6:
 			chip->model.shortname = "Xonar HDAV1.3+H6";
 			chip->model.dac_channels_mixer = 8;
+			chip->model.dac_mclks = OXYGEN_MCLKS(256, 128, 128);
 			break;
 		}
 		break;
@@ -1174,6 +1141,7 @@ int __devinit get_xonar_pcm179x_model(struct oxygen *chip,
 			chip->model.control_filter = xonar_st_h6_control_filter;
 			chip->model.dac_channels_pcm = 8;
 			chip->model.dac_channels_mixer = 8;
+			chip->model.dac_mclks = OXYGEN_MCLKS(256, 128, 128);
 			break;
 		}
 		break;

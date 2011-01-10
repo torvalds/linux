@@ -568,7 +568,6 @@ static const struct oxygen_model model_generic = {
 	.mixer_init = generic_wm8785_mixer_init,
 	.cleanup = generic_cleanup,
 	.resume = generic_resume,
-	.get_i2s_mclk = oxygen_default_i2s_mclk,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_wm8785_params,
 	.update_dac_volume = update_ak4396_volume,
@@ -589,6 +588,8 @@ static const struct oxygen_model model_generic = {
 	.dac_volume_max = 255,
 	.function_flags = OXYGEN_FUNCTION_SPI |
 			  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
+	.dac_mclks = OXYGEN_MCLKS(256, 256, 128),
+	.adc_mclks = OXYGEN_MCLKS(256, 256, 128),
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };

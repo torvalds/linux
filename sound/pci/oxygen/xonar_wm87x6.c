@@ -1122,7 +1122,6 @@ static const struct oxygen_model model_xonar_ds = {
 	.suspend = xonar_ds_suspend,
 	.resume = xonar_ds_resume,
 	.pcm_hardware_filter = wm8776_adc_hardware_filter,
-	.get_i2s_mclk = oxygen_default_i2s_mclk,
 	.set_dac_params = set_wm87x6_dac_params,
 	.set_adc_params = set_wm8776_adc_params,
 	.update_dac_volume = update_wm87x6_volume,
@@ -1140,6 +1139,8 @@ static const struct oxygen_model model_xonar_ds = {
 	.dac_volume_min = 255 - 2*60,
 	.dac_volume_max = 255,
 	.function_flags = OXYGEN_FUNCTION_SPI,
+	.dac_mclks = OXYGEN_MCLKS(256, 256, 128),
+	.adc_mclks = OXYGEN_MCLKS(256, 256, 128),
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
