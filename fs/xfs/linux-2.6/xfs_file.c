@@ -345,6 +345,25 @@ xfs_aio_write_isize_update(
 	}
 }
 
+/*
+ * If this was a direct or synchronous I/O that failed (such as ENOSPC) then
+ * part of the I/O may have been written to disk before the error occured.  In
+ * this case the on-disk file size may have been adjusted beyond the in-memory
+ * file size and now needs to be truncated back.
+ */
+STATIC void
+xfs_aio_write_newsize_update(
+	struct xfs_inode	*ip)
+{
+	if (ip->i_new_size) {
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		ip->i_new_size = 0;
+		if (ip->i_d.di_size > ip->i_size)
+			ip->i_d.di_size = ip->i_size;
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	}
+}
+
 STATIC ssize_t
 xfs_file_splice_write(
 	struct pipe_inode_info	*pipe,
@@ -381,14 +400,7 @@ xfs_file_splice_write(
 	ret = generic_file_splice_write(pipe, outfilp, ppos, count, flags);
 
 	xfs_aio_write_isize_update(inode, ppos, ret);
-
-	if (ip->i_new_size) {
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		ip->i_new_size = 0;
-		if (ip->i_d.di_size > ip->i_size)
-			ip->i_d.di_size = ip->i_size;
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	}
+	xfs_aio_write_newsize_update(ip);
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 	return ret;
 }
@@ -781,20 +793,7 @@ write_retry:
 	}
 
  out_unlock_internal:
-	if (ip->i_new_size) {
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		ip->i_new_size = 0;
-		/*
-		 * If this was a direct or synchronous I/O that failed (such
-		 * as ENOSPC) then part of the I/O may have been written to
-		 * disk before the error occured.  In this case the on-disk
-		 * file size may have been adjusted beyond the in-memory file
-		 * size and now needs to be truncated back.
-		 */
-		if (ip->i_d.di_size > ip->i_size)
-			ip->i_d.di_size = ip->i_size;
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	}
+	xfs_aio_write_newsize_update(ip);
 	xfs_iunlock(ip, iolock);
  out_unlock_mutex:
 	if (need_i_mutex)
