@@ -558,7 +558,7 @@ static const struct ethtool_ops bfin_mac_ethtool_ops = {
 };
 
 /**************************************************************************/
-void setup_system_regs(struct net_device *dev)
+static void setup_system_regs(struct net_device *dev)
 {
 	struct bfin_mac_local *lp = netdev_priv(dev);
 	int i;
