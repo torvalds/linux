@@ -613,24 +613,14 @@ void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
  * If the slot is available, then mark it busy.  Otherwise, set the
  * thread for sleeping on the callback RPC wait queue.
  */
-static int nfsd41_cb_setup_sequence(struct nfs4_client *clp,
-		struct rpc_task *task)
+static bool nfsd41_cb_get_slot(struct nfs4_client *clp, struct rpc_task *task)
 {
-	u32 *ptr = (u32 *)clp->cl_cb_session->se_sessionid.data;
-	int status = 0;
-
-	dprintk("%s: %u:%u:%u:%u\n", __func__,
-		ptr[0], ptr[1], ptr[2], ptr[3]);
-
 	if (test_and_set_bit(0, &clp->cl_cb_slot_busy) != 0) {
 		rpc_sleep_on(&clp->cl_cb_waitq, task, NULL);
 		dprintk("%s slot is busy\n", __func__);
-		status = -EAGAIN;
-		goto out;
+		return false;
 	}
-out:
-	dprintk("%s status=%d\n", __func__, status);
-	return status;
+	return true;
 }
 
 /*
@@ -643,19 +633,11 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
 	struct nfs4_client *clp = dp->dl_client;
 	u32 minorversion = clp->cl_minorversion;
-	int status = 0;
 
 	cb->cb_minorversion = minorversion;
 	if (minorversion) {
-		status = nfsd41_cb_setup_sequence(clp, task);
-		if (status) {
-			if (status != -EAGAIN) {
-				/* terminate rpc task */
-				task->tk_status = status;
-				task->tk_action = NULL;
-			}
+		if (!nfsd41_cb_get_slot(clp, task))
 			return;
-		}
 	}
 	rpc_call_start(task);
 }
