@@ -2137,19 +2137,27 @@ EXPORT_SYMBOL_GPL(snd_soc_write);
  *
  * Writes new register value.
  *
- * Returns 1 for change else 0.
+ * Returns 1 for change, 0 for no change, or negative error code.
  */
 int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned short reg,
 				unsigned int mask, unsigned int value)
 {
 	int change;
 	unsigned int old, new;
+	int ret;
 
-	old = snd_soc_read(codec, reg);
+	ret = snd_soc_read(codec, reg);
+	if (ret < 0)
+		return ret;
+
+	old = ret;
 	new = (old & ~mask) | value;
 	change = old != new;
-	if (change)
-		snd_soc_write(codec, reg, new);
+	if (change) {
+		ret = snd_soc_write(codec, reg, new);
+		if (ret < 0)
+			return ret;
+	}
 
 	return change;
 }
