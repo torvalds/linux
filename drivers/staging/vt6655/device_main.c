@@ -312,9 +312,9 @@ static int device_notify_reboot(struct notifier_block *, unsigned long event, vo
 static int viawget_suspend(struct pci_dev *pcid, pm_message_t state);
 static int viawget_resume(struct pci_dev *pcid);
 struct notifier_block device_notifier = {
-        notifier_call:  device_notify_reboot,
-        next:           NULL,
-        priority:       0
+	.notifier_call = device_notify_reboot,
+	.next = NULL,
+	.priority = 0,
 };
 #endif
 
@@ -3606,13 +3606,13 @@ static int ethtool_ioctl(struct net_device *dev, void *useraddr)
 MODULE_DEVICE_TABLE(pci, vt6655_pci_id_table);
 
 static struct pci_driver device_driver = {
-        name:       DEVICE_NAME,
-        id_table:   vt6655_pci_id_table,
-        probe:      vt6655_probe,
-        remove:     vt6655_remove,
+	.name = DEVICE_NAME,
+	.id_table = vt6655_pci_id_table,
+	.probe = vt6655_probe,
+	.remove = vt6655_remove,
 #ifdef CONFIG_PM
-        suspend:    viawget_suspend,
-        resume:     viawget_resume,
+	.suspend = viawget_suspend,
+	.resume = viawget_resume,
 #endif
 };
 
