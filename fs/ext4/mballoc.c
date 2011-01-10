@@ -4860,7 +4860,7 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 		if (len >= EXT4_BLOCKS_PER_GROUP(sb))
 			len -= (EXT4_BLOCKS_PER_GROUP(sb) - first_block);
 		else
-			last_block = len;
+			last_block = first_block + len;
 
 		if (e4b.bd_info->bb_free >= minlen) {
 			cnt = ext4_trim_all_free(sb, &e4b, first_block,
