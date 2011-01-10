@@ -64,6 +64,7 @@ struct client {
 	struct idr resource_idr;
 	struct list_head event_list;
 	wait_queue_head_t wait;
+	wait_queue_head_t tx_flush_wait;
 	u64 bus_reset_closure;
 
 	struct fw_iso_context *iso_context;
@@ -251,6 +252,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	idr_init(&client->resource_idr);
 	INIT_LIST_HEAD(&client->event_list);
 	init_waitqueue_head(&client->wait);
+	init_waitqueue_head(&client->tx_flush_wait);
 	INIT_LIST_HEAD(&client->phy_receiver_link);
 	kref_init(&client->kref);
 
@@ -520,10 +522,6 @@ static int release_client_resource(struct client *client, u32 handle,
 static void release_transaction(struct client *client,
 				struct client_resource *resource)
 {
-	struct outbound_transaction_resource *r = container_of(resource,
-			struct outbound_transaction_resource, resource);
-
-	fw_cancel_transaction(client->device->card, &r->transaction);
 }
 
 static void complete_transaction(struct fw_card *card, int rcode,
@@ -540,16 +538,9 @@ static void complete_transaction(struct fw_card *card, int rcode,
 		memcpy(rsp->data, payload, rsp->length);
 
 	spin_lock_irqsave(&client->lock, flags);
-	/*
-	 * 1. If called while in shutdown, the idr tree must be left untouched.
-	 *    The idr handle will be removed and the client reference will be
-	 *    dropped later.
-	 */
-	if (!client->in_shutdown) {
-		idr_remove(&client->resource_idr, e->r.resource.handle);
-		/* Drop the idr's reference */
-		client_put(client);
-	}
+	idr_remove(&client->resource_idr, e->r.resource.handle);
+	if (client->in_shutdown)
+		wake_up(&client->tx_flush_wait);
 	spin_unlock_irqrestore(&client->lock, flags);
 
 	rsp->type = FW_CDEV_EVENT_RESPONSE;
@@ -569,6 +560,8 @@ static void complete_transaction(struct fw_card *card, int rcode,
 		queue_event(client, &e->event, rsp, sizeof(*rsp) + rsp->length,
 			    NULL, 0);
 
+	/* Drop the idr's reference */
+	client_put(client);
 	/* Drop the transaction callback's reference */
 	client_put(client);
 }
@@ -1672,6 +1665,25 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 	return ret;
 }
 
+static int is_outbound_transaction_resource(int id, void *p, void *data)
+{
+	struct client_resource *resource = p;
+
+	return resource->release == release_transaction;
+}
+
+static int has_outbound_transactions(struct client *client)
+{
+	int ret;
+
+	spin_lock_irq(&client->lock);
+	ret = idr_for_each(&client->resource_idr,
+			   is_outbound_transaction_resource, NULL);
+	spin_unlock_irq(&client->lock);
+
+	return ret;
+}
+
 static int shutdown_resource(int id, void *p, void *data)
 {
 	struct client_resource *resource = p;
@@ -1706,6 +1718,8 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 	spin_lock_irq(&client->lock);
 	client->in_shutdown = true;
 	spin_unlock_irq(&client->lock);
+
+	wait_event(client->tx_flush_wait, !has_outbound_transactions(client));
 
 	idr_for_each(&client->resource_idr, shutdown_resource, client);
 	idr_remove_all(&client->resource_idr);
