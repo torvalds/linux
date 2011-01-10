@@ -589,6 +589,16 @@ static const struct file_operations fops_wiphy = {
 		sc->debug.stats.txstats[WME_AC_VO].elem); \
 } while(0)
 
+#define PRX(str, elem)							\
+do {									\
+	len += snprintf(buf + len, size - len,				\
+			"%s%13u%11u%10u%10u\n", str,			\
+			(unsigned int)(sc->tx.txq[WME_AC_BE].elem),	\
+			(unsigned int)(sc->tx.txq[WME_AC_BK].elem),	\
+			(unsigned int)(sc->tx.txq[WME_AC_VI].elem),	\
+			(unsigned int)(sc->tx.txq[WME_AC_VO].elem));	\
+} while(0)
+
 static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {
@@ -618,6 +628,12 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("DELIM Underrun:  ", delim_underrun);
 	PR("TX-Pkts-All:     ", tx_pkts_all);
 	PR("TX-Bytes-All:    ", tx_bytes_all);
+
+	PRX("axq-qnum:        ", axq_qnum);
+	PRX("axq-depth:       ", axq_depth);
+	PRX("axq-stopped      ", stopped);
+	PRX("tx-in-progress   ", axq_tx_inprogress);
+	PRX("pending-frames   ", pending_frames);
 
 	if (len > size)
 		len = size;
