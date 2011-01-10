@@ -679,6 +679,32 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 		PRQLE(tmp, txq_fifo[i]);
 	}
 
+	/* Print out more detailed queue-info */
+	for (i = 0; i <= WME_AC_BK; i++) {
+		struct ath_txq *txq = &(sc->tx.txq[i]);
+		struct ath_atx_ac *ac;
+		struct ath_atx_tid *tid;
+		if (len >= size)
+			goto done;
+		spin_lock_bh(&txq->axq_lock);
+		if (!list_empty(&txq->axq_acq)) {
+			ac = list_first_entry(&txq->axq_acq, struct ath_atx_ac,
+					      list);
+			len += snprintf(buf + len, size - len,
+					"txq[%i] first-ac: %p sched: %i\n",
+					i, ac, ac->sched);
+			if (list_empty(&ac->tid_q) || (len >= size))
+				goto done_for;
+			tid = list_first_entry(&ac->tid_q, struct ath_atx_tid,
+					       list);
+			len += snprintf(buf + len, size - len,
+					" first-tid: %p sched: %i paused: %i\n",
+					tid, tid->sched, tid->paused);
+		}
+	done_for:
+		spin_unlock_bh(&txq->axq_lock);
+	}
+
 done:
 	if (len > size)
 		len = size;
