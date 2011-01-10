@@ -444,8 +444,6 @@ extern struct mcidev_sysfs_attribute amd64_dbg_attrs[NUM_DBG_ATTRS],
  */
 struct low_ops {
 	int (*early_channel_count)	(struct amd64_pvt *pvt);
-
-	u64 (*get_error_address)	(struct mem_ctl_info *mci, struct mce *m);
 	void (*read_dram_ctl_register)	(struct amd64_pvt *pvt);
 	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci, u64 sys_addr,
 					 u16 syndrome);
