@@ -381,7 +381,7 @@ static void xonar_hdav_init(struct oxygen *chip)
 	data->pcm179x.generic.ext_power_reg = OXYGEN_GPI_DATA;
 	data->pcm179x.generic.ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
 	data->pcm179x.generic.ext_power_bit = GPI_EXT_POWER;
-	data->pcm179x.dacs = chip->model.private_data ? 4 : 1;
+	data->pcm179x.dacs = chip->model.dac_channels_mixer / 2;
 
 	pcm1796_init(chip);
 
@@ -411,7 +411,7 @@ static void xonar_st_init_common(struct oxygen *chip)
 	struct xonar_pcm179x *data = chip->model_data;
 
 	data->generic.output_enable_bit = GPIO_ST_OUTPUT_ENABLE;
-	data->dacs = chip->model.private_data ? 4 : 1;
+	data->dacs = chip->model.dac_channels_mixer / 2;
 	data->hp_gain_offset = 2*-18;
 
 	pcm1796_init(chip);
@@ -1191,7 +1191,6 @@ int __devinit get_xonar_pcm179x_model(struct oxygen *chip,
 		case GPIO_DB_H6:
 			chip->model.shortname = "Xonar HDAV1.3+H6";
 			chip->model.dac_channels_mixer = 8;
-			chip->model.private_data = 1;
 			break;
 		}
 		break;
@@ -1206,7 +1205,6 @@ int __devinit get_xonar_pcm179x_model(struct oxygen *chip,
 			chip->model.shortname = "Xonar ST+H6";
 			chip->model.dac_channels_pcm = 8;
 			chip->model.dac_channels_mixer = 8;
-			chip->model.private_data = 1;
 			break;
 		}
 		break;

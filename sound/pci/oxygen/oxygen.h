@@ -97,7 +97,6 @@ struct oxygen_model {
 	void (*dump_registers)(struct oxygen *chip,
 			       struct snd_info_buffer *buffer);
 	const unsigned int *dac_tlv;
-	unsigned long private_data;
 	size_t model_data_size;
 	unsigned int device_config;
 	u8 dac_channels_pcm;
