@@ -604,9 +604,10 @@ static int __i2c_bit_add_bus(struct i2c_adapter *adap,
 			     int (*add_adapter)(struct i2c_adapter *))
 {
 	struct i2c_algo_bit_data *bit_adap = adap->algo_data;
+	int ret;
 
 	if (bit_test) {
-		int ret = test_bus(bit_adap, adap->name);
+		ret = test_bus(bit_adap, adap->name);
 		if (ret < 0)
 			return -ENODEV;
 	}
@@ -615,7 +616,16 @@ static int __i2c_bit_add_bus(struct i2c_adapter *adap,
 	adap->algo = &i2c_bit_algo;
 	adap->retries = 3;
 
-	return add_adapter(adap);
+	ret = add_adapter(adap);
+	if (ret < 0)
+		return ret;
+
+	/* Complain if SCL can't be read */
+	if (bit_adap->getscl == NULL) {
+		dev_warn(&adap->dev, "Not I2C compliant: can't read SCL\n");
+		dev_warn(&adap->dev, "Bus may be unreliable\n");
+	}
+	return 0;
 }
 
 int i2c_bit_add_bus(struct i2c_adapter *adap)
