@@ -84,10 +84,13 @@ MODULE_PARM_DESC(enable, "enable card");
 enum {
 	MODEL_CMEDIA_REF,
 	MODEL_MERIDIAN,
+	MODEL_MERIDIAN_2G,
 	MODEL_CLARO,
 	MODEL_CLARO_HALO,
 	MODEL_FANTASIA,
+	MODEL_SERENADE,
 	MODEL_2CH_OUTPUT,
+	MODEL_HG2PCI,
 	MODEL_XONAR_DG,
 };
 
@@ -107,15 +110,15 @@ static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
 	/* PCI 2.0 HD Audio */
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x8782), .driver_data = MODEL_2CH_OUTPUT },
 	/* Kuroutoshikou CMI8787-HG2PCI */
-	{ OXYGEN_PCI_SUBID(0x13f6, 0xffff), .driver_data = MODEL_2CH_OUTPUT },
+	{ OXYGEN_PCI_SUBID(0x13f6, 0xffff), .driver_data = MODEL_HG2PCI },
 	/* TempoTec HiFier Fantasia */
 	{ OXYGEN_PCI_SUBID(0x14c3, 0x1710), .driver_data = MODEL_FANTASIA },
 	/* TempoTec HiFier Serenade */
-	{ OXYGEN_PCI_SUBID(0x14c3, 0x1711), .driver_data = MODEL_2CH_OUTPUT },
+	{ OXYGEN_PCI_SUBID(0x14c3, 0x1711), .driver_data = MODEL_SERENADE },
 	/* AuzenTech X-Meridian */
 	{ OXYGEN_PCI_SUBID(0x415a, 0x5431), .driver_data = MODEL_MERIDIAN },
 	/* AuzenTech X-Meridian 2G */
-	{ OXYGEN_PCI_SUBID(0x5431, 0x017a), .driver_data = MODEL_MERIDIAN },
+	{ OXYGEN_PCI_SUBID(0x5431, 0x017a), .driver_data = MODEL_MERIDIAN_2G },
 	/* HT-Omega Claro */
 	{ OXYGEN_PCI_SUBID(0x7284, 0x9761), .driver_data = MODEL_CLARO },
 	/* HT-Omega Claro halo */
@@ -669,9 +672,20 @@ static const struct oxygen_model model_generic = {
 static int __devinit get_oxygen_model(struct oxygen *chip,
 				      const struct pci_device_id *id)
 {
+	static const char *const names[] = {
+		[MODEL_MERIDIAN]	= "AuzenTech X-Meridian",
+		[MODEL_MERIDIAN_2G]	= "AuzenTech X-Meridian 2G",
+		[MODEL_CLARO]		= "HT-Omega Claro",
+		[MODEL_CLARO_HALO]	= "HT-Omega Claro halo",
+		[MODEL_FANTASIA]	= "TempoTec HiFier Fantasia",
+		[MODEL_SERENADE]	= "TempoTec HiFier Serenade",
+		[MODEL_HG2PCI]		= "CMI8787-HG2PCI",
+	};
+
 	chip->model = model_generic;
 	switch (id->driver_data) {
 	case MODEL_MERIDIAN:
+	case MODEL_MERIDIAN_2G:
 		chip->model.init = meridian_init;
 		chip->model.mixer_init = meridian_mixer_init;
 		chip->model.resume = meridian_resume;
@@ -702,7 +716,9 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 					    CAPTURE_1_FROM_SPDIF;
 		break;
 	case MODEL_FANTASIA:
+	case MODEL_SERENADE:
 	case MODEL_2CH_OUTPUT:
+	case MODEL_HG2PCI:
 		chip->model.shortname = "C-Media CMI8787";
 		chip->model.chip = "CMI8787";
 		if (id->driver_data == MODEL_FANTASIA)
@@ -731,6 +747,8 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 		chip->model.misc_flags = OXYGEN_MISC_MIDI;
 		chip->model.device_config |= MIDI_OUTPUT | MIDI_INPUT;
 	}
+	if (id->driver_data < ARRAY_SIZE(names) && names[id->driver_data])
+		chip->model.shortname = names[id->driver_data];
 	return 0;
 }
 
