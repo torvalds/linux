@@ -513,7 +513,7 @@ static int __init spi_tegra_probe(struct platform_device *pdev)
 	}
 
 	tspi->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR_OR_NULL(tspi->clk)) {
+	if (IS_ERR(tspi->clk)) {
 		dev_err(&pdev->dev, "can not get clock\n");
 		ret = PTR_ERR(tspi->clk);
 		goto err2;
