@@ -818,12 +818,6 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	memset(&ei->i_cached_extent, 0, sizeof(struct ext4_ext_cache));
 	INIT_LIST_HEAD(&ei->i_prealloc_list);
 	spin_lock_init(&ei->i_prealloc_lock);
-	/*
-	 * Note:  We can be called before EXT4_SB(sb)->s_journal is set,
-	 * therefore it can be null here.  Don't check it, just initialize
-	 * jinode.
-	 */
-	jbd2_journal_init_jbd_inode(&ei->jinode, &ei->vfs_inode);
 	ei->i_reserved_data_blocks = 0;
 	ei->i_reserved_meta_blocks = 0;
 	ei->i_allocated_meta_blocks = 0;
@@ -832,6 +826,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 #ifdef CONFIG_QUOTA
 	ei->i_reserved_quota = 0;
 #endif
+	ei->jinode = NULL;
 	INIT_LIST_HEAD(&ei->i_completed_io_list);
 	spin_lock_init(&ei->i_completed_io_lock);
 	ei->cur_aio_dio = NULL;
@@ -900,9 +895,12 @@ void ext4_clear_inode(struct inode *inode)
 	end_writeback(inode);
 	dquot_drop(inode);
 	ext4_discard_preallocations(inode);
-	if (EXT4_JOURNAL(inode))
-		jbd2_journal_release_jbd_inode(EXT4_SB(inode->i_sb)->s_journal,
-				       &EXT4_I(inode)->jinode);
+	if (EXT4_I(inode)->jinode) {
+		jbd2_journal_release_jbd_inode(EXT4_JOURNAL(inode),
+					       EXT4_I(inode)->jinode);
+		jbd2_free_inode(EXT4_I(inode)->jinode);
+		EXT4_I(inode)->jinode = NULL;
+	}
 }
 
 static inline void ext4_show_quota_options(struct seq_file *seq,
