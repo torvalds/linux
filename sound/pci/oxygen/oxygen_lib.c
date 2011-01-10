@@ -372,12 +372,7 @@ static void oxygen_init(struct oxygen *chip)
 		(IEC958_AES1_CON_PCM_CODER << OXYGEN_SPDIF_CATEGORY_SHIFT);
 	chip->spdif_pcm_bits = chip->spdif_bits;
 
-	if (oxygen_read8(chip, OXYGEN_REVISION) & OXYGEN_REVISION_2)
-		chip->revision = 2;
-	else
-		chip->revision = 1;
-
-	if (chip->revision == 1)
+	if (!(oxygen_read8(chip, OXYGEN_REVISION) & OXYGEN_REVISION_2))
 		oxygen_set_bits8(chip, OXYGEN_MISC,
 				 OXYGEN_MISC_PCI_MEM_W_1_CLOCK);
 
@@ -669,8 +664,8 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 
 	strcpy(card->driver, chip->model.chip);
 	strcpy(card->shortname, chip->model.shortname);
-	sprintf(card->longname, "%s (rev %u) at %#lx, irq %i",
-		chip->model.longname, chip->revision, chip->addr, chip->irq);
+	sprintf(card->longname, "%s at %#lx, irq %i",
+		chip->model.longname, chip->addr, chip->irq);
 	strcpy(card->mixername, chip->model.chip);
 	snd_component_add(card, chip->model.chip);
 

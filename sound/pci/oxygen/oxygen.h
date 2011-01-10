@@ -129,7 +129,6 @@ struct oxygen {
 	u8 pcm_running;
 	u8 dac_routing;
 	u8 spdif_playback_enable;
-	u8 revision;
 	u8 has_ac97_0;
 	u8 has_ac97_1;
 	u32 spdif_bits;
