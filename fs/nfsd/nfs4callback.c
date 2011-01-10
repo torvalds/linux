@@ -639,6 +639,10 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 		if (!nfsd41_cb_get_slot(clp, task))
 			return;
 	}
+	cb->cb_done = false;
+	spin_lock(&clp->cl_lock);
+	list_add(&cb->cb_per_client, &clp->cl_callbacks);
+	spin_unlock(&clp->cl_lock);
 	rpc_call_start(task);
 }
 
@@ -681,8 +685,11 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 		return;
 	}
 
+	if (cb->cb_done)
+		return;
 	switch (task->tk_status) {
 	case 0:
+		cb->cb_done = true;
 		return;
 	case -EBADHANDLE:
 	case -NFS4ERR_BAD_STATEID:
@@ -695,7 +702,7 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 		if (current_rpc_client != task->tk_client) {
 			/* queue a callback on the new connection: */
 			atomic_inc(&dp->dl_count);
-			nfsd4_cb_recall(dp);
+			run_nfsd4_cb(&dp->dl_recall);
 			return;
 		}
 	}
@@ -704,16 +711,23 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 		task->tk_status = 0;
 		rpc_restart_call_prepare(task);
 		return;
-	} else
-		nfsd4_mark_cb_down(clp, task->tk_status);
+	}
+	nfsd4_mark_cb_down(clp, task->tk_status);
+	cb->cb_done = true;
 }
 
 static void nfsd4_cb_recall_release(void *calldata)
 {
 	struct nfsd4_callback *cb = calldata;
+	struct nfs4_client *clp = cb->cb_clp;
 	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
 
-	nfs4_put_delegation(dp);
+	if (cb->cb_done) {
+		spin_lock(&clp->cl_lock);
+		list_del(&cb->cb_per_client);
+		spin_unlock(&clp->cl_lock);
+		nfs4_put_delegation(dp);
+	}
 }
 
 static const struct rpc_call_ops nfsd4_cb_recall_ops = {
@@ -808,8 +822,13 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 	spin_unlock(&clp->cl_lock);
 
 	err = setup_callback_client(clp, &conn, ses);
-	if (err)
+	if (err) {
 		warn_no_callback_path(clp, err);
+		return;
+	}
+	/* Yay, the callback channel's back! Restart any callbacks: */
+	list_for_each_entry(cb, &clp->cl_callbacks, cb_per_client)
+		run_nfsd4_cb(cb);
 }
 
 void nfsd4_do_callback_rpc(struct work_struct *w)
@@ -834,10 +853,11 @@ void nfsd4_do_callback_rpc(struct work_struct *w)
 void nfsd4_cb_recall(struct nfs4_delegation *dp)
 {
 	struct nfsd4_callback *cb = &dp->dl_recall;
+	struct nfs4_client *clp = dp->dl_client;
 
 	dp->dl_retries = 1;
 	cb->cb_op = dp;
-	cb->cb_clp = dp->dl_client;
+	cb->cb_clp = clp;
 	cb->cb_msg.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_RECALL];
 	cb->cb_msg.rpc_argp = cb;
 	cb->cb_msg.rpc_resp = cb;
@@ -845,6 +865,8 @@ void nfsd4_cb_recall(struct nfs4_delegation *dp)
 
 	cb->cb_ops = &nfsd4_cb_recall_ops;
 	dp->dl_retries = 1;
+
+	cb->cb_done = true;
 
 	run_nfsd4_cb(&dp->dl_recall);
 }
