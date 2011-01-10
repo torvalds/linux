@@ -43,7 +43,7 @@
 #define IGEP3_GPIO_WIFI_NRESET	139
 #define IGEP3_GPIO_BT_NRESET	137
 
-#define IGEP3_GPIO_USBH_NRESET  115
+#define IGEP3_GPIO_USBH_NRESET  183
 
 
 #if defined(CONFIG_MTD_ONENAND_OMAP2) || \
@@ -363,8 +363,20 @@ static void __init igep3_wifi_bt_init(void)
 void __init igep3_wifi_bt_init(void) {}
 #endif
 
+static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
+	.port_mode[0] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+	.port_mode[1] = EHCI_HCD_OMAP_MODE_PHY,
+	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+
+	.phy_reset = true,
+	.reset_gpio_port[0] = -EINVAL,
+	.reset_gpio_port[1] = IGEP3_GPIO_USBH_NRESET,
+	.reset_gpio_port[2] = -EINVAL,
+};
+
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
+	OMAP3_MUX(I2C2_SDA, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #endif
@@ -378,6 +390,7 @@ static void __init igep3_init(void)
 
 	omap_serial_init();
 	usb_musb_init(&musb_board_data);
+	usb_ehci_init(&ehci_pdata);
 
 	igep3_flash_init();
 	igep3_leds_init();
