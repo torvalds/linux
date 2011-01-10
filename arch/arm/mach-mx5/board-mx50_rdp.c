@@ -35,7 +35,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#include "devices-mx50.h"
+#include "devices-imx50.h"
 
 static iomux_v3_cfg_t mx50_rdp_pads[] __initdata = {
 	/* SD1 */
