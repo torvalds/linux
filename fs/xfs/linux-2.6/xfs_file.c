@@ -684,8 +684,23 @@ xfs_file_aio_write_checks(
  * xfs_file_dio_aio_write - handle direct IO writes
  *
  * Lock the inode appropriately to prepare for and issue a direct IO write.
- * By spearating it from the buffered write path we remove all the tricky to
+ * By separating it from the buffered write path we remove all the tricky to
  * follow locking changes and looping.
+ *
+ * If there are cached pages or we're extending the file, we need IOLOCK_EXCL
+ * until we're sure the bytes at the new EOF have been zeroed and/or the cached
+ * pages are flushed out.
+ *
+ * In most cases the direct IO writes will be done holding IOLOCK_SHARED
+ * allowing them to be done in parallel with reads and other direct IO writes.
+ * However, if the IO is not aligned to filesystem blocks, the direct IO layer
+ * needs to do sub-block zeroing and that requires serialisation against other
+ * direct IOs to the same block. In this case we need to serialise the
+ * submission of the unaligned IOs so that we don't get racing block zeroing in
+ * the dio layer.  To avoid the problem with aio, we also need to wait for
+ * outstanding IOs to complete so that unwritten extent conversion is completed
+ * before we try to map the overlapping block. This is currently implemented by
+ * hitting it with a big hammer (i.e. xfs_ioend_wait()).
  *
  * Returns with locks held indicated by @iolock and errors indicated by
  * negative return values.
@@ -706,6 +721,7 @@ xfs_file_dio_aio_write(
 	struct xfs_mount	*mp = ip->i_mount;
 	ssize_t			ret = 0;
 	size_t			count = ocount;
+	int			unaligned_io = 0;
 	struct xfs_buftarg	*target = XFS_IS_REALTIME_INODE(ip) ?
 					mp->m_rtdev_targp : mp->m_ddev_targp;
 
@@ -713,13 +729,10 @@ xfs_file_dio_aio_write(
 	if ((pos & target->bt_smask) || (count & target->bt_smask))
 		return -XFS_ERROR(EINVAL);
 
-	/*
-	 * For direct I/O, if there are cached pages or we're extending
-	 * the file, we need IOLOCK_EXCL until we're sure the bytes at
-	 * the new EOF have been zeroed and/or the cached pages are
-	 * flushed out.
-	 */
-	if (mapping->nrpages || pos > ip->i_size)
+	if ((pos & mp->m_blockmask) || ((pos + count) & mp->m_blockmask))
+		unaligned_io = 1;
+
+	if (unaligned_io || mapping->nrpages || pos > ip->i_size)
 		*iolock = XFS_IOLOCK_EXCL;
 	else
 		*iolock = XFS_IOLOCK_SHARED;
@@ -737,8 +750,13 @@ xfs_file_dio_aio_write(
 			return ret;
 	}
 
-	if (*iolock == XFS_IOLOCK_EXCL) {
-		/* demote the lock now the cached pages are gone */
+	/*
+	 * If we are doing unaligned IO, wait for all other IO to drain,
+	 * otherwise demote the lock if we had to flush cached pages
+	 */
+	if (unaligned_io)
+		xfs_ioend_wait(ip);
+	else if (*iolock == XFS_IOLOCK_EXCL) {
 		xfs_rw_ilock_demote(ip, XFS_IOLOCK_EXCL);
 		*iolock = XFS_IOLOCK_SHARED;
 	}
