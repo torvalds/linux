@@ -622,7 +622,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	int i, total, ret;
 
 	/* We may process another execbuffer during the unlock... */
-	while (list_empty(objects)) {
+	while (!list_empty(objects)) {
 		obj = list_first_entry(objects,
 				       struct drm_i915_gem_object,
 				       exec_list);
@@ -665,7 +665,6 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	}
 
 	/* reacquire the objects */
-	INIT_LIST_HEAD(objects);
 	eb_reset(eb);
 	for (i = 0; i < count; i++) {
 		struct drm_i915_gem_object *obj;
@@ -1353,4 +1352,3 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 	drm_free_large(exec2_list);
 	return ret;
 }
-
