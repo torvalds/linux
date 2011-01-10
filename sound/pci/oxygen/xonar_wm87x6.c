@@ -1135,7 +1135,8 @@ static const struct oxygen_model model_xonar_ds = {
 	.device_config = PLAYBACK_0_TO_I2S |
 			 PLAYBACK_1_TO_SPDIF |
 			 CAPTURE_0_FROM_I2S_1,
-	.dac_channels = 8,
+	.dac_channels_pcm = 8,
+	.dac_channels_mixer = 8,
 	.dac_volume_min = 255 - 2*60,
 	.dac_volume_max = 255,
 	.function_flags = OXYGEN_FUNCTION_SPI,

@@ -143,7 +143,7 @@ static int oxygen_open(struct snd_pcm_substream *substream,
 		runtime->hw.rate_min = 44100;
 		break;
 	case PCM_MULTICH:
-		runtime->hw.channels_max = chip->model.dac_channels;
+		runtime->hw.channels_max = chip->model.dac_channels_pcm;
 		break;
 	}
 	if (chip->model.pcm_hardware_filter)

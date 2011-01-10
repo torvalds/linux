@@ -185,7 +185,7 @@ static void ak4396_init(struct oxygen *chip)
 {
 	struct generic_data *data = chip->model_data;
 
-	data->dacs = chip->model.dac_channels / 2;
+	data->dacs = chip->model.dac_channels_pcm / 2;
 	data->ak4396_regs[0][AK4396_CONTROL_2] =
 		AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
 	ak4396_registers_init(chip);
@@ -583,7 +583,8 @@ static const struct oxygen_model model_generic = {
 			 CAPTURE_1_FROM_SPDIF |
 			 CAPTURE_2_FROM_AC97_1 |
 			 AC97_CD_INPUT,
-	.dac_channels = 8,
+	.dac_channels_pcm = 8,
+	.dac_channels_mixer = 8,
 	.dac_volume_min = 0,
 	.dac_volume_max = 255,
 	.function_flags = OXYGEN_FUNCTION_SPI |
@@ -643,7 +644,8 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 					    PLAYBACK_1_TO_SPDIF;
 		if (id->driver_data == MODEL_FANTASIA)
 			chip->model.device_config |= CAPTURE_0_FROM_I2S_1;
-		chip->model.dac_channels = 2;
+		chip->model.dac_channels_pcm = 2;
+		chip->model.dac_channels_mixer = 2;
 		break;
 	}
 	if (id->driver_data == MODEL_MERIDIAN ||

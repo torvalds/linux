@@ -1094,7 +1094,8 @@ static const struct oxygen_model model_xonar_d2 = {
 			 MIDI_OUTPUT |
 			 MIDI_INPUT |
 			 AC97_CD_INPUT,
-	.dac_channels = 8,
+	.dac_channels_pcm = 8,
+	.dac_channels_mixer = 8,
 	.dac_volume_min = 255 - 2*60,
 	.dac_volume_max = 255,
 	.misc_flags = OXYGEN_MISC_MIDI,
@@ -1127,7 +1128,8 @@ static const struct oxygen_model model_xonar_hdav = {
 			 PLAYBACK_1_TO_SPDIF |
 			 CAPTURE_0_FROM_I2S_2 |
 			 CAPTURE_1_FROM_SPDIF,
-	.dac_channels = 8,
+	.dac_channels_pcm = 8,
+	.dac_channels_mixer = 2,
 	.dac_volume_min = 255 - 2*60,
 	.dac_volume_max = 255,
 	.misc_flags = OXYGEN_MISC_MIDI,
@@ -1157,7 +1159,8 @@ static const struct oxygen_model model_xonar_st = {
 			 PLAYBACK_1_TO_SPDIF |
 			 CAPTURE_0_FROM_I2S_2 |
 			 AC97_FMIC_SWITCH,
-	.dac_channels = 2,
+	.dac_channels_pcm = 2,
+	.dac_channels_mixer = 2,
 	.dac_volume_min = 255 - 2*60,
 	.dac_volume_max = 255,
 	.function_flags = OXYGEN_FUNCTION_2WIRE,
@@ -1187,6 +1190,7 @@ int __devinit get_xonar_pcm179x_model(struct oxygen *chip,
 			break;
 		case GPIO_DB_H6:
 			chip->model.shortname = "Xonar HDAV1.3+H6";
+			chip->model.dac_channels_mixer = 8;
 			chip->model.private_data = 1;
 			break;
 		}
@@ -1200,7 +1204,8 @@ int __devinit get_xonar_pcm179x_model(struct oxygen *chip,
 			break;
 		case GPIO_DB_H6:
 			chip->model.shortname = "Xonar ST+H6";
-			chip->model.dac_channels = 8;
+			chip->model.dac_channels_pcm = 8;
+			chip->model.dac_channels_mixer = 8;
 			chip->model.private_data = 1;
 			break;
 		}

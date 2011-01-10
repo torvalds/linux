@@ -31,7 +31,7 @@ static int dac_volume_info(struct snd_kcontrol *ctl,
 	struct oxygen *chip = ctl->private_data;
 
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	info->count = chip->model.dac_channels;
+	info->count = chip->model.dac_channels_mixer;
 	info->value.integer.min = chip->model.dac_volume_min;
 	info->value.integer.max = chip->model.dac_volume_max;
 	return 0;
@@ -44,7 +44,7 @@ static int dac_volume_get(struct snd_kcontrol *ctl,
 	unsigned int i;
 
 	mutex_lock(&chip->mutex);
-	for (i = 0; i < chip->model.dac_channels; ++i)
+	for (i = 0; i < chip->model.dac_channels_mixer; ++i)
 		value->value.integer.value[i] = chip->dac_volume[i];
 	mutex_unlock(&chip->mutex);
 	return 0;
@@ -59,7 +59,7 @@ static int dac_volume_put(struct snd_kcontrol *ctl,
 
 	changed = 0;
 	mutex_lock(&chip->mutex);
-	for (i = 0; i < chip->model.dac_channels; ++i)
+	for (i = 0; i < chip->model.dac_channels_mixer; ++i)
 		if (value->value.integer.value[i] != chip->dac_volume[i]) {
 			chip->dac_volume[i] = value->value.integer.value[i];
 			changed = 1;
@@ -1022,7 +1022,7 @@ static int add_controls(struct oxygen *chip,
 				continue;
 		}
 		if (!strcmp(template.name, "Stereo Upmixing") &&
-		    chip->model.dac_channels == 2)
+		    chip->model.dac_channels_pcm == 2)
 			continue;
 		if (!strcmp(template.name, "Mic Source Capture Enum") &&
 		    !(chip->model.device_config & AC97_FMIC_SWITCH))

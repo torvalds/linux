@@ -426,7 +426,8 @@ static const struct oxygen_model model_xonar_d1 = {
 			 PLAYBACK_1_TO_SPDIF |
 			 CAPTURE_0_FROM_I2S_2 |
 			 AC97_FMIC_SWITCH,
-	.dac_channels = 8,
+	.dac_channels_pcm = 8,
+	.dac_channels_mixer = 8,
 	.dac_volume_min = 127 - 60,
 	.dac_volume_max = 127,
 	.function_flags = OXYGEN_FUNCTION_2WIRE,

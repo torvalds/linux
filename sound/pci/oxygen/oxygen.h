@@ -100,7 +100,8 @@ struct oxygen_model {
 	unsigned long private_data;
 	size_t model_data_size;
 	unsigned int device_config;
-	u8 dac_channels;
+	u8 dac_channels_pcm;
+	u8 dac_channels_mixer;
 	u8 dac_volume_min;
 	u8 dac_volume_max;
 	u8 misc_flags;
