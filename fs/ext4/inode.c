@@ -1330,7 +1330,7 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 	 * avoid double accounting
 	 */
 	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
-		EXT4_I(inode)->i_delalloc_reserved_flag = 1;
+		ext4_set_inode_state(inode, EXT4_STATE_DELALLOC_RESERVED);
 	/*
 	 * We need to check for EXT4 here because migrate
 	 * could have changed the inode type in between
@@ -1360,7 +1360,7 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 			ext4_da_update_reserve_space(inode, retval, 1);
 	}
 	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
-		EXT4_I(inode)->i_delalloc_reserved_flag = 0;
+		ext4_clear_inode_state(inode, EXT4_STATE_DELALLOC_RESERVED);
 
 	up_write((&EXT4_I(inode)->i_data_sem));
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED) {
@@ -2249,7 +2249,7 @@ static void mpage_da_map_and_submit(struct mpage_da_data *mpd)
 	 * affects functions in many different parts of the allocation
 	 * call path.  This flag exists primarily because we don't
 	 * want to change *many* call functions, so ext4_map_blocks()
-	 * will set the magic i_delalloc_reserved_flag once the
+	 * will set the EXT4_STATE_DELALLOC_RESERVED flag once the
 	 * inode's allocation semaphore is taken.
 	 *
 	 * If the blocks in questions were delalloc blocks, set

@@ -828,7 +828,6 @@ struct ext4_inode_info {
 	unsigned int i_reserved_data_blocks;
 	unsigned int i_reserved_meta_blocks;
 	unsigned int i_allocated_meta_blocks;
-	unsigned short i_delalloc_reserved_flag;
 	sector_t i_da_metadata_calc_last_lblock;
 	int i_da_metadata_calc_len;
 
@@ -1235,6 +1234,7 @@ enum {
 	EXT4_STATE_EXT_MIGRATE,		/* Inode is migrating */
 	EXT4_STATE_DIO_UNWRITTEN,	/* need convert on dio done*/
 	EXT4_STATE_NEWENTRY,		/* File just added to dir */
+	EXT4_STATE_DELALLOC_RESERVED,	/* blks already reserved for delalloc */
 };
 
 #define EXT4_INODE_BIT_FNS(name, field)					\
