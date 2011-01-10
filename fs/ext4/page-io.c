@@ -44,7 +44,7 @@ int __init ext4_init_pageio(void)
 	if (io_page_cachep == NULL)
 		return -ENOMEM;
 	io_end_cachep = KMEM_CACHE(ext4_io_end, SLAB_RECLAIM_ACCOUNT);
-	if (io_page_cachep == NULL) {
+	if (io_end_cachep == NULL) {
 		kmem_cache_destroy(io_page_cachep);
 		return -ENOMEM;
 	}
