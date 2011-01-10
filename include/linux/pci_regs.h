@@ -508,10 +508,16 @@
 #define PCI_EXP_RTSTA_PENDING	0x20000 /* PME pending */
 #define PCI_EXP_DEVCAP2		36	/* Device Capabilities 2 */
 #define  PCI_EXP_DEVCAP2_ARI	0x20	/* Alternative Routing-ID */
+#define  PCI_EXP_OBFF_MASK	0xc0000 /* OBFF support mechanism */
+#define  PCI_EXP_OBFF_MSG	0x40000 /* New message signaling */
+#define  PCI_EXP_OBFF_WAKE	0x80000 /* Re-use WAKE# for OBFF */
 #define PCI_EXP_DEVCTL2		40	/* Device Control 2 */
 #define  PCI_EXP_DEVCTL2_ARI	0x20	/* Alternative Routing-ID */
 #define  PCI_EXP_IDO_REQ_EN	0x100	/* ID-based ordering request enable */
 #define  PCI_EXP_IDO_CMP_EN	0x200	/* ID-based ordering completion enable */
+#define  PCI_EXP_OBFF_MSGA_EN	0x2000	/* OBFF enable with Message type A */
+#define  PCI_EXP_OBFF_MSGB_EN	0x4000	/* OBFF enable with Message type B */
+#define  PCI_EXP_OBFF_WAKE_EN	0x6000	/* OBFF using WAKE# signaling */
 #define PCI_EXP_LNKCTL2		48	/* Link Control 2 */
 #define PCI_EXP_SLTCTL2		56	/* Slot Control 2 */
 

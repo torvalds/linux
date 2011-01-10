@@ -1887,6 +1887,98 @@ void pci_disable_ido(struct pci_dev *dev, unsigned long type)
 }
 EXPORT_SYMBOL(pci_disable_ido);
 
+/**
+ * pci_enable_obff - enable optimized buffer flush/fill
+ * @dev: PCI device
+ * @type: type of signaling to use
+ *
+ * Try to enable @type OBFF signaling on @dev.  It will try using WAKE#
+ * signaling if possible, falling back to message signaling only if
+ * WAKE# isn't supported.  @type should indicate whether the PCIe link
+ * be brought out of L0s or L1 to send the message.  It should be either
+ * %PCI_EXP_OBFF_SIGNAL_ALWAYS or %PCI_OBFF_SIGNAL_L0.
+ *
+ * If your device can benefit from receiving all messages, even at the
+ * power cost of bringing the link back up from a low power state, use
+ * %PCI_EXP_OBFF_SIGNAL_ALWAYS.  Otherwise, use %PCI_OBFF_SIGNAL_L0 (the
+ * preferred type).
+ *
+ * RETURNS:
+ * Zero on success, appropriate error number on failure.
+ */
+int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type type)
+{
+	int pos;
+	u32 cap;
+	u16 ctrl;
+	int ret;
+
+	if (!pci_is_pcie(dev))
+		return -ENOTSUPP;
+
+	pos = pci_pcie_cap(dev);
+	if (!pos)
+		return -ENOTSUPP;
+
+	pci_read_config_dword(dev, pos + PCI_EXP_DEVCAP2, &cap);
+	if (!(cap & PCI_EXP_OBFF_MASK))
+		return -ENOTSUPP; /* no OBFF support at all */
+
+	/* Make sure the topology supports OBFF as well */
+	if (dev->bus) {
+		ret = pci_enable_obff(dev->bus->self, type);
+		if (ret)
+			return ret;
+	}
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &ctrl);
+	if (cap & PCI_EXP_OBFF_WAKE)
+		ctrl |= PCI_EXP_OBFF_WAKE_EN;
+	else {
+		switch (type) {
+		case PCI_EXP_OBFF_SIGNAL_L0:
+			if (!(ctrl & PCI_EXP_OBFF_WAKE_EN))
+				ctrl |= PCI_EXP_OBFF_MSGA_EN;
+			break;
+		case PCI_EXP_OBFF_SIGNAL_ALWAYS:
+			ctrl &= ~PCI_EXP_OBFF_WAKE_EN;
+			ctrl |= PCI_EXP_OBFF_MSGB_EN;
+			break;
+		default:
+			WARN(1, "bad OBFF signal type\n");
+			return -ENOTSUPP;
+		}
+	}
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, ctrl);
+
+	return 0;
+}
+EXPORT_SYMBOL(pci_enable_obff);
+
+/**
+ * pci_disable_obff - disable optimized buffer flush/fill
+ * @dev: PCI device
+ *
+ * Disable OBFF on @dev.
+ */
+void pci_disable_obff(struct pci_dev *dev)
+{
+	int pos;
+	u16 ctrl;
+
+	if (!pci_is_pcie(dev))
+		return;
+
+	pos = pci_pcie_cap(dev);
+	if (!pos)
+		return;
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &ctrl);
+	ctrl &= ~PCI_EXP_OBFF_WAKE_EN;
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, ctrl);
+}
+EXPORT_SYMBOL(pci_disable_obff);
+
 static int pci_acs_enable;
 
 /**

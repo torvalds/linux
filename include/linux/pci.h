@@ -833,6 +833,13 @@ static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state,
 void pci_enable_ido(struct pci_dev *dev, unsigned long type);
 void pci_disable_ido(struct pci_dev *dev, unsigned long type);
 
+enum pci_obff_signal_type {
+	PCI_EXP_OBFF_SIGNAL_L0,
+	PCI_EXP_OBFF_SIGNAL_ALWAYS,
+};
+int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type);
+void pci_disable_obff(struct pci_dev *dev);
+
 /* For use by arch with custom probe code */
 void set_pcie_port_type(struct pci_dev *pdev);
 void set_pcie_hotplug_bridge(struct pci_dev *pdev);
@@ -1217,6 +1224,15 @@ static inline void pci_enable_ido(struct pci_dev *dev, unsigned long type)
 }
 
 static inline void pci_disable_ido(struct pci_dev *dev, unsigned long type)
+{
+}
+
+static inline int pci_enable_obff(struct pci_dev *dev, unsigned long type)
+{
+	return 0;
+}
+
+static inline void pci_disable_obff(struct pci_dev *dev)
 {
 }
 
