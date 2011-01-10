@@ -487,6 +487,12 @@ struct hci_cp_set_event_flt {
 #define HCI_CONN_SETUP_AUTO_OFF	0x01
 #define HCI_CONN_SETUP_AUTO_ON	0x02
 
+#define HCI_OP_DELETE_STORED_LINK_KEY	0x0c12
+struct hci_cp_delete_stored_link_key {
+	bdaddr_t bdaddr;
+	__u8     delete_all;
+} __packed;
+
 #define HCI_OP_WRITE_LOCAL_NAME		0x0c13
 struct hci_cp_write_local_name {
 	__u8     name[248];
