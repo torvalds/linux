@@ -150,6 +150,16 @@ config DRAGONRISE_FF
 	Say Y here if you want to enable force feedback support for DragonRise Inc.
 	game controllers.
 
+config HID_EMS_FF
+	tristate "EMS Production Inc. force feedback support"
+	depends on USB_HID
+	select INPUT_FF_MEMLESS
+	---help---
+	Say Y here if you want to enable force feedback support for devices by
+	EMS Production Ltd.
+	Currently the following devices are known to be supported:
+	 - Trio Linker Plus II
+
 config HID_EGALAX
 	tristate "eGalax multi-touch panel"
 	depends on USB_HID
@@ -396,6 +406,13 @@ config HID_ROCCAT_KONE
 	select HID_ROCCAT
 	---help---
 	Support for Roccat Kone mouse.
+
+config HID_ROCCAT_KONEPLUS
+	tristate "Roccat Kone[+] mouse support"
+	depends on USB_HID
+	select HID_ROCCAT
+	---help---
+	Support for Roccat Kone[+] mouse.
 
 config HID_ROCCAT_PYRA
 	tristate "Roccat Pyra mouse support"

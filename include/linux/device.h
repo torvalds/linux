@@ -197,6 +197,7 @@ struct class {
 
 	struct class_attribute		*class_attrs;
 	struct device_attribute		*dev_attrs;
+	struct bin_attribute		*dev_bin_attrs;
 	struct kobject			*dev_kobj;
 
 	int (*dev_uevent)(struct device *dev, struct kobj_uevent_env *env);
