@@ -1114,10 +1114,8 @@ xfs_qm_internalqcheck_adjust(
 	xfs_ino_t	ino,		/* inode number to get data for */
 	void		__user *buffer,	/* not used */
 	int		ubsize,		/* not used */
-	void		*private_data,	/* not used */
 	xfs_daddr_t	bno,		/* starting block of inode cluster */
 	int		*ubused,	/* not used */
-	void		*dip,		/* not used */
 	int		*res)		/* bulkstat result code */
 {
 	xfs_inode_t		*ip;
@@ -1212,15 +1210,15 @@ xfs_qm_internalqcheck(
 		 * Iterate thru all the inodes in the file system,
 		 * adjusting the corresponding dquot counters
 		 */
-		if ((error = xfs_bulkstat(mp, &lastino, &count,
-				 xfs_qm_internalqcheck_adjust, NULL,
-				 0, NULL, BULKSTAT_FG_IGET, &done))) {
+		error = xfs_bulkstat(mp, &lastino, &count,
+				 xfs_qm_internalqcheck_adjust,
+				 0, NULL, &done);
+		if (error) {
+			cmn_err(CE_DEBUG, "Bulkstat returned error 0x%x", error);
 			break;
 		}
-	} while (! done);
-	if (error) {
-		cmn_err(CE_DEBUG, "Bulkstat returned error 0x%x", error);
-	}
+	} while (!done);
+
 	cmn_err(CE_DEBUG, "Checking results against system dquots");
 	for (i = 0; i < qmtest_hashmask; i++) {
 		h1 = &qmtest_udqtab[i];

@@ -673,10 +673,9 @@ xfs_ioc_bulkstat(
 		error = xfs_bulkstat_single(mp, &inlast,
 						bulkreq.ubuffer, &done);
 	else	/* XFS_IOC_FSBULKSTAT */
-		error = xfs_bulkstat(mp, &inlast, &count,
-			(bulkstat_one_pf)xfs_bulkstat_one, NULL,
-			sizeof(xfs_bstat_t), bulkreq.ubuffer,
-			BULKSTAT_FG_QUICK, &done);
+		error = xfs_bulkstat(mp, &inlast, &count, xfs_bulkstat_one,
+				     sizeof(xfs_bstat_t), bulkreq.ubuffer,
+				     &done);
 
 	if (error)
 		return -error;
