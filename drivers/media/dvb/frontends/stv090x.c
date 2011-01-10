@@ -3846,6 +3846,7 @@ static int stv090x_sleep(struct dvb_frontend *fe)
 {
 	struct stv090x_state *state = fe->demodulator_priv;
 	u32 reg;
+	u8 full_standby = 0;
 
 	if (stv090x_i2c_gate_ctrl(state, 1) < 0)
 		goto err;
@@ -3858,24 +3859,119 @@ static int stv090x_sleep(struct dvb_frontend *fe)
 	if (stv090x_i2c_gate_ctrl(state, 0) < 0)
 		goto err;
 
-	dprintk(FE_DEBUG, 1, "Set %s to sleep",
-		state->device == STV0900 ? "STV0900" : "STV0903");
+	dprintk(FE_DEBUG, 1, "Set %s(%d) to sleep",
+		state->device == STV0900 ? "STV0900" : "STV0903",
+		state->demod);
 
-	reg = stv090x_read_reg(state, STV090x_SYNTCTRL);
-	STV090x_SETFIELD(reg, STANDBY_FIELD, 0x01);
-	if (stv090x_write_reg(state, STV090x_SYNTCTRL, reg) < 0)
-		goto err;
+	mutex_lock(&state->internal->demod_lock);
 
-	reg = stv090x_read_reg(state, STV090x_TSTTNR1);
-	STV090x_SETFIELD(reg, ADC1_PON_FIELD, 0);
-	if (stv090x_write_reg(state, STV090x_TSTTNR1, reg) < 0)
-		goto err;
+	switch (state->demod) {
+	case STV090x_DEMODULATOR_0:
+		/* power off ADC 1 */
+		reg = stv090x_read_reg(state, STV090x_TSTTNR1);
+		STV090x_SETFIELD(reg, ADC1_PON_FIELD, 0);
+		if (stv090x_write_reg(state, STV090x_TSTTNR1, reg) < 0)
+			goto err;
+		/* power off DiSEqC 1 */
+		reg = stv090x_read_reg(state, STV090x_TSTTNR2);
+		STV090x_SETFIELD(reg, DISEQC1_PON_FIELD, 0);
+		if (stv090x_write_reg(state, STV090x_TSTTNR2, reg) < 0)
+			goto err;
 
+		/* check whether path 2 is already sleeping, that is when
+		   ADC2 is off */
+		reg = stv090x_read_reg(state, STV090x_TSTTNR3);
+		if (STV090x_GETFIELD(reg, ADC2_PON_FIELD) == 0)
+			full_standby = 1;
+
+		/* stop clocks */
+		reg = stv090x_read_reg(state, STV090x_STOPCLK1);
+		/* packet delineator 1 clock */
+		STV090x_SETFIELD(reg, STOP_CLKPKDT1_FIELD, 1);
+		/* ADC 1 clock */
+		STV090x_SETFIELD(reg, STOP_CLKADCI1_FIELD, 1);
+		/* FEC clock is shared between the two paths, only stop it
+		   when full standby is possible */
+		if (full_standby)
+			STV090x_SETFIELD(reg, STOP_CLKFEC_FIELD, 1);
+		if (stv090x_write_reg(state, STV090x_STOPCLK1, reg) < 0)
+			goto err;
+		reg = stv090x_read_reg(state, STV090x_STOPCLK2);
+		/* sampling 1 clock */
+		STV090x_SETFIELD(reg, STOP_CLKSAMP1_FIELD, 1);
+		/* viterbi 1 clock */
+		STV090x_SETFIELD(reg, STOP_CLKVIT1_FIELD, 1);
+		/* TS clock is shared between the two paths, only stop it
+		   when full standby is possible */
+		if (full_standby)
+			STV090x_SETFIELD(reg, STOP_CLKTS_FIELD, 1);
+		if (stv090x_write_reg(state, STV090x_STOPCLK2, reg) < 0)
+			goto err;
+		break;
+
+	case STV090x_DEMODULATOR_1:
+		/* power off ADC 2 */
+		reg = stv090x_read_reg(state, STV090x_TSTTNR3);
+		STV090x_SETFIELD(reg, ADC2_PON_FIELD, 0);
+		if (stv090x_write_reg(state, STV090x_TSTTNR3, reg) < 0)
+			goto err;
+		/* power off DiSEqC 2 */
+		reg = stv090x_read_reg(state, STV090x_TSTTNR4);
+		STV090x_SETFIELD(reg, DISEQC2_PON_FIELD, 0);
+		if (stv090x_write_reg(state, STV090x_TSTTNR4, reg) < 0)
+			goto err;
+
+		/* check whether path 1 is already sleeping, that is when
+		   ADC1 is off */
+		reg = stv090x_read_reg(state, STV090x_TSTTNR1);
+		if (STV090x_GETFIELD(reg, ADC1_PON_FIELD) == 0)
+			full_standby = 1;
+
+		/* stop clocks */
+		reg = stv090x_read_reg(state, STV090x_STOPCLK1);
+		/* packet delineator 2 clock */
+		STV090x_SETFIELD(reg, STOP_CLKPKDT2_FIELD, 1);
+		/* ADC 2 clock */
+		STV090x_SETFIELD(reg, STOP_CLKADCI2_FIELD, 1);
+		/* FEC clock is shared between the two paths, only stop it
+		   when full standby is possible */
+		if (full_standby)
+			STV090x_SETFIELD(reg, STOP_CLKFEC_FIELD, 1);
+		if (stv090x_write_reg(state, STV090x_STOPCLK1, reg) < 0)
+			goto err;
+		reg = stv090x_read_reg(state, STV090x_STOPCLK2);
+		/* sampling 2 clock */
+		STV090x_SETFIELD(reg, STOP_CLKSAMP2_FIELD, 1);
+		/* viterbi 2 clock */
+		STV090x_SETFIELD(reg, STOP_CLKVIT2_FIELD, 1);
+		/* TS clock is shared between the two paths, only stop it
+		   when full standby is possible */
+		if (full_standby)
+			STV090x_SETFIELD(reg, STOP_CLKTS_FIELD, 1);
+		if (stv090x_write_reg(state, STV090x_STOPCLK2, reg) < 0)
+			goto err;
+		break;
+
+	default:
+		dprintk(FE_ERROR, 1, "Wrong demodulator!");
+		break;
+	}
+
+	if (full_standby) {
+		/* general power off */
+		reg = stv090x_read_reg(state, STV090x_SYNTCTRL);
+		STV090x_SETFIELD(reg, STANDBY_FIELD, 0x01);
+		if (stv090x_write_reg(state, STV090x_SYNTCTRL, reg) < 0)
+			goto err;
+	}
+
+	mutex_unlock(&state->internal->demod_lock);
 	return 0;
 
 err_gateoff:
 	stv090x_i2c_gate_ctrl(state, 0);
 err:
+	mutex_unlock(&state->internal->demod_lock);
 	dprintk(FE_ERROR, 1, "I/O error");
 	return -1;
 }
@@ -3885,21 +3981,94 @@ static int stv090x_wakeup(struct dvb_frontend *fe)
 	struct stv090x_state *state = fe->demodulator_priv;
 	u32 reg;
 
-	dprintk(FE_DEBUG, 1, "Wake %s from standby",
-		state->device == STV0900 ? "STV0900" : "STV0903");
+	dprintk(FE_DEBUG, 1, "Wake %s(%d) from standby",
+		state->device == STV0900 ? "STV0900" : "STV0903",
+		state->demod);
 
+	mutex_lock(&state->internal->demod_lock);
+
+	/* general power on */
 	reg = stv090x_read_reg(state, STV090x_SYNTCTRL);
 	STV090x_SETFIELD(reg, STANDBY_FIELD, 0x00);
 	if (stv090x_write_reg(state, STV090x_SYNTCTRL, reg) < 0)
 		goto err;
 
-	reg = stv090x_read_reg(state, STV090x_TSTTNR1);
-	STV090x_SETFIELD(reg, ADC1_PON_FIELD, 1);
-	if (stv090x_write_reg(state, STV090x_TSTTNR1, reg) < 0)
-		goto err;
+	switch (state->demod) {
+	case STV090x_DEMODULATOR_0:
+		/* power on ADC 1 */
+		reg = stv090x_read_reg(state, STV090x_TSTTNR1);
+		STV090x_SETFIELD(reg, ADC1_PON_FIELD, 1);
+		if (stv090x_write_reg(state, STV090x_TSTTNR1, reg) < 0)
+			goto err;
+		/* power on DiSEqC 1 */
+		reg = stv090x_read_reg(state, STV090x_TSTTNR2);
+		STV090x_SETFIELD(reg, DISEQC1_PON_FIELD, 1);
+		if (stv090x_write_reg(state, STV090x_TSTTNR2, reg) < 0)
+			goto err;
 
+		/* activate clocks */
+		reg = stv090x_read_reg(state, STV090x_STOPCLK1);
+		/* packet delineator 1 clock */
+		STV090x_SETFIELD(reg, STOP_CLKPKDT1_FIELD, 0);
+		/* ADC 1 clock */
+		STV090x_SETFIELD(reg, STOP_CLKADCI1_FIELD, 0);
+		/* FEC clock */
+		STV090x_SETFIELD(reg, STOP_CLKFEC_FIELD, 0);
+		if (stv090x_write_reg(state, STV090x_STOPCLK1, reg) < 0)
+			goto err;
+		reg = stv090x_read_reg(state, STV090x_STOPCLK2);
+		/* sampling 1 clock */
+		STV090x_SETFIELD(reg, STOP_CLKSAMP1_FIELD, 0);
+		/* viterbi 1 clock */
+		STV090x_SETFIELD(reg, STOP_CLKVIT1_FIELD, 0);
+		/* TS clock */
+		STV090x_SETFIELD(reg, STOP_CLKTS_FIELD, 0);
+		if (stv090x_write_reg(state, STV090x_STOPCLK2, reg) < 0)
+			goto err;
+		break;
+
+	case STV090x_DEMODULATOR_1:
+		/* power on ADC 2 */
+		reg = stv090x_read_reg(state, STV090x_TSTTNR3);
+		STV090x_SETFIELD(reg, ADC2_PON_FIELD, 1);
+		if (stv090x_write_reg(state, STV090x_TSTTNR3, reg) < 0)
+			goto err;
+		/* power on DiSEqC 2 */
+		reg = stv090x_read_reg(state, STV090x_TSTTNR4);
+		STV090x_SETFIELD(reg, DISEQC2_PON_FIELD, 1);
+		if (stv090x_write_reg(state, STV090x_TSTTNR4, reg) < 0)
+			goto err;
+
+		/* activate clocks */
+		reg = stv090x_read_reg(state, STV090x_STOPCLK1);
+		/* packet delineator 2 clock */
+		STV090x_SETFIELD(reg, STOP_CLKPKDT2_FIELD, 0);
+		/* ADC 2 clock */
+		STV090x_SETFIELD(reg, STOP_CLKADCI2_FIELD, 0);
+		/* FEC clock */
+		STV090x_SETFIELD(reg, STOP_CLKFEC_FIELD, 0);
+		if (stv090x_write_reg(state, STV090x_STOPCLK1, reg) < 0)
+			goto err;
+		reg = stv090x_read_reg(state, STV090x_STOPCLK2);
+		/* sampling 2 clock */
+		STV090x_SETFIELD(reg, STOP_CLKSAMP2_FIELD, 0);
+		/* viterbi 2 clock */
+		STV090x_SETFIELD(reg, STOP_CLKVIT2_FIELD, 0);
+		/* TS clock */
+		STV090x_SETFIELD(reg, STOP_CLKTS_FIELD, 0);
+		if (stv090x_write_reg(state, STV090x_STOPCLK2, reg) < 0)
+			goto err;
+		break;
+
+	default:
+		dprintk(FE_ERROR, 1, "Wrong demodulator!");
+		break;
+	}
+
+	mutex_unlock(&state->internal->demod_lock);
 	return 0;
 err:
+	mutex_unlock(&state->internal->demod_lock);
 	dprintk(FE_ERROR, 1, "I/O error");
 	return -1;
 }
@@ -4622,20 +4791,10 @@ struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
 	mutex_init(&state->internal->demod_lock);
 	mutex_init(&state->internal->tuner_lock);
 
-	if (stv090x_sleep(&state->frontend) < 0) {
-		dprintk(FE_ERROR, 1, "Error putting device to sleep");
-		goto error;
-	}
-
 	if (stv090x_setup(&state->frontend) < 0) {
 		dprintk(FE_ERROR, 1, "Error setting up device");
 		goto error;
 	}
-	if (stv090x_wakeup(&state->frontend) < 0) {
-		dprintk(FE_ERROR, 1, "Error waking device");
-		goto error;
-	}
-
 	dprintk(FE_ERROR, 1, "Attaching %s demodulator(%d) Cut=0x%02x",
 	       state->device == STV0900 ? "STV0900" : "STV0903",
 	       demod,
