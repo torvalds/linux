@@ -24,7 +24,6 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
-#include <linux/pm_runtime.h>
 
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
@@ -1804,7 +1803,14 @@ int usb_new_device(struct usb_device *udev)
 
 	/* Tell the runtime-PM framework the device is active */
 	pm_runtime_set_active(&udev->dev);
+	pm_runtime_get_noresume(&udev->dev);
+	pm_runtime_use_autosuspend(&udev->dev);
 	pm_runtime_enable(&udev->dev);
+
+	/* By default, forbid autosuspend for all devices.  It will be
+	 * allowed for hubs during binding.
+	 */
+	usb_disable_autosuspend(udev);
 
 	err = usb_enumerate_device(udev);	/* Read descriptors */
 	if (err < 0)
@@ -1831,6 +1837,8 @@ int usb_new_device(struct usb_device *udev)
 	}
 
 	(void) usb_create_ep_devs(&udev->dev, &udev->ep0, udev);
+	usb_mark_last_busy(udev);
+	pm_runtime_put_sync_autosuspend(&udev->dev);
 	return err;
 
 fail:
@@ -2221,6 +2229,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 		usb_set_device_state(udev, USB_STATE_SUSPENDED);
 		msleep(10);
 	}
+	usb_mark_last_busy(hub->hdev);
 	return status;
 }
 

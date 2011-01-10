@@ -162,15 +162,23 @@ struct inode *nilfs_alloc_inode(struct super_block *sb)
 	return &ii->vfs_inode;
 }
 
-void nilfs_destroy_inode(struct inode *inode)
+static void nilfs_i_callback(struct rcu_head *head)
 {
+	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
+
+	INIT_LIST_HEAD(&inode->i_dentry);
 
 	if (mdi) {
 		kfree(mdi->mi_bgl); /* kfree(NULL) is safe */
 		kfree(mdi);
 	}
 	kmem_cache_free(nilfs_inode_cachep, NILFS_I(inode));
+}
+
+void nilfs_destroy_inode(struct inode *inode)
+{
+	call_rcu(&inode->i_rcu, nilfs_i_callback);
 }
 
 static int nilfs_sync_super(struct nilfs_sb_info *sbi, int flag)
@@ -838,7 +846,7 @@ static int nilfs_attach_snapshot(struct super_block *s, __u64 cno,
 
 static int nilfs_tree_was_touched(struct dentry *root_dentry)
 {
-	return atomic_read(&root_dentry->d_count) > 1;
+	return root_dentry->d_count > 1;
 }
 
 /**

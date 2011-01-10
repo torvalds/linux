@@ -146,7 +146,7 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 		}
 	},
 	{ /* CRoC */
-		.mailbox = 0x00040,
+		.mailbox = 0x00044,
 		.cache_line_size = 0x20,
 		{
 			.set_interrupt_mask_reg = 0x00010,
@@ -1048,6 +1048,8 @@ static void ipr_init_res_entry(struct ipr_resource_entry *res,
 			sizeof(res->res_path));
 
 		res->bus = 0;
+		memcpy(&res->dev_lun.scsi_lun, &cfgtew->u.cfgte64->lun,
+			sizeof(res->dev_lun.scsi_lun));
 		res->lun = scsilun_to_int(&res->dev_lun);
 
 		if (res->type == IPR_RES_TYPE_GENERIC_SCSI) {
@@ -1063,9 +1065,6 @@ static void ipr_init_res_entry(struct ipr_resource_entry *res,
 								  ioa_cfg->max_devs_supported);
 				set_bit(res->target, ioa_cfg->target_ids);
 			}
-
-			memcpy(&res->dev_lun.scsi_lun, &cfgtew->u.cfgte64->lun,
-				sizeof(res->dev_lun.scsi_lun));
 		} else if (res->type == IPR_RES_TYPE_IOAFP) {
 			res->bus = IPR_IOAFP_VIRTUAL_BUS;
 			res->target = 0;
@@ -1116,7 +1115,7 @@ static int ipr_is_same_device(struct ipr_resource_entry *res,
 	if (res->ioa_cfg->sis64) {
 		if (!memcmp(&res->dev_id, &cfgtew->u.cfgte64->dev_id,
 					sizeof(cfgtew->u.cfgte64->dev_id)) &&
-			!memcmp(&res->lun, &cfgtew->u.cfgte64->lun,
+			!memcmp(&res->dev_lun.scsi_lun, &cfgtew->u.cfgte64->lun,
 					sizeof(cfgtew->u.cfgte64->lun))) {
 			return 1;
 		}
@@ -2899,6 +2898,12 @@ static void ipr_get_ioa_dump(struct ipr_ioa_cfg *ioa_cfg, struct ipr_dump *dump)
 	if (ioa_cfg->sdt_state != GET_DUMP) {
 		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 		return;
+	}
+
+	if (ioa_cfg->sis64) {
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+		ssleep(IPR_DUMP_DELAY_SECONDS);
+		spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
 	}
 
 	start_addr = readl(ioa_cfg->ioa_mailbox);
@@ -7473,6 +7478,29 @@ static void ipr_get_unit_check_buffer(struct ipr_ioa_cfg *ioa_cfg)
 }
 
 /**
+ * ipr_reset_get_unit_check_job - Call to get the unit check buffer.
+ * @ipr_cmd:	ipr command struct
+ *
+ * Description: This function will call to get the unit check buffer.
+ *
+ * Return value:
+ *	IPR_RC_JOB_RETURN
+ **/
+static int ipr_reset_get_unit_check_job(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+
+	ENTER;
+	ioa_cfg->ioa_unit_checked = 0;
+	ipr_get_unit_check_buffer(ioa_cfg);
+	ipr_cmd->job_step = ipr_reset_alert;
+	ipr_reset_start_timer(ipr_cmd, 0);
+
+	LEAVE;
+	return IPR_RC_JOB_RETURN;
+}
+
+/**
  * ipr_reset_restore_cfg_space - Restore PCI config space.
  * @ipr_cmd:	ipr command struct
  *
@@ -7512,11 +7540,17 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 	}
 
 	if (ioa_cfg->ioa_unit_checked) {
-		ioa_cfg->ioa_unit_checked = 0;
-		ipr_get_unit_check_buffer(ioa_cfg);
-		ipr_cmd->job_step = ipr_reset_alert;
-		ipr_reset_start_timer(ipr_cmd, 0);
-		return IPR_RC_JOB_RETURN;
+		if (ioa_cfg->sis64) {
+			ipr_cmd->job_step = ipr_reset_get_unit_check_job;
+			ipr_reset_start_timer(ipr_cmd, IPR_DUMP_DELAY_TIMEOUT);
+			return IPR_RC_JOB_RETURN;
+		} else {
+			ioa_cfg->ioa_unit_checked = 0;
+			ipr_get_unit_check_buffer(ioa_cfg);
+			ipr_cmd->job_step = ipr_reset_alert;
+			ipr_reset_start_timer(ipr_cmd, 0);
+			return IPR_RC_JOB_RETURN;
+		}
 	}
 
 	if (ioa_cfg->in_ioa_bringdown) {

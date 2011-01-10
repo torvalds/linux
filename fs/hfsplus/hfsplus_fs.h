@@ -379,8 +379,12 @@ int hfsplus_strcasecmp(const struct hfsplus_unistr *, const struct hfsplus_unist
 int hfsplus_strcmp(const struct hfsplus_unistr *, const struct hfsplus_unistr *);
 int hfsplus_uni2asc(struct super_block *, const struct hfsplus_unistr *, char *, int *);
 int hfsplus_asc2uni(struct super_block *, struct hfsplus_unistr *, const char *, int);
-int hfsplus_hash_dentry(struct dentry *dentry, struct qstr *str);
-int hfsplus_compare_dentry(struct dentry *dentry, struct qstr *s1, struct qstr *s2);
+int hfsplus_hash_dentry(const struct dentry *dentry, const struct inode *inode,
+		struct qstr *str);
+int hfsplus_compare_dentry(const struct dentry *parent,
+		const struct inode *pinode,
+		const struct dentry *dentry, const struct inode *inode,
+		unsigned int len, const char *str, const struct qstr *name);
 
 /* wrapper.c */
 int hfsplus_read_wrapper(struct super_block *);

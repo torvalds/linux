@@ -139,9 +139,16 @@ static struct inode *udf_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static void udf_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(udf_inode_cachep, UDF_I(inode));
+}
+
 static void udf_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(udf_inode_cachep, UDF_I(inode));
+	call_rcu(&inode->i_rcu, udf_i_callback);
 }
 
 static void init_once(void *foo)

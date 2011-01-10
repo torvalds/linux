@@ -41,7 +41,7 @@ static void zfcp_qdio_handler_error(struct zfcp_qdio *qdio, char *id,
 		zfcp_qdio_siosl(adapter);
 	zfcp_erp_adapter_reopen(adapter,
 				ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
-				ZFCP_STATUS_COMMON_ERP_FAILED, id, NULL);
+				ZFCP_STATUS_COMMON_ERP_FAILED, id);
 }
 
 static void zfcp_qdio_zero_sbals(struct qdio_buffer *sbal[], int first, int cnt)
@@ -74,7 +74,6 @@ static void zfcp_qdio_int_req(struct ccw_device *cdev, unsigned int qdio_err,
 	struct zfcp_qdio *qdio = (struct zfcp_qdio *) parm;
 
 	if (unlikely(qdio_err)) {
-		zfcp_dbf_hba_qdio(qdio->adapter->dbf, qdio_err, idx, count);
 		zfcp_qdio_handler_error(qdio, "qdireq1", qdio_err);
 		return;
 	}
@@ -97,7 +96,6 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 	int sbal_idx, sbal_no;
 
 	if (unlikely(qdio_err)) {
-		zfcp_dbf_hba_qdio(qdio->adapter->dbf, qdio_err, idx, count);
 		zfcp_qdio_handler_error(qdio, "qdires1", qdio_err);
 		return;
 	}
@@ -116,7 +114,7 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 	 * put SBALs back to response queue
 	 */
 	if (do_QDIO(cdev, QDIO_FLAG_SYNC_INPUT, 0, idx, count))
-		zfcp_erp_adapter_reopen(qdio->adapter, 0, "qdires2", NULL);
+		zfcp_erp_adapter_reopen(qdio->adapter, 0, "qdires2");
 }
 
 static struct qdio_buffer_element *
@@ -236,7 +234,7 @@ int zfcp_qdio_sbal_get(struct zfcp_qdio *qdio)
 	if (!ret) {
 		atomic_inc(&qdio->req_q_full);
 		/* assume hanging outbound queue, try queue recovery */
-		zfcp_erp_adapter_reopen(qdio->adapter, 0, "qdsbg_1", NULL);
+		zfcp_erp_adapter_reopen(qdio->adapter, 0, "qdsbg_1");
 	}
 
 	spin_lock_irq(&qdio->req_q_lock);
@@ -309,6 +307,7 @@ static int zfcp_qdio_allocate(struct zfcp_qdio *qdio)
 		return -ENOMEM;
 
 	zfcp_qdio_setup_init_data(&init_data, qdio);
+	init_waitqueue_head(&qdio->req_q_wq);
 
 	return qdio_allocate(&init_data);
 }
@@ -393,6 +392,7 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	/* set index of first avalable SBALS / number of available SBALS */
 	qdio->req_q_idx = 0;
 	atomic_set(&qdio->req_q_free, QDIO_MAX_BUFFERS_PER_Q);
+	atomic_set_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &qdio->adapter->status);
 
 	return 0;
 

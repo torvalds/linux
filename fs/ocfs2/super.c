@@ -569,9 +569,16 @@ static struct inode *ocfs2_alloc_inode(struct super_block *sb)
 	return &oi->vfs_inode;
 }
 
+static void ocfs2_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(ocfs2_inode_cachep, OCFS2_I(inode));
+}
+
 static void ocfs2_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(ocfs2_inode_cachep, OCFS2_I(inode));
+	call_rcu(&inode->i_rcu, ocfs2_i_callback);
 }
 
 static unsigned long long ocfs2_max_file_offset(unsigned int bbits,

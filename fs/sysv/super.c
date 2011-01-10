@@ -346,7 +346,7 @@ static int complete_read_super(struct super_block *sb, int silent, int size)
 	if (sbi->s_forced_ro)
 		sb->s_flags |= MS_RDONLY;
 	if (sbi->s_truncate)
-		sb->s_root->d_op = &sysv_dentry_operations;
+		d_set_d_op(sb->s_root, &sysv_dentry_operations);
 	return 1;
 }
 

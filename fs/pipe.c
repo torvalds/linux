@@ -999,12 +999,12 @@ struct file *create_write_pipe(int flags)
 		goto err;
 
 	err = -ENOMEM;
-	path.dentry = d_alloc(pipe_mnt->mnt_sb->s_root, &name);
+	path.dentry = d_alloc_pseudo(pipe_mnt->mnt_sb, &name);
 	if (!path.dentry)
 		goto err_inode;
 	path.mnt = mntget(pipe_mnt);
 
-	path.dentry->d_op = &pipefs_dentry_operations;
+	d_set_d_op(path.dentry, &pipefs_dentry_operations);
 	d_instantiate(path.dentry, inode);
 
 	err = -ENFILE;
@@ -1253,6 +1253,10 @@ out:
 	return ret;
 }
 
+static const struct super_operations pipefs_ops = {
+	.destroy_inode = free_inode_nonrcu,
+};
+
 /*
  * pipefs should _never_ be mounted by userland - too much of security hassle,
  * no real gain from having the whole whorehouse mounted. So we don't need
@@ -1262,7 +1266,7 @@ out:
 static struct dentry *pipefs_mount(struct file_system_type *fs_type,
 			 int flags, const char *dev_name, void *data)
 {
-	return mount_pseudo(fs_type, "pipe:", NULL, PIPEFS_MAGIC);
+	return mount_pseudo(fs_type, "pipe:", &pipefs_ops, PIPEFS_MAGIC);
 }
 
 static struct file_system_type pipe_fs_type = {
@@ -1288,7 +1292,7 @@ static int __init init_pipe_fs(void)
 static void __exit exit_pipe_fs(void)
 {
 	unregister_filesystem(&pipe_fs_type);
-	mntput(pipe_mnt);
+	mntput_long(pipe_mnt);
 }
 
 fs_initcall(init_pipe_fs);

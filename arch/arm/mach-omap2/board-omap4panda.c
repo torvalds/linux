@@ -144,8 +144,15 @@ error1:
 
 static struct omap_musb_board_data musb_board_data = {
 	.interface_type		= MUSB_INTERFACE_UTMI,
-	.mode			= MUSB_PERIPHERAL,
+	.mode			= MUSB_OTG,
 	.power			= 100,
+};
+
+static struct twl4030_usb_data omap4_usbphy_data = {
+	.phy_init	= omap4430_phy_init,
+	.phy_exit	= omap4430_phy_exit,
+	.phy_power	= omap4430_phy_power,
+	.phy_set_clock	= omap4430_phy_set_clk,
 };
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -357,6 +364,7 @@ static struct twl4030_platform_data omap4_panda_twldata = {
 	.vaux1		= &omap4_panda_vaux1,
 	.vaux2		= &omap4_panda_vaux2,
 	.vaux3		= &omap4_panda_vaux3,
+	.usb		= &omap4_usbphy_data,
 };
 
 static struct i2c_board_info __initdata omap4_panda_i2c_boardinfo[] = {
@@ -404,9 +412,7 @@ static void __init omap4_panda_init(void)
 	/* OMAP4 Panda uses internal transceiver so register nop transceiver */
 	usb_nop_xceiv_register();
 	omap4_ehci_init();
-	/* FIXME: allow multi-omap to boot until musb is updated for omap4 */
-	if (!cpu_is_omap44xx())
-		usb_musb_init(&musb_board_data);
+	usb_musb_init(&musb_board_data);
 }
 
 static void __init omap4_panda_map_io(void)

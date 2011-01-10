@@ -1917,17 +1917,6 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
 }
 EXPORT_SYMBOL(kmem_cache_free);
 
-/* Figure out on which slab page the object resides */
-static struct page *get_object_page(const void *x)
-{
-	struct page *page = virt_to_head_page(x);
-
-	if (!PageSlab(page))
-		return NULL;
-
-	return page;
-}
-
 /*
  * Object placement in a slab is made very easy because we always start at
  * offset 0. If we tune the size of the object to the alignment then we can
@@ -2384,35 +2373,6 @@ error:
 			s->offset, flags);
 	return 0;
 }
-
-/*
- * Check if a given pointer is valid
- */
-int kmem_ptr_validate(struct kmem_cache *s, const void *object)
-{
-	struct page *page;
-
-	if (!kern_ptr_validate(object, s->size))
-		return 0;
-
-	page = get_object_page(object);
-
-	if (!page || s != page->slab)
-		/* No slab or wrong slab */
-		return 0;
-
-	if (!check_valid_pointer(s, page, object))
-		return 0;
-
-	/*
-	 * We could also check if the object is on the slabs freelist.
-	 * But this would be too expensive and it seems that the main
-	 * purpose of kmem_ptr_valid() is to check if the object belongs
-	 * to a certain slab.
-	 */
-	return 1;
-}
-EXPORT_SYMBOL(kmem_ptr_validate);
 
 /*
  * Determine the size of a slab object

@@ -110,7 +110,7 @@ static struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 
 	dentry = d_obtain_alias(inode);
 	if (!IS_ERR(dentry))
-		dentry->d_op = &btrfs_dentry_operations;
+		d_set_d_op(dentry, &btrfs_dentry_operations);
 	return dentry;
 fail:
 	srcu_read_unlock(&fs_info->subvol_srcu, index);
@@ -225,7 +225,7 @@ static struct dentry *btrfs_get_parent(struct dentry *child)
 	key.offset = 0;
 	dentry = d_obtain_alias(btrfs_iget(root->fs_info->sb, &key, root, NULL));
 	if (!IS_ERR(dentry))
-		dentry->d_op = &btrfs_dentry_operations;
+		d_set_d_op(dentry, &btrfs_dentry_operations);
 	return dentry;
 fail:
 	btrfs_free_path(path);

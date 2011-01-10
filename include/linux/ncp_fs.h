@@ -184,13 +184,13 @@ struct ncp_entry_info {
 	__u8			file_handle[6];
 };
 
-static inline struct ncp_server *NCP_SBP(struct super_block *sb)
+static inline struct ncp_server *NCP_SBP(const struct super_block *sb)
 {
 	return sb->s_fs_info;
 }
 
 #define NCP_SERVER(inode)	NCP_SBP((inode)->i_sb)
-static inline struct ncp_inode_info *NCP_FINFO(struct inode *inode)
+static inline struct ncp_inode_info *NCP_FINFO(const struct inode *inode)
 {
 	return container_of(inode, struct ncp_inode_info, vfs_inode);
 }
