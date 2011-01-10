@@ -2922,7 +2922,7 @@ static int ext4_register_li_request(struct super_block *sb,
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_li_request *elr;
 	ext4_group_t ngroups = EXT4_SB(sb)->s_groups_count;
-	int ret;
+	int ret = 0;
 
 	if (sbi->s_li_request != NULL)
 		return 0;
