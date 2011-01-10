@@ -119,10 +119,6 @@ struct ext4_ext_path {
  * structure for external API
  */
 
-#define EXT4_EXT_CACHE_NO	0
-#define EXT4_EXT_CACHE_GAP	1
-#define EXT4_EXT_CACHE_EXTENT	2
-
 /*
  * to be called by ext4_ext_walk_space()
  * negative retcode - error
@@ -197,7 +193,7 @@ static inline unsigned short ext_depth(struct inode *inode)
 static inline void
 ext4_ext_invalidate_cache(struct inode *inode)
 {
-	EXT4_I(inode)->i_cached_extent.ec_type = EXT4_EXT_CACHE_NO;
+	EXT4_I(inode)->i_cached_extent.ec_len = 0;
 }
 
 static inline void ext4_ext_mark_uninitialized(struct ext4_extent *ext)

@@ -738,12 +738,13 @@ do {									       \
 
 /*
  * storage for cached extent
+ * If ec_len == 0, then the cache is invalid.
+ * If ec_start == 0, then the cache represents a gap (null mapping)
  */
 struct ext4_ext_cache {
 	ext4_fsblk_t	ec_start;
 	ext4_lblk_t	ec_block;
 	__u32		ec_len; /* must be 32bit to return holes */
-	__u32		ec_type;
 };
 
 /*
