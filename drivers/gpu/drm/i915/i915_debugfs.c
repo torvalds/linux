@@ -106,10 +106,19 @@ static const char *get_tiling_flag(struct drm_i915_gem_object *obj)
     }
 }
 
+static const char *agp_type_str(int type)
+{
+	switch (type) {
+	case 0: return " uncached";
+	case 1: return " snooped";
+	default: return "";
+	}
+}
+
 static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
-	seq_printf(m, "%p: %s%s %8zd %04x %04x %d %d%s%s",
+	seq_printf(m, "%p: %s%s %8zd %04x %04x %d %d%s%s%s",
 		   &obj->base,
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
@@ -118,6 +127,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->base.write_domain,
 		   obj->last_rendering_seqno,
 		   obj->last_fenced_seqno,
+		   agp_type_str(obj->agp_type == AGP_USER_CACHED_MEMORY),
 		   obj->dirty ? " dirty" : "",
 		   obj->madv == I915_MADV_DONTNEED ? " purgeable" : "");
 	if (obj->base.name)
@@ -272,6 +282,37 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   dev_priv->mm.gtt_total, dev_priv->mm.mappable_gtt_total);
 
 	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
+static int i915_gem_gtt_info(struct seq_file *m, void* data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj;
+	size_t total_obj_size, total_gtt_size;
+	int count, ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	total_obj_size = total_gtt_size = count = 0;
+	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
+		seq_printf(m, "   ");
+		describe_obj(m, obj);
+		seq_printf(m, "\n");
+		total_obj_size += obj->base.size;
+		total_gtt_size += obj->gtt_space->size;
+		count++;
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+
+	seq_printf(m, "Total %d objects, %zu bytes, %zu GTT size\n",
+		   count, total_obj_size, total_gtt_size);
 
 	return 0;
 }
@@ -620,15 +661,6 @@ static const char *ring_str(int ring)
 	case RING_RENDER: return " render";
 	case RING_BSD: return " bsd";
 	case RING_BLT: return " blt";
-	default: return "";
-	}
-}
-
-static const char *agp_type_str(int type)
-{
-	switch (type) {
-	case 0: return " uncached";
-	case 1: return " snooped";
 	default: return "";
 	}
 }
@@ -1229,6 +1261,7 @@ static int i915_wedged_create(struct dentry *root, struct drm_minor *minor)
 static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
+	{"i915_gem_gtt", i915_gem_gtt_info, 0},
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
 	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
