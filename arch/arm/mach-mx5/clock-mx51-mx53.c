@@ -1330,6 +1330,9 @@ static struct clk_lookup mx53_lookups[] = {
 	_REGISTER_CLOCK("imx-i2c.1", NULL, i2c2_clk)
 	_REGISTER_CLOCK("sdhci-esdhc-imx.0", NULL, esdhc1_clk)
 	_REGISTER_CLOCK("sdhci-esdhc-imx.1", NULL, esdhc2_clk)
+	_REGISTER_CLOCK("imx53-ecspi.0", NULL, ecspi1_clk)
+	_REGISTER_CLOCK("imx53-ecspi.1", NULL, ecspi2_clk)
+	_REGISTER_CLOCK("imx53-cspi.0", NULL, cspi_clk)
 };
 
 static void clk_tree_init(void)

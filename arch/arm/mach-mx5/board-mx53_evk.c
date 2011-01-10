@@ -33,6 +33,8 @@
 #include <mach/iomux-mx53.h>
 
 #define SMD_FEC_PHY_RST		IMX_GPIO_NR(7, 6)
+#define EVK_ECSPI1_CS0		IMX_GPIO_NR(3, 19)
+#define EVK_ECSPI1_CS1		IMX_GPIO_NR(2, 30)
 
 #include "crm_regs.h"
 #include "devices-imx53.h"
@@ -89,6 +91,16 @@ static struct fec_platform_data mx53_evk_fec_pdata = {
 	.phy = PHY_INTERFACE_MODE_RMII,
 };
 
+static int mx53_evk_spi_cs[] = {
+	EVK_ECSPI1_CS0,
+	EVK_ECSPI1_CS1,
+};
+
+static const struct spi_imx_master mx53_evk_spi_data __initconst = {
+	.chipselect     = mx53_evk_spi_cs,
+	.num_chipselect = ARRAY_SIZE(mx53_evk_spi_cs),
+};
+
 static void __init mx53_evk_board_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx53_evk_pads,
@@ -102,6 +114,8 @@ static void __init mx53_evk_board_init(void)
 
 	imx53_add_sdhci_esdhc_imx(0, NULL);
 	imx53_add_sdhci_esdhc_imx(1, NULL);
+
+	imx53_add_ecspi(0, &mx53_evk_spi_data);
 }
 
 static void __init mx53_evk_timer_init(void)
