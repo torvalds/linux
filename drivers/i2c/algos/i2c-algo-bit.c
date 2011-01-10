@@ -600,7 +600,8 @@ static const struct i2c_algorithm i2c_bit_algo = {
 /*
  * registering functions to load algorithms at runtime
  */
-static int i2c_bit_prepare_bus(struct i2c_adapter *adap)
+static int __i2c_bit_add_bus(struct i2c_adapter *adap,
+			     int (*add_adapter)(struct i2c_adapter *))
 {
 	struct i2c_algo_bit_data *bit_adap = adap->algo_data;
 
@@ -614,30 +615,18 @@ static int i2c_bit_prepare_bus(struct i2c_adapter *adap)
 	adap->algo = &i2c_bit_algo;
 	adap->retries = 3;
 
-	return 0;
+	return add_adapter(adap);
 }
 
 int i2c_bit_add_bus(struct i2c_adapter *adap)
 {
-	int err;
-
-	err = i2c_bit_prepare_bus(adap);
-	if (err)
-		return err;
-
-	return i2c_add_adapter(adap);
+	return __i2c_bit_add_bus(adap, i2c_add_adapter);
 }
 EXPORT_SYMBOL(i2c_bit_add_bus);
 
 int i2c_bit_add_numbered_bus(struct i2c_adapter *adap)
 {
-	int err;
-
-	err = i2c_bit_prepare_bus(adap);
-	if (err)
-		return err;
-
-	return i2c_add_numbered_adapter(adap);
+	return __i2c_bit_add_bus(adap, i2c_add_numbered_adapter);
 }
 EXPORT_SYMBOL(i2c_bit_add_numbered_bus);
 
