@@ -16,6 +16,8 @@
 
 #include "hw.h"
 #include "hw-ops.h"
+#include "debug.h"
+#include "ath9k.h"
 
 static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
 					struct ath9k_tx_queue_info *qi)
@@ -50,12 +52,18 @@ EXPORT_SYMBOL(ath9k_hw_gettxbuf);
 
 void ath9k_hw_puttxbuf(struct ath_hw *ah, u32 q, u32 txdp)
 {
+	struct ath_wiphy *aphy = ah->hw->priv;
+	struct ath_softc *sc = aphy->sc;
+	TX_STAT_INC(q, puttxbuf);
 	REG_WRITE(ah, AR_QTXDP(q), txdp);
 }
 EXPORT_SYMBOL(ath9k_hw_puttxbuf);
 
 void ath9k_hw_txstart(struct ath_hw *ah, u32 q)
 {
+	struct ath_wiphy *aphy = ah->hw->priv;
+	struct ath_softc *sc = aphy->sc;
+	TX_STAT_INC(q, txstart);
 	ath_dbg(ath9k_hw_common(ah), ATH_DBG_QUEUE,
 		"Enable TXE on queue: %u\n", q);
 	REG_WRITE(ah, AR_Q_TXE, 1 << q);

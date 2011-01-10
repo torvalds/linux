@@ -102,6 +102,9 @@ struct ath_interrupt_stats {
  * @desc_cfg_err: Descriptor configuration errors
  * @data_urn: TX data underrun errors
  * @delim_urn: TX delimiter underrun errors
+ * @puttxbuf: Number of times hardware was given txbuf to write.
+ * @txstart:  Number of times hardware was told to start tx.
+ * @txprocdesc:  Number of times tx descriptor was processed
  */
 struct ath_tx_stats {
 	u32 tx_pkts_all;
@@ -119,6 +122,9 @@ struct ath_tx_stats {
 	u32 desc_cfg_err;
 	u32 data_underrun;
 	u32 delim_underrun;
+	u32 puttxbuf;
+	u32 txstart;
+	u32 txprocdesc;
 };
 
 /**

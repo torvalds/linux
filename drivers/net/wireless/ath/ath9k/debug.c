@@ -599,13 +599,25 @@ do {									\
 			(unsigned int)(sc->tx.txq[WME_AC_VO].elem));	\
 } while(0)
 
+#define PRQLE(str, elem)						\
+do {									\
+	len += snprintf(buf + len, size - len,				\
+			"%s%13i%11i%10i%10i\n", str,			\
+			list_empty(&sc->tx.txq[WME_AC_BE].elem),	\
+			list_empty(&sc->tx.txq[WME_AC_BK].elem),	\
+			list_empty(&sc->tx.txq[WME_AC_VI].elem),	\
+			list_empty(&sc->tx.txq[WME_AC_VO].elem));	\
+} while (0)
+
 static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
 	char *buf;
-	unsigned int len = 0, size = 2048;
+	unsigned int len = 0, size = 4000;
+	int i;
 	ssize_t retval = 0;
+	char tmp[32];
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
@@ -628,13 +640,26 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("DELIM Underrun:  ", delim_underrun);
 	PR("TX-Pkts-All:     ", tx_pkts_all);
 	PR("TX-Bytes-All:    ", tx_bytes_all);
+	PR("hw-put-tx-buf:   ", puttxbuf);
+	PR("hw-tx-start:     ", txstart);
+	PR("hw-tx-proc-desc: ", txprocdesc);
 
 	PRX("axq-qnum:        ", axq_qnum);
 	PRX("axq-depth:       ", axq_depth);
+	PRX("axq-ampdu_depth: ", axq_ampdu_depth);
 	PRX("axq-stopped      ", stopped);
 	PRX("tx-in-progress   ", axq_tx_inprogress);
 	PRX("pending-frames   ", pending_frames);
+	PRX("txq_headidx:     ", txq_headidx);
+	PRX("txq_tailidx:     ", txq_headidx);
 
+	PRQLE("axq_q empty:       ", axq_q);
+	PRQLE("axq_acq empty:     ", axq_acq);
+	PRQLE("txq_fifo_pending:  ", txq_fifo_pending);
+	for (i = 0; i < ATH_TXFIFO_DEPTH; i++) {
+		snprintf(tmp, sizeof(tmp) - 1, "txq_fifo[%i] empty: ", i);
+		PRQLE(tmp, txq_fifo[i]);
+	}
 	if (len > size)
 		len = size;
 
