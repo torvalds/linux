@@ -136,8 +136,7 @@ EXPORT_SYMBOL(clk_disable);
  */
 static unsigned long clk_mtu_get_rate(struct clk *clk)
 {
-	void __iomem *addr = __io_address(UX500_PRCMU_BASE)
-		+ PRCM_TCR;
+	void __iomem *addr;
 	u32 tcr;
 	int mtu = (int) clk->data;
 	/*
@@ -149,13 +148,20 @@ static unsigned long clk_mtu_get_rate(struct clk *clk)
 	unsigned long mturate;
 	unsigned long retclk;
 
+	if (cpu_is_u5500())
+		addr = __io_address(U5500_PRCMU_BASE);
+	else if (cpu_is_u8500())
+		addr = __io_address(U8500_PRCMU_BASE);
+	else
+		ux500_unknown_soc();
+
 	/*
 	 * On a startup, always conifgure the TCR to the doze mode;
 	 * bootloaders do it for us. Do this in the kernel too.
 	 */
-	writel(PRCM_TCR_DOZE_MODE, addr);
+	writel(PRCM_TCR_DOZE_MODE, addr + PRCM_TCR);
 
-	tcr = readl(addr);
+	tcr = readl(addr + PRCM_TCR);
 
 	/* Get the rate from the parent as a default */
 	if (clk->parent_periph)
