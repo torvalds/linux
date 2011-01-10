@@ -30,7 +30,6 @@
 #include <linux/netdevice.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/vmalloc.h>
