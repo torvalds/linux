@@ -2271,6 +2271,14 @@ W:	http://acpi4asus.sf.net
 S:	Maintained
 F:	drivers/platform/x86/eeepc-laptop.c
 
+EEEPC WMI EXTRAS DRIVER
+M:	Corentin Chary <corentincj@iksaif.net>
+L:	acpi4asus-user@lists.sourceforge.net
+L:	platform-driver-x86@vger.kernel.org
+W:	http://acpi4asus.sf.net
+S:	Maintained
+F:	drivers/platform/x86/eeepc-wmi.c
+
 EFIFB FRAMEBUFFER DRIVER
 L:	linux-fbdev@vger.kernel.org
 M:	Peter Jones <pjones@redhat.com>
