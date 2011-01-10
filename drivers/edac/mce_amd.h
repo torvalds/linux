@@ -34,7 +34,6 @@
 /*
  * F3x4C bits (MCi_STATUS' high half)
  */
-#define NBSH_VALID_ERROR_ADDR		BIT(26)
 #define NBSH_ERR_CPU_VAL		BIT(24)
 
 enum tt_ids {
@@ -76,17 +75,6 @@ extern const char *rrrr_msgs[];
 extern const char *pp_msgs[];
 extern const char *to_msgs[];
 extern const char *ii_msgs[];
-
-/*
- * relevant NB regs
- */
-struct err_regs {
-	u32 nbcfg;
-	u32 nbsh;
-	u32 nbsl;
-	u32 nbeah;
-	u32 nbeal;
-};
 
 /*
  * per-family decoder ops

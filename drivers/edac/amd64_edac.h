@@ -397,6 +397,11 @@ static inline u64 get_dram_limit(struct amd64_pvt *pvt, unsigned i)
 	return (((u64)pvt->ranges[i].lim.hi & 0x000000ff) << 40) | lim;
 }
 
+static inline u16 extract_syndrome(u64 status)
+{
+	return ((status >> 47) & 0xff) | ((status >> 16) & 0xff00);
+}
+
 /*
  * per-node ECC settings descriptor
  */
@@ -440,11 +445,10 @@ extern struct mcidev_sysfs_attribute amd64_dbg_attrs[NUM_DBG_ATTRS],
 struct low_ops {
 	int (*early_channel_count)	(struct amd64_pvt *pvt);
 
-	u64 (*get_error_address)	(struct mem_ctl_info *mci,
-					 struct err_regs *info);
+	u64 (*get_error_address)	(struct mem_ctl_info *mci, struct mce *m);
 	void (*read_dram_ctl_register)	(struct amd64_pvt *pvt);
-	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci,
-					 struct err_regs *info, u64 SystemAddr);
+	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci, u64 sys_addr,
+					 u16 syndrome);
 	int (*dbam_to_cs)		(struct amd64_pvt *pvt, int cs_mode);
 	int (*read_dct_pci_cfg)		(struct amd64_pvt *pvt, int offset,
 					 u32 *val, const char *func);
