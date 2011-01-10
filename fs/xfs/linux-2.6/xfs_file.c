@@ -574,7 +574,7 @@ xfs_file_aio_write(
 	struct inode		*inode = mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
-	ssize_t			ret = 0, error = 0;
+	ssize_t			ret = 0;
 	int			ioflags = 0;
 	xfs_fsize_t		isize, new_size;
 	int			iolock;
@@ -590,9 +590,9 @@ xfs_file_aio_write(
 	if (file->f_mode & FMODE_NOCMTIME)
 		ioflags |= IO_INVIS;
 
-	error = generic_segment_checks(iovp, &nr_segs, &ocount, VERIFY_READ);
-	if (error)
-		return error;
+	ret = generic_segment_checks(iovp, &nr_segs, &ocount, VERIFY_READ);
+	if (ret)
+		return ret;
 
 	count = ocount;
 	if (count == 0)
@@ -616,9 +616,9 @@ relock:
 	xfs_ilock(ip, XFS_ILOCK_EXCL|iolock);
 
 start:
-	error = -generic_write_checks(file, &pos, &count,
+	ret = generic_write_checks(file, &pos, &count,
 					S_ISBLK(inode->i_mode));
-	if (error) {
+	if (ret) {
 		xfs_iunlock(ip, XFS_ILOCK_EXCL|iolock);
 		goto out_unlock_mutex;
 	}
@@ -660,8 +660,8 @@ start:
 	 */
 
 	if (pos > ip->i_size) {
-		error = xfs_zero_eof(ip, pos, ip->i_size);
-		if (error) {
+		ret = -xfs_zero_eof(ip, pos, ip->i_size);
+		if (ret) {
 			xfs_iunlock(ip, XFS_ILOCK_EXCL);
 			goto out_unlock_internal;
 		}
@@ -674,8 +674,8 @@ start:
 	 * by root.  This keeps people from modifying setuid and
 	 * setgid binaries.
 	 */
-	error = -file_remove_suid(file);
-	if (unlikely(error))
+	ret = file_remove_suid(file);
+	if (unlikely(ret))
 		goto out_unlock_internal;
 
 	/* We can write back this queue in page reclaim */
@@ -684,10 +684,10 @@ start:
 	if ((ioflags & IO_ISDIRECT)) {
 		if (mapping->nrpages) {
 			WARN_ON(need_i_mutex == 0);
-			error = xfs_flushinval_pages(ip,
+			ret = -xfs_flushinval_pages(ip,
 					(pos & PAGE_CACHE_MASK),
 					-1, FI_REMAPF_LOCKED);
-			if (error)
+			if (ret)
 				goto out_unlock_internal;
 		}
 
@@ -720,24 +720,22 @@ start:
 		}
 	} else {
 		int enospc = 0;
-		ssize_t ret2 = 0;
 
 write_retry:
 		trace_xfs_file_buffered_write(ip, count, iocb->ki_pos, ioflags);
-		ret2 = generic_file_buffered_write(iocb, iovp, nr_segs,
+		ret = generic_file_buffered_write(iocb, iovp, nr_segs,
 				pos, &iocb->ki_pos, count, ret);
 		/*
 		 * if we just got an ENOSPC, flush the inode now we
 		 * aren't holding any page locks and retry *once*
 		 */
-		if (ret2 == -ENOSPC && !enospc) {
-			error = xfs_flush_pages(ip, 0, -1, 0, FI_NONE);
-			if (error)
+		if (ret == -ENOSPC && !enospc) {
+			ret = xfs_flush_pages(ip, 0, -1, 0, FI_NONE);
+			if (ret)
 				goto out_unlock_internal;
 			enospc = 1;
 			goto write_retry;
 		}
-		ret = ret2;
 	}
 
 	current->backing_dev_info = NULL;
@@ -753,7 +751,6 @@ write_retry:
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	}
 
-	error = -ret;
 	if (ret <= 0)
 		goto out_unlock_internal;
 
@@ -762,23 +759,23 @@ write_retry:
 	/* Handle various SYNC-type writes */
 	if ((file->f_flags & O_DSYNC) || IS_SYNC(inode)) {
 		loff_t end = pos + ret - 1;
-		int error2;
+		int error, error2;
 
 		xfs_iunlock(ip, iolock);
 		if (need_i_mutex)
 			mutex_unlock(&inode->i_mutex);
 
-		error2 = filemap_write_and_wait_range(mapping, pos, end);
-		if (!error)
-			error = error2;
+		error = filemap_write_and_wait_range(mapping, pos, end);
 		if (need_i_mutex)
 			mutex_lock(&inode->i_mutex);
 		xfs_ilock(ip, iolock);
 
 		error2 = -xfs_file_fsync(file,
 					 (file->f_flags & __O_SYNC) ? 0 : 1);
-		if (!error)
-			error = error2;
+		if (error)
+			ret = error;
+		else if (error2)
+			ret = error2;
 	}
 
  out_unlock_internal:
@@ -800,7 +797,7 @@ write_retry:
  out_unlock_mutex:
 	if (need_i_mutex)
 		mutex_unlock(&inode->i_mutex);
-	return -error;
+	return ret;
 }
 
 STATIC int
