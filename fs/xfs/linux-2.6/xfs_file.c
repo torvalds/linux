@@ -629,6 +629,58 @@ out_lock:
 }
 
 /*
+ * Common pre-write limit and setup checks.
+ *
+ * Returns with iolock held according to @iolock.
+ */
+STATIC ssize_t
+xfs_file_aio_write_checks(
+	struct file		*file,
+	loff_t			*pos,
+	size_t			*count,
+	int			*iolock)
+{
+	struct inode		*inode = file->f_mapping->host;
+	struct xfs_inode	*ip = XFS_I(inode);
+	xfs_fsize_t		new_size;
+	int			error = 0;
+
+	error = generic_write_checks(file, pos, count, S_ISBLK(inode->i_mode));
+	if (error) {
+		xfs_rw_iunlock(ip, XFS_ILOCK_EXCL | *iolock);
+		*iolock = 0;
+		return error;
+	}
+
+	new_size = *pos + *count;
+	if (new_size > ip->i_size)
+		ip->i_new_size = new_size;
+
+	if (likely(!(file->f_mode & FMODE_NOCMTIME)))
+		file_update_time(file);
+
+	/*
+	 * If the offset is beyond the size of the file, we need to zero any
+	 * blocks that fall between the existing EOF and the start of this
+	 * write.
+	 */
+	if (*pos > ip->i_size)
+		error = -xfs_zero_eof(ip, *pos, ip->i_size);
+
+	xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
+	if (error)
+		return error;
+
+	/*
+	 * If we're writing the file then make sure to clear the setuid and
+	 * setgid bits if the process is not being run by root.  This keeps
+	 * people from modifying setuid and setgid binaries.
+	 */
+	return file_remove_suid(file);
+
+}
+
+/*
  * xfs_file_dio_aio_write - handle direct IO writes
  *
  * Lock the inode appropriately to prepare for and issue a direct IO write.
@@ -653,7 +705,6 @@ xfs_file_dio_aio_write(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 	ssize_t			ret = 0;
-	xfs_fsize_t		new_size;
 	size_t			count = ocount;
 	struct xfs_buftarg	*target = XFS_IS_REALTIME_INODE(ip) ?
 					mp->m_rtdev_targp : mp->m_ddev_targp;
@@ -674,45 +725,8 @@ xfs_file_dio_aio_write(
 		*iolock = XFS_IOLOCK_SHARED;
 	xfs_rw_ilock(ip, XFS_ILOCK_EXCL | *iolock);
 
-	ret = generic_write_checks(file, &pos, &count,
-					S_ISBLK(inode->i_mode));
-	if (ret) {
-		xfs_rw_iunlock(ip, XFS_ILOCK_EXCL | *iolock);
-		*iolock = 0;
-		return ret;
-	}
-
-	new_size = pos + count;
-	if (new_size > ip->i_size)
-		ip->i_new_size = new_size;
-
-	if (likely(!(file->f_mode & FMODE_NOCMTIME)))
-		file_update_time(file);
-
-	/*
-	 * If the offset is beyond the size of the file, we have a couple of
-	 * things to do. First, if there is already space allocated we need to
-	 * either create holes or zero the disk or ...
-	 *
-	 * If there is a page where the previous size lands, we need to zero it
-	 * out up to the new size.
-	 */
-	if (pos > ip->i_size) {
-		ret = -xfs_zero_eof(ip, pos, ip->i_size);
-		if (ret) {
-			xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
-			return ret;
-		}
-	}
-	xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
-
-	/*
-	 * If we're writing the file then make sure to clear the setuid and
-	 * setgid bits if the process is not being run by root.  This keeps
-	 * people from modifying setuid and setgid binaries.
-	 */
-	ret = file_remove_suid(file);
-	if (unlikely(ret))
+	ret = xfs_file_aio_write_checks(file, &pos, &count, iolock);
+	if (ret)
 		return ret;
 
 	if (mapping->nrpages) {
@@ -753,38 +767,13 @@ xfs_file_buffered_aio_write(
 	struct xfs_inode	*ip = XFS_I(inode);
 	ssize_t			ret;
 	int			enospc = 0;
-	xfs_fsize_t		new_size;
 	size_t			count = ocount;
 
 	*iolock = XFS_IOLOCK_EXCL;
 	xfs_rw_ilock(ip, XFS_ILOCK_EXCL | *iolock);
 
-	ret = generic_write_checks(file, &pos, &count,
-					S_ISBLK(inode->i_mode));
-	if (ret) {
-		xfs_rw_iunlock(ip, XFS_ILOCK_EXCL | *iolock);
-		*iolock = 0;
-		return ret;
-	}
-
-	new_size = pos + count;
-	if (new_size > ip->i_size)
-		ip->i_new_size = new_size;
-
-	if (likely(!(file->f_mode & FMODE_NOCMTIME)))
-		file_update_time(file);
-
-	if (pos > ip->i_size) {
-		ret = -xfs_zero_eof(ip, pos, ip->i_size);
-		if (ret) {
-			xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
-			return ret;
-		}
-	}
-	xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
-
-	ret = file_remove_suid(file);
-	if (unlikely(ret))
+	ret = xfs_file_aio_write_checks(file, &pos, &count, iolock);
+	if (ret)
 		return ret;
 
 	/* We can write back this queue in page reclaim */
