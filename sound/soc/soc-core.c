@@ -3507,11 +3507,13 @@ int snd_soc_register_codec(struct device *dev,
 		 * kernel might have freed the array by the time we initialize
 		 * the cache.
 		 */
-		codec->reg_def_copy = kmemdup(codec_drv->reg_cache_default,
-					      reg_size, GFP_KERNEL);
-		if (!codec->reg_def_copy) {
-			ret = -ENOMEM;
-			goto fail;
+		if (codec_drv->reg_cache_default) {
+			codec->reg_def_copy = kmemdup(codec_drv->reg_cache_default,
+						      reg_size, GFP_KERNEL);
+			if (!codec->reg_def_copy) {
+				ret = -ENOMEM;
+				goto fail;
+			}
 		}
 	}
 
