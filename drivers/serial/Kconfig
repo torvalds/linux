@@ -1412,7 +1412,7 @@ config SERIAL_NETX_CONSOLE
 
 config SERIAL_OF_PLATFORM
 	tristate "Serial port on Open Firmware platform bus"
-	depends on PPC_OF || MICROBLAZE
+	depends on OF
 	depends on SERIAL_8250 || SERIAL_OF_PLATFORM_NWPSERIAL
 	help
 	  If you have a PowerPC based system that has serial ports

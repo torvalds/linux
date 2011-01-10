@@ -2218,7 +2218,7 @@ config SECCOMP
 config USE_OF
 	bool "Flattened Device Tree support"
 	select OF
-	select OF_FLATTREE
+	select OF_EARLY_FLATTREE
 	help
 	  Include support for flattened device tree machine descriptions.
 
