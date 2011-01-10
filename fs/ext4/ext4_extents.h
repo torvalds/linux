@@ -278,7 +278,7 @@ static inline void ext4_idx_store_pblock(struct ext4_extent_idx *ix,
 }
 
 extern int ext4_ext_calc_metadata_amount(struct inode *inode,
-					 sector_t lblocks);
+					 ext4_lblk_t lblocks);
 extern int ext4_extent_tree_init(handle_t *, struct inode *);
 extern int ext4_ext_calc_credits_for_single_extent(struct inode *inode,
 						   int num,

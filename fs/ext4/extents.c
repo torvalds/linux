@@ -266,7 +266,7 @@ static inline int ext4_ext_space_root_idx(struct inode *inode, int check)
  * to allocate @blocks
  * Worse case is one block per extent
  */
-int ext4_ext_calc_metadata_amount(struct inode *inode, sector_t lblock)
+int ext4_ext_calc_metadata_amount(struct inode *inode, ext4_lblk_t lblock)
 {
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	int idxs, num = 0;

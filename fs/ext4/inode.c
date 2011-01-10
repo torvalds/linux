@@ -1091,7 +1091,7 @@ static int ext4_indirect_calc_metadata_amount(struct inode *inode,
  * Calculate the number of metadata blocks need to reserve
  * to allocate a block located at @lblock
  */
-static int ext4_calc_metadata_amount(struct inode *inode, sector_t lblock)
+static int ext4_calc_metadata_amount(struct inode *inode, ext4_lblk_t lblock)
 {
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
 		return ext4_ext_calc_metadata_amount(inode, lblock);
@@ -1888,7 +1888,7 @@ static int ext4_journalled_write_end(struct file *file,
 /*
  * Reserve a single block located at lblock
  */
-static int ext4_da_reserve_space(struct inode *inode, sector_t lblock)
+static int ext4_da_reserve_space(struct inode *inode, ext4_lblk_t lblock)
 {
 	int retries = 0;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
