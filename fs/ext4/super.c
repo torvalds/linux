@@ -437,7 +437,7 @@ void ext4_error_file(struct file *file, const char *function,
 	save_error_info(inode->i_sb, function, line);
 	va_start(args, fmt);
 	path = d_path(&(file->f_path), pathname, sizeof(pathname));
-	if (!path)
+	if (IS_ERR(path))
 		path = "(unknown)";
 	printk(KERN_CRIT
 	       "EXT4-fs error (device %s): %s:%d: inode #%lu "
