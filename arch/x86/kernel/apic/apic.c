@@ -49,8 +49,8 @@
 #include <asm/mtrr.h>
 #include <asm/smp.h>
 #include <asm/mce.h>
-#include <asm/kvm_para.h>
 #include <asm/tsc.h>
+#include <asm/hypervisor.h>
 
 unsigned int num_processors;
 
@@ -1476,7 +1476,8 @@ void __init enable_IR_x2apic(void)
 		/* IR is required if there is APIC ID > 255 even when running
 		 * under KVM
 		 */
-		if (max_physical_apicid > 255 || !kvm_para_available())
+		if (max_physical_apicid > 255 ||
+		    !hypervisor_x2apic_available())
 			goto nox2apic;
 		/*
 		 * without IR all CPUs can be addressed by IOAPIC/MSI
