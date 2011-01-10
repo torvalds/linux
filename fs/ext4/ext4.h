@@ -62,8 +62,8 @@
 #define EXT4_ERROR_INODE_BLOCK(inode, block, fmt, a...)			\
 	ext4_error_inode((inode), __func__, __LINE__, (block), (fmt), ## a)
 
-#define EXT4_ERROR_FILE(file, fmt, a...)	\
-	ext4_error_file(__func__, __LINE__, (file), (fmt), ## a)
+#define EXT4_ERROR_FILE(file, block, fmt, a...)				\
+	ext4_error_file((file), __func__, __LINE__, (block), (fmt), ## a)
 
 /* data type for block offset of block group */
 typedef int ext4_grpblk_t;
@@ -1640,11 +1640,12 @@ extern unsigned ext4_init_block_bitmap(struct super_block *sb,
 
 /* dir.c */
 extern int __ext4_check_dir_entry(const char *, unsigned int, struct inode *,
+				  struct file *,
 				  struct ext4_dir_entry_2 *,
 				  struct buffer_head *, unsigned int);
-#define ext4_check_dir_entry(dir, de, bh, offset) \
-	unlikely(__ext4_check_dir_entry(__func__, __LINE__, (dir), (de), \
-					(bh), (offset)))
+#define ext4_check_dir_entry(dir, filp, de, bh, offset)			\
+	unlikely(__ext4_check_dir_entry(__func__, __LINE__, (dir), (filp), \
+					(de), (bh), (offset)))
 extern int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 				    __u32 minor_hash,
 				    struct ext4_dir_entry_2 *dirent);
@@ -1751,8 +1752,8 @@ extern void ext4_error_inode(struct inode *, const char *, unsigned int,
 			     ext4_fsblk_t, const char *, ...)
 	__attribute__ ((format (printf, 5, 6)));
 extern void ext4_error_file(struct file *, const char *, unsigned int,
-			    const char *, ...)
-	__attribute__ ((format (printf, 4, 5)));
+			    ext4_fsblk_t, const char *, ...)
+	__attribute__ ((format (printf, 5, 6)));
 extern void __ext4_std_error(struct super_block *, const char *,
 			     unsigned int, int);
 extern void __ext4_abort(struct super_block *, const char *, unsigned int,

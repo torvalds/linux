@@ -66,7 +66,7 @@ static unsigned char get_dtype(struct super_block *sb, int filetype)
  * Note: this is the opposite of what ext2 and ext3 historically returned...
  */
 int __ext4_check_dir_entry(const char *function, unsigned int line,
-			   struct inode *dir,
+			   struct inode *dir, struct file *filp,
 			   struct ext4_dir_entry_2 *de,
 			   struct buffer_head *bh,
 			   unsigned int offset)
@@ -90,12 +90,21 @@ int __ext4_check_dir_entry(const char *function, unsigned int line,
 	else
 		return 0;
 
-	ext4_error_inode(dir, function, line, bh->b_blocknr,
-			 "bad entry in directory: %s - "
-			 "offset=%u(%u), inode=%u, rec_len=%d, name_len=%d",
-			 error_msg, (unsigned) (offset%bh->b_size), offset,
-			 le32_to_cpu(de->inode),
-			 rlen, de->name_len);
+	if (filp)
+		ext4_error_file(filp, function, line, bh ? bh->b_blocknr : 0,
+				"bad entry in directory: %s - offset=%u(%u), "
+				"inode=%u, rec_len=%d, name_len=%d",
+				error_msg, (unsigned) (offset%bh->b_size),
+				offset, le32_to_cpu(de->inode),
+				rlen, de->name_len);
+	else
+		ext4_error_inode(dir, function, line, bh ? bh->b_blocknr : 0,
+				"bad entry in directory: %s - offset=%u(%u), "
+				"inode=%u, rec_len=%d, name_len=%d",
+				error_msg, (unsigned) (offset%bh->b_size),
+				offset, le32_to_cpu(de->inode),
+				rlen, de->name_len);
+
 	return 1;
 }
 
@@ -158,8 +167,9 @@ static int ext4_readdir(struct file *filp,
 		 */
 		if (!bh) {
 			if (!dir_has_error) {
-				EXT4_ERROR_INODE(inode, "directory "
-					   "contains a hole at offset %Lu",
+				EXT4_ERROR_FILE(filp, 0,
+						"directory contains a "
+						"hole at offset %llu",
 					   (unsigned long long) filp->f_pos);
 				dir_has_error = 1;
 			}
@@ -200,7 +210,7 @@ revalidate:
 		while (!error && filp->f_pos < inode->i_size
 		       && offset < sb->s_blocksize) {
 			de = (struct ext4_dir_entry_2 *) (bh->b_data + offset);
-			if (ext4_check_dir_entry(inode, de,
+			if (ext4_check_dir_entry(inode, filp, de,
 						 bh, offset)) {
 				/*
 				 * On error, skip the f_pos to the next block

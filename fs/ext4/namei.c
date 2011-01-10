@@ -581,7 +581,7 @@ static int htree_dirblock_to_tree(struct file *dir_file,
 					   dir->i_sb->s_blocksize -
 					   EXT4_DIR_REC_LEN(0));
 	for (; de < top; de = ext4_next_entry(de, dir->i_sb->s_blocksize)) {
-		if (ext4_check_dir_entry(dir, de, bh,
+		if (ext4_check_dir_entry(dir, NULL, de, bh,
 				(block<<EXT4_BLOCK_SIZE_BITS(dir->i_sb))
 					 + ((char *)de - bh->b_data))) {
 			/* On error, skip the f_pos to the next block. */
@@ -820,7 +820,7 @@ static inline int search_dirblock(struct buffer_head *bh,
 		if ((char *) de + namelen <= dlimit &&
 		    ext4_match (namelen, name, de)) {
 			/* found a match - just to be sure, do a full check */
-			if (ext4_check_dir_entry(dir, de, bh, offset))
+			if (ext4_check_dir_entry(dir, NULL, de, bh, offset))
 				return -1;
 			*res_dir = de;
 			return 1;
@@ -1269,7 +1269,7 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 		de = (struct ext4_dir_entry_2 *)bh->b_data;
 		top = bh->b_data + blocksize - reclen;
 		while ((char *) de <= top) {
-			if (ext4_check_dir_entry(dir, de, bh, offset))
+			if (ext4_check_dir_entry(dir, NULL, de, bh, offset))
 				return -EIO;
 			if (ext4_match(namelen, name, de))
 				return -EEXIST;
@@ -1636,7 +1636,7 @@ static int ext4_delete_entry(handle_t *handle,
 	pde = NULL;
 	de = (struct ext4_dir_entry_2 *) bh->b_data;
 	while (i < bh->b_size) {
-		if (ext4_check_dir_entry(dir, de, bh, i))
+		if (ext4_check_dir_entry(dir, NULL, de, bh, i))
 			return -EIO;
 		if (de == de_del)  {
 			BUFFER_TRACE(bh, "get_write_access");
@@ -1919,7 +1919,7 @@ static int empty_dir(struct inode *inode)
 			}
 			de = (struct ext4_dir_entry_2 *) bh->b_data;
 		}
-		if (ext4_check_dir_entry(inode, de, bh, offset)) {
+		if (ext4_check_dir_entry(inode, NULL, de, bh, offset)) {
 			de = (struct ext4_dir_entry_2 *)(bh->b_data +
 							 sb->s_blocksize);
 			offset = (offset | (sb->s_blocksize - 1)) + 1;
