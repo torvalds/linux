@@ -24,7 +24,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.19"
+#define DRV_VERSION	"0.6.20"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -863,7 +863,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			chip_table = &hpt372;
 			break;
 		default:
-			printk(KERN_ERR "pata_hpt37x: Unknown HPT366 subtype, "
+			pr_err(DRV_NAME ": Unknown HPT366 subtype, "
 			       "please report (%d).\n", rev);
 			return -ENODEV;
 		}
@@ -906,8 +906,8 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 				*ppi = &info_hpt374_fn1;
 			break;
 		default:
-			printk(KERN_ERR
-			       "pata_hpt37x: PCI table is bogus, please report (%d).\n",
+			pr_err(DRV_NAME
+			       ": PCI table is bogus, please report (%d).\n",
 			       dev->device);
 				return -ENODEV;
 		}
@@ -957,8 +957,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		u8 sr;
 		u32 total = 0;
 
-		printk(KERN_WARNING
-		       "pata_hpt37x: BIOS has not set timing clocks.\n");
+		pr_warning(DRV_NAME ": BIOS has not set timing clocks.\n");
 
 		/* This is the process the HPT371 BIOS is reported to use */
 		for (i = 0; i < 128; i++) {
@@ -1014,7 +1013,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 					       (f_high << 16) | f_low | 0x100);
 		}
 		if (adjust == 8) {
-			printk(KERN_ERR "pata_hpt37x: DPLL did not stabilize!\n");
+			pr_err(DRV_NAME ": DPLL did not stabilize!\n");
 			return -ENODEV;
 		}
 		if (dpll == 3)
@@ -1022,8 +1021,8 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		else
 			private_data = (void *)hpt37x_timings_50;
 
-		printk(KERN_INFO "pata_hpt37x: bus clock %dMHz, using %dMHz DPLL.\n",
-		       MHz[clock_slot], MHz[dpll]);
+		pr_info(DRV_NAME ": bus clock %dMHz, using %dMHz DPLL.\n",
+			MHz[clock_slot], MHz[dpll]);
 	} else {
 		private_data = (void *)chip_table->clocks[clock_slot];
 		/*
@@ -1036,8 +1035,9 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			ppi[0] = &info_hpt370_33;
 		if (clock_slot < 2 && ppi[0] == &info_hpt370a)
 			ppi[0] = &info_hpt370a_33;
-		printk(KERN_INFO "pata_hpt37x: %s using %dMHz bus clock.\n",
-		       chip_table->name, MHz[clock_slot]);
+
+		pr_info(DRV_NAME ": %s using %dMHz bus clock.\n",
+			chip_table->name, MHz[clock_slot]);
 	}
 
 	/* Now kick off ATA set up */
