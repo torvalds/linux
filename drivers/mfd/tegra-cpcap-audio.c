@@ -343,10 +343,10 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			}
 			switch (current_input.id) {
 			case CPCAP_AUDIO_IN_MIC1:
-				tegra_setup_audio_in_headset_on();
+				tegra_setup_audio_in_handset_on();
 				break;
 			case CPCAP_AUDIO_IN_MIC2:
-				tegra_setup_audio_in_handset_on();
+				tegra_setup_audio_in_headset_on();
 				break;
 			}
 			break;
