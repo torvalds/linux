@@ -544,14 +544,8 @@ static void complete_transaction(struct fw_card *card, int rcode,
 	 * 1. If called while in shutdown, the idr tree must be left untouched.
 	 *    The idr handle will be removed and the client reference will be
 	 *    dropped later.
-	 * 2. If the call chain was release_client_resource ->
-	 *    release_transaction -> complete_transaction (instead of a normal
-	 *    conclusion of the transaction), i.e. if this resource was already
-	 *    unregistered from the idr, the client reference will be dropped
-	 *    by release_client_resource and we must not drop it here.
 	 */
-	if (!client->in_shutdown &&
-	    idr_find(&client->resource_idr, e->r.resource.handle)) {
+	if (!client->in_shutdown) {
 		idr_remove(&client->resource_idr, e->r.resource.handle);
 		/* Drop the idr's reference */
 		client_put(client);
