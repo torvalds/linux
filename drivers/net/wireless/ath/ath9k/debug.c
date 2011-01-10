@@ -629,9 +629,11 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len += sprintf(buf, "Num-Tx-Queues: %i  tx-queues-setup: 0x%x\n"
+	len += sprintf(buf, "Num-Tx-Queues: %i  tx-queues-setup: 0x%x"
+		       " poll-work-seen: %u\n"
 		       "%30s %10s%10s%10s\n\n",
 		       ATH9K_NUM_TX_QUEUES, sc->tx.txqsetup,
+		       sc->tx_complete_poll_work_seen,
 		       "BE", "BK", "VI", "VO");
 
 	PR("MPDUs Queued:    ", queued);

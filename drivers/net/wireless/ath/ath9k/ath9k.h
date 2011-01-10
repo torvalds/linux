@@ -184,7 +184,8 @@ enum ATH_AGGR_STATUS {
 
 #define ATH_TXFIFO_DEPTH 8
 struct ath_txq {
-	u32 axq_qnum;
+	int mac80211_qnum; /* mac80211 queue number, -1 means not mac80211 Q */
+	u32 axq_qnum; /* ath9k hardware queue number */
 	u32 *axq_link;
 	struct list_head axq_q;
 	spinlock_t axq_lock;
@@ -280,6 +281,11 @@ struct ath_tx_control {
 #define ATH_TX_XRETRY       0x02
 #define ATH_TX_BAR          0x04
 
+/**
+ * @txq_map:  Index is mac80211 queue number.  This is
+ *  not necessarily the same as the hardware queue number
+ *  (axq_qnum).
+ */
 struct ath_tx {
 	u16 seq_no;
 	u32 txqsetup;
@@ -643,6 +649,7 @@ struct ath_softc {
 	struct ath9k_debug debug;
 	spinlock_t nodes_lock;
 	struct list_head nodes; /* basically, stations */
+	unsigned int tx_complete_poll_work_seen;
 #endif
 	struct ath_beacon_config cur_beacon_conf;
 	struct delayed_work tx_complete_work;
