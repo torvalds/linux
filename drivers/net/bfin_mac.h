@@ -68,7 +68,6 @@ struct bfin_mac_local {
 	 */
 	struct net_device_stats stats;
 
-	unsigned char Mac[6];	/* MAC address of the board */
 	spinlock_t lock;
 
 	int wol;		/* Wake On Lan */
