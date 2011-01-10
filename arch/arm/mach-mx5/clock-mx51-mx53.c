@@ -1370,7 +1370,6 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 
 	clk_tree_init();
 
-	clk_set_parent(&uart_root_clk, &pll3_sw_clk);
 	clk_enable(&cpu_clk);
 	clk_enable(&main_bus_clk);
 
@@ -1413,6 +1412,7 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc,
 
 	clk_tree_init();
 
+	clk_set_parent(&uart_root_clk, &pll3_sw_clk);
 	clk_enable(&cpu_clk);
 	clk_enable(&main_bus_clk);
 
