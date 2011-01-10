@@ -1789,7 +1789,7 @@ static int ext4_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
 	handle_t *handle;
 	struct inode *inode;
-	struct buffer_head *dir_block;
+	struct buffer_head *dir_block = NULL;
 	struct ext4_dir_entry_2 *de;
 	unsigned int blocksize = dir->i_sb->s_blocksize;
 	int err, retries = 0;
@@ -1822,7 +1822,9 @@ retry:
 	if (!dir_block)
 		goto out_clear_inode;
 	BUFFER_TRACE(dir_block, "get_write_access");
-	ext4_journal_get_write_access(handle, dir_block);
+	err = ext4_journal_get_write_access(handle, dir_block);
+	if (err)
+		goto out_clear_inode;
 	de = (struct ext4_dir_entry_2 *) dir_block->b_data;
 	de->inode = cpu_to_le32(inode->i_ino);
 	de->name_len = 1;
@@ -1839,10 +1841,12 @@ retry:
 	ext4_set_de_type(dir->i_sb, de, S_IFDIR);
 	inode->i_nlink = 2;
 	BUFFER_TRACE(dir_block, "call ext4_handle_dirty_metadata");
-	ext4_handle_dirty_metadata(handle, dir, dir_block);
-	brelse(dir_block);
-	ext4_mark_inode_dirty(handle, inode);
-	err = ext4_add_entry(handle, dentry, inode);
+	err = ext4_handle_dirty_metadata(handle, dir, dir_block);
+	if (err)
+		goto out_clear_inode;
+	err = ext4_mark_inode_dirty(handle, inode);
+	if (!err)
+		err = ext4_add_entry(handle, dentry, inode);
 	if (err) {
 out_clear_inode:
 		clear_nlink(inode);
@@ -1853,10 +1857,13 @@ out_clear_inode:
 	}
 	ext4_inc_count(handle, dir);
 	ext4_update_dx_flag(dir);
-	ext4_mark_inode_dirty(handle, dir);
+	err = ext4_mark_inode_dirty(handle, dir);
+	if (err)
+		goto out_clear_inode;
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
 out_stop:
+	brelse(dir_block);
 	ext4_journal_stop(handle);
 	if (err == -ENOSPC && ext4_should_retry_alloc(dir->i_sb, &retries))
 		goto retry;
