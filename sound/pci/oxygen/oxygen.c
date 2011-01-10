@@ -588,7 +588,7 @@ static const struct oxygen_model model_generic = {
 	.dac_volume_max = 255,
 	.function_flags = OXYGEN_FUNCTION_SPI |
 			  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
-	.dac_mclks = OXYGEN_MCLKS(256, 256, 128),
+	.dac_mclks = OXYGEN_MCLKS(256, 128, 128),
 	.adc_mclks = OXYGEN_MCLKS(256, 256, 128),
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
@@ -643,8 +643,10 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 		chip->model.dump_registers = dump_ak4396_registers;
 		chip->model.device_config = PLAYBACK_0_TO_I2S |
 					    PLAYBACK_1_TO_SPDIF;
-		if (id->driver_data == MODEL_FANTASIA)
+		if (id->driver_data == MODEL_FANTASIA) {
 			chip->model.device_config |= CAPTURE_0_FROM_I2S_1;
+			chip->model.adc_mclks = OXYGEN_MCLKS(256, 128, 128);
+		}
 		chip->model.dac_channels_pcm = 2;
 		chip->model.dac_channels_mixer = 2;
 		break;

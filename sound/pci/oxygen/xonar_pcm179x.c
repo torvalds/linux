@@ -1032,7 +1032,7 @@ static const struct oxygen_model model_xonar_d2 = {
 	.function_flags = OXYGEN_FUNCTION_SPI |
 			  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
 	.dac_mclks = OXYGEN_MCLKS(512, 128, 128),
-	.adc_mclks = OXYGEN_MCLKS(256, 256, 128),
+	.adc_mclks = OXYGEN_MCLKS(256, 128, 128),
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_I2S,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
@@ -1066,7 +1066,7 @@ static const struct oxygen_model model_xonar_hdav = {
 	.misc_flags = OXYGEN_MISC_MIDI,
 	.function_flags = OXYGEN_FUNCTION_2WIRE,
 	.dac_mclks = OXYGEN_MCLKS(512, 128, 128),
-	.adc_mclks = OXYGEN_MCLKS(256, 256, 128),
+	.adc_mclks = OXYGEN_MCLKS(256, 128, 128),
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_I2S,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
@@ -1097,7 +1097,7 @@ static const struct oxygen_model model_xonar_st = {
 	.dac_volume_max = 255,
 	.function_flags = OXYGEN_FUNCTION_2WIRE,
 	.dac_mclks = OXYGEN_MCLKS(512, 128, 128),
-	.adc_mclks = OXYGEN_MCLKS(256, 256, 128),
+	.adc_mclks = OXYGEN_MCLKS(256, 128, 128),
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_I2S,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };

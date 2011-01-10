@@ -430,8 +430,8 @@ static const struct oxygen_model model_xonar_d1 = {
 	.dac_volume_min = 127 - 60,
 	.dac_volume_max = 127,
 	.function_flags = OXYGEN_FUNCTION_2WIRE,
-	.dac_mclks = OXYGEN_MCLKS(256, 256, 128),
-	.adc_mclks = OXYGEN_MCLKS(256, 256, 128),
+	.dac_mclks = OXYGEN_MCLKS(256, 128, 128),
+	.adc_mclks = OXYGEN_MCLKS(256, 128, 128),
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
