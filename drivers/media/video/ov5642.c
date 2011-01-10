@@ -1381,7 +1381,7 @@ static struct reginfo sensor_1080p[]=
 	{ 0x3003, 0x00	},
 	{ 0x3004, 0xff	},
 	{ 0x3030, 0x2b	},
-	{ 0x3011, 0x05	},   //0x08
+	{ 0x3011, 0x05	},   //10 fps 0x05    //15fps 0x08
 	{ 0x3010, 0x10	},
 	{ 0x3604, 0x60	},
 	{ 0x3622, 0x60	},
@@ -1829,7 +1829,7 @@ static struct reginfo sensor_1080p[]=
 	{ 0x5089, 0x00	},
 	{ 0x302b, 0x00	},
 	{ 0x3503, 0x07	},
-	{ 0x3011, 0x05	},
+	{ 0x3011, 0x07	},   //10 fps 0x05    //15fps 0x07
 	{ 0x350c, 0x04	},
 	{ 0x350d, 0x58	},
 	{ 0x3801, 0x8a	},
@@ -1837,7 +1837,7 @@ static struct reginfo sensor_1080p[]=
 	{ 0x3804, 0x07	},
 	{ 0x3805, 0x80	},
 	{ 0x3806, 0x04	},
-	{ 0x3807, 0x38	},
+	{ 0x3807, 0x39	},//0x3a
 	{ 0x3808, 0x07	},
 	{ 0x3809, 0x80	},
 	{ 0x380a, 0x04	},
@@ -1852,6 +1852,8 @@ static struct reginfo sensor_1080p[]=
 	{ 0x381f, 0x48	},
 	{ 0x3820, 0x04	},
 	{ 0x3821, 0x18	},
+	{ 0x3c01, 0x80  },
+	{ 0x3c00, 0x04  },
 	{ 0x3a08, 0x14	},
 	{ 0x3a09, 0xe0	},
 	{ 0x3a0a, 0x11	},
@@ -3188,7 +3190,7 @@ static int sensor_write(struct i2c_client *client, u16 reg, u8 val)
         if (err >= 0) {
             return 0;
         } else {
-            SENSOR_TR("\n %s write reg failed, try to write again!\n",SENSOR_NAME_STRING());
+            SENSOR_TR("\n %s write reg(0x%x, val:0x%x) failed, try to write again!\n",SENSOR_NAME_STRING(),reg, val);
             udelay(10);
         }
     }
@@ -3229,7 +3231,7 @@ static int sensor_read(struct i2c_client *client, u16 reg, u8 *val)
             *val = buf[0];
             return 0;
         } else {
-        	SENSOR_TR("\n %s read reg failed, try to read again! reg:0x%x \n",SENSOR_NAME_STRING(),(unsigned int)val);
+        	SENSOR_TR("\n %s read reg(0x%x val:0x%x) failed, try to read again! \n",SENSOR_NAME_STRING(),reg, *val);
             udelay(10);
         }
     }
