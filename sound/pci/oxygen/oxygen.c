@@ -102,6 +102,8 @@ static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
 	{ OXYGEN_PCI_SUBID(0x14c3, 0x1711), .driver_data = MODEL_2CH_OUTPUT },
 	/* AuzenTech X-Meridian */
 	{ OXYGEN_PCI_SUBID(0x415a, 0x5431), .driver_data = MODEL_MERIDIAN },
+	/* AuzenTech X-Meridian 2G */
+	{ OXYGEN_PCI_SUBID(0x5431, 0x017a), .driver_data = MODEL_MERIDIAN },
 	/* HT-Omega Claro */
 	{ OXYGEN_PCI_SUBID(0x7284, 0x9761), .driver_data = MODEL_CLARO },
 	/* HT-Omega Claro halo */

@@ -218,6 +218,7 @@ config SND_OXYGEN
 	  C-Media CMI8788 (Oxygen HD Audio) chip:
 	   * Asound A-8788
 	   * AuzenTech X-Meridian
+	   * AuzenTech X-Meridian 2G
 	   * Bgears b-Enspirer
 	   * Club3D Theatron DTS
 	   * HT-Omega Claro (plus)
