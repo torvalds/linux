@@ -268,7 +268,6 @@ eb_destroy(struct eb_objects *eb)
 static int
 i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 				   struct eb_objects *eb,
-				   struct drm_i915_gem_exec_object2 *entry,
 				   struct drm_i915_gem_relocation_entry *reloc)
 {
 	struct drm_device *dev = obj->base.dev;
@@ -411,10 +410,10 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 
 static int
 i915_gem_execbuffer_relocate_object(struct drm_i915_gem_object *obj,
-				    struct eb_objects *eb,
-				    struct drm_i915_gem_exec_object2 *entry)
+				    struct eb_objects *eb)
 {
 	struct drm_i915_gem_relocation_entry __user *user_relocs;
+	struct drm_i915_gem_exec_object2 *entry = obj->exec_entry;
 	int i, ret;
 
 	user_relocs = (void __user *)(uintptr_t)entry->relocs_ptr;
@@ -426,7 +425,7 @@ i915_gem_execbuffer_relocate_object(struct drm_i915_gem_object *obj,
 					      sizeof(reloc)))
 			return -EFAULT;
 
-		ret = i915_gem_execbuffer_relocate_entry(obj, eb, entry, &reloc);
+		ret = i915_gem_execbuffer_relocate_entry(obj, eb, &reloc);
 		if (ret)
 			return ret;
 
@@ -442,13 +441,13 @@ i915_gem_execbuffer_relocate_object(struct drm_i915_gem_object *obj,
 static int
 i915_gem_execbuffer_relocate_object_slow(struct drm_i915_gem_object *obj,
 					 struct eb_objects *eb,
-					 struct drm_i915_gem_exec_object2 *entry,
 					 struct drm_i915_gem_relocation_entry *relocs)
 {
+	const struct drm_i915_gem_exec_object2 *entry = obj->exec_entry;
 	int i, ret;
 
 	for (i = 0; i < entry->relocation_count; i++) {
-		ret = i915_gem_execbuffer_relocate_entry(obj, eb, entry, &relocs[i]);
+		ret = i915_gem_execbuffer_relocate_entry(obj, eb, &relocs[i]);
 		if (ret)
 			return ret;
 	}
@@ -459,8 +458,7 @@ i915_gem_execbuffer_relocate_object_slow(struct drm_i915_gem_object *obj,
 static int
 i915_gem_execbuffer_relocate(struct drm_device *dev,
 			     struct eb_objects *eb,
-			     struct list_head *objects,
-			     struct drm_i915_gem_exec_object2 *exec)
+			     struct list_head *objects)
 {
 	struct drm_i915_gem_object *obj;
 	int ret;
@@ -468,7 +466,7 @@ i915_gem_execbuffer_relocate(struct drm_device *dev,
 	list_for_each_entry(obj, objects, exec_list) {
 		obj->base.pending_read_domains = 0;
 		obj->base.pending_write_domain = 0;
-		ret = i915_gem_execbuffer_relocate_object(obj, eb, exec++);
+		ret = i915_gem_execbuffer_relocate_object(obj, eb);
 		if (ret)
 			return ret;
 	}
@@ -479,13 +477,36 @@ i915_gem_execbuffer_relocate(struct drm_device *dev,
 static int
 i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			    struct drm_file *file,
-			    struct list_head *objects,
-			    struct drm_i915_gem_exec_object2 *exec)
+			    struct list_head *objects)
 {
 	struct drm_i915_gem_object *obj;
-	struct drm_i915_gem_exec_object2 *entry;
 	int ret, retry;
 	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
+	struct list_head ordered_objects;
+
+	INIT_LIST_HEAD(&ordered_objects);
+	while (!list_empty(objects)) {
+		struct drm_i915_gem_exec_object2 *entry;
+		bool need_fence, need_mappable;
+
+		obj = list_first_entry(objects,
+				       struct drm_i915_gem_object,
+				       exec_list);
+		entry = obj->exec_entry;
+
+		need_fence =
+			has_fenced_gpu_access &&
+			entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
+			obj->tiling_mode != I915_TILING_NONE;
+		need_mappable =
+			entry->relocation_count ? true : need_fence;
+
+		if (need_mappable)
+			list_move(&obj->exec_list, &ordered_objects);
+		else
+			list_move_tail(&obj->exec_list, &ordered_objects);
+	}
+	list_splice(&ordered_objects, objects);
 
 	/* Attempt to pin all of the buffers into the GTT.
 	 * This is done in 3 phases:
@@ -504,14 +525,11 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 		ret = 0;
 
 		/* Unbind any ill-fitting objects or pin. */
-		entry = exec;
 		list_for_each_entry(obj, objects, exec_list) {
+			struct drm_i915_gem_exec_object2 *entry = obj->exec_entry;
 			bool need_fence, need_mappable;
-
-			if (!obj->gtt_space) {
-				entry++;
+			if (!obj->gtt_space)
 				continue;
-			}
 
 			need_fence =
 				has_fenced_gpu_access &&
@@ -534,8 +552,8 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 		}
 
 		/* Bind fresh objects */
-		entry = exec;
 		list_for_each_entry(obj, objects, exec_list) {
+			struct drm_i915_gem_exec_object2 *entry = obj->exec_entry;
 			bool need_fence;
 
 			need_fence =
@@ -570,7 +588,6 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			}
 
 			entry->offset = obj->gtt_offset;
-			entry++;
 		}
 
 		/* Decrement pin count for bound objects */
@@ -680,10 +697,11 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 
 		list_add_tail(&obj->exec_list, objects);
 		obj->exec_handle = exec[i].handle;
+		obj->exec_entry = &exec[i];
 		eb_add_object(eb, obj);
 	}
 
-	ret = i915_gem_execbuffer_reserve(ring, file, objects, exec);
+	ret = i915_gem_execbuffer_reserve(ring, file, objects);
 	if (ret)
 		goto err;
 
@@ -692,7 +710,6 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 		obj->base.pending_read_domains = 0;
 		obj->base.pending_write_domain = 0;
 		ret = i915_gem_execbuffer_relocate_object_slow(obj, eb,
-							       exec,
 							       reloc + total);
 		if (ret)
 			goto err;
@@ -1110,16 +1127,22 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 		list_add_tail(&obj->exec_list, &objects);
 		obj->exec_handle = exec[i].handle;
+		obj->exec_entry = &exec[i];
 		eb_add_object(eb, obj);
 	}
 
+	/* take note of the batch buffer before we might reorder the lists */
+	batch_obj = list_entry(objects.prev,
+			       struct drm_i915_gem_object,
+			       exec_list);
+
 	/* Move the objects en-masse into the GTT, evicting if necessary. */
-	ret = i915_gem_execbuffer_reserve(ring, file, &objects, exec);
+	ret = i915_gem_execbuffer_reserve(ring, file, &objects);
 	if (ret)
 		goto err;
 
 	/* The objects are in their final locations, apply the relocations. */
-	ret = i915_gem_execbuffer_relocate(dev, eb, &objects, exec);
+	ret = i915_gem_execbuffer_relocate(dev, eb, &objects);
 	if (ret) {
 		if (ret == -EFAULT) {
 			ret = i915_gem_execbuffer_relocate_slow(dev, file, ring,
@@ -1133,9 +1156,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	/* Set the pending read domains for the batch buffer to COMMAND */
-	batch_obj = list_entry(objects.prev,
-			       struct drm_i915_gem_object,
-			       exec_list);
 	if (batch_obj->base.pending_write_domain) {
 		DRM_ERROR("Attempting to use self-modifying batch buffer\n");
 		ret = -EINVAL;

@@ -796,6 +796,7 @@ struct drm_i915_gem_object {
 	 */
 	struct hlist_node exec_node;
 	unsigned long exec_handle;
+	struct drm_i915_gem_exec_object2 *exec_entry;
 
 	/**
 	 * Current offset of the object in GTT space.
