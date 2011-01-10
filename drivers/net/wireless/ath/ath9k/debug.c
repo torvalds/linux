@@ -628,7 +628,8 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("MPDUs Queued:    ", queued);
 	PR("MPDUs Completed: ", completed);
 	PR("Aggregates:      ", a_aggr);
-	PR("AMPDUs Queued:   ", a_queued);
+	PR("AMPDUs Queued HW:", a_queued_hw);
+	PR("AMPDUs Queued SW:", a_queued_sw);
 	PR("AMPDUs Completed:", a_completed);
 	PR("AMPDUs Retried:  ", a_retries);
 	PR("AMPDUs XRetried: ", a_xretries);
