@@ -639,6 +639,8 @@ struct ngene_channel {
 	int                   number;
 	int                   type;
 	int                   mode;
+	bool                  has_adapter;
+	bool                  has_demux;
 
 	struct dvb_frontend  *fe;
 	struct dmxdev         dmxdev;

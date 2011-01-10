@@ -1432,25 +1432,24 @@ static void release_channel(struct ngene_channel *chan)
 {
 	struct dvb_demux *dvbdemux = &chan->demux;
 	struct ngene *dev = chan->dev;
-	struct ngene_info *ni = dev->card_info;
-	int io = ni->io_type[chan->number];
 
-	if (chan->dev->cmd_timeout_workaround && chan->running)
+	if (chan->running)
 		set_transfer(chan, 0);
 
 	tasklet_kill(&chan->demux_tasklet);
 
-	if (chan->number >= 2 && chan->number <= 3 && dev->ci.en)
-		return;
+	if (chan->ci_dev) {
+		dvb_unregister_device(chan->ci_dev);
+		chan->ci_dev = NULL;
+	}
 
-	if (io & (NGENE_IO_TSIN | NGENE_IO_TSOUT)) {
-		if (chan->ci_dev)
-			dvb_unregister_device(chan->ci_dev);
-		if (chan->fe) {
-			dvb_unregister_frontend(chan->fe);
-			dvb_frontend_detach(chan->fe);
-			chan->fe = NULL;
-		}
+	if (chan->fe) {
+		dvb_unregister_frontend(chan->fe);
+		dvb_frontend_detach(chan->fe);
+		chan->fe = NULL;
+	}
+
+	if (chan->has_demux) {
 		dvb_net_release(&chan->dvbnet);
 		dvbdemux->dmx.close(&dvbdemux->dmx);
 		dvbdemux->dmx.remove_frontend(&dvbdemux->dmx,
@@ -1459,9 +1458,12 @@ static void release_channel(struct ngene_channel *chan)
 					      &chan->mem_frontend);
 		dvb_dmxdev_release(&chan->dmxdev);
 		dvb_dmx_release(&chan->demux);
+		chan->has_demux = false;
+	}
 
-		if (chan->number == 0 || !one_adapter)
-			dvb_unregister_adapter(&dev->adapter[chan->number]);
+	if (chan->has_adapter) {
+		dvb_unregister_adapter(&dev->adapter[chan->number]);
+		chan->has_adapter = false;
 	}
 }
 
@@ -1479,12 +1481,27 @@ static int init_channel(struct ngene_channel *chan)
 	chan->type = io;
 	chan->mode = chan->type;	/* for now only one mode */
 
+	if (io & NGENE_IO_TSIN) {
+		chan->fe = NULL;
+		if (ni->demod_attach[nr]) {
+			ret = ni->demod_attach[nr](chan);
+			if (ret < 0)
+				goto err;
+		}
+		if (chan->fe && ni->tuner_attach[nr]) {
+			ret = ni->tuner_attach[nr](chan);
+			if (ret < 0)
+				goto err;
+		}
+	}
+
+	if (!dev->ci.en && (io & NGENE_IO_TSOUT))
+		return 0;
+
 	if (io & (NGENE_IO_TSIN | NGENE_IO_TSOUT)) {
 		if (nr >= STREAM_AUDIOIN1)
 			chan->DataFormatFlags = DF_SWAP32;
 
-		if (nr >= 2 && nr <= 3 && dev->ci.en)
-			return 0;
 		if (nr == 0 || !one_adapter || dev->first_adapter == NULL) {
 			adapter = &dev->adapter[nr];
 			ret = dvb_register_adapter(adapter, "nGene",
@@ -1492,13 +1509,32 @@ static int init_channel(struct ngene_channel *chan)
 						   &chan->dev->pci_dev->dev,
 						   adapter_nr);
 			if (ret < 0)
-				return ret;
+				goto err;
 			if (dev->first_adapter == NULL)
 				dev->first_adapter = adapter;
-		} else {
+			chan->has_adapter = true;
+		} else
 			adapter = dev->first_adapter;
-		}
+	}
 
+	if (dev->ci.en && (io & NGENE_IO_TSOUT)) {
+		dvb_ca_en50221_init(adapter, dev->ci.en, 0, 1);
+		set_transfer(chan, 1);
+		set_transfer(&chan->dev->channel[2], 1);
+		dvb_register_device(adapter, &chan->ci_dev,
+				    &ngene_dvbdev_ci, (void *) chan,
+				    DVB_DEVICE_SEC);
+		if (!chan->ci_dev)
+			goto err;
+	}
+
+	if (chan->fe) {
+		if (dvb_register_frontend(adapter, chan->fe) < 0)
+			goto err;
+		chan->has_demux = true;
+	}
+
+	if (chan->has_demux) {
 		ret = my_dvb_dmx_ts_card_init(dvbdemux, "SW demux",
 					      ngene_start_feed,
 					      ngene_stop_feed, chan);
@@ -1506,45 +1542,16 @@ static int init_channel(struct ngene_channel *chan)
 						 &chan->hw_frontend,
 						 &chan->mem_frontend, adapter);
 		ret = dvb_net_init(adapter, &chan->dvbnet, &chan->demux.dmx);
-
-		if (dev->ci.en && (io&NGENE_IO_TSOUT)) {
-			dvb_ca_en50221_init(adapter, dev->ci.en, 0, 1);
-			set_transfer(chan, 1);
-			set_transfer(&chan->dev->channel[2], 1);
-
-			dvb_register_device(adapter, &chan->ci_dev,
-					    &ngene_dvbdev_ci, (void *) chan,
-					    DVB_DEVICE_SEC);
-		}
 	}
 
-	if (io & NGENE_IO_TSIN) {
-		chan->fe = NULL;
-		if (ni->demod_attach[nr]) {
-			ret = ni->demod_attach[nr](chan);
-			if (ret < 0)
-				goto err_fe;
-		}
-		if (chan->fe && ni->tuner_attach[nr]) {
-			ret = ni->tuner_attach[nr](chan);
-			if (ret < 0)
-				goto err_fe;
-		}
-		if (chan->fe) {
-			if (dvb_register_frontend(adapter, chan->fe) < 0)
-				goto err_fe;
-		}
-	}
 	return ret;
 
-err_fe:
+err:
 	if (chan->fe) {
 		dvb_frontend_detach(chan->fe);
 		chan->fe = NULL;
 	}
-/*	FIXME: this causes an oops... */
-/*	release_channel(chan);        */
-/*	return ret;                   */
+	release_channel(chan);
 	return 0;
 }
 
