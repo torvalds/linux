@@ -1419,6 +1419,14 @@ S:	Supported
 F:	block/bsg.c
 F:	include/linux/bsg.h
 
+BT87X AUDIO DRIVER
+M:	Clemens Ladisch <clemens@ladisch.de>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+T:	git git://git.alsa-project.org/alsa-kernel.git
+S:	Maintained
+F:	Documentation/sound/alsa/Bt87x.txt
+F:	sound/pci/bt87x.c
+
 BT8XXGPIO DRIVER
 M:	Michael Buesch <mb@bu3sch.de>
 W:	http://bu3sch.de/btgpio.php
@@ -1443,6 +1451,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 F:	Documentation/video4linux/bttv/
 F:	drivers/media/video/bt8xx/bttv*
+
+C-MEDIA CMI8788 DRIVER
+M:	Clemens Ladisch <clemens@ladisch.de>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+T:	git git://git.alsa-project.org/alsa-kernel.git
+S:	Maintained
+F:	sound/pci/oxygen/
 
 CACHEFILES: FS-CACHE BACKEND FOR CACHING ON MOUNTED FILESYSTEMS
 M:	David Howells <dhowells@redhat.com>
@@ -2233,6 +2248,13 @@ L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/r82600_edac.c
+
+EDIROL UA-101/UA-1000 DRIVER
+M:	Clemens Ladisch <clemens@ladisch.de>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+T:	git git://git.alsa-project.org/alsa-kernel.git
+S:	Maintained
+F:	sound/usb/misc/ua101.c
 
 EEEPC LAPTOP EXTRAS DRIVER
 M:	Corentin Chary <corentincj@iksaif.net>
@@ -3378,6 +3400,13 @@ L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/serial/jsm/
 
+K10TEMP HARDWARE MONITORING DRIVER
+M:	Clemens Ladisch <clemens@ladisch.de>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/k10temp
+F:	drivers/hwmon/k10temp.c
+
 K8TEMP HARDWARE MONITORING DRIVER
 M:	Rudolf Marek <r.marek@assembler.cz>
 L:	lm-sensors@lm-sensors.org
@@ -4393,6 +4422,13 @@ S:	Maintained
 F:	drivers/of
 F:	include/linux/of*.h
 K:	of_get_property
+
+OPL4 DRIVER
+M:	Clemens Ladisch <clemens@ladisch.de>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+T:	git git://git.alsa-project.org/alsa-kernel.git
+S:	Maintained
+F:	sound/drivers/opl4/
 
 OPROFILE
 M:	Robert Richter <robert.richter@amd.com>
@@ -6126,6 +6162,13 @@ L:	usb-storage@lists.one-eyed-alien.net
 S:	Maintained
 W:	http://www.one-eyed-alien.net/~mdharm/linux-usb/
 F:	drivers/usb/storage/
+
+USB MIDI DRIVER
+M:	Clemens Ladisch <clemens@ladisch.de>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+T:	git git://git.alsa-project.org/alsa-kernel.git
+S:	Maintained
+F:	sound/usb/midi.*
 
 USB OHCI DRIVER
 M:	David Brownell <dbrownell@users.sourceforge.net>
