@@ -303,6 +303,7 @@ static void pcm1796_registers_init(struct oxygen *chip)
 	unsigned int i;
 	s8 gain_offset;
 
+	msleep(1);
 	gain_offset = data->hp_active ? data->hp_gain_offset : 0;
 	for (i = 0; i < data->dacs; ++i) {
 		/* set ATLD before ATL/ATR */
@@ -451,6 +452,7 @@ static void cs2000_registers_init(struct oxygen *chip)
 		     data->cs2000_regs[CS2000_FUN_CFG_1]);
 	cs2000_write(chip, CS2000_FUN_CFG_2, 0);
 	cs2000_write(chip, CS2000_GLOBAL_CFG, CS2000_EN_DEV_CFG_2);
+	msleep(3); /* PLL lock delay */
 }
 
 static void xonar_st_init(struct oxygen *chip)
@@ -592,6 +594,7 @@ static void set_pcm1796_params(struct oxygen *chip,
 {
 	struct xonar_pcm179x *data = chip->model_data;
 
+	msleep(1);
 	data->current_rate = params_rate(params);
 	update_pcm1796_oversampling(chip);
 }
@@ -669,6 +672,7 @@ static void update_cs2000_rate(struct oxygen *chip, unsigned int rate)
 	else
 		reg = CS2000_REF_CLK_DIV_2;
 	cs2000_write_cached(chip, CS2000_FUN_CFG_1, reg);
+	msleep(3); /* PLL lock delay */
 }
 
 static void set_st_params(struct oxygen *chip,
@@ -796,6 +800,7 @@ static int os_128_put(struct snd_kcontrol *ctl,
 		oxygen_write16_masked(chip, OXYGEN_I2S_MULTICH_FORMAT,
 				      mclk_from_rate(chip, data->current_rate),
 				      OXYGEN_I2S_MCLK_MASK);
+		msleep(1);
 		update_pcm1796_oversampling(chip);
 	}
 	mutex_unlock(&chip->mutex);
