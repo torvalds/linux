@@ -321,6 +321,30 @@ xfs_file_splice_read(
 	return ret;
 }
 
+STATIC void
+xfs_aio_write_isize_update(
+	struct inode	*inode,
+	loff_t		*ppos,
+	ssize_t		bytes_written)
+{
+	struct xfs_inode	*ip = XFS_I(inode);
+	xfs_fsize_t		isize = i_size_read(inode);
+
+	if (bytes_written > 0)
+		XFS_STATS_ADD(xs_write_bytes, bytes_written);
+
+	if (unlikely(bytes_written < 0 && bytes_written != -EFAULT &&
+					*ppos > isize))
+		*ppos = isize;
+
+	if (*ppos > ip->i_size) {
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		if (*ppos > ip->i_size)
+			ip->i_size = *ppos;
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	}
+}
+
 STATIC ssize_t
 xfs_file_splice_write(
 	struct pipe_inode_info	*pipe,
@@ -331,7 +355,7 @@ xfs_file_splice_write(
 {
 	struct inode		*inode = outfilp->f_mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
-	xfs_fsize_t		isize, new_size;
+	xfs_fsize_t		new_size;
 	int			ioflags = 0;
 	ssize_t			ret;
 
@@ -355,19 +379,8 @@ xfs_file_splice_write(
 	trace_xfs_file_splice_write(ip, count, *ppos, ioflags);
 
 	ret = generic_file_splice_write(pipe, outfilp, ppos, count, flags);
-	if (ret > 0)
-		XFS_STATS_ADD(xs_write_bytes, ret);
 
-	isize = i_size_read(inode);
-	if (unlikely(ret < 0 && ret != -EFAULT && *ppos > isize))
-		*ppos = isize;
-
-	if (*ppos > ip->i_size) {
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		if (*ppos > ip->i_size)
-			ip->i_size = *ppos;
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	}
+	xfs_aio_write_isize_update(inode, ppos, ret);
 
 	if (ip->i_new_size) {
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -576,7 +589,7 @@ xfs_file_aio_write(
 	struct xfs_mount	*mp = ip->i_mount;
 	ssize_t			ret = 0;
 	int			ioflags = 0;
-	xfs_fsize_t		isize, new_size;
+	xfs_fsize_t		new_size;
 	int			iolock;
 	size_t			ocount = 0, count;
 	int			need_i_mutex;
@@ -740,21 +753,10 @@ write_retry:
 
 	current->backing_dev_info = NULL;
 
-	isize = i_size_read(inode);
-	if (unlikely(ret < 0 && ret != -EFAULT && iocb->ki_pos > isize))
-		iocb->ki_pos = isize;
-
-	if (iocb->ki_pos > ip->i_size) {
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		if (iocb->ki_pos > ip->i_size)
-			ip->i_size = iocb->ki_pos;
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	}
+	xfs_aio_write_isize_update(inode, &iocb->ki_pos, ret);
 
 	if (ret <= 0)
 		goto out_unlock_internal;
-
-	XFS_STATS_ADD(xs_write_bytes, ret);
 
 	/* Handle various SYNC-type writes */
 	if ((file->f_flags & O_DSYNC) || IS_SYNC(inode)) {
