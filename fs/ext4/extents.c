@@ -3534,6 +3534,12 @@ void ext4_ext_truncate(struct inode *inode)
 	int err = 0;
 
 	/*
+	 * finish any pending end_io work so we won't run the risk of
+	 * converting any truncated blocks to initialized later
+	 */
+	ext4_flush_completed_IO(inode);
+
+	/*
 	 * probably first extent we're gonna free will be last in block
 	 */
 	err = ext4_writepage_trans_blocks(inode);

@@ -1671,6 +1671,7 @@ extern void ext4_htree_free_dir_info(struct dir_private_info *p);
 
 /* fsync.c */
 extern int ext4_sync_file(struct file *, int);
+extern int ext4_flush_completed_IO(struct inode *);
 
 /* hash.c */
 extern int ext4fs_dirhash(const char *name, int len, struct
