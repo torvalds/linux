@@ -767,7 +767,7 @@ static void technisat_usb2_disconnect(struct usb_interface *intf)
 	if (dev != NULL) {
 		struct technisat_usb2_state *state = dev->priv;
 		if (state != NULL) {
-			cancel_rearming_delayed_work(&state->green_led_work);
+			cancel_delayed_work_sync(&state->green_led_work);
 			flush_scheduled_work();
 		}
 	}
