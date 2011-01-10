@@ -562,8 +562,6 @@ static void complete_transaction(struct fw_card *card, int rcode,
 
 	/* Drop the idr's reference */
 	client_put(client);
-	/* Drop the transaction callback's reference */
-	client_put(client);
 }
 
 static int init_request(struct client *client,
@@ -600,9 +598,6 @@ static int init_request(struct client *client,
 	ret = add_client_resource(client, &e->r.resource, GFP_KERNEL);
 	if (ret < 0)
 		goto failed;
-
-	/* Get a reference for the transaction callback */
-	client_get(client);
 
 	fw_send_request(client->device->card, &e->r.transaction,
 			request->tcode, destination_id, request->generation,
