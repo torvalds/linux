@@ -1451,6 +1451,7 @@ static void release_channel(struct ngene_channel *chan)
 			dvb_frontend_detach(chan->fe);
 			chan->fe = NULL;
 		}
+		dvb_net_release(&chan->dvbnet);
 		dvbdemux->dmx.close(&dvbdemux->dmx);
 		dvbdemux->dmx.remove_frontend(&dvbdemux->dmx,
 					      &chan->hw_frontend);
@@ -1504,6 +1505,8 @@ static int init_channel(struct ngene_channel *chan)
 		ret = my_dvb_dmxdev_ts_card_init(&chan->dmxdev, &chan->demux,
 						 &chan->hw_frontend,
 						 &chan->mem_frontend, adapter);
+		ret = dvb_net_init(adapter, &chan->dvbnet, &chan->demux.dmx);
+
 		if (dev->ci.en && (io&NGENE_IO_TSOUT)) {
 			dvb_ca_en50221_init(adapter, dev->ci.en, 0, 1);
 			set_transfer(chan, 1);

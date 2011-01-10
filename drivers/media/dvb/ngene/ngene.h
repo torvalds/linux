@@ -39,6 +39,7 @@
 #include "dvb_ca_en50221.h"
 #include "dvb_frontend.h"
 #include "dvb_ringbuffer.h"
+#include "dvb_net.h"
 #include "cxd2099.h"
 
 #define DEVICE_NAME "ngene"
@@ -642,6 +643,7 @@ struct ngene_channel {
 	struct dvb_frontend  *fe;
 	struct dmxdev         dmxdev;
 	struct dvb_demux      demux;
+	struct dvb_net        dvbnet;
 	struct dmx_frontend   hw_frontend;
 	struct dmx_frontend   mem_frontend;
 	int                   users;
