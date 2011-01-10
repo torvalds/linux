@@ -319,6 +319,7 @@ static void pcm1796_registers_init(struct oxygen *chip)
 		pcm1796_write(chip, i, 20,
 			      data->pcm1796_regs[0][20 - PCM1796_REG_BASE]);
 		pcm1796_write(chip, i, 21, 0);
+		gain_offset = 0;
 	}
 }
 
@@ -615,6 +616,7 @@ static void update_pcm1796_volume(struct oxygen *chip)
 				     + gain_offset);
 		pcm1796_write_cached(chip, i, 17, chip->dac_volume[i * 2 + 1]
 				     + gain_offset);
+		gain_offset = 0;
 	}
 }
 
