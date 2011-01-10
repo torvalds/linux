@@ -1482,23 +1482,32 @@ static int init_channel(struct ngene_channel *chan)
 
 	if (io & NGENE_IO_TSIN) {
 		chan->fe = NULL;
-		if (ni->demod_attach[nr])
-			ni->demod_attach[nr](chan);
-		if (chan->fe) {
-			if (dvb_register_frontend(adapter, chan->fe) < 0) {
-				if (chan->fe->ops.release)
-					chan->fe->ops.release(chan->fe);
-				chan->fe = NULL;
-			}
+		if (ni->demod_attach[nr]) {
+			ret = ni->demod_attach[nr](chan);
+			if (ret < 0)
+				goto err_fe;
 		}
-		if (chan->fe && ni->tuner_attach[nr])
-			if (ni->tuner_attach[nr] (chan) < 0) {
-				printk(KERN_ERR DEVICE_NAME
-				       ": Tuner attach failed on channel %d!\n",
-				       nr);
-			}
+		if (chan->fe && ni->tuner_attach[nr]) {
+			ret = ni->tuner_attach[nr](chan);
+			if (ret < 0)
+				goto err_fe;
+		}
+		if (chan->fe) {
+			if (dvb_register_frontend(adapter, chan->fe) < 0)
+				goto err_fe;
+		}
 	}
 	return ret;
+
+err_fe:
+	if (chan->fe) {
+		dvb_frontend_detach(chan->fe);
+		chan->fe = NULL;
+	}
+/*	FIXME: this causes an oops... */
+/*	release_channel(chan);        */
+/*	return ret;                   */
+	return 0;
 }
 
 static int init_channels(struct ngene *dev)

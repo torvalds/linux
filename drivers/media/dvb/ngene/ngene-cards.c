@@ -113,6 +113,7 @@ static int demod_attach_stv0900(struct ngene_channel *chan)
 			0, chan->dev->card_info->lnb[chan->number])) {
 		printk(KERN_ERR DEVICE_NAME ": No LNBH24 found!\n");
 		dvb_frontend_detach(chan->fe);
+		chan->fe = NULL;
 		return -ENODEV;
 	}
 
