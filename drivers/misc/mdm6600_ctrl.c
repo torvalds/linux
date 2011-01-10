@@ -604,10 +604,9 @@ static void __devexit mdm_ctrl_shutdown(struct platform_device *pdev)
 	msleep(100);
 	pr_info("%s: ap_status set to %d", mdmctrl, get_ap_status());
 
-	/* Toggle the power, delaying to allow modem to respond */
+	/* Assert PWRON to tell modem to shutdown and leave pin asserted */
+	/* until acknowledged or wait times out */
 	set_bp_pwron(1);
-	msleep(100);
-	set_bp_pwron(0);
 	msleep(100);
 
 	/* This should be enough to power down the modem */
@@ -615,6 +614,7 @@ static void __devexit mdm_ctrl_shutdown(struct platform_device *pdev)
 	/* one more time, ultimately the modem will be   */
 	/* hard powered off */
 	pd_failure = bp_shutdown_wait(5);
+	set_bp_pwron(0);
 	if (pd_failure) {
 		pr_info("%s: Resetting unresponsive modem.", mdmctrl);
 		set_bp_resin(1);
