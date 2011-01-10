@@ -673,7 +673,7 @@ static void efx_fini_channels(struct efx_nic *efx)
 
 		efx_for_each_channel_rx_queue(rx_queue, channel)
 			efx_fini_rx_queue(rx_queue);
-		efx_for_each_channel_tx_queue(tx_queue, channel)
+		efx_for_each_possible_channel_tx_queue(tx_queue, channel)
 			efx_fini_tx_queue(tx_queue);
 		efx_fini_eventq(channel);
 	}
@@ -689,7 +689,7 @@ static void efx_remove_channel(struct efx_channel *channel)
 
 	efx_for_each_channel_rx_queue(rx_queue, channel)
 		efx_remove_rx_queue(rx_queue);
-	efx_for_each_channel_tx_queue(tx_queue, channel)
+	efx_for_each_possible_channel_tx_queue(tx_queue, channel)
 		efx_remove_tx_queue(tx_queue);
 	efx_remove_eventq(channel);
 }
@@ -1836,6 +1836,7 @@ static const struct net_device_ops efx_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = efx_netpoll,
 #endif
+	.ndo_setup_tc		= efx_setup_tc,
 };
 
 static void efx_update_name(struct efx_nic *efx)
@@ -2386,7 +2387,8 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	int i, rc;
 
 	/* Allocate and initialise a struct net_device and struct efx_nic */
-	net_dev = alloc_etherdev_mq(sizeof(*efx), EFX_MAX_CORE_TX_QUEUES);
+	net_dev = alloc_etherdev_mqs(sizeof(*efx), EFX_MAX_CORE_TX_QUEUES,
+				     EFX_MAX_RX_QUEUES);
 	if (!net_dev)
 		return -ENOMEM;
 	net_dev->features |= (type->offload_features | NETIF_F_SG |
