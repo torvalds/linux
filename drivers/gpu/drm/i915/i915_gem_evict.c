@@ -127,9 +127,15 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 	}
 
 	/* Nothing found, clean up and bail out! */
-	list_for_each_entry(obj, &unwind_list, exec_list) {
+	while (!list_empty(&unwind_list)) {
+		obj = list_first_entry(&unwind_list,
+				       struct drm_i915_gem_object,
+				       exec_list);
+
 		ret = drm_mm_scan_remove_block(obj->gtt_space);
 		BUG_ON(ret);
+
+		list_del_init(&obj->exec_list);
 		drm_gem_object_unreference(&obj->base);
 	}
 
@@ -162,6 +168,7 @@ found:
 				       exec_list);
 		if (ret == 0)
 			ret = i915_gem_object_unbind(obj);
+
 		list_del_init(&obj->exec_list);
 		drm_gem_object_unreference(&obj->base);
 	}
