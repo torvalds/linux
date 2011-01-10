@@ -156,7 +156,7 @@ static inline void __iomem *irq_base(int i)
 		0x40d00130,
 	};
 
-	return (void __iomem *)io_p2v(phys_base[i >> 5]);
+	return (void __iomem *)io_p2v(phys_base[i]);
 }
 
 void __init pxa_init_irq(int irq_nr, set_wake_t fn)
@@ -168,7 +168,7 @@ void __init pxa_init_irq(int irq_nr, set_wake_t fn)
 	pxa_internal_irq_nr = irq_nr;
 
 	for (n = 0; n < irq_nr; n += 32) {
-		void __iomem *base = irq_base(n);
+		void __iomem *base = irq_base(n >> 5);
 
 		__raw_writel(0, base + ICMR);	/* disable all IRQs */
 		__raw_writel(0, base + ICLR);	/* all IRQs are IRQ, not FIQ */
@@ -200,7 +200,7 @@ static int pxa_irq_suspend(struct sys_device *dev, pm_message_t state)
 {
 	int i;
 
-	for (i = 0; i < pxa_internal_irq_nr; i += 32) {
+	for (i = 0; i < pxa_internal_irq_nr / 32; i++) {
 		void __iomem *base = irq_base(i);
 
 		saved_icmr[i] = __raw_readl(base + ICMR);
@@ -219,7 +219,7 @@ static int pxa_irq_resume(struct sys_device *dev)
 {
 	int i;
 
-	for (i = 0; i < pxa_internal_irq_nr; i += 32) {
+	for (i = 0; i < pxa_internal_irq_nr / 32; i++) {
 		void __iomem *base = irq_base(i);
 
 		__raw_writel(saved_icmr[i], base + ICMR);
