@@ -13,25 +13,15 @@
  *  option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/timer.h>
-#include <linux/interrupt.h>
-#include <linux/platform_device.h>
 #include <linux/gpio.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
+
 #include <sound/soc.h>
 
 #include <asm/mach-types.h>
-
 #include <plat/regs-iis.h>
-
-#include <mach/regs-clock.h>
-#include <asm/io.h>
 #include <mach/gta02.h>
+
 #include "../codecs/wm8753.h"
-#include "dma.h"
 #include "s3c24xx-i2s.h"
 
 static struct snd_soc_card neo1973_gta02;

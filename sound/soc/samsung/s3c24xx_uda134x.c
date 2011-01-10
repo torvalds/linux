@@ -11,22 +11,15 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
 #include <linux/clk.h>
-#include <linux/mutex.h>
 #include <linux/gpio.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
+
 #include <sound/soc.h>
 #include <sound/s3c24xx_uda134x.h>
-#include <sound/uda134x.h>
 
 #include <plat/regs-iis.h>
 
-#include "dma.h"
 #include "s3c24xx-i2s.h"
-#include "../codecs/uda134x.h"
-
 
 /* #define ENFORCE_RATES 1 */
 /*

@@ -12,16 +12,14 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 
 #include <sound/soc.h>
 
-#include <plat/regs-ac97.h>
 #include <mach/dma.h>
+#include <plat/regs-ac97.h>
 #include <plat/audio.h>
 
 #include "dma.h"

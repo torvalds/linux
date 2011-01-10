@@ -10,17 +10,12 @@
  *  option) any later version.
  */
 
-#include <linux/platform_device.h>
-#include <linux/clk.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/pcm_params.h>
 
 #include <asm/mach-types.h>
 
 #include "../codecs/wm8580.h"
-#include "dma.h"
 #include "i2s.h"
 
 /*

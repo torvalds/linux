@@ -7,21 +7,9 @@
  * published by the Free Software Foundation.
 */
 
-#include <linux/module.h>
-#include <linux/clk.h>
-#include <linux/platform_device.h>
-
-#include <sound/core.h>
-#include <sound/pcm.h>
 #include <sound/soc.h>
 
-#include <plat/audio-simtec.h>
-
-#include "dma.h"
-#include "s3c24xx-i2s.h"
 #include "s3c24xx_simtec.h"
-
-#include "../codecs/tlv320aic23.h"
 
 /* supported machines:
  *

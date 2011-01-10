@@ -13,25 +13,16 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/platform_device.h>
-#include <linux/i2c.h>
 #include <linux/gpio.h>
 
 #include <sound/soc.h>
-#include <sound/uda1380.h>
 #include <sound/jack.h>
 
 #include <plat/regs-iis.h>
-
 #include <mach/h1940-latch.h>
-
 #include <asm/mach-types.h>
 
-#include "dma.h"
 #include "s3c24xx-i2s.h"
-#include "../codecs/uda1380.h"
 
 static unsigned int rates[] = {
 	11025,

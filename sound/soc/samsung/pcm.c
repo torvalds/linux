@@ -11,20 +11,11 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/device.h>
-#include <linux/delay.h>
 #include <linux/clk.h>
-#include <linux/kernel.h>
-#include <linux/gpio.h>
 #include <linux/io.h>
 
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
-#include <sound/initval.h>
 #include <sound/soc.h>
+#include <sound/pcm_params.h>
 
 #include <plat/audio.h>
 #include <plat/dma.h>

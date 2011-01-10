@@ -11,21 +11,13 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/io.h>
-#include <linux/platform_device.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
+
 #include <asm/mach-types.h>
 #include <mach/gpio.h>
-#include <mach/regs-clock.h>
 
-#include <linux/mfd/wm8994/core.h>
-#include <linux/mfd/wm8994/registers.h>
 #include "../codecs/wm8994.h"
-#include "dma.h"
-#include "i2s.h"
 
 #define MACHINE_NAME	0
 #define CPU_VOICE_DAI	1

@@ -11,11 +11,7 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/device.h>
 #include <sound/soc.h>
-
-#include "dma.h"
 
 static struct snd_soc_card smdk;
 
