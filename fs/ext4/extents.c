@@ -3102,7 +3102,7 @@ static void unmap_underlying_metadata_blocks(struct block_device *bdev,
  * Handle EOFBLOCKS_FL flag, clearing it if necessary
  */
 static int check_eofblocks_fl(handle_t *handle, struct inode *inode,
-			      struct ext4_map_blocks *map,
+			      ext4_lblk_t lblk,
 			      struct ext4_ext_path *path,
 			      unsigned int len)
 {
@@ -3132,7 +3132,7 @@ static int check_eofblocks_fl(handle_t *handle, struct inode *inode,
 	 * this turns out to be false, we can bail out from this
 	 * function immediately.
 	 */
-	if (map->m_lblk + len < le32_to_cpu(last_ex->ee_block) +
+	if (lblk + len < le32_to_cpu(last_ex->ee_block) +
 	    ext4_ext_get_actual_len(last_ex))
 		return 0;
 	/*
@@ -3188,8 +3188,8 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 							path);
 		if (ret >= 0) {
 			ext4_update_inode_fsync_trans(handle, inode, 1);
-			err = check_eofblocks_fl(handle, inode, map, path,
-						 map->m_len);
+			err = check_eofblocks_fl(handle, inode, map->m_lblk,
+						 path, map->m_len);
 		} else
 			err = ret;
 		goto out2;
@@ -3219,7 +3219,8 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 	ret = ext4_ext_convert_to_initialized(handle, inode, map, path);
 	if (ret >= 0) {
 		ext4_update_inode_fsync_trans(handle, inode, 1);
-		err = check_eofblocks_fl(handle, inode, map, path, map->m_len);
+		err = check_eofblocks_fl(handle, inode, map->m_lblk, path,
+					 map->m_len);
 		if (err < 0)
 			goto out2;
 	}
@@ -3472,7 +3473,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 			map->m_flags |= EXT4_MAP_UNINIT;
 	}
 
-	err = check_eofblocks_fl(handle, inode, map, path, ar.len);
+	err = check_eofblocks_fl(handle, inode, map->m_lblk, path, ar.len);
 	if (err)
 		goto out2;
 
