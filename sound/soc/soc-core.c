@@ -48,8 +48,8 @@ static DEFINE_MUTEX(pcm_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(soc_pm_waitq);
 
 #ifdef CONFIG_DEBUG_FS
-struct dentry *asoc_debugfs_root;
-EXPORT_SYMBOL_GPL(asoc_debugfs_root);
+struct dentry *snd_soc_debugfs_root;
+EXPORT_SYMBOL_GPL(snd_soc_debugfs_root);
 #endif
 
 static DEFINE_MUTEX(client_mutex);
@@ -361,7 +361,7 @@ static const struct file_operations platform_list_fops = {
 static void soc_init_card_debugfs(struct snd_soc_card *card)
 {
 	card->debugfs_card_root = debugfs_create_dir(card->name,
-						     asoc_debugfs_root);
+						     snd_soc_debugfs_root);
 	if (!card->debugfs_card_root) {
 		dev_warn(card->dev,
 			 "ASoC: Failed to create codec debugfs directory\n");
@@ -3584,22 +3584,22 @@ EXPORT_SYMBOL_GPL(snd_soc_unregister_codec);
 static int __init snd_soc_init(void)
 {
 #ifdef CONFIG_DEBUG_FS
-	asoc_debugfs_root = debugfs_create_dir("asoc", NULL);
-	if (IS_ERR(asoc_debugfs_root) || !asoc_debugfs_root) {
+	snd_soc_debugfs_root = debugfs_create_dir("asoc", NULL);
+	if (IS_ERR(snd_soc_debugfs_root) || !snd_soc_debugfs_root) {
 		printk(KERN_WARNING
 		       "ASoC: Failed to create debugfs directory\n");
-		asoc_debugfs_root = NULL;
+		snd_soc_debugfs_root = NULL;
 	}
 
-	if (!debugfs_create_file("codecs", 0444, asoc_debugfs_root, NULL,
+	if (!debugfs_create_file("codecs", 0444, snd_soc_debugfs_root, NULL,
 				 &codec_list_fops))
 		pr_warn("ASoC: Failed to create CODEC list debugfs file\n");
 
-	if (!debugfs_create_file("dais", 0444, asoc_debugfs_root, NULL,
+	if (!debugfs_create_file("dais", 0444, snd_soc_debugfs_root, NULL,
 				 &dai_list_fops))
 		pr_warn("ASoC: Failed to create DAI list debugfs file\n");
 
-	if (!debugfs_create_file("platforms", 0444, asoc_debugfs_root, NULL,
+	if (!debugfs_create_file("platforms", 0444, snd_soc_debugfs_root, NULL,
 				 &platform_list_fops))
 		pr_warn("ASoC: Failed to create platform list debugfs file\n");
 #endif
@@ -3611,7 +3611,7 @@ module_init(snd_soc_init);
 static void __exit snd_soc_exit(void)
 {
 #ifdef CONFIG_DEBUG_FS
-	debugfs_remove_recursive(asoc_debugfs_root);
+	debugfs_remove_recursive(snd_soc_debugfs_root);
 #endif
 	platform_driver_unregister(&soc_driver);
 }

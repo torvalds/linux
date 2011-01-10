@@ -104,7 +104,7 @@ static void tegra_i2s_debug_add(struct tegra_i2s *i2s, int id)
 	char name[] = DRV_NAME ".0";
 
 	snprintf(name, sizeof(name), DRV_NAME".%1d", id);
-	i2s->debug = debugfs_create_file(name, S_IRUGO, asoc_debugfs_root,
+	i2s->debug = debugfs_create_file(name, S_IRUGO, snd_soc_debugfs_root,
 						i2s, &tegra_i2s_debug_fops);
 }
 
