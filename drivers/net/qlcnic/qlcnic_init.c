@@ -627,12 +627,73 @@ qlcnic_setup_idc_param(struct qlcnic_adapter *adapter) {
 	return 0;
 }
 
+static int qlcnic_get_flt_entry(struct qlcnic_adapter *adapter, u8 region,
+				struct qlcnic_flt_entry *region_entry)
+{
+	struct qlcnic_flt_header flt_hdr;
+	struct qlcnic_flt_entry *flt_entry;
+	int i = 0, ret;
+	u32 entry_size;
+
+	memset(region_entry, 0, sizeof(struct qlcnic_flt_entry));
+	ret = qlcnic_rom_fast_read_words(adapter, QLCNIC_FLT_LOCATION,
+					 (u8 *)&flt_hdr,
+					 sizeof(struct qlcnic_flt_header));
+	if (ret) {
+		dev_warn(&adapter->pdev->dev,
+			 "error reading flash layout header\n");
+		return -EIO;
+	}
+
+	entry_size = flt_hdr.len - sizeof(struct qlcnic_flt_header);
+	flt_entry = (struct qlcnic_flt_entry *)vzalloc(entry_size);
+	if (flt_entry == NULL) {
+		dev_warn(&adapter->pdev->dev, "error allocating memory\n");
+		return -EIO;
+	}
+
+	ret = qlcnic_rom_fast_read_words(adapter, QLCNIC_FLT_LOCATION +
+					 sizeof(struct qlcnic_flt_header),
+					 (u8 *)flt_entry, entry_size);
+	if (ret) {
+		dev_warn(&adapter->pdev->dev,
+			 "error reading flash layout entries\n");
+		goto err_out;
+	}
+
+	while (i < (entry_size/sizeof(struct qlcnic_flt_entry))) {
+		if (flt_entry[i].region == region)
+			break;
+		i++;
+	}
+	if (i >= (entry_size/sizeof(struct qlcnic_flt_entry))) {
+		dev_warn(&adapter->pdev->dev,
+			 "region=%x not found in %d regions\n", region, i);
+		ret = -EIO;
+		goto err_out;
+	}
+	memcpy(region_entry, &flt_entry[i], sizeof(struct qlcnic_flt_entry));
+
+err_out:
+	vfree(flt_entry);
+	return ret;
+}
+
 int
 qlcnic_check_flash_fw_ver(struct qlcnic_adapter *adapter)
 {
+	struct qlcnic_flt_entry fw_entry;
 	u32 ver = -1, min_ver;
+	int ret;
 
-	qlcnic_rom_fast_read(adapter, QLCNIC_FW_VERSION_OFFSET, (int *)&ver);
+	ret = qlcnic_get_flt_entry(adapter, QLCNIC_FW_IMAGE_REGION, &fw_entry);
+	if (!ret)
+		/* 0-4:-signature,  4-8:-fw version */
+		qlcnic_rom_fast_read(adapter, fw_entry.start_addr + 4,
+				     (int *)&ver);
+	else
+		qlcnic_rom_fast_read(adapter, QLCNIC_FW_VERSION_OFFSET,
+				     (int *)&ver);
 
 	ver = QLCNIC_DECODE_VERSION(ver);
 	min_ver = QLCNIC_MIN_FW_VERSION;

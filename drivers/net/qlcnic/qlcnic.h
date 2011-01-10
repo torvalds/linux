@@ -289,6 +289,26 @@ struct uni_data_desc{
 	u32	reserved[5];
 };
 
+/* Flash Defines and Structures */
+#define QLCNIC_FLT_LOCATION	0x3F1000
+#define QLCNIC_FW_IMAGE_REGION	0x74
+struct qlcnic_flt_header {
+	u16 version;
+	u16 len;
+	u16 checksum;
+	u16 reserved;
+};
+
+struct qlcnic_flt_entry {
+	u8 region;
+	u8 reserved0;
+	u8 attrib;
+	u8 reserved1;
+	u32 size;
+	u32 start_addr;
+	u32 end_add;
+};
+
 /* Magic number to let user know flash is programmed */
 #define	QLCNIC_BDINFO_MAGIC 0x12345678
 
