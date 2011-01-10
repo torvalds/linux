@@ -317,7 +317,8 @@ static struct ngene_info ngene_info_satixS2v2 = {
 static struct ngene_info ngene_info_cineS2v5 = {
 	.type		= NGENE_SIDEWINDER,
 	.name		= "Linux4Media cineS2 DVB-S2 Twin Tuner (v5)",
-	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN},
+	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN,
+			   NGENE_IO_TSOUT},
 	.demod_attach	= {demod_attach_stv0900, demod_attach_stv0900, cineS2_probe, cineS2_probe},
 	.tuner_attach	= {tuner_attach_stv6110, tuner_attach_stv6110, tuner_attach_stv6110, tuner_attach_stv6110},
 	.fe_config	= {&fe_cineS2, &fe_cineS2, &fe_cineS2_2, &fe_cineS2_2},
@@ -332,7 +333,8 @@ static struct ngene_info ngene_info_cineS2v5 = {
 static struct ngene_info ngene_info_duoFlexS2 = {
 	.type           = NGENE_SIDEWINDER,
 	.name           = "Digital Devices DuoFlex S2 miniPCIe",
-	.io_type        = {NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN},
+	.io_type        = {NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN,
+			   NGENE_IO_TSOUT},
 	.demod_attach   = {cineS2_probe, cineS2_probe, cineS2_probe, cineS2_probe},
 	.tuner_attach   = {tuner_attach_stv6110, tuner_attach_stv6110, tuner_attach_stv6110, tuner_attach_stv6110},
 	.fe_config      = {&fe_cineS2, &fe_cineS2, &fe_cineS2_2, &fe_cineS2_2},

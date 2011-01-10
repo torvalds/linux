@@ -36,8 +36,10 @@
 #include "dmxdev.h"
 #include "dvbdev.h"
 #include "dvb_demux.h"
+#include "dvb_ca_en50221.h"
 #include "dvb_frontend.h"
 #include "dvb_ringbuffer.h"
+#include "cxd2099.h"
 
 #define DEVICE_NAME "ngene"
 
@@ -644,6 +646,7 @@ struct ngene_channel {
 	struct dmx_frontend   mem_frontend;
 	int                   users;
 	struct video_device  *v4l_dev;
+	struct dvb_device    *ci_dev;
 	struct tasklet_struct demux_tasklet;
 
 	struct SBufferHeader *nextBuffer;
@@ -710,6 +713,15 @@ struct ngene_channel {
 	int running;
 };
 
+
+struct ngene_ci {
+	struct device         device;
+	struct i2c_adapter    i2c_adapter;
+
+	struct ngene         *dev;
+	struct dvb_ca_en50221 *en;
+};
+
 struct ngene;
 
 typedef void (rx_cb_t)(struct ngene *, u32, u8);
@@ -774,6 +786,10 @@ struct ngene {
 #define TSOUT_BUF_SIZE (512*188*8)
 	struct dvb_ringbuffer tsout_rbuf;
 
+	u8                   *tsin_buf;
+#define TSIN_BUF_SIZE (512*188*8)
+	struct dvb_ringbuffer tsin_rbuf;
+
 	u8                   *ain_buf;
 #define AIN_BUF_SIZE (128*1024)
 	struct dvb_ringbuffer ain_rbuf;
@@ -785,6 +801,8 @@ struct ngene {
 
 	unsigned long         exp_val;
 	int prev_cmd;
+
+	struct ngene_ci       ci;
 };
 
 struct ngene_info {
@@ -872,6 +890,7 @@ void FillTSBuffer(void *Buffer, int Length, u32 Flags);
 int ngene_i2c_init(struct ngene *dev, int dev_nr);
 
 /* Provided by ngene-dvb.c */
+extern struct dvb_device ngene_dvbdev_ci;
 void *tsout_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags);
 void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags);
 int ngene_start_feed(struct dvb_demux_feed *dvbdmxfeed);
