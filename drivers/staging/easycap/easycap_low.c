@@ -39,7 +39,7 @@
 /****************************************************************************/
 
 #include "easycap.h"
-#include "easycap_debug.h"
+#include "easycap_low.h"
 
 /*--------------------------------------------------------------------------*/
 const struct stk1160config { int reg; int set; } stk1160configPAL[256] = {
@@ -1052,9 +1052,18 @@ rc = usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0),	\
 			(int)50000);
 
 JOT(8, "0x%02X=buffer\n", *((__u8 *) &buffer[0]));
-if (rc != (int)length)
-	SAY("ERROR: usb_control_msg returned %i\n", rc);
-
+if (rc != (int)length) {
+	switch (rc) {
+	case -EPIPE: {
+		SAY("usb_control_msg returned -EPIPE\n");
+		break;
+	}
+	default: {
+		SAY("ERROR: usb_control_msg returned %i\n", rc);
+		break;
+	}
+	}
+}
 /*--------------------------------------------------------------------------*/
 /*
  *  REGISTER 500:  SETTING VALUE TO 0x0094 RESETS AUDIO CONFIGURATION ???

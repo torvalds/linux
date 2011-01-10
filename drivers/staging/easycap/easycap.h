@@ -34,6 +34,8 @@
  *                EASYCAP_NEEDS_V4L2_DEVICE_H
  *                EASYCAP_NEEDS_V4L2_FOPS
  *                EASYCAP_NEEDS_UNLOCKED_IOCTL
+ *                EASYCAP_NEEDS_ALSA
+ *                EASYCAP_SILENT
  *
  *  IF REQUIRED THEY MUST BE EXTERNALLY DEFINED, FOR EXAMPLE AS COMPILER
  *  OPTIONS.
@@ -57,9 +59,9 @@
  */
 /*---------------------------------------------------------------------------*/
 #undef  EASYCAP_TESTCARD
+#if (!defined(EASYCAP_NEEDS_ALSA))
 #undef  EASYCAP_TESTTONE
-#undef  NOREADBACK
-#undef  AUDIOTIME
+#endif /*EASYCAP_NEEDS_ALSA*/
 /*---------------------------------------------------------------------------*/
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -79,6 +81,16 @@
 #include <linux/delay.h>
 #include <linux/types.h>
 
+#if defined(EASYCAP_NEEDS_ALSA)
+#include <linux/vmalloc.h>
+#include <linux/sound.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
+#include <sound/pcm_params.h>
+#include <sound/info.h>
+#include <sound/initval.h>
+#include <sound/control.h>
+#endif /*EASYCAP_NEEDS_ALSA*/
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
 #include <media/v4l2-dev.h>
@@ -112,7 +124,7 @@
 #define USB_EASYCAP_VENDOR_ID	0x05e1
 #define USB_EASYCAP_PRODUCT_ID	0x0408
 
-#define EASYCAP_DRIVER_VERSION "0.8.41"
+#define EASYCAP_DRIVER_VERSION "0.9.01"
 #define EASYCAP_DRIVER_DESCRIPTION "easycapdc60"
 
 #define USB_SKEL_MINOR_BASE     192
@@ -158,7 +170,8 @@
  */
 /*---------------------------------------------------------------------------*/
 #define AUDIO_ISOC_BUFFER_MANY 16
-#define AUDIO_ISOC_ORDER 3
+#define AUDIO_ISOC_ORDER 1
+#define AUDIO_ISOC_FRAMESPERDESC 32
 #define AUDIO_ISOC_BUFFER_SIZE (PAGE_SIZE << AUDIO_ISOC_ORDER)
 /*---------------------------------------------------------------------------*/
 /*
@@ -166,6 +179,7 @@
  */
 /*---------------------------------------------------------------------------*/
 #define AUDIO_FRAGMENT_MANY 32
+#define PAGES_PER_AUDIO_FRAGMENT 4
 /*---------------------------------------------------------------------------*/
 /*
  *  IT IS ESSENTIAL THAT EVEN-NUMBERED STANDARDS ARE 25 FRAMES PER SECOND,
@@ -296,6 +310,7 @@ struct easycap {
 #define TELLTALE "expectedstring"
 char telltale[16];
 int isdongle;
+int minor;
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
@@ -328,6 +343,7 @@ int done[FRAME_BUFFER_MANY];
 
 wait_queue_head_t wq_video;
 wait_queue_head_t wq_audio;
+wait_queue_head_t wq_trigger;
 
 int input;
 int polled;
@@ -429,6 +445,20 @@ int allocation_video_struct;
 int registered_video;
 /*---------------------------------------------------------------------------*/
 /*
+ *  ALSA
+ */
+/*---------------------------------------------------------------------------*/
+#if defined(EASYCAP_NEEDS_ALSA)
+struct snd_pcm_hardware alsa_hardware;
+struct snd_card *psnd_card;
+struct snd_pcm *psnd_pcm;
+struct snd_pcm_substream *psubstream;
+int dma_fill;
+int dma_next;
+int dma_read;
+#endif /*EASYCAP_NEEDS_ALSA*/
+/*---------------------------------------------------------------------------*/
+/*
  *  SOUND PROPERTIES
  */
 /*---------------------------------------------------------------------------*/
@@ -455,10 +485,10 @@ struct list_head *purb_audio_head;
  *  BUFFER INDICATORS
  */
 /*---------------------------------------------------------------------------*/
-int audio_fill;		/* Audio buffer being filled by easysnd_complete().  */
-			/*   Bumped only by easysnd_complete().              */
-int audio_read;		/* Audio buffer page being read by easysnd_read().   */
-			/*   Set by easysnd_read() to trail audio_fill by    */
+int audio_fill;		/* Audio buffer being filled by easycap_complete().  */
+			/*   Bumped only by easycap_complete().              */
+int audio_read;		/* Audio buffer page being read by easycap_read().   */
+			/*   Set by easycap_read() to trail audio_fill by    */
 			/*   one fragment.                                   */
 /*---------------------------------------------------------------------------*/
 /*
@@ -532,19 +562,39 @@ int              adjust_volume(struct easycap *, int);
  *  AUDIO FUNCTION PROTOTYPES
  */
 /*---------------------------------------------------------------------------*/
-void             easysnd_complete(struct urb *);
-ssize_t          easysnd_read(struct file *, char __user *, size_t, loff_t *);
-int              easysnd_open(struct inode *, struct file *);
-int              easysnd_release(struct inode *, struct file *);
-long             easysnd_ioctl_noinode(struct file *, unsigned int, \
+#if defined(EASYCAP_NEEDS_ALSA)
+int		easycap_alsa_probe(struct easycap *);
+
+void            easycap_alsa_complete(struct urb *);
+int		easycap_alsa_open(struct snd_pcm_substream *);
+int		easycap_alsa_close(struct snd_pcm_substream *);
+int		easycap_alsa_hw_params(struct snd_pcm_substream *, \
+						struct snd_pcm_hw_params *);
+int             easycap_alsa_vmalloc(struct snd_pcm_substream *, size_t);
+int		easycap_alsa_hw_free(struct snd_pcm_substream *);
+int		easycap_alsa_prepare(struct snd_pcm_substream *);
+int		easycap_alsa_ack(struct snd_pcm_substream *);
+int		easycap_alsa_trigger(struct snd_pcm_substream *, int);
+snd_pcm_uframes_t \
+		easycap_alsa_pointer(struct snd_pcm_substream *);
+struct page	*easycap_alsa_page(struct snd_pcm_substream *, unsigned long);
+
+#else
+void             easyoss_complete(struct urb *);
+ssize_t          easyoss_read(struct file *, char __user *, size_t, loff_t *);
+int              easyoss_open(struct inode *, struct file *);
+int              easyoss_release(struct inode *, struct file *);
+long             easyoss_ioctl_noinode(struct file *, unsigned int, \
 								unsigned long);
-int              easysnd_ioctl(struct inode *, struct file *, unsigned int, \
+int              easyoss_ioctl(struct inode *, struct file *, unsigned int, \
 								unsigned long);
-unsigned int     easysnd_poll(struct file *, poll_table *);
-void             easysnd_delete(struct kref *);
+unsigned int     easyoss_poll(struct file *, poll_table *);
+void             easyoss_delete(struct kref *);
+#endif /*EASYCAP_NEEDS_ALSA*/
+int              easycap_sound_setup(struct easycap *);
 int              submit_audio_urbs(struct easycap *);
 int              kill_audio_urbs(struct easycap *);
-void             easysnd_testtone(struct easycap *, int);
+void             easyoss_testtone(struct easycap *, int);
 int              audio_setup(struct easycap *);
 /*---------------------------------------------------------------------------*/
 /*

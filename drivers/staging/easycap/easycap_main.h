@@ -1,6 +1,6 @@
 /*****************************************************************************
 *                                                                            *
-*  easycap_debug.h                                                           *
+*  easycap_main.h                                                           *
 *                                                                            *
 *****************************************************************************/
 /*
@@ -24,6 +24,20 @@
  *
 */
 /*****************************************************************************/
-extern int easycap_debug;
-extern int easycap_gain;
-extern struct easycap_dongle easycap_dongle[];
+#if !defined(EASYCAP_MAIN_H)
+#define EASYCAP_MAIN_H
+
+extern struct easycap_standard easycap_standard[];
+extern struct easycap_format easycap_format[];
+extern struct v4l2_queryctrl easycap_control[];
+extern struct usb_driver easycap_usb_driver;
+#if defined(EASYCAP_NEEDS_ALSA)
+extern struct snd_pcm_ops easycap_alsa_ops;
+extern struct snd_pcm_hardware easycap_pcm_hardware;
+extern struct snd_card *psnd_card;
+#else
+extern struct usb_class_driver easyoss_class;
+extern const struct file_operations easyoss_fops;
+#endif /*EASYCAP_NEEDS_ALSA*/
+
+#endif /*EASYCAP_MAIN_H*/

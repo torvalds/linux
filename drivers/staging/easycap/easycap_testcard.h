@@ -1,6 +1,6 @@
 /*****************************************************************************
 *                                                                            *
-*  easycap_standard.h                                                        *
+*  easycap_testcard.h                                                        *
 *                                                                            *
 *****************************************************************************/
 /*
@@ -24,4 +24,11 @@
  *
 */
 /*****************************************************************************/
-extern struct easycap_standard easycap_standard[];
+#if !defined(EASYCAP_TESTCARD_H)
+#define EASYCAP_TESTCARD_H
+
+extern int easycap_debug;
+extern int easycap_gain;
+extern struct easycap_dongle easycapdc60_dongle[];
+
+#endif /*EASYCAP_TESTCARD_H*/

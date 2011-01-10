@@ -24,5 +24,14 @@
  *
 */
 /*****************************************************************************/
+#if !defined(EASYCAP_IOCTL_H)
+#define EASYCAP_IOCTL_H
+
+extern int easycap_debug;
+extern int easycap_gain;
+extern struct easycap_dongle easycapdc60_dongle[];
+extern struct easycap_standard easycap_standard[];
 extern struct easycap_format easycap_format[];
 extern struct v4l2_queryctrl easycap_control[];
+
+#endif /*EASYCAP_IOCTL_H*/
