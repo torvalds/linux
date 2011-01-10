@@ -370,6 +370,58 @@ int acpi_processor_tstate_has_changed(struct acpi_processor *pr)
 }
 
 /*
+ * This function is used to reevaluate whether the T-state is valid
+ * after one CPU is onlined/offlined.
+ * It is noted that it won't reevaluate the following properties for
+ * the T-state.
+ *	1. Control method.
+ *	2. the number of supported T-state
+ *	3. TSD domain
+ */
+void acpi_processor_reevaluate_tstate(struct acpi_processor *pr,
+					unsigned long action)
+{
+	int result = 0;
+
+	if (action == CPU_DEAD) {
+		/* When one CPU is offline, the T-state throttling
+		 * will be invalidated.
+		 */
+		pr->flags.throttling = 0;
+		return;
+	}
+	/* the following is to recheck whether the T-state is valid for
+	 * the online CPU
+	 */
+	if (!pr->throttling.state_count) {
+		/* If the number of T-state is invalid, it is
+		 * invalidated.
+		 */
+		pr->flags.throttling = 0;
+		return;
+	}
+	pr->flags.throttling = 1;
+
+	/* Disable throttling (if enabled).  We'll let subsequent
+	 * policy (e.g.thermal) decide to lower performance if it
+	 * so chooses, but for now we'll crank up the speed.
+	 */
+
+	result = acpi_processor_get_throttling(pr);
+	if (result)
+		goto end;
+
+	if (pr->throttling.state) {
+		result = acpi_processor_set_throttling(pr, 0, false);
+		if (result)
+			goto end;
+	}
+
+end:
+	if (result)
+		pr->flags.throttling = 0;
+}
+/*
  * _PTC - Processor Throttling Control (and status) register location
  */
 static int acpi_processor_get_throttling_control(struct acpi_processor *pr)
