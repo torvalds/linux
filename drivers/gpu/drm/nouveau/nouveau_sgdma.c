@@ -89,8 +89,24 @@ nouveau_sgdma_clear(struct ttm_backend *be)
 	}
 }
 
+static void
+nouveau_sgdma_destroy(struct ttm_backend *be)
+{
+	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)be;
+
+	if (be) {
+		NV_DEBUG(nvbe->dev, "\n");
+
+		if (nvbe) {
+			if (nvbe->pages)
+				be->func->clear(be);
+			kfree(nvbe);
+		}
+	}
+}
+
 static int
-nouveau_sgdma_bind(struct ttm_backend *be, struct ttm_mem_reg *mem)
+nv04_sgdma_bind(struct ttm_backend *be, struct ttm_mem_reg *mem)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)be;
 	struct drm_device *dev = nvbe->dev;
@@ -117,7 +133,7 @@ nouveau_sgdma_bind(struct ttm_backend *be, struct ttm_mem_reg *mem)
 }
 
 static int
-nouveau_sgdma_unbind(struct ttm_backend *be)
+nv04_sgdma_unbind(struct ttm_backend *be)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)be;
 	struct drm_device *dev = nvbe->dev;
@@ -140,21 +156,13 @@ nouveau_sgdma_unbind(struct ttm_backend *be)
 	return 0;
 }
 
-static void
-nouveau_sgdma_destroy(struct ttm_backend *be)
-{
-	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)be;
-
-	if (be) {
-		NV_DEBUG(nvbe->dev, "\n");
-
-		if (nvbe) {
-			if (nvbe->pages)
-				be->func->clear(be);
-			kfree(nvbe);
-		}
-	}
-}
+static struct ttm_backend_func nv04_sgdma_backend = {
+	.populate		= nouveau_sgdma_populate,
+	.clear			= nouveau_sgdma_clear,
+	.bind			= nv04_sgdma_bind,
+	.unbind			= nv04_sgdma_unbind,
+	.destroy		= nouveau_sgdma_destroy
+};
 
 static int
 nv50_sgdma_bind(struct ttm_backend *be, struct ttm_mem_reg *mem)
@@ -185,14 +193,6 @@ nv50_sgdma_unbind(struct ttm_backend *be)
 	return 0;
 }
 
-static struct ttm_backend_func nouveau_sgdma_backend = {
-	.populate		= nouveau_sgdma_populate,
-	.clear			= nouveau_sgdma_clear,
-	.bind			= nouveau_sgdma_bind,
-	.unbind			= nouveau_sgdma_unbind,
-	.destroy		= nouveau_sgdma_destroy
-};
-
 static struct ttm_backend_func nv50_sgdma_backend = {
 	.populate		= nouveau_sgdma_populate,
 	.clear			= nouveau_sgdma_clear,
@@ -213,10 +213,10 @@ nouveau_sgdma_init_ttm(struct drm_device *dev)
 
 	nvbe->dev = dev;
 
-	if (dev_priv->card_type < NV_50)
-		nvbe->backend.func = &nouveau_sgdma_backend;
-	else
+	if (dev_priv->card_type >= NV_50)
 		nvbe->backend.func = &nv50_sgdma_backend;
+	else
+		nvbe->backend.func = &nv04_sgdma_backend;
 	return &nvbe->backend;
 }
 
@@ -228,7 +228,16 @@ nouveau_sgdma_init(struct drm_device *dev)
 	uint32_t aper_size, obj_size;
 	int i, ret;
 
-	if (dev_priv->card_type < NV_50) {
+	if (dev_priv->card_type >= NV_50) {
+		ret = nouveau_vm_get(dev_priv->chan_vm, 512 * 1024 * 1024,
+				     12, NV_MEM_ACCESS_RW,
+				     &dev_priv->gart_info.vma);
+		if (ret)
+			return ret;
+
+		dev_priv->gart_info.aper_base = dev_priv->gart_info.vma.offset;
+		dev_priv->gart_info.aper_size = 512 * 1024 * 1024;
+	} else {
 		if(dev_priv->ramin_rsvd_vram < 2 * 1024 * 1024)
 			aper_size = 64 * 1024 * 1024;
 		else
@@ -257,16 +266,6 @@ nouveau_sgdma_init(struct drm_device *dev)
 		dev_priv->gart_info.sg_ctxdma = gpuobj;
 		dev_priv->gart_info.aper_base = 0;
 		dev_priv->gart_info.aper_size = aper_size;
-	} else
-	if (dev_priv->chan_vm) {
-		ret = nouveau_vm_get(dev_priv->chan_vm, 512 * 1024 * 1024,
-				     12, NV_MEM_ACCESS_RW,
-				     &dev_priv->gart_info.vma);
-		if (ret)
-			return ret;
-
-		dev_priv->gart_info.aper_base = dev_priv->gart_info.vma.offset;
-		dev_priv->gart_info.aper_size = 512 * 1024 * 1024;
 	}
 
 	dev_priv->gart_info.type      = NOUVEAU_GART_SGDMA;
