@@ -83,6 +83,10 @@ int tegra_usb_phy_preresume(struct tegra_usb_phy *phy);
 
 int tegra_usb_phy_postresume(struct tegra_usb_phy *phy);
 
+int tegra_ehci_phy_restore_start(struct tegra_usb_phy *phy);
+
+int tegra_ehci_phy_restore_end(struct tegra_usb_phy *phy);
+
 int tegra_usb_phy_close(struct tegra_usb_phy *phy);
 
 #endif //__MACH_USB_PHY_H
