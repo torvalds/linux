@@ -17,7 +17,14 @@
 #include <linux/etherdevice.h>
 #include <linux/bfin_mac.h>
 
+/*
+ * Disable hardware checksum for bug #5600 if writeback cache is
+ * enabled. Otherwize, corrupted RX packet will be sent up stack
+ * without error mark.
+ */
+#ifndef CONFIG_BFIN_EXTMEM_WRITEBACK
 #define BFIN_MAC_CSUM_OFFLOAD
+#endif
 
 #define TX_RECLAIM_JIFFIES (HZ / 5)
 
