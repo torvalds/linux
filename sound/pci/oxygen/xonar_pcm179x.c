@@ -326,7 +326,7 @@ static void pcm1796_init(struct oxygen *chip)
 	struct xonar_pcm179x *data = chip->model_data;
 
 	data->pcm1796_regs[0][18 - PCM1796_REG_BASE] = PCM1796_MUTE |
-		PCM1796_DMF_DISABLED | PCM1796_FMT_24_LJUST | PCM1796_ATLD;
+		PCM1796_DMF_DISABLED | PCM1796_FMT_24_I2S | PCM1796_ATLD;
 	data->pcm1796_regs[0][19 - PCM1796_REG_BASE] =
 		PCM1796_FLT_SHARP | PCM1796_ATS_1;
 	data->pcm1796_regs[0][20 - PCM1796_REG_BASE] = PCM1796_OS_64;
@@ -620,7 +620,7 @@ static void update_pcm1796_mute(struct oxygen *chip)
 	unsigned int i;
 	u8 value;
 
-	value = PCM1796_DMF_DISABLED | PCM1796_FMT_24_LJUST | PCM1796_ATLD;
+	value = PCM1796_DMF_DISABLED | PCM1796_FMT_24_I2S | PCM1796_ATLD;
 	if (chip->dac_mute)
 		value |= PCM1796_MUTE;
 	for (i = 0; i < data->dacs; ++i)
@@ -1106,7 +1106,7 @@ static const struct oxygen_model model_xonar_d2 = {
 	.misc_flags = OXYGEN_MISC_MIDI,
 	.function_flags = OXYGEN_FUNCTION_SPI |
 			  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
-	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+	.dac_i2s_format = OXYGEN_I2S_FORMAT_I2S,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 
@@ -1139,7 +1139,7 @@ static const struct oxygen_model model_xonar_hdav = {
 	.dac_volume_max = 255,
 	.misc_flags = OXYGEN_MISC_MIDI,
 	.function_flags = OXYGEN_FUNCTION_2WIRE,
-	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+	.dac_i2s_format = OXYGEN_I2S_FORMAT_I2S,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 
@@ -1169,7 +1169,7 @@ static const struct oxygen_model model_xonar_st = {
 	.dac_volume_min = 255 - 2*60,
 	.dac_volume_max = 255,
 	.function_flags = OXYGEN_FUNCTION_2WIRE,
-	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+	.dac_i2s_format = OXYGEN_I2S_FORMAT_I2S,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 
