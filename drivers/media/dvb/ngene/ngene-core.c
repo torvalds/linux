@@ -47,7 +47,7 @@ MODULE_PARM_DESC(one_adapter, "Use only one adapter.");
 
 static int shutdown_workaround;
 module_param(shutdown_workaround, int, 0644);
-MODULE_PARM_DESC(one_adapter, "Activate workaround for shutdown problem with some chipsets.");
+MODULE_PARM_DESC(shutdown_workaround, "Activate workaround for shutdown problem with some chipsets.");
 
 static int debug;
 module_param(debug, int, 0444);
