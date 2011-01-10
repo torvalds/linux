@@ -467,7 +467,7 @@ static void xonar_st_init(struct oxygen *chip)
 
 	oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
 		       OXYGEN_RATE_48000 | OXYGEN_I2S_FORMAT_I2S |
-		       OXYGEN_I2S_MCLK_128 | OXYGEN_I2S_BITS_16 |
+		       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
 		       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
 
 	xonar_st_init_i2c(chip);
@@ -635,41 +635,40 @@ static void update_cs2000_rate(struct oxygen *chip, unsigned int rate)
 	u8 rate_mclk, reg;
 
 	switch (rate) {
-		/* XXX Why is the I2S A MCLK half the actual I2S MCLK? */
 	case 32000:
-		rate_mclk = OXYGEN_RATE_32000 | OXYGEN_I2S_MCLK_256;
+		rate_mclk = OXYGEN_RATE_32000 | OXYGEN_I2S_MCLK_512;
 		break;
 	case 44100:
 		if (data->os_128)
-			rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_256;
+			rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_512;
 		else
-			rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_128;
+			rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_256;
 		break;
 	default: /* 48000 */
 		if (data->os_128)
-			rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_256;
+			rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_512;
 		else
-			rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_128;
+			rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_256;
 		break;
 	case 64000:
-		rate_mclk = OXYGEN_RATE_32000 | OXYGEN_I2S_MCLK_256;
+		rate_mclk = OXYGEN_RATE_32000 | OXYGEN_I2S_MCLK_512;
 		break;
 	case 88200:
-		rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_256;
+		rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_512;
 		break;
 	case 96000:
-		rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_256;
+		rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_512;
 		break;
 	case 176400:
-		rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_256;
+		rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_512;
 		break;
 	case 192000:
-		rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_256;
+		rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_512;
 		break;
 	}
 	oxygen_write16_masked(chip, OXYGEN_I2S_A_FORMAT, rate_mclk,
 			      OXYGEN_I2S_RATE_MASK | OXYGEN_I2S_MCLK_MASK);
-	if ((rate_mclk & OXYGEN_I2S_MCLK_MASK) <= OXYGEN_I2S_MCLK_128)
+	if ((rate_mclk & OXYGEN_I2S_MCLK_MASK) <= OXYGEN_I2S_MCLK_256)
 		reg = CS2000_REF_CLK_DIV_1;
 	else
 		reg = CS2000_REF_CLK_DIV_2;
