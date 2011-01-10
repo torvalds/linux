@@ -254,10 +254,6 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 	flt_type = HCI_FLT_CLEAR_ALL;
 	hci_send_cmd(hdev, HCI_OP_SET_EVENT_FLT, 1, &flt_type);
 
-	/* Page timeout ~20 secs */
-	param = cpu_to_le16(0x8000);
-	hci_send_cmd(hdev, HCI_OP_WRITE_PG_TIMEOUT, 2, &param);
-
 	/* Connection accept timeout ~20 secs */
 	param = cpu_to_le16(0x7d00);
 	hci_send_cmd(hdev, HCI_OP_WRITE_CA_TIMEOUT, 2, &param);
