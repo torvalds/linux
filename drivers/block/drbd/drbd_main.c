@@ -85,7 +85,8 @@ MODULE_AUTHOR("Philipp Reisner <phil@linbit.com>, "
 MODULE_DESCRIPTION("drbd - Distributed Replicated Block Device v" REL_VERSION);
 MODULE_VERSION(REL_VERSION);
 MODULE_LICENSE("GPL");
-MODULE_PARM_DESC(minor_count, "Maximum number of drbd devices (1-255)");
+MODULE_PARM_DESC(minor_count, "Maximum number of drbd devices ("
+		 __stringify(DRBD_MINOR_COUNT_MIN) "-" __stringify(DRBD_MINOR_COUNT_MAX) ")");
 MODULE_ALIAS_BLOCKDEV_MAJOR(DRBD_MAJOR);
 
 #include <linux/moduleparam.h>
@@ -115,7 +116,7 @@ module_param(fault_devs, int, 0644);
 #endif
 
 /* module parameter, defined */
-unsigned int minor_count = 32;
+unsigned int minor_count = DRBD_MINOR_COUNT_DEF;
 int disable_sendpage;
 int allow_oos;
 unsigned int cn_idx = CN_IDX_DRBD;
@@ -3456,7 +3457,7 @@ int __init drbd_init(void)
 		return -EINVAL;
 	}
 
-	if (1 > minor_count || minor_count > 255) {
+	if (minor_count < DRBD_MINOR_COUNT_MIN || minor_count > DRBD_MINOR_COUNT_MAX) {
 		printk(KERN_ERR
 			"drbd: invalid minor_count (%d)\n", minor_count);
 #ifdef MODULE
