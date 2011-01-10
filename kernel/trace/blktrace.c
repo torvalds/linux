@@ -758,54 +758,58 @@ static void blk_add_trace_rq_complete(void *ignore,
  * @q:		queue the io is for
  * @bio:	the source bio
  * @what:	the action
+ * @error:	error, if any
  *
  * Description:
  *     Records an action against a bio. Will log the bio offset + size.
  *
  **/
 static void blk_add_trace_bio(struct request_queue *q, struct bio *bio,
-				     u32 what)
+			      u32 what, int error)
 {
 	struct blk_trace *bt = q->blk_trace;
 
 	if (likely(!bt))
 		return;
 
+	if (!error && !bio_flagged(bio, BIO_UPTODATE))
+		error = EIO;
+
 	__blk_add_trace(bt, bio->bi_sector, bio->bi_size, bio->bi_rw, what,
-			!bio_flagged(bio, BIO_UPTODATE), 0, NULL);
+			error, 0, NULL);
 }
 
 static void blk_add_trace_bio_bounce(void *ignore,
 				     struct request_queue *q, struct bio *bio)
 {
-	blk_add_trace_bio(q, bio, BLK_TA_BOUNCE);
+	blk_add_trace_bio(q, bio, BLK_TA_BOUNCE, 0);
 }
 
 static void blk_add_trace_bio_complete(void *ignore,
 				       struct request_queue *q, struct bio *bio,
 				       int error)
 {
-	blk_add_trace_bio(q, bio, BLK_TA_COMPLETE);
+	blk_add_trace_bio(q, bio, BLK_TA_COMPLETE, error);
 }
 
 static void blk_add_trace_bio_backmerge(void *ignore,
 					struct request_queue *q,
 					struct bio *bio)
 {
-	blk_add_trace_bio(q, bio, BLK_TA_BACKMERGE);
+	blk_add_trace_bio(q, bio, BLK_TA_BACKMERGE, 0);
 }
 
 static void blk_add_trace_bio_frontmerge(void *ignore,
 					 struct request_queue *q,
 					 struct bio *bio)
 {
-	blk_add_trace_bio(q, bio, BLK_TA_FRONTMERGE);
+	blk_add_trace_bio(q, bio, BLK_TA_FRONTMERGE, 0);
 }
 
 static void blk_add_trace_bio_queue(void *ignore,
 				    struct request_queue *q, struct bio *bio)
 {
-	blk_add_trace_bio(q, bio, BLK_TA_QUEUE);
+	blk_add_trace_bio(q, bio, BLK_TA_QUEUE, 0);
 }
 
 static void blk_add_trace_getrq(void *ignore,
@@ -813,7 +817,7 @@ static void blk_add_trace_getrq(void *ignore,
 				struct bio *bio, int rw)
 {
 	if (bio)
-		blk_add_trace_bio(q, bio, BLK_TA_GETRQ);
+		blk_add_trace_bio(q, bio, BLK_TA_GETRQ, 0);
 	else {
 		struct blk_trace *bt = q->blk_trace;
 
@@ -828,7 +832,7 @@ static void blk_add_trace_sleeprq(void *ignore,
 				  struct bio *bio, int rw)
 {
 	if (bio)
-		blk_add_trace_bio(q, bio, BLK_TA_SLEEPRQ);
+		blk_add_trace_bio(q, bio, BLK_TA_SLEEPRQ, 0);
 	else {
 		struct blk_trace *bt = q->blk_trace;
 
