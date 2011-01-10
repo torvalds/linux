@@ -254,7 +254,10 @@ struct ath_atx_tid {
 };
 
 struct ath_node {
-	struct ath_common *common;
+#ifdef CONFIG_ATH9K_DEBUGFS
+	struct list_head list; /* for sc->nodes */
+	struct ieee80211_sta *sta; /* station struct we're part of */
+#endif
 	struct ath_atx_tid tid[WME_NUM_TID];
 	struct ath_atx_ac ac[WME_NUM_AC];
 	u16 maxampdu;
@@ -638,6 +641,8 @@ struct ath_softc {
 
 #ifdef CONFIG_ATH9K_DEBUGFS
 	struct ath9k_debug debug;
+	spinlock_t nodes_lock;
+	struct list_head nodes; /* basically, stations */
 #endif
 	struct ath_beacon_config cur_beacon_conf;
 	struct delayed_work tx_complete_work;

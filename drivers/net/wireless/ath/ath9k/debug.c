@@ -587,6 +587,8 @@ static const struct file_operations fops_wiphy = {
 		sc->debug.stats.txstats[WME_AC_BK].elem, \
 		sc->debug.stats.txstats[WME_AC_VI].elem, \
 		sc->debug.stats.txstats[WME_AC_VO].elem); \
+		if (len >= size)			  \
+			goto done;			  \
 } while(0)
 
 #define PRX(str, elem)							\
@@ -597,6 +599,8 @@ do {									\
 			(unsigned int)(sc->tx.txq[WME_AC_BK].elem),	\
 			(unsigned int)(sc->tx.txq[WME_AC_VI].elem),	\
 			(unsigned int)(sc->tx.txq[WME_AC_VO].elem));	\
+	if (len >= size)						\
+		goto done;						\
 } while(0)
 
 #define PRQLE(str, elem)						\
@@ -607,6 +611,8 @@ do {									\
 			list_empty(&sc->tx.txq[WME_AC_BK].elem),	\
 			list_empty(&sc->tx.txq[WME_AC_VI].elem),	\
 			list_empty(&sc->tx.txq[WME_AC_VO].elem));	\
+	if (len >= size)						\
+		goto done;						\
 } while (0)
 
 static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
@@ -614,7 +620,7 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 {
 	struct ath_softc *sc = file->private_data;
 	char *buf;
-	unsigned int len = 0, size = 4000;
+	unsigned int len = 0, size = 8000;
 	int i;
 	ssize_t retval = 0;
 	char tmp[32];
@@ -623,7 +629,10 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len += sprintf(buf, "%30s %10s%10s%10s\n\n", "BE", "BK", "VI", "VO");
+	len += sprintf(buf, "Num-Tx-Queues: %i  tx-queues-setup: 0x%x\n"
+		       "%30s %10s%10s%10s\n\n",
+		       ATH9K_NUM_TX_QUEUES, sc->tx.txqsetup,
+		       "BE", "BK", "VI", "VO");
 
 	PR("MPDUs Queued:    ", queued);
 	PR("MPDUs Completed: ", completed);
@@ -644,6 +653,14 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("hw-put-tx-buf:   ", puttxbuf);
 	PR("hw-tx-start:     ", txstart);
 	PR("hw-tx-proc-desc: ", txprocdesc);
+	len += snprintf(buf + len, size - len,
+			"%s%11p%11p%10p%10p\n", "txq-memory-address:",
+			&(sc->tx.txq[WME_AC_BE]),
+			&(sc->tx.txq[WME_AC_BK]),
+			&(sc->tx.txq[WME_AC_VI]),
+			&(sc->tx.txq[WME_AC_VO]));
+	if (len >= size)
+		goto done;
 
 	PRX("axq-qnum:        ", axq_qnum);
 	PRX("axq-depth:       ", axq_depth);
@@ -661,6 +678,68 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 		snprintf(tmp, sizeof(tmp) - 1, "txq_fifo[%i] empty: ", i);
 		PRQLE(tmp, txq_fifo[i]);
 	}
+
+done:
+	if (len > size)
+		len = size;
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+}
+
+static ssize_t read_file_stations(struct file *file, char __user *user_buf,
+				  size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	char *buf;
+	unsigned int len = 0, size = 64000;
+	struct ath_node *an = NULL;
+	ssize_t retval = 0;
+	int q;
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	len += snprintf(buf + len, size - len,
+			"Stations:\n"
+			" tid: addr sched paused buf_q-empty an ac\n"
+			" ac: addr sched tid_q-empty txq\n");
+
+	spin_lock(&sc->nodes_lock);
+	list_for_each_entry(an, &sc->nodes, list) {
+		len += snprintf(buf + len, size - len,
+				"%pM\n", an->sta->addr);
+		if (len >= size)
+			goto done;
+
+		for (q = 0; q < WME_NUM_TID; q++) {
+			struct ath_atx_tid *tid = &(an->tid[q]);
+			len += snprintf(buf + len, size - len,
+					" tid: %p %s %s %i %p %p\n",
+					tid, tid->sched ? "sched" : "idle",
+					tid->paused ? "paused" : "running",
+					list_empty(&tid->buf_q),
+					tid->an, tid->ac);
+			if (len >= size)
+				goto done;
+		}
+
+		for (q = 0; q < WME_NUM_AC; q++) {
+			struct ath_atx_ac *ac = &(an->ac[q]);
+			len += snprintf(buf + len, size - len,
+					" ac: %p %s %i %p\n",
+					ac, ac->sched ? "sched" : "idle",
+					list_empty(&ac->tid_q), ac->txq);
+			if (len >= size)
+				goto done;
+		}
+	}
+
+done:
+	spin_unlock(&sc->nodes_lock);
 	if (len > size)
 		len = size;
 
@@ -703,6 +782,13 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 
 static const struct file_operations fops_xmit = {
 	.read = read_file_xmit,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static const struct file_operations fops_stations = {
+	.read = read_file_stations,
 	.open = ath9k_debugfs_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -943,6 +1029,10 @@ int ath9k_init_debug(struct ath_hw *ah)
 
 	if (!debugfs_create_file("xmit", S_IRUSR, sc->debug.debugfs_phy,
 			sc, &fops_xmit))
+		goto err;
+
+	if (!debugfs_create_file("stations", S_IRUSR, sc->debug.debugfs_phy,
+			sc, &fops_stations))
 		goto err;
 
 	if (!debugfs_create_file("recv", S_IRUSR, sc->debug.debugfs_phy,
