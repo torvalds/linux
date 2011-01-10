@@ -220,14 +220,13 @@ static const struct file_operations powergate_fops = {
 static int __init powergate_debugfs_init(void)
 {
 	struct dentry *d;
-	int err = -ENOMEM;
 
 	d = debugfs_create_file("powergate", S_IRUGO, NULL, NULL,
 		&powergate_fops);
 	if (!d)
 		return -ENOMEM;
 
-	return err;
+	return 0;
 }
 
 late_initcall(powergate_debugfs_init);
