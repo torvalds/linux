@@ -2782,10 +2782,8 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 		obj->gtt_space = NULL;
 
 		if (ret == -ENOMEM) {
-			/* first try to clear up some space from the GTT */
-			ret = i915_gem_evict_something(dev, size,
-						       alignment,
-						       map_and_fenceable);
+			/* first try to reclaim some memory by clearing the GTT */
+			ret = i915_gem_evict_everything(dev, false);
 			if (ret) {
 				/* now try to shrink everyone else */
 				if (gfpmask) {
@@ -2793,7 +2791,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 					goto search_free;
 				}
 
-				return ret;
+				return -ENOMEM;
 			}
 
 			goto search_free;
@@ -2808,9 +2806,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 		drm_mm_put_block(obj->gtt_space);
 		obj->gtt_space = NULL;
 
-		ret = i915_gem_evict_something(dev, size,
-					       alignment, map_and_fenceable);
-		if (ret)
+		if (i915_gem_evict_everything(dev, false))
 			return ret;
 
 		goto search_free;
