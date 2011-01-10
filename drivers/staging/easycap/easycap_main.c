@@ -32,7 +32,7 @@
 #include "easycap_standard.h"
 #include "easycap_ioctl.h"
 
-static int easycap_debug;
+int easycap_debug;
 static int easycap_bars;
 int easycap_gain = 16;
 module_param_named(debug, easycap_debug, int, S_IRUGO | S_IWUSR);
