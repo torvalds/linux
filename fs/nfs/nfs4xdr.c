@@ -6135,12 +6135,6 @@ int nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	if (verify_attr_len(xdr, p, len) < 0)
 		goto out_overflow;
 
-	p = xdr_inline_peek(xdr, 8);
-	if (p != NULL)
-		entry->eof = !p[0] && p[1];
-	else
-		entry->eof = 0;
-
 	return 0;
 
 out_overflow:

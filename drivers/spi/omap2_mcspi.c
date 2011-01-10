@@ -1305,10 +1305,49 @@ static int __exit omap2_mcspi_remove(struct platform_device *pdev)
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:omap2_mcspi");
 
+#ifdef	CONFIG_SUSPEND
+/*
+ * When SPI wake up from off-mode, CS is in activate state. If it was in
+ * unactive state when driver was suspend, then force it to unactive state at
+ * wake up.
+ */
+static int omap2_mcspi_resume(struct device *dev)
+{
+	struct spi_master	*master = dev_get_drvdata(dev);
+	struct omap2_mcspi	*mcspi = spi_master_get_devdata(master);
+	struct omap2_mcspi_cs *cs;
+
+	omap2_mcspi_enable_clocks(mcspi);
+	list_for_each_entry(cs, &omap2_mcspi_ctx[master->bus_num - 1].cs,
+			    node) {
+		if ((cs->chconf0 & OMAP2_MCSPI_CHCONF_FORCE) == 0) {
+
+			/*
+			 * We need to toggle CS state for OMAP take this
+			 * change in account.
+			 */
+			MOD_REG_BIT(cs->chconf0, OMAP2_MCSPI_CHCONF_FORCE, 1);
+			__raw_writel(cs->chconf0, cs->base + OMAP2_MCSPI_CHCONF0);
+			MOD_REG_BIT(cs->chconf0, OMAP2_MCSPI_CHCONF_FORCE, 0);
+			__raw_writel(cs->chconf0, cs->base + OMAP2_MCSPI_CHCONF0);
+		}
+	}
+	omap2_mcspi_disable_clocks(mcspi);
+	return 0;
+}
+#else
+#define	omap2_mcspi_resume	NULL
+#endif
+
+static const struct dev_pm_ops omap2_mcspi_pm_ops = {
+	.resume = omap2_mcspi_resume,
+};
+
 static struct platform_driver omap2_mcspi_driver = {
 	.driver = {
 		.name =		"omap2_mcspi",
 		.owner =	THIS_MODULE,
+		.pm =		&omap2_mcspi_pm_ops
 	},
 	.remove =	__exit_p(omap2_mcspi_remove),
 };

@@ -943,11 +943,6 @@ int nfs2_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 
 	entry->d_type = DT_UNKNOWN;
 
-	/* Peek at the next entry to see if we're at EOD */
-	p = xdr_inline_peek(xdr, 4 + 4);
-	entry->eof = 0;
-	if (p != NULL)
-		entry->eof = (p[0] == xdr_zero) && (p[1] != xdr_zero);
 	return 0;
 
 out_overflow:

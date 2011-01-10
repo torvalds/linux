@@ -12,6 +12,7 @@
 #define __NVRAM_H
 
 #include <linux/types.h>
+#include <linux/kernel.h>
 
 struct nvram_header {
 	u32 magic;
@@ -35,5 +36,11 @@ struct nvram_header {
 #define NVRAM_ERR_ENVNOTFOUND	-9
 
 extern int nvram_getenv(char *name, char *val, size_t val_len);
+
+static inline void nvram_parse_macaddr(char *buf, u8 *macaddr)
+{
+	sscanf(buf, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &macaddr[0], &macaddr[1],
+	       &macaddr[2], &macaddr[3], &macaddr[4], &macaddr[5]);
+}
 
 #endif

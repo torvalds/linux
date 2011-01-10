@@ -610,11 +610,7 @@ static inline struct sk_buff *skb_act_clone(struct sk_buff *skb, gfp_t gfp_mask,
 {
 	struct sk_buff *n;
 
-	if ((action == TC_ACT_STOLEN || action == TC_ACT_QUEUED) &&
-	    !skb_shared(skb))
-		n = skb_get(skb);
-	else
-		n = skb_clone(skb, gfp_mask);
+	n = skb_clone(skb, gfp_mask);
 
 	if (n) {
 		n->tc_verd = SET_TC_VERD(n->tc_verd, 0);

@@ -522,10 +522,8 @@ unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait)
 
 	dev_dbg(ir->d.dev, LOGHEAD "poll called\n", ir->d.name, ir->d.minor);
 
-	if (!ir->attached) {
-		mutex_unlock(&ir->irctl_lock);
+	if (!ir->attached)
 		return POLLERR;
-	}
 
 	poll_wait(file, &ir->buf->wait_poll, wait);
 
@@ -649,18 +647,18 @@ ssize_t lirc_dev_fop_read(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
-	if (mutex_lock_interruptible(&ir->irctl_lock))
-		return -ERESTARTSYS;
+	if (mutex_lock_interruptible(&ir->irctl_lock)) {
+		ret = -ERESTARTSYS;
+		goto out_unlocked;
+	}
 	if (!ir->attached) {
-		mutex_unlock(&ir->irctl_lock);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out_locked;
 	}
 
 	if (length % ir->chunk_size) {
-		dev_dbg(ir->d.dev, LOGHEAD "read result = -EINVAL\n",
-			ir->d.name, ir->d.minor);
-		mutex_unlock(&ir->irctl_lock);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_locked;
 	}
 
 	/*
@@ -711,18 +709,23 @@ ssize_t lirc_dev_fop_read(struct file *file,
 			lirc_buffer_read(ir->buf, buf);
 			ret = copy_to_user((void *)buffer+written, buf,
 					   ir->buf->chunk_size);
-			written += ir->buf->chunk_size;
+			if (!ret)
+				written += ir->buf->chunk_size;
+			else
+				ret = -EFAULT;
 		}
 	}
 
 	remove_wait_queue(&ir->buf->wait_poll, &wait);
 	set_current_state(TASK_RUNNING);
+
+out_locked:
 	mutex_unlock(&ir->irctl_lock);
 
 out_unlocked:
 	kfree(buf);
 	dev_dbg(ir->d.dev, LOGHEAD "read result = %s (%d)\n",
-		ir->d.name, ir->d.minor, ret ? "-EFAULT" : "OK", ret);
+		ir->d.name, ir->d.minor, ret ? "<fail>" : "<ok>", ret);
 
 	return ret ? ret : written;
 }

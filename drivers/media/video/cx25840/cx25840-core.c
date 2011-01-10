@@ -1989,8 +1989,23 @@ static int cx25840_probe(struct i2c_client *client,
 	v4l2_ctrl_new_std(&state->hdl, &cx25840_ctrl_ops,
 			V4L2_CID_HUE, -128, 127, 1, 0);
 	if (!is_cx2583x(state)) {
-		default_volume = 228 - cx25840_read(client, 0x8d4);
-		default_volume = ((default_volume / 2) + 23) << 9;
+		default_volume = cx25840_read(client, 0x8d4);
+		/*
+		 * Enforce the legacy PVR-350/MSP3400 to PVR-150/CX25843 volume
+		 * scale mapping limits to avoid -ERANGE errors when
+		 * initializing the volume control
+		 */
+		if (default_volume > 228) {
+			/* Bottom out at -96 dB, v4l2 vol range 0x2e00-0x2fff */
+			default_volume = 228;
+			cx25840_write(client, 0x8d4, 228);
+		}
+		else if (default_volume < 20) {
+			/* Top out at + 8 dB, v4l2 vol range 0xfe00-0xffff */
+			default_volume = 20;
+			cx25840_write(client, 0x8d4, 20);
+		}
+		default_volume = (((228 - default_volume) >> 1) + 23) << 9;
 
 		state->volume = v4l2_ctrl_new_std(&state->hdl,
 			&cx25840_audio_ctrl_ops, V4L2_CID_AUDIO_VOLUME,

@@ -437,7 +437,7 @@ static struct sk_buff *br_ip6_multicast_alloc_query(struct net_bridge *br,
 	ip6h = ipv6_hdr(skb);
 
 	*(__force __be32 *)ip6h = htonl(0x60000000);
-	ip6h->payload_len = 8 + sizeof(*mldq);
+	ip6h->payload_len = htons(8 + sizeof(*mldq));
 	ip6h->nexthdr = IPPROTO_HOPOPTS;
 	ip6h->hop_limit = 1;
 	ipv6_addr_set(&ip6h->saddr, 0, 0, 0, 0);
@@ -1430,7 +1430,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 				 struct net_bridge_port *port,
 				 struct sk_buff *skb)
 {
-	struct sk_buff *skb2 = skb;
+	struct sk_buff *skb2;
 	struct ipv6hdr *ip6h;
 	struct icmp6hdr *icmp6h;
 	u8 nexthdr;
@@ -1469,14 +1469,14 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 	if (!skb2)
 		return -ENOMEM;
 
+	err = -EINVAL;
+	if (!pskb_may_pull(skb2, offset + sizeof(struct icmp6hdr)))
+		goto out;
+
 	len -= offset - skb_network_offset(skb2);
 
 	__skb_pull(skb2, offset);
 	skb_reset_transport_header(skb2);
-
-	err = -EINVAL;
-	if (!pskb_may_pull(skb2, sizeof(*icmp6h)))
-		goto out;
 
 	icmp6h = icmp6_hdr(skb2);
 
@@ -1516,7 +1516,12 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 	switch (icmp6h->icmp6_type) {
 	case ICMPV6_MGM_REPORT:
 	    {
-		struct mld_msg *mld = (struct mld_msg *)icmp6h;
+		struct mld_msg *mld;
+		if (!pskb_may_pull(skb2, sizeof(*mld))) {
+			err = -EINVAL;
+			goto out;
+		}
+		mld = (struct mld_msg *)skb_transport_header(skb2);
 		BR_INPUT_SKB_CB(skb2)->mrouters_only = 1;
 		err = br_ip6_multicast_add_group(br, port, &mld->mld_mca);
 		break;
@@ -1529,15 +1534,18 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 		break;
 	case ICMPV6_MGM_REDUCTION:
 	    {
-		struct mld_msg *mld = (struct mld_msg *)icmp6h;
+		struct mld_msg *mld;
+		if (!pskb_may_pull(skb2, sizeof(*mld))) {
+			err = -EINVAL;
+			goto out;
+		}
+		mld = (struct mld_msg *)skb_transport_header(skb2);
 		br_ip6_multicast_leave_group(br, port, &mld->mld_mca);
 	    }
 	}
 
 out:
-	__skb_push(skb2, offset);
-	if (skb2 != skb)
-		kfree_skb(skb2);
+	kfree_skb(skb2);
 	return err;
 }
 #endif

@@ -1342,13 +1342,19 @@ bool r600_gpu_is_lockup(struct radeon_device *rdev)
 	u32 srbm_status;
 	u32 grbm_status;
 	u32 grbm_status2;
+	struct r100_gpu_lockup *lockup;
 	int r;
+
+	if (rdev->family >= CHIP_RV770)
+		lockup = &rdev->config.rv770.lockup;
+	else
+		lockup = &rdev->config.r600.lockup;
 
 	srbm_status = RREG32(R_000E50_SRBM_STATUS);
 	grbm_status = RREG32(R_008010_GRBM_STATUS);
 	grbm_status2 = RREG32(R_008014_GRBM_STATUS2);
 	if (!G_008010_GUI_ACTIVE(grbm_status)) {
-		r100_gpu_lockup_update(&rdev->config.r300.lockup, &rdev->cp);
+		r100_gpu_lockup_update(lockup, &rdev->cp);
 		return false;
 	}
 	/* force CP activities */
@@ -1360,7 +1366,7 @@ bool r600_gpu_is_lockup(struct radeon_device *rdev)
 		radeon_ring_unlock_commit(rdev);
 	}
 	rdev->cp.rptr = RREG32(R600_CP_RB_RPTR);
-	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r300.lockup, &rdev->cp);
+	return r100_gpu_cp_is_lockup(rdev, lockup, &rdev->cp);
 }
 
 int r600_asic_reset(struct radeon_device *rdev)
