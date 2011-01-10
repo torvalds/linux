@@ -100,6 +100,7 @@ struct stv090x_config {
 	int (*tuner_get_bbgain) (struct dvb_frontend *fe, u32 *gain);
 	int (*tuner_set_refclk)  (struct dvb_frontend *fe, u32 refclk);
 	int (*tuner_get_status) (struct dvb_frontend *fe, u32 *status);
+	void (*tuner_i2c_lock) (struct dvb_frontend *fe, int lock);
 };
 
 #if defined(CONFIG_DVB_STV090x) || (defined(CONFIG_DVB_STV090x_MODULE) && defined(MODULE))
