@@ -739,6 +739,77 @@ xfs_file_dio_aio_write(
 }
 
 STATIC ssize_t
+xfs_file_buffered_aio_write(
+	struct kiocb		*iocb,
+	const struct iovec	*iovp,
+	unsigned long		nr_segs,
+	loff_t			pos,
+	size_t			ocount,
+	int			*iolock)
+{
+	struct file		*file = iocb->ki_filp;
+	struct address_space	*mapping = file->f_mapping;
+	struct inode		*inode = mapping->host;
+	struct xfs_inode	*ip = XFS_I(inode);
+	ssize_t			ret;
+	int			enospc = 0;
+	xfs_fsize_t		new_size;
+	size_t			count = ocount;
+
+	*iolock = XFS_IOLOCK_EXCL;
+	xfs_rw_ilock(ip, XFS_ILOCK_EXCL | *iolock);
+
+	ret = generic_write_checks(file, &pos, &count,
+					S_ISBLK(inode->i_mode));
+	if (ret) {
+		xfs_rw_iunlock(ip, XFS_ILOCK_EXCL | *iolock);
+		*iolock = 0;
+		return ret;
+	}
+
+	new_size = pos + count;
+	if (new_size > ip->i_size)
+		ip->i_new_size = new_size;
+
+	if (likely(!(file->f_mode & FMODE_NOCMTIME)))
+		file_update_time(file);
+
+	if (pos > ip->i_size) {
+		ret = -xfs_zero_eof(ip, pos, ip->i_size);
+		if (ret) {
+			xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
+			return ret;
+		}
+	}
+	xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
+
+	ret = file_remove_suid(file);
+	if (unlikely(ret))
+		return ret;
+
+	/* We can write back this queue in page reclaim */
+	current->backing_dev_info = mapping->backing_dev_info;
+
+write_retry:
+	trace_xfs_file_buffered_write(ip, count, iocb->ki_pos, 0);
+	ret = generic_file_buffered_write(iocb, iovp, nr_segs,
+			pos, &iocb->ki_pos, count, ret);
+	/*
+	 * if we just got an ENOSPC, flush the inode now we aren't holding any
+	 * page locks and retry *once*
+	 */
+	if (ret == -ENOSPC && !enospc) {
+		ret = -xfs_flush_pages(ip, 0, -1, 0, FI_NONE);
+		if (ret)
+			return ret;
+		enospc = 1;
+		goto write_retry;
+	}
+	current->backing_dev_info = NULL;
+	return ret;
+}
+
+STATIC ssize_t
 xfs_file_aio_write(
 	struct kiocb		*iocb,
 	const struct iovec	*iovp,
@@ -749,116 +820,37 @@ xfs_file_aio_write(
 	struct address_space	*mapping = file->f_mapping;
 	struct inode		*inode = mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
-	struct xfs_mount	*mp = ip->i_mount;
-	ssize_t			ret = 0;
-	int			ioflags = 0;
-	xfs_fsize_t		new_size;
+	ssize_t			ret;
 	int			iolock;
-	size_t			ocount = 0, count;
+	size_t			ocount = 0;
 
 	XFS_STATS_INC(xs_write_calls);
 
 	BUG_ON(iocb->ki_pos != pos);
 
-	if (unlikely(file->f_flags & O_DIRECT))
-		ioflags |= IO_ISDIRECT;
-	if (file->f_mode & FMODE_NOCMTIME)
-		ioflags |= IO_INVIS;
-
 	ret = generic_segment_checks(iovp, &nr_segs, &ocount, VERIFY_READ);
 	if (ret)
 		return ret;
 
-	count = ocount;
-	if (count == 0)
+	if (ocount == 0)
 		return 0;
 
-	xfs_wait_for_freeze(mp, SB_FREEZE_WRITE);
+	xfs_wait_for_freeze(ip->i_mount, SB_FREEZE_WRITE);
 
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return -EIO;
 
-relock:
-	if (ioflags & IO_ISDIRECT) {
+	if (unlikely(file->f_flags & O_DIRECT))
 		ret = xfs_file_dio_aio_write(iocb, iovp, nr_segs, pos,
 						ocount, &iolock);
-		goto done_io;
-	}
-	iolock = XFS_IOLOCK_EXCL;
+	else
+		ret = xfs_file_buffered_aio_write(iocb, iovp, nr_segs, pos,
+						ocount, &iolock);
 
-	xfs_rw_ilock(ip, XFS_ILOCK_EXCL|iolock);
-	ret = generic_write_checks(file, &pos, &count,
-					S_ISBLK(inode->i_mode));
-	if (ret) {
-		xfs_rw_iunlock(ip, XFS_ILOCK_EXCL|iolock);
-		return ret;
-	}
-
-	new_size = pos + count;
-	if (new_size > ip->i_size)
-		ip->i_new_size = new_size;
-
-	if (likely(!(ioflags & IO_INVIS)))
-		file_update_time(file);
-
-	/*
-	 * If the offset is beyond the size of the file, we have a couple
-	 * of things to do. First, if there is already space allocated
-	 * we need to either create holes or zero the disk or ...
-	 *
-	 * If there is a page where the previous size lands, we need
-	 * to zero it out up to the new size.
-	 */
-
-	if (pos > ip->i_size) {
-		ret = -xfs_zero_eof(ip, pos, ip->i_size);
-		if (ret) {
-			xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
-			goto out_unlock_internal;
-		}
-	}
-	xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
-
-	/*
-	 * If we're writing the file then make sure to clear the
-	 * setuid and setgid bits if the process is not being run
-	 * by root.  This keeps people from modifying setuid and
-	 * setgid binaries.
-	 */
-	ret = file_remove_suid(file);
-	if (unlikely(ret))
-		goto out_unlock_internal;
-
-	/* We can write back this queue in page reclaim */
-	current->backing_dev_info = mapping->backing_dev_info;
-
-	if (!(ioflags & IO_ISDIRECT)) {
-		int enospc = 0;
-
-write_retry:
-		trace_xfs_file_buffered_write(ip, count, iocb->ki_pos, ioflags);
-		ret = generic_file_buffered_write(iocb, iovp, nr_segs,
-				pos, &iocb->ki_pos, count, ret);
-		/*
-		 * if we just got an ENOSPC, flush the inode now we
-		 * aren't holding any page locks and retry *once*
-		 */
-		if (ret == -ENOSPC && !enospc) {
-			ret = xfs_flush_pages(ip, 0, -1, 0, FI_NONE);
-			if (ret)
-				goto out_unlock_internal;
-			enospc = 1;
-			goto write_retry;
-		}
-	}
-
-	current->backing_dev_info = NULL;
-
-done_io:
 	xfs_aio_write_isize_update(inode, &iocb->ki_pos, ret);
 
 	if (ret <= 0)
-		goto out_unlock_internal;
+		goto out_unlock;
 
 	/* Handle various SYNC-type writes */
 	if ((file->f_flags & O_DSYNC) || IS_SYNC(inode)) {
@@ -877,7 +869,7 @@ done_io:
 			ret = error2;
 	}
 
- out_unlock_internal:
+out_unlock:
 	xfs_aio_write_newsize_update(ip);
 	xfs_rw_iunlock(ip, iolock);
 	return ret;
