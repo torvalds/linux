@@ -819,8 +819,8 @@ config SND_VIRTUOSO
 	  Say Y here to include support for sound cards based on the
 	  Asus AV66/AV100/AV200 chips, i.e., Xonar D1, DX, D2, D2X, DS,
 	  Essence ST (Deluxe), and Essence STX.
-	  Support for the HDAV1.3 (Deluxe) is experimental; for the
-	  HDAV1.3 Slim and Xense, missing.
+	  Support for the HDAV1.3 (Deluxe) and HDAV1.3 Slim is experimental;
+	  for the Xense, missing.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-virtuoso.

@@ -2004,9 +2004,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-virtuoso
   -------------------
 
-    Module for sound cards based on the Asus AV100/AV200 chips,
-    i.e., Xonar D1, DX, D2, D2X, DS, HDAV1.3 (Deluxe), Essence ST
-    (Deluxe) and Essence STX.
+    Module for sound cards based on the Asus AV66/AV100/AV200 chips,
+    i.e., Xonar D1, DX, D2, D2X, DS, Essence ST (Deluxe), Essence STX,
+    HDAV1.3 (Deluxe), and HDAV1.3 Slim.
 
     This module supports autoprobe and multiple cards.
 
