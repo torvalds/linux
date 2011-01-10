@@ -374,7 +374,7 @@ static void xonar_hdav_init(struct oxygen *chip)
 	oxygen_write16(chip, OXYGEN_2WIRE_BUS_STATUS,
 		       OXYGEN_2WIRE_LENGTH_8 |
 		       OXYGEN_2WIRE_INTERRUPT_MASK |
-		       OXYGEN_2WIRE_SPEED_FAST);
+		       OXYGEN_2WIRE_SPEED_STANDARD);
 
 	data->pcm179x.generic.anti_pop_delay = 100;
 	data->pcm179x.generic.output_enable_bit = GPIO_HDAV_OUTPUT_ENABLE;
@@ -403,7 +403,7 @@ static void xonar_st_init_i2c(struct oxygen *chip)
 	oxygen_write16(chip, OXYGEN_2WIRE_BUS_STATUS,
 		       OXYGEN_2WIRE_LENGTH_8 |
 		       OXYGEN_2WIRE_INTERRUPT_MASK |
-		       OXYGEN_2WIRE_SPEED_FAST);
+		       OXYGEN_2WIRE_SPEED_STANDARD);
 }
 
 static void xonar_st_init_common(struct oxygen *chip)
