@@ -224,6 +224,7 @@ struct xonar_pcm179x {
 	u8 pcm1796_regs[4][5];
 	unsigned int current_rate;
 	bool os_128;
+	bool h6;
 	bool hp_active;
 	s8 hp_gain_offset;
 	bool has_cs2000;
@@ -384,6 +385,7 @@ static void xonar_hdav_init(struct oxygen *chip)
 	data->pcm179x.generic.ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
 	data->pcm179x.generic.ext_power_bit = GPI_EXT_POWER;
 	data->pcm179x.dacs = chip->model.dac_channels_mixer / 2;
+	data->pcm179x.h6 = chip->model.dac_channels_mixer > 2;
 
 	pcm1796_init(chip);
 
@@ -461,6 +463,7 @@ static void xonar_st_init(struct oxygen *chip)
 	struct xonar_pcm179x *data = chip->model_data;
 
 	data->generic.anti_pop_delay = 100;
+	data->h6 = chip->model.dac_channels_mixer > 2;
 	data->has_cs2000 = 1;
 	data->cs2000_regs[CS2000_FUN_CFG_1] = CS2000_REF_CLK_DIV_1;
 	data->broken_i2c = true;
@@ -554,11 +557,10 @@ static unsigned int mclk_from_rate(struct oxygen *chip, unsigned int rate)
 	struct xonar_pcm179x *data = chip->model_data;
 
 	if (rate <= 32000)
-		return OXYGEN_I2S_MCLK_512;
-	else if (rate <= 48000 && data->os_128)
-		return OXYGEN_I2S_MCLK_512;
-	else if (rate <= 96000)
-		return OXYGEN_I2S_MCLK_256;
+		return data->h6 ? OXYGEN_I2S_MCLK_256 : OXYGEN_I2S_MCLK_512;
+	else if (rate <= 48000)
+		return data->os_128 && !data->h6
+			? OXYGEN_I2S_MCLK_512 : OXYGEN_I2S_MCLK_256;
 	else
 		return OXYGEN_I2S_MCLK_128;
 }
@@ -579,9 +581,9 @@ static void update_pcm1796_oversampling(struct oxygen *chip)
 	unsigned int i;
 	u8 reg;
 
-	if (data->current_rate <= 32000)
+	if (data->current_rate <= 32000 && !data->h6)
 		reg = PCM1796_OS_128;
-	else if (data->current_rate <= 48000 && data->os_128)
+	else if (data->current_rate <= 48000 && data->os_128 && !data->h6)
 		reg = PCM1796_OS_128;
 	else if (data->current_rate <= 96000 || data->os_128)
 		reg = PCM1796_OS_64;
@@ -636,28 +638,31 @@ static void update_cs2000_rate(struct oxygen *chip, unsigned int rate)
 
 	switch (rate) {
 	case 32000:
-		rate_mclk = OXYGEN_RATE_32000 | OXYGEN_I2S_MCLK_512;
+		if (data->h6)
+			rate_mclk = OXYGEN_RATE_32000 | OXYGEN_I2S_MCLK_256;
+		else
+			rate_mclk = OXYGEN_RATE_32000 | OXYGEN_I2S_MCLK_512;
 		break;
 	case 44100:
-		if (data->os_128)
+		if (data->os_128 && !data->h6)
 			rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_512;
 		else
 			rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_256;
 		break;
 	default: /* 48000 */
-		if (data->os_128)
+		if (data->os_128 && !data->h6)
 			rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_512;
 		else
 			rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_256;
 		break;
 	case 64000:
-		rate_mclk = OXYGEN_RATE_32000 | OXYGEN_I2S_MCLK_512;
+		rate_mclk = OXYGEN_RATE_32000 | OXYGEN_I2S_MCLK_256;
 		break;
 	case 88200:
-		rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_512;
+		rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_256;
 		break;
 	case 96000:
-		rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_512;
+		rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_256;
 		break;
 	case 176400:
 		rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_512;
