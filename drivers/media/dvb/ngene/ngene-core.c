@@ -143,7 +143,7 @@ static void demux_tasklet(unsigned long data)
 			}
 		} else {
 			if (chan->HWState == HWSTATE_RUN) {
-				u32 Flags = 0;
+				u32 Flags = chan->DataFormatFlags;
 				IBufferExchange *exch1 = chan->pBufferExchange;
 				IBufferExchange *exch2 = chan->pBufferExchange2;
 				if (Cur->ngeneBuffer.SR.Flags & 0x01)
@@ -474,7 +474,7 @@ static u8 SPDIFConfiguration[10] = {
 
 /* Set NGENE I2S Config to transport stream compatible mode */
 
-static u8 TS_I2SConfiguration[4] = { 0x3E, 0x1A, 0x00, 0x00 }; /*3e 18 00 00 ?*/
+static u8 TS_I2SConfiguration[4] = { 0x3E, 0x18, 0x00, 0x00 };
 
 static u8 TS_I2SOutConfiguration[4] = { 0x80, 0x20, 0x00, 0x00 };
 
