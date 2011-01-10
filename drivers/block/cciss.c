@@ -266,9 +266,9 @@ static void set_performant_mode(ctlr_info_t *h, CommandList_struct *c)
 /*
  * Enqueuing and dequeuing functions for cmdlists.
  */
-static inline void addQ(struct hlist_head *list, CommandList_struct *c)
+static inline void addQ(struct list_head *list, CommandList_struct *c)
 {
-	hlist_add_head(&c->list, list);
+	list_add_tail(&c->list, list);
 }
 
 static inline void removeQ(CommandList_struct *c)
@@ -281,12 +281,12 @@ static inline void removeQ(CommandList_struct *c)
 	 * them off as 'stale' to prevent the driver from
 	 * falling over.
 	 */
-	if (WARN_ON(hlist_unhashed(&c->list))) {
+	if (WARN_ON(list_empty(&c->list))) {
 		c->cmd_type = CMD_MSG_STALE;
 		return;
 	}
 
-	hlist_del_init(&c->list);
+	list_del_init(&c->list);
 }
 
 static void enqueue_cmd_and_start_io(ctlr_info_t *h,
@@ -935,7 +935,7 @@ static CommandList_struct *cmd_alloc(ctlr_info_t *h)
 
 	c->cmdindex = i;
 
-	INIT_HLIST_NODE(&c->list);
+	INIT_LIST_HEAD(&c->list);
 	c->busaddr = (__u32) cmd_dma_handle;
 	temp64.val = (__u64) err_dma_handle;
 	c->ErrDesc.Addr.lower = temp64.val32.lower;
@@ -974,7 +974,7 @@ static CommandList_struct *cmd_special_alloc(ctlr_info_t *h)
 	}
 	memset(c->err_info, 0, sizeof(ErrorInfo_struct));
 
-	INIT_HLIST_NODE(&c->list);
+	INIT_LIST_HEAD(&c->list);
 	c->busaddr = (__u32) cmd_dma_handle;
 	temp64.val = (__u64) err_dma_handle;
 	c->ErrDesc.Addr.lower = temp64.val32.lower;
@@ -2933,8 +2933,8 @@ static void start_io(ctlr_info_t *h)
 {
 	CommandList_struct *c;
 
-	while (!hlist_empty(&h->reqQ)) {
-		c = hlist_entry(h->reqQ.first, CommandList_struct, list);
+	while (!list_empty(&h->reqQ)) {
+		c = list_entry(h->reqQ.next, CommandList_struct, list);
 		/* can't do anything if fifo is full */
 		if ((h->access.fifo_full(h))) {
 			dev_warn(&h->pdev->dev, "fifo full\n");
@@ -3447,11 +3447,10 @@ static inline u32 process_nonindexed_cmd(ctlr_info_t *h, u32 raw_tag)
 {
 	u32 tag;
 	CommandList_struct *c = NULL;
-	struct hlist_node *tmp;
 	__u32 busaddr_masked, tag_masked;
 
 	tag = cciss_tag_discard_error_bits(raw_tag);
-	hlist_for_each_entry(c, tmp, &h->cmpQ, list) {
+	list_for_each_entry(c, &h->cmpQ, list) {
 		busaddr_masked = cciss_tag_discard_error_bits(c->busaddr);
 		tag_masked = cciss_tag_discard_error_bits(tag);
 		if (busaddr_masked == tag_masked) {
@@ -4632,8 +4631,8 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	h = hba[i];
 	h->pdev = pdev;
 	h->busy_initializing = 1;
-	INIT_HLIST_HEAD(&h->cmpQ);
-	INIT_HLIST_HEAD(&h->reqQ);
+	INIT_LIST_HEAD(&h->cmpQ);
+	INIT_LIST_HEAD(&h->reqQ);
 	mutex_init(&h->busy_shutting_down);
 
 	if (cciss_pci_init(h) != 0)
