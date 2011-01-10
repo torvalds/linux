@@ -98,7 +98,11 @@
 #endif
 
 #define	INFINITY_LIFE_TIME	0xFFFFFFFF
-#define TIME_DELTA(a, b) ((unsigned long)((long)(a) - (long)(b)))
+
+static inline u32 cstamp_delta(unsigned long cstamp)
+{
+	return (cstamp - INITIAL_JIFFIES) * 100UL / HZ;
+}
 
 #define ADDRCONF_TIMER_FUZZ_MINUS	(HZ > 50 ? HZ/50 : 1)
 #define ADDRCONF_TIMER_FUZZ		(HZ / 4)
@@ -2665,7 +2669,9 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	ASSERT_RTNL();
 
-	rt6_ifdown(net, dev);
+	/* Flush routes if device is being removed or it is not loopback */
+	if (how || !(dev->flags & IFF_LOOPBACK))
+		rt6_ifdown(net, dev);
 	neigh_ifdown(&nd_tbl, dev);
 
 	idev = __in6_dev_get(dev);
@@ -2754,13 +2760,13 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 			ifa->state = INET6_IFADDR_STATE_DEAD;
 			spin_unlock_bh(&ifa->state_lock);
 
-			if (state == INET6_IFADDR_STATE_DEAD) {
-				in6_ifa_put(ifa);
-			} else {
+			if (state != INET6_IFADDR_STATE_DEAD) {
 				__ipv6_ifa_notify(RTM_DELADDR, ifa);
 				atomic_notifier_call_chain(&inet6addr_chain,
 							   NETDEV_DOWN, ifa);
 			}
+
+			in6_ifa_put(ifa);
 			write_lock_bh(&idev->lock);
 		}
 	}
@@ -3444,10 +3450,8 @@ static int put_cacheinfo(struct sk_buff *skb, unsigned long cstamp,
 {
 	struct ifa_cacheinfo ci;
 
-	ci.cstamp = (u32)(TIME_DELTA(cstamp, INITIAL_JIFFIES) / HZ * 100
-			+ TIME_DELTA(cstamp, INITIAL_JIFFIES) % HZ * 100 / HZ);
-	ci.tstamp = (u32)(TIME_DELTA(tstamp, INITIAL_JIFFIES) / HZ * 100
-			+ TIME_DELTA(tstamp, INITIAL_JIFFIES) % HZ * 100 / HZ);
+	ci.cstamp = cstamp_delta(cstamp);
+	ci.tstamp = cstamp_delta(tstamp);
 	ci.ifa_prefered = preferred;
 	ci.ifa_valid = valid;
 
@@ -3798,8 +3802,10 @@ static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
 	array[DEVCONF_AUTOCONF] = cnf->autoconf;
 	array[DEVCONF_DAD_TRANSMITS] = cnf->dad_transmits;
 	array[DEVCONF_RTR_SOLICITS] = cnf->rtr_solicits;
-	array[DEVCONF_RTR_SOLICIT_INTERVAL] = cnf->rtr_solicit_interval;
-	array[DEVCONF_RTR_SOLICIT_DELAY] = cnf->rtr_solicit_delay;
+	array[DEVCONF_RTR_SOLICIT_INTERVAL] =
+		jiffies_to_msecs(cnf->rtr_solicit_interval);
+	array[DEVCONF_RTR_SOLICIT_DELAY] =
+		jiffies_to_msecs(cnf->rtr_solicit_delay);
 	array[DEVCONF_FORCE_MLD_VERSION] = cnf->force_mld_version;
 #ifdef CONFIG_IPV6_PRIVACY
 	array[DEVCONF_USE_TEMPADDR] = cnf->use_tempaddr;
@@ -3813,7 +3819,8 @@ static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
 	array[DEVCONF_ACCEPT_RA_PINFO] = cnf->accept_ra_pinfo;
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	array[DEVCONF_ACCEPT_RA_RTR_PREF] = cnf->accept_ra_rtr_pref;
-	array[DEVCONF_RTR_PROBE_INTERVAL] = cnf->rtr_probe_interval;
+	array[DEVCONF_RTR_PROBE_INTERVAL] =
+		jiffies_to_msecs(cnf->rtr_probe_interval);
 #ifdef CONFIG_IPV6_ROUTE_INFO
 	array[DEVCONF_ACCEPT_RA_RT_INFO_MAX_PLEN] = cnf->accept_ra_rt_info_max_plen;
 #endif
@@ -3929,10 +3936,9 @@ static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
 	NLA_PUT_U32(skb, IFLA_INET6_FLAGS, idev->if_flags);
 
 	ci.max_reasm_len = IPV6_MAXPLEN;
-	ci.tstamp = (__u32)(TIME_DELTA(idev->tstamp, INITIAL_JIFFIES) / HZ * 100
-		    + TIME_DELTA(idev->tstamp, INITIAL_JIFFIES) % HZ * 100 / HZ);
-	ci.reachable_time = idev->nd_parms->reachable_time;
-	ci.retrans_time = idev->nd_parms->retrans_time;
+	ci.tstamp = cstamp_delta(idev->tstamp);
+	ci.reachable_time = jiffies_to_msecs(idev->nd_parms->reachable_time);
+	ci.retrans_time = jiffies_to_msecs(idev->nd_parms->retrans_time);
 	NLA_PUT(skb, IFLA_INET6_CACHEINFO, sizeof(ci), &ci);
 
 	nla = nla_reserve(skb, IFLA_INET6_CONF, DEVCONF_MAX * sizeof(s32));
@@ -4017,11 +4023,11 @@ void inet6_ifinfo_notify(int event, struct inet6_dev *idev)
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, net, 0, RTNLGRP_IPV6_IFADDR, NULL, GFP_ATOMIC);
+	rtnl_notify(skb, net, 0, RTNLGRP_IPV6_IFINFO, NULL, GFP_ATOMIC);
 	return;
 errout:
 	if (err < 0)
-		rtnl_set_sk_err(net, RTNLGRP_IPV6_IFADDR, err);
+		rtnl_set_sk_err(net, RTNLGRP_IPV6_IFINFO, err);
 }
 
 static inline size_t inet6_prefix_nlmsg_size(void)

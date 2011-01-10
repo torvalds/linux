@@ -561,6 +561,7 @@ struct iwl_cfg iwl6000g2a_2agn_cfg = {
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
 	.need_temp_offset_calib = true,
+	.use_new_eeprom_reading = true,
 };
 
 struct iwl_cfg iwl6000g2a_2abg_cfg = {
@@ -578,6 +579,7 @@ struct iwl_cfg iwl6000g2a_2abg_cfg = {
 	.base_params = &iwl6000_base_params,
 	.need_dc_calib = true,
 	.need_temp_offset_calib = true,
+	.use_new_eeprom_reading = true,
 };
 
 struct iwl_cfg iwl6000g2a_2bg_cfg = {
@@ -595,6 +597,7 @@ struct iwl_cfg iwl6000g2a_2bg_cfg = {
 	.base_params = &iwl6000_base_params,
 	.need_dc_calib = true,
 	.need_temp_offset_calib = true,
+	.use_new_eeprom_reading = true,
 };
 
 struct iwl_cfg iwl6000g2b_2agn_cfg = {
@@ -616,6 +619,7 @@ struct iwl_cfg iwl6000g2b_2agn_cfg = {
 	.need_temp_offset_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.use_new_eeprom_reading = true,
 };
 
 struct iwl_cfg iwl6000g2b_2abg_cfg = {
@@ -636,6 +640,7 @@ struct iwl_cfg iwl6000g2b_2abg_cfg = {
 	.need_temp_offset_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.use_new_eeprom_reading = true,
 };
 
 struct iwl_cfg iwl6000g2b_2bgn_cfg = {
@@ -657,6 +662,7 @@ struct iwl_cfg iwl6000g2b_2bgn_cfg = {
 	.need_temp_offset_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.use_new_eeprom_reading = true,
 };
 
 struct iwl_cfg iwl6000g2b_2bg_cfg = {
@@ -677,6 +683,7 @@ struct iwl_cfg iwl6000g2b_2bg_cfg = {
 	.need_temp_offset_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.use_new_eeprom_reading = true,
 };
 
 struct iwl_cfg iwl6000g2b_bgn_cfg = {
@@ -698,6 +705,7 @@ struct iwl_cfg iwl6000g2b_bgn_cfg = {
 	.need_temp_offset_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.use_new_eeprom_reading = true,
 };
 
 struct iwl_cfg iwl6000g2b_bg_cfg = {
@@ -718,6 +726,7 @@ struct iwl_cfg iwl6000g2b_bg_cfg = {
 	.need_temp_offset_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.use_new_eeprom_reading = true,
 };
 
 /*
@@ -804,6 +813,7 @@ struct iwl_cfg iwl6050g2_bgn_cfg = {
 	.base_params = &iwl6050_base_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
+	.use_new_eeprom_reading = true,
 };
 
 struct iwl_cfg iwl6050_2abg_cfg = {
@@ -857,6 +867,7 @@ struct iwl_cfg iwl130_bgn_cfg = {
 	.need_dc_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.use_new_eeprom_reading = true,
 };
 
 struct iwl_cfg iwl130_bg_cfg = {
@@ -876,6 +887,7 @@ struct iwl_cfg iwl130_bg_cfg = {
 	.need_dc_calib = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.use_new_eeprom_reading = true,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));

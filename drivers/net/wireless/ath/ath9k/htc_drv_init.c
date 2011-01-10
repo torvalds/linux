@@ -249,6 +249,8 @@ static int ath9k_init_htc_services(struct ath9k_htc_priv *priv, u16 devid)
 	case 0x7010:
 	case 0x7015:
 	case 0x9018:
+	case 0xA704:
+	case 0x1200:
 		priv->htc->credits = 45;
 		break;
 	default:
@@ -889,6 +891,12 @@ void ath9k_htc_disconnect_device(struct htc_target *htc_handle, bool hotunplug)
 }
 
 #ifdef CONFIG_PM
+
+void ath9k_htc_suspend(struct htc_target *htc_handle)
+{
+	ath9k_htc_setpower(htc_handle->drv_priv, ATH9K_PM_FULL_SLEEP);
+}
+
 int ath9k_htc_resume(struct htc_target *htc_handle)
 {
 	int ret;

@@ -606,8 +606,9 @@ static int ipip6_rcv(struct sk_buff *skb)
 		return 0;
 	}
 
-	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
+	/* no tunnel matched,  let upstream know, ipsec may handle it */
 	rcu_read_unlock();
+	return 1;
 out:
 	kfree_skb(skb);
 	return 0;

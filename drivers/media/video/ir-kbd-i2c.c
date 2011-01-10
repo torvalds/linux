@@ -44,7 +44,6 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/workqueue.h>
 
 #include <media/ir-core.h>

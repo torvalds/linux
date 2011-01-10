@@ -117,28 +117,6 @@ static void line_list__free(struct list_head *head)
 }
 
 /* Dwarf FL wrappers */
-
-static int __linux_kernel_find_elf(Dwfl_Module *mod,
-				   void **userdata,
-				   const char *module_name,
-				   Dwarf_Addr base,
-				   char **file_name, Elf **elfp)
-{
-	int fd;
-	const char *path = kernel_get_module_path(module_name);
-
-	if (path) {
-		fd = open(path, O_RDONLY);
-		if (fd >= 0) {
-			*file_name = strdup(path);
-			return fd;
-		}
-	}
-	/* If failed, try to call standard method */
-	return dwfl_linux_kernel_find_elf(mod, userdata, module_name, base,
-					  file_name, elfp);
-}
-
 static char *debuginfo_path;	/* Currently dummy */
 
 static const Dwfl_Callbacks offline_callbacks = {
@@ -149,14 +127,6 @@ static const Dwfl_Callbacks offline_callbacks = {
 
 	/* We use this table for core files too.  */
 	.find_elf = dwfl_build_id_find_elf,
-};
-
-static const Dwfl_Callbacks kernel_callbacks = {
-	.find_debuginfo = dwfl_standard_find_debuginfo,
-	.debuginfo_path = &debuginfo_path,
-
-	.find_elf = __linux_kernel_find_elf,
-	.section_address = dwfl_linux_kernel_module_section_address,
 };
 
 /* Get a Dwarf from offline image */
@@ -185,6 +155,38 @@ error:
 	return dbg;
 }
 
+#if _ELFUTILS_PREREQ(0, 148)
+/* This method is buggy if elfutils is older than 0.148 */
+static int __linux_kernel_find_elf(Dwfl_Module *mod,
+				   void **userdata,
+				   const char *module_name,
+				   Dwarf_Addr base,
+				   char **file_name, Elf **elfp)
+{
+	int fd;
+	const char *path = kernel_get_module_path(module_name);
+
+	pr_debug2("Use file %s for %s\n", path, module_name);
+	if (path) {
+		fd = open(path, O_RDONLY);
+		if (fd >= 0) {
+			*file_name = strdup(path);
+			return fd;
+		}
+	}
+	/* If failed, try to call standard method */
+	return dwfl_linux_kernel_find_elf(mod, userdata, module_name, base,
+					  file_name, elfp);
+}
+
+static const Dwfl_Callbacks kernel_callbacks = {
+	.find_debuginfo = dwfl_standard_find_debuginfo,
+	.debuginfo_path = &debuginfo_path,
+
+	.find_elf = __linux_kernel_find_elf,
+	.section_address = dwfl_linux_kernel_module_section_address,
+};
+
 /* Get a Dwarf from live kernel image */
 static Dwarf *dwfl_init_live_kernel_dwarf(Dwarf_Addr addr, Dwfl **dwflp,
 					  Dwarf_Addr *bias)
@@ -205,11 +207,34 @@ static Dwarf *dwfl_init_live_kernel_dwarf(Dwarf_Addr addr, Dwfl **dwflp,
 	dbg = dwfl_addrdwarf(*dwflp, addr, bias);
 	/* Here, check whether we could get a real dwarf */
 	if (!dbg) {
+		pr_debug("Failed to find kernel dwarf at %lx\n",
+			 (unsigned long)addr);
 		dwfl_end(*dwflp);
 		*dwflp = NULL;
 	}
 	return dbg;
 }
+#else
+/* With older elfutils, this just support kernel module... */
+static Dwarf *dwfl_init_live_kernel_dwarf(Dwarf_Addr addr __used, Dwfl **dwflp,
+					  Dwarf_Addr *bias)
+{
+	int fd;
+	const char *path = kernel_get_module_path("kernel");
+
+	if (!path) {
+		pr_err("Failed to find vmlinux path\n");
+		return NULL;
+	}
+
+	pr_debug2("Use file %s for debuginfo\n", path);
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+
+	return dwfl_init_offline_dwarf(fd, dwflp, bias);
+}
+#endif
 
 /* Dwarf wrappers */
 

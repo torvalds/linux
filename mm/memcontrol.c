@@ -61,7 +61,14 @@ struct mem_cgroup *root_mem_cgroup __read_mostly;
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 /* Turned on only when memory cgroup is enabled && really_do_swap_account = 1 */
 int do_swap_account __read_mostly;
-static int really_do_swap_account __initdata = 1; /* for remember boot option*/
+
+/* for remember boot option*/
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED
+static int really_do_swap_account __initdata = 1;
+#else
+static int really_do_swap_account __initdata = 0;
+#endif
+
 #else
 #define do_swap_account		(0)
 #endif
@@ -278,13 +285,14 @@ enum move_type {
 
 /* "mc" and its members are protected by cgroup_mutex */
 static struct move_charge_struct {
-	spinlock_t	  lock; /* for from, to, moving_task */
+	spinlock_t	  lock; /* for from, to */
 	struct mem_cgroup *from;
 	struct mem_cgroup *to;
 	unsigned long precharge;
 	unsigned long moved_charge;
 	unsigned long moved_swap;
 	struct task_struct *moving_task;	/* a task moving charges */
+	struct mm_struct *mm;
 	wait_queue_head_t waitq;		/* a waitq for other context */
 } mc = {
 	.lock = __SPIN_LOCK_UNLOCKED(mc.lock),
@@ -1917,19 +1925,18 @@ again:
 
 		rcu_read_lock();
 		p = rcu_dereference(mm->owner);
-		VM_BUG_ON(!p);
 		/*
-		 * because we don't have task_lock(), "p" can exit while
-		 * we're here. In that case, "mem" can point to root
-		 * cgroup but never be NULL. (and task_struct itself is freed
-		 * by RCU, cgroup itself is RCU safe.) Then, we have small
-		 * risk here to get wrong cgroup. But such kind of mis-account
-		 * by race always happens because we don't have cgroup_mutex().
-		 * It's overkill and we allow that small race, here.
+		 * Because we don't have task_lock(), "p" can exit.
+		 * In that case, "mem" can point to root or p can be NULL with
+		 * race with swapoff. Then, we have small risk of mis-accouning.
+		 * But such kind of mis-account by race always happens because
+		 * we don't have cgroup_mutex(). It's overkill and we allo that
+		 * small race, here.
+		 * (*) swapoff at el will charge against mm-struct not against
+		 * task-struct. So, mm->owner can be NULL.
 		 */
 		mem = mem_cgroup_from_task(p);
-		VM_BUG_ON(!mem);
-		if (mem_cgroup_is_root(mem)) {
+		if (!mem || mem_cgroup_is_root(mem)) {
 			rcu_read_unlock();
 			goto done;
 		}
@@ -2152,7 +2159,7 @@ static void __mem_cgroup_move_account(struct page_cgroup *pc,
 {
 	VM_BUG_ON(from == to);
 	VM_BUG_ON(PageLRU(pc->page));
-	VM_BUG_ON(!PageCgroupLocked(pc));
+	VM_BUG_ON(!page_is_cgroup_locked(pc));
 	VM_BUG_ON(!PageCgroupUsed(pc));
 	VM_BUG_ON(pc->mem_cgroup != from);
 
@@ -4631,7 +4638,7 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
 	unsigned long precharge;
 	struct vm_area_struct *vma;
 
-	down_read(&mm->mmap_sem);
+	/* We've already held the mmap_sem */
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		struct mm_walk mem_cgroup_count_precharge_walk = {
 			.pmd_entry = mem_cgroup_count_precharge_pte_range,
@@ -4643,7 +4650,6 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
 		walk_page_range(vma->vm_start, vma->vm_end,
 					&mem_cgroup_count_precharge_walk);
 	}
-	up_read(&mm->mmap_sem);
 
 	precharge = mc.precharge;
 	mc.precharge = 0;
@@ -4694,11 +4700,16 @@ static void mem_cgroup_clear_mc(void)
 
 		mc.moved_swap = 0;
 	}
+	if (mc.mm) {
+		up_read(&mc.mm->mmap_sem);
+		mmput(mc.mm);
+	}
 	spin_lock(&mc.lock);
 	mc.from = NULL;
 	mc.to = NULL;
-	mc.moving_task = NULL;
 	spin_unlock(&mc.lock);
+	mc.moving_task = NULL;
+	mc.mm = NULL;
 	mem_cgroup_end_move(from);
 	memcg_oom_recover(from);
 	memcg_oom_recover(to);
@@ -4724,12 +4735,21 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
 			return 0;
 		/* We move charges only when we move a owner of the mm */
 		if (mm->owner == p) {
+			/*
+			 * We do all the move charge works under one mmap_sem to
+			 * avoid deadlock with down_write(&mmap_sem)
+			 * -> try_charge() -> if (mc.moving_task) -> sleep.
+			 */
+			down_read(&mm->mmap_sem);
+
 			VM_BUG_ON(mc.from);
 			VM_BUG_ON(mc.to);
 			VM_BUG_ON(mc.precharge);
 			VM_BUG_ON(mc.moved_charge);
 			VM_BUG_ON(mc.moved_swap);
 			VM_BUG_ON(mc.moving_task);
+			VM_BUG_ON(mc.mm);
+
 			mem_cgroup_start_move(from);
 			spin_lock(&mc.lock);
 			mc.from = from;
@@ -4737,14 +4757,16 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
 			mc.precharge = 0;
 			mc.moved_charge = 0;
 			mc.moved_swap = 0;
-			mc.moving_task = current;
 			spin_unlock(&mc.lock);
+			mc.moving_task = current;
+			mc.mm = mm;
 
 			ret = mem_cgroup_precharge_mc(mm);
 			if (ret)
 				mem_cgroup_clear_mc();
-		}
-		mmput(mm);
+			/* We call up_read() and mmput() in clear_mc(). */
+		} else
+			mmput(mm);
 	}
 	return ret;
 }
@@ -4832,7 +4854,7 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
 	struct vm_area_struct *vma;
 
 	lru_add_drain_all();
-	down_read(&mm->mmap_sem);
+	/* We've already held the mmap_sem */
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		int ret;
 		struct mm_walk mem_cgroup_move_charge_walk = {
@@ -4851,7 +4873,6 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
 			 */
 			break;
 	}
-	up_read(&mm->mmap_sem);
 }
 
 static void mem_cgroup_move_task(struct cgroup_subsys *ss,
@@ -4860,17 +4881,11 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 				struct task_struct *p,
 				bool threadgroup)
 {
-	struct mm_struct *mm;
-
-	if (!mc.to)
+	if (!mc.mm)
 		/* no need to move charge */
 		return;
 
-	mm = get_task_mm(p);
-	if (mm) {
-		mem_cgroup_move_charge(mm);
-		mmput(mm);
-	}
+	mem_cgroup_move_charge(mc.mm);
 	mem_cgroup_clear_mc();
 }
 #else	/* !CONFIG_MMU */
@@ -4911,10 +4926,20 @@ struct cgroup_subsys mem_cgroup_subsys = {
 };
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+static int __init enable_swap_account(char *s)
+{
+	/* consider enabled if no parameter or 1 is given */
+	if (!s || !strcmp(s, "1"))
+		really_do_swap_account = 1;
+	else if (!strcmp(s, "0"))
+		really_do_swap_account = 0;
+	return 1;
+}
+__setup("swapaccount", enable_swap_account);
 
 static int __init disable_swap_account(char *s)
 {
-	really_do_swap_account = 0;
+	enable_swap_account("0");
 	return 1;
 }
 __setup("noswapaccount", disable_swap_account);

@@ -1123,7 +1123,7 @@ static void srp_send_completion(struct ib_cq *cq, void *target_ptr)
 	}
 }
 
-static int srp_queuecommand(struct scsi_cmnd *scmnd,
+static int srp_queuecommand_lck(struct scsi_cmnd *scmnd,
 			    void (*done)(struct scsi_cmnd *))
 {
 	struct srp_target_port *target = host_to_target(scmnd->device->host);
@@ -1195,6 +1195,8 @@ err_unmap:
 err:
 	return SCSI_MLQUEUE_HOST_BUSY;
 }
+
+static DEF_SCSI_QCMD(srp_queuecommand)
 
 static int srp_alloc_iu_bufs(struct srp_target_port *target)
 {

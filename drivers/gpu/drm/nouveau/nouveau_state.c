@@ -354,6 +354,15 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.destroy_context	= nv50_graph_destroy_context;
 		engine->graph.load_context	= nv50_graph_load_context;
 		engine->graph.unload_context	= nv50_graph_unload_context;
+		if (dev_priv->chipset != 0x86)
+			engine->graph.tlb_flush	= nv50_graph_tlb_flush;
+		else {
+			/* from what i can see nvidia do this on every
+			 * pre-NVA3 board except NVAC, but, we've only
+			 * ever seen problems on NV86
+			 */
+			engine->graph.tlb_flush	= nv86_graph_tlb_flush;
+		}
 		engine->fifo.channels		= 128;
 		engine->fifo.init		= nv50_fifo_init;
 		engine->fifo.takedown		= nv50_fifo_takedown;
@@ -365,6 +374,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fifo.destroy_context	= nv50_fifo_destroy_context;
 		engine->fifo.load_context	= nv50_fifo_load_context;
 		engine->fifo.unload_context	= nv50_fifo_unload_context;
+		engine->fifo.tlb_flush		= nv50_fifo_tlb_flush;
 		engine->display.early_init	= nv50_display_early_init;
 		engine->display.late_takedown	= nv50_display_late_takedown;
 		engine->display.create		= nv50_display_create;
@@ -1041,6 +1051,9 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 	case NOUVEAU_GETPARAM_PTIMER_TIME:
 		getparam->value = dev_priv->engine.timer.read(dev);
 		break;
+	case NOUVEAU_GETPARAM_HAS_BO_USAGE:
+		getparam->value = 1;
+		break;
 	case NOUVEAU_GETPARAM_GRAPH_UNITS:
 		/* NV40 and NV50 versions are quite different, but register
 		 * address is the same. User is supposed to know the card
@@ -1051,7 +1064,7 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 		}
 		/* FALLTHRU */
 	default:
-		NV_ERROR(dev, "unknown parameter %lld\n", getparam->param);
+		NV_DEBUG(dev, "unknown parameter %lld\n", getparam->param);
 		return -EINVAL;
 	}
 
@@ -1066,7 +1079,7 @@ nouveau_ioctl_setparam(struct drm_device *dev, void *data,
 
 	switch (setparam->param) {
 	default:
-		NV_ERROR(dev, "unknown parameter %lld\n", setparam->param);
+		NV_DEBUG(dev, "unknown parameter %lld\n", setparam->param);
 		return -EINVAL;
 	}
 

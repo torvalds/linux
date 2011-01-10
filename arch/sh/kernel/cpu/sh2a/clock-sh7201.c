@@ -34,7 +34,7 @@ static const int pfc_divisors[]={1,2,3,4,6,8,12};
 
 static void master_clk_init(struct clk *clk)
 {
-	return 10000000 * PLL2 * pll1rate[(__raw_readw(FREQCR) >> 8) & 0x0007];
+	clk->rate = 10000000 * PLL2 * pll1rate[(__raw_readw(FREQCR) >> 8) & 0x0007];
 }
 
 static struct clk_ops sh7201_master_clk_ops = {

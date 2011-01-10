@@ -951,7 +951,7 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 		struct sdma_buffer_descriptor *bd = &sdmac->bd[i];
 		int param;
 
-		bd->buffer_addr = sgl->dma_address;
+		bd->buffer_addr = sg->dma_address;
 
 		count = sg->length;
 
@@ -1385,7 +1385,7 @@ static int __init sdma_module_init(void)
 {
 	return platform_driver_probe(&sdma_driver, sdma_probe);
 }
-subsys_initcall(sdma_module_init);
+module_init(sdma_module_init);
 
 MODULE_AUTHOR("Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>");
 MODULE_DESCRIPTION("i.MX SDMA driver");

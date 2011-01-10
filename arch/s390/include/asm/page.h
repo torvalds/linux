@@ -130,6 +130,11 @@ struct page;
 void arch_free_page(struct page *page, int order);
 void arch_alloc_page(struct page *page, int order);
 
+static inline int devmem_is_allowed(unsigned long pfn)
+{
+	return 0;
+}
+
 #define HAVE_ARCH_FREE_PAGE
 #define HAVE_ARCH_ALLOC_PAGE
 

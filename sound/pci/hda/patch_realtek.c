@@ -1614,6 +1614,7 @@ do_sku:
 		spec->init_amp = ALC_INIT_GPIO3;
 		break;
 	case 5:
+	default:
 		spec->init_amp = ALC_INIT_DEFAULT;
 		break;
 	}
@@ -2014,6 +2015,36 @@ static struct hda_verb alc888_acer_aspire_6530g_verbs[] = {
 };
 
 /*
+ *ALC888 Acer Aspire 7730G model
+ */
+
+static struct hda_verb alc888_acer_aspire_7730G_verbs[] = {
+/* Bias voltage on for external mic port */
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN | PIN_VREF80},
+/* Front Mic: set to PIN_IN (empty by default) */
+	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+/* Unselect Front Mic by default in input mixer 3 */
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0xb)},
+/* Enable unsolicited event for HP jack */
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
+/* Enable speaker output */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 2},
+/* Enable headphone output */
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT | PIN_HP},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x15, AC_VERB_SET_EAPD_BTLENABLE, 2},
+/*Enable internal subwoofer */
+	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x17, AC_VERB_SET_CONNECT_SEL, 0x02},
+	{0x17, AC_VERB_SET_EAPD_BTLENABLE, 2},
+	{ }
+};
+
+/*
  * ALC889 Acer Aspire 8930G model
  */
 
@@ -2191,6 +2222,16 @@ static void alc888_acer_aspire_4930g_setup(struct hda_codec *codec)
 }
 
 static void alc888_acer_aspire_6530g_setup(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
+	spec->autocfg.speaker_pins[1] = 0x16;
+	spec->autocfg.speaker_pins[2] = 0x17;
+}
+
+static void alc888_acer_aspire_7730g_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
@@ -4554,6 +4595,7 @@ static struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1734, 0x10b0, "Fujitsu", ALC880_FUJITSU),
 	SND_PCI_QUIRK(0x1854, 0x0018, "LG LW20", ALC880_LG_LW),
 	SND_PCI_QUIRK(0x1854, 0x003b, "LG", ALC880_LG),
+	SND_PCI_QUIRK(0x1854, 0x005f, "LG P1 Express", ALC880_LG),
 	SND_PCI_QUIRK(0x1854, 0x0068, "LG w1", ALC880_LG),
 	SND_PCI_QUIRK(0x1854, 0x0077, "LG LW25", ALC880_LG_LW),
 	SND_PCI_QUIRK(0x19db, 0x4188, "TCL S700", ALC880_TCL_S700),
@@ -9524,13 +9566,6 @@ static struct hda_verb alc883_acer_eapd_verbs[] = {
 	{ }
 };
 
-static struct hda_verb alc888_acer_aspire_7730G_verbs[] = {
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x17, AC_VERB_SET_CONNECT_SEL, 0x02},
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
-	{ } /* end */
-};
-
 static void alc888_6st_dell_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -9831,7 +9866,6 @@ static struct snd_pci_quirk alc882_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3bfc, "Lenovo NB0763", ALC883_LENOVO_NB0763),
 	SND_PCI_QUIRK(0x17aa, 0x3bfd, "Lenovo NB0763", ALC883_LENOVO_NB0763),
 	SND_PCI_QUIRK(0x17aa, 0x101d, "Lenovo Sky", ALC888_LENOVO_SKY),
-	SND_PCI_QUIRK(0x17c0, 0x4071, "MEDION MD2", ALC883_MEDION_MD2),
 	SND_PCI_QUIRK(0x17c0, 0x4085, "MEDION MD96630", ALC888_LENOVO_MS7195_DIG),
 	SND_PCI_QUIRK(0x17f2, 0x5000, "Albatron KI690-AM2", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1991, 0x5625, "Haier W66", ALC883_HAIER_W66),
@@ -10328,7 +10362,7 @@ static struct alc_config_preset alc882_presets[] = {
 		.const_channel_count = 6,
 		.input_mux = &alc883_capture_source,
 		.unsol_event = alc_automute_amp_unsol_event,
-		.setup = alc888_acer_aspire_6530g_setup,
+		.setup = alc888_acer_aspire_7730g_setup,
 		.init_hook = alc_automute_amp,
 	},
 	[ALC883_MEDION] = {
@@ -10796,7 +10830,8 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i, err;
+	int i, err, type;
+	int type_idx = 0;
 	hda_nid_t nid;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
@@ -10805,9 +10840,15 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 		nid = cfg->inputs[i].pin;
 		if (get_wcaps(codec, nid) & AC_WCAP_IN_AMP) {
 			char label[32];
+			type = cfg->inputs[i].type;
+			if (i > 0 && type == cfg->inputs[i - 1].type)
+				type_idx++;
+			else
+				type_idx = 0;
 			snprintf(label, sizeof(label), "%s Boost",
 				 hda_get_autocfg_input_label(codec, cfg, i));
-			err = add_control(spec, ALC_CTL_WIDGET_VOL, label, 0,
+			err = add_control(spec, ALC_CTL_WIDGET_VOL, label,
+					  type_idx,
 				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
 			if (err < 0)
 				return err;
@@ -14623,7 +14664,10 @@ static int alc275_setup_dual_adc(struct hda_codec *codec)
 /* different alc269-variants */
 enum {
 	ALC269_TYPE_NORMAL,
+	ALC269_TYPE_ALC258,
 	ALC269_TYPE_ALC259,
+	ALC269_TYPE_ALC269VB,
+	ALC269_TYPE_ALC270,
 	ALC269_TYPE_ALC271X,
 };
 
@@ -14762,7 +14806,10 @@ static int alc269_resume(struct hda_codec *codec)
 
 enum {
 	ALC269_FIXUP_SONY_VAIO,
+	ALC275_FIX_SONY_VAIO_GPIO2,
 	ALC269_FIXUP_DELL_M101Z,
+	ALC269_FIXUP_SKU_IGNORE,
+	ALC269_FIXUP_ASUS_G73JW,
 };
 
 static const struct alc_fixup alc269_fixups[] = {
@@ -14770,6 +14817,14 @@ static const struct alc_fixup alc269_fixups[] = {
 		.verbs = (const struct hda_verb[]) {
 			{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREFGRD},
 			{}
+		}
+	},
+	[ALC275_FIX_SONY_VAIO_GPIO2] = {
+		.verbs = (const struct hda_verb[]) {
+			{0x01, AC_VERB_SET_GPIO_MASK, 0x04},
+			{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x04},
+			{0x01, AC_VERB_SET_GPIO_DATA, 0x00},
+			{ }
 		}
 	},
 	[ALC269_FIXUP_DELL_M101Z] = {
@@ -14780,11 +14835,26 @@ static const struct alc_fixup alc269_fixups[] = {
 			{}
 		}
 	},
+	[ALC269_FIXUP_SKU_IGNORE] = {
+		.sku = ALC_FIXUP_SKU_IGNORE,
+	},
+	[ALC269_FIXUP_ASUS_G73JW] = {
+		.pins = (const struct alc_pincfg[]) {
+			{ 0x17, 0x99130111 }, /* subwoofer */
+			{ }
+		}
+	},
 };
 
 static struct snd_pci_quirk alc269_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x104d, 0x9073, "Sony VAIO", ALC275_FIX_SONY_VAIO_GPIO2),
+	SND_PCI_QUIRK(0x104d, 0x907b, "Sony VAIO", ALC275_FIX_SONY_VAIO_GPIO2),
+	SND_PCI_QUIRK(0x104d, 0x9084, "Sony VAIO", ALC275_FIX_SONY_VAIO_GPIO2),
 	SND_PCI_QUIRK_VENDOR(0x104d, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
 	SND_PCI_QUIRK(0x1028, 0x0470, "Dell M101z", ALC269_FIXUP_DELL_M101Z),
+	SND_PCI_QUIRK(0x17aa, 0x21b8, "Thinkpad Edge 14", ALC269_FIXUP_SKU_IGNORE),
+	SND_PCI_QUIRK(0x17aa, 0x20f2, "Thinkpad SL410/510", ALC269_FIXUP_SKU_IGNORE),
+	SND_PCI_QUIRK(0x1043, 0x1a13, "Asus G73Jw", ALC269_FIXUP_ASUS_G73JW),
 	{}
 };
 
@@ -15023,7 +15093,7 @@ static int alc269_fill_coef(struct hda_codec *codec)
 static int patch_alc269(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int board_config;
+	int board_config, coef;
 	int err;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
@@ -15034,19 +15104,29 @@ static int patch_alc269(struct hda_codec *codec)
 
 	alc_auto_parse_customize_define(codec);
 
-	if ((alc_read_coef_idx(codec, 0) & 0x00f0) == 0x0010){
-		if (codec->bus->pci->subsystem_vendor == 0x1025 &&
-		    spec->cdefine.platform_type == 1) {
-			alc_codec_rename(codec, "ALC271X");
-			spec->codec_variant = ALC269_TYPE_ALC271X;
-		} else {
-			alc_codec_rename(codec, "ALC259");
-			spec->codec_variant = ALC269_TYPE_ALC259;
-		}
-	} else
-		alc_fix_pll_init(codec, 0x20, 0x04, 15);
-
-	alc269_fill_coef(codec);
+	if (codec->vendor_id == 0x10ec0269) {
+		coef = alc_read_coef_idx(codec, 0);
+		if ((coef & 0x00f0) == 0x0010) {
+			if (codec->bus->pci->subsystem_vendor == 0x1025 &&
+			    spec->cdefine.platform_type == 1) {
+				alc_codec_rename(codec, "ALC271X");
+				spec->codec_variant = ALC269_TYPE_ALC271X;
+			} else if ((coef & 0xf000) == 0x1000) {
+				spec->codec_variant = ALC269_TYPE_ALC270;
+			} else if ((coef & 0xf000) == 0x2000) {
+				alc_codec_rename(codec, "ALC259");
+				spec->codec_variant = ALC269_TYPE_ALC259;
+			} else if ((coef & 0xf000) == 0x3000) {
+				alc_codec_rename(codec, "ALC258");
+				spec->codec_variant = ALC269_TYPE_ALC258;
+			} else {
+				alc_codec_rename(codec, "ALC269VB");
+				spec->codec_variant = ALC269_TYPE_ALC269VB;
+			}
+		} else
+			alc_fix_pll_init(codec, 0x20, 0x04, 15);
+		alc269_fill_coef(codec);
+	}
 
 	board_config = snd_hda_check_board_config(codec, ALC269_MODEL_LAST,
 						  alc269_models,
@@ -15104,7 +15184,7 @@ static int patch_alc269(struct hda_codec *codec)
 	spec->stream_digital_capture = &alc269_pcm_digital_capture;
 
 	if (!spec->adc_nids) { /* wasn't filled automatically? use default */
-		if (spec->codec_variant != ALC269_TYPE_NORMAL) {
+		if (spec->codec_variant == ALC269_TYPE_NORMAL) {
 			spec->adc_nids = alc269_adc_nids;
 			spec->num_adc_nids = ARRAY_SIZE(alc269_adc_nids);
 			spec->capsrc_nids = alc269_capsrc_nids;
@@ -16898,7 +16978,7 @@ static struct alc_config_preset alc861vd_presets[] = {
 static int alc861vd_auto_create_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	return alc_auto_create_input_ctls(codec, cfg, 0x15, 0x09, 0);
+	return alc_auto_create_input_ctls(codec, cfg, 0x0b, 0x22, 0);
 }
 
 
@@ -18952,6 +19032,8 @@ static inline hda_nid_t alc662_mix_to_dac(hda_nid_t nid)
 		return 0x02;
 	else if (nid >= 0x0c && nid <= 0x0e)
 		return nid - 0x0c + 0x02;
+	else if (nid == 0x26) /* ALC887-VD has this DAC too */
+		return 0x25;
 	else
 		return 0;
 }
@@ -18960,7 +19042,7 @@ static inline hda_nid_t alc662_mix_to_dac(hda_nid_t nid)
 static hda_nid_t alc662_dac_to_mix(struct hda_codec *codec, hda_nid_t pin,
 				   hda_nid_t dac)
 {
-	hda_nid_t mix[4];
+	hda_nid_t mix[5];
 	int i, num;
 
 	num = snd_hda_get_connections(codec, pin, mix, ARRAY_SIZE(mix));
@@ -19298,6 +19380,7 @@ static const struct alc_fixup alc662_fixups[] = {
 
 static struct snd_pci_quirk alc662_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x038b, "Acer Aspire 8943G", ALC662_FIXUP_ASPIRE),
+	SND_PCI_QUIRK(0x144d, 0xc051, "Samsung R720", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo Ideapad Y550P", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo Ideapad Y550", ALC662_FIXUP_IDEAPAD),
 	{}
@@ -19419,7 +19502,10 @@ static int patch_alc888(struct hda_codec *codec)
 {
 	if ((alc_read_coef_idx(codec, 0) & 0x00f0)==0x0030){
 		kfree(codec->chip_name);
-		codec->chip_name = kstrdup("ALC888-VD", GFP_KERNEL);
+		if (codec->vendor_id == 0x10ec0887)
+			codec->chip_name = kstrdup("ALC887-VD", GFP_KERNEL);
+		else
+			codec->chip_name = kstrdup("ALC888-VD", GFP_KERNEL);
 		if (!codec->chip_name) {
 			alc_free(codec);
 			return -ENOMEM;
@@ -19909,7 +19995,7 @@ static struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0885, .rev = 0x100103, .name = "ALC889A",
 	  .patch = patch_alc882 },
 	{ .id = 0x10ec0885, .name = "ALC885", .patch = patch_alc882 },
-	{ .id = 0x10ec0887, .name = "ALC887", .patch = patch_alc882 },
+	{ .id = 0x10ec0887, .name = "ALC887", .patch = patch_alc888 },
 	{ .id = 0x10ec0888, .rev = 0x100101, .name = "ALC1200",
 	  .patch = patch_alc882 },
 	{ .id = 0x10ec0888, .name = "ALC888", .patch = patch_alc888 },

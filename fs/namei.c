@@ -1748,6 +1748,9 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	if (!(open_flag & O_CREAT))
 		mode = 0;
 
+	/* Must never be set by userspace */
+	open_flag &= ~FMODE_NONOTIFY;
+
 	/*
 	 * O_SYNC is implemented as __O_SYNC|O_DSYNC.  As many places only
 	 * check for O_DSYNC if the need any syncing at all we enforce it's

@@ -274,7 +274,20 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 	char c;
 	int error = 0;
 
-	error = security_syslog(type, from_file);
+	/*
+	 * If this is from /proc/kmsg we only do the capabilities checks
+	 * at open time.
+	 */
+	if (type == SYSLOG_ACTION_OPEN || !from_file) {
+		if (dmesg_restrict && !capable(CAP_SYS_ADMIN))
+			return -EPERM;
+		if ((type != SYSLOG_ACTION_READ_ALL &&
+		     type != SYSLOG_ACTION_SIZE_BUFFER) &&
+		    !capable(CAP_SYS_ADMIN))
+			return -EPERM;
+	}
+
+	error = security_syslog(type);
 	if (error)
 		return error;
 
@@ -1069,13 +1082,15 @@ void printk_tick(void)
 
 int printk_needs_cpu(int cpu)
 {
+	if (unlikely(cpu_is_offline(cpu)))
+		printk_tick();
 	return per_cpu(printk_pending, cpu);
 }
 
 void wake_up_klogd(void)
 {
 	if (waitqueue_active(&log_wait))
-		__raw_get_cpu_var(printk_pending) = 1;
+		this_cpu_write(printk_pending, 1);
 }
 
 /**

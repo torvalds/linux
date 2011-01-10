@@ -54,8 +54,8 @@ static int lcdc_shared_regs[] = {
 };
 #define NR_SHARED_REGS ARRAY_SIZE(lcdc_shared_regs)
 
-#define DEFAULT_XRES 1280
-#define DEFAULT_YRES 1024
+#define MAX_XRES 1920
+#define MAX_YRES 1080
 
 static unsigned long lcdc_offs_mainlcd[NR_CH_REGS] = {
 	[LDDCKPAT1R] = 0x400,
@@ -115,15 +115,16 @@ static const struct fb_videomode default_720p = {
 	.xres = 1280,
 	.yres = 720,
 
-	.left_margin = 200,
-	.right_margin = 88,
-	.hsync_len = 48,
+	.left_margin = 220,
+	.right_margin = 110,
+	.hsync_len = 40,
 
 	.upper_margin = 20,
 	.lower_margin = 5,
 	.vsync_len = 5,
 
 	.pixclock = 13468,
+	.refresh = 60,
 	.sync = FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
 };
 
@@ -859,7 +860,7 @@ static void sh_mobile_fb_reconfig(struct fb_info *info)
 		/* Couldn't reconfigure, hopefully, can continue as before */
 		return;
 
-	info->fix.line_length = mode2.xres * (ch->cfg.bpp / 8);
+	info->fix.line_length = mode1.xres * (ch->cfg.bpp / 8);
 
 	/*
 	 * fb_set_var() calls the notifier change internally, only if
@@ -867,7 +868,7 @@ static void sh_mobile_fb_reconfig(struct fb_info *info)
 	 * user event, we have to call the chain ourselves.
 	 */
 	event.info = info;
-	event.data = &mode2;
+	event.data = &mode1;
 	fb_notifier_call_chain(evnt, &event);
 }
 
@@ -913,22 +914,12 @@ static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *in
 {
 	struct sh_mobile_lcdc_chan *ch = info->par;
 
-	if (var->xres < 160 || var->xres > 1920 ||
-	    var->yres < 120 || var->yres > 1080 ||
-	    var->left_margin < 32 || var->left_margin > 320 ||
-	    var->right_margin < 12 || var->right_margin > 240 ||
-	    var->upper_margin < 12 || var->upper_margin > 120 ||
-	    var->lower_margin < 1 || var->lower_margin > 64 ||
-	    var->hsync_len < 32 || var->hsync_len > 240 ||
-	    var->vsync_len < 2 || var->vsync_len > 64 ||
-	    var->pixclock < 6000 || var->pixclock > 40000 ||
+	if (var->xres > MAX_XRES || var->yres > MAX_YRES ||
 	    var->xres * var->yres * (ch->cfg.bpp / 8) * 2 > info->fix.smem_len) {
-		dev_warn(info->dev, "Invalid info: %u %u %u %u %u %u %u %u %u!\n",
-			 var->xres, var->yres,
-			 var->left_margin, var->right_margin,
-			 var->upper_margin, var->lower_margin,
-			 var->hsync_len, var->vsync_len,
-			 var->pixclock);
+		dev_warn(info->dev, "Invalid info: %u-%u-%u-%u x %u-%u-%u-%u @ %ukHz!\n",
+			 var->left_margin, var->xres, var->right_margin, var->hsync_len,
+			 var->upper_margin, var->yres, var->lower_margin, var->vsync_len,
+			 PICOS2KHZ(var->pixclock));
 		return -EINVAL;
 	}
 	return 0;
@@ -1197,6 +1188,7 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		const struct fb_videomode *mode = cfg->lcd_cfg;
 		unsigned long max_size = 0;
 		int k;
+		int num_cfg;
 
 		ch->info = framebuffer_alloc(0, &pdev->dev);
 		if (!ch->info) {
@@ -1224,7 +1216,7 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		}
 
 		if (!mode)
-			max_size = DEFAULT_XRES * DEFAULT_YRES;
+			max_size = MAX_XRES * MAX_YRES;
 		else if (max_cfg)
 			dev_dbg(&pdev->dev, "Found largest videomode %ux%u\n",
 				max_cfg->xres, max_cfg->yres);
@@ -1232,10 +1224,18 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		info->fix = sh_mobile_lcdc_fix;
 		info->fix.smem_len = max_size * (cfg->bpp / 8) * 2;
 
-		if (!mode)
+		if (!mode) {
 			mode = &default_720p;
+			num_cfg = 1;
+		} else {
+			num_cfg = cfg->num_cfg;
+		}
+
+		fb_videomode_to_modelist(mode, num_cfg, &info->modelist);
 
 		fb_videomode_to_var(var, mode);
+		var->width = cfg->lcd_size_cfg.width;
+		var->height = cfg->lcd_size_cfg.height;
 		/* Default Y virtual resolution is 2x panel size */
 		var->yres_virtual = var->yres * 2;
 		var->activate = FB_ACTIVATE_NOW;
@@ -1281,10 +1281,6 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 
 	for (i = 0; i < j; i++) {
 		struct sh_mobile_lcdc_chan *ch = priv->ch + i;
-		const struct fb_videomode *mode = ch->cfg.lcd_cfg;
-
-		if (!mode)
-			mode = &default_720p;
 
 		info = ch->info;
 
@@ -1297,7 +1293,6 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 			}
 		}
 
-		fb_videomode_to_modelist(mode, ch->cfg.num_cfg, &info->modelist);
 		error = register_framebuffer(info);
 		if (error < 0)
 			goto err1;
