@@ -139,7 +139,8 @@ struct hci_dev {
 	wait_queue_head_t	req_wait_q;
 	__u32			req_status;
 	__u32			req_result;
-	__u16			req_last_cmd;
+
+	__u16			init_last_cmd;
 
 	struct inquiry_cache	inq_cache;
 	struct hci_conn_hash	conn_hash;

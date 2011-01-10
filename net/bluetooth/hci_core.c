@@ -97,11 +97,10 @@ void hci_req_complete(struct hci_dev *hdev, __u16 cmd, int result)
 {
 	BT_DBG("%s command 0x%04x result 0x%2.2x", hdev->name, cmd, result);
 
-	/* If the request has set req_last_cmd (typical for multi-HCI
-	 * command requests) check if the completed command matches
-	 * this, and if not just return. Single HCI command requests
-	 * typically leave req_last_cmd as 0 */
-	if (hdev->req_last_cmd && cmd != hdev->req_last_cmd)
+	/* If this is the init phase check if the completed command matches
+	 * the last init command, and if not just return.
+	 */
+	if (test_bit(HCI_INIT, &hdev->flags) && hdev->init_last_cmd != cmd)
 		return;
 
 	if (hdev->req_status == HCI_REQ_PEND) {
@@ -158,7 +157,7 @@ static int __hci_request(struct hci_dev *hdev, void (*req)(struct hci_dev *hdev,
 		break;
 	}
 
-	hdev->req_last_cmd = hdev->req_status = hdev->req_result = 0;
+	hdev->req_status = hdev->req_result = 0;
 
 	BT_DBG("%s end: err %d", hdev->name, err);
 
@@ -261,8 +260,6 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 	/* Connection accept timeout ~20 secs */
 	param = cpu_to_le16(0x7d00);
 	hci_send_cmd(hdev, HCI_OP_WRITE_CA_TIMEOUT, 2, &param);
-
-	hdev->req_last_cmd = HCI_OP_WRITE_CA_TIMEOUT;
 }
 
 static void hci_scan_req(struct hci_dev *hdev, unsigned long opt)
@@ -523,6 +520,7 @@ int hci_dev_open(__u16 dev)
 	if (!test_bit(HCI_RAW, &hdev->flags)) {
 		atomic_set(&hdev->cmd_cnt, 1);
 		set_bit(HCI_INIT, &hdev->flags);
+		hdev->init_last_cmd = 0;
 
 		//__hci_request(hdev, hci_reset_req, 0, HZ);
 		ret = __hci_request(hdev, hci_init_req, 0,
@@ -1441,6 +1439,9 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
 
 	bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
 	skb->dev = (void *) hdev;
+
+	if (test_bit(HCI_INIT, &hdev->flags))
+		hdev->init_last_cmd = opcode;
 
 	skb_queue_tail(&hdev->cmd_q, skb);
 	tasklet_schedule(&hdev->cmd_task);
