@@ -434,30 +434,31 @@ static int spdif_input_default_get(struct snd_kcontrol *ctl,
 	return 0;
 }
 
-static int spdif_loopback_get(struct snd_kcontrol *ctl,
-			      struct snd_ctl_elem_value *value)
+static int spdif_bit_switch_get(struct snd_kcontrol *ctl,
+				struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
+	u32 bit = ctl->private_value;
 
 	value->value.integer.value[0] =
-		!!(oxygen_read32(chip, OXYGEN_SPDIF_CONTROL)
-		   & OXYGEN_SPDIF_LOOPBACK);
+		!!(oxygen_read32(chip, OXYGEN_SPDIF_CONTROL) & bit);
 	return 0;
 }
 
-static int spdif_loopback_put(struct snd_kcontrol *ctl,
-			      struct snd_ctl_elem_value *value)
+static int spdif_bit_switch_put(struct snd_kcontrol *ctl,
+				struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
+	u32 bit = ctl->private_value;
 	u32 oldreg, newreg;
 	int changed;
 
 	spin_lock_irq(&chip->reg_lock);
 	oldreg = oxygen_read32(chip, OXYGEN_SPDIF_CONTROL);
 	if (value->value.integer.value[0])
-		newreg = oldreg | OXYGEN_SPDIF_LOOPBACK;
+		newreg = oldreg | bit;
 	else
-		newreg = oldreg & ~OXYGEN_SPDIF_LOOPBACK;
+		newreg = oldreg & ~bit;
 	changed = newreg != oldreg;
 	if (changed)
 		oxygen_write32(chip, OXYGEN_SPDIF_CONTROL, newreg);
@@ -835,8 +836,17 @@ static const struct snd_kcontrol_new spdif_input_controls[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = SNDRV_CTL_NAME_IEC958("Loopback ", NONE, SWITCH),
 		.info = snd_ctl_boolean_mono_info,
-		.get = spdif_loopback_get,
-		.put = spdif_loopback_put,
+		.get = spdif_bit_switch_get,
+		.put = spdif_bit_switch_put,
+		.private_value = OXYGEN_SPDIF_LOOPBACK,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = SNDRV_CTL_NAME_IEC958("Validity Check ",CAPTURE,SWITCH),
+		.info = snd_ctl_boolean_mono_info,
+		.get = spdif_bit_switch_get,
+		.put = spdif_bit_switch_put,
+		.private_value = OXYGEN_SPDIF_SPDVALID,
 	},
 };
 
