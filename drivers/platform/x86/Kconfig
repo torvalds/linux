@@ -18,8 +18,8 @@ if X86_PLATFORM_DEVICES
 config ACER_WMI
 	tristate "Acer WMI Laptop Extras"
 	depends on ACPI
-	depends on LEDS_CLASS
-	depends on NEW_LEDS
+	select LEDS_CLASS
+	select NEW_LEDS
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on SERIO_I8042
 	depends on INPUT
@@ -516,8 +516,8 @@ config TOPSTAR_LAPTOP
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on ACPI
-	depends on LEDS_CLASS
-	depends on NEW_LEDS
+	select LEDS_CLASS
+	select NEW_LEDS
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
