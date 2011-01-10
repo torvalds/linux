@@ -151,11 +151,7 @@ static int tegra_ehci_hub_control(
 
 		tegra_usb_phy_preresume(tegra->phy);
 
-		/* reschedule root hub polling during resume signaling */
 		ehci->reset_done[wIndex-1] = jiffies + msecs_to_jiffies(25);
-		/* check the port again */
-		mod_timer(&ehci_to_hcd(ehci)->rh_timer,
-				ehci->reset_done[wIndex-1]);
 
 		temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
 		/* start resume signalling */
@@ -172,6 +168,8 @@ static int tegra_ehci_hub_control(
 		/* polling PORT_SUSPEND until the controller clear this bit */
 		if (handshake(ehci, status_reg, PORT_SUSPEND, 0, 2000))
 			pr_err("%s: timeout waiting for PORT_SUSPEND\n", __func__);
+
+		ehci->reset_done[wIndex-1] = 0;
 
 		tegra->port_resuming = 1;
 		goto done;
@@ -255,6 +253,7 @@ static int tegra_usb_resume(struct usb_hcd *hcd)
 	struct tegra_ehci_context *context = &tegra->context;
 	struct ehci_regs __iomem *hw = tegra->ehci->regs;
 	unsigned long val;
+	int lp0_resume = 0;
 
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	tegra_ehci_power_up(ehci_to_hcd(tegra->ehci));
@@ -265,6 +264,13 @@ static int tegra_usb_resume(struct usb_hcd *hcd)
 		msleep(10);
 		goto restart;
 	}
+
+	tegra_ehci_phy_restore_start(tegra->phy);
+
+	/* Check if the phy resume from LP0. When the phy resume from LP0
+	 * USB register will be reset. */
+	if (!readl(&hw->async_next))
+		lp0_resume = 1;
 
 	/* Restore register context */
 	writel(TEGRA_USB_USBMODE_HOST, &hw->reserved[19]);
@@ -280,17 +286,19 @@ static int tegra_usb_resume(struct usb_hcd *hcd)
 	writel(val, &hw->port_status[0]);
 	udelay(10);
 
-	/* Program the field PTC in PORTSC based on the saved speed mode */
-	val = readl(&hw->port_status[0]);
-	val &= ~(TEGRA_USB_PORTSC1_PTC(~0));
-	if (context->port_speed == TEGRA_USB_PHY_PORT_HIGH)
-		val |= TEGRA_USB_PORTSC1_PTC(5);
-	else if (context->port_speed == TEGRA_USB_PHY_PORT_SPEED_FULL)
-		val |= TEGRA_USB_PORTSC1_PTC(6);
-	else if (context->port_speed == TEGRA_USB_PHY_PORT_SPEED_LOW)
-		val |= TEGRA_USB_PORTSC1_PTC(7);
-	writel(val, &hw->port_status[0]);
-	udelay(10);
+	if (lp0_resume) {
+		/* Program the field PTC in PORTSC based on the saved speed mode */
+		val = readl(&hw->port_status[0]);
+		val &= ~(TEGRA_USB_PORTSC1_PTC(~0));
+		if (context->port_speed == TEGRA_USB_PHY_PORT_HIGH)
+			val |= TEGRA_USB_PORTSC1_PTC(5);
+		else if (context->port_speed == TEGRA_USB_PHY_PORT_SPEED_FULL)
+			val |= TEGRA_USB_PORTSC1_PTC(6);
+		else if (context->port_speed == TEGRA_USB_PHY_PORT_SPEED_LOW)
+			val |= TEGRA_USB_PORTSC1_PTC(7);
+		writel(val, &hw->port_status[0]);
+		udelay(10);
+	}
 
 	/* Disable test mode by setting PTC field to NORMAL_OP */
 	val = readl(&hw->port_status[0]);
@@ -332,9 +340,11 @@ static int tegra_usb_resume(struct usb_hcd *hcd)
 		}
 	}
 
+	tegra_ehci_phy_restore_end(tegra->phy);
 	return 0;
 
 restart:
+	tegra_ehci_phy_restore_end(tegra->phy);
 	tegra_ehci_restart(hcd);
 	return 0;
 }

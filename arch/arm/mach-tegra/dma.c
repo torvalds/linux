@@ -327,6 +327,7 @@ int tegra_dma_enqueue_req(struct tegra_dma_channel *ch,
 	struct tegra_dma_req *req)
 {
 	unsigned long irq_flags;
+	struct tegra_dma_req *_req;
 	int start_dma = 0;
 
 	if (req->size > TEGRA_DMA_MAX_TRANSFER_SIZE ||
@@ -336,6 +337,13 @@ int tegra_dma_enqueue_req(struct tegra_dma_channel *ch,
 	}
 
 	spin_lock_irqsave(&ch->lock, irq_flags);
+
+	list_for_each_entry(_req, &ch->list, node) {
+		if (req == _req) {
+		    spin_unlock_irqrestore(&ch->lock, irq_flags);
+		    return -EEXIST;
+		}
+	}
 
 	req->bytes_transferred = 0;
 	req->status = 0;
