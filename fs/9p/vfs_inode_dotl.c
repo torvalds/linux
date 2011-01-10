@@ -196,60 +196,41 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 				err);
 		goto error;
 	}
-	/* instantiate inode and assign the unopened fid to the dentry */
-	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE ||
-	    (nd && nd->flags & LOOKUP_OPEN)) {
-		fid = p9_client_walk(dfid, 1, &name, 1);
-		if (IS_ERR(fid)) {
-			err = PTR_ERR(fid);
-			P9_DPRINTK(P9_DEBUG_VFS, "p9_client_walk failed %d\n",
-				err);
-			fid = NULL;
-			goto error;
-		}
 
-		inode = v9fs_inode_from_fid(v9ses, fid, dir->i_sb);
-		if (IS_ERR(inode)) {
-			err = PTR_ERR(inode);
-			P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n",
-				err);
-			goto error;
-		}
-		d_set_d_op(dentry, &v9fs_cached_dentry_operations);
-		d_instantiate(dentry, inode);
-		err = v9fs_fid_add(dentry, fid);
-		if (err < 0)
-			goto error;
-		/* The fid would get clunked via a dput */
+	/* instantiate inode and assign the unopened fid to the dentry */
+	fid = p9_client_walk(dfid, 1, &name, 1);
+	if (IS_ERR(fid)) {
+		err = PTR_ERR(fid);
+		P9_DPRINTK(P9_DEBUG_VFS, "p9_clinet_walk failed %d\n", err);
 		fid = NULL;
-	} else {
-		/*
-		 * Not in cached mode. No need to populate
-		 * inode with stat. We need to get an inode
-		 * so that we can set the acl with dentry
-		 */
-		inode = v9fs_get_inode(dir->i_sb, mode);
-		if (IS_ERR(inode)) {
-			err = PTR_ERR(inode);
-			goto error;
-		}
-		d_set_d_op(dentry, &v9fs_dentry_operations);
-		d_instantiate(dentry, inode);
+		goto error;
 	}
+	inode = v9fs_inode_from_fid(v9ses, fid, dir->i_sb);
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
+		P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n", err);
+		goto error;
+	}
+	if (v9ses->cache)
+		dentry->d_op = &v9fs_cached_dentry_operations;
+	else
+		dentry->d_op = &v9fs_dentry_operations;
+
+	d_instantiate(dentry, inode);
+	err = v9fs_fid_add(dentry, fid);
+	if (err < 0)
+		goto error;
+
 	/* Now set the ACL based on the default value */
 	v9fs_set_create_acl(dentry, dacl, pacl);
 
-	/* if we are opening a file, assign the open fid to the file */
-	if (nd && nd->flags & LOOKUP_OPEN) {
-		filp = lookup_instantiate_filp(nd, dentry, generic_file_open);
-		if (IS_ERR(filp)) {
-			p9_client_clunk(ofid);
-			return PTR_ERR(filp);
-		}
-		filp->private_data = ofid;
-	} else
+	/* Since we are opening a file, assign the open fid to the file */
+	filp = lookup_instantiate_filp(nd, dentry, generic_file_open);
+	if (IS_ERR(filp)) {
 		p9_client_clunk(ofid);
-
+		return PTR_ERR(filp);
+	}
+	filp->private_data = ofid;
 	return 0;
 
 error:
