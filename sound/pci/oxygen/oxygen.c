@@ -53,13 +53,16 @@
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
 #include "oxygen.h"
+#include "xonar_dg.h"
 #include "ak4396.h"
 #include "wm8785.h"
 
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_DESCRIPTION("C-Media CMI8788 driver");
 MODULE_LICENSE("GPL v2");
-MODULE_SUPPORTED_DEVICE("{{C-Media,CMI8788}}");
+MODULE_SUPPORTED_DEVICE("{{C-Media,CMI8786}"
+			",{C-Media,CMI8787}"
+			",{C-Media,CMI8788}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
@@ -79,6 +82,7 @@ enum {
 	MODEL_CLARO_HALO,
 	MODEL_FANTASIA,
 	MODEL_2CH_OUTPUT,
+	MODEL_XONAR_DG,
 };
 
 static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
@@ -92,6 +96,8 @@ static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x8788), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x147a, 0xa017), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x1a58, 0x0910), .driver_data = MODEL_CMEDIA_REF },
+	/* Asus Xonar DG */
+	{ OXYGEN_PCI_SUBID(0x1043, 0x8467), .driver_data = MODEL_XONAR_DG },
 	/* PCI 2.0 HD Audio */
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x8782), .driver_data = MODEL_2CH_OUTPUT },
 	/* Kuroutoshikou CMI8787-HG2PCI */
@@ -654,6 +660,9 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 		}
 		chip->model.dac_channels_pcm = 2;
 		chip->model.dac_channels_mixer = 2;
+		break;
+	case MODEL_XONAR_DG:
+		chip->model = model_xonar_dg;
 		break;
 	}
 	if (id->driver_data == MODEL_MERIDIAN ||

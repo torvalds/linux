@@ -209,7 +209,7 @@ config SND_OXYGEN_LIB
         tristate
 
 config SND_OXYGEN
-	tristate "C-Media 8787, 8788 (Oxygen)"
+	tristate "C-Media 8786, 8787, 8788 (Oxygen)"
 	select SND_OXYGEN_LIB
 	select SND_PCM
 	select SND_MPU401_UART
@@ -217,6 +217,7 @@ config SND_OXYGEN
 	  Say Y here to include support for sound cards based on the
 	  C-Media CMI8788 (Oxygen HD Audio) chip:
 	   * Asound A-8788
+	   * Asus Xonar DG
 	   * AuzenTech X-Meridian
 	   * AuzenTech X-Meridian 2G
 	   * Bgears b-Enspirer

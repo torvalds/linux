@@ -97,6 +97,16 @@ static int dac_mute_put(struct snd_kcontrol *ctl,
 	return changed;
 }
 
+static unsigned int upmix_item_count(struct oxygen *chip)
+{
+	if (chip->model.dac_channels_pcm < 8)
+		return 2;
+	else if (chip->model.update_center_lfe_mix)
+		return 5;
+	else
+		return 3;
+}
+
 static int upmix_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 {
 	static const char *const names[5] = {
@@ -107,7 +117,7 @@ static int upmix_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 		"Front+Surround+Center/LFE+Back",
 	};
 	struct oxygen *chip = ctl->private_data;
-	unsigned int count = chip->model.update_center_lfe_mix ? 5 : 3;
+	unsigned int count = upmix_item_count(chip);
 
 	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	info->count = 1;
@@ -188,7 +198,7 @@ void oxygen_update_dac_routing(struct oxygen *chip)
 static int upmix_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
-	unsigned int count = chip->model.update_center_lfe_mix ? 5 : 3;
+	unsigned int count = upmix_item_count(chip);
 	int changed;
 
 	if (value->value.enumerated.item[0] >= count)
