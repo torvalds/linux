@@ -192,11 +192,16 @@ void __init gic_dist_init(unsigned int gic_nr, void __iomem *base,
 
 	writel(0, base + GIC_DIST_CTRL);
 
+#ifdef CONFIG_ARCH_RK29
+	/* rk29 read GIC_DIST_CTR is 2, why? */
+	max_irq = NR_AIC_IRQS;
+#else
 	/*
 	 * Find out how many interrupts are supported.
 	 */
 	max_irq = readl(base + GIC_DIST_CTR) & 0x1f;
 	max_irq = (max_irq + 1) * 32;
+#endif
 
 	/*
 	 * The GIC only supports up to 1020 interrupt sources.

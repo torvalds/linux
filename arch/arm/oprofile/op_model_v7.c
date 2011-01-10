@@ -368,6 +368,9 @@ static void armv7_pmnc_dump_regs(void)
 
 
 static int irqs[] = {
+#ifdef CONFIG_ARCH_RK29
+	IRQ_A8IRQ3,
+#endif
 #ifdef CONFIG_ARCH_OMAP3
 	INT_34XX_BENCH_MPU_EMUL,
 #endif
