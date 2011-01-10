@@ -868,6 +868,8 @@ static int acpi_battery_add_fs(struct acpi_device *device)
 	struct proc_dir_entry *entry = NULL;
 	int i;
 
+	printk(KERN_WARNING PREFIX "Deprecated procfs I/F for battery is loaded,"
+			" please retry with CONFIG_ACPI_PROCFS_POWER cleared\n");
 	if (!acpi_device_dir(device)) {
 		acpi_device_dir(device) = proc_mkdir(acpi_device_bid(device),
 						     acpi_battery_dir);
