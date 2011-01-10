@@ -763,10 +763,10 @@ struct ext4_inode_info {
 	 * near to their parent directory's inode.
 	 */
 	ext4_group_t	i_block_group;
+	ext4_lblk_t	i_dir_start_lookup;
 	unsigned long	i_state_flags;		/* Dynamic state flags */
 	unsigned long	i_flags;
 
-	ext4_lblk_t		i_dir_start_lookup;
 #ifdef CONFIG_EXT4_FS_XATTR
 	/*
 	 * Extended attributes can be read independently of the main file
@@ -835,7 +835,6 @@ struct ext4_inode_info {
 	/* on-disk additional length */
 	__u16 i_extra_isize;
 
-	spinlock_t i_block_reservation_lock;
 #ifdef CONFIG_QUOTA
 	/* quota space reservation, managed internally by quota code */
 	qsize_t i_reserved_quota;
@@ -844,9 +843,11 @@ struct ext4_inode_info {
 	/* completed IOs that might need unwritten extents handling */
 	struct list_head i_completed_io_list;
 	spinlock_t i_completed_io_lock;
+	atomic_t i_ioend_count;	/* Number of outstanding io_end structs */
 	/* current io_end structure for async DIO write*/
 	ext4_io_end_t *cur_aio_dio;
-	atomic_t i_ioend_count;	/* Number of outstanding io_end structs */
+
+	spinlock_t i_block_reservation_lock;
 
 	/*
 	 * Transactions that contain inode's metadata needed to complete
