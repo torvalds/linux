@@ -764,7 +764,9 @@ struct ext4_inode_info {
 	 */
 	ext4_group_t	i_block_group;
 	ext4_lblk_t	i_dir_start_lookup;
+#if (BITS_PER_LONG < 64)
 	unsigned long	i_state_flags;		/* Dynamic state flags */
+#endif
 	unsigned long	i_flags;
 
 #ifdef CONFIG_EXT4_FS_XATTR
@@ -1239,22 +1241,36 @@ enum {
 	EXT4_STATE_DELALLOC_RESERVED,	/* blks already reserved for delalloc */
 };
 
-#define EXT4_INODE_BIT_FNS(name, field)					\
+#define EXT4_INODE_BIT_FNS(name, field, offset)				\
 static inline int ext4_test_inode_##name(struct inode *inode, int bit)	\
 {									\
-	return test_bit(bit, &EXT4_I(inode)->i_##field);		\
+	return test_bit(bit + (offset), &EXT4_I(inode)->i_##field);	\
 }									\
 static inline void ext4_set_inode_##name(struct inode *inode, int bit)	\
 {									\
-	set_bit(bit, &EXT4_I(inode)->i_##field);			\
+	set_bit(bit + (offset), &EXT4_I(inode)->i_##field);		\
 }									\
 static inline void ext4_clear_inode_##name(struct inode *inode, int bit) \
 {									\
-	clear_bit(bit, &EXT4_I(inode)->i_##field);			\
+	clear_bit(bit + (offset), &EXT4_I(inode)->i_##field);		\
 }
 
-EXT4_INODE_BIT_FNS(flag, flags)
-EXT4_INODE_BIT_FNS(state, state_flags)
+EXT4_INODE_BIT_FNS(flag, flags, 0)
+#if (BITS_PER_LONG < 64)
+EXT4_INODE_BIT_FNS(state, state_flags, 0)
+
+static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
+{
+	(ei)->i_state_flags = 0;
+}
+#else
+EXT4_INODE_BIT_FNS(state, flags, 32)
+
+static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
+{
+	/* We depend on the fact that callers will set i_flags */
+}
+#endif
 #else
 /* Assume that user mode programs are passing in an ext4fs superblock, not
  * a kernel struct super_block.  This will allow us to call the feature-test
