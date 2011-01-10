@@ -1257,6 +1257,10 @@ static int ngene_load_firm(struct ngene *dev)
 		fw_name = "ngene_17.fw";
 		dev->cmd_timeout_workaround = true;
 		break;
+	case 18:
+		size = 0;
+		fw_name = "ngene_18.fw";
+		break;
 	}
 
 	if (request_firmware(&fw, fw_name, &dev->pci_dev->dev) < 0) {
@@ -1266,6 +1270,8 @@ static int ngene_load_firm(struct ngene *dev)
 			": Copy %s to your hotplug directory!\n", fw_name);
 		return -1;
 	}
+	if (size == 0)
+		size = fw->size;
 	if (size != fw->size) {
 		printk(KERN_ERR DEVICE_NAME
 			": Firmware %s has invalid size!", fw_name);
@@ -1365,7 +1371,7 @@ static int ngene_start(struct ngene *dev)
 	if (stat < 0)
 		goto fail;
 
-	if (dev->card_info->fw_version == 17) {
+	if (dev->card_info->fw_version >= 17) {
 		u8 tsin4_config[6] = {
 			3072 / 64, 3072 / 64, 0, 3072 / 64, 3072 / 64, 0};
 		u8 default_config[6] = {
@@ -1374,7 +1380,7 @@ static int ngene_start(struct ngene *dev)
 
 		if (dev->card_info->io_type[3] == NGENE_IO_TSIN)
 			bconf = tsin4_config;
-		dprintk(KERN_DEBUG DEVICE_NAME ": FW 17 buffer config\n");
+		dprintk(KERN_DEBUG DEVICE_NAME ": FW 17+ buffer config\n");
 		stat = ngene_command_config_free_buf(dev, bconf);
 	} else {
 		int bconf = BUFFER_CONFIG_4422;
