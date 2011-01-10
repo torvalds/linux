@@ -1602,7 +1602,11 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 			if (err)
 				goto journal_error;
 		}
-		ext4_handle_dirty_metadata(handle, inode, frames[0].bh);
+		err = ext4_handle_dirty_metadata(handle, inode, frames[0].bh);
+		if (err) {
+			ext4_std_error(inode->i_sb, err);
+			goto cleanup;
+		}
 	}
 	de = do_split(handle, dir, &bh, frame, &hinfo, &err);
 	if (!de)
@@ -1630,7 +1634,7 @@ static int ext4_delete_entry(handle_t *handle,
 {
 	struct ext4_dir_entry_2 *de, *pde;
 	unsigned int blocksize = dir->i_sb->s_blocksize;
-	int i;
+	int i, err;
 
 	i = 0;
 	pde = NULL;
@@ -1640,7 +1644,11 @@ static int ext4_delete_entry(handle_t *handle,
 			return -EIO;
 		if (de == de_del)  {
 			BUFFER_TRACE(bh, "get_write_access");
-			ext4_journal_get_write_access(handle, bh);
+			err = ext4_journal_get_write_access(handle, bh);
+			if (unlikely(err)) {
+				ext4_std_error(dir->i_sb, err);
+				return err;
+			}
 			if (pde)
 				pde->rec_len = ext4_rec_len_to_disk(
 					ext4_rec_len_from_disk(pde->rec_len,
@@ -1652,7 +1660,11 @@ static int ext4_delete_entry(handle_t *handle,
 				de->inode = 0;
 			dir->i_version++;
 			BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
-			ext4_handle_dirty_metadata(handle, dir, bh);
+			err = ext4_handle_dirty_metadata(handle, dir, bh);
+			if (unlikely(err)) {
+				ext4_std_error(dir->i_sb, err);
+				return err;
+			}
 			return 0;
 		}
 		i += ext4_rec_len_from_disk(de->rec_len, blocksize);
@@ -2414,7 +2426,11 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 					ext4_current_time(new_dir);
 		ext4_mark_inode_dirty(handle, new_dir);
 		BUFFER_TRACE(new_bh, "call ext4_handle_dirty_metadata");
-		ext4_handle_dirty_metadata(handle, new_dir, new_bh);
+		retval = ext4_handle_dirty_metadata(handle, new_dir, new_bh);
+		if (unlikely(retval)) {
+			ext4_std_error(new_dir->i_sb, retval);
+			goto end_rename;
+		}
 		brelse(new_bh);
 		new_bh = NULL;
 	}
@@ -2466,7 +2482,11 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		PARENT_INO(dir_bh->b_data, new_dir->i_sb->s_blocksize) =
 						cpu_to_le32(new_dir->i_ino);
 		BUFFER_TRACE(dir_bh, "call ext4_handle_dirty_metadata");
-		ext4_handle_dirty_metadata(handle, old_dir, dir_bh);
+		retval = ext4_handle_dirty_metadata(handle, old_dir, dir_bh);
+		if (retval) {
+			ext4_std_error(old_dir->i_sb, retval);
+			goto end_rename;
+		}
 		ext4_dec_count(handle, old_dir);
 		if (new_inode) {
 			/* checked empty_dir above, can't have another parent,

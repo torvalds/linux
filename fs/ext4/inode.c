@@ -4185,6 +4185,7 @@ static int ext4_clear_blocks(handle_t *handle, struct inode *inode,
 {
 	__le32 *p;
 	int	flags = EXT4_FREE_BLOCKS_FORGET | EXT4_FREE_BLOCKS_VALIDATED;
+	int	err;
 
 	if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))
 		flags |= EXT4_FREE_BLOCKS_METADATA;
@@ -4200,11 +4201,23 @@ static int ext4_clear_blocks(handle_t *handle, struct inode *inode,
 	if (try_to_extend_transaction(handle, inode)) {
 		if (bh) {
 			BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
-			ext4_handle_dirty_metadata(handle, inode, bh);
+			err = ext4_handle_dirty_metadata(handle, inode, bh);
+			if (unlikely(err)) {
+				ext4_std_error(inode->i_sb, err);
+				return 1;
+			}
 		}
-		ext4_mark_inode_dirty(handle, inode);
-		ext4_truncate_restart_trans(handle, inode,
-					    blocks_for_truncate(inode));
+		err = ext4_mark_inode_dirty(handle, inode);
+		if (unlikely(err)) {
+			ext4_std_error(inode->i_sb, err);
+			return 1;
+		}
+		err = ext4_truncate_restart_trans(handle, inode,
+						  blocks_for_truncate(inode));
+		if (unlikely(err)) {
+			ext4_std_error(inode->i_sb, err);
+			return 1;
+		}
 		if (bh) {
 			BUFFER_TRACE(bh, "retaking write access");
 			ext4_journal_get_write_access(handle, bh);
