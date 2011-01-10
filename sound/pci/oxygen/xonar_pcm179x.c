@@ -228,6 +228,7 @@ struct xonar_pcm179x {
 	s8 hp_gain_offset;
 	bool has_cs2000;
 	u8 cs2000_regs[0x1f];
+	bool broken_i2c;
 };
 
 struct xonar_hdav {
@@ -462,6 +463,7 @@ static void xonar_st_init(struct oxygen *chip)
 	data->generic.anti_pop_delay = 100;
 	data->has_cs2000 = 1;
 	data->cs2000_regs[CS2000_FUN_CFG_1] = CS2000_REF_CLK_DIV_1;
+	data->broken_i2c = true;
 
 	oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
 		       OXYGEN_RATE_48000 | OXYGEN_I2S_FORMAT_I2S |
@@ -980,16 +982,29 @@ static int xonar_d2_control_filter(struct snd_kcontrol_new *template)
 	return 0;
 }
 
+static int xonar_st_h6_control_filter(struct snd_kcontrol_new *template)
+{
+	if (!strncmp(template->name, "Master Playback ", 16))
+		/* no volume/mute, as I²C to the third DAC does not work */
+		return 1;
+	return 0;
+}
+
 static int add_pcm1796_controls(struct oxygen *chip)
 {
+	struct xonar_pcm179x *data = chip->model_data;
 	int err;
 
-	err = snd_ctl_add(chip->card, snd_ctl_new1(&rolloff_control, chip));
-	if (err < 0)
-		return err;
-	err = snd_ctl_add(chip->card, snd_ctl_new1(&os_128_control, chip));
-	if (err < 0)
-		return err;
+	if (!data->broken_i2c) {
+		err = snd_ctl_add(chip->card,
+				  snd_ctl_new1(&rolloff_control, chip));
+		if (err < 0)
+			return err;
+		err = snd_ctl_add(chip->card,
+				  snd_ctl_new1(&os_128_control, chip));
+		if (err < 0)
+			return err;
+	}
 	return 0;
 }
 
@@ -1208,6 +1223,7 @@ int __devinit get_xonar_pcm179x_model(struct oxygen *chip,
 			break;
 		case GPIO_DB_H6:
 			chip->model.shortname = "Xonar ST+H6";
+			chip->model.control_filter = xonar_st_h6_control_filter;
 			chip->model.dac_channels_pcm = 8;
 			chip->model.dac_channels_mixer = 8;
 			break;
