@@ -342,7 +342,6 @@ struct ath_vif {
 	__le64 tsf_adjust; /* TSF adjustment for staggered beacons */
 	enum nl80211_iftype av_opmode;
 	struct ath_buf *av_bcbuf;
-	struct ath_tx_control av_btxctl;
 	u8 bssid[ETH_ALEN]; /* current BSSID from config_interface */
 };
 
