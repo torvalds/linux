@@ -3881,19 +3881,6 @@ repeat:
 	}
 }
 
-/*
- * finds all preallocated spaces and return blocks being freed to them
- * if preallocated space becomes full (no block is used from the space)
- * then the function frees space in buddy
- * XXX: at the moment, truncate (which is the only way to free blocks)
- * discards all preallocations
- */
-static void ext4_mb_return_to_preallocation(struct inode *inode,
-					struct ext4_buddy *e4b,
-					sector_t block, int count)
-{
-	BUG_ON(!list_empty(&EXT4_I(inode)->i_prealloc_list));
-}
 #ifdef CONFIG_EXT4_DEBUG
 static void ext4_mb_show_ac(struct ext4_allocation_context *ac)
 {
@@ -4648,7 +4635,6 @@ do_more:
 		ext4_lock_group(sb, block_group);
 		mb_clear_bits(bitmap_bh->b_data, bit, count);
 		mb_free_blocks(inode, &e4b, bit, count);
-		ext4_mb_return_to_preallocation(inode, &e4b, block, count);
 	}
 
 	ret = ext4_free_blks_count(sb, gdp) + count;
