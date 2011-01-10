@@ -279,7 +279,7 @@ static int sa1111_retrigger_lowirq(struct irq_data *d)
 	for (i = 0; i < 8; i++) {
 		sa1111_writel(ip0 ^ mask, mapbase + SA1111_INTPOL0);
 		sa1111_writel(ip0, mapbase + SA1111_INTPOL0);
-		if (sa1111_readl(mapbase + SA1111_INTSTATCLR1) & mask)
+		if (sa1111_readl(mapbase + SA1111_INTSTATCLR0) & mask)
 			break;
 	}
 
