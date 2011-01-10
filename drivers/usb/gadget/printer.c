@@ -1596,13 +1596,12 @@ cleanup(void)
 	int status;
 
 	mutex_lock(&usb_printer_gadget.lock_printer_io);
-	class_destroy(usb_gadget_class);
-	unregister_chrdev_region(g_printer_devno, 2);
-
 	status = usb_gadget_unregister_driver(&printer_driver);
 	if (status)
 		ERROR(dev, "usb_gadget_unregister_driver %x\n", status);
 
+	unregister_chrdev_region(g_printer_devno, 2);
+	class_destroy(usb_gadget_class);
 	mutex_unlock(&usb_printer_gadget.lock_printer_io);
 }
 module_exit(cleanup);
