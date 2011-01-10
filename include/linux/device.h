@@ -508,13 +508,13 @@ static inline int device_is_registered(struct device *dev)
 
 static inline void device_enable_async_suspend(struct device *dev)
 {
-	if (dev->power.status == DPM_ON)
+	if (!dev->power.in_suspend)
 		dev->power.async_suspend = true;
 }
 
 static inline void device_disable_async_suspend(struct device *dev)
 {
-	if (dev->power.status == DPM_ON)
+	if (!dev->power.in_suspend)
 		dev->power.async_suspend = false;
 }
 

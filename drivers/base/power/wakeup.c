@@ -542,26 +542,26 @@ static void pm_wakeup_update_hit_counts(void)
 }
 
 /**
- * pm_check_wakeup_events - Check for new wakeup events.
+ * pm_wakeup_pending - Check if power transition in progress should be aborted.
  *
  * Compare the current number of registered wakeup events with its preserved
- * value from the past to check if new wakeup events have been registered since
- * the old value was stored.  Check if the current number of wakeup events being
- * processed is zero.
+ * value from the past and return true if new wakeup events have been registered
+ * since the old value was stored.  Also return true if the current number of
+ * wakeup events being processed is different from zero.
  */
-bool pm_check_wakeup_events(void)
+bool pm_wakeup_pending(void)
 {
 	unsigned long flags;
-	bool ret = true;
+	bool ret = false;
 
 	spin_lock_irqsave(&events_lock, flags);
 	if (events_check_enabled) {
-		ret = ((unsigned int)atomic_read(&event_count) == saved_count)
-			&& !atomic_read(&events_in_progress);
-		events_check_enabled = ret;
+		ret = ((unsigned int)atomic_read(&event_count) != saved_count)
+			|| atomic_read(&events_in_progress);
+		events_check_enabled = !ret;
 	}
 	spin_unlock_irqrestore(&events_lock, flags);
-	if (!ret)
+	if (ret)
 		pm_wakeup_update_hit_counts();
 	return ret;
 }
