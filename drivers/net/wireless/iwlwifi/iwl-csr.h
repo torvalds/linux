@@ -300,8 +300,9 @@
 #define CSR_HW_REV_TYPE_1000           (0x0000060)
 #define CSR_HW_REV_TYPE_6x00           (0x0000070)
 #define CSR_HW_REV_TYPE_6x50           (0x0000080)
-#define CSR_HW_REV_TYPE_6x50g2         (0x0000084)
-#define CSR_HW_REV_TYPE_6x00g2         (0x00000B0)
+#define CSR_HW_REV_TYPE_6150           (0x0000084)
+#define CSR_HW_REV_TYPE_6x05	       (0x00000B0)
+#define CSR_HW_REV_TYPE_6x30	       CSR_HW_REV_TYPE_6x05
 #define CSR_HW_REV_TYPE_NONE           (0x00000F0)
 
 /* EEPROM REG */
