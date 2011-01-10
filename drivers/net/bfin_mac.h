@@ -82,6 +82,9 @@ struct bfin_mac_local {
 	struct timer_list tx_reclaim_timer;
 	struct net_device *ndev;
 
+	/* Data for EMAC_VLAN1 regs */
+	u16 vlan1_mask, vlan2_mask;
+
 	/* MII and PHY stuffs */
 	int old_link;          /* used by bf537_adjust_link */
 	int old_speed;

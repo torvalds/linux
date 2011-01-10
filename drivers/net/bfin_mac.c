@@ -588,6 +588,10 @@ static void setup_system_regs(struct net_device *dev)
 
 	bfin_write_EMAC_MMC_CTL(RSTC | CROLL);
 
+	/* Set vlan regs to let 1522 bytes long packets pass through */
+	bfin_write_EMAC_VLAN1(lp->vlan1_mask);
+	bfin_write_EMAC_VLAN2(lp->vlan2_mask);
+
 	/* Initialize the TX DMA channel registers */
 	bfin_write_DMA2_X_COUNT(0);
 	bfin_write_DMA2_X_MODIFY(4);
@@ -1519,6 +1523,9 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "MII Probe failed!\n");
 		goto out_err_mii_probe;
 	}
+
+	lp->vlan1_mask = ETH_P_8021Q | mii_bus_data->vlan1_mask;
+	lp->vlan2_mask = ETH_P_8021Q | mii_bus_data->vlan2_mask;
 
 	/* Fill in the fields of the device structure with ethernet values. */
 	ether_setup(ndev);
