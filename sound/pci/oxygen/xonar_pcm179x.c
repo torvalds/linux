@@ -223,7 +223,6 @@ struct xonar_pcm179x {
 	unsigned int dacs;
 	u8 pcm1796_regs[4][5];
 	unsigned int current_rate;
-	bool os_128;
 	bool h6;
 	bool hp_active;
 	s8 hp_gain_offset;
@@ -331,9 +330,14 @@ static void pcm1796_init(struct oxygen *chip)
 		PCM1796_DMF_DISABLED | PCM1796_FMT_24_I2S | PCM1796_ATLD;
 	data->pcm1796_regs[0][19 - PCM1796_REG_BASE] =
 		PCM1796_FLT_SHARP | PCM1796_ATS_1;
-	data->pcm1796_regs[0][20 - PCM1796_REG_BASE] = PCM1796_OS_64;
+	data->pcm1796_regs[0][20 - PCM1796_REG_BASE] =
+		data->h6 ? PCM1796_OS_64 : PCM1796_OS_128;
 	pcm1796_registers_init(chip);
 	data->current_rate = 48000;
+	if (!data->h6)
+		oxygen_write16_masked(chip, OXYGEN_I2S_MULTICH_FORMAT,
+				      OXYGEN_I2S_MCLK_512,
+				      OXYGEN_I2S_MCLK_MASK);
 }
 
 static void xonar_d2_init(struct oxygen *chip)
@@ -469,9 +473,12 @@ static void xonar_st_init(struct oxygen *chip)
 	data->broken_i2c = true;
 
 	oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
-		       OXYGEN_RATE_48000 | OXYGEN_I2S_FORMAT_I2S |
-		       OXYGEN_I2S_MCLK_256 | OXYGEN_I2S_BITS_16 |
-		       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
+		       OXYGEN_RATE_48000 |
+		       OXYGEN_I2S_FORMAT_I2S |
+		       (data->h6 ? OXYGEN_I2S_MCLK_256 : OXYGEN_I2S_MCLK_512) |
+		       OXYGEN_I2S_BITS_16 |
+		       OXYGEN_I2S_MASTER |
+		       OXYGEN_I2S_BCLK_64);
 
 	xonar_st_init_i2c(chip);
 	cs2000_registers_init(chip);
@@ -556,11 +563,8 @@ static unsigned int mclk_from_rate(struct oxygen *chip, unsigned int rate)
 {
 	struct xonar_pcm179x *data = chip->model_data;
 
-	if (rate <= 32000)
+	if (rate <= 48000)
 		return data->h6 ? OXYGEN_I2S_MCLK_256 : OXYGEN_I2S_MCLK_512;
-	else if (rate <= 48000)
-		return data->os_128 && !data->h6
-			? OXYGEN_I2S_MCLK_512 : OXYGEN_I2S_MCLK_256;
 	else
 		return OXYGEN_I2S_MCLK_128;
 }
@@ -581,14 +585,10 @@ static void update_pcm1796_oversampling(struct oxygen *chip)
 	unsigned int i;
 	u8 reg;
 
-	if (data->current_rate <= 32000 && !data->h6)
+	if (data->current_rate <= 48000 && !data->h6)
 		reg = PCM1796_OS_128;
-	else if (data->current_rate <= 48000 && data->os_128 && !data->h6)
-		reg = PCM1796_OS_128;
-	else if (data->current_rate <= 96000 || data->os_128)
-		reg = PCM1796_OS_64;
 	else
-		reg = PCM1796_OS_32;
+		reg = PCM1796_OS_64;
 	for (i = 0; i < data->dacs; ++i)
 		pcm1796_write_cached(chip, i, 20, reg);
 }
@@ -644,16 +644,16 @@ static void update_cs2000_rate(struct oxygen *chip, unsigned int rate)
 			rate_mclk = OXYGEN_RATE_32000 | OXYGEN_I2S_MCLK_512;
 		break;
 	case 44100:
-		if (data->os_128 && !data->h6)
-			rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_512;
-		else
+		if (data->h6)
 			rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_256;
+		else
+			rate_mclk = OXYGEN_RATE_44100 | OXYGEN_I2S_MCLK_512;
 		break;
 	default: /* 48000 */
-		if (data->os_128 && !data->h6)
-			rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_512;
-		else
+		if (data->h6)
 			rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_256;
+		else
+			rate_mclk = OXYGEN_RATE_48000 | OXYGEN_I2S_MCLK_512;
 		break;
 	case 64000:
 		rate_mclk = OXYGEN_RATE_32000 | OXYGEN_I2S_MCLK_256;
@@ -765,60 +765,6 @@ static const struct snd_kcontrol_new rolloff_control = {
 	.info = rolloff_info,
 	.get = rolloff_get,
 	.put = rolloff_put,
-};
-
-static int os_128_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
-{
-	static const char *const names[2] = { "64x", "128x" };
-
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 2;
-	if (info->value.enumerated.item >= 2)
-		info->value.enumerated.item = 1;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
-}
-
-static int os_128_get(struct snd_kcontrol *ctl,
-		      struct snd_ctl_elem_value *value)
-{
-	struct oxygen *chip = ctl->private_data;
-	struct xonar_pcm179x *data = chip->model_data;
-
-	value->value.enumerated.item[0] = data->os_128;
-	return 0;
-}
-
-static int os_128_put(struct snd_kcontrol *ctl,
-		      struct snd_ctl_elem_value *value)
-{
-	struct oxygen *chip = ctl->private_data;
-	struct xonar_pcm179x *data = chip->model_data;
-	int changed;
-
-	mutex_lock(&chip->mutex);
-	changed = value->value.enumerated.item[0] != data->os_128;
-	if (changed) {
-		data->os_128 = value->value.enumerated.item[0];
-		if (data->has_cs2000)
-			update_cs2000_rate(chip, data->current_rate);
-		oxygen_write16_masked(chip, OXYGEN_I2S_MULTICH_FORMAT,
-				      mclk_from_rate(chip, data->current_rate),
-				      OXYGEN_I2S_MCLK_MASK);
-		msleep(1);
-		update_pcm1796_oversampling(chip);
-	}
-	mutex_unlock(&chip->mutex);
-	return changed;
-}
-
-static const struct snd_kcontrol_new os_128_control = {
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "DAC Oversampling Playback Enum",
-	.info = os_128_info,
-	.get = os_128_get,
-	.put = os_128_put,
 };
 
 static const struct snd_kcontrol_new hdav_hdmi_control = {
@@ -1002,10 +948,6 @@ static int add_pcm1796_controls(struct oxygen *chip)
 	if (!data->broken_i2c) {
 		err = snd_ctl_add(chip->card,
 				  snd_ctl_new1(&rolloff_control, chip));
-		if (err < 0)
-			return err;
-		err = snd_ctl_add(chip->card,
-				  snd_ctl_new1(&os_128_control, chip));
 		if (err < 0)
 			return err;
 	}
