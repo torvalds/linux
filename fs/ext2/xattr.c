@@ -355,7 +355,7 @@ static void ext2_xattr_update_super_block(struct super_block *sb)
 /*
  * ext2_xattr_set()
  *
- * Create, replace or remove an extended attribute for this inode. Buffer
+ * Create, replace or remove an extended attribute for this inode.  Value
  * is NULL to remove an existing extended attribute, and non-NULL to
  * either replace an existing extended attribute, or create a new extended
  * attribute. The flags XATTR_REPLACE and XATTR_CREATE
