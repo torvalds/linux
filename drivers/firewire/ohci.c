@@ -208,9 +208,11 @@ struct fw_ohci {
 	struct context at_request_ctx;
 	struct context at_response_ctx;
 
+	u32 it_context_support;
 	u32 it_context_mask;     /* unoccupied IT contexts */
 	struct iso_context *it_context_list;
 	u64 ir_context_channels; /* unoccupied channels */
+	u32 ir_context_support;
 	u32 ir_context_mask;     /* unoccupied IR contexts */
 	struct iso_context *ir_context_list;
 	u64 mc_channels; /* channels in use by the multichannel IR context */
@@ -338,7 +340,7 @@ static void log_irqs(u32 evt)
 	    !(evt & OHCI1394_busReset))
 		return;
 
-	fw_notify("IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", evt,
+	fw_notify("IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", evt,
 	    evt & OHCI1394_selfIDComplete	? " selfID"		: "",
 	    evt & OHCI1394_RQPkt		? " AR_req"		: "",
 	    evt & OHCI1394_RSPkt		? " AR_resp"		: "",
@@ -351,6 +353,7 @@ static void log_irqs(u32 evt)
 	    evt & OHCI1394_cycle64Seconds	? " cycle64Seconds"	: "",
 	    evt & OHCI1394_cycleInconsistent	? " cycleInconsistent"	: "",
 	    evt & OHCI1394_regAccessFail	? " regAccessFail"	: "",
+	    evt & OHCI1394_unrecoverableError	? " unrecoverableError"	: "",
 	    evt & OHCI1394_busReset		? " busReset"		: "",
 	    evt & ~(OHCI1394_selfIDComplete | OHCI1394_RQPkt |
 		    OHCI1394_RSPkt | OHCI1394_reqTxComplete |
@@ -1590,6 +1593,47 @@ static void at_context_transmit(struct context *ctx, struct fw_packet *packet)
 
 }
 
+static void detect_dead_context(struct fw_ohci *ohci,
+				const char *name, unsigned int regs)
+{
+	u32 ctl;
+
+	ctl = reg_read(ohci, CONTROL_SET(regs));
+	if (ctl & CONTEXT_DEAD) {
+#ifdef CONFIG_FIREWIRE_OHCI_DEBUG
+		fw_error("DMA context %s has stopped, error code: %s\n",
+			 name, evts[ctl & 0x1f]);
+#else
+		fw_error("DMA context %s has stopped, error code: %#x\n",
+			 name, ctl & 0x1f);
+#endif
+	}
+}
+
+static void handle_dead_contexts(struct fw_ohci *ohci)
+{
+	unsigned int i;
+	char name[8];
+
+	detect_dead_context(ohci, "ATReq", OHCI1394_AsReqTrContextBase);
+	detect_dead_context(ohci, "ATRsp", OHCI1394_AsRspTrContextBase);
+	detect_dead_context(ohci, "ARReq", OHCI1394_AsReqRcvContextBase);
+	detect_dead_context(ohci, "ARRsp", OHCI1394_AsRspRcvContextBase);
+	for (i = 0; i < 32; ++i) {
+		if (!(ohci->it_context_support & (1 << i)))
+			continue;
+		sprintf(name, "IT%u", i);
+		detect_dead_context(ohci, name, OHCI1394_IsoXmitContextBase(i));
+	}
+	for (i = 0; i < 32; ++i) {
+		if (!(ohci->ir_context_support & (1 << i)))
+			continue;
+		sprintf(name, "IR%u", i);
+		detect_dead_context(ohci, name, OHCI1394_IsoRcvContextBase(i));
+	}
+	/* TODO: maybe try to flush and restart the dead contexts */
+}
+
 static u32 cycle_timer_ticks(u32 cycle_timer)
 {
 	u32 ticks;
@@ -1904,6 +1948,9 @@ static irqreturn_t irq_handler(int irq, void *data)
 			fw_notify("isochronous cycle inconsistent\n");
 	}
 
+	if (unlikely(event & OHCI1394_unrecoverableError))
+		handle_dead_contexts(ohci);
+
 	if (event & OHCI1394_cycle64Seconds) {
 		spin_lock(&ohci->lock);
 		update_bus_time(ohci);
@@ -2141,7 +2188,9 @@ static int ohci_enable(struct fw_card *card,
 		OHCI1394_selfIDComplete |
 		OHCI1394_regAccessFail |
 		OHCI1394_cycle64Seconds |
-		OHCI1394_cycleInconsistent | OHCI1394_cycleTooLong |
+		OHCI1394_cycleInconsistent |
+		OHCI1394_unrecoverableError |
+		OHCI1394_cycleTooLong |
 		OHCI1394_masterIntEnable;
 	if (param_debug & OHCI_PARAM_DEBUG_BUSRESETS)
 		irqs |= OHCI1394_busReset;
@@ -3207,15 +3256,17 @@ static int __devinit pci_probe(struct pci_dev *dev,
 
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, ~0);
 	ohci->ir_context_channels = ~0ULL;
-	ohci->ir_context_mask = reg_read(ohci, OHCI1394_IsoRecvIntMaskSet);
+	ohci->ir_context_support = reg_read(ohci, OHCI1394_IsoRecvIntMaskSet);
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, ~0);
+	ohci->ir_context_mask = ohci->ir_context_support;
 	ohci->n_ir = hweight32(ohci->ir_context_mask);
 	size = sizeof(struct iso_context) * ohci->n_ir;
 	ohci->ir_context_list = kzalloc(size, GFP_KERNEL);
 
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, ~0);
-	ohci->it_context_mask = reg_read(ohci, OHCI1394_IsoXmitIntMaskSet);
+	ohci->it_context_support = reg_read(ohci, OHCI1394_IsoXmitIntMaskSet);
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, ~0);
+	ohci->it_context_mask = ohci->it_context_support;
 	ohci->n_it = hweight32(ohci->it_context_mask);
 	size = sizeof(struct iso_context) * ohci->n_it;
 	ohci->it_context_list = kzalloc(size, GFP_KERNEL);
