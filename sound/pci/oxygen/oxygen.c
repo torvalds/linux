@@ -28,7 +28,13 @@
  *
  *   GPIO 0 -> DFS0 of AK5385
  *   GPIO 1 -> DFS1 of AK5385
- *   GPIO 8 -> enable headphone amplifier on HT-Omega models
+ *
+ * X-Meridian models:
+ *   GPIO 4 -> enable extension S/PDIF input
+ *   GPIO 6 -> enable on-board S/PDIF input
+ *
+ * Claro models:
+ *   GPIO 8 -> enable headphone amplifier
  *
  * CM9780:
  *
@@ -123,6 +129,10 @@ MODULE_DEVICE_TABLE(pci, oxygen_ids);
 #define GPIO_AK5385_DFS_NORMAL	0x0000
 #define GPIO_AK5385_DFS_DOUBLE	0x0001
 #define GPIO_AK5385_DFS_QUAD	0x0002
+
+#define GPIO_MERIDIAN_DIG_MASK	0x0050
+#define GPIO_MERIDIAN_DIG_EXT	0x0010
+#define GPIO_MERIDIAN_DIG_BOARD	0x0040
 
 #define GPIO_CLARO_HP		0x0100
 
@@ -238,6 +248,10 @@ static void generic_init(struct oxygen *chip)
 
 static void meridian_init(struct oxygen *chip)
 {
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
+			  GPIO_MERIDIAN_DIG_MASK);
+	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
+			      GPIO_MERIDIAN_DIG_BOARD, GPIO_MERIDIAN_DIG_MASK);
 	ak4396_init(chip);
 	ak5385_init(chip);
 }
@@ -506,6 +520,51 @@ static const struct snd_kcontrol_new hpf_control = {
 	.put = hpf_put,
 };
 
+static int meridian_dig_source_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
+{
+	static const char *const names[2] = { "On-board", "Extension" };
+
+	return snd_ctl_enum_info(info, 1, 2, names);
+}
+
+static int meridian_dig_source_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+
+	value->value.enumerated.item[0] =
+		!!(oxygen_read16(chip, OXYGEN_GPIO_DATA) &
+		   GPIO_MERIDIAN_DIG_EXT);
+	return 0;
+}
+
+static int meridian_dig_source_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	u16 old_reg, new_reg;
+	int changed;
+
+	mutex_lock(&chip->mutex);
+	old_reg = oxygen_read16(chip, OXYGEN_GPIO_DATA);
+	new_reg = old_reg & ~GPIO_MERIDIAN_DIG_MASK;
+	if (value->value.enumerated.item[0] == 0)
+		new_reg |= GPIO_MERIDIAN_DIG_BOARD;
+	else
+		new_reg |= GPIO_MERIDIAN_DIG_EXT;
+	changed = new_reg != old_reg;
+	if (changed)
+		oxygen_write16(chip, OXYGEN_GPIO_DATA, new_reg);
+	mutex_unlock(&chip->mutex);
+	return changed;
+}
+
+static const struct snd_kcontrol_new meridian_dig_source_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "IEC958 Source Capture Enum",
+	.info = meridian_dig_source_info,
+	.get = meridian_dig_source_get,
+	.put = meridian_dig_source_put,
+};
+
 static int generic_mixer_init(struct oxygen *chip)
 {
 	return snd_ctl_add(chip->card, snd_ctl_new1(&rolloff_control, chip));
@@ -519,6 +578,20 @@ static int generic_wm8785_mixer_init(struct oxygen *chip)
 	if (err < 0)
 		return err;
 	err = snd_ctl_add(chip->card, snd_ctl_new1(&hpf_control, chip));
+	if (err < 0)
+		return err;
+	return 0;
+}
+
+static int meridian_mixer_init(struct oxygen *chip)
+{
+	int err;
+
+	err = generic_mixer_init(chip);
+	if (err < 0)
+		return err;
+	err = snd_ctl_add(chip->card,
+			  snd_ctl_new1(&meridian_dig_source_control, chip));
 	if (err < 0)
 		return err;
 	return 0;
@@ -600,7 +673,7 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 	switch (id->driver_data) {
 	case MODEL_MERIDIAN:
 		chip->model.init = meridian_init;
-		chip->model.mixer_init = generic_mixer_init;
+		chip->model.mixer_init = meridian_mixer_init;
 		chip->model.resume = meridian_resume;
 		chip->model.set_adc_params = set_ak5385_params;
 		chip->model.dump_registers = dump_ak4396_registers;
