@@ -132,7 +132,7 @@ xfs_nfs_get_inode(
 	 * send invalid file handles and we have to handle it gracefully..
 	 */
 	error = xfs_iget(mp, NULL, ino, XFS_IGET_UNTRUSTED,
-			 XFS_ILOCK_SHARED, &ip, 0);
+			 XFS_ILOCK_SHARED, &ip);
 	if (error) {
 		/*
 		 * EINVAL means the inode cluster doesn't exist anymore.

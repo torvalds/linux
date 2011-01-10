@@ -60,7 +60,6 @@ xfs_bulkstat_one_int(
 	void __user		*buffer,	/* buffer to place output in */
 	int			ubsize,		/* size of buffer */
 	bulkstat_one_fmt_pf	formatter,	/* formatter, copy to user */
-	xfs_daddr_t		bno,		/* starting bno of cluster */
 	int			*ubused,	/* bytes used by me */
 	int			*stat)		/* BULKSTAT_RV_... */
 {
@@ -80,7 +79,7 @@ xfs_bulkstat_one_int(
 		return XFS_ERROR(ENOMEM);
 
 	error = xfs_iget(mp, NULL, ino,
-			 XFS_IGET_UNTRUSTED, XFS_ILOCK_SHARED, &ip, bno);
+			 XFS_IGET_UNTRUSTED, XFS_ILOCK_SHARED, &ip);
 	if (error) {
 		*stat = BULKSTAT_RV_NOTHING;
 		goto out_free;
@@ -178,13 +177,11 @@ xfs_bulkstat_one(
 	xfs_ino_t	ino,		/* inode number to get data for */
 	void		__user *buffer,	/* buffer to place output in */
 	int		ubsize,		/* size of buffer */
-	xfs_daddr_t	bno,		/* starting bno of inode cluster */
 	int		*ubused,	/* bytes used by me */
 	int		*stat)		/* BULKSTAT_RV_... */
 {
 	return xfs_bulkstat_one_int(mp, ino, buffer, ubsize,
-				    xfs_bulkstat_one_fmt, bno,
-				    ubused, stat);
+				    xfs_bulkstat_one_fmt, ubused, stat);
 }
 
 #define XFS_BULKSTAT_UBLEFT(ubleft)	((ubleft) >= statstruct_size)
@@ -484,7 +481,7 @@ xfs_bulkstat(
 				 * Get the inode and fill in a single buffer.
 				 */
 				ubused = statstruct_size;
-				error = formatter(mp, ino, ubufp, ubleft, bno,
+				error = formatter(mp, ino, ubufp, ubleft,
 						  &ubused, &fmterror);
 				if (fmterror == BULKSTAT_RV_NOTHING) {
 					if (error && error != ENOENT &&
@@ -577,8 +574,7 @@ xfs_bulkstat_single(
 	 */
 
 	ino = (xfs_ino_t)*lastinop;
-	error = xfs_bulkstat_one(mp, ino, buffer, sizeof(xfs_bstat_t),
-				 0, NULL, &res);
+	error = xfs_bulkstat_one(mp, ino, buffer, sizeof(xfs_bstat_t), 0, &res);
 	if (error) {
 		/*
 		 * Special case way failed, do it the "long" way

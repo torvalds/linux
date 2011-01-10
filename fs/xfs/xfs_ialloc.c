@@ -1360,22 +1360,6 @@ xfs_imap(
 	}
 
 	/*
-	 * If we get a block number passed we can use it to
-	 * find the buffer easily.
-	 */
-	if (imap->im_blkno) {
-		offset = XFS_INO_TO_OFFSET(mp, ino);
-		ASSERT(offset < mp->m_sb.sb_inopblock);
-
-		cluster_agbno = xfs_daddr_to_agbno(mp, imap->im_blkno);
-		offset += (agbno - cluster_agbno) * mp->m_sb.sb_inopblock;
-
-		imap->im_len = XFS_FSB_TO_BB(mp, blks_per_cluster);
-		imap->im_boffset = (ushort)(offset << mp->m_sb.sb_inodelog);
-		return 0;
-	}
-
-	/*
 	 * If the inode chunks are aligned then use simple maths to
 	 * find the location. Otherwise we have to do a btree
 	 * lookup to find the location.
