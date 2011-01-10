@@ -1729,13 +1729,7 @@ static int roland_load_info(struct snd_kcontrol *kcontrol,
 {
 	static const char *const names[] = { "High Load", "Light Load" };
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 2;
-	if (info->value.enumerated.item > 1)
-		info->value.enumerated.item = 1;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 2, names);
 }
 
 static int roland_load_get(struct snd_kcontrol *kcontrol,
