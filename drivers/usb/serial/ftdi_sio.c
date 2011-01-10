@@ -955,7 +955,7 @@ static __u32 ftdi_2232h_baud_base_to_divisor(int baud, int base)
 	int divisor3;
 
 	/* hi-speed baud rate is 10-bit sampling instead of 16-bit */
-	divisor3 = (base / 10 / baud) * 8;
+	divisor3 = base * 8 / (baud * 10);
 
 	divisor = divisor3 >> 3;
 	divisor |= (__u32)divfrac[divisor3 & 0x7] << 14;
