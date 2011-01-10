@@ -1896,7 +1896,7 @@ static int soc_remove(struct platform_device *pdev)
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	int i;
 
-		if (card->instantiated) {
+	if (card->instantiated) {
 
 		/* make sure any delayed work runs */
 		for (i = 0; i < card->num_rtd; i++) {
