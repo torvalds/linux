@@ -415,13 +415,7 @@ static int rolloff_info(struct snd_kcontrol *ctl,
 		"Sharp Roll-off", "Slow Roll-off"
 	};
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 2;
-	if (info->value.enumerated.item >= 2)
-		info->value.enumerated.item = 1;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 2, names);
 }
 
 static int rolloff_get(struct snd_kcontrol *ctl,
@@ -473,13 +467,7 @@ static int hpf_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 		"None", "High-pass Filter"
 	};
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 2;
-	if (info->value.enumerated.item >= 2)
-		info->value.enumerated.item = 1;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 2, names);
 }
 
 static int hpf_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)

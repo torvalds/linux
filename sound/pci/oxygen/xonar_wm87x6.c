@@ -577,11 +577,6 @@ static int wm8776_field_enum_info(struct snd_kcontrol *ctl,
 	const char *const *names;
 
 	max = (ctl->private_value >> 12) & 0xf;
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = max + 1;
-	if (info->value.enumerated.item > max)
-		info->value.enumerated.item = max;
 	switch ((ctl->private_value >> 24) & 0x1f) {
 	case WM8776_ALCCTRL2:
 		names = hld;
@@ -605,8 +600,7 @@ static int wm8776_field_enum_info(struct snd_kcontrol *ctl,
 	default:
 		return -ENXIO;
 	}
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, max + 1, names);
 }
 
 static int wm8776_field_volume_info(struct snd_kcontrol *ctl,
@@ -863,13 +857,8 @@ static int wm8776_level_control_info(struct snd_kcontrol *ctl,
 	static const char *const names[3] = {
 		"None", "Peak Limiter", "Automatic Level Control"
 	};
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 3;
-	if (info->value.enumerated.item >= 3)
-		info->value.enumerated.item = 2;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+
+	return snd_ctl_enum_info(info, 1, 3, names);
 }
 
 static int wm8776_level_control_get(struct snd_kcontrol *ctl,
@@ -955,13 +944,7 @@ static int hpf_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 		"None", "High-pass Filter"
 	};
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 2;
-	if (info->value.enumerated.item >= 2)
-		info->value.enumerated.item = 1;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 2, names);
 }
 
 static int hpf_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)

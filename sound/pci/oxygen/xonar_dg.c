@@ -213,13 +213,7 @@ static int output_switch_info(struct snd_kcontrol *ctl,
 		"Speakers", "Headphones", "FP Headphones"
 	};
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 3;
-	if (info->value.enumerated.item >= 3)
-		info->value.enumerated.item = 2;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 3, names);
 }
 
 static int output_switch_get(struct snd_kcontrol *ctl,
@@ -276,13 +270,7 @@ static int hp_volume_offset_info(struct snd_kcontrol *ctl,
 		"< 64 ohms", "64-150 ohms", "150-300 ohms"
 	};
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 3;
-	if (info->value.enumerated.item >= 3)
-		info->value.enumerated.item = 2;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 3, names);
 }
 
 static int hp_volume_offset_get(struct snd_kcontrol *ctl,
@@ -390,12 +378,7 @@ static int input_sel_info(struct snd_kcontrol *ctl,
 		"Mic", "Aux", "Front Mic", "Line"
 	};
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 4;
-	info->value.enumerated.item &= 3;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 4, names);
 }
 
 static int input_sel_get(struct snd_kcontrol *ctl,
@@ -453,12 +436,7 @@ static int hpf_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 {
 	static const char *const names[2] = { "Active", "Frozen" };
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 2;
-	info->value.enumerated.item &= 1;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 2, names);
 }
 
 static int hpf_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)

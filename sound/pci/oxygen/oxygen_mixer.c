@@ -119,13 +119,7 @@ static int upmix_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 	struct oxygen *chip = ctl->private_data;
 	unsigned int count = upmix_item_count(chip);
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = count;
-	if (info->value.enumerated.item >= count)
-		info->value.enumerated.item = count - 1;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, count, names);
 }
 
 static int upmix_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
@@ -659,12 +653,7 @@ static int mic_fmic_source_info(struct snd_kcontrol *ctl,
 {
 	static const char *const names[] = { "Mic Jack", "Front Panel" };
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 2;
-	info->value.enumerated.item &= 1;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 2, names);
 }
 
 static int mic_fmic_source_get(struct snd_kcontrol *ctl,

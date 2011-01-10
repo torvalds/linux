@@ -678,13 +678,7 @@ static int rolloff_info(struct snd_kcontrol *ctl,
 		"Sharp Roll-off", "Slow Roll-off"
 	};
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 2;
-	if (info->value.enumerated.item >= 2)
-		info->value.enumerated.item = 1;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 2, names);
 }
 
 static int rolloff_get(struct snd_kcontrol *ctl,
@@ -748,13 +742,7 @@ static int st_output_switch_info(struct snd_kcontrol *ctl,
 		"Speakers", "Headphones", "FP Headphones"
 	};
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 3;
-	if (info->value.enumerated.item >= 3)
-		info->value.enumerated.item = 2;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 3, names);
 }
 
 static int st_output_switch_get(struct snd_kcontrol *ctl,
@@ -809,13 +797,7 @@ static int st_hp_volume_offset_info(struct snd_kcontrol *ctl,
 		"< 64 ohms", "64-300 ohms", "300-600 ohms"
 	};
 
-	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	info->count = 1;
-	info->value.enumerated.items = 3;
-	if (info->value.enumerated.item > 2)
-		info->value.enumerated.item = 2;
-	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(info, 1, 3, names);
 }
 
 static int st_hp_volume_offset_get(struct snd_kcontrol *ctl,
