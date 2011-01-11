@@ -385,22 +385,22 @@ struct lp8550_eeprom_data stingray_lp8550_eeprom_data[] = {
 	/* Set the backlight current to 19mA each step is .12mA */
 	{0xa1},
 	/* Boost freq 312khz, PWM controled w/constant current,
-	thermal deration disabled, no brightness slope */
-	{0x60},
-	/* Adaptive mode for light loads, No advanced slope, 50% mode selected,
+	thermal deration disabled, brightness slope 500mS */
+	{0x67},
+	/* Adaptive mode for light loads, advanced slope enabled, 50% mode selected,
 	Adaptive mode enabled, Boost is enabled, Boost Imax is 2.5A */
-	{0x9f},
+	{0xbf},
 	/* UVLO is disabled, phase shift PWM enabled, PWM Freq 19232 */
 	{0x3f},
 	/* LED current resistor disabled, LED Fault = 3.3V */
 	{0x08},
-	/* Vsync is enabled, Dither disabled, Boost voltage 20V */
-	{0x8a},
+	/* Vsync is enabled, Dither enabled, Boost voltage 20V */
+	{0xea},
 	/* PLL 13-bit counter */
 	{0x64},
-	/* 1-bit hysteresis w/11 bit resolution, PWM output freq is set with
+	/* 1-bit hysteresis w/10 bit resolution, PWM output freq is set with
 	PWM_FREQ EEPROM bits */
-	{0x29},
+	{0x2a},
 };
 
 struct lp8550_platform_data stingray_lp8550_backlight_data = {
