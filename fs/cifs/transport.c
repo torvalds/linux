@@ -363,28 +363,29 @@ sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 {
 	int rc = 0;
 
-	spin_lock(&GlobalMid_Lock);
+	cFYI(1, "%s: cmd=%d mid=%d state=%d", __func__, mid->command,
+		mid->mid, mid->midState);
 
-	if (mid->resp_buf) {
+	spin_lock(&GlobalMid_Lock);
+	switch (mid->midState) {
+	case MID_RESPONSE_RECEIVED:
 		spin_unlock(&GlobalMid_Lock);
 		return rc;
-	}
-
-	cERROR(1, "No response to cmd %d mid %d", mid->command, mid->mid);
-	if (mid->midState == MID_REQUEST_SUBMITTED) {
-		if (server->tcpStatus == CifsExiting)
+	case MID_REQUEST_SUBMITTED:
+		/* socket is going down, reject all calls */
+		if (server->tcpStatus == CifsExiting) {
+			cERROR(1, "%s: canceling mid=%d cmd=0x%x state=%d",
+			       __func__, mid->mid, mid->command, mid->midState);
 			rc = -EHOSTDOWN;
-		else
-			mid->midState = MID_RETRY_NEEDED;
-	}
-
-	if (rc != -EHOSTDOWN) {
-		if (mid->midState == MID_RETRY_NEEDED) {
-			rc = -EAGAIN;
-			cFYI(1, "marking request for retry");
-		} else {
-			rc = -EIO;
+			break;
 		}
+	case MID_RETRY_NEEDED:
+		rc = -EAGAIN;
+		break;
+	default:
+		cERROR(1, "%s: invalid mid state mid=%d state=%d", __func__,
+			mid->mid, mid->midState);
+		rc = -EIO;
 	}
 	spin_unlock(&GlobalMid_Lock);
 
