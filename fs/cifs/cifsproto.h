@@ -63,6 +63,7 @@ extern char *cifs_compose_mount_options(const char *sb_mountdata,
 /* extern void renew_parental_timestamps(struct dentry *direntry);*/
 extern struct mid_q_entry *AllocMidQEntry(const struct smb_hdr *smb_buffer,
 					struct TCP_Server_Info *server);
+extern void DeleteMidQEntry(struct mid_q_entry *midEntry);
 extern int cifs_call_async(struct TCP_Server_Info *server,
 			   struct smb_hdr *in_buf, mid_callback_t *callback,
 			   void *cbdata);
@@ -358,6 +359,7 @@ extern int CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 			const __u64 len, struct file_lock *,
 			const __u16 lock_type, const bool waitFlag);
 extern int CIFSSMBTDis(const int xid, struct cifsTconInfo *tcon);
+extern int CIFSSMBEcho(struct TCP_Server_Info *server);
 extern int CIFSSMBLogoff(const int xid, struct cifsSesInfo *ses);
 
 extern struct cifsSesInfo *sesInfoAlloc(void);

@@ -50,6 +50,7 @@
 #define SMB_COM_SETATTR               0x09 /* trivial response */
 #define SMB_COM_LOCKING_ANDX          0x24 /* trivial response */
 #define SMB_COM_COPY                  0x29 /* trivial rsp, fail filename ignrd*/
+#define SMB_COM_ECHO                  0x2B /* echo request */
 #define SMB_COM_OPEN_ANDX             0x2D /* Legacy open for old servers */
 #define SMB_COM_READ_ANDX             0x2E
 #define SMB_COM_WRITE_ANDX            0x2F
@@ -759,6 +760,20 @@ typedef struct smb_com_tconx_rsp_ext {
  * ?????    ie any type
  *
  */
+
+typedef struct smb_com_echo_req {
+	struct	smb_hdr hdr;
+	__le16	EchoCount;
+	__le16	ByteCount;
+	char	Data[1];
+} __attribute__((packed)) ECHO_REQ;
+
+typedef struct smb_com_echo_rsp {
+	struct	smb_hdr hdr;
+	__le16	SequenceNumber;
+	__le16	ByteCount;
+	char	Data[1];
+} __attribute__((packed)) ECHO_RSP;
 
 typedef struct smb_com_logoff_andx_req {
 	struct smb_hdr hdr;	/* wct = 2 */
