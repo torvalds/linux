@@ -653,6 +653,7 @@ static void bfin_spi_pump_transfers(unsigned long data)
 		message->state = bfin_spi_next_transfer(drv_data);
 		/* Schedule next transfer tasklet */
 		tasklet_schedule(&drv_data->pump_transfers);
+		return;
 	}
 
 	if (transfer->tx_buf != NULL) {
