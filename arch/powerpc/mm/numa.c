@@ -1296,7 +1296,6 @@ static u8 vphn_cpu_change_counts[NR_CPUS][VPHN_NR_CHANGE_CTRS];
 static cpumask_t cpu_associativity_changes_mask;
 static int vphn_enabled;
 static void set_topology_timer(void);
-int stop_topology_update(void);
 
 /*
  * Store the current values of the associativity change counters in the

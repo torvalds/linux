@@ -93,19 +93,6 @@ extern void __init dump_numa_cpu_topology(void);
 extern int sysfs_add_device_to_node(struct sys_device *dev, int nid);
 extern void sysfs_remove_device_from_node(struct sys_device *dev, int nid);
 
-#ifdef CONFIG_PPC_SPLPAR
-extern int start_topology_update(void);
-extern int stop_topology_update(void);
-#else
-static inline int start_topology_update(void)
-{
-	return 0;
-}
-static inline int stop_topology_update(void)
-{
-	return 0;
-}
-#endif /* CONFIG_PPC_SPLPAR */
 #else
 
 static inline void dump_numa_cpu_topology(void) {}
@@ -120,6 +107,20 @@ static inline void sysfs_remove_device_from_node(struct sys_device *dev,
 {
 }
 #endif /* CONFIG_NUMA */
+
+#if defined(CONFIG_NUMA) && defined(CONFIG_PPC_SPLPAR)
+extern int start_topology_update(void);
+extern int stop_topology_update(void);
+#else
+static inline int start_topology_update(void)
+{
+	return 0;
+}
+static inline int stop_topology_update(void)
+{
+	return 0;
+}
+#endif /* CONFIG_NUMA && CONFIG_PPC_SPLPAR */
 
 #include <asm-generic/topology.h>
 
