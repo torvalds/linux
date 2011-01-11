@@ -21,6 +21,7 @@
 #include "perf.h"
 
 #include "util/color.h"
+#include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/session.h"
 #include "util/symbol.h"
@@ -59,6 +60,8 @@
 #include <linux/types.h>
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
+
+struct perf_evlist		*evsel_list;
 
 static bool			system_wide			=  false;
 
@@ -267,7 +270,7 @@ static void __zero_source_counters(struct sym_entry *syme)
 
 	line = syme->src->lines;
 	while (line) {
-		for (i = 0; i < nr_counters; i++)
+		for (i = 0; i < evsel_list->nr_entries; i++)
 			line->count[i] = 0;
 		line = line->next;
 	}
@@ -414,7 +417,7 @@ static double sym_weight(const struct sym_entry *sym)
 	if (!display_weighted)
 		return weight;
 
-	for (counter = 1; counter < nr_counters-1; counter++)
+	for (counter = 1; counter < evsel_list->nr_entries - 1; counter++)
 		weight *= sym->count[counter];
 
 	weight /= (sym->count[counter] + 1);
@@ -501,7 +504,7 @@ static void print_sym_table(void)
 			rb_insert_active_sym(&tmp, syme);
 			sum_ksamples += syme->snap_count;
 
-			for (j = 0; j < nr_counters; j++)
+			for (j = 0; j < evsel_list->nr_entries; j++)
 				syme->count[j] = zero ? 0 : syme->count[j] * 7 / 8;
 		} else
 			list_remove_active_sym(syme);
@@ -535,9 +538,9 @@ static void print_sym_table(void)
 			esamples_percent);
 	}
 
-	if (nr_counters == 1 || !display_weighted) {
+	if (evsel_list->nr_entries == 1 || !display_weighted) {
 		struct perf_evsel *first;
-		first = list_entry(evsel_list.next, struct perf_evsel, node);
+		first = list_entry(evsel_list->entries.next, struct perf_evsel, node);
 		printf("%" PRIu64, (uint64_t)first->attr.sample_period);
 		if (freq)
 			printf("Hz ");
@@ -547,7 +550,7 @@ static void print_sym_table(void)
 
 	if (!display_weighted)
 		printf("%s", event_name(sym_evsel));
-	else list_for_each_entry(counter, &evsel_list, node) {
+	else list_for_each_entry(counter, &evsel_list->entries, node) {
 		if (counter->idx)
 			printf("/");
 
@@ -606,7 +609,7 @@ static void print_sym_table(void)
 			sym_width = winsize.ws_col - dso_width - 29;
 	}
 	putchar('\n');
-	if (nr_counters == 1)
+	if (evsel_list->nr_entries == 1)
 		printf("             samples  pcnt");
 	else
 		printf("   weight    samples  pcnt");
@@ -615,7 +618,7 @@ static void print_sym_table(void)
 		printf("         RIP       ");
 	printf(" %-*.*s DSO\n", sym_width, sym_width, "function");
 	printf("   %s    _______ _____",
-	       nr_counters == 1 ? "      " : "______");
+	       evsel_list->nr_entries == 1 ? "      " : "______");
 	if (verbose)
 		printf(" ________________");
 	printf(" %-*.*s", sym_width, sym_width, graph_line);
@@ -634,7 +637,7 @@ static void print_sym_table(void)
 		pcnt = 100.0 - (100.0 * ((sum_ksamples - syme->snap_count) /
 					 sum_ksamples));
 
-		if (nr_counters == 1 || !display_weighted)
+		if (evsel_list->nr_entries == 1 || !display_weighted)
 			printf("%20.2f ", syme->weight);
 		else
 			printf("%9.1f %10ld ", syme->weight, syme->snap_count);
@@ -744,7 +747,7 @@ static void print_mapped_keys(void)
 	fprintf(stdout, "\t[d]     display refresh delay.             \t(%d)\n", delay_secs);
 	fprintf(stdout, "\t[e]     display entries (lines).           \t(%d)\n", print_entries);
 
-	if (nr_counters > 1)
+	if (evsel_list->nr_entries > 1)
 		fprintf(stdout, "\t[E]     active event counter.              \t(%s)\n", event_name(sym_evsel));
 
 	fprintf(stdout, "\t[f]     profile display filter (count).    \t(%d)\n", count_filter);
@@ -753,7 +756,7 @@ static void print_mapped_keys(void)
 	fprintf(stdout, "\t[s]     annotate symbol.                   \t(%s)\n", name?: "NULL");
 	fprintf(stdout, "\t[S]     stop annotation.\n");
 
-	if (nr_counters > 1)
+	if (evsel_list->nr_entries > 1)
 		fprintf(stdout, "\t[w]     toggle display weighted/count[E]r. \t(%d)\n", display_weighted ? 1 : 0);
 
 	fprintf(stdout,
@@ -783,7 +786,7 @@ static int key_mapped(int c)
 			return 1;
 		case 'E':
 		case 'w':
-			return nr_counters > 1 ? 1 : 0;
+			return evsel_list->nr_entries > 1 ? 1 : 0;
 		default:
 			break;
 	}
@@ -831,22 +834,22 @@ static void handle_keypress(struct perf_session *session, int c)
 				signal(SIGWINCH, SIG_DFL);
 			break;
 		case 'E':
-			if (nr_counters > 1) {
+			if (evsel_list->nr_entries > 1) {
 				fprintf(stderr, "\nAvailable events:");
 
-				list_for_each_entry(sym_evsel, &evsel_list, node)
+				list_for_each_entry(sym_evsel, &evsel_list->entries, node)
 					fprintf(stderr, "\n\t%d %s", sym_evsel->idx, event_name(sym_evsel));
 
 				prompt_integer(&sym_counter, "Enter details event counter");
 
-				if (sym_counter >= nr_counters) {
-					sym_evsel = list_entry(evsel_list.next, struct perf_evsel, node);
+				if (sym_counter >= evsel_list->nr_entries) {
+					sym_evsel = list_entry(evsel_list->entries.next, struct perf_evsel, node);
 					sym_counter = 0;
 					fprintf(stderr, "Sorry, no such event, using %s.\n", event_name(sym_evsel));
 					sleep(1);
 					break;
 				}
-				list_for_each_entry(sym_evsel, &evsel_list, node)
+				list_for_each_entry(sym_evsel, &evsel_list->entries, node)
 					if (sym_evsel->idx == sym_counter)
 						break;
 			} else sym_counter = 0;
@@ -1198,7 +1201,7 @@ static void perf_session__mmap_read(struct perf_session *self)
 	int i, thread_index;
 
 	for (i = 0; i < cpus->nr; i++) {
-		list_for_each_entry(counter, &evsel_list, node) {
+		list_for_each_entry(counter, &evsel_list->entries, node) {
 			for (thread_index = 0;
 				thread_index < threads->nr;
 				thread_index++) {
@@ -1312,7 +1315,7 @@ static int __cmd_top(void)
 
 	for (i = 0; i < cpus->nr; i++) {
 		group_fd = -1;
-		list_for_each_entry(counter, &evsel_list, node)
+		list_for_each_entry(counter, &evsel_list->entries, node)
 			start_counter(i, counter);
 	}
 
@@ -1354,7 +1357,7 @@ static const char * const top_usage[] = {
 };
 
 static const struct option options[] = {
-	OPT_CALLBACK('e', "event", NULL, "event",
+	OPT_CALLBACK('e', "event", &evsel_list, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events),
 	OPT_INTEGER('c', "count", &default_interval,
@@ -1404,6 +1407,10 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	struct perf_evsel *pos;
 	int status = -ENOMEM;
 
+	evsel_list = perf_evlist__new();
+	if (evsel_list == NULL)
+		return -ENOMEM;
+
 	page_size = sysconf(_SC_PAGE_SIZE);
 
 	argc = parse_options(argc, argv, options, top_usage, 0);
@@ -1431,7 +1438,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		cpu_list = NULL;
 	}
 
-	if (!nr_counters && perf_evsel_list__create_default() < 0) {
+	if (!evsel_list->nr_entries &&
+	    perf_evlist__add_default(evsel_list) < 0) {
 		pr_err("Not enough memory for event selector list\n");
 		return -ENOMEM;
 	}
@@ -1459,7 +1467,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	if (cpus == NULL)
 		usage_with_options(top_usage, options);
 
-	list_for_each_entry(pos, &evsel_list, node) {
+	list_for_each_entry(pos, &evsel_list->entries, node) {
 		if (perf_evsel__alloc_mmap_per_thread(pos, cpus->nr, threads->nr) < 0 ||
 		    perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
 			goto out_free_fd;
@@ -1472,10 +1480,10 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		pos->attr.sample_period = default_interval;
 	}
 
-	sym_evsel = list_entry(evsel_list.next, struct perf_evsel, node);
+	sym_evsel = list_entry(evsel_list->entries.next, struct perf_evsel, node);
 
 	symbol_conf.priv_size = (sizeof(struct sym_entry) +
-				 (nr_counters + 1) * sizeof(unsigned long));
+				 (evsel_list->nr_entries + 1) * sizeof(unsigned long));
 
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 	if (symbol__init() < 0)
@@ -1489,9 +1497,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	status = __cmd_top();
 out_free_fd:
-	list_for_each_entry(pos, &evsel_list, node)
+	list_for_each_entry(pos, &evsel_list->entries, node)
 		perf_evsel__free_mmap(pos);
-	perf_evsel_list__delete();
+	perf_evlist__delete(evsel_list);
 
 	return status;
 }

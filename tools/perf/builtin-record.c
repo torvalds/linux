@@ -18,6 +18,7 @@
 
 #include "util/header.h"
 #include "util/event.h"
+#include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/debug.h"
 #include "util/session.h"
@@ -66,6 +67,7 @@ static bool			sample_address			=  false;
 static bool			sample_time			=  false;
 static bool			no_buildid			=  false;
 static bool			no_buildid_cache		=  false;
+static struct perf_evlist	*evsel_list;
 
 static long			samples				=      0;
 static u64			bytes_written			=      0;
@@ -229,7 +231,8 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 	return h_attr;
 }
 
-static void create_counter(struct perf_evsel *evsel, int cpu)
+static void create_counter(struct perf_evlist *evlist,
+			   struct perf_evsel *evsel, int cpu)
 {
 	char *filter = evsel->filter;
 	struct perf_event_attr *attr = &evsel->attr;
@@ -263,7 +266,7 @@ static void create_counter(struct perf_evsel *evsel, int cpu)
 
 	attr->sample_type	|= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
 
-	if (nr_counters > 1)
+	if (evlist->nr_entries > 1)
 		attr->sample_type |= PERF_SAMPLE_ID;
 
 	/*
@@ -410,7 +413,7 @@ try_again:
 
 		if (evsel->idx || thread_index) {
 			struct perf_evsel *first;
-			first = list_entry(evsel_list.next, struct perf_evsel, node);
+			first = list_entry(evlist->entries.next, struct perf_evsel, node);
 			ret = ioctl(FD(evsel, nr_cpu, thread_index),
 				    PERF_EVENT_IOC_SET_OUTPUT,
 				    FD(first, nr_cpu, 0));
@@ -449,14 +452,14 @@ try_again:
 		sample_type = attr->sample_type;
 }
 
-static void open_counters(int cpu)
+static void open_counters(struct perf_evlist *evlist, int cpu)
 {
 	struct perf_evsel *pos;
 
 	group_fd = -1;
 
-	list_for_each_entry(pos, &evsel_list, node)
-		create_counter(pos, cpu);
+	list_for_each_entry(pos, &evlist->entries, node)
+		create_counter(evlist, pos, cpu);
 
 	nr_cpu++;
 }
@@ -481,9 +484,9 @@ static void atexit_header(void)
 
 		if (!no_buildid)
 			process_buildids();
-		perf_header__write(&session->header, output, true);
+		perf_header__write(&session->header, evsel_list, output, true);
 		perf_session__delete(session);
-		perf_evsel_list__delete();
+		perf_evlist__delete(evsel_list);
 		symbol__exit();
 	}
 }
@@ -611,7 +614,7 @@ static int __cmd_record(int argc, const char **argv)
 			goto out_delete_session;
 	}
 
-	if (have_tracepoints(&evsel_list))
+	if (have_tracepoints(&evsel_list->entries))
 		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
 
 	/*
@@ -674,10 +677,10 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	if (!system_wide && no_inherit && !cpu_list) {
-		open_counters(-1);
+		open_counters(evsel_list, -1);
 	} else {
 		for (i = 0; i < cpus->nr; i++)
-			open_counters(cpus->map[i]);
+			open_counters(evsel_list, cpus->map[i]);
 	}
 
 	perf_session__set_sample_type(session, sample_type);
@@ -687,7 +690,8 @@ static int __cmd_record(int argc, const char **argv)
 		if (err < 0)
 			return err;
 	} else if (file_new) {
-		err = perf_header__write(&session->header, output, false);
+		err = perf_header__write(&session->header, evsel_list,
+					 output, false);
 		if (err < 0)
 			return err;
 	}
@@ -712,7 +716,7 @@ static int __cmd_record(int argc, const char **argv)
 			return err;
 		}
 
-		if (have_tracepoints(&evsel_list)) {
+		if (have_tracepoints(&evsel_list->entries)) {
 			/*
 			 * FIXME err <= 0 here actually means that
 			 * there were no tracepoints so its not really
@@ -721,7 +725,7 @@ static int __cmd_record(int argc, const char **argv)
 			 * return this more properly and also
 			 * propagate errors that now are calling die()
 			 */
-			err = event__synthesize_tracing_data(output, &evsel_list,
+			err = event__synthesize_tracing_data(output, evsel_list,
 							     process_synthesized_event,
 							     session);
 			if (err <= 0) {
@@ -797,7 +801,7 @@ static int __cmd_record(int argc, const char **argv)
 			for (i = 0; i < nr_cpu; i++) {
 				struct perf_evsel *pos;
 
-				list_for_each_entry(pos, &evsel_list, node) {
+				list_for_each_entry(pos, &evsel_list->entries, node) {
 					for (thread = 0;
 						thread < threads->nr;
 						thread++)
@@ -838,10 +842,10 @@ static const char * const record_usage[] = {
 static bool force, append_file;
 
 const struct option record_options[] = {
-	OPT_CALLBACK('e', "event", NULL, "event",
+	OPT_CALLBACK('e', "event", &evsel_list, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events),
-	OPT_CALLBACK(0, "filter", NULL, "filter",
+	OPT_CALLBACK(0, "filter", &evsel_list, "filter",
 		     "event filter", parse_filter),
 	OPT_INTEGER('p', "pid", &target_pid,
 		    "record events on existing process id"),
@@ -892,6 +896,10 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	int err = -ENOMEM;
 	struct perf_evsel *pos;
 
+	evsel_list = perf_evlist__new();
+	if (evsel_list == NULL)
+		return -ENOMEM;
+
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc && target_pid == -1 && target_tid == -1 &&
@@ -913,7 +921,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	if (no_buildid_cache || no_buildid)
 		disable_buildid_cache();
 
-	if (list_empty(&evsel_list) && perf_evsel_list__create_default() < 0) {
+	if (evsel_list->nr_entries == 0 &&
+	    perf_evlist__add_default(evsel_list) < 0) {
 		pr_err("Not enough memory for event selector list\n");
 		goto out_symbol_exit;
 	}
@@ -933,7 +942,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		return -1;
 	}
 
-	list_for_each_entry(pos, &evsel_list, node) {
+	list_for_each_entry(pos, &evsel_list->entries, node) {
 		if (perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
 			goto out_free_fd;
 		if (perf_header__push_event(pos->attr.config, event_name(pos)))

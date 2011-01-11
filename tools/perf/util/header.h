@@ -65,8 +65,11 @@ struct perf_header {
 int perf_header__init(struct perf_header *self);
 void perf_header__exit(struct perf_header *self);
 
+struct perf_evlist;
+
 int perf_header__read(struct perf_session *session, int fd);
-int perf_header__write(struct perf_header *self, int fd, bool at_exit);
+int perf_header__write(struct perf_header *self, struct perf_evlist *evlist,
+		       int fd, bool at_exit);
 int perf_header__write_pipe(int fd);
 
 int perf_header__add_attr(struct perf_header *self,
@@ -113,7 +116,7 @@ int event__synthesize_event_types(event__handler_t process,
 int event__process_event_type(event_t *self,
 			      struct perf_session *session);
 
-int event__synthesize_tracing_data(int fd, struct list_head *pattrs,
+int event__synthesize_tracing_data(int fd, struct perf_evlist *evlist,
 				   event__handler_t process,
 				   struct perf_session *session);
 int event__process_tracing_data(event_t *self,

@@ -8,6 +8,7 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 
+#include "evlist.h"
 #include "util.h"
 #include "header.h"
 #include "../perf.h"
@@ -428,7 +429,8 @@ static bool perf_session__read_build_ids(struct perf_session *self, bool with_hi
 	return ret;
 }
 
-static int perf_header__adds_write(struct perf_header *self, int fd)
+static int perf_header__adds_write(struct perf_header *self,
+				   struct perf_evlist *evlist, int fd)
 {
 	int nr_sections;
 	struct perf_session *session;
@@ -463,7 +465,7 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 
 		/* Write trace info */
 		trace_sec->offset = lseek(fd, 0, SEEK_CUR);
-		read_tracing_data(fd, &evsel_list);
+		read_tracing_data(fd, &evlist->entries);
 		trace_sec->size = lseek(fd, 0, SEEK_CUR) - trace_sec->offset;
 	}
 
@@ -513,7 +515,8 @@ int perf_header__write_pipe(int fd)
 	return 0;
 }
 
-int perf_header__write(struct perf_header *self, int fd, bool at_exit)
+int perf_header__write(struct perf_header *self, struct perf_evlist *evlist,
+		       int fd, bool at_exit)
 {
 	struct perf_file_header f_header;
 	struct perf_file_attr   f_attr;
@@ -566,7 +569,7 @@ int perf_header__write(struct perf_header *self, int fd, bool at_exit)
 	self->data_offset = lseek(fd, 0, SEEK_CUR);
 
 	if (at_exit) {
-		err = perf_header__adds_write(self, fd);
+		err = perf_header__adds_write(self, evlist, fd);
 		if (err < 0)
 			return err;
 	}
@@ -1133,7 +1136,7 @@ int event__process_event_type(event_t *self,
 	return 0;
 }
 
-int event__synthesize_tracing_data(int fd, struct list_head *pattrs,
+int event__synthesize_tracing_data(int fd, struct perf_evlist *evlist,
 				   event__handler_t process,
 				   struct perf_session *session __unused)
 {
@@ -1144,7 +1147,7 @@ int event__synthesize_tracing_data(int fd, struct list_head *pattrs,
 	memset(&ev, 0, sizeof(ev));
 
 	ev.tracing_data.header.type = PERF_RECORD_HEADER_TRACING_DATA;
-	size = read_tracing_data_size(fd, pattrs);
+	size = read_tracing_data_size(fd, &evlist->entries);
 	if (size <= 0)
 		return size;
 	aligned_size = ALIGN(size, sizeof(u64));
@@ -1154,7 +1157,7 @@ int event__synthesize_tracing_data(int fd, struct list_head *pattrs,
 
 	process(&ev, NULL, session);
 
-	err = read_tracing_data(fd, pattrs);
+	err = read_tracing_data(fd, &evlist->entries);
 	write_padded(fd, NULL, 0, padding);
 
 	return aligned_size;

@@ -9,11 +9,6 @@
 struct list_head;
 struct perf_evsel;
 
-extern struct list_head evsel_list;
-
-int perf_evsel_list__create_default(void);
-void perf_evsel_list__delete(void);
-
 struct option;
 
 struct tracepoint_path {
@@ -24,8 +19,6 @@ struct tracepoint_path {
 
 extern struct tracepoint_path *tracepoint_id_to_path(u64 config);
 extern bool have_tracepoints(struct list_head *evlist);
-
-extern int			nr_counters;
 
 const char *event_name(struct perf_evsel *event);
 extern const char *__event_name(int type, u64 config);
