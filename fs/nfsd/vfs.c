@@ -1,4 +1,3 @@
-#define MSNFS	/* HACK HACK */
 /*
  * File operations used by nfsd. Some of these have been ripped from
  * other parts of the kernel because they weren't exported, others
@@ -875,15 +874,6 @@ static int nfsd_direct_splice_actor(struct pipe_inode_info *pipe,
 	return __splice_from_pipe(pipe, sd, nfsd_splice_actor);
 }
 
-static inline int svc_msnfs(struct svc_fh *ffhp)
-{
-#ifdef MSNFS
-	return (ffhp->fh_export->ex_flags & NFSEXP_MSNFS);
-#else
-	return 0;
-#endif
-}
-
 static __be32
 nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
               loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
@@ -895,9 +885,6 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 
 	err = nfserr_perm;
 	inode = file->f_path.dentry->d_inode;
-
-	if (svc_msnfs(fhp) && !lock_may_read(inode, offset, *count))
-		goto out;
 
 	if (file->f_op->splice_read && rqstp->rq_splice_ok) {
 		struct splice_desc sd = {
@@ -923,7 +910,6 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		fsnotify_access(file);
 	} else 
 		err = nfserrno(host_err);
-out:
 	return err;
 }
 
@@ -988,14 +974,6 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	int			stable = *stablep;
 	int			use_wgather;
 
-#ifdef MSNFS
-	err = nfserr_perm;
-
-	if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
-		(!lock_may_write(file->f_path.dentry->d_inode, offset, *cnt)))
-		goto out;
-#endif
-
 	dentry = file->f_path.dentry;
 	inode = dentry->d_inode;
 	exp   = fhp->fh_export;
@@ -1046,7 +1024,6 @@ out_nfserr:
 		err = 0;
 	else
 		err = nfserrno(host_err);
-out:
 	return err;
 }
 
@@ -1751,13 +1728,6 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	if (ndentry == trap)
 		goto out_dput_new;
 
-	if (svc_msnfs(ffhp) &&
-		((atomic_read(&odentry->d_count) > 1)
-		 || (atomic_read(&ndentry->d_count) > 1))) {
-			host_err = -EPERM;
-			goto out_dput_new;
-	}
-
 	host_err = -EXDEV;
 	if (ffhp->fh_export->ex_path.mnt != tfhp->fh_export->ex_path.mnt)
 		goto out_dput_new;
@@ -1836,17 +1806,10 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 	if (host_err)
 		goto out_nfserr;
 
-	if (type != S_IFDIR) { /* It's UNLINK */
-#ifdef MSNFS
-		if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
-			(atomic_read(&rdentry->d_count) > 1)) {
-			host_err = -EPERM;
-		} else
-#endif
+	if (type != S_IFDIR)
 		host_err = vfs_unlink(dirp, rdentry);
-	} else { /* It's RMDIR */
+	else
 		host_err = vfs_rmdir(dirp, rdentry);
-	}
 
 	dput(rdentry);
 
