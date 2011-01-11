@@ -205,6 +205,12 @@ config TEGRA_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called tegra_wdt.
 
+config TEGRA_WATCHDOG_ENABLE_ON_PROBE
+	tristate "Tegra watchdog"
+	depends on ARCH_TEGRA && TEGRA_WATCHDOG
+	help
+	  Say Y here to enable the tegra watchdog at driver
+	  probe time, rather than when the device is opened.
 
 config EP93XX_WATCHDOG
 	tristate "EP93xx Watchdog"
