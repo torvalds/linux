@@ -61,10 +61,10 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 		temp->tsk = current;
 	}
 
-	spin_lock(&GlobalMid_Lock);
-	list_add_tail(&temp->qhead, &server->pending_mid_q);
 	atomic_inc(&midCount);
 	temp->midState = MID_REQUEST_ALLOCATED;
+	spin_lock(&GlobalMid_Lock);
+	list_add_tail(&temp->qhead, &server->pending_mid_q);
 	spin_unlock(&GlobalMid_Lock);
 	return temp;
 }
@@ -78,8 +78,8 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 	spin_lock(&GlobalMid_Lock);
 	midEntry->midState = MID_FREE;
 	list_del(&midEntry->qhead);
-	atomic_dec(&midCount);
 	spin_unlock(&GlobalMid_Lock);
+	atomic_dec(&midCount);
 	if (midEntry->largeBuf)
 		cifs_buf_release(midEntry->resp_buf);
 	else

@@ -628,7 +628,7 @@ multi_t2_fnd:
 		} else if (!is_valid_oplock_break(smb_buffer, server) &&
 			   !isMultiRsp) {
 			cERROR(1, "No task to wake, unknown frame received! "
-				   "NumMids %d", midCount.counter);
+				   "NumMids %d", atomic_read(&midCount));
 			cifs_dump_mem("Received Data is: ", (char *)smb_buffer,
 				      sizeof(struct smb_hdr));
 #ifdef CONFIG_CIFS_DEBUG2
