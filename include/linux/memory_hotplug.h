@@ -161,6 +161,12 @@ extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
 extern void put_page_bootmem(struct page *page);
 #endif
 
+/*
+ * Lock for memory hotplug guarantees 1) all callbacks for memory hotplug
+ * notifier will be called under this. 2) offline/online/add/remove memory
+ * will not run simultaneously.
+ */
+
 void lock_memory_hotplug(void);
 void unlock_memory_hotplug(void);
 

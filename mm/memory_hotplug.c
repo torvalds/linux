@@ -407,6 +407,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	int ret;
 	struct memory_notify arg;
 
+	lock_memory_hotplug();
 	arg.start_pfn = pfn;
 	arg.nr_pages = nr_pages;
 	arg.status_change_nid = -1;
@@ -419,6 +420,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	ret = notifier_to_errno(ret);
 	if (ret) {
 		memory_notify(MEM_CANCEL_ONLINE, &arg);
+		unlock_memory_hotplug();
 		return ret;
 	}
 	/*
@@ -443,6 +445,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 		printk(KERN_DEBUG "online_pages %lx at %lx failed\n",
 			nr_pages, pfn);
 		memory_notify(MEM_CANCEL_ONLINE, &arg);
+		unlock_memory_hotplug();
 		return ret;
 	}
 
@@ -467,6 +470,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 
 	if (onlined_pages)
 		memory_notify(MEM_ONLINE, &arg);
+	unlock_memory_hotplug();
 
 	return 0;
 }
