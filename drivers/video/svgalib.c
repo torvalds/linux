@@ -93,26 +93,26 @@ void svga_set_default_gfx_regs(void __iomem *regbase)
 }
 
 /* Set attribute controller registers to sane values */
-void svga_set_default_atc_regs(void)
+void svga_set_default_atc_regs(void __iomem *regbase)
 {
 	u8 count;
 
-	vga_r(NULL, 0x3DA);
-	vga_w(NULL, VGA_ATT_W, 0x00);
+	vga_r(regbase, 0x3DA);
+	vga_w(regbase, VGA_ATT_W, 0x00);
 
 	/* All standard ATC registers (AR00 - AR14) */
 	for (count = 0; count <= 0xF; count ++)
-		svga_wattr(NULL, count, count);
+		svga_wattr(regbase, count, count);
 
-	svga_wattr(NULL, VGA_ATC_MODE, 0x01);
-/*	svga_wattr(NULL, VGA_ATC_MODE, 0x41); */
-	svga_wattr(NULL, VGA_ATC_OVERSCAN, 0x00);
-	svga_wattr(NULL, VGA_ATC_PLANE_ENABLE, 0x0F);
-	svga_wattr(NULL, VGA_ATC_PEL, 0x00);
-	svga_wattr(NULL, VGA_ATC_COLOR_PAGE, 0x00);
+	svga_wattr(regbase, VGA_ATC_MODE, 0x01);
+/*	svga_wattr(regbase, VGA_ATC_MODE, 0x41); */
+	svga_wattr(regbase, VGA_ATC_OVERSCAN, 0x00);
+	svga_wattr(regbase, VGA_ATC_PLANE_ENABLE, 0x0F);
+	svga_wattr(regbase, VGA_ATC_PEL, 0x00);
+	svga_wattr(regbase, VGA_ATC_COLOR_PAGE, 0x00);
 
-	vga_r(NULL, 0x3DA);
-	vga_w(NULL, VGA_ATT_W, 0x20);
+	vga_r(regbase, 0x3DA);
+	vga_w(regbase, VGA_ATT_W, 0x20);
 }
 
 /* Set sequencer registers to sane values */

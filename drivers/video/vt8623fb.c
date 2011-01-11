@@ -426,7 +426,7 @@ static int vt8623fb_set_par(struct fb_info *info)
 
 	/* Set default values */
 	svga_set_default_gfx_regs(par->state.vgabase);
-	svga_set_default_atc_regs();
+	svga_set_default_atc_regs(par->state.vgabase);
 	svga_set_default_seq_regs();
 	svga_set_default_crt_regs();
 	svga_wcrt_multi(par->state.vgabase, vt8623_line_compare_regs, 0xFFFFFFFF);

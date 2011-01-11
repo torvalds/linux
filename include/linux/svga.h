@@ -100,7 +100,7 @@ void svga_wcrt_multi(void __iomem *regbase, const struct vga_regset *regset, u32
 void svga_wseq_multi(void __iomem *regbase, const struct vga_regset *regset, u32 value);
 
 void svga_set_default_gfx_regs(void __iomem *regbase);
-void svga_set_default_atc_regs(void);
+void svga_set_default_atc_regs(void __iomem *regbase);
 void svga_set_default_seq_regs(void);
 void svga_set_default_crt_regs(void);
 void svga_set_textmode_vga_regs(void);
