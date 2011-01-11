@@ -766,8 +766,8 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 		__field(int, curr_res)
 		__field(int, unit_res)
 		__field(unsigned int, flags)
-		__field(void *, reserve_headq)
-		__field(void *, write_headq)
+		__field(int, reserveq)
+		__field(int, writeq)
 		__field(int, grant_reserve_cycle)
 		__field(int, grant_reserve_bytes)
 		__field(int, grant_write_cycle)
@@ -784,19 +784,21 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 		__entry->curr_res = tic->t_curr_res;
 		__entry->unit_res = tic->t_unit_res;
 		__entry->flags = tic->t_flags;
-		__entry->reserve_headq = log->l_reserve_headq;
-		__entry->write_headq = log->l_write_headq;
-		__entry->grant_reserve_cycle = log->l_grant_reserve_cycle;
-		__entry->grant_reserve_bytes = log->l_grant_reserve_bytes;
-		__entry->grant_write_cycle = log->l_grant_write_cycle;
-		__entry->grant_write_bytes = log->l_grant_write_bytes;
+		__entry->reserveq = list_empty(&log->l_reserveq);
+		__entry->writeq = list_empty(&log->l_writeq);
+		xlog_crack_grant_head(&log->l_grant_reserve_head,
+				&__entry->grant_reserve_cycle,
+				&__entry->grant_reserve_bytes);
+		xlog_crack_grant_head(&log->l_grant_write_head,
+				&__entry->grant_write_cycle,
+				&__entry->grant_write_bytes);
 		__entry->curr_cycle = log->l_curr_cycle;
 		__entry->curr_block = log->l_curr_block;
-		__entry->tail_lsn = log->l_tail_lsn;
+		__entry->tail_lsn = atomic64_read(&log->l_tail_lsn);
 	),
 	TP_printk("dev %d:%d type %s t_ocnt %u t_cnt %u t_curr_res %u "
-		  "t_unit_res %u t_flags %s reserve_headq 0x%p "
-		  "write_headq 0x%p grant_reserve_cycle %d "
+		  "t_unit_res %u t_flags %s reserveq %s "
+		  "writeq %s grant_reserve_cycle %d "
 		  "grant_reserve_bytes %d grant_write_cycle %d "
 		  "grant_write_bytes %d curr_cycle %d curr_block %d "
 		  "tail_cycle %d tail_block %d",
@@ -807,8 +809,8 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 		  __entry->curr_res,
 		  __entry->unit_res,
 		  __print_flags(__entry->flags, "|", XLOG_TIC_FLAGS),
-		  __entry->reserve_headq,
-		  __entry->write_headq,
+		  __entry->reserveq ? "empty" : "active",
+		  __entry->writeq ? "empty" : "active",
 		  __entry->grant_reserve_cycle,
 		  __entry->grant_reserve_bytes,
 		  __entry->grant_write_cycle,
@@ -835,6 +837,7 @@ DEFINE_LOGGRANT_EVENT(xfs_log_grant_sleep1);
 DEFINE_LOGGRANT_EVENT(xfs_log_grant_wake1);
 DEFINE_LOGGRANT_EVENT(xfs_log_grant_sleep2);
 DEFINE_LOGGRANT_EVENT(xfs_log_grant_wake2);
+DEFINE_LOGGRANT_EVENT(xfs_log_grant_wake_up);
 DEFINE_LOGGRANT_EVENT(xfs_log_regrant_write_enter);
 DEFINE_LOGGRANT_EVENT(xfs_log_regrant_write_exit);
 DEFINE_LOGGRANT_EVENT(xfs_log_regrant_write_error);
@@ -842,6 +845,7 @@ DEFINE_LOGGRANT_EVENT(xfs_log_regrant_write_sleep1);
 DEFINE_LOGGRANT_EVENT(xfs_log_regrant_write_wake1);
 DEFINE_LOGGRANT_EVENT(xfs_log_regrant_write_sleep2);
 DEFINE_LOGGRANT_EVENT(xfs_log_regrant_write_wake2);
+DEFINE_LOGGRANT_EVENT(xfs_log_regrant_write_wake_up);
 DEFINE_LOGGRANT_EVENT(xfs_log_regrant_reserve_enter);
 DEFINE_LOGGRANT_EVENT(xfs_log_regrant_reserve_exit);
 DEFINE_LOGGRANT_EVENT(xfs_log_regrant_reserve_sub);
@@ -935,10 +939,10 @@ DEFINE_PAGE_EVENT(xfs_writepage);
 DEFINE_PAGE_EVENT(xfs_releasepage);
 DEFINE_PAGE_EVENT(xfs_invalidatepage);
 
-DECLARE_EVENT_CLASS(xfs_iomap_class,
+DECLARE_EVENT_CLASS(xfs_imap_class,
 	TP_PROTO(struct xfs_inode *ip, xfs_off_t offset, ssize_t count,
-		 int flags, struct xfs_bmbt_irec *irec),
-	TP_ARGS(ip, offset, count, flags, irec),
+		 int type, struct xfs_bmbt_irec *irec),
+	TP_ARGS(ip, offset, count, type, irec),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
@@ -946,7 +950,7 @@ DECLARE_EVENT_CLASS(xfs_iomap_class,
 		__field(loff_t, new_size)
 		__field(loff_t, offset)
 		__field(size_t, count)
-		__field(int, flags)
+		__field(int, type)
 		__field(xfs_fileoff_t, startoff)
 		__field(xfs_fsblock_t, startblock)
 		__field(xfs_filblks_t, blockcount)
@@ -958,13 +962,13 @@ DECLARE_EVENT_CLASS(xfs_iomap_class,
 		__entry->new_size = ip->i_new_size;
 		__entry->offset = offset;
 		__entry->count = count;
-		__entry->flags = flags;
+		__entry->type = type;
 		__entry->startoff = irec ? irec->br_startoff : 0;
 		__entry->startblock = irec ? irec->br_startblock : 0;
 		__entry->blockcount = irec ? irec->br_blockcount : 0;
 	),
 	TP_printk("dev %d:%d ino 0x%llx size 0x%llx new_size 0x%llx "
-		  "offset 0x%llx count %zd flags %s "
+		  "offset 0x%llx count %zd type %s "
 		  "startoff 0x%llx startblock %lld blockcount 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
@@ -972,20 +976,21 @@ DECLARE_EVENT_CLASS(xfs_iomap_class,
 		  __entry->new_size,
 		  __entry->offset,
 		  __entry->count,
-		  __print_flags(__entry->flags, "|", BMAPI_FLAGS),
+		  __print_symbolic(__entry->type, XFS_IO_TYPES),
 		  __entry->startoff,
 		  (__int64_t)__entry->startblock,
 		  __entry->blockcount)
 )
 
 #define DEFINE_IOMAP_EVENT(name)	\
-DEFINE_EVENT(xfs_iomap_class, name,	\
+DEFINE_EVENT(xfs_imap_class, name,	\
 	TP_PROTO(struct xfs_inode *ip, xfs_off_t offset, ssize_t count,	\
-		 int flags, struct xfs_bmbt_irec *irec),		\
-	TP_ARGS(ip, offset, count, flags, irec))
-DEFINE_IOMAP_EVENT(xfs_iomap_enter);
-DEFINE_IOMAP_EVENT(xfs_iomap_found);
-DEFINE_IOMAP_EVENT(xfs_iomap_alloc);
+		 int type, struct xfs_bmbt_irec *irec),		\
+	TP_ARGS(ip, offset, count, type, irec))
+DEFINE_IOMAP_EVENT(xfs_map_blocks_found);
+DEFINE_IOMAP_EVENT(xfs_map_blocks_alloc);
+DEFINE_IOMAP_EVENT(xfs_get_blocks_found);
+DEFINE_IOMAP_EVENT(xfs_get_blocks_alloc);
 
 DECLARE_EVENT_CLASS(xfs_simple_io_class,
 	TP_PROTO(struct xfs_inode *ip, xfs_off_t offset, ssize_t count),
@@ -1022,6 +1027,7 @@ DEFINE_EVENT(xfs_simple_io_class, name,	\
 	TP_ARGS(ip, offset, count))
 DEFINE_SIMPLE_IO_EVENT(xfs_delalloc_enospc);
 DEFINE_SIMPLE_IO_EVENT(xfs_unwritten_convert);
+DEFINE_SIMPLE_IO_EVENT(xfs_get_blocks_notfound);
 
 
 TRACE_EVENT(xfs_itruncate_start,
@@ -1420,6 +1426,7 @@ DEFINE_EVENT(xfs_alloc_class, name, \
 	TP_PROTO(struct xfs_alloc_arg *args), \
 	TP_ARGS(args))
 DEFINE_ALLOC_EVENT(xfs_alloc_exact_done);
+DEFINE_ALLOC_EVENT(xfs_alloc_exact_notfound);
 DEFINE_ALLOC_EVENT(xfs_alloc_exact_error);
 DEFINE_ALLOC_EVENT(xfs_alloc_near_nominleft);
 DEFINE_ALLOC_EVENT(xfs_alloc_near_first);
