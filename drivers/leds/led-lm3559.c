@@ -281,10 +281,9 @@ static int lm3559_flash_prepare(struct lm3559_data *torch_data)
 	if (err)
 		return err;
 
-	if (torch_data->flash_dev.brightness != LED_OFF) {
+	if (torch_data->flash_dev.brightness) {
 		uint8_t strobe_brightness;
-		uint val = torch_data->flash_dev.brightness;
-		val = (val * (1024/LM3559_STROBE_STEP)) >> 10;
+		uint val = torch_data->flash_dev.brightness - 1;
 		strobe_brightness = val | (val << 4);
 
 		err = lm3559_write_reg(torch_data, LM3559_FLASH_BRIGHTNESS,
@@ -335,8 +334,7 @@ static int lm3559_torch_enable(struct lm3559_data *torch_data)
 
 	if (torch_data->torch_dev.brightness) {
 		uint8_t torch_brightness;
-		uint val = torch_data->torch_dev.brightness;
-		val = (val * (1024/LM3559_TORCH_STEP)) >> 10;
+		uint val = (torch_data->torch_dev.brightness - 1) & 0x3F;
 		torch_brightness = val | (val << 3);
 
 		err = lm3559_write_reg(torch_data, LM3559_TORCH_BRIGHTNESS,
