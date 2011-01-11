@@ -281,7 +281,7 @@ static int recover_mce(struct pt_regs *regs, struct rtas_error_log * err)
 		nonfatal = 1;
 	}
 
-	log_error((char *)err, ERR_TYPE_RTAS_LOG, !nonfatal);
+	log_error((char *)err, ERR_TYPE_RTAS_LOG, 0);
 
 	return nonfatal;
 }
