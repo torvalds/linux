@@ -25,6 +25,36 @@
 	/* load board-specific initialization code */
 #include <mach/zboot.h>
 
+#ifdef CONFIG_ZBOOT_ROM_MMCIF
+	/* Load image from MMC */
+	adr	sp, __tmp_stack + 128
+	ldr	r0, __image_start
+	ldr	r1, __image_end
+	subs	r1, r1, r0
+	ldr	r0, __load_base
+	bl	mmcif_loader
+
+	/* Jump to loaded code */
+	ldr	r0, __loaded
+	ldr	r1, __image_start
+	sub	r0, r0, r1
+	ldr	r1, __load_base
+	add	pc, r0, r1
+
+__image_start:
+	.long	_start
+__image_end:
+	.long	_got_end
+__load_base:
+	.long	CONFIG_MEMORY_START + 0x02000000 @ Load at 32Mb into SDRAM
+__loaded:
+	.long	__continue
+	.align
+__tmp_stack:
+	.space	128
+__continue:
+#endif /* CONFIG_ZBOOT_ROM_MMCIF */
+
 	b	1f
 __atags:@ tag #1
 	.long	12			@ tag->hdr.size = tag_size(tag_core);
