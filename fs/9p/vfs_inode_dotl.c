@@ -201,7 +201,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 	fid = p9_client_walk(dfid, 1, &name, 1);
 	if (IS_ERR(fid)) {
 		err = PTR_ERR(fid);
-		P9_DPRINTK(P9_DEBUG_VFS, "p9_clinet_walk failed %d\n", err);
+		P9_DPRINTK(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
 		fid = NULL;
 		goto error;
 	}
