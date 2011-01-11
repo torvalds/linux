@@ -75,21 +75,21 @@ static unsigned int svga_regset_size(const struct vga_regset *regset)
 
 
 /* Set graphics controller registers to sane values */
-void svga_set_default_gfx_regs(void)
+void svga_set_default_gfx_regs(void __iomem *regbase)
 {
 	/* All standard GFX registers (GR00 - GR08) */
-	vga_wgfx(NULL, VGA_GFX_SR_VALUE, 0x00);
-	vga_wgfx(NULL, VGA_GFX_SR_ENABLE, 0x00);
-	vga_wgfx(NULL, VGA_GFX_COMPARE_VALUE, 0x00);
-	vga_wgfx(NULL, VGA_GFX_DATA_ROTATE, 0x00);
-	vga_wgfx(NULL, VGA_GFX_PLANE_READ, 0x00);
-	vga_wgfx(NULL, VGA_GFX_MODE, 0x00);
-/*	vga_wgfx(NULL, VGA_GFX_MODE, 0x20); */
-/*	vga_wgfx(NULL, VGA_GFX_MODE, 0x40); */
-	vga_wgfx(NULL, VGA_GFX_MISC, 0x05);
-/*	vga_wgfx(NULL, VGA_GFX_MISC, 0x01); */
-	vga_wgfx(NULL, VGA_GFX_COMPARE_MASK, 0x0F);
-	vga_wgfx(NULL, VGA_GFX_BIT_MASK, 0xFF);
+	vga_wgfx(regbase, VGA_GFX_SR_VALUE, 0x00);
+	vga_wgfx(regbase, VGA_GFX_SR_ENABLE, 0x00);
+	vga_wgfx(regbase, VGA_GFX_COMPARE_VALUE, 0x00);
+	vga_wgfx(regbase, VGA_GFX_DATA_ROTATE, 0x00);
+	vga_wgfx(regbase, VGA_GFX_PLANE_READ, 0x00);
+	vga_wgfx(regbase, VGA_GFX_MODE, 0x00);
+/*	vga_wgfx(regbase, VGA_GFX_MODE, 0x20); */
+/*	vga_wgfx(regbase, VGA_GFX_MODE, 0x40); */
+	vga_wgfx(regbase, VGA_GFX_MISC, 0x05);
+/*	vga_wgfx(regbase, VGA_GFX_MISC, 0x01); */
+	vga_wgfx(regbase, VGA_GFX_COMPARE_MASK, 0x0F);
+	vga_wgfx(regbase, VGA_GFX_BIT_MASK, 0xFF);
 }
 
 /* Set attribute controller registers to sane values */

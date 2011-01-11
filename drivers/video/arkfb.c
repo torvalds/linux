@@ -653,7 +653,7 @@ static int arkfb_set_par(struct fb_info *info)
 	svga_wcrt_mask(0x17, 0x00, 0x80);
 
 	/* Set default values */
-	svga_set_default_gfx_regs();
+	svga_set_default_gfx_regs(par->state.vgabase);
 	svga_set_default_atc_regs();
 	svga_set_default_seq_regs();
 	svga_set_default_crt_regs();
