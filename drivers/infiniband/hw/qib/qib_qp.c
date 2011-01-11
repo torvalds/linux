@@ -137,7 +137,7 @@ static int alloc_qpn(struct qib_devdata *dd, struct qib_qpn_table *qpt,
 		goto bail;
 	}
 
-	qpn = qpt->last + 1;
+	qpn = qpt->last + 2;
 	if (qpn >= QPN_MAX)
 		qpn = 2;
 	if (qpt->mask && ((qpn & qpt->mask) >> 1) >= dd->n_krcv_queues)
