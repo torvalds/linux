@@ -110,8 +110,9 @@ config IWL5000
 		Intel WiFi Link 1000BGN
 		Intel Wireless WiFi 5150AGN
 		Intel Wireless WiFi 5100AGN, 5300AGN, and 5350AGN
-		Intel 6000 Gen 2 Series Wi-Fi Adapters (6000G2A and 6000G2B)
-		Intel WIreless WiFi Link 6050BGN Gen 2 Adapter
+		Intel 6005 Series Wi-Fi Adapters
+		Intel 6030 Series Wi-Fi Adapters
+		Intel Wireless WiFi Link 6150BGN 2 Adapter
 		Intel 100 Series Wi-Fi Adapters (100BGN and 130BGN)
 		Intel 2000 Series Wi-Fi Adapters
 
