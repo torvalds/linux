@@ -259,31 +259,43 @@ int pSeries_system_reset_exception(struct pt_regs *regs)
  * Return 1 if corrected (or delivered a signal).
  * Return 0 if there is nothing we can do.
  */
-static int recover_mce(struct pt_regs *regs, struct rtas_error_log * err)
+static int recover_mce(struct pt_regs *regs, struct rtas_error_log *err)
 {
-	int nonfatal = 0;
+	int recovered = 0;
 
-	if (err->disposition == RTAS_DISP_FULLY_RECOVERED) {
+	if (!(regs->msr & MSR_RI)) {
+		/* If MSR_RI isn't set, we cannot recover */
+		recovered = 0;
+
+	} else if (err->disposition == RTAS_DISP_FULLY_RECOVERED) {
 		/* Platform corrected itself */
-		nonfatal = 1;
-	} else if ((regs->msr & MSR_RI) &&
-		   user_mode(regs) &&
-		   err->severity == RTAS_SEVERITY_ERROR_SYNC &&
-		   err->disposition == RTAS_DISP_NOT_RECOVERED &&
-		   err->target == RTAS_TARGET_MEMORY &&
-		   err->type == RTAS_TYPE_ECC_UNCORR &&
-		   !(current->pid == 0 || is_global_init(current))) {
-		/* Kill off a user process with an ECC error */
-		printk(KERN_ERR "MCE: uncorrectable ecc error for pid %d\n",
-		       current->pid);
-		/* XXX something better for ECC error? */
-		_exception(SIGBUS, regs, BUS_ADRERR, regs->nip);
-		nonfatal = 1;
+		recovered = 1;
+
+	} else if (err->disposition == RTAS_DISP_LIMITED_RECOVERY) {
+		/* Platform corrected itself but could be degraded */
+		printk(KERN_ERR "MCE: limited recovery, system may "
+		       "be degraded\n");
+		recovered = 1;
+
+	} else if (user_mode(regs) && !is_global_init(current) &&
+		   err->severity == RTAS_SEVERITY_ERROR_SYNC) {
+
+		/*
+		 * If we received a synchronous error when in userspace
+		 * kill the task. Firmware may report details of the fail
+		 * asynchronously, so we can't rely on the target and type
+		 * fields being valid here.
+		 */
+		printk(KERN_ERR "MCE: uncorrectable error, killing task "
+		       "%s:%d\n", current->comm, current->pid);
+
+		_exception(SIGBUS, regs, BUS_MCEERR_AR, regs->nip);
+		recovered = 1;
 	}
 
 	log_error((char *)err, ERR_TYPE_RTAS_LOG, 0);
 
-	return nonfatal;
+	return recovered;
 }
 
 /*
