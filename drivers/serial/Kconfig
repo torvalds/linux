@@ -1595,4 +1595,19 @@ config SERIAL_PCH_UART
 	  This driver is for PCH(Platform controller Hub) UART of Intel EG20T
 	  which is an IOH(Input/Output Hub) for x86 embedded processor.
 	  Enabling PCH_DMA, this PCH UART works as DMA mode.
+
+config SERIAL_MXS_AUART
+	depends on ARCH_MXS
+	tristate "MXS AUART support"
+	select SERIAL_CORE
+	help
+	  This driver supports the MXS Application UART (AUART) port.
+
+config SERIAL_MXS_AUART_CONSOLE
+	bool "MXS AUART console support"
+	depends on SERIAL_MXS_AUART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enable a MXS AUART port to be the system console.
+
 endmenu
