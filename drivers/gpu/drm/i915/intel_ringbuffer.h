@@ -1,22 +1,37 @@
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
-struct  intel_hw_status_page {
-	void		*page_addr;
-	unsigned int	gfx_addr;
-	struct		drm_gem_object *obj;
+enum {
+    RCS = 0x0,
+    VCS,
+    BCS,
+    I915_NUM_RINGS,
 };
 
-#define I915_READ_TAIL(ring) I915_READ(RING_TAIL(ring->mmio_base))
+struct  intel_hw_status_page {
+	u32	__iomem	*page_addr;
+	unsigned int	gfx_addr;
+	struct		drm_i915_gem_object *obj;
+};
+
+#define I915_RING_READ(reg) i915_safe_read(dev_priv, reg)
+
+#define I915_READ_TAIL(ring) I915_RING_READ(RING_TAIL(ring->mmio_base))
 #define I915_WRITE_TAIL(ring, val) I915_WRITE(RING_TAIL(ring->mmio_base), val)
-#define I915_READ_START(ring) I915_READ(RING_START(ring->mmio_base))
+
+#define I915_READ_START(ring) I915_RING_READ(RING_START(ring->mmio_base))
 #define I915_WRITE_START(ring, val) I915_WRITE(RING_START(ring->mmio_base), val)
-#define I915_READ_HEAD(ring) I915_READ(RING_HEAD(ring->mmio_base))
+
+#define I915_READ_HEAD(ring)  I915_RING_READ(RING_HEAD(ring->mmio_base))
 #define I915_WRITE_HEAD(ring, val) I915_WRITE(RING_HEAD(ring->mmio_base), val)
-#define I915_READ_CTL(ring) I915_READ(RING_CTL(ring->mmio_base))
+
+#define I915_READ_CTL(ring) I915_RING_READ(RING_CTL(ring->mmio_base))
 #define I915_WRITE_CTL(ring, val) I915_WRITE(RING_CTL(ring->mmio_base), val)
 
-struct drm_i915_gem_execbuffer2;
+#define I915_READ_NOPID(ring) I915_RING_READ(RING_NOPID(ring->mmio_base))
+#define I915_READ_SYNC_0(ring) I915_RING_READ(RING_SYNC_0(ring->mmio_base))
+#define I915_READ_SYNC_1(ring) I915_RING_READ(RING_SYNC_1(ring->mmio_base))
+
 struct  intel_ring_buffer {
 	const char	*name;
 	enum intel_ring_id {
@@ -25,45 +40,36 @@ struct  intel_ring_buffer {
 		RING_BLT = 0x4,
 	} id;
 	u32		mmio_base;
-	unsigned long	size;
 	void		*virtual_start;
 	struct		drm_device *dev;
-	struct		drm_gem_object *gem_object;
+	struct		drm_i915_gem_object *obj;
 
 	u32		actual_head;
 	u32		head;
 	u32		tail;
 	int		space;
+	int		size;
 	struct intel_hw_status_page status_page;
 
-	u32		irq_gem_seqno;		/* last seq seem at irq time */
-	u32		waiting_gem_seqno;
-	int		user_irq_refcount;
-	void		(*user_irq_get)(struct drm_device *dev,
-			struct intel_ring_buffer *ring);
-	void		(*user_irq_put)(struct drm_device *dev,
-			struct intel_ring_buffer *ring);
+	u32		irq_seqno;		/* last seq seem at irq time */
+	u32		waiting_seqno;
+	u32		sync_seqno[I915_NUM_RINGS-1];
+	atomic_t	irq_refcount;
+	bool __must_check (*irq_get)(struct intel_ring_buffer *ring);
+	void		(*irq_put)(struct intel_ring_buffer *ring);
 
-	int		(*init)(struct drm_device *dev,
-			struct intel_ring_buffer *ring);
+	int		(*init)(struct intel_ring_buffer *ring);
 
-	void		(*write_tail)(struct drm_device *dev,
-				      struct intel_ring_buffer *ring,
+	void		(*write_tail)(struct intel_ring_buffer *ring,
 				      u32 value);
-	void		(*flush)(struct drm_device *dev,
-			struct intel_ring_buffer *ring,
-			u32	invalidate_domains,
-			u32	flush_domains);
-	u32		(*add_request)(struct drm_device *dev,
-			struct intel_ring_buffer *ring,
-			u32 flush_domains);
-	u32		(*get_seqno)(struct drm_device *dev,
-				     struct intel_ring_buffer *ring);
-	int		(*dispatch_gem_execbuffer)(struct drm_device *dev,
-			struct intel_ring_buffer *ring,
-			struct drm_i915_gem_execbuffer2 *exec,
-			struct drm_clip_rect *cliprects,
-			uint64_t exec_offset);
+	void		(*flush)(struct intel_ring_buffer *ring,
+				 u32	invalidate_domains,
+				 u32	flush_domains);
+	int		(*add_request)(struct intel_ring_buffer *ring,
+				       u32 *seqno);
+	u32		(*get_seqno)(struct intel_ring_buffer *ring);
+	int		(*dispatch_execbuffer)(struct intel_ring_buffer *ring,
+					       u32 offset, u32 length);
 	void		(*cleanup)(struct intel_ring_buffer *ring);
 
 	/**
@@ -96,7 +102,7 @@ struct  intel_ring_buffer {
 	/**
 	 * Do we have some not yet emitted requests outstanding?
 	 */
-	bool outstanding_lazy_request;
+	u32 outstanding_lazy_request;
 
 	wait_queue_head_t irq_queue;
 	drm_local_map_t map;
@@ -105,44 +111,54 @@ struct  intel_ring_buffer {
 };
 
 static inline u32
-intel_read_status_page(struct intel_ring_buffer *ring,
-		int reg)
+intel_ring_sync_index(struct intel_ring_buffer *ring,
+		      struct intel_ring_buffer *other)
 {
-	u32 *regs = ring->status_page.page_addr;
-	return regs[reg];
+	int idx;
+
+	/*
+	 * cs -> 0 = vcs, 1 = bcs
+	 * vcs -> 0 = bcs, 1 = cs,
+	 * bcs -> 0 = cs, 1 = vcs.
+	 */
+
+	idx = (other - ring) - 1;
+	if (idx < 0)
+		idx += I915_NUM_RINGS;
+
+	return idx;
 }
 
-int intel_init_ring_buffer(struct drm_device *dev,
-			   struct intel_ring_buffer *ring);
-void intel_cleanup_ring_buffer(struct drm_device *dev,
-			       struct intel_ring_buffer *ring);
-int intel_wait_ring_buffer(struct drm_device *dev,
-			   struct intel_ring_buffer *ring, int n);
-void intel_ring_begin(struct drm_device *dev,
-		      struct intel_ring_buffer *ring, int n);
-
-static inline void intel_ring_emit(struct drm_device *dev,
-				   struct intel_ring_buffer *ring,
-				   unsigned int data)
+static inline u32
+intel_read_status_page(struct intel_ring_buffer *ring,
+		       int reg)
 {
-	unsigned int *virt = ring->virtual_start + ring->tail;
-	*virt = data;
+	return ioread32(ring->status_page.page_addr + reg);
+}
+
+void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
+int __must_check intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n);
+int __must_check intel_ring_begin(struct intel_ring_buffer *ring, int n);
+
+static inline void intel_ring_emit(struct intel_ring_buffer *ring,
+				   u32 data)
+{
+	iowrite32(data, ring->virtual_start + ring->tail);
 	ring->tail += 4;
 }
 
-void intel_ring_advance(struct drm_device *dev,
-		struct intel_ring_buffer *ring);
+void intel_ring_advance(struct intel_ring_buffer *ring);
 
-u32 intel_ring_get_seqno(struct drm_device *dev,
-		struct intel_ring_buffer *ring);
+u32 intel_ring_get_seqno(struct intel_ring_buffer *ring);
+int intel_ring_sync(struct intel_ring_buffer *ring,
+		    struct intel_ring_buffer *to,
+		    u32 seqno);
 
 int intel_init_render_ring_buffer(struct drm_device *dev);
 int intel_init_bsd_ring_buffer(struct drm_device *dev);
 int intel_init_blt_ring_buffer(struct drm_device *dev);
 
-u32 intel_ring_get_active_head(struct drm_device *dev,
-			       struct intel_ring_buffer *ring);
-void intel_ring_setup_status_page(struct drm_device *dev,
-				  struct intel_ring_buffer *ring);
+u32 intel_ring_get_active_head(struct intel_ring_buffer *ring);
+void intel_ring_setup_status_page(struct intel_ring_buffer *ring);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

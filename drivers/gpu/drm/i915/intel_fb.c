@@ -65,10 +65,9 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd mode_cmd;
-	struct drm_gem_object *fbo = NULL;
-	struct drm_i915_gem_object *obj_priv;
+	struct drm_i915_gem_object *obj;
 	struct device *device = &dev->pdev->dev;
-	int size, ret, mmio_bar = IS_GEN2(dev) ? 1 : 0;
+	int size, ret;
 
 	/* we don't do packed 24bpp */
 	if (sizes->surface_bpp == 24)
@@ -83,18 +82,17 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	size = mode_cmd.pitch * mode_cmd.height;
 	size = ALIGN(size, PAGE_SIZE);
-	fbo = i915_gem_alloc_object(dev, size);
-	if (!fbo) {
+	obj = i915_gem_alloc_object(dev, size);
+	if (!obj) {
 		DRM_ERROR("failed to allocate framebuffer\n");
 		ret = -ENOMEM;
 		goto out;
 	}
-	obj_priv = to_intel_bo(fbo);
 
 	mutex_lock(&dev->struct_mutex);
 
 	/* Flush everything out, we'll be doing GTT only from now on */
-	ret = intel_pin_and_fence_fb_obj(dev, fbo, false);
+	ret = intel_pin_and_fence_fb_obj(dev, obj, false);
 	if (ret) {
 		DRM_ERROR("failed to pin fb: %d\n", ret);
 		goto out_unref;
@@ -108,7 +106,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	info->par = ifbdev;
 
-	ret = intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, fbo);
+	ret = intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, obj);
 	if (ret)
 		goto out_unpin;
 
@@ -134,11 +132,10 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	else
 		info->apertures->ranges[0].size = pci_resource_len(dev->pdev, 0);
 
-	info->fix.smem_start = dev->mode_config.fb_base + obj_priv->gtt_offset;
+	info->fix.smem_start = dev->mode_config.fb_base + obj->gtt_offset;
 	info->fix.smem_len = size;
 
-	info->screen_base = ioremap_wc(dev->agp->base + obj_priv->gtt_offset,
-				       size);
+	info->screen_base = ioremap_wc(dev->agp->base + obj->gtt_offset, size);
 	if (!info->screen_base) {
 		ret = -ENOSPC;
 		goto out_unpin;
@@ -153,12 +150,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 //	memset(info->screen_base, 0, size);
 
-	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
 	drm_fb_helper_fill_var(info, &ifbdev->helper, sizes->fb_width, sizes->fb_height);
-
-	/* FIXME: we really shouldn't expose mmio space at all */
-	info->fix.mmio_start = pci_resource_start(dev->pdev, mmio_bar);
-	info->fix.mmio_len = pci_resource_len(dev->pdev, mmio_bar);
 
 	info->pixmap.size = 64*1024;
 	info->pixmap.buf_align = 8;
@@ -168,7 +160,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08x, bo %p\n",
 		      fb->width, fb->height,
-		      obj_priv->gtt_offset, fbo);
+		      obj->gtt_offset, obj);
 
 
 	mutex_unlock(&dev->struct_mutex);
@@ -176,9 +168,9 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	return 0;
 
 out_unpin:
-	i915_gem_object_unpin(fbo);
+	i915_gem_object_unpin(obj);
 out_unref:
-	drm_gem_object_unreference(fbo);
+	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
 out:
 	return ret;
@@ -225,7 +217,7 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 
 	drm_framebuffer_cleanup(&ifb->base);
 	if (ifb->obj) {
-		drm_gem_object_unreference_unlocked(ifb->obj);
+		drm_gem_object_unreference_unlocked(&ifb->obj->base);
 		ifb->obj = NULL;
 	}
 }

@@ -355,6 +355,8 @@
 #define AVIVO_D1CRTC_FRAME_COUNT                                0x60a4
 #define AVIVO_D1CRTC_STEREO_CONTROL                             0x60c4
 
+#define AVIVO_D1MODE_MASTER_UPDATE_MODE                         0x60e4
+
 /* master controls */
 #define AVIVO_DC_CRTC_MASTER_EN                                 0x60f8
 #define AVIVO_DC_CRTC_TV_CONTROL                                0x60fc
@@ -409,8 +411,10 @@
 #define AVIVO_D1GRPH_X_END                                      0x6134
 #define AVIVO_D1GRPH_Y_END                                      0x6138
 #define AVIVO_D1GRPH_UPDATE                                     0x6144
+#       define AVIVO_D1GRPH_SURFACE_UPDATE_PENDING              (1 << 2)
 #       define AVIVO_D1GRPH_UPDATE_LOCK                         (1 << 16)
 #define AVIVO_D1GRPH_FLIP_CONTROL                               0x6148
+#       define AVIVO_D1GRPH_SURFACE_UPDATE_H_RETRACE_EN         (1 << 0)
 
 #define AVIVO_D1CUR_CONTROL                     0x6400
 #       define AVIVO_D1CURSOR_EN                (1 << 0)

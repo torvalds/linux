@@ -121,9 +121,6 @@ int drm_fb_helper_setcolreg(unsigned regno,
 void drm_fb_helper_restore(void);
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height);
-void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
-			    uint32_t depth);
-
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info);
 
 bool drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper);
