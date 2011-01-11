@@ -695,6 +695,8 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 					    PLAYBACK_1_TO_SPDIF |
 					    CAPTURE_0_FROM_I2S_2 |
 					    CAPTURE_1_FROM_SPDIF;
+		if (id->driver_data == MODEL_MERIDIAN)
+			chip->model.device_config |= AC97_CD_INPUT;
 		break;
 	case MODEL_CLARO:
 		chip->model.init = claro_init;
@@ -743,6 +745,7 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 		break;
 	}
 	if (id->driver_data == MODEL_MERIDIAN ||
+	    id->driver_data == MODEL_MERIDIAN_2G ||
 	    id->driver_data == MODEL_CLARO_HALO) {
 		chip->model.misc_flags = OXYGEN_MISC_MIDI;
 		chip->model.device_config |= MIDI_OUTPUT | MIDI_INPUT;
