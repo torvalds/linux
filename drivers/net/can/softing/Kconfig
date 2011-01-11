@@ -14,3 +14,17 @@ config CAN_SOFTING
 	  controls the 2 busses on the card together.
 	  As such, some actions (start/stop/busoff recovery) on 1 bus
 	  must bring down the other bus too temporarily.
+
+config CAN_SOFTING_CS
+	tristate "Softing Gmbh CAN pcmcia cards"
+	depends on PCMCIA
+	select CAN_SOFTING
+	---help---
+	  Support for PCMCIA cards from Softing Gmbh & some cards
+	  from Vector Gmbh.
+	  You need firmware for these, which you can get at
+	  http://developer.berlios.de/projects/socketcan/
+	  This version of the driver is written against
+	  firmware version 4.6 (softing-fw-4.6-binaries.tar.gz)
+	  In order to use the card as CAN device, you need the Softing generic
+	  support too.
