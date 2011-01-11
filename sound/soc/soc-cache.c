@@ -1361,7 +1361,7 @@ static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 			goto err;
 		}
 		lzo_blocks[i]->sync_bmp = sync_bmp;
-		lzo_blocks[i]->sync_bmp_nbits = reg_size;
+		lzo_blocks[i]->sync_bmp_nbits = bmp_size;
 		/* alloc the working space for the compressed block */
 		ret = snd_soc_lzo_prepare(lzo_blocks[i]);
 		if (ret < 0)
