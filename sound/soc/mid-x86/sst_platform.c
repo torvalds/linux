@@ -168,7 +168,7 @@ static int sst_platform_alloc_stream(struct snd_pcm_substream *substream)
 		pr_debug("Capture stream,Device %d\n",
 					substream->pcm->device);
 	}
-	ret_val = stream->sstdrv_ops->control_set(SST_SND_ALLOC, &str_params);
+	ret_val = stream->sstdrv_ops->pcm_control->open(&str_params);
 	pr_debug("SST_SND_PLAY/CAPTURE ret_val = %x\n", ret_val);
 	if (ret_val < 0)
 		return ret_val;
@@ -207,8 +207,8 @@ static int sst_platform_init_stream(struct snd_pcm_substream *substream)
 	stream->stream_info.mad_substream = substream;
 	stream->stream_info.buffer_ptr = 0;
 	stream->stream_info.sfreq = substream->runtime->rate;
-	ret_val = stream->sstdrv_ops->control_set(SST_SND_STREAM_INIT,
-				&stream->stream_info);
+	ret_val = stream->sstdrv_ops->pcm_control->device_control(
+			SST_SND_STREAM_INIT, &stream->stream_info);
 	if (ret_val)
 		pr_err("control_set ret error %d\n", ret_val);
 	return ret_val;
@@ -261,8 +261,7 @@ static int sst_platform_close(struct snd_pcm_substream *substream)
 	stream = substream->runtime->private_data;
 	str_id = stream->stream_info.str_id;
 	if (str_id)
-		ret_val = stream->sstdrv_ops->control_set(
-					SST_SND_FREE, &str_id);
+		ret_val = stream->sstdrv_ops->pcm_control->close(str_id);
 	kfree(stream->sstdrv_ops);
 	kfree(stream);
 	return ret_val;
@@ -277,7 +276,7 @@ static int sst_platform_pcm_prepare(struct snd_pcm_substream *substream)
 	stream = substream->runtime->private_data;
 	str_id = stream->stream_info.str_id;
 	if (stream->stream_info.str_id) {
-		ret_val = stream->sstdrv_ops->control_set(
+		ret_val = stream->sstdrv_ops->pcm_control->device_control(
 					SST_SND_DROP, &str_id);
 		return ret_val;
 	}
@@ -300,6 +299,7 @@ static int sst_platform_pcm_trigger(struct snd_pcm_substream *substream,
 {
 	int ret_val = 0, str_id;
 	struct sst_runtime_stream *stream;
+	int str_cmd, status;
 
 	pr_debug("sst_platform_pcm_trigger called\n");
 	stream = substream->runtime->private_data;
@@ -307,40 +307,33 @@ static int sst_platform_pcm_trigger(struct snd_pcm_substream *substream,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		pr_debug("sst: Trigger Start\n");
-		ret_val = stream->sstdrv_ops->control_set(
-					SST_SND_START, &str_id);
-		if (ret_val)
-			break;
-		sst_set_stream_status(stream, SST_PLATFORM_RUNNING);
+		str_cmd = SST_SND_START;
+		status = SST_PLATFORM_RUNNING;
 		stream->stream_info.mad_substream = substream;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		pr_debug("sst: in stop\n");
-		ret_val = stream->sstdrv_ops->control_set(
-				SST_SND_DROP, &str_id);
-		if (ret_val)
-			break;
-		sst_set_stream_status(stream, SST_PLATFORM_DROPPED);
+		str_cmd = SST_SND_DROP;
+		status = SST_PLATFORM_DROPPED;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		pr_debug("sst: in pause\n");
-		ret_val = stream->sstdrv_ops->control_set(
-				SST_SND_PAUSE, &str_id);
-		if (ret_val)
-			break;
-		sst_set_stream_status(stream, SST_PLATFORM_PAUSED);
+		str_cmd = SST_SND_PAUSE;
+		status = SST_PLATFORM_PAUSED;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		pr_debug("sst: in pause release\n");
-		ret_val = stream->sstdrv_ops->control_set(
-			SST_SND_RESUME, &str_id);
-		if (ret_val)
-			break;
-		sst_set_stream_status(stream, SST_PLATFORM_RUNNING);
+		str_cmd = SST_SND_RESUME;
+		status = SST_PLATFORM_RUNNING;
 		break;
 	default:
-		ret_val = -EINVAL;
+		return -EINVAL;
 	}
+	ret_val = stream->sstdrv_ops->pcm_control->device_control(str_cmd,
+								&str_id);
+	if (!ret_val)
+		sst_set_stream_status(stream, status);
+
 	return ret_val;
 }
 
@@ -357,7 +350,7 @@ static snd_pcm_uframes_t sst_platform_pcm_pointer
 	if (status == SST_PLATFORM_INIT)
 		return 0;
 	str_info = &stream->stream_info;
-	ret_val = stream->sstdrv_ops->control_set(
+	ret_val = stream->sstdrv_ops->pcm_control->device_control(
 				SST_SND_BUFFER_POINTER, str_info);
 	if (ret_val) {
 		pr_err("sst: error code = %d\n", ret_val);
