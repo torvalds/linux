@@ -2297,7 +2297,7 @@ static void qib_7220_config_ctxts(struct qib_devdata *dd)
 	nchipctxts = qib_read_kreg32(dd, kr_portcnt);
 	dd->cspec->numctxts = nchipctxts;
 	if (qib_n_krcv_queues > 1) {
-		dd->qpn_mask = 0x3f;
+		dd->qpn_mask = 0x3e;
 		dd->first_user_ctxt = qib_n_krcv_queues * dd->num_pports;
 		if (dd->first_user_ctxt > nchipctxts)
 			dd->first_user_ctxt = nchipctxts;

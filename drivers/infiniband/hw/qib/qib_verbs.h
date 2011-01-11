@@ -435,7 +435,6 @@ struct qib_qp {
 	spinlock_t r_lock;      /* used for APM */
 	spinlock_t s_lock;
 	atomic_t s_dma_busy;
-	unsigned processor_id;	/* Processor ID QP is bound to */
 	u32 s_flags;
 	u32 s_cur_size;         /* size of send packet in bytes */
 	u32 s_len;              /* total length of s_sge */
@@ -813,13 +812,8 @@ extern struct workqueue_struct *qib_cq_wq;
  */
 static inline void qib_schedule_send(struct qib_qp *qp)
 {
-	if (qib_send_ok(qp)) {
-		if (qp->processor_id == smp_processor_id())
-			queue_work(qib_wq, &qp->s_work);
-		else
-			queue_work_on(qp->processor_id,
-				      qib_wq, &qp->s_work);
-	}
+	if (qib_send_ok(qp))
+		queue_work(qib_wq, &qp->s_work);
 }
 
 static inline int qib_pkey_ok(u16 pkey1, u16 pkey2)

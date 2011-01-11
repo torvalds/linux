@@ -3515,11 +3515,6 @@ static void qib_7322_config_ctxts(struct qib_devdata *dd)
 	nchipctxts = qib_read_kreg32(dd, kr_contextcnt);
 	dd->cspec->numctxts = nchipctxts;
 	if (qib_n_krcv_queues > 1 && dd->num_pports) {
-		/*
-		 * Set the mask for which bits from the QPN are used
-		 * to select a context number.
-		 */
-		dd->qpn_mask = 0x3f;
 		dd->first_user_ctxt = NUM_IB_PORTS +
 			(qib_n_krcv_queues - 1) * dd->num_pports;
 		if (dd->first_user_ctxt > nchipctxts)
@@ -5865,7 +5860,8 @@ static void write_7322_initregs(struct qib_devdata *dd)
 		unsigned n, regno;
 		unsigned long flags;
 
-		if (!dd->qpn_mask || !dd->pport[pidx].link_speed_supported)
+		if (dd->n_krcv_queues < 2 ||
+			!dd->pport[pidx].link_speed_supported)
 			continue;
 
 		ppd = &dd->pport[pidx];
