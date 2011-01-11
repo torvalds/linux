@@ -71,6 +71,11 @@ MODULE_DESCRIPTION("QLogic IB driver");
  */
 #define QIB_PIO_MAXIBHDR 128
 
+/*
+ * QIB_MAX_PKT_RCV is the max # if packets processed per receive interrupt.
+ */
+#define QIB_MAX_PKT_RECV 64
+
 struct qlogic_ib_stats qib_stats;
 
 const char *qib_get_unit_name(int unit)
@@ -335,7 +340,7 @@ u32 qib_kreceive(struct qib_ctxtdata *rcd, u32 *llic, u32 *npkts)
 		smp_rmb();  /* prevent speculative reads of dma'ed hdrq */
 	}
 
-	for (last = 0, i = 1; !last && i <= 64; i += !last) {
+	for (last = 0, i = 1; !last; i += !last) {
 		hdr = dd->f_get_msgheader(dd, rhf_addr);
 		eflags = qib_hdrget_err_flags(rhf_addr);
 		etype = qib_hdrget_rcv_type(rhf_addr);
@@ -384,6 +389,9 @@ move_along:
 		l += rsize;
 		if (l >= maxcnt)
 			l = 0;
+		if (i == QIB_MAX_PKT_RECV)
+			last = 1;
+
 		rhf_addr = (__le32 *) rcd->rcvhdrq + l + dd->rhf_offset;
 		if (dd->flags & QIB_NODMA_RTAIL) {
 			u32 seq = qib_hdrget_seq(rhf_addr);
