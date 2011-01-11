@@ -405,12 +405,12 @@ static int soc_camera_open(struct file *file)
 		ret = soc_camera_set_fmt(icd, &f);
 		if (ret < 0)
 			goto esfmt;
+
+		ici->ops->init_videobuf(&icd->vb_vidq, icd);
 	}
 
 	file->private_data = icd;
 	dev_dbg(&icd->dev, "camera device open\n");
-
-	ici->ops->init_videobuf(&icd->vb_vidq, icd);
 
 	mutex_unlock(&icd->video_lock);
 

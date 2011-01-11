@@ -390,6 +390,7 @@ struct iwl_cfg {
 	const bool need_temp_offset_calib; /* if used set to true */
 	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
 	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
+	const bool use_new_eeprom_reading; /* temporary, remove later */
 };
 
 /***************************

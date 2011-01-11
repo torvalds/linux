@@ -263,6 +263,13 @@ static void ehea_get_ethtool_stats(struct net_device *dev,
 
 static int ehea_set_flags(struct net_device *dev, u32 data)
 {
+	/* Avoid changing the VLAN flags */
+	if ((data & (ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN)) !=
+	    (ethtool_op_get_flags(dev) & (ETH_FLAG_RXVLAN |
+					  ETH_FLAG_TXVLAN))){
+		return -EINVAL;
+	}
+
 	return ethtool_op_set_flags(dev, data, ETH_FLAG_LRO
 					| ETH_FLAG_TXVLAN
 					| ETH_FLAG_RXVLAN);

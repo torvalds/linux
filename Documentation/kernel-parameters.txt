@@ -1759,7 +1759,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nousb		[USB] Disable the USB subsystem
 
-	nowatchdog	[KNL] Disable the lockup detector.
+	nowatchdog	[KNL] Disable the lockup detector (NMI watchdog).
 
 	nowb		[ARM]
 
@@ -2174,11 +2174,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	reset_devices	[KNL] Force drivers to reset the underlying device
 			during initialization.
-
-	resource_alloc_from_bottom
-			Allocate new resources from the beginning of available
-			space, not the end.  If you need to use this, please
-			report a bug.
 
 	resume=		[SWSUSP]
 			Specify the partition device for software suspend

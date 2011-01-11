@@ -315,11 +315,10 @@ static inline int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 		if (array_mode == V_0280A0_ARRAY_LINEAR_GENERAL) {
 			/* the initial DDX does bad things with the CB size occasionally */
 			/* it rounds up height too far for slice tile max but the BO is smaller */
-			tmp = (height - 7) * 8 * bpe;
-			if ((tmp + track->cb_color_bo_offset[i]) > radeon_bo_size(track->cb_color_bo[i])) {
-				dev_warn(p->dev, "%s offset[%d] %d %d %lu too big\n", __func__, i, track->cb_color_bo_offset[i], tmp, radeon_bo_size(track->cb_color_bo[i]));
-				return -EINVAL;
-			}
+			/* r600c,g also seem to flush at bad times in some apps resulting in
+			 * bogus values here. So for linear just allow anything to avoid breaking
+			 * broken userspace.
+			 */
 		} else {
 			dev_warn(p->dev, "%s offset[%d] %d %d %lu too big\n", __func__, i, track->cb_color_bo_offset[i], tmp, radeon_bo_size(track->cb_color_bo[i]));
 			return -EINVAL;

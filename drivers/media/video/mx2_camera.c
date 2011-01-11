@@ -807,8 +807,6 @@ static int mx2_camera_set_bus_param(struct soc_camera_device *icd,
 
 	if (common_flags & SOCAM_PCLK_SAMPLE_RISING)
 		csicr1 |= CSICR1_REDGE;
-	if (common_flags & SOCAM_PCLK_SAMPLE_FALLING)
-		csicr1 |= CSICR1_INV_PCLK;
 	if (common_flags & SOCAM_VSYNC_ACTIVE_HIGH)
 		csicr1 |= CSICR1_SOF_POL;
 	if (common_flags & SOCAM_HSYNC_ACTIVE_HIGH)
