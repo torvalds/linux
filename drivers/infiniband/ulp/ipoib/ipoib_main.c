@@ -1159,6 +1159,8 @@ int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
 		priv->dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
 	}
 
+	priv->dev->features |= NETIF_F_GRO;
+
 	if (priv->dev->features & NETIF_F_SG && priv->hca_caps & IB_DEVICE_UD_TSO)
 		priv->dev->features |= NETIF_F_TSO;
 
