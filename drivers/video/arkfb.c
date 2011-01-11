@@ -158,12 +158,19 @@ static void arkfb_settile(struct fb_info *info, struct fb_tilemap *map)
 	}
 }
 
+static void arkfb_tilecursor(struct fb_info *info, struct fb_tilecursor *cursor)
+{
+	struct arkfb_info *par = info->par;
+
+	svga_tilecursor(par->state.vgabase, info, cursor);
+}
+
 static struct fb_tile_ops arkfb_tile_ops = {
 	.fb_settile	= arkfb_settile,
 	.fb_tilecopy	= svga_tilecopy,
 	.fb_tilefill    = svga_tilefill,
 	.fb_tileblit    = svga_tileblit,
-	.fb_tilecursor  = svga_tilecursor,
+	.fb_tilecursor  = arkfb_tilecursor,
 	.fb_get_tilemax = svga_get_tilemax,
 };
 

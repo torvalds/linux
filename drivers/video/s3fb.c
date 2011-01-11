@@ -188,12 +188,19 @@ static void s3fb_settile_fast(struct fb_info *info, struct fb_tilemap *map)
 	}
 }
 
+static void s3fb_tilecursor(struct fb_info *info, struct fb_tilecursor *cursor)
+{
+	struct s3fb_info *par = info->par;
+
+	svga_tilecursor(par->state.vgabase, info, cursor);
+}
+
 static struct fb_tile_ops s3fb_tile_ops = {
 	.fb_settile	= svga_settile,
 	.fb_tilecopy	= svga_tilecopy,
 	.fb_tilefill    = svga_tilefill,
 	.fb_tileblit    = svga_tileblit,
-	.fb_tilecursor  = svga_tilecursor,
+	.fb_tilecursor  = s3fb_tilecursor,
 	.fb_get_tilemax = svga_get_tilemax,
 };
 
@@ -202,7 +209,7 @@ static struct fb_tile_ops s3fb_fast_tile_ops = {
 	.fb_tilecopy	= svga_tilecopy,
 	.fb_tilefill    = svga_tilefill,
 	.fb_tileblit    = svga_tileblit,
-	.fb_tilecursor  = svga_tilecursor,
+	.fb_tilecursor  = s3fb_tilecursor,
 	.fb_get_tilemax = svga_get_tilemax,
 };
 

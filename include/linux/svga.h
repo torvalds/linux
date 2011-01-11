@@ -109,7 +109,7 @@ void svga_settile(struct fb_info *info, struct fb_tilemap *map);
 void svga_tilecopy(struct fb_info *info, struct fb_tilearea *area);
 void svga_tilefill(struct fb_info *info, struct fb_tilerect *rect);
 void svga_tileblit(struct fb_info *info, struct fb_tileblit *blit);
-void svga_tilecursor(struct fb_info *info, struct fb_tilecursor *cursor);
+void svga_tilecursor(void __iomem *regbase, struct fb_info *info, struct fb_tilecursor *cursor);
 int svga_get_tilemax(struct fb_info *info);
 void svga_get_caps(struct fb_info *info, struct fb_blit_caps *caps,
 		   struct fb_var_screeninfo *var);

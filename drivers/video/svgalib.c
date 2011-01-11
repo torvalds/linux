@@ -299,7 +299,7 @@ void svga_tileblit(struct fb_info *info, struct fb_tileblit *blit)
 }
 
 /* Set cursor in text (tileblit) mode */
-void svga_tilecursor(struct fb_info *info, struct fb_tilecursor *cursor)
+void svga_tilecursor(void __iomem *regbase, struct fb_info *info, struct fb_tilecursor *cursor)
 {
 	u8 cs = 0x0d;
 	u8 ce = 0x0e;
@@ -310,7 +310,7 @@ void svga_tilecursor(struct fb_info *info, struct fb_tilecursor *cursor)
 	if (! cursor -> mode)
 		return;
 
-	svga_wcrt_mask(NULL, 0x0A, 0x20, 0x20); /* disable cursor */
+	svga_wcrt_mask(regbase, 0x0A, 0x20, 0x20); /* disable cursor */
 
 	if (cursor -> shape == FB_TILE_CURSOR_NONE)
 		return;
@@ -334,11 +334,11 @@ void svga_tilecursor(struct fb_info *info, struct fb_tilecursor *cursor)
 	}
 
 	/* set cursor position */
-	vga_wcrt(NULL, 0x0E, pos >> 8);
-	vga_wcrt(NULL, 0x0F, pos & 0xFF);
+	vga_wcrt(regbase, 0x0E, pos >> 8);
+	vga_wcrt(regbase, 0x0F, pos & 0xFF);
 
-	vga_wcrt(NULL, 0x0B, ce); /* set cursor end */
-	vga_wcrt(NULL, 0x0A, cs); /* set cursor start and enable it */
+	vga_wcrt(regbase, 0x0B, ce); /* set cursor end */
+	vga_wcrt(regbase, 0x0A, cs); /* set cursor start and enable it */
 }
 
 int svga_get_tilemax(struct fb_info *info)
