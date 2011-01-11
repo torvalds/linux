@@ -8,14 +8,11 @@
  * Copyright (C) 2007-2009 Nokia Corporation
  *
  * Written by Paul Walmsley
- * OMAP4 defines in this file are automatically generated from the OMAP hardware
- * databases.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 
 /* Module offsets from both CM_BASE & PRM_BASE */
 
@@ -50,75 +47,6 @@
 #define OMAP3430_GR_MOD					0xa00
 #define OMAP3430_NEON_MOD				0xb00
 #define OMAP3430ES2_USBHOST_MOD				0xc00
-
-#define BITS(n_bit)	\
-	(((1 << n_bit) - 1) | (1 << n_bit))
-
-#define BITFIELD(l_bit, u_bit)	\
-	(BITS(u_bit) & ~((BITS(l_bit)) >> 1))
-
-/* OMAP44XX specific module offsets */
-
-/* CM1 instances */
-
-#define OMAP4430_CM1_OCP_SOCKET_MOD	0x0000
-#define OMAP4430_CM1_CKGEN_MOD		0x0100
-#define OMAP4430_CM1_MPU_MOD		0x0300
-#define OMAP4430_CM1_TESLA_MOD		0x0400
-#define OMAP4430_CM1_ABE_MOD		0x0500
-#define OMAP4430_CM1_RESTORE_MOD	0x0e00
-#define OMAP4430_CM1_INSTR_MOD		0x0f00
-
-/* CM2 instances */
-
-#define OMAP4430_CM2_OCP_SOCKET_MOD	0x0000
-#define OMAP4430_CM2_CKGEN_MOD		0x0100
-#define OMAP4430_CM2_ALWAYS_ON_MOD	0x0600
-#define OMAP4430_CM2_CORE_MOD		0x0700
-#define OMAP4430_CM2_IVAHD_MOD		0x0f00
-#define OMAP4430_CM2_CAM_MOD		0x1000
-#define OMAP4430_CM2_DSS_MOD		0x1100
-#define OMAP4430_CM2_GFX_MOD		0x1200
-#define OMAP4430_CM2_L3INIT_MOD		0x1300
-#define OMAP4430_CM2_L4PER_MOD		0x1400
-#define OMAP4430_CM2_CEFUSE_MOD		0x1600
-#define OMAP4430_CM2_RESTORE_MOD	0x1e00
-#define OMAP4430_CM2_INSTR_MOD		0x1f00
-
-/* PRM instances */
-
-#define OMAP4430_PRM_OCP_SOCKET_MOD	0x0000
-#define OMAP4430_PRM_CKGEN_MOD		0x0100
-#define OMAP4430_PRM_MPU_MOD		0x0300
-#define OMAP4430_PRM_TESLA_MOD		0x0400
-#define OMAP4430_PRM_ABE_MOD		0x0500
-#define OMAP4430_PRM_ALWAYS_ON_MOD	0x0600
-#define OMAP4430_PRM_CORE_MOD		0x0700
-#define OMAP4430_PRM_IVAHD_MOD		0x0f00
-#define OMAP4430_PRM_CAM_MOD		0x1000
-#define OMAP4430_PRM_DSS_MOD		0x1100
-#define OMAP4430_PRM_GFX_MOD		0x1200
-#define OMAP4430_PRM_L3INIT_MOD		0x1300
-#define OMAP4430_PRM_L4PER_MOD		0x1400
-#define OMAP4430_PRM_CEFUSE_MOD		0x1600
-#define OMAP4430_PRM_WKUP_MOD		0x1700
-#define OMAP4430_PRM_WKUP_CM_MOD	0x1800
-#define OMAP4430_PRM_EMU_MOD		0x1900
-#define OMAP4430_PRM_EMU_CM_MOD		0x1a00
-#define OMAP4430_PRM_DEVICE_MOD		0x1b00
-#define OMAP4430_PRM_INSTR_MOD		0x1f00
-
-/* SCRM instances */
-
-#define OMAP4430_SCRM_SCRM_MOD	0x0000
-
-/* PRCM_MPU instances */
-
-#define OMAP4430_PRCM_MPU_OCP_SOCKET_PRCM_MOD	0x0000
-#define OMAP4430_PRCM_MPU_DEVICE_PRM_MOD	0x0200
-#define OMAP4430_PRCM_MPU_CPU0_MOD		0x0400
-#define OMAP4430_PRCM_MPU_CPU1_MOD		0x0800
-
 
 /* 24XX register bits shared between CM & PRM registers */
 
@@ -460,6 +388,19 @@
 /* CM_SLEEPDEP_PER, PM_WKDEP_IVA2, PM_WKDEP_MPU, PM_WKDEP_PER shared bits */
 #define OMAP3430_EN_CORE_SHIFT				0
 #define OMAP3430_EN_CORE_MASK				(1 << 0)
+
+
+/*
+ * MAX_MODULE_HARDRESET_WAIT: Maximum microseconds to wait for an OMAP
+ * submodule to exit hardreset
+ */
+#define MAX_MODULE_HARDRESET_WAIT		10000
+
+# ifndef __ASSEMBLER__
+extern void __iomem *prm_base;
+extern void __iomem *cm_base;
+extern void __iomem *cm2_base;
+# endif
 
 #endif
 

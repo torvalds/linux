@@ -14,8 +14,9 @@
 #ifndef __SH_MMCIF_H__
 #define __SH_MMCIF_H__
 
-#include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
+#include <linux/sh_dma.h>
 
 /*
  * MMCIF : CE_CLK_CTRL [19:16]
@@ -31,13 +32,19 @@
  * 1111 : Peripheral clock (sup_pclk set '1')
  */
 
+struct sh_mmcif_dma {
+	struct sh_dmae_slave chan_priv_tx;
+	struct sh_dmae_slave chan_priv_rx;
+};
+
 struct sh_mmcif_plat_data {
 	void (*set_pwr)(struct platform_device *pdev, int state);
 	void (*down_pwr)(struct platform_device *pdev);
 	int (*get_cd)(struct platform_device *pdef);
-	u8	sup_pclk;	/* 1 :SH7757, 0: SH7724/SH7372 */
-	unsigned long caps;
-	u32	ocr;
+	struct sh_mmcif_dma	*dma;
+	u8			sup_pclk;	/* 1 :SH7757, 0: SH7724/SH7372 */
+	unsigned long		caps;
+	u32			ocr;
 };
 
 #define MMCIF_CE_CMD_SET	0x00000000
@@ -59,6 +66,32 @@ struct sh_mmcif_plat_data {
 #define MMCIF_CE_HOST_STS2	0x0000004C
 #define MMCIF_CE_VERSION	0x0000007C
 
+/* CE_BUF_ACC */
+#define BUF_ACC_DMAWEN		(1 << 25)
+#define BUF_ACC_DMAREN		(1 << 24)
+#define BUF_ACC_BUSW_32		(0 << 17)
+#define BUF_ACC_BUSW_16		(1 << 17)
+#define BUF_ACC_ATYP		(1 << 16)
+
+/* CE_CLK_CTRL */
+#define CLK_ENABLE		(1 << 24) /* 1: output mmc clock */
+#define CLK_CLEAR		((1 << 19) | (1 << 18) | (1 << 17) | (1 << 16))
+#define CLK_SUP_PCLK		((1 << 19) | (1 << 18) | (1 << 17) | (1 << 16))
+#define CLKDIV_4		(1<<16) /* mmc clock frequency.
+					 * n: bus clock/(2^(n+1)) */
+#define CLKDIV_256		(7<<16) /* mmc clock frequency. (see above) */
+#define SRSPTO_256		((1 << 13) | (0 << 12)) /* resp timeout */
+#define SRBSYTO_29		((1 << 11) | (1 << 10) |	\
+				 (1 << 9) | (1 << 8)) /* resp busy timeout */
+#define SRWDTO_29		((1 << 7) | (1 << 6) |		\
+				 (1 << 5) | (1 << 4)) /* read/write timeout */
+#define SCCSTO_29		((1 << 3) | (1 << 2) |		\
+				 (1 << 1) | (1 << 0)) /* ccs timeout */
+
+/* CE_VERSION */
+#define SOFT_RST_ON		(1 << 31)
+#define SOFT_RST_OFF		0
+
 static inline u32 sh_mmcif_readl(void __iomem *addr, int reg)
 {
 	return readl(addr + reg);
@@ -70,6 +103,9 @@ static inline void sh_mmcif_writel(void __iomem *addr, int reg, u32 val)
 }
 
 #define SH_MMCIF_BBS 512 /* boot block size */
+
+enum { MMCIF_PROGRESS_ENTER, MMCIF_PROGRESS_INIT,
+       MMCIF_PROGRESS_LOAD, MMCIF_PROGRESS_DONE };
 
 static inline void sh_mmcif_boot_cmd_send(void __iomem *base,
 					  unsigned long cmd, unsigned long arg)
@@ -133,6 +169,17 @@ static inline int sh_mmcif_boot_do_read(void __iomem *base,
 	unsigned long k;
 	int ret = 0;
 
+	/* In data transfer mode: Set clock to Bus clock/4 (about 20Mhz) */
+	sh_mmcif_writel(base, MMCIF_CE_CLK_CTRL,
+			CLK_ENABLE | CLKDIV_4 | SRSPTO_256 |
+			SRBSYTO_29 | SRWDTO_29 | SCCSTO_29);
+
+	/* CMD9 - Get CSD */
+	sh_mmcif_boot_cmd(base, 0x09806000, 0x00010000);
+
+	/* CMD7 - Select the card */
+	sh_mmcif_boot_cmd(base, 0x07400000, 0x00010000);
+
 	/* CMD16 - Set the block size */
 	sh_mmcif_boot_cmd(base, 0x10400000, SH_MMCIF_BBS);
 
@@ -145,21 +192,20 @@ static inline int sh_mmcif_boot_do_read(void __iomem *base,
 
 static inline void sh_mmcif_boot_init(void __iomem *base)
 {
-	unsigned long tmp;
-
 	/* reset */
-	tmp = sh_mmcif_readl(base, MMCIF_CE_VERSION);
-	sh_mmcif_writel(base, MMCIF_CE_VERSION, tmp | 0x80000000);
-	sh_mmcif_writel(base, MMCIF_CE_VERSION, tmp & ~0x80000000);
+	sh_mmcif_writel(base, MMCIF_CE_VERSION, SOFT_RST_ON);
+	sh_mmcif_writel(base, MMCIF_CE_VERSION, SOFT_RST_OFF);
 
 	/* byte swap */
-	sh_mmcif_writel(base, MMCIF_CE_BUF_ACC, 0x00010000);
+	sh_mmcif_writel(base, MMCIF_CE_BUF_ACC, BUF_ACC_ATYP);
 
 	/* Set block size in MMCIF hardware */
 	sh_mmcif_writel(base, MMCIF_CE_BLOCK_SET, SH_MMCIF_BBS);
 
-	/* Enable the clock, set it to Bus clock/256 (about 325Khz)*/
-	sh_mmcif_writel(base, MMCIF_CE_CLK_CTRL, 0x01072fff);
+	/* Enable the clock, set it to Bus clock/256 (about 325Khz). */
+	sh_mmcif_writel(base, MMCIF_CE_CLK_CTRL,
+			CLK_ENABLE | CLKDIV_256 | SRSPTO_256 |
+			SRBSYTO_29 | SRWDTO_29 | SCCSTO_29);
 
 	/* CMD0 */
 	sh_mmcif_boot_cmd(base, 0x00000040, 0);
@@ -175,27 +221,6 @@ static inline void sh_mmcif_boot_init(void __iomem *base)
 
 	/* CMD3 - Set card relative address */
 	sh_mmcif_boot_cmd(base, 0x03400040, 0x00010000);
-}
-
-static inline void sh_mmcif_boot_slurp(void __iomem *base,
-				       unsigned char *buf,
-				       unsigned long no_bytes)
-{
-	unsigned long tmp;
-
-	/* In data transfer mode: Set clock to Bus clock/4 (about 20Mhz) */
-	sh_mmcif_writel(base, MMCIF_CE_CLK_CTRL, 0x01012fff);
-
-	/* CMD9 - Get CSD */
-	sh_mmcif_boot_cmd(base, 0x09806000, 0x00010000);
-
-	/* CMD7 - Select the card */
-	sh_mmcif_boot_cmd(base, 0x07400000, 0x00010000);
-
-	tmp = no_bytes / SH_MMCIF_BBS;
-	tmp += (no_bytes % SH_MMCIF_BBS) ? 1 : 0;
-
-	sh_mmcif_boot_do_read(base, 512, tmp, buf);
 }
 
 #endif /* __SH_MMCIF_H__ */

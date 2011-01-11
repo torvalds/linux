@@ -130,7 +130,7 @@ static struct dentry *gfs2_get_parent(struct dentry *child)
 
 	dentry = d_obtain_alias(gfs2_lookupi(child->d_inode, &gfs2_qdotdot, 1));
 	if (!IS_ERR(dentry))
-		dentry->d_op = &gfs2_dops;
+		d_set_d_op(dentry, &gfs2_dops);
 	return dentry;
 }
 
@@ -158,7 +158,7 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb,
 out_inode:
 	dentry = d_obtain_alias(inode);
 	if (!IS_ERR(dentry))
-		dentry->d_op = &gfs2_dops;
+		d_set_d_op(dentry, &gfs2_dops);
 	return dentry;
 }
 

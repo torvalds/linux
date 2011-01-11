@@ -52,6 +52,7 @@
 #include "tda18271.h"
 #include "lgdt3305.h"
 #include "tda8290.h"
+#include "mb86a20s.h"
 
 #include "zl10353.h"
 
@@ -226,6 +227,20 @@ static struct mt352_config avermedia_xc3028_mt352_dev = {
 	.demod_address   = (0x1e >> 1),
 	.no_tuner        = 1,
 	.demod_init      = mt352_avermedia_xc3028_init,
+};
+
+static struct tda18271_std_map mb86a20s_tda18271_std_map = {
+	.dvbt_6   = { .if_freq = 3300, .agc_mode = 3, .std = 4,
+		      .if_lvl = 7, .rfagc_top = 0x37, },
+};
+
+static struct tda18271_config kworld_tda18271_config = {
+	.std_map = &mb86a20s_tda18271_std_map,
+	.gate    = TDA18271_GATE_DIGITAL,
+};
+
+static const struct mb86a20s_config kworld_mb86a20s_config = {
+	.demod_address = 0x10,
 };
 
 /* ==================================================================
@@ -605,6 +620,37 @@ static struct tda827x_config tda827x_cfg_2_sw42 = {
 	.config = 2,
 	.switch_addr = 0x42
 };
+
+/* ------------------------------------------------------------------ */
+
+static int __kworld_sbtvd_i2c_gate_ctrl(struct saa7134_dev *dev, int enable)
+{
+	unsigned char initmsg[] = {0x45, 0x97};
+	unsigned char msg_enable[] = {0x45, 0xc1};
+	unsigned char msg_disable[] = {0x45, 0x81};
+	struct i2c_msg msg = {.addr = 0x4b, .flags = 0, .buf = initmsg, .len = 2};
+
+	if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1) {
+		wprintk("could not access the I2C gate\n");
+		return -EIO;
+	}
+	if (enable)
+		msg.buf = msg_enable;
+	else
+		msg.buf = msg_disable;
+	if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1) {
+		wprintk("could not access the I2C gate\n");
+		return -EIO;
+	}
+	msleep(20);
+	return 0;
+}
+static int kworld_sbtvd_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
+{
+	struct saa7134_dev *dev = fe->dvb->priv;
+
+	return __kworld_sbtvd_i2c_gate_ctrl(dev, enable);
+}
 
 /* ------------------------------------------------------------------ */
 
@@ -1611,6 +1657,29 @@ static int dvb_init(struct saa7134_dev *dev)
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_adap,
 				   &dtv1000s_tda18271_config);
+		}
+		break;
+	case SAA7134_BOARD_KWORLD_PCI_SBTVD_FULLSEG:
+		__kworld_sbtvd_i2c_gate_ctrl(dev, 0);
+		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x14000);
+		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x14000);
+		msleep(20);
+		saa_writel(SAA7134_GPIO_GPMODE0 >> 2, 0x54000);
+		saa_writel(SAA7134_GPIO_GPSTATUS0 >> 2, 0x54000);
+		msleep(20);
+		fe0->dvb.frontend = dvb_attach(mb86a20s_attach,
+					       &kworld_mb86a20s_config,
+					       &dev->i2c_adap);
+		__kworld_sbtvd_i2c_gate_ctrl(dev, 1);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
+				   0x60, &dev->i2c_adap,
+				   &kworld_tda18271_config);
+			/*
+			 * Only after success, it can initialize the gate, otherwise
+			 * an OOPS will hit, due to kfree(fe0->dvb.frontend)
+			 */
+			fe0->dvb.frontend->ops.i2c_gate_ctrl = kworld_sbtvd_i2c_gate_ctrl;
 		}
 		break;
 	default:

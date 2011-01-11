@@ -799,8 +799,8 @@ void BAOriSessionTearDown(struct rt_rtmp_adapter *pAd,
 			/* force send specified TID DelBA */
 			struct rt_mlme_delba_req DelbaReq;
 			struct rt_mlme_queue_elem *Elem =
-			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
-							MEM_ALLOC_FLAG);
+				kmalloc(sizeof(struct rt_mlme_queue_elem),
+					MEM_ALLOC_FLAG);
 			if (Elem != NULL) {
 				NdisZeroMemory(&DelbaReq, sizeof(DelbaReq));
 				NdisZeroMemory(Elem, sizeof(struct rt_mlme_queue_elem));
@@ -839,8 +839,8 @@ void BAOriSessionTearDown(struct rt_rtmp_adapter *pAd,
 	    && (pBAEntry->ORI_BA_Status == Originator_Done)) {
 		struct rt_mlme_delba_req DelbaReq;
 		struct rt_mlme_queue_elem *Elem =
-		    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
-						MEM_ALLOC_FLAG);
+			kmalloc(sizeof(struct rt_mlme_queue_elem),
+				MEM_ALLOC_FLAG);
 		if (Elem != NULL) {
 			NdisZeroMemory(&DelbaReq, sizeof(DelbaReq));
 			NdisZeroMemory(Elem, sizeof(struct rt_mlme_queue_elem));
@@ -908,8 +908,8 @@ void BARecSessionTearDown(struct rt_rtmp_adapter *pAd,
 		/* */
 		if (bPassive == FALSE) {
 			struct rt_mlme_queue_elem *Elem =
-			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
-							MEM_ALLOC_FLAG);
+				kmalloc(sizeof(struct rt_mlme_queue_elem),
+					MEM_ALLOC_FLAG);
 			if (Elem != NULL) {
 				NdisZeroMemory(&DelbaReq, sizeof(DelbaReq));
 				NdisZeroMemory(Elem, sizeof(struct rt_mlme_queue_elem));
@@ -1270,13 +1270,13 @@ BOOLEAN CntlEnqueueForRecv(struct rt_rtmp_adapter *pAd,
 
 	/* First check the size, it MUST not exceed the mlme queue size */
 	if (MsgLen > MGMT_DMA_BUFFER_SIZE) {
-		DBGPRINT_ERR(("CntlEnqueueForRecv: frame too large, size = %ld \n", MsgLen));
+		DBGPRINT_ERR("CntlEnqueueForRecv: frame too large, size = %ld \n", MsgLen);
 		return FALSE;
 	} else if (MsgLen != sizeof(struct rt_frame_ba_req)) {
-		DBGPRINT_ERR(("CntlEnqueueForRecv: BlockAck Request frame length size = %ld incorrect\n", MsgLen));
+		DBGPRINT_ERR("CntlEnqueueForRecv: BlockAck Request frame length size = %ld incorrect\n", MsgLen);
 		return FALSE;
 	} else if (MsgLen != sizeof(struct rt_frame_ba_req)) {
-		DBGPRINT_ERR(("CntlEnqueueForRecv: BlockAck Request frame length size = %ld incorrect\n", MsgLen));
+		DBGPRINT_ERR("CntlEnqueueForRecv: BlockAck Request frame length size = %ld incorrect\n", MsgLen);
 		return FALSE;
 	}
 

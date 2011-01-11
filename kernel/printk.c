@@ -43,12 +43,6 @@
 #include <asm/uaccess.h>
 
 /*
- * for_each_console() allows you to iterate on each console
- */
-#define for_each_console(con) \
-	for (con = console_drivers; con != NULL; con = con->next)
-
-/*
  * Architectures can override it:
  */
 void asmlinkage __attribute__((weak)) early_printk(const char *fmt, ...)
@@ -279,12 +273,12 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 	 * at open time.
 	 */
 	if (type == SYSLOG_ACTION_OPEN || !from_file) {
-		if (dmesg_restrict && !capable(CAP_SYS_ADMIN))
-			return -EPERM;
+		if (dmesg_restrict && !capable(CAP_SYSLOG))
+			goto warn; /* switch to return -EPERM after 2.6.39 */
 		if ((type != SYSLOG_ACTION_READ_ALL &&
 		     type != SYSLOG_ACTION_SIZE_BUFFER) &&
-		    !capable(CAP_SYS_ADMIN))
-			return -EPERM;
+		    !capable(CAP_SYSLOG))
+			goto warn; /* switch to return -EPERM after 2.6.39 */
 	}
 
 	error = security_syslog(type);
@@ -428,6 +422,12 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 	}
 out:
 	return error;
+warn:
+	/* remove after 2.6.39 */
+	if (capable(CAP_SYS_ADMIN))
+		WARN_ONCE(1, "Attempt to access syslog with CAP_SYS_ADMIN "
+		  "but no CAP_SYSLOG (deprecated and denied).\n");
+	return -EPERM;
 }
 
 SYSCALL_DEFINE3(syslog, int, type, char __user *, buf, int, len)
@@ -1359,6 +1359,7 @@ void register_console(struct console *newcon)
 		spin_unlock_irqrestore(&logbuf_lock, flags);
 	}
 	release_console_sem();
+	console_sysfs_notify();
 
 	/*
 	 * By unregistering the bootconsoles after we enable the real console
@@ -1417,6 +1418,7 @@ int unregister_console(struct console *console)
 		console_drivers->flags |= CON_CONSDEV;
 
 	release_console_sem();
+	console_sysfs_notify();
 	return res;
 }
 EXPORT_SYMBOL(unregister_console);

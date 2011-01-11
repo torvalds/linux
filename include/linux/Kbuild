@@ -20,15 +20,18 @@ header-y += wimax/
 objhdr-y += version.h
 
 ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/a.out.h \
-		  $(srctree)/include/asm-$(SRCARCH)/a.out.h),)
+		  $(srctree)/include/asm-$(SRCARCH)/a.out.h \
+		  $(INSTALL_HDR_PATH)/include/asm-*/a.out.h),)
 header-y += a.out.h
 endif
 ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/kvm.h \
-		  $(srctree)/include/asm-$(SRCARCH)/kvm.h),)
+		  $(srctree)/include/asm-$(SRCARCH)/kvm.h \
+		  $(INSTALL_HDR_PATH)/include/asm-*/kvm.h),)
 header-y += kvm.h
 endif
 ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/kvm_para.h \
-		  $(srctree)/include/asm-$(SRCARCH)/kvm_para.h),)
+		  $(srctree)/include/asm-$(SRCARCH)/kvm_para.h \
+		  $(INSTALL_HDR_PATH)/include/asm-*/kvm_para.h),)
 header-y += kvm_para.h
 endif
 
@@ -367,7 +370,6 @@ header-y += utime.h
 header-y += utsname.h
 header-y += veth.h
 header-y += vhost.h
-header-y += videodev.h
 header-y += videodev2.h
 header-y += virtio_9p.h
 header-y += virtio_balloon.h

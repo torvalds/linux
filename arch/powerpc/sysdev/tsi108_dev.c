@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/of_net.h>
 #include <asm/tsi108.h>
 
 #include <asm/system.h>

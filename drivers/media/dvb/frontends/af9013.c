@@ -964,7 +964,7 @@ error:
 static int af9013_update_signal_strength(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
-	int ret;
+	int ret = 0;
 	u8 rf_gain, if_gain;
 	int signal_strength;
 

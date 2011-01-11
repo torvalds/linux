@@ -47,7 +47,6 @@
 #include <linux/crc32.h>
 #include <linux/vfs.h>
 #include <linux/writeback.h>
-#include <linux/kobject.h>
 #include <linux/seq_file.h>
 #include <linux/mount.h>
 #include "nilfs.h"
@@ -111,12 +110,17 @@ void nilfs_error(struct super_block *sb, const char *function,
 		 const char *fmt, ...)
 {
 	struct nilfs_sb_info *sbi = NILFS_SB(sb);
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	printk(KERN_CRIT "NILFS error (device %s): %s: ", sb->s_id, function);
-	vprintk(fmt, args);
-	printk("\n");
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_CRIT "NILFS error (device %s): %s: %pV\n",
+	       sb->s_id, function, &vaf);
+
 	va_end(args);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
@@ -136,13 +140,17 @@ void nilfs_error(struct super_block *sb, const char *function,
 void nilfs_warning(struct super_block *sb, const char *function,
 		   const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	printk(KERN_WARNING "NILFS warning (device %s): %s: ",
-	       sb->s_id, function);
-	vprintk(fmt, args);
-	printk("\n");
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_WARNING "NILFS warning (device %s): %s: %pV\n",
+	       sb->s_id, function, &vaf);
+
 	va_end(args);
 }
 
@@ -162,15 +170,23 @@ struct inode *nilfs_alloc_inode(struct super_block *sb)
 	return &ii->vfs_inode;
 }
 
-void nilfs_destroy_inode(struct inode *inode)
+static void nilfs_i_callback(struct rcu_head *head)
 {
+	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
+
+	INIT_LIST_HEAD(&inode->i_dentry);
 
 	if (mdi) {
 		kfree(mdi->mi_bgl); /* kfree(NULL) is safe */
 		kfree(mdi);
 	}
 	kmem_cache_free(nilfs_inode_cachep, NILFS_I(inode));
+}
+
+void nilfs_destroy_inode(struct inode *inode)
+{
+	call_rcu(&inode->i_rcu, nilfs_i_callback);
 }
 
 static int nilfs_sync_super(struct nilfs_sb_info *sbi, int flag)
@@ -838,7 +854,7 @@ static int nilfs_attach_snapshot(struct super_block *s, __u64 cno,
 
 static int nilfs_tree_was_touched(struct dentry *root_dentry)
 {
-	return atomic_read(&root_dentry->d_count) > 1;
+	return root_dentry->d_count > 1;
 }
 
 /**
@@ -1002,11 +1018,11 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 	struct nilfs_sb_info *sbi = NILFS_SB(sb);
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 	unsigned long old_sb_flags;
-	struct nilfs_mount_options old_opts;
+	unsigned long old_mount_opt;
 	int err;
 
 	old_sb_flags = sb->s_flags;
-	old_opts.mount_opt = sbi->s_mount_opt;
+	old_mount_opt = sbi->s_mount_opt;
 
 	if (!parse_options(data, sb, 1)) {
 		err = -EINVAL;
@@ -1075,7 +1091,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 
  restore_opts:
 	sb->s_flags = old_sb_flags;
-	sbi->s_mount_opt = old_opts.mount_opt;
+	sbi->s_mount_opt = old_mount_opt;
 	return err;
 }
 

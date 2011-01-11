@@ -12,6 +12,8 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 
+#include <mach/id.h>
+
 #define MODEM_INTCON_BASE_ADDR 0xBFFD3000
 #define MODEM_INTCON_SIZE 0xFFF
 
@@ -100,6 +102,9 @@ static int modem_irq_init(void)
 	int err;
 	static struct irq_chip  modem_irq_chip;
 	struct modem_irq *mi;
+
+	if (!cpu_is_u5500())
+		return -ENODEV;
 
 	pr_info("modem_irq: Set up IRQ handler for incoming modem IRQ %d\n",
 		   IRQ_DB5500_MODEM);

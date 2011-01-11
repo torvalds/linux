@@ -876,9 +876,6 @@ static const struct v4l2_ioctl_ops dt3155_ioctl_ops = {
 	.vidioc_s_crop = dt3155_ioc_s_crop,
 	.vidioc_enum_framesizes = dt3155_ioc_enum_framesizes,
 	.vidioc_enum_frameintervals = dt3155_ioc_enum_frameintervals,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf = iocgmbuf,
-#endif
 */
 };
 

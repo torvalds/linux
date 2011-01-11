@@ -122,7 +122,7 @@ static int __devinit sdhci_of_probe(struct platform_device *ofdev,
 	struct sdhci_of_data *sdhci_of_data = match->data;
 	struct sdhci_host *host;
 	struct sdhci_of_host *of_host;
-	const u32 *clk;
+	const __be32 *clk;
 	int size;
 	int ret;
 
@@ -166,7 +166,7 @@ static int __devinit sdhci_of_probe(struct platform_device *ofdev,
 
 	clk = of_get_property(np, "clock-frequency", &size);
 	if (clk && size == sizeof(*clk) && *clk)
-		of_host->clock = *clk;
+		of_host->clock = be32_to_cpup(clk);
 
 	ret = sdhci_add_host(host);
 	if (ret)

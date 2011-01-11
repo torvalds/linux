@@ -1124,51 +1124,40 @@ static int scsi_eh_target_reset(struct Scsi_Host *shost,
 				struct list_head *work_q,
 				struct list_head *done_q)
 {
-	struct scsi_cmnd *scmd, *tgtr_scmd, *next;
-	unsigned int id = 0;
-	int rtn;
+	LIST_HEAD(tmp_list);
 
-	do {
-		tgtr_scmd = NULL;
-		list_for_each_entry(scmd, work_q, eh_entry) {
-			if (id == scmd_id(scmd)) {
-				tgtr_scmd = scmd;
-				break;
-			}
-		}
-		if (!tgtr_scmd) {
-			/* not one exactly equal; find the next highest */
-			list_for_each_entry(scmd, work_q, eh_entry) {
-				if (scmd_id(scmd) > id &&
-				    (!tgtr_scmd ||
-				     scmd_id(tgtr_scmd) > scmd_id(scmd)))
-						tgtr_scmd = scmd;
-			}
-		}
-		if (!tgtr_scmd)
-			/* no more commands, that's it */
-			break;
+	list_splice_init(work_q, &tmp_list);
+
+	while (!list_empty(&tmp_list)) {
+		struct scsi_cmnd *next, *scmd;
+		int rtn;
+		unsigned int id;
+
+		scmd = list_entry(tmp_list.next, struct scsi_cmnd, eh_entry);
+		id = scmd_id(scmd);
 
 		SCSI_LOG_ERROR_RECOVERY(3, printk("%s: Sending target reset "
 						  "to target %d\n",
 						  current->comm, id));
-		rtn = scsi_try_target_reset(tgtr_scmd);
-		if (rtn == SUCCESS || rtn == FAST_IO_FAIL) {
-			list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
-				if (id == scmd_id(scmd))
-					if (!scsi_device_online(scmd->device) ||
-					    rtn == FAST_IO_FAIL ||
-					    !scsi_eh_tur(tgtr_scmd))
-						scsi_eh_finish_cmd(scmd,
-								   done_q);
-			}
-		} else
+		rtn = scsi_try_target_reset(scmd);
+		if (rtn != SUCCESS && rtn != FAST_IO_FAIL)
 			SCSI_LOG_ERROR_RECOVERY(3, printk("%s: Target reset"
 							  " failed target: "
 							  "%d\n",
 							  current->comm, id));
-		id++;
-	} while(id != 0);
+		list_for_each_entry_safe(scmd, next, &tmp_list, eh_entry) {
+			if (scmd_id(scmd) != id)
+				continue;
+
+			if ((rtn == SUCCESS || rtn == FAST_IO_FAIL)
+			    && (!scsi_device_online(scmd->device) ||
+				 rtn == FAST_IO_FAIL || !scsi_eh_tur(scmd)))
+				scsi_eh_finish_cmd(scmd, done_q);
+			else
+				/* push back on work queue for further processing */
+				list_move(&scmd->eh_entry, work_q);
+		}
+	}
 
 	return list_empty(work_q);
 }

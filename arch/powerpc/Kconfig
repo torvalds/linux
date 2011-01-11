@@ -116,7 +116,7 @@ config PPC
 	bool
 	default y
 	select OF
-	select OF_FLATTREE
+	select OF_EARLY_FLATTREE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_TRACER

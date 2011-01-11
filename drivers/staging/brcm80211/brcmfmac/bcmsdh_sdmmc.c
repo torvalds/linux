@@ -14,11 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <linux/types.h>
+#include <linux/netdevice.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <bcmendian.h>
-#include <bcmutils.h>
 #include <osl.h>
+#include <bcmutils.h>
 #include <sdio.h>		/* SDIO Device and Protocol Specs */
 #include <sdioh.h>		/* SDIO Host Controller Specification */
 #include <bcmsdbus.h>		/* bcmsdh to/from specific controller APIs */
@@ -111,7 +112,7 @@ static int sdioh_sdmmc_card_enablefuncs(sdioh_info_t *sd)
 /*
  *	Public entry points & extern's
  */
-extern sdioh_info_t *sdioh_attach(osl_t *osh, void *bar0, uint irq)
+extern sdioh_info_t *sdioh_attach(struct osl_info *osh, void *bar0, uint irq)
 {
 	sdioh_info_t *sd;
 	int err_ret;
@@ -174,7 +175,7 @@ extern sdioh_info_t *sdioh_attach(osl_t *osh, void *bar0, uint irq)
 	return sd;
 }
 
-extern SDIOH_API_RC sdioh_detach(osl_t *osh, sdioh_info_t *sd)
+extern SDIOH_API_RC sdioh_detach(struct osl_info *osh, sdioh_info_t *sd)
 {
 	sd_trace(("%s\n", __func__));
 
@@ -750,7 +751,7 @@ sdioh_cis_read(sdioh_info_t *sd, uint func, u8 *cisd, u32 length)
 	sd_trace(("%s: Func = %d\n", __func__, func));
 
 	if (!sd->func_cis_ptr[func]) {
-		bzero(cis, length);
+		memset(cis, 0, length);
 		sd_err(("%s: no func_cis_ptr[%d]\n", __func__, func));
 		return SDIOH_API_RC_FAIL;
 	}
@@ -927,13 +928,13 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func,
 
 static SDIOH_API_RC
 sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
-		     uint addr, void *pkt)
+		     uint addr, struct sk_buff *pkt)
 {
 	bool fifo = (fix_inc == SDIOH_DATA_FIX);
 	u32 SGCount = 0;
 	int err_ret = 0;
 
-	void *pnext;
+	struct sk_buff *pnext;
 
 	sd_trace(("%s: Enter\n", __func__));
 
@@ -943,8 +944,8 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 
 	/* Claim host controller */
 	sdio_claim_host(gInstance->func[func]);
-	for (pnext = pkt; pnext; pnext = PKTNEXT(pnext)) {
-		uint pkt_len = PKTLEN(pnext);
+	for (pnext = pkt; pnext; pnext = pnext->next) {
+		uint pkt_len = pnext->len;
 		pkt_len += 3;
 		pkt_len &= 0xFFFFFFFC;
 
@@ -961,23 +962,23 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 		 * is supposed to give
 		 * us something we can work with.
 		 */
-		ASSERT(((u32) (PKTDATA(pkt)) & DMA_ALIGN_MASK) == 0);
+		ASSERT(((u32) (pkt->data) & DMA_ALIGN_MASK) == 0);
 
 		if ((write) && (!fifo)) {
 			err_ret = sdio_memcpy_toio(gInstance->func[func], addr,
-						   ((u8 *) PKTDATA(pnext)),
+						   ((u8 *) (pnext->data)),
 						   pkt_len);
 		} else if (write) {
 			err_ret = sdio_memcpy_toio(gInstance->func[func], addr,
-						   ((u8 *) PKTDATA(pnext)),
+						   ((u8 *) (pnext->data)),
 						   pkt_len);
 		} else if (fifo) {
 			err_ret = sdio_readsb(gInstance->func[func],
-					      ((u8 *) PKTDATA(pnext)),
+					      ((u8 *) (pnext->data)),
 					      addr, pkt_len);
 		} else {
 			err_ret = sdio_memcpy_fromio(gInstance->func[func],
-						     ((u8 *) PKTDATA(pnext)),
+						     ((u8 *) (pnext->data)),
 						     addr, pkt_len);
 		}
 
@@ -1025,10 +1026,10 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 extern SDIOH_API_RC
 sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		     uint func, uint addr, uint reg_width, uint buflen_u,
-		     u8 *buffer, void *pkt)
+		     u8 *buffer, struct sk_buff *pkt)
 {
 	SDIOH_API_RC Status;
-	void *mypkt = NULL;
+	struct sk_buff *mypkt = NULL;
 
 	sd_trace(("%s: Enter\n", __func__));
 
@@ -1038,52 +1039,52 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 	if (pkt == NULL) {
 		sd_data(("%s: Creating new %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", buflen_u));
-		mypkt = PKTGET(sd->osh, buflen_u, write ? true : false);
+		mypkt = pkt_buf_get_skb(sd->osh, buflen_u);
 		if (!mypkt) {
-			sd_err(("%s: PKTGET failed: len %d\n",
+			sd_err(("%s: pkt_buf_get_skb failed: len %d\n",
 				__func__, buflen_u));
 			return SDIOH_API_RC_FAIL;
 		}
 
 		/* For a write, copy the buffer data into the packet. */
 		if (write)
-			bcopy(buffer, PKTDATA(mypkt), buflen_u);
+			bcopy(buffer, mypkt->data, buflen_u);
 
 		Status =
 		    sdioh_request_packet(sd, fix_inc, write, func, addr, mypkt);
 
 		/* For a read, copy the packet data back to the buffer. */
 		if (!write)
-			bcopy(PKTDATA(mypkt), buffer, buflen_u);
+			bcopy(mypkt->data, buffer, buflen_u);
 
-		PKTFREE(sd->osh, mypkt, write ? true : false);
-	} else if (((u32) (PKTDATA(pkt)) & DMA_ALIGN_MASK) != 0) {
+		pkt_buf_free_skb(sd->osh, mypkt, write ? true : false);
+	} else if (((u32) (pkt->data) & DMA_ALIGN_MASK) != 0) {
 		/* Case 2: We have a packet, but it is unaligned. */
 
 		/* In this case, we cannot have a chain. */
-		ASSERT(PKTNEXT(pkt) == NULL);
+		ASSERT(pkt->next == NULL);
 
 		sd_data(("%s: Creating aligned %s Packet, len=%d\n",
-			 __func__, write ? "TX" : "RX", PKTLEN(pkt)));
-		mypkt = PKTGET(sd->osh, PKTLEN(pkt), write ? true : false);
+			 __func__, write ? "TX" : "RX", pkt->len));
+		mypkt = pkt_buf_get_skb(sd->osh, pkt->len);
 		if (!mypkt) {
-			sd_err(("%s: PKTGET failed: len %d\n",
-				__func__, PKTLEN(pkt)));
+			sd_err(("%s: pkt_buf_get_skb failed: len %d\n",
+				__func__, pkt->len));
 			return SDIOH_API_RC_FAIL;
 		}
 
 		/* For a write, copy the buffer data into the packet. */
 		if (write)
-			bcopy(PKTDATA(pkt), PKTDATA(mypkt), PKTLEN(pkt));
+			bcopy(pkt->data, mypkt->data, pkt->len);
 
 		Status =
 		    sdioh_request_packet(sd, fix_inc, write, func, addr, mypkt);
 
 		/* For a read, copy the packet data back to the buffer. */
 		if (!write)
-			bcopy(PKTDATA(mypkt), PKTDATA(pkt), PKTLEN(mypkt));
+			bcopy(mypkt->data, pkt->data, mypkt->len);
 
-		PKTFREE(sd->osh, mypkt, write ? true : false);
+		pkt_buf_free_skb(sd->osh, mypkt, write ? true : false);
 	} else {		/* case 3: We have a packet and
 				 it is aligned. */
 		sd_data(("%s: Aligned %s Packet, direct DMA\n",

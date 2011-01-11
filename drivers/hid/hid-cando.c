@@ -207,7 +207,7 @@ static int cando_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	td = kmalloc(sizeof(struct cando_data), GFP_KERNEL);
 	if (!td) {
-		dev_err(&hdev->dev, "cannot allocate Cando Touch data\n");
+		hid_err(hdev, "cannot allocate Cando Touch data\n");
 		return -ENOMEM;
 	}
 	hid_set_drvdata(hdev, td);

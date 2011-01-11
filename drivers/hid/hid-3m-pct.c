@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
+#include <linux/input/mt.h>
 
 MODULE_AUTHOR("Stephane Chatty <chatty@enac.fr>");
 MODULE_DESCRIPTION("3M PCT multitouch panels");
@@ -27,8 +28,6 @@ MODULE_LICENSE("GPL");
 #include "hid-ids.h"
 
 #define MAX_SLOTS		60
-#define MAX_TRKID		USHRT_MAX
-#define MAX_EVENTS		360
 
 /* estimated signal-to-noise ratios */
 #define SN_MOVE			2048
@@ -36,14 +35,11 @@ MODULE_LICENSE("GPL");
 
 struct mmm_finger {
 	__s32 x, y, w, h;
-	__u16 id;
-	bool prev_touch;
 	bool touch, valid;
 };
 
 struct mmm_data {
 	struct mmm_finger f[MAX_SLOTS];
-	__u16 id;
 	__u8 curid;
 	__u8 nexp, nreal;
 	bool touch, valid;
@@ -117,14 +113,7 @@ static int mmm_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 					0, 1, 0, 0);
 			return 1;
 		case HID_DG_CONTACTID:
-			field->logical_maximum = MAX_TRKID;
-			hid_map_usage(hi, usage, bit, max,
-					EV_ABS, ABS_MT_TRACKING_ID);
-			input_set_abs_params(hi->input, ABS_MT_TRACKING_ID,
-					     0, MAX_TRKID, 0, 0);
-			if (!hi->input->mt)
-				input_mt_create_slots(hi->input, MAX_SLOTS);
-			input_set_events_per_packet(hi->input, MAX_EVENTS);
+			input_mt_init_slots(hi->input, MAX_SLOTS);
 			return 1;
 		}
 		/* let hid-input decide for the others */
@@ -154,7 +143,6 @@ static int mmm_input_mapped(struct hid_device *hdev, struct hid_input *hi,
  */
 static void mmm_filter_event(struct mmm_data *md, struct input_dev *input)
 {
-	struct mmm_finger *oldest = 0;
 	int i;
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		struct mmm_finger *f = &md->f[i];
@@ -163,6 +151,7 @@ static void mmm_filter_event(struct mmm_data *md, struct input_dev *input)
 			continue;
 		}
 		input_mt_slot(input, i);
+		input_mt_report_slot_state(input, MT_TOOL_FINGER, f->touch);
 		if (f->touch) {
 			/* this finger is on the screen */
 			int wide = (f->w > f->h);
@@ -170,33 +159,16 @@ static void mmm_filter_event(struct mmm_data *md, struct input_dev *input)
 			int major = max(f->w, f->h) >> 1;
 			int minor = min(f->w, f->h) >> 1;
 
-			if (!f->prev_touch)
-				f->id = md->id++;
-			input_event(input, EV_ABS, ABS_MT_TRACKING_ID, f->id);
 			input_event(input, EV_ABS, ABS_MT_POSITION_X, f->x);
 			input_event(input, EV_ABS, ABS_MT_POSITION_Y, f->y);
 			input_event(input, EV_ABS, ABS_MT_ORIENTATION, wide);
 			input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR, major);
 			input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR, minor);
-			/* touchscreen emulation: pick the oldest contact */
-			if (!oldest || ((f->id - oldest->id) & (SHRT_MAX + 1)))
-				oldest = f;
-		} else {
-			/* this finger took off the screen */
-			input_event(input, EV_ABS, ABS_MT_TRACKING_ID, -1);
 		}
-		f->prev_touch = f->touch;
 		f->valid = 0;
 	}
 
-	/* touchscreen emulation */
-	if (oldest) {
-		input_event(input, EV_KEY, BTN_TOUCH, 1);
-		input_event(input, EV_ABS, ABS_X, oldest->x);
-		input_event(input, EV_ABS, ABS_Y, oldest->y);
-	} else {
-		input_event(input, EV_KEY, BTN_TOUCH, 0);
-	}
+	input_mt_report_pointer_emulation(input, true);
 	input_sync(input);
 }
 
@@ -274,7 +246,7 @@ static int mmm_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	md = kzalloc(sizeof(struct mmm_data), GFP_KERNEL);
 	if (!md) {
-		dev_err(&hdev->dev, "cannot allocate 3M data\n");
+		hid_err(hdev, "cannot allocate 3M data\n");
 		return -ENOMEM;
 	}
 	hid_set_drvdata(hdev, md);

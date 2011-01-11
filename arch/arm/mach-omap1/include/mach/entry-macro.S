@@ -14,18 +14,17 @@
 #include <mach/irqs.h>
 #include <asm/hardware/gic.h>
 
-#if (defined(CONFIG_ARCH_OMAP730)||defined(CONFIG_ARCH_OMAP850)) && \
-	(defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX))
-#error "FIXME: OMAP7XX doesn't support multiple-OMAP"
-#elif defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
-#define INT_IH2_IRQ		INT_7XX_IH2_IRQ
-#elif defined(CONFIG_ARCH_OMAP15XX)
-#define INT_IH2_IRQ		INT_1510_IH2_IRQ
-#elif defined(CONFIG_ARCH_OMAP16XX)
-#define INT_IH2_IRQ		INT_1610_IH2_IRQ
-#else
-#warning "IH2 IRQ defaulted"
-#define INT_IH2_IRQ		INT_1510_IH2_IRQ
+/*
+ * We use __glue to avoid errors with multiple definitions of
+ * .globl omap_irq_flags as it's included from entry-armv.S but not
+ * from entry-common.S.
+ */
+#ifdef __glue
+		.pushsection .data
+		.globl	omap_irq_flags
+omap_irq_flags:
+		.word	0
+		.popsection
 #endif
 
  		.macro	disable_fiq
@@ -47,9 +46,11 @@
 		beq	1510f
 
 		ldr	\irqnr, [\base, #IRQ_SIR_FIQ_REG_OFFSET]
+		ldr	\tmp, =omap_irq_flags	@ irq flags address
+		ldr	\tmp, [\tmp, #0]	@ irq flags value
 		cmp	\irqnr, #0
 		ldreq	\irqnr, [\base, #IRQ_SIR_IRQ_REG_OFFSET]
-		cmpeq	\irqnr, #INT_IH2_IRQ
+		cmpeq	\irqnr, \tmp
 		ldreq	\base, =OMAP1_IO_ADDRESS(OMAP_IH2_BASE)
 		ldreq	\irqnr, [\base, #IRQ_SIR_IRQ_REG_OFFSET]
 		addeqs	\irqnr, \irqnr, #32

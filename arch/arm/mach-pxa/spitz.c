@@ -23,7 +23,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/spi/corgi_lcd.h>
-#include <linux/mtd/physmap.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/mtd/sharpsl.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/regulator/machine.h>
@@ -42,7 +42,6 @@
 #include <mach/mmc.h>
 #include <mach/ohci.h>
 #include <mach/pxafb.h>
-#include <mach/pxa2xx_spi.h>
 #include <mach/spitz.h>
 #include <mach/sharpsl_pm.h>
 #include <mach/smemc.h>

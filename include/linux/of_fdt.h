@@ -58,6 +58,23 @@ struct boot_param_header {
 };
 
 #if defined(CONFIG_OF_FLATTREE)
+
+struct device_node;
+
+/* For scanning an arbitrary device-tree at any time */
+extern char *of_fdt_get_string(struct boot_param_header *blob, u32 offset);
+extern void *of_fdt_get_property(struct boot_param_header *blob,
+				 unsigned long node,
+				 const char *name,
+				 unsigned long *size);
+extern int of_fdt_is_compatible(struct boot_param_header *blob,
+				unsigned long node,
+				const char *compat);
+extern int of_fdt_match(struct boot_param_header *blob, unsigned long node,
+			const char **compat);
+extern void of_fdt_unflatten_tree(unsigned long *blob,
+			       struct device_node **mynodes);
+
 /* TBD: Temporary export of fdt globals - remove when code fully merged */
 extern int __initdata dt_root_addr_cells;
 extern int __initdata dt_root_size_cells;
@@ -71,6 +88,7 @@ extern int of_scan_flat_dt(int (*it)(unsigned long node, const char *uname,
 extern void *of_get_flat_dt_prop(unsigned long node, const char *name,
 				 unsigned long *size);
 extern int of_flat_dt_is_compatible(unsigned long node, const char *name);
+extern int of_flat_dt_match(unsigned long node, const char **matches);
 extern unsigned long of_get_flat_dt_root(void);
 
 extern int early_init_dt_scan_chosen(unsigned long node, const char *uname,

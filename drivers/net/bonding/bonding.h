@@ -18,7 +18,6 @@
 #include <linux/timer.h>
 #include <linux/proc_fs.h>
 #include <linux/if_bonding.h>
-#include <linux/kobject.h>
 #include <linux/cpumask.h>
 #include <linux/in6.h>
 #include "bond_3ad.h"

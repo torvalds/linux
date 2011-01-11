@@ -317,12 +317,12 @@ void __kprobes free_optinsn_slot(kprobe_opcode_t * slot, int dirty)
 /* We have preemption disabled.. so it is safe to use __ versions */
 static inline void set_kprobe_instance(struct kprobe *kp)
 {
-	__get_cpu_var(kprobe_instance) = kp;
+	__this_cpu_write(kprobe_instance, kp);
 }
 
 static inline void reset_kprobe_instance(void)
 {
-	__get_cpu_var(kprobe_instance) = NULL;
+	__this_cpu_write(kprobe_instance, NULL);
 }
 
 /*
@@ -965,7 +965,7 @@ static void __kprobes aggr_post_handler(struct kprobe *p, struct pt_regs *regs,
 static int __kprobes aggr_fault_handler(struct kprobe *p, struct pt_regs *regs,
 					int trapnr)
 {
-	struct kprobe *cur = __get_cpu_var(kprobe_instance);
+	struct kprobe *cur = __this_cpu_read(kprobe_instance);
 
 	/*
 	 * if we faulted "during" the execution of a user specified
@@ -980,7 +980,7 @@ static int __kprobes aggr_fault_handler(struct kprobe *p, struct pt_regs *regs,
 
 static int __kprobes aggr_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
-	struct kprobe *cur = __get_cpu_var(kprobe_instance);
+	struct kprobe *cur = __this_cpu_read(kprobe_instance);
 	int ret = 0;
 
 	if (cur && cur->break_handler) {

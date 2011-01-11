@@ -28,6 +28,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/spi/corgi_lcd.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/mtd/sharpsl.h>
 #include <linux/input/matrix_keypad.h>
 #include <video/w100fb.h>
@@ -48,7 +49,6 @@
 #include <mach/irda.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
-#include <mach/pxa2xx_spi.h>
 #include <mach/corgi.h>
 #include <mach/sharpsl_pm.h>
 

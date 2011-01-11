@@ -545,10 +545,15 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev, unsigned int framesize)
 
 	/* De-allocates all pending stuff */
 	tm6000_uninit_isoc(dev);
+	/* Stop interrupt USB pipe */
+	tm6000_ir_int_stop(dev);
 
 	usb_set_interface(dev->udev,
 			  dev->isoc_in.bInterfaceNumber,
 			  dev->isoc_in.bAlternateSetting);
+
+	/* Start interrupt USB pipe */
+	tm6000_ir_int_start(dev);
 
 	pipe = usb_rcvisocpipe(dev->udev,
 			       dev->isoc_in.endp->desc.bEndpointAddress &
@@ -985,15 +990,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	return videobuf_dqbuf(&fh->vb_vidq, p,
 				file->f_flags & O_NONBLOCK);
 }
-
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
-{
-	struct tm6000_fh  *fh = priv;
-
-	return videobuf_cgmbuf(&fh->vb_vidq, mbuf, 8);
-}
-#endif
 
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
@@ -1438,9 +1434,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querybuf          = vidioc_querybuf,
 	.vidioc_qbuf              = vidioc_qbuf,
 	.vidioc_dqbuf             = vidioc_dqbuf,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf              = vidiocgmbuf,
-#endif
 };
 
 static struct video_device tm6000_template = {

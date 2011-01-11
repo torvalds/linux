@@ -75,14 +75,12 @@ static inline int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 #ifdef CONFIG_USB_SUSPEND
 
 extern void usb_autosuspend_device(struct usb_device *udev);
-extern void usb_try_autosuspend_device(struct usb_device *udev);
 extern int usb_autoresume_device(struct usb_device *udev);
 extern int usb_remote_wakeup(struct usb_device *dev);
 
 #else
 
 #define usb_autosuspend_device(udev)		do {} while (0)
-#define usb_try_autosuspend_device(udev)	do {} while (0)
 static inline int usb_autoresume_device(struct usb_device *udev)
 {
 	return 0;

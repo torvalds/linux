@@ -1128,14 +1128,13 @@ static int dlfb_realloc_framebuffer(struct dlfb_data *dev, struct fb_info *info)
 		 * But with imperfect damage info we may send pixels over USB
 		 * that were, in fact, unchanged - wasting limited USB bandwidth
 		 */
-		new_back = vmalloc(new_len);
+		new_back = vzalloc(new_len);
 		if (!new_back)
-			pr_info("No shadow/backing buffer allcoated\n");
+			pr_info("No shadow/backing buffer allocated\n");
 		else {
 			if (dev->backing_buffer)
 				vfree(dev->backing_buffer);
 			dev->backing_buffer = new_back;
-			memset(dev->backing_buffer, 0, new_len);
 		}
 	}
 

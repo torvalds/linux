@@ -901,7 +901,8 @@ static void ohci_stop (struct usb_hcd *hcd)
 
 	ohci_dump (ohci, 1);
 
-	flush_scheduled_work();
+	if (quirk_nec(ohci))
+		flush_work_sync(&ohci->nec_work);
 
 	ohci_usb_reset (ohci);
 	ohci_writel (ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
@@ -1079,6 +1080,11 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_USB_OHCI_HCD_PPC_OF
 #include "ohci-ppc-of.c"
 #define OF_PLATFORM_DRIVER	ohci_hcd_ppc_of_driver
+#endif
+
+#ifdef CONFIG_PLAT_SPEAR
+#include "ohci-spear.c"
+#define PLATFORM_DRIVER		spear_ohci_hcd_driver
 #endif
 
 #ifdef CONFIG_PPC_PS3

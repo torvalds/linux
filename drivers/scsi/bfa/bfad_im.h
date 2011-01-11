@@ -117,17 +117,17 @@ struct bfad_im_s {
 	char            drv_workq_name[KOBJ_NAME_LEN];
 };
 
-struct Scsi_Host *bfad_os_scsi_host_alloc(struct bfad_im_port_s *im_port,
+struct Scsi_Host *bfad_scsi_host_alloc(struct bfad_im_port_s *im_port,
 				struct bfad_s *);
-bfa_status_t bfad_os_thread_workq(struct bfad_s *bfad);
-void bfad_os_destroy_workq(struct bfad_im_s *im);
-void bfad_os_fc_host_init(struct bfad_im_port_s *im_port);
-void bfad_os_scsi_host_free(struct bfad_s *bfad,
+bfa_status_t bfad_thread_workq(struct bfad_s *bfad);
+void bfad_destroy_workq(struct bfad_im_s *im);
+void bfad_fc_host_init(struct bfad_im_port_s *im_port);
+void bfad_scsi_host_free(struct bfad_s *bfad,
 				 struct bfad_im_port_s *im_port);
-void bfad_os_ramp_up_qdepth(struct bfad_itnim_s *itnim,
+void bfad_ramp_up_qdepth(struct bfad_itnim_s *itnim,
 				 struct scsi_device *sdev);
-void bfad_os_handle_qfull(struct bfad_itnim_s *itnim, struct scsi_device *sdev);
-struct bfad_itnim_s *bfad_os_get_itnim(struct bfad_im_port_s *im_port, int id);
+void bfad_handle_qfull(struct bfad_itnim_s *itnim, struct scsi_device *sdev);
+struct bfad_itnim_s *bfad_get_itnim(struct bfad_im_port_s *im_port, int id);
 
 extern struct scsi_host_template bfad_im_scsi_host_template;
 extern struct scsi_host_template bfad_im_vport_template;

@@ -21,7 +21,20 @@
 
 #include "devices-db5500.h"
 
+static struct map_desc u5500_uart_io_desc[] __initdata = {
+	__IO_DEV_DESC(U5500_UART0_BASE, SZ_4K),
+	__IO_DEV_DESC(U5500_UART2_BASE, SZ_4K),
+};
+
 static struct map_desc u5500_io_desc[] __initdata = {
+	__IO_DEV_DESC(U5500_GIC_CPU_BASE, SZ_4K),
+	__IO_DEV_DESC(U5500_GIC_DIST_BASE, SZ_4K),
+	__IO_DEV_DESC(U5500_L2CC_BASE, SZ_4K),
+	__IO_DEV_DESC(U5500_TWD_BASE, SZ_4K),
+	__IO_DEV_DESC(U5500_MTU0_BASE, SZ_4K),
+	__IO_DEV_DESC(U5500_SCU_BASE, SZ_4K),
+	__IO_DEV_DESC(U5500_BACKUPRAM0_BASE, SZ_8K),
+
 	__IO_DEV_DESC(U5500_GPIO0_BASE, SZ_4K),
 	__IO_DEV_DESC(U5500_GPIO1_BASE, SZ_4K),
 	__IO_DEV_DESC(U5500_GPIO2_BASE, SZ_4K),
@@ -143,6 +156,11 @@ static void __init db5500_add_gpios(void)
 
 void __init u5500_map_io(void)
 {
+	/*
+	 * Map the UARTs early so that the DEBUG_LL stuff continues to work.
+	 */
+	iotable_init(u5500_uart_io_desc, ARRAY_SIZE(u5500_uart_io_desc));
+
 	ux500_map_io();
 
 	iotable_init(u5500_io_desc, ARRAY_SIZE(u5500_io_desc));

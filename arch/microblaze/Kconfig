@@ -14,7 +14,7 @@ config MICROBLAZE
 	select HAVE_DMA_API_DEBUG
 	select TRACING_SUPPORT
 	select OF
-	select OF_FLATTREE
+	select OF_EARLY_FLATTREE
 
 config SWAP
 	def_bool n

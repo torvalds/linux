@@ -155,7 +155,6 @@ Code  Seq#(hex)	Include File		Comments
 'Q'	all	linux/soundcard.h
 'R'	00-1F	linux/random.h		conflict!
 'R'	01	linux/rfkill.h		conflict!
-'R'	01-0F	media/rds.h		conflict!
 'R'	C0-DF	net/bluetooth/rfcomm.h
 'S'	all	linux/cdrom.h		conflict!
 'S'	80-81	scsi/scsi_ioctl.h	conflict!
@@ -194,7 +193,6 @@ Code  Seq#(hex)	Include File		Comments
 					<http://lrcwww.epfl.ch/>
 'b'	00-FF				conflict! bit3 vme host bridge
 					<mailto:natalia@nikhefk.nikhef.nl>
-'b'	00-0F	media/bt819.h		conflict!
 'c'	all	linux/cm4000_cs.h	conflict!
 'c'	00-7F	linux/comstats.h	conflict!
 'c'	00-7F	linux/coda.h		conflict!
@@ -260,14 +258,11 @@ Code  Seq#(hex)	Include File		Comments
 't'	80-8F	linux/isdn_ppp.h
 't'	90	linux/toshiba.h
 'u'	00-1F	linux/smb_fs.h		gone
-'v'	all	linux/videodev.h	conflict!
 'v'	00-1F	linux/ext2_fs.h		conflict!
 'v'	00-1F	linux/fs.h		conflict!
 'v'	00-0F	linux/sonypi.h		conflict!
-'v'	C0-CF	drivers/media/video/ov511.h	conflict!
 'v'	C0-DF	media/pwc-ioctl.h	conflict!
 'v'	C0-FF	linux/meye.h		conflict!
-'v'	C0-CF	drivers/media/video/zoran/zoran.h	conflict!
 'v'	D0-DF	drivers/media/video/cpia2/cpia2dev.h	conflict!
 'w'	all				CERN SCI driver
 'y'	00-1F				packet based user level communications
@@ -278,7 +273,6 @@ Code  Seq#(hex)	Include File		Comments
 					<mailto:oe@port.de>
 'z'	10-4F	drivers/s390/crypto/zcrypt_api.h	conflict!
 0x80	00-1F	linux/fb.h
-0x88	00-3F	media/ovcamchip.h
 0x89	00-06	arch/x86/include/asm/sockios.h
 0x89	0B-DF	linux/sockios.h
 0x89	E0-EF	linux/sockios.h		SIOCPROTOPRIVATE range

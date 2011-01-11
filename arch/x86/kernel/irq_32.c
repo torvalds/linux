@@ -79,7 +79,7 @@ execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq)
 	u32 *isp, arg1, arg2;
 
 	curctx = (union irq_ctx *) current_thread_info();
-	irqctx = __get_cpu_var(hardirq_ctx);
+	irqctx = __this_cpu_read(hardirq_ctx);
 
 	/*
 	 * this is where we switch to the IRQ stack. However, if we are
@@ -166,7 +166,7 @@ asmlinkage void do_softirq(void)
 
 	if (local_softirq_pending()) {
 		curctx = current_thread_info();
-		irqctx = __get_cpu_var(softirq_ctx);
+		irqctx = __this_cpu_read(softirq_ctx);
 		irqctx->tinfo.task = curctx->task;
 		irqctx->tinfo.previous_esp = current_stack_pointer;
 

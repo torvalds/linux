@@ -338,6 +338,19 @@ config USB_S3C2410_DEBUG
 	boolean "S3C2410 udc debug messages"
 	depends on USB_GADGET_S3C2410
 
+config USB_GADGET_PXA_U2O
+	boolean "PXA9xx Processor USB2.0 controller"
+	select USB_GADGET_DUALSPEED
+	help
+	  PXA9xx Processor series include a high speed USB2.0 device
+	  controller, which support high speed and full speed USB peripheral.
+
+config USB_PXA_U2O
+	tristate
+	depends on USB_GADGET_PXA_U2O
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 #
 # Controllers available in both integrated and discrete versions
 #
@@ -414,8 +427,8 @@ config USB_FSL_QE
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
-config USB_GADGET_CI13XXX
-	boolean "MIPS USB CI13xxx"
+config USB_GADGET_CI13XXX_PCI
+	boolean "MIPS USB CI13xxx PCI UDC"
 	depends on PCI
 	select USB_GADGET_DUALSPEED
 	help
@@ -426,9 +439,9 @@ config USB_GADGET_CI13XXX
 	  dynamically linked module called "ci13xxx_udc" and force all
 	  gadget drivers to also be dynamically linked.
 
-config USB_CI13XXX
+config USB_CI13XXX_PCI
 	tristate
-	depends on USB_GADGET_CI13XXX
+	depends on USB_GADGET_CI13XXX_PCI
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
@@ -495,6 +508,49 @@ config USB_LANGWELL
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_GADGET_EG20T
+	boolean "Intel EG20T(Topcliff) USB Device controller"
+	depends on PCI
+	select USB_GADGET_DUALSPEED
+	help
+	  This is a USB device driver for EG20T PCH.
+	  EG20T PCH is the platform controller hub that is used in Intel's
+	  general embedded platform. EG20T PCH has USB device interface.
+	  Using this interface, it is able to access system devices connected
+	  to USB device.
+	  This driver enables USB device function.
+	  USB device is a USB peripheral controller which
+	  supports both full and high speed USB 2.0 data transfers.
+	  This driver supports both control transfer and bulk transfer modes.
+	  This driver dose not support interrupt transfer or isochronous
+	  transfer modes.
+
+config USB_EG20T
+	tristate
+	depends on USB_GADGET_EG20T
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
+config USB_GADGET_CI13XXX_MSM
+	boolean "MIPS USB CI13xxx for MSM"
+	depends on ARCH_MSM
+	select USB_GADGET_DUALSPEED
+	select USB_MSM_OTG_72K
+	help
+	  MSM SoC has chipidea USB controller.  This driver uses
+	  ci13xxx_udc core.
+	  This driver depends on OTG driver for PHY initialization,
+	  clock management, powering up VBUS, and power management.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "ci13xxx_msm" and force all
+	  gadget drivers to also be dynamically linked.
+
+config USB_CI13XXX_MSM
+	tristate
+	depends on USB_GADGET_CI13XXX_MSM
+	default USB_GADGET
+	select USB_GADGET_SELECTED
 
 #
 # LAST -- dummy/emulated controller
@@ -684,6 +740,19 @@ config USB_ETH_EEM
 
          If you say "y" here, the Ethernet gadget driver will use the EEM
          protocol rather than ECM.  If unsure, say "n".
+
+config USB_G_NCM
+	tristate "Network Control Model (NCM) support"
+	depends on NET
+	select CRC32
+	help
+	  This driver implements USB CDC NCM subclass standard. NCM is
+	  an advanced protocol for Ethernet encapsulation, allows grouping
+	  of several ethernet frames into one USB transfer and diffferent
+	  alignment possibilities.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "g_ncm".
 
 config USB_GADGETFS
 	tristate "Gadget Filesystem (EXPERIMENTAL)"

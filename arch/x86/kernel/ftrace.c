@@ -170,9 +170,9 @@ static void ftrace_mod_code(void)
 
 void ftrace_nmi_enter(void)
 {
-	__get_cpu_var(save_modifying_code) = modifying_code;
+	__this_cpu_write(save_modifying_code, modifying_code);
 
-	if (!__get_cpu_var(save_modifying_code))
+	if (!__this_cpu_read(save_modifying_code))
 		return;
 
 	if (atomic_inc_return(&nmi_running) & MOD_CODE_WRITE_FLAG) {
@@ -186,7 +186,7 @@ void ftrace_nmi_enter(void)
 
 void ftrace_nmi_exit(void)
 {
-	if (!__get_cpu_var(save_modifying_code))
+	if (!__this_cpu_read(save_modifying_code))
 		return;
 
 	/* Finish all executions before clearing nmi_running */

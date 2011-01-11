@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
+#include <linux/namei.h>
 
 #include <asm/uaccess.h>
 
@@ -47,7 +48,7 @@ static int coda_readdir(struct file *file, void *buf, filldir_t filldir);
 
 /* dentry ops */
 static int coda_dentry_revalidate(struct dentry *de, struct nameidata *nd);
-static int coda_dentry_delete(struct dentry *);
+static int coda_dentry_delete(const struct dentry *);
 
 /* support routines */
 static int coda_venus_readdir(struct file *coda_file, void *buf,
@@ -125,7 +126,7 @@ static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, struc
 		return ERR_PTR(error);
 
 exit:
-	entry->d_op = &coda_dentry_operations;
+	d_set_d_op(entry, &coda_dentry_operations);
 
 	if (inode && (type & CODA_NOCACHE))
 		coda_flag_inode(inode, C_VATTR | C_PURGE);
@@ -134,9 +135,12 @@ exit:
 }
 
 
-int coda_permission(struct inode *inode, int mask)
+int coda_permission(struct inode *inode, int mask, unsigned int flags)
 {
 	int error;
+
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
 	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
  
@@ -541,9 +545,13 @@ out:
 /* called when a cache lookup succeeds */
 static int coda_dentry_revalidate(struct dentry *de, struct nameidata *nd)
 {
-	struct inode *inode = de->d_inode;
+	struct inode *inode;
 	struct coda_inode_info *cii;
 
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	inode = de->d_inode;
 	if (!inode || coda_isroot(inode))
 		goto out;
 	if (is_bad_inode(inode))
@@ -559,7 +567,7 @@ static int coda_dentry_revalidate(struct dentry *de, struct nameidata *nd)
 	if (cii->c_flags & C_FLUSH) 
 		coda_flag_inode_children(inode, C_FLUSH);
 
-	if (atomic_read(&de->d_count) > 1)
+	if (de->d_count > 1)
 		/* pretend it's valid, but don't change the flags */
 		goto out;
 
@@ -577,7 +585,7 @@ out:
  * This is the callback from dput() when d_count is going to 0.
  * We use this to unhash dentries with bad inodes.
  */
-static int coda_dentry_delete(struct dentry * dentry)
+static int coda_dentry_delete(const struct dentry * dentry)
 {
 	int flags;
 

@@ -535,7 +535,7 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 		if (unlikely(err))
 			goto failed_page;
 
-		err = nilfs_set_file_dirty(sbi, inode, 1);
+		err = nilfs_set_file_dirty(inode, 1);
 		if (unlikely(err))
 			goto failed_page;
 

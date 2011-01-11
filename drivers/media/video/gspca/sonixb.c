@@ -56,6 +56,8 @@ struct sd {
 	int prev_avg_lum;
 	int exp_too_low_cnt;
 	int exp_too_high_cnt;
+	int header_read;
+	u8 header[12]; /* Header without sof marker */
 
 	unsigned short exposure;
 	unsigned char gain;
@@ -71,14 +73,15 @@ struct sd {
 #define BRIDGE_103 1
 
 	__u8 sensor;			/* Type of image sensor chip */
-#define SENSOR_HV7131R 0
-#define SENSOR_OV6650 1
-#define SENSOR_OV7630 2
-#define SENSOR_PAS106 3
-#define SENSOR_PAS202 4
-#define SENSOR_TAS5110C 5
-#define SENSOR_TAS5110D 6
-#define SENSOR_TAS5130CXX 7
+#define SENSOR_HV7131D 0
+#define SENSOR_HV7131R 1
+#define SENSOR_OV6650 2
+#define SENSOR_OV7630 3
+#define SENSOR_PAS106 4
+#define SENSOR_PAS202 5
+#define SENSOR_TAS5110C 6
+#define SENSOR_TAS5110D 7
+#define SENSOR_TAS5130CXX 8
 	__u8 reg11;
 };
 
@@ -303,14 +306,29 @@ static const struct v4l2_pix_format sif_mode[] = {
 		.priv = 0},
 };
 
-static const __u8 initHv7131[] = {
+static const __u8 initHv7131d[] = {
+	0x04, 0x03, 0x00, 0x04, 0x00, 0x00, 0x00, 0x80, 0x11, 0x00, 0x00, 0x00,
+	0x00, 0x00,
+	0x00, 0x00, 0x00, 0x02, 0x02, 0x00,
+	0x28, 0x1e, 0x60, 0x8e, 0x42,
+	0x1d, 0x10, 0x02, 0x03, 0x0f, 0x0c
+};
+static const __u8 hv7131d_sensor_init[][8] = {
+	{0xa0, 0x11, 0x01, 0x04, 0x00, 0x00, 0x00, 0x17},
+	{0xa0, 0x11, 0x02, 0x00, 0x00, 0x00, 0x00, 0x17},
+	{0xa0, 0x11, 0x28, 0x00, 0x00, 0x00, 0x00, 0x17},
+	{0xa0, 0x11, 0x30, 0x30, 0x00, 0x00, 0x00, 0x17}, /* reset level */
+	{0xa0, 0x11, 0x34, 0x02, 0x00, 0x00, 0x00, 0x17}, /* pixel bias volt */
+};
+
+static const __u8 initHv7131r[] = {
 	0x46, 0x77, 0x00, 0x04, 0x00, 0x00, 0x00, 0x80, 0x11, 0x00, 0x00, 0x00,
 	0x00, 0x00,
 	0x00, 0x00, 0x00, 0x02, 0x01, 0x00,
 	0x28, 0x1e, 0x60, 0x8a, 0x20,
 	0x1d, 0x10, 0x02, 0x03, 0x0f, 0x0c
 };
-static const __u8 hv7131_sensor_init[][8] = {
+static const __u8 hv7131r_sensor_init[][8] = {
 	{0xc0, 0x11, 0x31, 0x38, 0x2a, 0x2e, 0x00, 0x10},
 	{0xa0, 0x11, 0x01, 0x08, 0x2a, 0x2e, 0x00, 0x10},
 	{0xb0, 0x11, 0x20, 0x00, 0xd0, 0x2e, 0x00, 0x10},
@@ -340,7 +358,7 @@ static const __u8 ov6650_sensor_init[][8] = {
 		 * but blue wont be there. Avoid this data ... */
 	{0xd0, 0x60, 0x26, 0x01, 0x14, 0xd8, 0xa4, 0x10}, /* format out? */
 	{0xd0, 0x60, 0x26, 0x01, 0x14, 0xd8, 0xa4, 0x10},
-	{0xa0, 0x60, 0x30, 0x3d, 0x0A, 0xd8, 0xa4, 0x10},
+	{0xa0, 0x60, 0x30, 0x3d, 0x0a, 0xd8, 0xa4, 0x10},
 	/* Enable rgb brightness control */
 	{0xa0, 0x60, 0x61, 0x08, 0x00, 0x00, 0x00, 0x10},
 	/* HDG: Note windows uses the line below, which sets both register 0x60
@@ -505,7 +523,7 @@ static const __u8 pas202_sensor_init[][8] = {
 	{0xa0, 0x40, 0x02, 0x04, 0x00, 0x00, 0x00, 0x10},
 	{0xd0, 0x40, 0x04, 0x07, 0x34, 0x00, 0x09, 0x10},
 	{0xd0, 0x40, 0x08, 0x01, 0x00, 0x00, 0x01, 0x10},
-	{0xd0, 0x40, 0x0C, 0x00, 0x0C, 0x01, 0x32, 0x10},
+	{0xd0, 0x40, 0x0c, 0x00, 0x0c, 0x01, 0x32, 0x10},
 	{0xd0, 0x40, 0x10, 0x00, 0x01, 0x00, 0x63, 0x10},
 	{0xa0, 0x40, 0x15, 0x70, 0x01, 0x00, 0x63, 0x10},
 	{0xa0, 0x40, 0x18, 0x00, 0x01, 0x00, 0x63, 0x10},
@@ -551,7 +569,8 @@ static const __u8 tas5130_sensor_init[][8] = {
 };
 
 static struct sensor_data sensor_data[] = {
-SENS(initHv7131, NULL, hv7131_sensor_init, NULL, NULL, 0, NO_EXPO|NO_FREQ, 0),
+SENS(initHv7131d, NULL, hv7131d_sensor_init, NULL, NULL, F_GAIN, NO_BRIGHTNESS|NO_FREQ, 0),
+SENS(initHv7131r, NULL, hv7131r_sensor_init, NULL, NULL, 0, NO_BRIGHTNESS|NO_EXPO|NO_FREQ, 0),
 SENS(initOv6650, NULL, ov6650_sensor_init, NULL, NULL, F_GAIN|F_SIF, 0, 0x60),
 SENS(initOv7630, initOv7630_3, ov7630_sensor_init, NULL, ov7630_sensor_init_3,
 	F_GAIN, 0, 0x21),
@@ -701,7 +720,18 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 	unsigned char gain = sd->gain;
 
 	switch (sd->sensor) {
+	case SENSOR_HV7131D: {
+		__u8 i2c[] =
+			{0xc0, 0x11, 0x31, 0x00, 0x00, 0x00, 0x00, 0x17};
 
+		i2c[3] = 0x3f - (sd->gain / 4);
+		i2c[4] = 0x3f - (sd->gain / 4);
+		i2c[5] = 0x3f - (sd->gain / 4);
+
+		if (i2c_w(gspca_dev, i2c) < 0)
+			goto err;
+		break;
+	    }
 	case SENSOR_TAS5110C:
 	case SENSOR_TAS5110D: {
 		__u8 i2c[] =
@@ -788,6 +818,23 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->sensor) {
+	case SENSOR_HV7131D: {
+		/* Note the datasheet wrongly says line mode exposure uses reg
+		   0x26 and 0x27, testing has shown 0x25 + 0x26 */
+		__u8 i2c[] = {0xc0, 0x11, 0x25, 0x00, 0x00, 0x00, 0x00, 0x17};
+		/* The HV7131D's exposure goes from 0 - 65535, we scale our
+		   exposure of 0-1023 to 0-6138. There are 2 reasons for this:
+		   1) This puts our exposure knee of 200 at approx the point
+		      where the framerate starts dropping
+		   2) At 6138 the framerate has already dropped to 2 fps,
+		      going any lower makes little sense */
+		__u16 reg = sd->exposure * 6;
+		i2c[3] = reg >> 8;
+		i2c[4] = reg & 0xff;
+		if (i2c_w(gspca_dev, i2c) != 0)
+			goto err;
+		break;
+	    }
 	case SENSOR_TAS5110C:
 	case SENSOR_TAS5110D: {
 		/* register 19's high nibble contains the sn9c10x clock divider
@@ -1177,13 +1224,10 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	sd_init(gspca_dev);
 }
 
-static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			u8 *data,			/* isoc packet */
-			int len)			/* iso packet length */
+static u8* find_sof(struct gspca_dev *gspca_dev, u8 *data, int len)
 {
-	int i;
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct cam *cam = &gspca_dev->cam;
+	int i, header_size = (sd->bridge == BRIDGE_103) ? 18 : 12;
 
 	/* frames start with:
 	 *	ff ff 00 c4 c4 96	synchro
@@ -1194,57 +1238,83 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	 *	ll mm		brightness sum outside auto exposure
 	 *	(xx xx xx xx xx)	audio values for snc103
 	 */
-	if (len > 6 && len < 24) {
-		for (i = 0; i < len - 6; i++) {
-			if (data[0 + i] == 0xff
-			    && data[1 + i] == 0xff
-			    && data[2 + i] == 0x00
-			    && data[3 + i] == 0xc4
-			    && data[4 + i] == 0xc4
-			    && data[5 + i] == 0x96) {	/* start of frame */
-				int lum = -1;
-				int pkt_type = LAST_PACKET;
-				int fr_h_sz = (sd->bridge == BRIDGE_103) ?
-					18 : 12;
-
-				if (len - i < fr_h_sz) {
-					PDEBUG(D_STREAM, "packet too short to"
-						" get avg brightness");
-				} else if (sd->bridge == BRIDGE_103) {
-					lum = data[i + 9] +
-						(data[i + 10] << 8);
-				} else {
-					lum = data[i + 8] + (data[i + 9] << 8);
-				}
-				/* When exposure changes midway a frame we
-				   get a lum of 0 in this case drop 2 frames
-				   as the frames directly after an exposure
-				   change have an unstable image. Sometimes lum
-				   *really* is 0 (cam used in low light with
-				   low exposure setting), so do not drop frames
-				   if the previous lum was 0 too. */
-				if (lum == 0 && sd->prev_avg_lum != 0) {
-					lum = -1;
-					sd->frames_to_drop = 2;
-					sd->prev_avg_lum = 0;
-				} else
-					sd->prev_avg_lum = lum;
-				atomic_set(&sd->avg_lum, lum);
-
-				if (sd->frames_to_drop) {
-					sd->frames_to_drop--;
-					pkt_type = DISCARD_PACKET;
-				}
-
-				gspca_frame_add(gspca_dev, pkt_type,
-						NULL, 0);
-				data += i + fr_h_sz;
-				len -= i + fr_h_sz;
-				gspca_frame_add(gspca_dev, FIRST_PACKET,
-						data, len);
-				return;
+	for (i = 0; i < len; i++) {
+		switch (sd->header_read) {
+		case 0:
+			if (data[i] == 0xff)
+				sd->header_read++;
+			break;
+		case 1:
+			if (data[i] == 0xff)
+				sd->header_read++;
+			else
+				sd->header_read = 0;
+			break;
+		case 2:
+			if (data[i] == 0x00)
+				sd->header_read++;
+			else if (data[i] != 0xff)
+				sd->header_read = 0;
+			break;
+		case 3:
+			if (data[i] == 0xc4)
+				sd->header_read++;
+			else if (data[i] == 0xff)
+				sd->header_read = 1;
+			else
+				sd->header_read = 0;
+			break;
+		case 4:
+			if (data[i] == 0xc4)
+				sd->header_read++;
+			else if (data[i] == 0xff)
+				sd->header_read = 1;
+			else
+				sd->header_read = 0;
+			break;
+		case 5:
+			if (data[i] == 0x96)
+				sd->header_read++;
+			else if (data[i] == 0xff)
+				sd->header_read = 1;
+			else
+				sd->header_read = 0;
+			break;
+		default:
+			sd->header[sd->header_read - 6] = data[i];
+			sd->header_read++;
+			if (sd->header_read == header_size) {
+				sd->header_read = 0;
+				return data + i + 1;
 			}
 		}
+	}
+	return NULL;
+}
+
+static void sd_pkt_scan(struct gspca_dev *gspca_dev,
+			u8 *data,			/* isoc packet */
+			int len)			/* iso packet length */
+{
+	int fr_h_sz = 0, lum_offset = 0, len_after_sof = 0;
+	struct sd *sd = (struct sd *) gspca_dev;
+	struct cam *cam = &gspca_dev->cam;
+	u8 *sof;
+
+	sof = find_sof(gspca_dev, data, len);
+	if (sof) {
+		if (sd->bridge == BRIDGE_103) {
+			fr_h_sz = 18;
+			lum_offset = 3;
+		} else {
+			fr_h_sz = 12;
+			lum_offset = 2;
+		}
+
+		len_after_sof = len - (sof - data);
+		len = (sof - data) - fr_h_sz;
+		if (len < 0)
+			len = 0;
 	}
 
 	if (cam->cam_mode[gspca_dev->curr_mode].priv & MODE_RAW) {
@@ -1259,6 +1329,33 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
+
+	if (sof) {
+		int  lum = sd->header[lum_offset] +
+			  (sd->header[lum_offset + 1] << 8);
+
+		/* When exposure changes midway a frame we
+		   get a lum of 0 in this case drop 2 frames
+		   as the frames directly after an exposure
+		   change have an unstable image. Sometimes lum
+		   *really* is 0 (cam used in low light with
+		   low exposure setting), so do not drop frames
+		   if the previous lum was 0 too. */
+		if (lum == 0 && sd->prev_avg_lum != 0) {
+			lum = -1;
+			sd->frames_to_drop = 2;
+			sd->prev_avg_lum = 0;
+		} else
+			sd->prev_avg_lum = lum;
+		atomic_set(&sd->avg_lum, lum);
+
+		if (sd->frames_to_drop)
+			sd->frames_to_drop--;
+		else
+			gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
+
+		gspca_frame_add(gspca_dev, FIRST_PACKET, sof, len_after_sof);
+	}
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
@@ -1431,9 +1528,7 @@ static const struct sd_desc sd_desc = {
 static const struct usb_device_id device_table[] __devinitconst = {
 	{USB_DEVICE(0x0c45, 0x6001), SB(TAS5110C, 102)}, /* TAS5110C1B */
 	{USB_DEVICE(0x0c45, 0x6005), SB(TAS5110C, 101)}, /* TAS5110C1B */
-#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x6007), SB(TAS5110D, 101)}, /* TAS5110D */
-#endif
 	{USB_DEVICE(0x0c45, 0x6009), SB(PAS106, 101)},
 	{USB_DEVICE(0x0c45, 0x600d), SB(PAS106, 101)},
 	{USB_DEVICE(0x0c45, 0x6011), SB(OV6650, 101)},
@@ -1444,9 +1539,12 @@ static const struct usb_device_id device_table[] __devinitconst = {
 #endif
 	{USB_DEVICE(0x0c45, 0x6028), SB(PAS202, 102)},
 	{USB_DEVICE(0x0c45, 0x6029), SB(PAS106, 102)},
+	{USB_DEVICE(0x0c45, 0x602a), SB(HV7131D, 102)},
+	/* {USB_DEVICE(0x0c45, 0x602b), SB(MI0343, 102)}, */
 	{USB_DEVICE(0x0c45, 0x602c), SB(OV7630, 102)},
 	{USB_DEVICE(0x0c45, 0x602d), SB(HV7131R, 102)},
 	{USB_DEVICE(0x0c45, 0x602e), SB(OV7630, 102)},
+	/* {USB_DEVICE(0x0c45, 0x602b), SB(MI03XX, 102)}, */ /* MI0343 MI0360 MI0330 */
 	{USB_DEVICE(0x0c45, 0x608f), SB(OV7630, 103)},
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x60af), SB(PAS202, 103)},

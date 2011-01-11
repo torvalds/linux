@@ -721,6 +721,9 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 	case 3:
 		c->freq = 83;
 		break;
+	case 4:
+		c->freq = 104;
+		break;
 	}
 
 #ifdef CONFIG_MTD_PARTITIONS

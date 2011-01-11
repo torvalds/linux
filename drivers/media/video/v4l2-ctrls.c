@@ -38,15 +38,15 @@ struct ctrl_helper {
    the given control ID. The pointer array ends with a NULL pointer.
    An empty string signifies a menu entry that is invalid. This allows
    drivers to disable certain options if it is not supported. */
-const char **v4l2_ctrl_get_menu(u32 id)
+const char * const *v4l2_ctrl_get_menu(u32 id)
 {
-	static const char *mpeg_audio_sampling_freq[] = {
+	static const char * const mpeg_audio_sampling_freq[] = {
 		"44.1 kHz",
 		"48 kHz",
 		"32 kHz",
 		NULL
 	};
-	static const char *mpeg_audio_encoding[] = {
+	static const char * const mpeg_audio_encoding[] = {
 		"MPEG-1/2 Layer I",
 		"MPEG-1/2 Layer II",
 		"MPEG-1/2 Layer III",
@@ -54,7 +54,7 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		"AC-3",
 		NULL
 	};
-	static const char *mpeg_audio_l1_bitrate[] = {
+	static const char * const mpeg_audio_l1_bitrate[] = {
 		"32 kbps",
 		"64 kbps",
 		"96 kbps",
@@ -71,7 +71,7 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		"448 kbps",
 		NULL
 	};
-	static const char *mpeg_audio_l2_bitrate[] = {
+	static const char * const mpeg_audio_l2_bitrate[] = {
 		"32 kbps",
 		"48 kbps",
 		"56 kbps",
@@ -88,7 +88,7 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		"384 kbps",
 		NULL
 	};
-	static const char *mpeg_audio_l3_bitrate[] = {
+	static const char * const mpeg_audio_l3_bitrate[] = {
 		"32 kbps",
 		"40 kbps",
 		"48 kbps",
@@ -105,7 +105,7 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		"320 kbps",
 		NULL
 	};
-	static const char *mpeg_audio_ac3_bitrate[] = {
+	static const char * const mpeg_audio_ac3_bitrate[] = {
 		"32 kbps",
 		"40 kbps",
 		"48 kbps",
@@ -127,50 +127,50 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		"640 kbps",
 		NULL
 	};
-	static const char *mpeg_audio_mode[] = {
+	static const char * const mpeg_audio_mode[] = {
 		"Stereo",
 		"Joint Stereo",
 		"Dual",
 		"Mono",
 		NULL
 	};
-	static const char *mpeg_audio_mode_extension[] = {
+	static const char * const mpeg_audio_mode_extension[] = {
 		"Bound 4",
 		"Bound 8",
 		"Bound 12",
 		"Bound 16",
 		NULL
 	};
-	static const char *mpeg_audio_emphasis[] = {
+	static const char * const mpeg_audio_emphasis[] = {
 		"No Emphasis",
 		"50/15 us",
 		"CCITT J17",
 		NULL
 	};
-	static const char *mpeg_audio_crc[] = {
+	static const char * const mpeg_audio_crc[] = {
 		"No CRC",
 		"16-bit CRC",
 		NULL
 	};
-	static const char *mpeg_video_encoding[] = {
+	static const char * const mpeg_video_encoding[] = {
 		"MPEG-1",
 		"MPEG-2",
 		"MPEG-4 AVC",
 		NULL
 	};
-	static const char *mpeg_video_aspect[] = {
+	static const char * const mpeg_video_aspect[] = {
 		"1x1",
 		"4x3",
 		"16x9",
 		"2.21x1",
 		NULL
 	};
-	static const char *mpeg_video_bitrate_mode[] = {
+	static const char * const mpeg_video_bitrate_mode[] = {
 		"Variable Bitrate",
 		"Constant Bitrate",
 		NULL
 	};
-	static const char *mpeg_stream_type[] = {
+	static const char * const mpeg_stream_type[] = {
 		"MPEG-2 Program Stream",
 		"MPEG-2 Transport Stream",
 		"MPEG-1 System Stream",
@@ -179,25 +179,25 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		"MPEG-2 SVCD-compatible Stream",
 		NULL
 	};
-	static const char *mpeg_stream_vbi_fmt[] = {
+	static const char * const mpeg_stream_vbi_fmt[] = {
 		"No VBI",
 		"Private packet, IVTV format",
 		NULL
 	};
-	static const char *camera_power_line_frequency[] = {
+	static const char * const camera_power_line_frequency[] = {
 		"Disabled",
 		"50 Hz",
 		"60 Hz",
 		NULL
 	};
-	static const char *camera_exposure_auto[] = {
+	static const char * const camera_exposure_auto[] = {
 		"Auto Mode",
 		"Manual Mode",
 		"Shutter Priority Mode",
 		"Aperture Priority Mode",
 		NULL
 	};
-	static const char *colorfx[] = {
+	static const char * const colorfx[] = {
 		"None",
 		"Black & White",
 		"Sepia",
@@ -210,7 +210,7 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		"Vivid",
 		NULL
 	};
-	static const char *tune_preemphasis[] = {
+	static const char * const tune_preemphasis[] = {
 		"No preemphasis",
 		"50 useconds",
 		"75 useconds",
@@ -952,7 +952,7 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, const char *name, enum v4l2_ctrl_type type,
 			s32 min, s32 max, u32 step, s32 def,
-			u32 flags, const char **qmenu, void *priv)
+			u32 flags, const char * const *qmenu, void *priv)
 {
 	struct v4l2_ctrl *ctrl;
 	unsigned sz_extra = 0;
@@ -962,10 +962,17 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 
 	/* Sanity checks */
 	if (id == 0 || name == NULL || id >= V4L2_CID_PRIVATE_BASE ||
-	    def < min || def > max || max < min ||
+	    max < min ||
 	    (type == V4L2_CTRL_TYPE_INTEGER && step == 0) ||
 	    (type == V4L2_CTRL_TYPE_MENU && qmenu == NULL) ||
 	    (type == V4L2_CTRL_TYPE_STRING && max == 0)) {
+		handler_set_err(hdl, -ERANGE);
+		return NULL;
+	}
+	if ((type == V4L2_CTRL_TYPE_INTEGER ||
+	     type == V4L2_CTRL_TYPE_MENU ||
+	     type == V4L2_CTRL_TYPE_BOOLEAN) &&
+	    (def < min || def > max)) {
 		handler_set_err(hdl, -ERANGE);
 		return NULL;
 	}
@@ -1019,7 +1026,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_custom(struct v4l2_ctrl_handler *hdl,
 	bool is_menu;
 	struct v4l2_ctrl *ctrl;
 	const char *name = cfg->name;
-	const char **qmenu = cfg->qmenu;
+	const char * const *qmenu = cfg->qmenu;
 	enum v4l2_ctrl_type type = cfg->type;
 	u32 flags = cfg->flags;
 	s32 min = cfg->min;
@@ -1075,7 +1082,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_std_menu(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s32 max, s32 mask, s32 def)
 {
-	const char **qmenu = v4l2_ctrl_get_menu(id);
+	const char * const *qmenu = v4l2_ctrl_get_menu(id);
 	const char *name;
 	enum v4l2_ctrl_type type;
 	s32 min;

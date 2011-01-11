@@ -16,6 +16,7 @@
 #include <linux/videodev2.h>
 
 #include <media/v4l2-device.h>
+#include <media/ir-kbd-i2c.h>
 
 #define HDPVR_MAJOR_VERSION 0
 #define HDPVR_MINOR_VERSION 2
@@ -108,6 +109,9 @@ struct hdpvr_device {
 	struct i2c_adapter	*i2c_adapter;
 	/* I2C lock */
 	struct mutex		i2c_mutex;
+
+	/* For passing data to ir-kbd-i2c */
+	struct IR_i2c_init_data	ir_i2c_init_data;
 
 	/* usb control transfer buffer and lock */
 	struct mutex		usbc_mutex;
@@ -305,6 +309,8 @@ int hdpvr_cancel_queue(struct hdpvr_device *dev);
 /*========================================================================*/
 /* i2c adapter registration */
 int hdpvr_register_i2c_adapter(struct hdpvr_device *dev);
+
+int hdpvr_register_i2c_ir(struct hdpvr_device *dev);
 
 /*========================================================================*/
 /* buffer management */

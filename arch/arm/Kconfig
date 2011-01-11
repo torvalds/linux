@@ -632,9 +632,15 @@ config ARCH_MSM
 	  (clock and power control, etc).
 
 config ARCH_SHMOBILE
-	bool "Renesas SH-Mobile"
+	bool "Renesas SH-Mobile / R-Mobile"
+	select HAVE_CLK
+	select CLKDEV_LOOKUP
+	select GENERIC_CLOCKEVENTS
+	select NO_IOPORT
+	select SPARSE_IRQ
+	select MULTI_IRQ_HANDLER
 	help
-	  Support for Renesas's SH-Mobile ARM platforms
+	  Support for Renesas's SH-Mobile and R-Mobile ARM platforms.
 
 config ARCH_RPC
 	bool "RiscPC"
@@ -1252,7 +1258,7 @@ config SMP
 	depends on REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP || \
 		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || \
 		 ARCH_S5PV310 || ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4 || \
-		 ARCH_MSM_SCORPIONMP
+		 ARCH_MSM_SCORPIONMP || ARCH_SHMOBILE
 	select USE_GENERIC_SMP_HELPERS
 	select HAVE_ARM_SCU if !ARCH_MSM_SCORPIONMP
 	help

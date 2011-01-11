@@ -26,7 +26,7 @@
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #include "cx23885.h"
 

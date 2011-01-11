@@ -12,7 +12,7 @@ pgm_check_handler_t do_dat_exception;
 
 extern int sysctl_userprocess_debug;
 
-void do_single_step(struct pt_regs *regs);
+void do_per_trap(struct pt_regs *regs);
 void syscall_trace(struct pt_regs *regs, int entryexit);
 void kernel_stack_overflow(struct pt_regs * regs);
 void do_signal(struct pt_regs *regs);

@@ -11,6 +11,7 @@
 #define KMSG_COMPONENT "vmur"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/kernel_stat.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
 
@@ -302,6 +303,7 @@ static void ur_int_handler(struct ccw_device *cdev, unsigned long intparm,
 {
 	struct urdev *urd;
 
+	kstat_cpu(smp_processor_id()).irqs[IOINT_VMR]++;
 	TRACE("ur_int_handler: intparm=0x%lx cstat=%02x dstat=%02x res=%u\n",
 	      intparm, irb->scsw.cmd.cstat, irb->scsw.cmd.dstat,
 	      irb->scsw.cmd.count);

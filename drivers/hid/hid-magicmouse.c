@@ -12,6 +12,8 @@
  * any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
@@ -433,6 +435,11 @@ static int magicmouse_input_mapping(struct hid_device *hdev,
 	if (!msc->input)
 		msc->input = hi->input;
 
+	/* Magic Trackpad does not give relative data after switching to MT */
+	if (hi->input->id.product == USB_DEVICE_ID_APPLE_MAGICTRACKPAD &&
+	    field->flags & HID_MAIN_ITEM_RELATIVE)
+		return -1;
+
 	return 0;
 }
 
@@ -446,7 +453,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 
 	msc = kzalloc(sizeof(*msc), GFP_KERNEL);
 	if (msc == NULL) {
-		dev_err(&hdev->dev, "can't alloc magicmouse descriptor\n");
+		hid_err(hdev, "can't alloc magicmouse descriptor\n");
 		return -ENOMEM;
 	}
 
@@ -459,13 +466,13 @@ static int magicmouse_probe(struct hid_device *hdev,
 
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "magicmouse hid parse failed\n");
+		hid_err(hdev, "magicmouse hid parse failed\n");
 		goto err_free;
 	}
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
-		dev_err(&hdev->dev, "magicmouse hw start failed\n");
+		hid_err(hdev, "magicmouse hw start failed\n");
 		goto err_free;
 	}
 
@@ -486,7 +493,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 	}
 
 	if (!report) {
-		dev_err(&hdev->dev, "unable to register touch report\n");
+		hid_err(hdev, "unable to register touch report\n");
 		ret = -ENOMEM;
 		goto err_stop_hw;
 	}
@@ -495,8 +502,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 	ret = hdev->hid_output_raw_report(hdev, feature, sizeof(feature),
 			HID_FEATURE_REPORT);
 	if (ret != sizeof(feature)) {
-		dev_err(&hdev->dev, "unable to request touch data (%d)\n",
-				ret);
+		hid_err(hdev, "unable to request touch data (%d)\n", ret);
 		goto err_stop_hw;
 	}
 
@@ -540,7 +546,7 @@ static int __init magicmouse_init(void)
 
 	ret = hid_register_driver(&magicmouse_driver);
 	if (ret)
-		printk(KERN_ERR "can't register magicmouse driver\n");
+		pr_err("can't register magicmouse driver\n");
 
 	return ret;
 }

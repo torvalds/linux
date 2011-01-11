@@ -307,8 +307,7 @@ static void o2hb_arm_write_timeout(struct o2hb_region *reg)
 
 static void o2hb_disarm_write_timeout(struct o2hb_region *reg)
 {
-	cancel_delayed_work(&reg->hr_write_timeout_work);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&reg->hr_write_timeout_work);
 }
 
 static inline void o2hb_bio_wait_init(struct o2hb_bio_wait_ctxt *wc)

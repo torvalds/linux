@@ -7,8 +7,8 @@
 
 #define BIT_64(n)			(U64_C(1) << (n))
 
-#define ERROR_CODE(x)			((x) & 0xffff)
-#define EXT_ERROR_CODE(x)		(((x) >> 16) & 0x1f)
+#define EC(x)				((x) & 0xffff)
+#define XEC(x, mask)			(((x) >> 16) & mask)
 
 #define LOW_SYNDROME(x)			(((x) >> 15) & 0xff)
 #define HIGH_SYNDROME(x)		(((x) >> 24) & 0xff)
@@ -21,15 +21,15 @@
 #define TT_MSG(x)			tt_msgs[TT(x)]
 #define II(x)				(((x) >> 2) & 0x3)
 #define II_MSG(x)			ii_msgs[II(x)]
-#define LL(x)				(((x) >> 0) & 0x3)
+#define LL(x)				((x) & 0x3)
 #define LL_MSG(x)			ll_msgs[LL(x)]
 #define TO(x)				(((x) >> 8) & 0x1)
 #define TO_MSG(x)			to_msgs[TO(x)]
 #define PP(x)				(((x) >> 9) & 0x3)
 #define PP_MSG(x)			pp_msgs[PP(x)]
 
-#define RRRR(x)				(((x) >> 4) & 0xf)
-#define RRRR_MSG(x)			((RRRR(x) < 9) ?  rrrr_msgs[RRRR(x)] : "Wrong R4!")
+#define R4(x)				(((x) >> 4) & 0xf)
+#define R4_MSG(x)			((R4(x) < 9) ?  rrrr_msgs[R4(x)] : "Wrong R4!")
 
 #define K8_NBSH				0x4C
 
@@ -100,8 +100,8 @@ struct err_regs {
  * per-family decoder ops
  */
 struct amd_decoder_ops {
-	bool (*dc_mce)(u16);
-	bool (*ic_mce)(u16);
+	bool (*dc_mce)(u16, u8);
+	bool (*ic_mce)(u16, u8);
 	bool (*nb_mce)(u16, u8);
 };
 

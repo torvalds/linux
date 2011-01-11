@@ -1389,7 +1389,7 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 		if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
 			goto out;
 		if ((arg == F_WRLCK)
-		    && ((atomic_read(&dentry->d_count) > 1)
+		    && ((dentry->d_count > 1)
 			|| (atomic_read(&inode->i_count) > 1)))
 			goto out;
 	}

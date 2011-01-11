@@ -55,7 +55,7 @@ MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 10, 0)
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 11, 0)
 
 #ifdef GSPCA_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
@@ -224,12 +224,12 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 		buffer, buffer_len,
 		int_irq, (void *)gspca_dev, interval);
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-	gspca_dev->int_urb = urb;
 	ret = usb_submit_urb(urb, GFP_KERNEL);
 	if (ret < 0) {
 		PDEBUG(D_ERR, "submit int URB failed with error %i", ret);
 		goto error_submit;
 	}
+	gspca_dev->int_urb = urb;
 	return ret;
 
 error_submit:
@@ -318,19 +318,19 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 	}
 	pkt_scan = gspca_dev->sd_desc->pkt_scan;
 	for (i = 0; i < urb->number_of_packets; i++) {
+		len = urb->iso_frame_desc[i].actual_length;
 
 		/* check the packet status and length */
-		len = urb->iso_frame_desc[i].actual_length;
-		if (len == 0) {
-			if (gspca_dev->empty_packet == 0)
-				gspca_dev->empty_packet = 1;
-			continue;
-		}
 		st = urb->iso_frame_desc[i].status;
 		if (st) {
 			err("ISOC data error: [%d] len=%d, status=%d",
 				i, len, st);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
+			continue;
+		}
+		if (len == 0) {
+			if (gspca_dev->empty_packet == 0)
+				gspca_dev->empty_packet = 1;
 			continue;
 		}
 
@@ -652,16 +652,12 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 				   : USB_ENDPOINT_XFER_ISOC;
 	i = gspca_dev->alt;			/* previous alt setting */
 	if (gspca_dev->cam.reverse_alts) {
-		if (gspca_dev->audio && i < gspca_dev->nbalt - 2)
-			i++;
 		while (++i < gspca_dev->nbalt) {
 			ep = alt_xfer(&intf->altsetting[i], xfer);
 			if (ep)
 				break;
 		}
 	} else {
-		if (gspca_dev->audio && i > 1)
-			i--;
 		while (--i >= 0) {
 			ep = alt_xfer(&intf->altsetting[i], xfer);
 			if (ep)
@@ -676,13 +672,11 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 			i, ep->desc.bEndpointAddress);
 	gspca_dev->alt = i;		/* memorize the current alt setting */
 	if (gspca_dev->nbalt > 1) {
-		gspca_input_destroy_urb(gspca_dev);
 		ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, i);
 		if (ret < 0) {
 			err("set alt %d err %d", i, ret);
 			ep = NULL;
 		}
-		gspca_input_create_urb(gspca_dev);
 	}
 	return ep;
 }
@@ -759,7 +753,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 			}
 		} else {		/* bulk */
 			urb->pipe = usb_rcvbulkpipe(gspca_dev->dev,
-						ep->desc.bEndpointAddress),
+						ep->desc.bEndpointAddress);
 			urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 			urb->complete = bulk_irq;
 		}
@@ -781,7 +775,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 
 	if (!gspca_dev->present) {
 		ret = -ENODEV;
-		goto out;
+		goto unlock;
 	}
 
 	/* reset the streaming variables */
@@ -802,8 +796,10 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 	if (gspca_dev->sd_desc->isoc_init) {
 		ret = gspca_dev->sd_desc->isoc_init(gspca_dev);
 		if (ret < 0)
-			goto out;
+			goto unlock;
 	}
+
+	gspca_input_destroy_urb(gspca_dev);
 	ep = get_ep(gspca_dev);
 	if (ep == NULL) {
 		ret = -EIO;
@@ -873,6 +869,8 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		}
 	}
 out:
+	gspca_input_create_urb(gspca_dev);
+unlock:
 	mutex_unlock(&gspca_dev->usb_lock);
 	return ret;
 }
@@ -1299,17 +1297,19 @@ static int vidioc_querycap(struct file *file, void  *priv,
 		ret = -ENODEV;
 		goto out;
 	}
-	strncpy(cap->driver, gspca_dev->sd_desc->name, sizeof cap->driver);
+	strncpy((char *) cap->driver, gspca_dev->sd_desc->name,
+			sizeof cap->driver);
 	if (gspca_dev->dev->product != NULL) {
-		strncpy(cap->card, gspca_dev->dev->product,
+		strncpy((char *) cap->card, gspca_dev->dev->product,
 			sizeof cap->card);
 	} else {
-		snprintf(cap->card, sizeof cap->card,
+		snprintf((char *) cap->card, sizeof cap->card,
 			"USB Camera (%04x:%04x)",
 			le16_to_cpu(gspca_dev->dev->descriptor.idVendor),
 			le16_to_cpu(gspca_dev->dev->descriptor.idProduct));
 	}
-	usb_make_path(gspca_dev->dev, cap->bus_info, sizeof(cap->bus_info));
+	usb_make_path(gspca_dev->dev, (char *) cap->bus_info,
+			sizeof(cap->bus_info));
 	cap->version = DRIVER_VERSION_NUMBER;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
 			  | V4L2_CAP_STREAMING
@@ -1710,12 +1710,13 @@ static int vidioc_g_parm(struct file *filp, void *priv,
 
 		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 			return -ERESTARTSYS;
-		gspca_dev->usb_err = 0;
-		if (gspca_dev->present)
-			ret = gspca_dev->sd_desc->get_streamparm(gspca_dev,
-								 parm);
-		else
+		if (gspca_dev->present) {
+			gspca_dev->usb_err = 0;
+			gspca_dev->sd_desc->get_streamparm(gspca_dev, parm);
+			ret = gspca_dev->usb_err;
+		} else {
 			ret = -ENODEV;
+		}
 		mutex_unlock(&gspca_dev->usb_lock);
 		return ret;
 	}
@@ -1740,12 +1741,13 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 
 		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 			return -ERESTARTSYS;
-		gspca_dev->usb_err = 0;
-		if (gspca_dev->present)
-			ret = gspca_dev->sd_desc->set_streamparm(gspca_dev,
-								 parm);
-		else
+		if (gspca_dev->present) {
+			gspca_dev->usb_err = 0;
+			gspca_dev->sd_desc->set_streamparm(gspca_dev, parm);
+			ret = gspca_dev->usb_err;
+		} else {
 			ret = -ENODEV;
+		}
 		mutex_unlock(&gspca_dev->usb_lock);
 		return ret;
 	}

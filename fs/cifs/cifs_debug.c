@@ -119,29 +119,27 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 		    "Display Internal CIFS Data Structures for Debugging\n"
 		    "---------------------------------------------------\n");
 	seq_printf(m, "CIFS Version %s\n", CIFS_VERSION);
-	seq_printf(m, "Features: ");
+	seq_printf(m, "Features:");
 #ifdef CONFIG_CIFS_DFS_UPCALL
-	seq_printf(m, "dfs");
-	seq_putc(m, ' ');
+	seq_printf(m, " dfs");
 #endif
 #ifdef CONFIG_CIFS_FSCACHE
-	seq_printf(m, "fscache");
-	seq_putc(m, ' ');
+	seq_printf(m, " fscache");
 #endif
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-	seq_printf(m, "lanman");
-	seq_putc(m, ' ');
+	seq_printf(m, " lanman");
 #endif
 #ifdef CONFIG_CIFS_POSIX
-	seq_printf(m, "posix");
-	seq_putc(m, ' ');
+	seq_printf(m, " posix");
 #endif
 #ifdef CONFIG_CIFS_UPCALL
-	seq_printf(m, "spnego");
-	seq_putc(m, ' ');
+	seq_printf(m, " spnego");
 #endif
 #ifdef CONFIG_CIFS_XATTR
-	seq_printf(m, "xattr");
+	seq_printf(m, " xattr");
+#endif
+#ifdef CONFIG_CIFS_ACL
+	seq_printf(m, " acl");
 #endif
 	seq_putc(m, '\n');
 	seq_printf(m, "Active VFS Requests: %d\n", GlobalTotalActiveXid);
