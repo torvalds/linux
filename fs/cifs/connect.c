@@ -152,6 +152,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 
 	/* before reconnecting the tcp session, mark the smb session (uid)
 		and the tid bad so they are not used until reconnected */
+	cFYI(1, "%s: marking sessions and tcons for reconnect", __func__);
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(tmp, &server->smb_ses_list) {
 		ses = list_entry(tmp, struct cifsSesInfo, smb_ses_list);
@@ -163,7 +164,9 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
+
 	/* do not want to be sending data on a socket we are freeing */
+	cFYI(1, "%s: tearing down socket", __func__);
 	mutex_lock(&server->srv_mutex);
 	if (server->ssocket) {
 		cFYI(1, "State: 0x%x Flags: 0x%lx", server->ssocket->state,
@@ -180,22 +183,19 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	kfree(server->session_key.response);
 	server->session_key.response = NULL;
 	server->session_key.len = 0;
+	mutex_unlock(&server->srv_mutex);
 
+	/* mark submitted MIDs for retry and issue callback */
+	cFYI(1, "%s: issuing mid callbacks", __func__);
 	spin_lock(&GlobalMid_Lock);
-	list_for_each(tmp, &server->pending_mid_q) {
-		mid_entry = list_entry(tmp, struct
-					mid_q_entry,
-					qhead);
-		if (mid_entry->midState == MID_REQUEST_SUBMITTED) {
-				/* Mark other intransit requests as needing
-				   retry so we do not immediately mark the
-				   session bad again (ie after we reconnect
-				   below) as they timeout too */
+	list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
+		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
+		if (mid_entry->midState == MID_REQUEST_SUBMITTED)
 			mid_entry->midState = MID_RETRY_NEEDED;
-		}
+		list_del_init(&mid_entry->qhead);
+		mid_entry->callback(mid_entry);
 	}
 	spin_unlock(&GlobalMid_Lock);
-	mutex_unlock(&server->srv_mutex);
 
 	while ((server->tcpStatus != CifsExiting) &&
 	       (server->tcpStatus != CifsGood)) {
@@ -212,10 +212,9 @@ cifs_reconnect(struct TCP_Server_Info *server)
 			if (server->tcpStatus != CifsExiting)
 				server->tcpStatus = CifsGood;
 			spin_unlock(&GlobalMid_Lock);
-	/*		atomic_set(&server->inFlight,0);*/
-			wake_up(&server->response_q);
 		}
 	}
+
 	return rc;
 }
 
@@ -345,7 +344,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	struct msghdr smb_msg;
 	struct kvec iov;
 	struct socket *csocket = server->ssocket;
-	struct list_head *tmp;
+	struct list_head *tmp, *tmp2;
 	struct task_struct *task_to_wake = NULL;
 	struct mid_q_entry *mid_entry;
 	char temp;
@@ -558,10 +557,9 @@ incomplete_rcv:
 			continue;
 		}
 
-
-		task_to_wake = NULL;
+		mid_entry = NULL;
 		spin_lock(&GlobalMid_Lock);
-		list_for_each(tmp, &server->pending_mid_q) {
+		list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
 			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
 
 			if ((mid_entry->mid == smb_buffer->Mid) &&
@@ -602,8 +600,9 @@ incomplete_rcv:
 				mid_entry->resp_buf = smb_buffer;
 				mid_entry->largeBuf = isLargeBuf;
 multi_t2_fnd:
-				task_to_wake = mid_entry->tsk;
 				mid_entry->midState = MID_RESPONSE_RECEIVED;
+				list_del_init(&mid_entry->qhead);
+				mid_entry->callback(mid_entry);
 #ifdef CONFIG_CIFS_STATS2
 				mid_entry->when_received = jiffies;
 #endif
@@ -613,9 +612,11 @@ multi_t2_fnd:
 				server->lstrp = jiffies;
 				break;
 			}
+			mid_entry = NULL;
 		}
 		spin_unlock(&GlobalMid_Lock);
-		if (task_to_wake) {
+
+		if (mid_entry != NULL) {
 			/* Was previous buf put in mpx struct for multi-rsp? */
 			if (!isMultiRsp) {
 				/* smb buffer will be freed by user thread */
@@ -624,7 +625,6 @@ multi_t2_fnd:
 				else
 					smallbuf = NULL;
 			}
-			wake_up_process(task_to_wake);
 		} else if (!is_valid_oplock_break(smb_buffer, server) &&
 			   !isMultiRsp) {
 			cERROR(1, "No task to wake, unknown frame received! "
@@ -678,15 +678,12 @@ multi_t2_fnd:
 
 	if (!list_empty(&server->pending_mid_q)) {
 		spin_lock(&GlobalMid_Lock);
-		list_for_each(tmp, &server->pending_mid_q) {
+		list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
 			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-			if (mid_entry->midState == MID_REQUEST_SUBMITTED) {
-				cFYI(1, "Clearing Mid 0x%x - waking up ",
-					mid_entry->mid);
-				task_to_wake = mid_entry->tsk;
-				if (task_to_wake)
-					wake_up_process(task_to_wake);
-			}
+			cFYI(1, "Clearing Mid 0x%x - issuing callback",
+					 mid_entry->mid);
+			list_del_init(&mid_entry->qhead);
+			mid_entry->callback(mid_entry);
 		}
 		spin_unlock(&GlobalMid_Lock);
 		/* 1/8th of sec is more than enough time for them to exit */

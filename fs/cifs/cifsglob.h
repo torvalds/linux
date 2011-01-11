@@ -508,6 +508,18 @@ static inline void cifs_stats_bytes_read(struct cifsTconInfo *tcon,
 
 #endif
 
+struct mid_q_entry;
+
+/*
+ * This is the prototype for the mid callback function. When creating one,
+ * take special care to avoid deadlocks. Things to bear in mind:
+ *
+ * - it will be called by cifsd
+ * - the GlobalMid_Lock will be held
+ * - the mid will be removed from the pending_mid_q list
+ */
+typedef void (mid_callback_t)(struct mid_q_entry *mid);
+
 /* one of these for every pending CIFS request to the server */
 struct mid_q_entry {
 	struct list_head qhead;	/* mids waiting on reply from this server */
@@ -519,7 +531,8 @@ struct mid_q_entry {
 	unsigned long when_sent; /* time when smb send finished */
 	unsigned long when_received; /* when demux complete (taken off wire) */
 #endif
-	struct task_struct *tsk;	/* task waiting for response */
+	mid_callback_t *callback; /* call completion callback */
+	void *callback_data;	  /* general purpose pointer for callback */
 	struct smb_hdr *resp_buf;	/* response buffer */
 	int midState;	/* wish this were enum but can not pass to wait_event */
 	__u8 command;	/* smb command code */

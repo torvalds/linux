@@ -36,6 +36,12 @@
 
 extern mempool_t *cifs_mid_poolp;
 
+static void
+wake_up_task(struct mid_q_entry *mid)
+{
+	wake_up_process(mid->callback_data);
+}
+
 static struct mid_q_entry *
 AllocMidQEntry(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 {
@@ -58,7 +64,13 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 	/*	do_gettimeofday(&temp->when_sent);*/ /* easier to use jiffies */
 		/* when mid allocated can be before when sent */
 		temp->when_alloc = jiffies;
-		temp->tsk = current;
+
+		/*
+		 * The default is for the mid to be synchronous, so the
+		 * default callback just wakes up the current task.
+		 */
+		temp->callback = wake_up_task;
+		temp->callback_data = current;
 	}
 
 	atomic_inc(&midCount);
@@ -367,6 +379,9 @@ sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 		mid->mid, mid->midState);
 
 	spin_lock(&GlobalMid_Lock);
+	/* ensure that it's no longer on the pending_mid_q */
+	list_del_init(&mid->qhead);
+
 	switch (mid->midState) {
 	case MID_RESPONSE_RECEIVED:
 		spin_unlock(&GlobalMid_Lock);
@@ -389,7 +404,7 @@ sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 	}
 	spin_unlock(&GlobalMid_Lock);
 
-	delete_mid(mid);
+	DeleteMidQEntry(mid);
 	return rc;
 }
 
