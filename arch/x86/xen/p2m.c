@@ -507,3 +507,4 @@ unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(m2p_find_override_pfn);
