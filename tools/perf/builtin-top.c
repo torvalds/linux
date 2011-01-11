@@ -1490,6 +1490,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 out_free_fd:
 	list_for_each_entry(pos, &evsel_list, node)
 		perf_evsel__free_mmap(pos);
+	perf_evsel_list__delete();
 
 	return status;
 }
