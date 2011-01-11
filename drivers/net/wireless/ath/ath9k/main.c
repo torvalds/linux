@@ -251,6 +251,9 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	if (!ath_stoprecv(sc))
 		stopped = false;
 
+	if (!ath9k_hw_check_alive(ah))
+		stopped = false;
+
 	/* XXX: do not flush receive queue here. We don't want
 	 * to flush data frames already in queue because of
 	 * changing channel. */
@@ -602,7 +605,15 @@ void ath9k_tasklet(unsigned long data)
 
 	spin_lock(&sc->sc_pcu_lock);
 
-	if (!ath9k_hw_check_alive(ah))
+	/*
+	 * Only run the baseband hang check if beacons stop working in AP or
+	 * IBSS mode, because it has a high false positive rate. For station
+	 * mode it should not be necessary, since the upper layers will detect
+	 * this through a beacon miss automatically and the following channel
+	 * change will trigger a hardware reset anyway
+	 */
+	if (ath9k_hw_numtxpending(ah, sc->beacon.beaconq) != 0 &&
+	    !ath9k_hw_check_alive(ah))
 		ieee80211_queue_work(sc->hw, &sc->hw_check_work);
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
