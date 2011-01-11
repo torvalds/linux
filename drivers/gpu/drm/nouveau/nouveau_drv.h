@@ -699,6 +699,13 @@ struct drm_nouveau_private {
 		uint64_t aper_size;
 		uint64_t aper_free;
 
+		struct ttm_backend_func *func;
+
+		struct {
+			struct page *page;
+			dma_addr_t   addr;
+		} dummy;
+
 		struct nouveau_gpuobj *sg_ctxdma;
 		struct nouveau_vma vma;
 	} gart_info;
