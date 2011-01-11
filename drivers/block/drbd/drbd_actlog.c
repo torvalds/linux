@@ -407,7 +407,7 @@ static int drbd_al_read_tr(struct drbd_conf *mdev,
 	if (!drbd_md_sync_page_io(mdev, bdev, sector, READ))
 		return -1;
 
-	rv = (be32_to_cpu(b->magic) == DRBD_MAGIC);
+	rv = (b->magic == cpu_to_be32(DRBD_MAGIC));
 
 	for (i = 0; i < AL_EXTENTS_PT + 1; i++)
 		xor_sum ^= be32_to_cpu(b->updates[i].extent);

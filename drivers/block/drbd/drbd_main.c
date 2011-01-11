@@ -3729,7 +3729,7 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 		goto err;
 	}
 
-	if (be32_to_cpu(buffer->magic) != DRBD_MD_MAGIC) {
+	if (buffer->magic != cpu_to_be32(DRBD_MD_MAGIC)) {
 		dev_err(DEV, "Error while reading metadata, magic not found.\n");
 		rv = ERR_MD_INVALID;
 		goto err;
