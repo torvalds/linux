@@ -116,14 +116,14 @@ void svga_set_default_atc_regs(void __iomem *regbase)
 }
 
 /* Set sequencer registers to sane values */
-void svga_set_default_seq_regs(void)
+void svga_set_default_seq_regs(void __iomem *regbase)
 {
 	/* Standard sequencer registers (SR01 - SR04), SR00 is not set */
-	vga_wseq(NULL, VGA_SEQ_CLOCK_MODE, VGA_SR01_CHAR_CLK_8DOTS);
-	vga_wseq(NULL, VGA_SEQ_PLANE_WRITE, VGA_SR02_ALL_PLANES);
-	vga_wseq(NULL, VGA_SEQ_CHARACTER_MAP, 0x00);
-/*	vga_wseq(NULL, VGA_SEQ_MEMORY_MODE, VGA_SR04_EXT_MEM | VGA_SR04_SEQ_MODE | VGA_SR04_CHN_4M); */
-	vga_wseq(NULL, VGA_SEQ_MEMORY_MODE, VGA_SR04_EXT_MEM | VGA_SR04_SEQ_MODE);
+	vga_wseq(regbase, VGA_SEQ_CLOCK_MODE, VGA_SR01_CHAR_CLK_8DOTS);
+	vga_wseq(regbase, VGA_SEQ_PLANE_WRITE, VGA_SR02_ALL_PLANES);
+	vga_wseq(regbase, VGA_SEQ_CHARACTER_MAP, 0x00);
+/*	vga_wseq(regbase, VGA_SEQ_MEMORY_MODE, VGA_SR04_EXT_MEM | VGA_SR04_SEQ_MODE | VGA_SR04_CHN_4M); */
+	vga_wseq(regbase, VGA_SEQ_MEMORY_MODE, VGA_SR04_EXT_MEM | VGA_SR04_SEQ_MODE);
 }
 
 /* Set CRTC registers to sane values */
