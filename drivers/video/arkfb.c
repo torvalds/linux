@@ -951,6 +951,8 @@ static struct fb_ops arkfb_ops = {
 /* PCI probe */
 static int __devinit ark_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
+	struct pci_bus_region bus_reg;
+	struct resource vga_res;
 	struct fb_info *info;
 	struct arkfb_info *par;
 	int rc;
@@ -1005,6 +1007,15 @@ static int __devinit ark_pci_probe(struct pci_dev *dev, const struct pci_device_
 		dev_err(info->device, "iomap for framebuffer failed\n");
 		goto err_iomap;
 	}
+
+	bus_reg.start = 0;
+	bus_reg.end = 64 * 1024;
+
+	vga_res.flags = IORESOURCE_IO;
+
+	pcibios_bus_to_resource(dev, &vga_res, &bus_reg);
+
+	par->state.vgabase = (void __iomem *) vga_res.start;
 
 	/* FIXME get memsize */
 	regval = vga_rseq(par->state.vgabase, 0x10);
