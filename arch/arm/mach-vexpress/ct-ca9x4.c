@@ -180,6 +180,13 @@ static struct platform_device pmu_device = {
 	.resource	= pmu_resources,
 };
 
+static void __init ct_ca9x4_init_early(void)
+{
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
+
+	v2m_init_early();
+}
+
 static void __init ct_ca9x4_init(void)
 {
 	int i;
@@ -194,8 +201,6 @@ static void __init ct_ca9x4_init(void)
 	l2x0_init(l2x0_base, 0x00400000, 0xfe0fffff);
 #endif
 
-	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
-
 	for (i = 0; i < ARRAY_SIZE(ct_ca9x4_amba_devs); i++)
 		amba_device_register(ct_ca9x4_amba_devs[i], &iomem_resource);
 
@@ -206,6 +211,7 @@ MACHINE_START(VEXPRESS, "ARM-Versatile Express CA9x4")
 	.boot_params	= PHYS_OFFSET + 0x00000100,
 	.map_io		= ct_ca9x4_map_io,
 	.init_irq	= ct_ca9x4_init_irq,
+	.init_early	= ct_ca9x4_init_early,
 #if 0
 	.timer		= &ct_ca9x4_timer,
 #else

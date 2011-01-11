@@ -49,12 +49,14 @@ void __init v2m_map_io(struct map_desc *tile, size_t num)
 	iotable_init(tile, num);
 }
 
+void __init v2m_init_early(void)
+{
+	versatile_sched_clock_init(MMIO_P2V(V2M_SYS_24MHZ), 24000000);
+}
 
 static void __init v2m_timer_init(void)
 {
 	u32 scctrl;
-
-	versatile_sched_clock_init(MMIO_P2V(V2M_SYS_24MHZ), 24000000);
 
 	/* Select 1MHz TIMCLK as the reference clock for SP804 timers */
 	scctrl = readl(MMIO_P2V(V2M_SYSCTL + SCCTRL));
