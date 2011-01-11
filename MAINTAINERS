@@ -1785,7 +1785,8 @@ S:	Maintained
 F:	drivers/usb/atm/cxacru.c
 
 CONFIGFS
-M:	Joel Becker <joel.becker@oracle.com>
+M:	Joel Becker <jlbec@evilplan.org>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jlbec/configfs.git
 S:	Supported
 F:	fs/configfs/
 F:	include/linux/configfs.h
@@ -4549,7 +4550,7 @@ F:	include/linux/oprofile.h
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 M:	Mark Fasheh <mfasheh@suse.com>
-M:	Joel Becker <joel.becker@oracle.com>
+M:	Joel Becker <jlbec@evilplan.org>
 L:	ocfs2-devel@oss.oracle.com (moderated for non-subscribers)
 W:	http://oss.oracle.com/projects/ocfs2/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jlbec/ocfs2.git
