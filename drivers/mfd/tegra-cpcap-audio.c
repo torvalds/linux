@@ -44,6 +44,7 @@ static struct cpcap_audio_stream current_input = {
 static int codec_rate;
 static int stdac_rate;
 static bool dock_connected;
+static bool bluetooth_byp;
 
 static int cpcap_audio_ctl_open(struct inode *inode, struct file *file)
 {
@@ -426,8 +427,9 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 		tegra_setup_audio_in_rate(rate);
 		break;
 	case CPCAP_AUDIO_SET_BLUETOOTH_BYPASS:
+		bluetooth_byp = (bool)arg;
 		if (pdata->bluetooth_bypass)
-			pdata->bluetooth_bypass((bool)arg);
+			pdata->bluetooth_bypass(bluetooth_byp);
 		else
 			pr_err("%s: no bluetooth bypass handler\n", __func__);
 		break;
@@ -524,12 +526,35 @@ fail1:
 	return rc;
 }
 
+#ifdef CONFIG_PM
+static int tegra_audio_suspend(struct platform_device *pdev, pm_message_t mesg)
+{
+	dev_dbg(&pdev->dev, "%s\n", __func__);
+	return 0;
+}
+
+static int tegra_audio_resume(struct platform_device *pdev)
+{
+	dev_dbg(&pdev->dev, "%s\n", __func__);
+	/* initialize DAC/DAP connections */
+	if (pdata->bluetooth_bypass)
+		pdata->bluetooth_bypass(bluetooth_byp);
+	else
+		pr_warn("No function for setting up DAC/DAP.");
+	return 0;
+}
+#endif
+
 static struct platform_driver cpcap_audio_driver = {
 	.probe = cpcap_audio_probe,
 	.driver = {
 		.name = "cpcap_audio",
 		.owner = THIS_MODULE,
 	},
+#ifdef CONFIG_PM
+	.suspend = tegra_audio_suspend,
+	.resume = tegra_audio_resume,
+#endif
 };
 
 static int __init tegra_cpcap_audio_init(void)
