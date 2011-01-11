@@ -69,7 +69,8 @@ static void ath5k_pci_read_cachesize(struct ath_common *common, int *csz)
 /*
  * Read from eeprom
  */
-bool ath5k_pci_eeprom_read(struct ath_common *common, u32 offset, u16 *data)
+static bool
+ath5k_pci_eeprom_read(struct ath_common *common, u32 offset, u16 *data)
 {
 	struct ath5k_hw *ah = (struct ath5k_hw *) common->ah;
 	u32 status, timeout;
@@ -90,15 +91,15 @@ bool ath5k_pci_eeprom_read(struct ath_common *common, u32 offset, u16 *data)
 		status = ath5k_hw_reg_read(ah, AR5K_EEPROM_STATUS);
 		if (status & AR5K_EEPROM_STAT_RDDONE) {
 			if (status & AR5K_EEPROM_STAT_RDERR)
-				return -EIO;
+				return false;
 			*data = (u16)(ath5k_hw_reg_read(ah, AR5K_EEPROM_DATA) &
 					0xffff);
-			return 0;
+			return true;
 		}
 		udelay(15);
 	}
 
-	return -ETIMEDOUT;
+	return false;
 }
 
 int ath5k_hw_read_srev(struct ath5k_hw *ah)
