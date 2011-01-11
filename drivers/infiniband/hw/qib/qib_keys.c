@@ -158,31 +158,47 @@ int qib_lkey_ok(struct qib_lkey_table *rkt, struct qib_pd *pd,
 		isge->sge_length = sge->length;
 		isge->m = 0;
 		isge->n = 0;
+		spin_unlock_irqrestore(&rkt->lock, flags);
 		goto ok;
 	}
 	mr = rkt->table[(sge->lkey >> (32 - ib_qib_lkey_table_size))];
 	if (unlikely(mr == NULL || mr->lkey != sge->lkey ||
 		     mr->pd != &pd->ibpd))
 		goto bail;
+	atomic_inc(&mr->refcount);
+	spin_unlock_irqrestore(&rkt->lock, flags);
 
 	off = sge->addr - mr->user_base;
 	if (unlikely(sge->addr < mr->user_base ||
 		     off + sge->length > mr->length ||
 		     (mr->access_flags & acc) != acc))
-		goto bail;
+		return ret;
 
 	off += mr->offset;
-	m = 0;
-	n = 0;
-	while (off >= mr->map[m]->segs[n].length) {
-		off -= mr->map[m]->segs[n].length;
-		n++;
-		if (n >= QIB_SEGSZ) {
-			m++;
-			n = 0;
+	if (mr->page_shift) {
+		/*
+		page sizes are uniform power of 2 so no loop is necessary
+		entries_spanned_by_off is the number of times the loop below
+		would have executed.
+		*/
+		size_t entries_spanned_by_off;
+
+		entries_spanned_by_off = off >> mr->page_shift;
+		off -= (entries_spanned_by_off << mr->page_shift);
+		m = entries_spanned_by_off/QIB_SEGSZ;
+		n = entries_spanned_by_off%QIB_SEGSZ;
+	} else {
+		m = 0;
+		n = 0;
+		while (off >= mr->map[m]->segs[n].length) {
+			off -= mr->map[m]->segs[n].length;
+			n++;
+			if (n >= QIB_SEGSZ) {
+				m++;
+				n = 0;
+			}
 		}
 	}
-	atomic_inc(&mr->refcount);
 	isge->mr = mr;
 	isge->vaddr = mr->map[m]->segs[n].vaddr + off;
 	isge->length = mr->map[m]->segs[n].length - off;
@@ -191,6 +207,7 @@ int qib_lkey_ok(struct qib_lkey_table *rkt, struct qib_pd *pd,
 	isge->n = n;
 ok:
 	ret = 1;
+	return ret;
 bail:
 	spin_unlock_irqrestore(&rkt->lock, flags);
 	return ret;
@@ -237,30 +254,46 @@ int qib_rkey_ok(struct qib_qp *qp, struct qib_sge *sge,
 		sge->sge_length = len;
 		sge->m = 0;
 		sge->n = 0;
+		spin_unlock_irqrestore(&rkt->lock, flags);
 		goto ok;
 	}
 
 	mr = rkt->table[(rkey >> (32 - ib_qib_lkey_table_size))];
 	if (unlikely(mr == NULL || mr->lkey != rkey || qp->ibqp.pd != mr->pd))
 		goto bail;
+	atomic_inc(&mr->refcount);
+	spin_unlock_irqrestore(&rkt->lock, flags);
 
 	off = vaddr - mr->iova;
 	if (unlikely(vaddr < mr->iova || off + len > mr->length ||
 		     (mr->access_flags & acc) == 0))
-		goto bail;
+		return ret;
 
 	off += mr->offset;
-	m = 0;
-	n = 0;
-	while (off >= mr->map[m]->segs[n].length) {
-		off -= mr->map[m]->segs[n].length;
-		n++;
-		if (n >= QIB_SEGSZ) {
-			m++;
-			n = 0;
+	if (mr->page_shift) {
+		/*
+		page sizes are uniform power of 2 so no loop is necessary
+		entries_spanned_by_off is the number of times the loop below
+		would have executed.
+		*/
+		size_t entries_spanned_by_off;
+
+		entries_spanned_by_off = off >> mr->page_shift;
+		off -= (entries_spanned_by_off << mr->page_shift);
+		m = entries_spanned_by_off/QIB_SEGSZ;
+		n = entries_spanned_by_off%QIB_SEGSZ;
+	} else {
+		m = 0;
+		n = 0;
+		while (off >= mr->map[m]->segs[n].length) {
+			off -= mr->map[m]->segs[n].length;
+			n++;
+			if (n >= QIB_SEGSZ) {
+				m++;
+				n = 0;
+			}
 		}
 	}
-	atomic_inc(&mr->refcount);
 	sge->mr = mr;
 	sge->vaddr = mr->map[m]->segs[n].vaddr + off;
 	sge->length = mr->map[m]->segs[n].length - off;
@@ -269,6 +302,7 @@ int qib_rkey_ok(struct qib_qp *qp, struct qib_sge *sge,
 	sge->n = n;
 ok:
 	ret = 1;
+	return ret;
 bail:
 	spin_unlock_irqrestore(&rkt->lock, flags);
 	return ret;

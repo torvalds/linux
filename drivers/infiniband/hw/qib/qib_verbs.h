@@ -301,6 +301,7 @@ struct qib_mregion {
 	int access_flags;
 	u32 max_segs;           /* number of qib_segs in all the arrays */
 	u32 mapsz;              /* size of the map array */
+	u8  page_shift;         /* 0 - non unform/non powerof2 sizes */
 	atomic_t refcount;
 	struct qib_segarray *map[0];    /* the segments */
 };
