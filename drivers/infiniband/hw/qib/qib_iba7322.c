@@ -7271,8 +7271,6 @@ static int serdes_7322_init(struct qib_pportdata *ppd)
 	ibsd_wr_allchans(ppd, 20, (4 << 13), BMASK(15, 13)); /* SDR */
 
 	data = qib_read_kreg_port(ppd, krp_serdesctrl);
-	/* Turn off IB latency mode */
-	data &= ~SYM_MASK(IBSerdesCtrl_0, IB_LAT_MODE);
 	qib_write_kreg_port(ppd, krp_serdesctrl, data |
 		SYM_MASK(IBSerdesCtrl_0, RXLOSEN));
 
