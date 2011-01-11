@@ -78,7 +78,7 @@
 #define RK_SYSRQ_GPIO(name,base)			\
 	{								\
 		.rk_sysrq_gpio_name = name,				\
-		.regbase = base,						\
+		.regbase = (const unsigned char __iomem *) base,	\
 		.res_table = rk_sysrq_gpio_printres_table,\
 		.res_table_count = ARRAY_SIZE(rk_sysrq_gpio_printres_table),	\
 	}
@@ -97,7 +97,7 @@
 	{											\
 		.reg_name = name,							\
 		.message = msg,									\
-		.reg_base = regbase,							\
+		.reg_base = (const unsigned char __iomem *) regbase,				\
 		.regres_table = rk_sysrq_iomux_res_gpio##table,		\
 		.res_table_count = ARRAY_SIZE(rk_sysrq_iomux_res_gpio##table),\
 	}
@@ -389,11 +389,12 @@ struct rk_sysrq_gpio rk_sysrq_gpio_table[] = {
 };
 
 
-static inline unsigned int rk_sysrq_reg_read(unsigned char  __iomem	*regbase, unsigned int regOff)
+static inline unsigned int rk_sysrq_reg_read(const unsigned char __iomem *regbase, unsigned int regOff)
 {
 	return __raw_readl(regbase + regOff);
 }
 char rk_sysrq_table_fistline_buf[1024];
+#if 0
 void rk_sysrq_draw_table(a,_)int a;int _;{
 
 	char line_buf[129];
@@ -417,6 +418,7 @@ void rk_sysrq_draw_table(a,_)int a;int _;{
 	}
 	printk("%s\n",rk_sysrq_table_fistline_buf);
 }
+#endif
 
 /* Whether we react on sysrq keys or just ignore them */
 int __read_mostly __rk_sysrq_enabled = 1;
@@ -488,8 +490,8 @@ static void rk_sysrq_gpio_show_reg(struct rk_sysrq_gpio *gpio_res)
 }
 static void rk_sysrq_iomux_show_reg(struct rk_sysrq_iomux *mux)
 {
-	char rk_sysrq_line_buf[129];
-	char *temp,*temp2;
+	char *temp;
+	const char *temp2;
 	unsigned int reg;
 	int i = 0,k = 0;
 	if(mux->message)
@@ -776,7 +778,7 @@ void rk_handle_sysrq(int key, struct tty_struct *tty)
 	if (rk_sysrq_on())
 		__rk_handle_sysrq(key, tty, 1);
 }
-EXPORT_SYMBOL(handle_sysrq);
+EXPORT_SYMBOL(rk_handle_sysrq);
 
 static int __rk_sysrq_swap_key_ops(int key, struct sysrq_key_op *insert_op_p,
                                 struct sysrq_key_op *remove_op_p)
