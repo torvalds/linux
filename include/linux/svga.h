@@ -69,9 +69,9 @@ struct svga_pll {
 
 static inline void svga_wattr(u8 index, u8 data)
 {
-	inb(0x3DA);
-	outb(index, 0x3C0);
-	outb(data, 0x3C0);
+	inb(VGA_IS1_RC);
+	outb(index, VGA_ATT_IW);
+	outb(data, VGA_ATT_W);
 }
 
 /* Write a value to a sequence register with a mask */
