@@ -9,6 +9,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -68,8 +69,8 @@ static int __devinit dw_spi_mmio_probe(struct platform_device *pdev)
 	}
 
 	dwsmmio->clk = clk_get(&pdev->dev, NULL);
-	if (!dwsmmio->clk) {
-		ret = -ENODEV;
+	if (IS_ERR(dwsmmio->clk)) {
+		ret = PTR_ERR(dwsmmio->clk);
 		goto err_irq;
 	}
 	clk_enable(dwsmmio->clk);
