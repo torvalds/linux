@@ -93,6 +93,9 @@ static char group_path[PATH_MAX];
 
 static char *task_group_path(struct task_group *tg)
 {
+	if (autogroup_path(tg, group_path, PATH_MAX))
+		return group_path;
+
 	/*
 	 * May be NULL if the underlying cgroup isn't fully-created yet
 	 */
