@@ -137,33 +137,33 @@ void svga_set_default_crt_regs(void __iomem *regbase)
 	vga_wcrt(regbase, VGA_CRTC_MODE, 0xE3);
 }
 
-void svga_set_textmode_vga_regs(void)
+void svga_set_textmode_vga_regs(void __iomem *regbase)
 {
-	/* svga_wseq_mask(NULL, 0x1, 0x00, 0x01); */   /* Switch 8/9 pixel per char */
-	vga_wseq(NULL, VGA_SEQ_MEMORY_MODE,	VGA_SR04_EXT_MEM);
-	vga_wseq(NULL, VGA_SEQ_PLANE_WRITE,	0x03);
+	/* svga_wseq_mask(regbase, 0x1, 0x00, 0x01); */   /* Switch 8/9 pixel per char */
+	vga_wseq(regbase, VGA_SEQ_MEMORY_MODE, VGA_SR04_EXT_MEM);
+	vga_wseq(regbase, VGA_SEQ_PLANE_WRITE, 0x03);
 
-	vga_wcrt(NULL, VGA_CRTC_MAX_SCAN,	0x0f); /* 0x4f */
-	vga_wcrt(NULL, VGA_CRTC_UNDERLINE,	0x1f);
-	svga_wcrt_mask(NULL, VGA_CRTC_MODE, 0x23, 0x7f);
+	vga_wcrt(regbase, VGA_CRTC_MAX_SCAN, 0x0f); /* 0x4f */
+	vga_wcrt(regbase, VGA_CRTC_UNDERLINE, 0x1f);
+	svga_wcrt_mask(regbase, VGA_CRTC_MODE, 0x23, 0x7f);
 
-	vga_wcrt(NULL, VGA_CRTC_CURSOR_START,	0x0d);
-	vga_wcrt(NULL, VGA_CRTC_CURSOR_END,	0x0e);
-	vga_wcrt(NULL, VGA_CRTC_CURSOR_HI,	0x00);
-	vga_wcrt(NULL, VGA_CRTC_CURSOR_LO,	0x00);
+	vga_wcrt(regbase, VGA_CRTC_CURSOR_START, 0x0d);
+	vga_wcrt(regbase, VGA_CRTC_CURSOR_END, 0x0e);
+	vga_wcrt(regbase, VGA_CRTC_CURSOR_HI, 0x00);
+	vga_wcrt(regbase, VGA_CRTC_CURSOR_LO, 0x00);
 
-	vga_wgfx(NULL, VGA_GFX_MODE,		0x10); /* Odd/even memory mode */
-	vga_wgfx(NULL, VGA_GFX_MISC,		0x0E); /* Misc graphics register - text mode enable */
-	vga_wgfx(NULL, VGA_GFX_COMPARE_MASK,	0x00);
+	vga_wgfx(regbase, VGA_GFX_MODE, 0x10); /* Odd/even memory mode */
+	vga_wgfx(regbase, VGA_GFX_MISC, 0x0E); /* Misc graphics register - text mode enable */
+	vga_wgfx(regbase, VGA_GFX_COMPARE_MASK, 0x00);
 
-	vga_r(NULL, 0x3DA);
-	vga_w(NULL, VGA_ATT_W, 0x00);
+	vga_r(regbase, 0x3DA);
+	vga_w(regbase, VGA_ATT_W, 0x00);
 
-	svga_wattr(NULL, 0x10, 0x0C);			/* Attribute Mode Control Register - text mode, blinking and line graphics */
-	svga_wattr(NULL, 0x13, 0x08);			/* Horizontal Pixel Panning Register  */
+	svga_wattr(regbase, 0x10, 0x0C);			/* Attribute Mode Control Register - text mode, blinking and line graphics */
+	svga_wattr(regbase, 0x13, 0x08);			/* Horizontal Pixel Panning Register  */
 
-	vga_r(NULL, 0x3DA);
-	vga_w(NULL, VGA_ATT_W, 0x20);
+	vga_r(regbase, 0x3DA);
+	vga_w(regbase, VGA_ATT_W, 0x20);
 }
 
 #if 0

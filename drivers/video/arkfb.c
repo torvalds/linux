@@ -699,7 +699,7 @@ static int arkfb_set_par(struct fb_info *info)
 	switch (mode) {
 	case 0:
 		pr_debug("fb%d: text mode\n", info->node);
-		svga_set_textmode_vga_regs();
+		svga_set_textmode_vga_regs(par->state.vgabase);
 
 		vga_wseq(NULL, 0x11, 0x10); /* basic VGA mode */
 		svga_wcrt_mask(par->state.vgabase, 0x46, 0x00, 0x04); /* 8bit pixel path */

@@ -466,7 +466,7 @@ static int vt8623fb_set_par(struct fb_info *info)
 	switch (mode) {
 	case 0:
 		pr_debug("fb%d: text mode\n", info->node);
-		svga_set_textmode_vga_regs();
+		svga_set_textmode_vga_regs(par->state.vgabase);
 		svga_wseq_mask(par->state.vgabase, 0x15, 0x00, 0xFE);
 		svga_wcrt_mask(par->state.vgabase, 0x11, 0x60, 0x70);
 		break;

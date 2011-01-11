@@ -103,7 +103,7 @@ void svga_set_default_gfx_regs(void __iomem *regbase);
 void svga_set_default_atc_regs(void __iomem *regbase);
 void svga_set_default_seq_regs(void __iomem *regbase);
 void svga_set_default_crt_regs(void __iomem *regbase);
-void svga_set_textmode_vga_regs(void);
+void svga_set_textmode_vga_regs(void __iomem *regbase);
 
 void svga_settile(struct fb_info *info, struct fb_tilemap *map);
 void svga_tilecopy(struct fb_info *info, struct fb_tilearea *area);

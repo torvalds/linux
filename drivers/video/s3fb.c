@@ -604,7 +604,7 @@ static int s3fb_set_par(struct fb_info *info)
 	switch (mode) {
 	case 0:
 		pr_debug("fb%d: text mode\n", info->node);
-		svga_set_textmode_vga_regs();
+		svga_set_textmode_vga_regs(par->state.vgabase);
 
 		/* Set additional registers like in 8-bit mode */
 		svga_wcrt_mask(par->state.vgabase, 0x50, 0x00, 0x30);
