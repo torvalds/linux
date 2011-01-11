@@ -332,6 +332,7 @@ typedef struct drm_i915_private {
 
 	/* LVDS info */
 	int backlight_level;  /* restore backlight to this value */
+	bool backlight_enabled;
 	struct drm_display_mode *panel_fixed_mode;
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */

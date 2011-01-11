@@ -5802,6 +5802,8 @@ static void intel_setup_outputs(struct drm_device *dev)
 		encoder->base.possible_clones =
 			intel_encoder_clones(dev, encoder->clone_mask);
 	}
+
+	intel_panel_setup_backlight(dev);
 }
 
 static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
