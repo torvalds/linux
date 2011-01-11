@@ -374,10 +374,8 @@ sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 	if (mid->midState == MID_REQUEST_SUBMITTED) {
 		if (server->tcpStatus == CifsExiting)
 			rc = -EHOSTDOWN;
-		else {
-			server->tcpStatus = CifsNeedReconnect;
+		else
 			mid->midState = MID_RETRY_NEEDED;
-		}
 	}
 
 	if (rc != -EHOSTDOWN) {
