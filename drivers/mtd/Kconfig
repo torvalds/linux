@@ -33,15 +33,6 @@ config MTD_TESTS
 	  should normally be compiled as kernel modules. The modules perform
 	  various checks and verifications when loaded.
 
-config MTD_CONCAT
-	bool
-	default y
-	help
-	  Support for concatenating several MTD devices into a single
-	  (virtual) one. This allows you to have -for example- a JFFS(2)
-	  file system spanning multiple physical flash chips. If unsure,
-	  say 'Y'.
-
 config MTD_PARTITIONS
 	bool "MTD partitioning support"
 	help
