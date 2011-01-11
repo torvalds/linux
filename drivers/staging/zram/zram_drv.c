@@ -527,7 +527,7 @@ int zram_init_device(struct zram *zram)
 	}
 
 	num_pages = zram->disksize >> PAGE_SHIFT;
-	zram->table = vmalloc(num_pages * sizeof(*zram->table));
+	zram->table = vzalloc(num_pages * sizeof(*zram->table));
 	if (!zram->table) {
 		pr_err("Error allocating zram address table\n");
 		/* To prevent accessing table entries during cleanup */
@@ -535,7 +535,6 @@ int zram_init_device(struct zram *zram)
 		ret = -ENOMEM;
 		goto fail;
 	}
-	memset(zram->table, 0, num_pages * sizeof(*zram->table));
 
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
 

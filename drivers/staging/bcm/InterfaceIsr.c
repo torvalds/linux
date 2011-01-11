@@ -1,12 +1,15 @@
 #include "headers.h"
 
-#ifndef BCM_SHM_INTERFACE
 
 static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 {
 	int		status = urb->status;
 	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)urb->context;
 	PMINI_ADAPTER Adapter = psIntfAdapter->psAdapter ;
+
+	if (netif_msg_intr(Adapter))
+		pr_info(PFX "%s: interrupt status %d\n",
+			Adapter->dev->name, status);
 
 	if(Adapter->device_removed == TRUE)
 	{
@@ -87,7 +90,7 @@ static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, INTF_INIT, DBG_LVL_ALL,"Interrupt IN endPoint  has got halted/stalled...need to clear this");
 				Adapter->bEndPointHalted = TRUE ;
 				wake_up(&Adapter->tx_packet_wait_queue);
-				urb->status = STATUS_SUCCESS ;;
+				urb->status = STATUS_SUCCESS ;
 				return;
 		}
 	    /* software-driven interface shutdown */
@@ -163,41 +166,4 @@ INT StartInterruptUrb(PS_INTERFACE_ADAPTER psIntfAdapter)
 	}
 	return status;
 }
-
-/*
-Function:				InterfaceEnableInterrupt
-
-Description:			This is the hardware specific Function for configuring
-						and enabling the interrupts on the device.
-
-Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
-
-
-Return:				BCM_STATUS_SUCCESS - If configuring the interrupts was successful.
-						Other           - If an error occured.
-*/
-
-void InterfaceEnableInterrupt(PMINI_ADAPTER Adapter)
-{
-
-}
-
-/*
-Function:				InterfaceDisableInterrupt
-
-Description:			This is the hardware specific Function for disabling the interrupts on the device.
-
-Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
-
-
-Return:				BCM_STATUS_SUCCESS - If disabling the interrupts was successful.
-						Other           - If an error occured.
-*/
-
-void InterfaceDisableInterrupt(PMINI_ADAPTER Adapter)
-{
-
-}
-
-#endif
 

@@ -119,6 +119,8 @@ source "drivers/staging/vme/Kconfig"
 
 source "drivers/staging/memrar/Kconfig"
 
+source "drivers/staging/sep/Kconfig"
+
 source "drivers/staging/iio/Kconfig"
 
 source "drivers/staging/zram/Kconfig"
@@ -126,8 +128,6 @@ source "drivers/staging/zram/Kconfig"
 source "drivers/staging/wlags49_h2/Kconfig"
 
 source "drivers/staging/wlags49_h25/Kconfig"
-
-source "drivers/staging/batman-adv/Kconfig"
 
 source "drivers/staging/samsung-laptop/Kconfig"
 
@@ -140,8 +140,6 @@ source "drivers/staging/crystalhd/Kconfig"
 source "drivers/staging/cxt1e1/Kconfig"
 
 source "drivers/staging/ti-st/Kconfig"
-
-source "drivers/staging/adis16255/Kconfig"
 
 source "drivers/staging/xgifb/Kconfig"
 
@@ -174,6 +172,10 @@ source "drivers/staging/ft1000/Kconfig"
 source "drivers/staging/intel_sst/Kconfig"
 
 source "drivers/staging/speakup/Kconfig"
+
+source "drivers/staging/cptm1217/Kconfig"
+
+source "drivers/staging/ste_rmi4/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

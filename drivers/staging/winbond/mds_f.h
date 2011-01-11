@@ -1,11 +1,10 @@
 #ifndef __WINBOND_MDS_F_H
 #define __WINBOND_MDS_F_H
 
-#include "wbhal_s.h"
+#include "wbhal.h"
 #include "core.h"
 
 unsigned char Mds_initial(struct wbsoft_priv *adapter);
-void Mds_Destroy(struct wbsoft_priv *adapter);
 void Mds_Tx(struct wbsoft_priv *adapter);
 void Mds_SendComplete(struct wbsoft_priv *adapter, struct T02_descriptor *pt02);
 void Mds_MpduProcess(struct wbsoft_priv *adapter, struct wb35_descriptor *prxdes);
