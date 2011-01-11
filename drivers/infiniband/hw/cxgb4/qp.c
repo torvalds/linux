@@ -892,36 +892,6 @@ static inline void build_term_codes(struct t4_cqe *err_cqe, u8 *layer_type,
 	}
 }
 
-int c4iw_post_zb_read(struct c4iw_qp *qhp)
-{
-	union t4_wr *wqe;
-	struct sk_buff *skb;
-	u8 len16;
-
-	PDBG("%s enter\n", __func__);
-	skb = alloc_skb(40, GFP_KERNEL);
-	if (!skb) {
-		printk(KERN_ERR "%s cannot send zb_read!!\n", __func__);
-		return -ENOMEM;
-	}
-	set_wr_txq(skb, CPL_PRIORITY_DATA, qhp->ep->txq_idx);
-
-	wqe = (union t4_wr *)skb_put(skb, sizeof wqe->read);
-	memset(wqe, 0, sizeof wqe->read);
-	wqe->read.r2 = cpu_to_be64(0);
-	wqe->read.stag_sink = cpu_to_be32(1);
-	wqe->read.to_sink_hi = cpu_to_be32(0);
-	wqe->read.to_sink_lo = cpu_to_be32(1);
-	wqe->read.stag_src = cpu_to_be32(1);
-	wqe->read.plen = cpu_to_be32(0);
-	wqe->read.to_src_hi = cpu_to_be32(0);
-	wqe->read.to_src_lo = cpu_to_be32(1);
-	len16 = DIV_ROUND_UP(sizeof wqe->read, 16);
-	init_wr_hdr(wqe, 0, FW_RI_RDMA_READ_WR, FW_RI_COMPLETION_FLAG, len16);
-
-	return c4iw_ofld_send(&qhp->rhp->rdev, skb);
-}
-
 static void post_terminate(struct c4iw_qp *qhp, struct t4_cqe *err_cqe,
 			   gfp_t gfp)
 {
