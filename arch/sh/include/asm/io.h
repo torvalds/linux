@@ -11,11 +11,6 @@
  *
  * While read{b,w,l,q} and write{b,w,l,q} contain memory barriers
  * automatically, there are also __raw versions, which do not.
- *
- * Historically, we have also had ctrl_in{b,w,l,q}/ctrl_out{b,w,l,q} for
- * SuperH specific I/O (raw I/O to on-chip CPU peripherals). In practice
- * these have the same semantics as the __raw variants, and as such, all
- * new code should be using the __raw versions.
  */
 #include <linux/errno.h>
 #include <asm/cache.h>
@@ -230,52 +225,6 @@ __BUILD_IOPORT_STRING(l, u32)
 __BUILD_IOPORT_STRING(q, u64)
 
 #endif
-
-/*
- * Legacy SuperH on-chip I/O functions
- *
- * These are all deprecated, all new (and especially cross-platform) code
- * should be using the __raw_xxx() routines directly.
- */
-static inline u8 __deprecated ctrl_inb(unsigned long addr)
-{
-	return __raw_readb(addr);
-}
-
-static inline u16 __deprecated ctrl_inw(unsigned long addr)
-{
-	return __raw_readw(addr);
-}
-
-static inline u32 __deprecated ctrl_inl(unsigned long addr)
-{
-	return __raw_readl(addr);
-}
-
-static inline u64 __deprecated ctrl_inq(unsigned long addr)
-{
-	return __raw_readq(addr);
-}
-
-static inline void __deprecated ctrl_outb(u8 v, unsigned long addr)
-{
-	__raw_writeb(v, addr);
-}
-
-static inline void __deprecated ctrl_outw(u16 v, unsigned long addr)
-{
-	__raw_writew(v, addr);
-}
-
-static inline void __deprecated ctrl_outl(u32 v, unsigned long addr)
-{
-	__raw_writel(v, addr);
-}
-
-static inline void __deprecated ctrl_outq(u64 v, unsigned long addr)
-{
-	__raw_writeq(v, addr);
-}
 
 #define IO_SPACE_LIMIT 0xffffffff
 
