@@ -537,12 +537,6 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 		P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n", err);
 		goto error;
 	}
-
-	if (v9ses->cache)
-		d_set_d_op(dentry, &v9fs_cached_dentry_operations);
-	else
-		d_set_d_op(dentry, &v9fs_dentry_operations);
-
 	d_instantiate(dentry, inode);
 	err = v9fs_fid_add(dentry, fid);
 	if (err < 0)
