@@ -2134,7 +2134,7 @@ void __init tegra2_init_clocks(void)
 
 #ifdef CONFIG_PM
 static u32 clk_rst_suspend[RST_DEVICES_NUM + CLK_OUT_ENB_NUM +
-			   PERIPH_CLK_SOURCE_NUM + 21];
+			   PERIPH_CLK_SOURCE_NUM + 22];
 
 void tegra_clk_suspend(void)
 {
@@ -2163,6 +2163,8 @@ void tegra_clk_suspend(void)
 	*ctx++ = clk_readl(tegra_clk_sclk.reg);
 	*ctx++ = clk_readl(tegra_clk_sclk.reg + SUPER_CLK_DIVIDER);
 	*ctx++ = clk_readl(tegra_clk_pclk.reg);
+
+	*ctx++ = clk_readl(tegra_clk_audio.reg);
 
 	for (off = PERIPH_CLK_SOURCE_I2S1; off <= PERIPH_CLK_SOURCE_OSC;
 			off += 4) {
@@ -2217,6 +2219,8 @@ void tegra_clk_resume(void)
 	clk_writel(*ctx++, tegra_clk_sclk.reg);
 	clk_writel(*ctx++, tegra_clk_sclk.reg + SUPER_CLK_DIVIDER);
 	clk_writel(*ctx++, tegra_clk_pclk.reg);
+
+	clk_writel(*ctx++, tegra_clk_audio.reg);
 
 	/* enable all clocks before configuring clock sources */
 	clk_writel(0xbffffff9ul, CLK_OUT_ENB);
