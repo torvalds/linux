@@ -355,7 +355,12 @@ struct cpu_vfs_cap_data {
 
 #define CAP_SYSLOG           34
 
-#define CAP_LAST_CAP         CAP_SYSLOG
+/* Allow triggering something that will wake the system */
+
+#define CAP_WAKE_ALARM            35
+
+
+#define CAP_LAST_CAP         CAP_WAKE_ALARM
 
 #define cap_valid(x) ((x) >= 0 && (x) <= CAP_LAST_CAP)
 

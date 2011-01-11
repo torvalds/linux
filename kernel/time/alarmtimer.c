@@ -215,6 +215,21 @@ static int alarmtimer_suspend(struct device *dev)
 }
 
 
+static void alarmtimer_freezerset(ktime_t absexp, enum alarmtimer_type type)
+{
+	ktime_t delta;
+	unsigned long flags;
+	struct alarm_base *base = &alarm_bases[type];
+
+	delta = ktime_sub(absexp, base->gettime());
+
+	spin_lock_irqsave(&freezer_delta_lock, flags);
+	if (!freezer_delta.tv64 || (delta.tv64 < freezer_delta.tv64))
+		freezer_delta = delta;
+	spin_unlock_irqrestore(&freezer_delta_lock, flags);
+}
+
+
 /**************************************************************************
  * alarm kernel interface code
  */
@@ -279,6 +294,309 @@ void alarm_cancel(struct alarm *alarm)
 }
 
 
+/**************************************************************************
+ * alarm posix interface code
+ */
+
+/*
+ * clock2alarm - helper that converts from clockid to alarmtypes
+ * @clockid: clockid.
+ *
+ * Helper function that converts from clockids to alarmtypes
+ */
+static enum alarmtimer_type clock2alarm(clockid_t clockid)
+{
+	if (clockid == CLOCK_REALTIME_ALARM)
+		return ALARM_REALTIME;
+	if (clockid == CLOCK_BOOTTIME_ALARM)
+		return ALARM_BOOTTIME;
+	return -1;
+}
+
+/*
+ * alarm_handle_timer - Callback for posix timers
+ * @alarm: alarm that fired
+ *
+ * Posix timer callback for expired alarm timers.
+ */
+static void alarm_handle_timer(struct alarm *alarm)
+{
+	struct k_itimer *ptr = container_of(alarm, struct k_itimer,
+						it.alarmtimer);
+	if (posix_timer_event(ptr, 0) != 0)
+		ptr->it_overrun++;
+}
+
+/*
+ * alarm_clock_getres - posix getres interface
+ * @which_clock: clockid
+ * @tp: timespec to fill
+ *
+ * Returns the granularity of underlying alarm base clock
+ */
+static int alarm_clock_getres(const clockid_t which_clock, struct timespec *tp)
+{
+	clockid_t baseid = alarm_bases[clock2alarm(which_clock)].base_clockid;
+
+	return hrtimer_get_res(baseid, tp);
+}
+
+/**
+ * alarm_clock_get - posix clock_get interface
+ * @which_clock: clockid
+ * @tp: timespec to fill.
+ *
+ * Provides the underlying alarm base time.
+ */
+static int alarm_clock_get(clockid_t which_clock, struct timespec *tp)
+{
+	struct alarm_base *base = &alarm_bases[clock2alarm(which_clock)];
+
+	*tp = ktime_to_timespec(base->gettime());
+	return 0;
+}
+
+/**
+ * alarm_timer_create - posix timer_create interface
+ * @new_timer: k_itimer pointer to manage
+ *
+ * Initializes the k_itimer structure.
+ */
+static int alarm_timer_create(struct k_itimer *new_timer)
+{
+	enum  alarmtimer_type type;
+	struct alarm_base *base;
+
+	if (!capable(CAP_WAKE_ALARM))
+		return -EPERM;
+
+	type = clock2alarm(new_timer->it_clock);
+	base = &alarm_bases[type];
+	alarm_init(&new_timer->it.alarmtimer, type, alarm_handle_timer);
+	return 0;
+}
+
+/**
+ * alarm_timer_get - posix timer_get interface
+ * @new_timer: k_itimer pointer
+ * @cur_setting: itimerspec data to fill
+ *
+ * Copies the itimerspec data out from the k_itimer
+ */
+static void alarm_timer_get(struct k_itimer *timr,
+				struct itimerspec *cur_setting)
+{
+	cur_setting->it_interval =
+			ktime_to_timespec(timr->it.alarmtimer.period);
+	cur_setting->it_value =
+			ktime_to_timespec(timr->it.alarmtimer.node.expires);
+	return;
+}
+
+/**
+ * alarm_timer_del - posix timer_del interface
+ * @timr: k_itimer pointer to be deleted
+ *
+ * Cancels any programmed alarms for the given timer.
+ */
+static int alarm_timer_del(struct k_itimer *timr)
+{
+	alarm_cancel(&timr->it.alarmtimer);
+	return 0;
+}
+
+/**
+ * alarm_timer_set - posix timer_set interface
+ * @timr: k_itimer pointer to be deleted
+ * @flags: timer flags
+ * @new_setting: itimerspec to be used
+ * @old_setting: itimerspec being replaced
+ *
+ * Sets the timer to new_setting, and starts the timer.
+ */
+static int alarm_timer_set(struct k_itimer *timr, int flags,
+				struct itimerspec *new_setting,
+				struct itimerspec *old_setting)
+{
+	/* Save old values */
+	old_setting->it_interval =
+			ktime_to_timespec(timr->it.alarmtimer.period);
+	old_setting->it_value =
+			ktime_to_timespec(timr->it.alarmtimer.node.expires);
+
+	/* If the timer was already set, cancel it */
+	alarm_cancel(&timr->it.alarmtimer);
+
+	/* start the timer */
+	alarm_start(&timr->it.alarmtimer,
+			timespec_to_ktime(new_setting->it_value),
+			timespec_to_ktime(new_setting->it_interval));
+	return 0;
+}
+
+/**
+ * alarmtimer_nsleep_wakeup - Wakeup function for alarm_timer_nsleep
+ * @alarm: ptr to alarm that fired
+ *
+ * Wakes up the task that set the alarmtimer
+ */
+static void alarmtimer_nsleep_wakeup(struct alarm *alarm)
+{
+	struct task_struct *task = (struct task_struct *)alarm->data;
+
+	alarm->data = NULL;
+	if (task)
+		wake_up_process(task);
+}
+
+/**
+ * alarmtimer_do_nsleep - Internal alarmtimer nsleep implementation
+ * @alarm: ptr to alarmtimer
+ * @absexp: absolute expiration time
+ *
+ * Sets the alarm timer and sleeps until it is fired or interrupted.
+ */
+static int alarmtimer_do_nsleep(struct alarm *alarm, ktime_t absexp)
+{
+	alarm->data = (void *)current;
+	do {
+		set_current_state(TASK_INTERRUPTIBLE);
+		alarm_start(alarm, absexp, ktime_set(0, 0));
+		if (likely(alarm->data))
+			schedule();
+
+		alarm_cancel(alarm);
+	} while (alarm->data && !signal_pending(current));
+
+	__set_current_state(TASK_RUNNING);
+
+	return (alarm->data == NULL);
+}
+
+
+/**
+ * update_rmtp - Update remaining timespec value
+ * @exp: expiration time
+ * @type: timer type
+ * @rmtp: user pointer to remaining timepsec value
+ *
+ * Helper function that fills in rmtp value with time between
+ * now and the exp value
+ */
+static int update_rmtp(ktime_t exp, enum  alarmtimer_type type,
+			struct timespec __user *rmtp)
+{
+	struct timespec rmt;
+	ktime_t rem;
+
+	rem = ktime_sub(exp, alarm_bases[type].gettime());
+
+	if (rem.tv64 <= 0)
+		return 0;
+	rmt = ktime_to_timespec(rem);
+
+	if (copy_to_user(rmtp, &rmt, sizeof(*rmtp)))
+		return -EFAULT;
+
+	return 1;
+
+}
+
+/**
+ * alarm_timer_nsleep_restart - restartblock alarmtimer nsleep
+ * @restart: ptr to restart block
+ *
+ * Handles restarted clock_nanosleep calls
+ */
+static long __sched alarm_timer_nsleep_restart(struct restart_block *restart)
+{
+	enum  alarmtimer_type type = restart->nanosleep.index;
+	ktime_t exp;
+	struct timespec __user  *rmtp;
+	struct alarm alarm;
+	int ret = 0;
+
+	exp.tv64 = restart->nanosleep.expires;
+	alarm_init(&alarm, type, alarmtimer_nsleep_wakeup);
+
+	if (alarmtimer_do_nsleep(&alarm, exp))
+		goto out;
+
+	if (freezing(current))
+		alarmtimer_freezerset(exp, type);
+
+	rmtp = restart->nanosleep.rmtp;
+	if (rmtp) {
+		ret = update_rmtp(exp, type, rmtp);
+		if (ret <= 0)
+			goto out;
+	}
+
+
+	/* The other values in restart are already filled in */
+	ret = -ERESTART_RESTARTBLOCK;
+out:
+	return ret;
+}
+
+/**
+ * alarm_timer_nsleep - alarmtimer nanosleep
+ * @which_clock: clockid
+ * @flags: determins abstime or relative
+ * @tsreq: requested sleep time (abs or rel)
+ * @rmtp: remaining sleep time saved
+ *
+ * Handles clock_nanosleep calls against _ALARM clockids
+ */
+static int alarm_timer_nsleep(const clockid_t which_clock, int flags,
+		     struct timespec *tsreq, struct timespec __user *rmtp)
+{
+	enum  alarmtimer_type type = clock2alarm(which_clock);
+	struct alarm alarm;
+	ktime_t exp;
+	int ret = 0;
+	struct restart_block *restart;
+
+	if (!capable(CAP_WAKE_ALARM))
+		return -EPERM;
+
+	alarm_init(&alarm, type, alarmtimer_nsleep_wakeup);
+
+	exp = timespec_to_ktime(*tsreq);
+	/* Convert (if necessary) to absolute time */
+	if (flags != TIMER_ABSTIME) {
+		ktime_t now = alarm_bases[type].gettime();
+		exp = ktime_add(now, exp);
+	}
+
+	if (alarmtimer_do_nsleep(&alarm, exp))
+		goto out;
+
+	if (freezing(current))
+		alarmtimer_freezerset(exp, type);
+
+	/* abs timers don't set remaining time or restart */
+	if (flags == TIMER_ABSTIME) {
+		ret = -ERESTARTNOHAND;
+		goto out;
+	}
+
+	if (rmtp) {
+		ret = update_rmtp(exp, type, rmtp);
+		if (ret <= 0)
+			goto out;
+	}
+
+	restart = &current_thread_info()->restart_block;
+	restart->fn = alarm_timer_nsleep_restart;
+	restart->nanosleep.index = type;
+	restart->nanosleep.expires = exp.tv64;
+	restart->nanosleep.rmtp = rmtp;
+	ret = -ERESTART_RESTARTBLOCK;
+
+out:
+	return ret;
+}
 
 /**************************************************************************
  * alarmtimer initialization code
@@ -306,6 +624,18 @@ static int __init alarmtimer_init(void)
 {
 	int error = 0;
 	int i;
+	struct k_clock alarm_clock = {
+		.clock_getres	= alarm_clock_getres,
+		.clock_get	= alarm_clock_get,
+		.timer_create	= alarm_timer_create,
+		.timer_set	= alarm_timer_set,
+		.timer_del	= alarm_timer_del,
+		.timer_get	= alarm_timer_get,
+		.nsleep		= alarm_timer_nsleep,
+	};
+
+	posix_timers_register_clock(CLOCK_REALTIME_ALARM, &alarm_clock);
+	posix_timers_register_clock(CLOCK_BOOTTIME_ALARM, &alarm_clock);
 
 	/* Initialize alarm bases */
 	alarm_bases[ALARM_REALTIME].base_clockid = CLOCK_REALTIME;
