@@ -340,7 +340,6 @@ prototypes:
 	int (*fl_grant)(struct file_lock *, struct file_lock *, int);
 	void (*fl_release_private)(struct file_lock *);
 	void (*fl_break)(struct file_lock *); /* break_lease callback */
-	int (*fl_mylease)(struct file_lock *, struct file_lock *);
 	int (*fl_change)(struct file_lock **, int);
 
 locking rules:
@@ -350,7 +349,6 @@ fl_notify:		yes		no
 fl_grant:		no		no
 fl_release_private:	maybe		no
 fl_break:		yes		no
-fl_mylease:		yes		no
 fl_change		yes		no
 
 --------------------------- buffer_head -----------------------------------
