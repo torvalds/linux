@@ -1082,8 +1082,8 @@ static const struct v4l2_ctrl_config vivi_ctrl_int32 = {
 	.id = VIVI_CID_CUSTOM_BASE + 2,
 	.name = "Integer 32 Bits",
 	.type = V4L2_CTRL_TYPE_INTEGER,
-	.min = -2147483648,
-	.max = 2147483647,
+	.min = 0x80000000,
+	.max = 0x7fffffff,
 	.step = 1,
 };
 
