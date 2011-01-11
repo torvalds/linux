@@ -1748,6 +1748,8 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	list_for_each_entry(codec, &codec_list, list) {
 		if (codec->cache_init)
 			continue;
+		/* by default we don't override the compress_type */
+		compress_type = 0;
 		/* check to see if we need to override the compress_type */
 		for (i = 0; i < card->num_configs; ++i) {
 			codec_conf = &card->codec_conf[i];
@@ -1758,18 +1760,6 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 					break;
 			}
 		}
-		if (i == card->num_configs) {
-			/* no need to override the compress_type so
-			 * go ahead and do the standard thing */
-			ret = snd_soc_init_codec_cache(codec, 0);
-			if (ret < 0) {
-				mutex_unlock(&card->mutex);
-				return;
-			}
-			continue;
-		}
-		/* override the compress_type with the one supplied in
-		 * the machine driver */
 		ret = snd_soc_init_codec_cache(codec, compress_type);
 		if (ret < 0) {
 			mutex_unlock(&card->mutex);
