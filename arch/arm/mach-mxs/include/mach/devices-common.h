@@ -30,6 +30,16 @@ int __init mxs_add_amba_device(const struct amba_device *dev);
 /* duart */
 int __init mxs_add_duart(const struct amba_device *dev);
 
+/* auart */
+struct mxs_auart_data {
+	int id;
+	resource_size_t iobase;
+	resource_size_t iosize;
+	resource_size_t irq;
+};
+struct platform_device *__init mxs_add_auart(
+		const struct mxs_auart_data *data);
+
 /* fec */
 #include <linux/fec.h>
 struct mxs_fec_data {

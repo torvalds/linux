@@ -2,5 +2,8 @@ config MXS_HAVE_AMBA_DUART
 	bool
 	select ARM_AMBA
 
+config MXS_HAVE_PLATFORM_AUART
+	bool
+
 config MXS_HAVE_PLATFORM_FEC
 	bool
