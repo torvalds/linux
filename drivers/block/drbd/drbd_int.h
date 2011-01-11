@@ -689,7 +689,6 @@ struct drbd_work {
 	drbd_work_cb cb;
 };
 
-struct drbd_tl_epoch;
 struct drbd_request {
 	struct drbd_work w;
 	struct drbd_conf *mdev;
