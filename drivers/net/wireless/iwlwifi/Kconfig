@@ -113,6 +113,7 @@ config IWL5000
 		Intel 6000 Gen 2 Series Wi-Fi Adapters (6000G2A and 6000G2B)
 		Intel WIreless WiFi Link 6050BGN Gen 2 Adapter
 		Intel 100 Series Wi-Fi Adapters (100BGN and 130BGN)
+		Intel 2000 Series Wi-Fi Adapters
 
 config IWL3945
 	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection (iwl3945)"
