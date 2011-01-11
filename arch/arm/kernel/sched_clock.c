@@ -60,10 +60,15 @@ void __init init_sched_clock(struct clock_data *cd, void (*update)(void),
 	 * sets the initial epoch.
 	 */
 	sched_clock_timer.data = msecs_to_jiffies(w - (w / 10));
-	sched_clock_poll(sched_clock_timer.data);
+	update();
 
 	/*
 	 * Ensure that sched_clock() starts off at 0ns
 	 */
 	cd->epoch_ns = 0;
+}
+
+void __init sched_clock_postinit(void)
+{
+	sched_clock_poll(sched_clock_timer.data);
 }
