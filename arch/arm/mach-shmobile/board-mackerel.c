@@ -963,6 +963,7 @@ static struct tca6416_keys_platform_data mackerel_tca6416_keys_info = {
 };
 
 /* I2C */
+#define IRQ7 evt2irq(0x02e0)
 #define IRQ9 evt2irq(0x0320)
 
 static struct i2c_board_info i2c0_devices[] = {
@@ -974,6 +975,11 @@ static struct i2c_board_info i2c0_devices[] = {
 		I2C_BOARD_INFO("tca6408-keys", 0x20),
 		.platform_data = &mackerel_tca6416_keys_info,
 		.irq = IRQ9,
+	},
+	/* Touchscreen */
+	{
+		I2C_BOARD_INFO("st1232-ts", 0x55),
+		.irq = IRQ7,
 	},
 };
 
@@ -1101,6 +1107,10 @@ static void __init mackerel_init(void)
 	/* enable Keypad */
 	gpio_request(GPIO_FN_IRQ9_42,	NULL);
 	set_irq_type(IRQ9, IRQ_TYPE_LEVEL_HIGH);
+
+	/* enable Touchscreen */
+	gpio_request(GPIO_FN_IRQ7_40,	NULL);
+	set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
 
 	/* enable Accelerometer */
 	gpio_request(GPIO_FN_IRQ21,	NULL);
