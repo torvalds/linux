@@ -505,7 +505,7 @@ static int vt8623fb_set_par(struct fb_info *info)
 	}
 
 	vt8623_set_pixclock(info, info->var.pixclock);
-	svga_set_timings(&vt8623_timing_regs, &(info->var), 1, 1,
+	svga_set_timings(par->state.vgabase, &vt8623_timing_regs, &(info->var), 1, 1,
 			 (info->var.vmode & FB_VMODE_DOUBLE) ? 2 : 1, 1,
 			 1, info->node);
 

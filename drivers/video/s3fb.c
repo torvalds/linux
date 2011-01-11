@@ -712,7 +712,7 @@ static int s3fb_set_par(struct fb_info *info)
 	}
 
 	s3_set_pixclock(info, info->var.pixclock);
-	svga_set_timings(&s3_timing_regs, &(info->var), hmul, 1,
+	svga_set_timings(par->state.vgabase, &s3_timing_regs, &(info->var), hmul, 1,
 			 (info->var.vmode & FB_VMODE_DOUBLE)     ? 2 : 1,
 			 (info->var.vmode & FB_VMODE_INTERLACED) ? 2 : 1,
 			 hmul, info->node);

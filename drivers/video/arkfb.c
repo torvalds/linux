@@ -781,7 +781,7 @@ static int arkfb_set_par(struct fb_info *info)
 	}
 
 	ark_set_pixclock(info, (hdiv * info->var.pixclock) / hmul);
-	svga_set_timings(&ark_timing_regs, &(info->var), hmul, hdiv,
+	svga_set_timings(par->state.vgabase, &ark_timing_regs, &(info->var), hmul, hdiv,
 			 (info->var.vmode & FB_VMODE_DOUBLE)     ? 2 : 1,
 			 (info->var.vmode & FB_VMODE_INTERLACED) ? 2 : 1,
 			  hmul, info->node);
