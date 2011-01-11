@@ -636,12 +636,9 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   CIFS_IOVEC            4    /* array of response buffers */
 
 /* Type of Request to SendReceive2 */
-#define   CIFS_STD_OP	        0    /* normal request timeout */
-#define   CIFS_LONG_OP          1    /* long op (up to 45 sec, oplock time) */
-#define   CIFS_VLONG_OP         2    /* sloow op - can take up to 180 seconds */
-#define   CIFS_BLOCKING_OP      4    /* operation can block */
-#define   CIFS_ASYNC_OP         8    /* do not wait for response */
-#define   CIFS_TIMEOUT_MASK 0x00F    /* only one of 5 above set in req */
+#define   CIFS_BLOCKING_OP      1    /* operation can block */
+#define   CIFS_ASYNC_OP         2    /* do not wait for response */
+#define   CIFS_TIMEOUT_MASK 0x003    /* only one of above set in req */
 #define   CIFS_LOG_ERROR    0x010    /* log NT STATUS if non-zero */
 #define   CIFS_LARGE_BUF_OP 0x020    /* large request buffer */
 #define   CIFS_NO_RESP      0x040    /* no response buffer required */

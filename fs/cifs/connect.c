@@ -3022,7 +3022,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 	pSMB->ByteCount = cpu_to_le16(count);
 
 	rc = SendReceive(xid, ses, smb_buffer, smb_buffer_response, &length,
-			 CIFS_STD_OP);
+			 0);
 
 	/* above now done in SendReceive */
 	if ((rc == 0) && (tcon != NULL)) {

@@ -798,7 +798,7 @@ send_lock_cancel(const unsigned int xid, struct cifsTconInfo *tcon,
 	pSMB->hdr.Mid = GetNextMid(ses->server);
 
 	return SendReceive(xid, ses, in_buf, out_buf,
-			&bytes_returned, CIFS_STD_OP);
+			&bytes_returned, 0);
 }
 
 int

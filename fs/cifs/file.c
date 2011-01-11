@@ -839,29 +839,6 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 	return rc;
 }
 
-/*
- * Set the timeout on write requests past EOF. For some servers (Windows)
- * these calls can be very long.
- *
- * If we're writing >10M past the EOF we give a 180s timeout. Anything less
- * than that gets a 45s timeout. Writes not past EOF get 15s timeouts.
- * The 10M cutoff is totally arbitrary. A better scheme for this would be
- * welcome if someone wants to suggest one.
- *
- * We may be able to do a better job with this if there were some way to
- * declare that a file should be sparse.
- */
-static int
-cifs_write_timeout(struct cifsInodeInfo *cifsi, loff_t offset)
-{
-	if (offset <= cifsi->server_eof)
-		return CIFS_STD_OP;
-	else if (offset > (cifsi->server_eof + (10 * 1024 * 1024)))
-		return CIFS_VLONG_OP;
-	else
-		return CIFS_LONG_OP;
-}
-
 /* update the file size (if needed) after a write */
 static void
 cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
@@ -882,7 +859,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 	unsigned int total_written;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
-	int xid, long_op;
+	int xid;
 	struct cifsFileInfo *open_file;
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 
@@ -903,7 +880,6 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 
 	xid = GetXid();
 
-	long_op = cifs_write_timeout(cifsi, *poffset);
 	for (total_written = 0; write_size > total_written;
 	     total_written += bytes_written) {
 		rc = -EAGAIN;
@@ -931,7 +907,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 				min_t(const int, cifs_sb->wsize,
 				      write_size - total_written),
 				*poffset, &bytes_written,
-				NULL, write_data + total_written, long_op);
+				NULL, write_data + total_written, 0);
 		}
 		if (rc || (bytes_written == 0)) {
 			if (total_written)
@@ -944,8 +920,6 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 			cifs_update_eof(cifsi, *poffset, bytes_written);
 			*poffset += bytes_written;
 		}
-		long_op = CIFS_STD_OP; /* subsequent writes fast -
-				    15 seconds is plenty */
 	}
 
 	cifs_stats_bytes_written(pTcon, total_written);
@@ -974,7 +948,7 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 	unsigned int total_written;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
-	int xid, long_op;
+	int xid;
 	struct dentry *dentry = open_file->dentry;
 	struct cifsInodeInfo *cifsi = CIFS_I(dentry->d_inode);
 
@@ -987,7 +961,6 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 
 	xid = GetXid();
 
-	long_op = cifs_write_timeout(cifsi, *poffset);
 	for (total_written = 0; write_size > total_written;
 	     total_written += bytes_written) {
 		rc = -EAGAIN;
@@ -1017,7 +990,7 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 				rc = CIFSSMBWrite2(xid, pTcon,
 						open_file->netfid, len,
 						*poffset, &bytes_written,
-						iov, 1, long_op);
+						iov, 1, 0);
 			} else
 				rc = CIFSSMBWrite(xid, pTcon,
 					 open_file->netfid,
@@ -1025,7 +998,7 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 					       write_size - total_written),
 					 *poffset, &bytes_written,
 					 write_data + total_written,
-					 NULL, long_op);
+					 NULL, 0);
 		}
 		if (rc || (bytes_written == 0)) {
 			if (total_written)
@@ -1038,8 +1011,6 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 			cifs_update_eof(cifsi, *poffset, bytes_written);
 			*poffset += bytes_written;
 		}
-		long_op = CIFS_STD_OP; /* subsequent writes fast -
-				    15 seconds is plenty */
 	}
 
 	cifs_stats_bytes_written(pTcon, total_written);
@@ -1239,7 +1210,7 @@ static int cifs_writepages(struct address_space *mapping,
 	struct pagevec pvec;
 	int rc = 0;
 	int scanned = 0;
-	int xid, long_op;
+	int xid;
 
 	cifs_sb = CIFS_SB(mapping->host->i_sb);
 
@@ -1384,11 +1355,10 @@ retry_write:
 				cERROR(1, "No writable handles for inode");
 				rc = -EBADF;
 			} else {
-				long_op = cifs_write_timeout(cifsi, offset);
 				rc = CIFSSMBWrite2(xid, tcon, open_file->netfid,
 						   bytes_to_write, offset,
 						   &bytes_written, iov, n_iov,
-						   long_op);
+						   0);
 				cifsFileInfo_put(open_file);
 			}
 
