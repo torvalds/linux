@@ -42,7 +42,7 @@ wake_up_task(struct mid_q_entry *mid)
 	wake_up_process(mid->callback_data);
 }
 
-static struct mid_q_entry *
+struct mid_q_entry *
 AllocMidQEntry(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 {
 	struct mid_q_entry *temp;
@@ -343,6 +343,62 @@ wait_for_response(struct TCP_Server_Info *server, struct mid_q_entry *midQ)
 	return 0;
 }
 
+
+/*
+ * Send a SMB request and set the callback function in the mid to handle
+ * the result. Caller is responsible for dealing with timeouts.
+ */
+int
+cifs_call_async(struct TCP_Server_Info *server, struct smb_hdr *in_buf,
+		mid_callback_t *callback, void *cbdata)
+{
+	int rc;
+	struct mid_q_entry *mid;
+
+	rc = wait_for_free_request(server, CIFS_ASYNC_OP);
+	if (rc)
+		return rc;
+
+	mutex_lock(&server->srv_mutex);
+	mid = AllocMidQEntry(in_buf, server);
+	if (mid == NULL) {
+		mutex_unlock(&server->srv_mutex);
+		return -ENOMEM;
+	}
+
+	/* put it on the pending_mid_q */
+	spin_lock(&GlobalMid_Lock);
+	list_add_tail(&mid->qhead, &server->pending_mid_q);
+	spin_unlock(&GlobalMid_Lock);
+
+	rc = cifs_sign_smb(in_buf, server, &mid->sequence_number);
+	if (rc) {
+		mutex_unlock(&server->srv_mutex);
+		goto out_err;
+	}
+
+	mid->callback = callback;
+	mid->callback_data = cbdata;
+	mid->midState = MID_REQUEST_SUBMITTED;
+#ifdef CONFIG_CIFS_STATS2
+	atomic_inc(&server->inSend);
+#endif
+	rc = smb_send(server, in_buf, in_buf->smb_buf_length);
+#ifdef CONFIG_CIFS_STATS2
+	atomic_dec(&server->inSend);
+	mid->when_sent = jiffies;
+#endif
+	mutex_unlock(&server->srv_mutex);
+	if (rc)
+		goto out_err;
+
+	return rc;
+out_err:
+	delete_mid(mid);
+	atomic_dec(&server->inFlight);
+	wake_up(&server->request_q);
+	return rc;
+}
 
 /*
  *

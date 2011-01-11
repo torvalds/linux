@@ -61,6 +61,11 @@ extern char *cifs_compose_mount_options(const char *sb_mountdata,
 		const char *fullpath, const struct dfs_info3_param *ref,
 		char **devname);
 /* extern void renew_parental_timestamps(struct dentry *direntry);*/
+extern struct mid_q_entry *AllocMidQEntry(const struct smb_hdr *smb_buffer,
+					struct TCP_Server_Info *server);
+extern int cifs_call_async(struct TCP_Server_Info *server,
+			   struct smb_hdr *in_buf, mid_callback_t *callback,
+			   void *cbdata);
 extern int SendReceive(const unsigned int /* xid */ , struct cifsSesInfo *,
 			struct smb_hdr * /* input */ ,
 			struct smb_hdr * /* out */ ,
