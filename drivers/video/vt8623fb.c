@@ -417,13 +417,13 @@ static int vt8623fb_set_par(struct fb_info *info)
 
 	/* Unlock registers */
 	svga_wseq_mask(par->state.vgabase, 0x10, 0x01, 0x01);
-	svga_wcrt_mask(0x11, 0x00, 0x80);
-	svga_wcrt_mask(0x47, 0x00, 0x01);
+	svga_wcrt_mask(par->state.vgabase, 0x11, 0x00, 0x80);
+	svga_wcrt_mask(par->state.vgabase, 0x47, 0x00, 0x01);
 
 	/* Device, screen and sync off */
 	svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
-	svga_wcrt_mask(0x36, 0x30, 0x30);
-	svga_wcrt_mask(0x17, 0x00, 0x80);
+	svga_wcrt_mask(par->state.vgabase, 0x36, 0x30, 0x30);
+	svga_wcrt_mask(par->state.vgabase, 0x17, 0x00, 0x80);
 
 	/* Set default values */
 	svga_set_default_gfx_regs(par->state.vgabase);
@@ -437,13 +437,13 @@ static int vt8623fb_set_par(struct fb_info *info)
 	svga_wseq_multi(par->state.vgabase, vt8623_fetch_count_regs, fetch_value);
 
 	/* Clear H/V Skew */
-	svga_wcrt_mask(0x03, 0x00, 0x60);
-	svga_wcrt_mask(0x05, 0x00, 0x60);
+	svga_wcrt_mask(par->state.vgabase, 0x03, 0x00, 0x60);
+	svga_wcrt_mask(par->state.vgabase, 0x05, 0x00, 0x60);
 
 	if (info->var.vmode & FB_VMODE_DOUBLE)
-		svga_wcrt_mask(0x09, 0x80, 0x80);
+		svga_wcrt_mask(par->state.vgabase, 0x09, 0x80, 0x80);
 	else
-		svga_wcrt_mask(0x09, 0x00, 0x80);
+		svga_wcrt_mask(par->state.vgabase, 0x09, 0x00, 0x80);
 
 	svga_wseq_mask(par->state.vgabase, 0x1E, 0xF0, 0xF0); // DI/DVP bus
 	svga_wseq_mask(par->state.vgabase, 0x2A, 0x0F, 0x0F); // DI/DVP bus
@@ -468,18 +468,18 @@ static int vt8623fb_set_par(struct fb_info *info)
 		pr_debug("fb%d: text mode\n", info->node);
 		svga_set_textmode_vga_regs();
 		svga_wseq_mask(par->state.vgabase, 0x15, 0x00, 0xFE);
-		svga_wcrt_mask(0x11, 0x60, 0x70);
+		svga_wcrt_mask(par->state.vgabase, 0x11, 0x60, 0x70);
 		break;
 	case 1:
 		pr_debug("fb%d: 4 bit pseudocolor\n", info->node);
 		vga_wgfx(NULL, VGA_GFX_MODE, 0x40);
 		svga_wseq_mask(par->state.vgabase, 0x15, 0x20, 0xFE);
-		svga_wcrt_mask(0x11, 0x00, 0x70);
+		svga_wcrt_mask(par->state.vgabase, 0x11, 0x00, 0x70);
 		break;
 	case 2:
 		pr_debug("fb%d: 4 bit pseudocolor, planar\n", info->node);
 		svga_wseq_mask(par->state.vgabase, 0x15, 0x00, 0xFE);
-		svga_wcrt_mask(0x11, 0x00, 0x70);
+		svga_wcrt_mask(par->state.vgabase, 0x11, 0x00, 0x70);
 		break;
 	case 3:
 		pr_debug("fb%d: 8 bit pseudocolor\n", info->node);
@@ -506,8 +506,8 @@ static int vt8623fb_set_par(struct fb_info *info)
 	memset_io(info->screen_base, 0x00, screen_size);
 
 	/* Device and screen back on */
-	svga_wcrt_mask(0x17, 0x80, 0x80);
-	svga_wcrt_mask(0x36, 0x00, 0x30);
+	svga_wcrt_mask(par->state.vgabase, 0x17, 0x80, 0x80);
+	svga_wcrt_mask(par->state.vgabase, 0x36, 0x00, 0x30);
 	svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
 
 	return 0;
@@ -576,27 +576,27 @@ static int vt8623fb_blank(int blank_mode, struct fb_info *info)
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		pr_debug("fb%d: unblank\n", info->node);
-		svga_wcrt_mask(0x36, 0x00, 0x30);
+		svga_wcrt_mask(par->state.vgabase, 0x36, 0x00, 0x30);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
 		break;
 	case FB_BLANK_NORMAL:
 		pr_debug("fb%d: blank\n", info->node);
-		svga_wcrt_mask(0x36, 0x00, 0x30);
+		svga_wcrt_mask(par->state.vgabase, 0x36, 0x00, 0x30);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
 		pr_debug("fb%d: DPMS standby (hsync off)\n", info->node);
-		svga_wcrt_mask(0x36, 0x10, 0x30);
+		svga_wcrt_mask(par->state.vgabase, 0x36, 0x10, 0x30);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
 		pr_debug("fb%d: DPMS suspend (vsync off)\n", info->node);
-		svga_wcrt_mask(0x36, 0x20, 0x30);
+		svga_wcrt_mask(par->state.vgabase, 0x36, 0x20, 0x30);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	case FB_BLANK_POWERDOWN:
 		pr_debug("fb%d: DPMS off (no sync)\n", info->node);
-		svga_wcrt_mask(0x36, 0x30, 0x30);
+		svga_wcrt_mask(par->state.vgabase, 0x36, 0x30, 0x30);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	}

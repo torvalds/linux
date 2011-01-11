@@ -646,11 +646,11 @@ static int arkfb_set_par(struct fb_info *info)
 	info->var.activate = FB_ACTIVATE_NOW;
 
 	/* Unlock registers */
-	svga_wcrt_mask(0x11, 0x00, 0x80);
+	svga_wcrt_mask(par->state.vgabase, 0x11, 0x00, 0x80);
 
 	/* Blank screen and turn off sync */
 	svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
-	svga_wcrt_mask(0x17, 0x00, 0x80);
+	svga_wcrt_mask(par->state.vgabase, 0x17, 0x00, 0x80);
 
 	/* Set default values */
 	svga_set_default_gfx_regs(par->state.vgabase);
@@ -679,17 +679,17 @@ static int arkfb_set_par(struct fb_info *info)
 	svga_wcrt_multi(par->state.vgabase, ark_offset_regs, offset_value);
 
 	/* fix for hi-res textmode */
-	svga_wcrt_mask(0x40, 0x08, 0x08);
+	svga_wcrt_mask(par->state.vgabase, 0x40, 0x08, 0x08);
 
 	if (info->var.vmode & FB_VMODE_DOUBLE)
-		svga_wcrt_mask(0x09, 0x80, 0x80);
+		svga_wcrt_mask(par->state.vgabase, 0x09, 0x80, 0x80);
 	else
-		svga_wcrt_mask(0x09, 0x00, 0x80);
+		svga_wcrt_mask(par->state.vgabase, 0x09, 0x00, 0x80);
 
 	if (info->var.vmode & FB_VMODE_INTERLACED)
-		svga_wcrt_mask(0x44, 0x04, 0x04);
+		svga_wcrt_mask(par->state.vgabase, 0x44, 0x04, 0x04);
 	else
-		svga_wcrt_mask(0x44, 0x00, 0x04);
+		svga_wcrt_mask(par->state.vgabase, 0x44, 0x00, 0x04);
 
 	hmul = 1;
 	hdiv = 1;
@@ -702,7 +702,7 @@ static int arkfb_set_par(struct fb_info *info)
 		svga_set_textmode_vga_regs();
 
 		vga_wseq(NULL, 0x11, 0x10); /* basic VGA mode */
-		svga_wcrt_mask(0x46, 0x00, 0x04); /* 8bit pixel path */
+		svga_wcrt_mask(par->state.vgabase, 0x46, 0x00, 0x04); /* 8bit pixel path */
 		dac_set_mode(par->dac, DAC_PSEUDO8_8);
 
 		break;
@@ -711,14 +711,14 @@ static int arkfb_set_par(struct fb_info *info)
 		vga_wgfx(NULL, VGA_GFX_MODE, 0x40);
 
 		vga_wseq(NULL, 0x11, 0x10); /* basic VGA mode */
-		svga_wcrt_mask(0x46, 0x00, 0x04); /* 8bit pixel path */
+		svga_wcrt_mask(par->state.vgabase, 0x46, 0x00, 0x04); /* 8bit pixel path */
 		dac_set_mode(par->dac, DAC_PSEUDO8_8);
 		break;
 	case 2:
 		pr_debug("fb%d: 4 bit pseudocolor, planar\n", info->node);
 
 		vga_wseq(NULL, 0x11, 0x10); /* basic VGA mode */
-		svga_wcrt_mask(0x46, 0x00, 0x04); /* 8bit pixel path */
+		svga_wcrt_mask(par->state.vgabase, 0x46, 0x00, 0x04); /* 8bit pixel path */
 		dac_set_mode(par->dac, DAC_PSEUDO8_8);
 		break;
 	case 3:
@@ -728,11 +728,11 @@ static int arkfb_set_par(struct fb_info *info)
 
 		if (info->var.pixclock > 20000) {
 			pr_debug("fb%d: not using multiplex\n", info->node);
-			svga_wcrt_mask(0x46, 0x00, 0x04); /* 8bit pixel path */
+			svga_wcrt_mask(par->state.vgabase, 0x46, 0x00, 0x04); /* 8bit pixel path */
 			dac_set_mode(par->dac, DAC_PSEUDO8_8);
 		} else {
 			pr_debug("fb%d: using multiplex\n", info->node);
-			svga_wcrt_mask(0x46, 0x04, 0x04); /* 16bit pixel path */
+			svga_wcrt_mask(par->state.vgabase, 0x46, 0x04, 0x04); /* 16bit pixel path */
 			dac_set_mode(par->dac, DAC_PSEUDO8_16);
 			hdiv = 2;
 		}
@@ -741,21 +741,21 @@ static int arkfb_set_par(struct fb_info *info)
 		pr_debug("fb%d: 5/5/5 truecolor\n", info->node);
 
 		vga_wseq(NULL, 0x11, 0x1A); /* 16bpp accel mode */
-		svga_wcrt_mask(0x46, 0x04, 0x04); /* 16bit pixel path */
+		svga_wcrt_mask(par->state.vgabase, 0x46, 0x04, 0x04); /* 16bit pixel path */
 		dac_set_mode(par->dac, DAC_RGB1555_16);
 		break;
 	case 5:
 		pr_debug("fb%d: 5/6/5 truecolor\n", info->node);
 
 		vga_wseq(NULL, 0x11, 0x1A); /* 16bpp accel mode */
-		svga_wcrt_mask(0x46, 0x04, 0x04); /* 16bit pixel path */
+		svga_wcrt_mask(par->state.vgabase, 0x46, 0x04, 0x04); /* 16bit pixel path */
 		dac_set_mode(par->dac, DAC_RGB0565_16);
 		break;
 	case 6:
 		pr_debug("fb%d: 8/8/8 truecolor\n", info->node);
 
 		vga_wseq(NULL, 0x11, 0x16); /* 8bpp accel mode ??? */
-		svga_wcrt_mask(0x46, 0x04, 0x04); /* 16bit pixel path */
+		svga_wcrt_mask(par->state.vgabase, 0x46, 0x04, 0x04); /* 16bit pixel path */
 		dac_set_mode(par->dac, DAC_RGB0888_16);
 		hmul = 3;
 		hdiv = 2;
@@ -764,7 +764,7 @@ static int arkfb_set_par(struct fb_info *info)
 		pr_debug("fb%d: 8/8/8/8 truecolor\n", info->node);
 
 		vga_wseq(NULL, 0x11, 0x1E); /* 32bpp accel mode */
-		svga_wcrt_mask(0x46, 0x04, 0x04); /* 16bit pixel path */
+		svga_wcrt_mask(par->state.vgabase, 0x46, 0x04, 0x04); /* 16bit pixel path */
 		dac_set_mode(par->dac, DAC_RGB8888_16);
 		hmul = 2;
 		break;
@@ -786,7 +786,7 @@ static int arkfb_set_par(struct fb_info *info)
 
 	memset_io(info->screen_base, 0x00, screen_size);
 	/* Device and screen back on */
-	svga_wcrt_mask(0x17, 0x80, 0x80);
+	svga_wcrt_mask(par->state.vgabase, 0x17, 0x80, 0x80);
 	svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
 
 	return 0;
@@ -863,19 +863,19 @@ static int arkfb_blank(int blank_mode, struct fb_info *info)
 	case FB_BLANK_UNBLANK:
 		pr_debug("fb%d: unblank\n", info->node);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
-		svga_wcrt_mask(0x17, 0x80, 0x80);
+		svga_wcrt_mask(par->state.vgabase, 0x17, 0x80, 0x80);
 		break;
 	case FB_BLANK_NORMAL:
 		pr_debug("fb%d: blank\n", info->node);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
-		svga_wcrt_mask(0x17, 0x80, 0x80);
+		svga_wcrt_mask(par->state.vgabase, 0x17, 0x80, 0x80);
 		break;
 	case FB_BLANK_POWERDOWN:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_VSYNC_SUSPEND:
 		pr_debug("fb%d: sync down\n", info->node);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
-		svga_wcrt_mask(0x17, 0x00, 0x80);
+		svga_wcrt_mask(par->state.vgabase, 0x17, 0x00, 0x80);
 		break;
 	}
 	return 0;

@@ -83,9 +83,9 @@ static inline void svga_wseq_mask(void __iomem *regbase, u8 index, u8 data, u8 m
 
 /* Write a value to a CRT register with a mask */
 
-static inline void svga_wcrt_mask(u8 index, u8 data, u8 mask)
+static inline void svga_wcrt_mask(void __iomem *regbase, u8 index, u8 data, u8 mask)
 {
-	vga_wcrt(NULL, index, (data & mask) | (vga_rcrt(NULL, index) & ~mask));
+	vga_wcrt(regbase, index, (data & mask) | (vga_rcrt(regbase, index) & ~mask));
 }
 
 static inline int svga_primary_device(struct pci_dev *dev)

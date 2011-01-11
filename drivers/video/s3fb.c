@@ -507,11 +507,11 @@ static int s3fb_set_par(struct fb_info *info)
 	vga_wcrt(NULL, 0x38, 0x48);
 	vga_wcrt(NULL, 0x39, 0xA5);
 	vga_wseq(NULL, 0x08, 0x06);
-	svga_wcrt_mask(0x11, 0x00, 0x80);
+	svga_wcrt_mask(par->state.vgabase, 0x11, 0x00, 0x80);
 
 	/* Blank screen and turn off sync */
 	svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
-	svga_wcrt_mask(0x17, 0x00, 0x80);
+	svga_wcrt_mask(par->state.vgabase, 0x17, 0x00, 0x80);
 
 	/* Set default values */
 	svga_set_default_gfx_regs(par->state.vgabase);
@@ -522,20 +522,20 @@ static int s3fb_set_par(struct fb_info *info)
 	svga_wcrt_multi(par->state.vgabase, s3_start_address_regs, 0);
 
 	/* S3 specific initialization */
-	svga_wcrt_mask(0x58, 0x10, 0x10); /* enable linear framebuffer */
-	svga_wcrt_mask(0x31, 0x08, 0x08); /* enable sequencer access to framebuffer above 256 kB */
+	svga_wcrt_mask(par->state.vgabase, 0x58, 0x10, 0x10); /* enable linear framebuffer */
+	svga_wcrt_mask(par->state.vgabase, 0x31, 0x08, 0x08); /* enable sequencer access to framebuffer above 256 kB */
 
-/*	svga_wcrt_mask(0x33, 0x08, 0x08); */ /* DDR ?	*/
-/*	svga_wcrt_mask(0x43, 0x01, 0x01); */ /* DDR ?	*/
-	svga_wcrt_mask(0x33, 0x00, 0x08); /* no DDR ?	*/
-	svga_wcrt_mask(0x43, 0x00, 0x01); /* no DDR ?	*/
+/*	svga_wcrt_mask(par->state.vgabase, 0x33, 0x08, 0x08); */ /* DDR ?	*/
+/*	svga_wcrt_mask(par->state.vgabase, 0x43, 0x01, 0x01); */ /* DDR ?	*/
+	svga_wcrt_mask(par->state.vgabase, 0x33, 0x00, 0x08); /* no DDR ?	*/
+	svga_wcrt_mask(par->state.vgabase, 0x43, 0x00, 0x01); /* no DDR ?	*/
 
-	svga_wcrt_mask(0x5D, 0x00, 0x28); /* Clear strange HSlen bits */
+	svga_wcrt_mask(par->state.vgabase, 0x5D, 0x00, 0x28); /* Clear strange HSlen bits */
 
-/*	svga_wcrt_mask(0x58, 0x03, 0x03); */
+/*	svga_wcrt_mask(par->state.vgabase, 0x58, 0x03, 0x03); */
 
-/*	svga_wcrt_mask(0x53, 0x12, 0x13); */ /* enable MMIO */
-/*	svga_wcrt_mask(0x40, 0x08, 0x08); */ /* enable write buffer */
+/*	svga_wcrt_mask(par->state.vgabase, 0x53, 0x12, 0x13); */ /* enable MMIO */
+/*	svga_wcrt_mask(par->state.vgabase, 0x40, 0x08, 0x08); */ /* enable write buffer */
 
 
 	/* Set the offset register */
@@ -555,19 +555,19 @@ static int s3fb_set_par(struct fb_info *info)
 	svga_wattr(par->state.vgabase, 0x33, 0x00);
 
 	if (info->var.vmode & FB_VMODE_DOUBLE)
-		svga_wcrt_mask(0x09, 0x80, 0x80);
+		svga_wcrt_mask(par->state.vgabase, 0x09, 0x80, 0x80);
 	else
-		svga_wcrt_mask(0x09, 0x00, 0x80);
+		svga_wcrt_mask(par->state.vgabase, 0x09, 0x00, 0x80);
 
 	if (info->var.vmode & FB_VMODE_INTERLACED)
-		svga_wcrt_mask(0x42, 0x20, 0x20);
+		svga_wcrt_mask(par->state.vgabase, 0x42, 0x20, 0x20);
 	else
-		svga_wcrt_mask(0x42, 0x00, 0x20);
+		svga_wcrt_mask(par->state.vgabase, 0x42, 0x00, 0x20);
 
 	/* Disable hardware graphics cursor */
-	svga_wcrt_mask(0x45, 0x00, 0x01);
+	svga_wcrt_mask(par->state.vgabase, 0x45, 0x00, 0x01);
 	/* Disable Streams engine */
-	svga_wcrt_mask(0x67, 0x00, 0x0C);
+	svga_wcrt_mask(par->state.vgabase, 0x67, 0x00, 0x0C);
 
 	mode = svga_match_format(s3fb_formats, &(info->var), &(info->fix));
 
@@ -596,7 +596,7 @@ static int s3fb_set_par(struct fb_info *info)
 		vga_wcrt(NULL, 0x66, 0x81);
 	}
 
-	svga_wcrt_mask(0x31, 0x00, 0x40);
+	svga_wcrt_mask(par->state.vgabase, 0x31, 0x00, 0x40);
 	multiplex = 0;
 	hmul = 1;
 
@@ -607,15 +607,15 @@ static int s3fb_set_par(struct fb_info *info)
 		svga_set_textmode_vga_regs();
 
 		/* Set additional registers like in 8-bit mode */
-		svga_wcrt_mask(0x50, 0x00, 0x30);
-		svga_wcrt_mask(0x67, 0x00, 0xF0);
+		svga_wcrt_mask(par->state.vgabase, 0x50, 0x00, 0x30);
+		svga_wcrt_mask(par->state.vgabase, 0x67, 0x00, 0xF0);
 
 		/* Disable enhanced mode */
-		svga_wcrt_mask(0x3A, 0x00, 0x30);
+		svga_wcrt_mask(par->state.vgabase, 0x3A, 0x00, 0x30);
 
 		if (fasttext) {
 			pr_debug("fb%d: high speed text mode set\n", info->node);
-			svga_wcrt_mask(0x31, 0x40, 0x40);
+			svga_wcrt_mask(par->state.vgabase, 0x31, 0x40, 0x40);
 		}
 		break;
 	case 1:
@@ -623,32 +623,32 @@ static int s3fb_set_par(struct fb_info *info)
 		vga_wgfx(NULL, VGA_GFX_MODE, 0x40);
 
 		/* Set additional registers like in 8-bit mode */
-		svga_wcrt_mask(0x50, 0x00, 0x30);
-		svga_wcrt_mask(0x67, 0x00, 0xF0);
+		svga_wcrt_mask(par->state.vgabase, 0x50, 0x00, 0x30);
+		svga_wcrt_mask(par->state.vgabase, 0x67, 0x00, 0xF0);
 
 		/* disable enhanced mode */
-		svga_wcrt_mask(0x3A, 0x00, 0x30);
+		svga_wcrt_mask(par->state.vgabase, 0x3A, 0x00, 0x30);
 		break;
 	case 2:
 		pr_debug("fb%d: 4 bit pseudocolor, planar\n", info->node);
 
 		/* Set additional registers like in 8-bit mode */
-		svga_wcrt_mask(0x50, 0x00, 0x30);
-		svga_wcrt_mask(0x67, 0x00, 0xF0);
+		svga_wcrt_mask(par->state.vgabase, 0x50, 0x00, 0x30);
+		svga_wcrt_mask(par->state.vgabase, 0x67, 0x00, 0xF0);
 
 		/* disable enhanced mode */
-		svga_wcrt_mask(0x3A, 0x00, 0x30);
+		svga_wcrt_mask(par->state.vgabase, 0x3A, 0x00, 0x30);
 		break;
 	case 3:
 		pr_debug("fb%d: 8 bit pseudocolor\n", info->node);
-		svga_wcrt_mask(0x50, 0x00, 0x30);
+		svga_wcrt_mask(par->state.vgabase, 0x50, 0x00, 0x30);
 		if (info->var.pixclock > 20000 ||
 		    par->chip == CHIP_360_TRIO3D_1X ||
 		    par->chip == CHIP_362_TRIO3D_2X ||
 		    par->chip == CHIP_368_TRIO3D_2X)
-			svga_wcrt_mask(0x67, 0x00, 0xF0);
+			svga_wcrt_mask(par->state.vgabase, 0x67, 0x00, 0xF0);
 		else {
-			svga_wcrt_mask(0x67, 0x10, 0xF0);
+			svga_wcrt_mask(par->state.vgabase, 0x67, 0x10, 0xF0);
 			multiplex = 1;
 		}
 		break;
@@ -656,12 +656,12 @@ static int s3fb_set_par(struct fb_info *info)
 		pr_debug("fb%d: 5/5/5 truecolor\n", info->node);
 		if (par->chip == CHIP_988_VIRGE_VX) {
 			if (info->var.pixclock > 20000)
-				svga_wcrt_mask(0x67, 0x20, 0xF0);
+				svga_wcrt_mask(par->state.vgabase, 0x67, 0x20, 0xF0);
 			else
-				svga_wcrt_mask(0x67, 0x30, 0xF0);
+				svga_wcrt_mask(par->state.vgabase, 0x67, 0x30, 0xF0);
 		} else {
-			svga_wcrt_mask(0x50, 0x10, 0x30);
-			svga_wcrt_mask(0x67, 0x30, 0xF0);
+			svga_wcrt_mask(par->state.vgabase, 0x50, 0x10, 0x30);
+			svga_wcrt_mask(par->state.vgabase, 0x67, 0x30, 0xF0);
 			if (par->chip != CHIP_360_TRIO3D_1X &&
 			    par->chip != CHIP_362_TRIO3D_2X &&
 			    par->chip != CHIP_368_TRIO3D_2X)
@@ -672,12 +672,12 @@ static int s3fb_set_par(struct fb_info *info)
 		pr_debug("fb%d: 5/6/5 truecolor\n", info->node);
 		if (par->chip == CHIP_988_VIRGE_VX) {
 			if (info->var.pixclock > 20000)
-				svga_wcrt_mask(0x67, 0x40, 0xF0);
+				svga_wcrt_mask(par->state.vgabase, 0x67, 0x40, 0xF0);
 			else
-				svga_wcrt_mask(0x67, 0x50, 0xF0);
+				svga_wcrt_mask(par->state.vgabase, 0x67, 0x50, 0xF0);
 		} else {
-			svga_wcrt_mask(0x50, 0x10, 0x30);
-			svga_wcrt_mask(0x67, 0x50, 0xF0);
+			svga_wcrt_mask(par->state.vgabase, 0x50, 0x10, 0x30);
+			svga_wcrt_mask(par->state.vgabase, 0x67, 0x50, 0xF0);
 			if (par->chip != CHIP_360_TRIO3D_1X &&
 			    par->chip != CHIP_362_TRIO3D_2X &&
 			    par->chip != CHIP_368_TRIO3D_2X)
@@ -687,12 +687,12 @@ static int s3fb_set_par(struct fb_info *info)
 	case 6:
 		/* VIRGE VX case */
 		pr_debug("fb%d: 8/8/8 truecolor\n", info->node);
-		svga_wcrt_mask(0x67, 0xD0, 0xF0);
+		svga_wcrt_mask(par->state.vgabase, 0x67, 0xD0, 0xF0);
 		break;
 	case 7:
 		pr_debug("fb%d: 8/8/8/8 truecolor\n", info->node);
-		svga_wcrt_mask(0x50, 0x30, 0x30);
-		svga_wcrt_mask(0x67, 0xD0, 0xF0);
+		svga_wcrt_mask(par->state.vgabase, 0x50, 0x30, 0x30);
+		svga_wcrt_mask(par->state.vgabase, 0x67, 0xD0, 0xF0);
 		break;
 	default:
 		printk(KERN_ERR "fb%d: unsupported mode - bug\n", info->node);
@@ -717,7 +717,7 @@ static int s3fb_set_par(struct fb_info *info)
 
 	memset_io(info->screen_base, 0x00, screen_size);
 	/* Device and screen back on */
-	svga_wcrt_mask(0x17, 0x80, 0x80);
+	svga_wcrt_mask(par->state.vgabase, 0x17, 0x80, 0x80);
 	svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
 
 	return 0;
@@ -793,27 +793,27 @@ static int s3fb_blank(int blank_mode, struct fb_info *info)
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		pr_debug("fb%d: unblank\n", info->node);
-		svga_wcrt_mask(0x56, 0x00, 0x06);
+		svga_wcrt_mask(par->state.vgabase, 0x56, 0x00, 0x06);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
 		break;
 	case FB_BLANK_NORMAL:
 		pr_debug("fb%d: blank\n", info->node);
-		svga_wcrt_mask(0x56, 0x00, 0x06);
+		svga_wcrt_mask(par->state.vgabase, 0x56, 0x00, 0x06);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
 		pr_debug("fb%d: hsync\n", info->node);
-		svga_wcrt_mask(0x56, 0x02, 0x06);
+		svga_wcrt_mask(par->state.vgabase, 0x56, 0x02, 0x06);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
 		pr_debug("fb%d: vsync\n", info->node);
-		svga_wcrt_mask(0x56, 0x04, 0x06);
+		svga_wcrt_mask(par->state.vgabase, 0x56, 0x04, 0x06);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	case FB_BLANK_POWERDOWN:
 		pr_debug("fb%d: sync down\n", info->node);
-		svga_wcrt_mask(0x56, 0x06, 0x06);
+		svga_wcrt_mask(par->state.vgabase, 0x56, 0x06, 0x06);
 		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	}

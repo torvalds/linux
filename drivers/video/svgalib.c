@@ -130,9 +130,9 @@ void svga_set_default_seq_regs(void __iomem *regbase)
 void svga_set_default_crt_regs(void)
 {
 	/* Standard CRT registers CR03 CR08 CR09 CR14 CR17 */
-	svga_wcrt_mask(0x03, 0x80, 0x80);	/* Enable vertical retrace EVRA */
+	svga_wcrt_mask(NULL, 0x03, 0x80, 0x80);	/* Enable vertical retrace EVRA */
 	vga_wcrt(NULL, VGA_CRTC_PRESET_ROW, 0);
-	svga_wcrt_mask(VGA_CRTC_MAX_SCAN, 0, 0x1F);
+	svga_wcrt_mask(NULL, VGA_CRTC_MAX_SCAN, 0, 0x1F);
 	vga_wcrt(NULL, VGA_CRTC_UNDERLINE, 0);
 	vga_wcrt(NULL, VGA_CRTC_MODE, 0xE3);
 }
@@ -145,7 +145,7 @@ void svga_set_textmode_vga_regs(void)
 
 	vga_wcrt(NULL, VGA_CRTC_MAX_SCAN,	0x0f); /* 0x4f */
 	vga_wcrt(NULL, VGA_CRTC_UNDERLINE,	0x1f);
-	svga_wcrt_mask(VGA_CRTC_MODE,		0x23, 0x7f);
+	svga_wcrt_mask(NULL, VGA_CRTC_MODE, 0x23, 0x7f);
 
 	vga_wcrt(NULL, VGA_CRTC_CURSOR_START,	0x0d);
 	vga_wcrt(NULL, VGA_CRTC_CURSOR_END,	0x0e);
@@ -310,7 +310,7 @@ void svga_tilecursor(struct fb_info *info, struct fb_tilecursor *cursor)
 	if (! cursor -> mode)
 		return;
 
-	svga_wcrt_mask(0x0A, 0x20, 0x20); /* disable cursor */
+	svga_wcrt_mask(NULL, 0x0A, 0x20, 0x20); /* disable cursor */
 
 	if (cursor -> shape == FB_TILE_CURSOR_NONE)
 		return;
