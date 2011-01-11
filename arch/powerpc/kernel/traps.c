@@ -626,11 +626,6 @@ void machine_check_exception(struct pt_regs *regs)
 	if (recover > 0)
 		return;
 
-	if (user_mode(regs)) {
-		_exception(SIGBUS, regs, BUS_ADRERR, regs->nip);
-		return;
-	}
-
 #if defined(CONFIG_8xx) && defined(CONFIG_PCI)
 	/* the qspan pci read routines can cause machine checks -- Cort
 	 *
