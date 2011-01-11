@@ -24,7 +24,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.21"
+#define DRV_VERSION	"0.6.22"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -642,7 +642,6 @@ static struct ata_port_operations hpt372_port_ops = {
 static struct ata_port_operations hpt374_fn1_port_ops = {
 	.inherits	= &hpt372_port_ops,
 	.cable_detect	= hpt374_fn1_cable_detect,
-	.prereset	= hpt37x_pre_reset,
 };
 
 /**
@@ -803,7 +802,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.udma_mask = ATA_UDMA6,
 		.port_ops = &hpt302_port_ops
 	};
-	/* HPT374 - UDMA100, function 1 uses different prereset method */
+	/* HPT374 - UDMA100, function 1 uses different cable_detect method */
 	static const struct ata_port_info info_hpt374_fn0 = {
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = ATA_PIO4,
