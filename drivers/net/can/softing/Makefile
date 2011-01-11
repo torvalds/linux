@@ -1,0 +1,5 @@
+
+softing-y := softing_main.o softing_fw.o
+obj-$(CONFIG_CAN_SOFTING) += softing.o
+
+ccflags-$(CONFIG_CAN_DEBUG_DEVICES) := -DDEBUG
