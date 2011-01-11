@@ -900,8 +900,7 @@ serial_hsu_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned char cval, fcr = 0;
 	unsigned long flags;
 	unsigned int baud, quot;
-	u32 mul = 0x3600;
-	u32 ps = 0x10;
+	u32 ps, mul;
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
@@ -943,31 +942,24 @@ serial_hsu_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old, 0, 4000000);
 
 	quot = 1;
+	ps = 0x10;
+	mul = 0x3600;
 	switch (baud) {
 	case 3500000:
 		mul = 0x3345;
 		ps = 0xC;
 		break;
-	case 3000000:
-		mul = 0x2EE0;
-		break;
-	case 2500000:
-		mul = 0x2710;
-		break;
-	case 2000000:
-		mul = 0x1F40;
-		break;
 	case 1843200:
 		mul = 0x2400;
 		break;
+	case 3000000:
+	case 2500000:
+	case 2000000:
 	case 1500000:
-		mul = 0x1770;
-		break;
 	case 1000000:
-		mul = 0xFA0;
-		break;
 	case 500000:
-		mul = 0x7D0;
+		/* mul/ps/quot = 0x9C4/0x10/0x1 will make a 500000 bps */
+		mul = baud / 500000 * 0x9C4;
 		break;
 	default:
 		/* Use uart_get_divisor to get quot for other baud rates */

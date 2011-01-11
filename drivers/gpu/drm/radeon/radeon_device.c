@@ -286,7 +286,7 @@ void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 
 		mc->mc_vram_size = mc->aper_size;
 	}
 	mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
-	dev_info(rdev->dev, "VRAM: %lluM 0x%08llX - 0x%08llX (%lluM used)\n",
+	dev_info(rdev->dev, "VRAM: %lluM 0x%016llX - 0x%016llX (%lluM used)\n",
 			mc->mc_vram_size >> 20, mc->vram_start,
 			mc->vram_end, mc->real_vram_size >> 20);
 }
@@ -323,7 +323,7 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 		mc->gtt_start = (mc->vram_end + 1 + mc->gtt_base_align) & ~mc->gtt_base_align;
 	}
 	mc->gtt_end = mc->gtt_start + mc->gtt_size - 1;
-	dev_info(rdev->dev, "GTT: %lluM 0x%08llX - 0x%08llX\n",
+	dev_info(rdev->dev, "GTT: %lluM 0x%016llX - 0x%016llX\n",
 			mc->gtt_size >> 20, mc->gtt_start, mc->gtt_end);
 }
 
@@ -910,11 +910,6 @@ int radeon_resume_kms(struct drm_device *dev)
 	radeon_pm_resume(rdev);
 	radeon_restore_bios_scratch_regs(rdev);
 
-	/* turn on display hw */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
-	}
-
 	radeon_fbdev_set_suspend(rdev, 0);
 	release_console_sem();
 
@@ -922,6 +917,10 @@ int radeon_resume_kms(struct drm_device *dev)
 	radeon_hpd_init(rdev);
 	/* blat the mode back in */
 	drm_helper_resume_force_mode(dev);
+	/* turn on display hw */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+	}
 	return 0;
 }
 

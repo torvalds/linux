@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 37
-EXTRAVERSION = -rc3
+EXTRAVERSION = -rc8
 NAME = Flesh-Eating Bats with Fangs
 
 # *DOCUMENTATION*

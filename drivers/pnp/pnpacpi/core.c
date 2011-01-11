@@ -180,7 +180,7 @@ struct pnp_protocol pnpacpi_protocol = {
 };
 EXPORT_SYMBOL(pnpacpi_protocol);
 
-static char *pnpacpi_get_id(struct acpi_device *device)
+static char *__init pnpacpi_get_id(struct acpi_device *device)
 {
 	struct acpi_hardware_id *id;
 

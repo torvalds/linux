@@ -16,7 +16,7 @@ config CPU_S3C2412
 config CPU_S3C2412_ONLY
 	bool
 	depends on ARCH_S3C2410 && !CPU_S3C2400 && !CPU_S3C2410 && \
-		   !CPU_2416 && !CPU_S3C2440 && !CPU_S3C2442 && \
+		   !CPU_S3C2416 && !CPU_S3C2440 && !CPU_S3C2442 && \
 		   !CPU_S3C2443 && CPU_S3C2412
 	default y if CPU_S3C2412
 
@@ -28,8 +28,15 @@ config S3C2412_DMA
 
 config S3C2412_PM
 	bool
+	select S3C2412_PM_SLEEP
 	help
 	  Internal config node to apply S3C2412 power management
+
+config S3C2412_PM_SLEEP
+	bool
+	help
+	  Internal config node to apply sleep for S3C2412 power management.
+	  Can be selected by another SoCs with similar sleep procedure.
 
 # Note, the S3C2412 IOtiming support is in plat-s3c24xx
 

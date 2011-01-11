@@ -97,11 +97,9 @@ struct workqueue_struct *ceph_msgr_wq;
 int ceph_msgr_init(void)
 {
 	ceph_msgr_wq = create_workqueue("ceph-msgr");
-	if (IS_ERR(ceph_msgr_wq)) {
-		int ret = PTR_ERR(ceph_msgr_wq);
-		pr_err("msgr_init failed to create workqueue: %d\n", ret);
-		ceph_msgr_wq = NULL;
-		return ret;
+	if (!ceph_msgr_wq) {
+		pr_err("msgr_init failed to create workqueue\n");
+		return -ENOMEM;
 	}
 	return 0;
 }

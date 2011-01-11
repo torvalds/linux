@@ -161,7 +161,7 @@
 static const u16 wm8580_reg[] = {
 	0x0121, 0x017e, 0x007d, 0x0014, /*R3*/
 	0x0121, 0x017e, 0x007d, 0x0194, /*R7*/
-	0x001c, 0x0002, 0x0002, 0x00c2, /*R11*/
+	0x0010, 0x0002, 0x0002, 0x00c2, /*R11*/
 	0x0182, 0x0082, 0x000a, 0x0024, /*R15*/
 	0x0009, 0x0000, 0x00ff, 0x0000, /*R19*/
 	0x00ff, 0x00ff, 0x00ff, 0x00ff, /*R23*/
@@ -491,16 +491,16 @@ static int wm8580_paif_hw_params(struct snd_pcm_substream *substream,
 		paifa |= 0x8;
 		break;
 	case SNDRV_PCM_FORMAT_S20_3LE:
-		paifa |= 0x10;
+		paifa |= 0x0;
 		paifb |= WM8580_AIF_LENGTH_20;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		paifa |= 0x10;
+		paifa |= 0x0;
 		paifb |= WM8580_AIF_LENGTH_24;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
-		paifa |= 0x10;
-		paifb |= WM8580_AIF_LENGTH_24;
+		paifa |= 0x0;
+		paifb |= WM8580_AIF_LENGTH_32;
 		break;
 	default:
 		return -EINVAL;

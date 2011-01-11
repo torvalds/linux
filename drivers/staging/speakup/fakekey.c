@@ -62,7 +62,6 @@ void speakup_remove_virtual_keyboard(void)
 {
 	if (virt_keyboard != NULL) {
 		input_unregister_device(virt_keyboard);
-		input_free_device(virt_keyboard);
 		virt_keyboard = NULL;
 	}
 }

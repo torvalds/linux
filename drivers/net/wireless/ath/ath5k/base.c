@@ -1917,7 +1917,8 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 		sc->bmisscount = 0;
 	}
 
-	if (sc->opmode == NL80211_IFTYPE_AP && sc->num_ap_vifs > 1) {
+	if ((sc->opmode == NL80211_IFTYPE_AP && sc->num_ap_vifs > 1) ||
+			sc->opmode == NL80211_IFTYPE_MESH_POINT) {
 		u64 tsf = ath5k_hw_get_tsf64(ah);
 		u32 tsftu = TSF_TO_TU(tsf);
 		int slot = ((tsftu % sc->bintval) * ATH_BCBUF) / sc->bintval;
@@ -1949,8 +1950,9 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 		/* NB: hw still stops DMA, so proceed */
 	}
 
-	/* refresh the beacon for AP mode */
-	if (sc->opmode == NL80211_IFTYPE_AP)
+	/* refresh the beacon for AP or MESH mode */
+	if (sc->opmode == NL80211_IFTYPE_AP ||
+			sc->opmode == NL80211_IFTYPE_MESH_POINT)
 		ath5k_beacon_update(sc->hw, vif);
 
 	ath5k_hw_set_txdp(ah, sc->bhalq, bf->daddr);
@@ -2851,7 +2853,8 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 
 	/* Assign the vap/adhoc to a beacon xmit slot. */
 	if ((avf->opmode == NL80211_IFTYPE_AP) ||
-	    (avf->opmode == NL80211_IFTYPE_ADHOC)) {
+	    (avf->opmode == NL80211_IFTYPE_ADHOC) ||
+	    (avf->opmode == NL80211_IFTYPE_MESH_POINT)) {
 		int slot;
 
 		WARN_ON(list_empty(&sc->bcbuf));
@@ -2870,7 +2873,7 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 		sc->bslot[avf->bslot] = vif;
 		if (avf->opmode == NL80211_IFTYPE_AP)
 			sc->num_ap_vifs++;
-		else
+		else if (avf->opmode == NL80211_IFTYPE_ADHOC)
 			sc->num_adhoc_vifs++;
 	}
 
