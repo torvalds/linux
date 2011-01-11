@@ -31,6 +31,7 @@
 
 #include <mach/cpcap_audio.h>
 
+#define CODEC_WARMUP_TIME_MS            25
 #define SLEEP_ACTIVATE_POWER_DELAY_MS	2
 #define STM_STDAC_ACTIVATE_RAMP_TIME	1
 #define CLOCK_TREE_RESET_DELAY_MS	1
@@ -671,6 +672,8 @@ static void cpcap_audio_configure_codec(struct cpcap_audio_state *state,
 		mdelay(CLOCK_TREE_RESET_DELAY_MS);
 	}
 
+	/* Todo: Follow-up with STMicro about why this is needed */
+	msleep(CODEC_WARMUP_TIME_MS);
 	/* Clear old settings */
 	codec_changes.mask = codec_changes.value | prev_codec_data;
 	prev_codec_data    = codec_changes.value;
