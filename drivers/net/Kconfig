@@ -1950,14 +1950,6 @@ config FEC
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
 	  controller on some Motorola ColdFire and Freescale i.MX processors.
 
-config FEC2
-	bool "Second FEC ethernet controller"
-	depends on FEC
-	help
-	  Say Y here if you want to use the second built-in 10/100 Fast
-	  ethernet controller on some Motorola ColdFire and Freescale
-	  i.MX processors.
-
 config FEC_MPC52xx
 	tristate "MPC52xx FEC driver"
 	depends on PPC_MPC52xx && PPC_BESTCOMM
