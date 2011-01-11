@@ -1635,7 +1635,7 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	struct vb2_fileio_buf *buf;
 	int ret, index;
 
-	dprintk(3, "file io: mode %s, offset %ld, count %ld, %sblocking\n",
+	dprintk(3, "file io: mode %s, offset %ld, count %zd, %sblocking\n",
 		read ? "read" : "write", (long)*ppos, count,
 		nonblock ? "non" : "");
 
@@ -1694,13 +1694,13 @@ static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_
 	 */
 	if (buf->pos + count > buf->size) {
 		count = buf->size - buf->pos;
-		dprintk(5, "reducing read count: %ld\n", count);
+		dprintk(5, "reducing read count: %zd\n", count);
 	}
 
 	/*
 	 * Transfer data to userspace.
 	 */
-	dprintk(3, "file io: copying %ld bytes - buffer %d, offset %u\n",
+	dprintk(3, "file io: copying %zd bytes - buffer %d, offset %u\n",
 		count, index, buf->pos);
 	if (read)
 		ret = copy_to_user(data, buf->vaddr + buf->pos, count);
