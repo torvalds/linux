@@ -510,7 +510,7 @@ static int s3fb_set_par(struct fb_info *info)
 	svga_wcrt_mask(0x11, 0x00, 0x80);
 
 	/* Blank screen and turn off sync */
-	svga_wseq_mask(0x01, 0x20, 0x20);
+	svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 	svga_wcrt_mask(0x17, 0x00, 0x80);
 
 	/* Set default values */
@@ -700,8 +700,8 @@ static int s3fb_set_par(struct fb_info *info)
 	}
 
 	if (par->chip != CHIP_988_VIRGE_VX) {
-		svga_wseq_mask(0x15, multiplex ? 0x10 : 0x00, 0x10);
-		svga_wseq_mask(0x18, multiplex ? 0x80 : 0x00, 0x80);
+		svga_wseq_mask(par->state.vgabase, 0x15, multiplex ? 0x10 : 0x00, 0x10);
+		svga_wseq_mask(par->state.vgabase, 0x18, multiplex ? 0x80 : 0x00, 0x80);
 	}
 
 	s3_set_pixclock(info, info->var.pixclock);
@@ -718,7 +718,7 @@ static int s3fb_set_par(struct fb_info *info)
 	memset_io(info->screen_base, 0x00, screen_size);
 	/* Device and screen back on */
 	svga_wcrt_mask(0x17, 0x80, 0x80);
-	svga_wseq_mask(0x01, 0x00, 0x20);
+	svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
 
 	return 0;
 }
@@ -788,31 +788,33 @@ static int s3fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 static int s3fb_blank(int blank_mode, struct fb_info *info)
 {
+	struct s3fb_info *par = info->par;
+
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		pr_debug("fb%d: unblank\n", info->node);
 		svga_wcrt_mask(0x56, 0x00, 0x06);
-		svga_wseq_mask(0x01, 0x00, 0x20);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
 		break;
 	case FB_BLANK_NORMAL:
 		pr_debug("fb%d: blank\n", info->node);
 		svga_wcrt_mask(0x56, 0x00, 0x06);
-		svga_wseq_mask(0x01, 0x20, 0x20);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	case FB_BLANK_HSYNC_SUSPEND:
 		pr_debug("fb%d: hsync\n", info->node);
 		svga_wcrt_mask(0x56, 0x02, 0x06);
-		svga_wseq_mask(0x01, 0x20, 0x20);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
 		pr_debug("fb%d: vsync\n", info->node);
 		svga_wcrt_mask(0x56, 0x04, 0x06);
-		svga_wseq_mask(0x01, 0x20, 0x20);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	case FB_BLANK_POWERDOWN:
 		pr_debug("fb%d: sync down\n", info->node);
 		svga_wcrt_mask(0x56, 0x06, 0x06);
-		svga_wseq_mask(0x01, 0x20, 0x20);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		break;
 	}
 

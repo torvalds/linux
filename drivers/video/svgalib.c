@@ -139,7 +139,7 @@ void svga_set_default_crt_regs(void)
 
 void svga_set_textmode_vga_regs(void)
 {
-	/* svga_wseq_mask(0x1, 0x00, 0x01); */   /* Switch 8/9 pixel per char */
+	/* svga_wseq_mask(NULL, 0x1, 0x00, 0x01); */   /* Switch 8/9 pixel per char */
 	vga_wseq(NULL, VGA_SEQ_MEMORY_MODE,	VGA_SR04_EXT_MEM);
 	vga_wseq(NULL, VGA_SEQ_PLANE_WRITE,	0x03);
 

@@ -76,9 +76,9 @@ static inline void svga_wattr(void __iomem *regbase, u8 index, u8 data)
 
 /* Write a value to a sequence register with a mask */
 
-static inline void svga_wseq_mask(u8 index, u8 data, u8 mask)
+static inline void svga_wseq_mask(void __iomem *regbase, u8 index, u8 data, u8 mask)
 {
-	vga_wseq(NULL, index, (data & mask) | (vga_rseq(NULL, index) & ~mask));
+	vga_wseq(regbase, index, (data & mask) | (vga_rseq(regbase, index) & ~mask));
 }
 
 /* Write a value to a CRT register with a mask */

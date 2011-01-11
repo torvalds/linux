@@ -649,7 +649,7 @@ static int arkfb_set_par(struct fb_info *info)
 	svga_wcrt_mask(0x11, 0x00, 0x80);
 
 	/* Blank screen and turn off sync */
-	svga_wseq_mask(0x01, 0x20, 0x20);
+	svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 	svga_wcrt_mask(0x17, 0x00, 0x80);
 
 	/* Set default values */
@@ -661,8 +661,8 @@ static int arkfb_set_par(struct fb_info *info)
 	svga_wcrt_multi(par->state.vgabase, ark_start_address_regs, 0);
 
 	/* ARK specific initialization */
-	svga_wseq_mask(0x10, 0x1F, 0x1F); /* enable linear framebuffer and full memory access */
-	svga_wseq_mask(0x12, 0x03, 0x03); /* 4 MB linear framebuffer size */
+	svga_wseq_mask(par->state.vgabase, 0x10, 0x1F, 0x1F); /* enable linear framebuffer and full memory access */
+	svga_wseq_mask(par->state.vgabase, 0x12, 0x03, 0x03); /* 4 MB linear framebuffer size */
 
 	vga_wseq(NULL, 0x13, info->fix.smem_start >> 16);
 	vga_wseq(NULL, 0x14, info->fix.smem_start >> 24);
@@ -787,7 +787,7 @@ static int arkfb_set_par(struct fb_info *info)
 	memset_io(info->screen_base, 0x00, screen_size);
 	/* Device and screen back on */
 	svga_wcrt_mask(0x17, 0x80, 0x80);
-	svga_wseq_mask(0x01, 0x00, 0x20);
+	svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
 
 	return 0;
 }
@@ -857,22 +857,24 @@ static int arkfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 static int arkfb_blank(int blank_mode, struct fb_info *info)
 {
+	struct arkfb_info *par = info->par;
+
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		pr_debug("fb%d: unblank\n", info->node);
-		svga_wseq_mask(0x01, 0x00, 0x20);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x00, 0x20);
 		svga_wcrt_mask(0x17, 0x80, 0x80);
 		break;
 	case FB_BLANK_NORMAL:
 		pr_debug("fb%d: blank\n", info->node);
-		svga_wseq_mask(0x01, 0x20, 0x20);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		svga_wcrt_mask(0x17, 0x80, 0x80);
 		break;
 	case FB_BLANK_POWERDOWN:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_VSYNC_SUSPEND:
 		pr_debug("fb%d: sync down\n", info->node);
-		svga_wseq_mask(0x01, 0x20, 0x20);
+		svga_wseq_mask(par->state.vgabase, 0x01, 0x20, 0x20);
 		svga_wcrt_mask(0x17, 0x00, 0x80);
 		break;
 	}
