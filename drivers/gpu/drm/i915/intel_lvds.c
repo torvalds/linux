@@ -374,6 +374,10 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	}
 
 out:
+	if ((pfit_control & PFIT_ENABLE) == 0) {
+		pfit_control = 0;
+		pfit_pgm_ratios = 0;
+	}
 	if (pfit_control != intel_lvds->pfit_control ||
 	    pfit_pgm_ratios != intel_lvds->pfit_pgm_ratios) {
 		intel_lvds->pfit_control = pfit_control;
