@@ -85,15 +85,11 @@ int i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj)
 
 void i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (dev_priv->mm.gtt->needs_dmar) {
-		intel_gtt_unmap_memory(obj->sg_list, obj->num_sg);
-		obj->sg_list = NULL;
-		obj->num_sg = 0;
-	}
-
 	intel_gtt_clear_range(obj->gtt_space->start >> PAGE_SHIFT,
 			      obj->base.size >> PAGE_SHIFT);
+
+	if (obj->sg_list) {
+		intel_gtt_unmap_memory(obj->sg_list, obj->num_sg);
+		obj->sg_list = NULL;
+	}
 }
