@@ -2135,7 +2135,7 @@ void __init tegra2_init_clocks(void)
 
 #ifdef CONFIG_PM
 static u32 clk_rst_suspend[RST_DEVICES_NUM + CLK_OUT_ENB_NUM +
-			   PERIPH_CLK_SOURCE_NUM + 15];
+			   PERIPH_CLK_SOURCE_NUM + 21];
 
 void tegra_clk_suspend(void)
 {
@@ -2147,6 +2147,12 @@ void tegra_clk_suspend(void)
 	*ctx++ = clk_readl(tegra_pll_c.reg + PLL_MISC(&tegra_pll_c));
 	*ctx++ = clk_readl(tegra_pll_a.reg + PLL_BASE);
 	*ctx++ = clk_readl(tegra_pll_a.reg + PLL_MISC(&tegra_pll_a));
+	*ctx++ = clk_readl(tegra_pll_s.reg + PLL_BASE);
+	*ctx++ = clk_readl(tegra_pll_s.reg + PLL_MISC(&tegra_pll_s));
+	*ctx++ = clk_readl(tegra_pll_d.reg + PLL_BASE);
+	*ctx++ = clk_readl(tegra_pll_d.reg + PLL_MISC(&tegra_pll_d));
+	*ctx++ = clk_readl(tegra_pll_u.reg + PLL_BASE);
+	*ctx++ = clk_readl(tegra_pll_u.reg + PLL_MISC(&tegra_pll_u));
 
 	*ctx++ = clk_readl(tegra_pll_m_out1.reg);
 	*ctx++ = clk_readl(tegra_pll_a_out0.reg);
@@ -2176,6 +2182,8 @@ void tegra_clk_suspend(void)
 
 	*ctx++ = clk_readl(MISC_CLK_ENB);
 	*ctx++ = clk_readl(CLK_MASK_ARM);
+
+	BUG_ON(ctx - clk_rst_suspend != ARRAY_SIZE(clk_rst_suspend));
 }
 
 void tegra_clk_resume(void)
@@ -2192,7 +2200,13 @@ void tegra_clk_resume(void)
 	clk_writel(*ctx++, tegra_pll_c.reg + PLL_MISC(&tegra_pll_c));
 	clk_writel(*ctx++, tegra_pll_a.reg + PLL_BASE);
 	clk_writel(*ctx++, tegra_pll_a.reg + PLL_MISC(&tegra_pll_a));
-	udelay(300);
+	clk_writel(*ctx++, tegra_pll_s.reg + PLL_BASE);
+	clk_writel(*ctx++, tegra_pll_s.reg + PLL_MISC(&tegra_pll_s));
+	clk_writel(*ctx++, tegra_pll_d.reg + PLL_BASE);
+	clk_writel(*ctx++, tegra_pll_d.reg + PLL_MISC(&tegra_pll_d));
+	clk_writel(*ctx++, tegra_pll_u.reg + PLL_BASE);
+	clk_writel(*ctx++, tegra_pll_u.reg + PLL_MISC(&tegra_pll_u));
+	udelay(1000);
 
 	clk_writel(*ctx++, tegra_pll_m_out1.reg);
 	clk_writel(*ctx++, tegra_pll_a_out0.reg);
