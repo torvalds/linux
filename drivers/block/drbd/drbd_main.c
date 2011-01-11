@@ -2474,7 +2474,7 @@ int drbd_send_drequest_csum(struct drbd_conf *mdev,
 	struct p_block_req p;
 
 	p.sector   = cpu_to_be64(sector);
-	p.block_id = BE_DRBD_MAGIC + 0xbeef;
+	p.block_id = ID_SYNCER /* unused */;
 	p.blksize  = cpu_to_be32(size);
 
 	p.head.magic   = BE_DRBD_MAGIC;
@@ -2497,7 +2497,7 @@ int drbd_send_ov_request(struct drbd_conf *mdev, sector_t sector, int size)
 	struct p_block_req p;
 
 	p.sector   = cpu_to_be64(sector);
-	p.block_id = BE_DRBD_MAGIC + 0xbabe;
+	p.block_id = ID_SYNCER /* unused */;
 	p.blksize  = cpu_to_be32(size);
 
 	ok = drbd_send_cmd(mdev, USE_DATA_SOCKET, P_OV_REQUEST,

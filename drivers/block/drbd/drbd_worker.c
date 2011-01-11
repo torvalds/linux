@@ -305,8 +305,6 @@ int w_e_send_csum(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	void *digest;
 	int ok = 1;
 
-	D_ASSERT(e->block_id == DRBD_MAGIC + 0xbeef);
-
 	if (unlikely(cancel))
 		goto out;
 
@@ -359,7 +357,7 @@ static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
 
 	/* GFP_TRY, because if there is no memory available right now, this may
 	 * be rescheduled for later. It is "only" background resync, after all. */
-	e = drbd_alloc_ee(mdev, DRBD_MAGIC+0xbeef, sector, size, GFP_TRY);
+	e = drbd_alloc_ee(mdev, ID_SYNCER /* unused */, sector, size, GFP_TRY);
 	if (!e)
 		goto defer;
 
