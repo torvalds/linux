@@ -231,13 +231,7 @@ static inline unsigned long copy_ptea_attributes(unsigned long x)
 					   _PAGE_EXT_KERN_EXEC))
 
 #define PAGE_KERNEL_PCC(slot, type) \
-			__pgprot(_PAGE_PRESENT | _PAGE_DIRTY | \
-				 _PAGE_ACCESSED | _PAGE_FLAGS_HARD | \
-				 _PAGE_EXT(_PAGE_EXT_KERN_READ | \
-					   _PAGE_EXT_KERN_WRITE | \
-					   _PAGE_EXT_KERN_EXEC) \
-				 (slot ? _PAGE_PCC_AREA5 : _PAGE_PCC_AREA6) | \
-				 (type))
+			__pgprot(0)
 
 #elif defined(CONFIG_MMU) /* SH-X TLB */
 #define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_CACHABLE | \
