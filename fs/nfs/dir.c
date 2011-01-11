@@ -33,8 +33,8 @@
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/sched.h>
-#include <linux/vmalloc.h>
 #include <linux/kmemleak.h>
+#include <linux/xattr.h>
 
 #include "delegation.h"
 #include "iostat.h"
@@ -125,9 +125,10 @@ const struct inode_operations nfs4_dir_inode_operations = {
 	.permission	= nfs_permission,
 	.getattr	= nfs_getattr,
 	.setattr	= nfs_setattr,
-	.getxattr       = nfs4_getxattr,
-	.setxattr       = nfs4_setxattr,
-	.listxattr      = nfs4_listxattr,
+	.getxattr	= generic_getxattr,
+	.setxattr	= generic_setxattr,
+	.listxattr	= generic_listxattr,
+	.removexattr	= generic_removexattr,
 };
 
 #endif /* CONFIG_NFS_V4 */
@@ -172,7 +173,7 @@ struct nfs_cache_array {
 	struct nfs_cache_array_entry array[0];
 };
 
-typedef __be32 * (*decode_dirent_t)(struct xdr_stream *, struct nfs_entry *, struct nfs_server *, int);
+typedef int (*decode_dirent_t)(struct xdr_stream *, struct nfs_entry *, int);
 typedef struct {
 	struct file	*file;
 	struct page	*page;
@@ -378,14 +379,14 @@ error:
 	return error;
 }
 
-/* Fill in an entry based on the xdr code stored in desc->page */
-static
-int xdr_decode(nfs_readdir_descriptor_t *desc, struct nfs_entry *entry, struct xdr_stream *stream)
+static int xdr_decode(nfs_readdir_descriptor_t *desc,
+		      struct nfs_entry *entry, struct xdr_stream *xdr)
 {
-	__be32 *p = desc->decode(stream, entry, NFS_SERVER(desc->file->f_path.dentry->d_inode), desc->plus);
-	if (IS_ERR(p))
-		return PTR_ERR(p);
+	int error;
 
+	error = desc->decode(xdr, entry, desc->plus);
+	if (error)
+		return error;
 	entry->fattr->time_start = desc->timestamp;
 	entry->fattr->gencount = desc->gencount;
 	return 0;
@@ -459,25 +460,26 @@ out:
 /* Perform conversion from xdr to cache array */
 static
 int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *entry,
-				void *xdr_page, struct page *page, unsigned int buflen)
+				struct page **xdr_pages, struct page *page, unsigned int buflen)
 {
 	struct xdr_stream stream;
-	struct xdr_buf buf;
-	__be32 *ptr = xdr_page;
+	struct xdr_buf buf = {
+		.pages = xdr_pages,
+		.page_len = buflen,
+		.buflen = buflen,
+		.len = buflen,
+	};
+	struct page *scratch;
 	struct nfs_cache_array *array;
 	unsigned int count = 0;
 	int status;
 
-	buf.head->iov_base = xdr_page;
-	buf.head->iov_len = buflen;
-	buf.tail->iov_len = 0;
-	buf.page_base = 0;
-	buf.page_len = 0;
-	buf.buflen = buf.head->iov_len;
-	buf.len = buf.head->iov_len;
+	scratch = alloc_page(GFP_KERNEL);
+	if (scratch == NULL)
+		return -ENOMEM;
 
-	xdr_init_decode(&stream, &buf, ptr);
-
+	xdr_init_decode(&stream, &buf, NULL);
+	xdr_set_scratch_buffer(&stream, page_address(scratch), PAGE_SIZE);
 
 	do {
 		status = xdr_decode(desc, entry, &stream);
@@ -506,6 +508,8 @@ int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *en
 		} else
 			status = PTR_ERR(array);
 	}
+
+	put_page(scratch);
 	return status;
 }
 
@@ -521,7 +525,6 @@ static
 void nfs_readdir_free_large_page(void *ptr, struct page **pages,
 		unsigned int npages)
 {
-	vm_unmap_ram(ptr, npages);
 	nfs_readdir_free_pagearray(pages, npages);
 }
 
@@ -530,9 +533,8 @@ void nfs_readdir_free_large_page(void *ptr, struct page **pages,
  * to nfs_readdir_free_large_page
  */
 static
-void *nfs_readdir_large_page(struct page **pages, unsigned int npages)
+int nfs_readdir_large_page(struct page **pages, unsigned int npages)
 {
-	void *ptr;
 	unsigned int i;
 
 	for (i = 0; i < npages; i++) {
@@ -541,13 +543,11 @@ void *nfs_readdir_large_page(struct page **pages, unsigned int npages)
 			goto out_freepages;
 		pages[i] = page;
 	}
+	return 0;
 
-	ptr = vm_map_ram(pages, npages, 0, PAGE_KERNEL);
-	if (!IS_ERR_OR_NULL(ptr))
-		return ptr;
 out_freepages:
 	nfs_readdir_free_pagearray(pages, i);
-	return NULL;
+	return -ENOMEM;
 }
 
 static
@@ -566,6 +566,7 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 	entry.eof = 0;
 	entry.fh = nfs_alloc_fhandle();
 	entry.fattr = nfs_alloc_fattr();
+	entry.server = NFS_SERVER(inode);
 	if (entry.fh == NULL || entry.fattr == NULL)
 		goto out;
 
@@ -577,8 +578,8 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 	memset(array, 0, sizeof(struct nfs_cache_array));
 	array->eof_index = -1;
 
-	pages_ptr = nfs_readdir_large_page(pages, array_size);
-	if (!pages_ptr)
+	status = nfs_readdir_large_page(pages, array_size);
+	if (status < 0)
 		goto out_release_array;
 	do {
 		unsigned int pglen;
@@ -587,7 +588,7 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 		if (status < 0)
 			break;
 		pglen = status;
-		status = nfs_readdir_page_filler(desc, &entry, pages_ptr, page, pglen);
+		status = nfs_readdir_page_filler(desc, &entry, pages, page, pglen);
 		if (status < 0) {
 			if (status == -ENOSPC)
 				status = 0;
@@ -1221,7 +1222,7 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 		goto out_unblock_sillyrename;
 	}
 	inode = nfs_fhget(dentry->d_sb, fhandle, fattr);
-	res = (struct dentry *)inode;
+	res = ERR_CAST(inode);
 	if (IS_ERR(res))
 		goto out_unblock_sillyrename;
 
@@ -1355,8 +1356,7 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 	if (nd->flags & LOOKUP_CREATE) {
 		attr.ia_mode = nd->intent.open.create_mode;
 		attr.ia_valid = ATTR_MODE;
-		if (!IS_POSIXACL(dir))
-			attr.ia_mode &= ~current_umask();
+		attr.ia_mode &= ~current_umask();
 	} else {
 		open_flags &= ~(O_EXCL | O_CREAT);
 		attr.ia_valid = 0;
