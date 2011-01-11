@@ -385,7 +385,7 @@ static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 
 	snprintf(clk_name, sizeof(clk_name), DRV_NAME ".%d", pdev->id);
 	i2s->clk_i2s = clk_get_sys(clk_name, NULL);
-	if (IS_ERR_OR_NULL(i2s->clk_i2s)) {
+	if (IS_ERR(i2s->clk_i2s)) {
 		pr_err("Can't retrieve i2s clock\n");
 		ret = PTR_ERR(i2s->clk_i2s);
 		goto err_free;

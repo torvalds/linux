@@ -113,35 +113,33 @@ int tegra_asoc_utils_init(void)
 	int ret;
 
 	clk_pll_a = clk_get_sys(NULL, "pll_a");
-	if (IS_ERR_OR_NULL(clk_pll_a)) {
+	if (IS_ERR(clk_pll_a)) {
 		pr_err(PREFIX "Can't retrieve clk pll_a\n");
 		ret = PTR_ERR(clk_pll_a);
 		goto err;
 	}
 
 	clk_pll_a_out0 = clk_get_sys(NULL, "pll_a_out0");
-	if (IS_ERR_OR_NULL(clk_pll_a_out0)) {
+	if (IS_ERR(clk_pll_a_out0)) {
 		pr_err(PREFIX "Can't retrieve clk pll_a_out0\n");
 		ret = PTR_ERR(clk_pll_a_out0);
-		goto err;
+		goto err_put_pll_a;
 	}
 
 	clk_cdev1 = clk_get_sys(NULL, "cdev1");
-	if (IS_ERR_OR_NULL(clk_cdev1)) {
+	if (IS_ERR(clk_cdev1)) {
 		pr_err(PREFIX "Can't retrieve clk cdev1\n");
 		ret = PTR_ERR(clk_cdev1);
-		goto err;
+		goto err_put_pll_a_out0;
 	}
 
 	return 0;
 
+err_put_pll_a_out0:
+	clk_put(clk_pll_a_out0);
+err_put_pll_a:
+	clk_put(clk_pll_a);
 err:
-	if (!IS_ERR_OR_NULL(clk_cdev1))
-		clk_put(clk_cdev1);
-	if (!IS_ERR_OR_NULL(clk_pll_a_out0))
-		clk_put(clk_pll_a_out0);
-	if (!IS_ERR_OR_NULL(clk_pll_a))
-		clk_put(clk_pll_a);
 	return ret;
 }
 
