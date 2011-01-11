@@ -2823,7 +2823,6 @@ static irqreturn_t qib_7322intr(int irq, void *data)
 				ctxtrbits &= ~rmask;
 				if (dd->rcd[i]) {
 					qib_kreceive(dd->rcd[i], NULL, &npkts);
-					adjust_rcv_timeout(dd->rcd[i], npkts);
 				}
 			}
 			rmask <<= 1;
@@ -2873,7 +2872,6 @@ static irqreturn_t qib_7322pintr(int irq, void *data)
 		       (1ULL << QIB_I_RCVURG_LSB)) << rcd->ctxt);
 
 	qib_kreceive(rcd, NULL, &npkts);
-	adjust_rcv_timeout(rcd, npkts);
 
 	return IRQ_HANDLED;
 }
@@ -4047,8 +4045,14 @@ static int qib_7322_set_ib_table(struct qib_pportdata *ppd, int which, void *t)
 }
 
 static void qib_update_7322_usrhead(struct qib_ctxtdata *rcd, u64 hd,
-				    u32 updegr, u32 egrhd)
+				    u32 updegr, u32 egrhd, u32 npkts)
 {
+	/*
+	 * Need to write timeout register before updating rcvhdrhead to ensure
+	 * that the timer is enabled on reception of a packet.
+	 */
+	if (hd >> IBA7322_HDRHEAD_PKTINT_SHIFT)
+		adjust_rcv_timeout(rcd, npkts);
 	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
 	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
 	if (updegr)

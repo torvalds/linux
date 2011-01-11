@@ -2703,7 +2703,7 @@ static int qib_7220_set_loopback(struct qib_pportdata *ppd, const char *what)
 }
 
 static void qib_update_7220_usrhead(struct qib_ctxtdata *rcd, u64 hd,
-				    u32 updegr, u32 egrhd)
+				    u32 updegr, u32 egrhd, u32 npkts)
 {
 	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
 	if (updegr)
