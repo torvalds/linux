@@ -1293,7 +1293,7 @@ static void bfin_mac_multicast_hash(struct net_device *dev)
 		addrs = ha->addr;
 
 		/* skip non-multicast addresses */
-		if (!(*addrs & 1))
+		if (!is_multicast_ether_addr(addrs))
 			continue;
 
 		crc = ether_crc(ETH_ALEN, addrs);
