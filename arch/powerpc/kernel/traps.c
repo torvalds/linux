@@ -627,7 +627,6 @@ void machine_check_exception(struct pt_regs *regs)
 		return;
 
 	if (user_mode(regs)) {
-		regs->msr |= MSR_RI;
 		_exception(SIGBUS, regs, BUS_ADRERR, regs->nip);
 		return;
 	}
@@ -643,10 +642,8 @@ void machine_check_exception(struct pt_regs *regs)
 	return;
 #endif
 
-	if (debugger_fault_handler(regs)) {
-		regs->msr |= MSR_RI;
+	if (debugger_fault_handler(regs))
 		return;
-	}
 
 	if (check_io_access(regs))
 		return;
