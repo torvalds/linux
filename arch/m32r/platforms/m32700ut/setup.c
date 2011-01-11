@@ -45,39 +45,30 @@ static void enable_m32700ut_irq(unsigned int irq)
 	outl(data, port);
 }
 
-static void mask_and_ack_m32700ut(unsigned int irq)
+static void mask_m32700ut(struct irq_data *data)
 {
-	disable_m32700ut_irq(irq);
+	disable_m32700ut_irq(data->irq);
 }
 
-static void end_m32700ut_irq(unsigned int irq)
+static void unmask_m32700ut(struct irq_data *data)
 {
-	enable_m32700ut_irq(irq);
+	enable_m32700ut_irq(data->irq);
 }
 
-static unsigned int startup_m32700ut_irq(unsigned int irq)
-{
-	enable_m32700ut_irq(irq);
-	return (0);
-}
-
-static void shutdown_m32700ut_irq(unsigned int irq)
+static void shutdown_m32700ut(struct irq_data *data)
 {
 	unsigned long port;
 
-	port = irq2port(irq);
+	port = irq2port(data->irq);
 	outl(M32R_ICUCR_ILEVEL7, port);
 }
 
 static struct irq_chip m32700ut_irq_type =
 {
-	.name = "M32700UT-IRQ",
-	.startup = startup_m32700ut_irq,
-	.shutdown = shutdown_m32700ut_irq,
-	.enable = enable_m32700ut_irq,
-	.disable = disable_m32700ut_irq,
-	.ack = mask_and_ack_m32700ut,
-	.end = end_m32700ut_irq
+	.name		= "M32700UT-IRQ",
+	.irq_shutdown	= shutdown_m32700ut,
+	.irq_mask	= mask_m32700ut,
+	.irq_unmask	= unmask_m32700ut
 };
 
 /*
@@ -126,7 +117,7 @@ static void mask_and_ack_m32700ut_pld(unsigned int irq)
 static void end_m32700ut_pld_irq(unsigned int irq)
 {
 	enable_m32700ut_pld_irq(irq);
-	end_m32700ut_irq(M32R_IRQ_INT1);
+	enable_m32700ut_irq(M32R_IRQ_INT1);
 }
 
 static unsigned int startup_m32700ut_pld_irq(unsigned int irq)
@@ -196,7 +187,7 @@ static void mask_and_ack_m32700ut_lanpld(unsigned int irq)
 static void end_m32700ut_lanpld_irq(unsigned int irq)
 {
 	enable_m32700ut_lanpld_irq(irq);
-	end_m32700ut_irq(M32R_IRQ_INT0);
+	enable_m32700ut_irq(M32R_IRQ_INT0);
 }
 
 static unsigned int startup_m32700ut_lanpld_irq(unsigned int irq)
@@ -265,7 +256,7 @@ static void mask_and_ack_m32700ut_lcdpld(unsigned int irq)
 static void end_m32700ut_lcdpld_irq(unsigned int irq)
 {
 	enable_m32700ut_lcdpld_irq(irq);
-	end_m32700ut_irq(M32R_IRQ_INT2);
+	enable_m32700ut_irq(M32R_IRQ_INT2);
 }
 
 static unsigned int startup_m32700ut_lcdpld_irq(unsigned int irq)
@@ -305,32 +296,38 @@ void __init init_IRQ(void)
 #endif  /* CONFIG_SMC91X */
 
 	/* MFT2 : system timer */
-	set_irq_chip(M32R_IRQ_MFT2, &m32700ut_irq_type);
+	set_irq_chip_and_handler(M32R_IRQ_MFT2, &m32700ut_irq_type,
+				 handle_level_irq);
 	icu_data[M32R_IRQ_MFT2].icucr = M32R_ICUCR_IEN;
 	disable_m32700ut_irq(M32R_IRQ_MFT2);
 
 	/* SIO0 : receive */
-	set_irq_chip(M32R_IRQ_SIO0_R, &m32700ut_irq_type);
+	set_irq_chip_and_handler(M32R_IRQ_SIO0_R, &m32700ut_irq_type,
+				 handle_level_irq);
 	icu_data[M32R_IRQ_SIO0_R].icucr = 0;
 	disable_m32700ut_irq(M32R_IRQ_SIO0_R);
 
 	/* SIO0 : send */
-	set_irq_chip(M32R_IRQ_SIO0_S, &m32700ut_irq_type);
+	set_irq_chip_and_handler(M32R_IRQ_SIO0_S, &m32700ut_irq_type,
+				 handle_level_irq);
 	icu_data[M32R_IRQ_SIO0_S].icucr = 0;
 	disable_m32700ut_irq(M32R_IRQ_SIO0_S);
 
 	/* SIO1 : receive */
-	set_irq_chip(M32R_IRQ_SIO1_R, &m32700ut_irq_type);
+	set_irq_chip_and_handler(M32R_IRQ_SIO1_R, &m32700ut_irq_type,
+				 handle_level_irq);
 	icu_data[M32R_IRQ_SIO1_R].icucr = 0;
 	disable_m32700ut_irq(M32R_IRQ_SIO1_R);
 
 	/* SIO1 : send */
-	set_irq_chip(M32R_IRQ_SIO1_S, &m32700ut_irq_type);
+	set_irq_chip_and_handler(M32R_IRQ_SIO1_S, &m32700ut_irq_type,
+				 handle_level_irq);
 	icu_data[M32R_IRQ_SIO1_S].icucr = 0;
 	disable_m32700ut_irq(M32R_IRQ_SIO1_S);
 
 	/* DMA1 : */
-	set_irq_chip(M32R_IRQ_DMA1, &m32700ut_irq_type);
+	set_irq_chip_and_handler(M32R_IRQ_DMA1, &m32700ut_irq_type,
+				 handle_level_irq);
 	icu_data[M32R_IRQ_DMA1].icucr = 0;
 	disable_m32700ut_irq(M32R_IRQ_DMA1);
 
@@ -393,7 +390,8 @@ void __init init_IRQ(void)
 	/*
 	 * INT3# is used for AR
 	 */
-	set_irq_chip(M32R_IRQ_INT3, &m32700ut_irq_type);
+	set_irq_chip_and_handler(M32R_IRQ_INT3, &m32700ut_irq_type,
+				 handle_level_irq);
 	icu_data[M32R_IRQ_INT3].icucr = M32R_ICUCR_IEN|M32R_ICUCR_ISMOD10;
 	disable_m32700ut_irq(M32R_IRQ_INT3);
 #endif	/* CONFIG_VIDEO_M32R_AR */
