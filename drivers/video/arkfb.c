@@ -657,8 +657,8 @@ static int arkfb_set_par(struct fb_info *info)
 	svga_set_default_atc_regs();
 	svga_set_default_seq_regs();
 	svga_set_default_crt_regs();
-	svga_wcrt_multi(ark_line_compare_regs, 0xFFFFFFFF);
-	svga_wcrt_multi(ark_start_address_regs, 0);
+	svga_wcrt_multi(par->state.vgabase, ark_line_compare_regs, 0xFFFFFFFF);
+	svga_wcrt_multi(par->state.vgabase, ark_start_address_regs, 0);
 
 	/* ARK specific initialization */
 	svga_wseq_mask(0x10, 0x1F, 0x1F); /* enable linear framebuffer and full memory access */
@@ -676,7 +676,7 @@ static int arkfb_set_par(struct fb_info *info)
 
 	/* Set the offset register */
 	pr_debug("fb%d: offset register       : %d\n", info->node, offset_value);
-	svga_wcrt_multi(ark_offset_regs, offset_value);
+	svga_wcrt_multi(par->state.vgabase, ark_offset_regs, offset_value);
 
 	/* fix for hi-res textmode */
 	svga_wcrt_mask(0x40, 0x08, 0x08);
@@ -884,6 +884,7 @@ static int arkfb_blank(int blank_mode, struct fb_info *info)
 
 static int arkfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
+	struct arkfb_info *par = info->par;
 	unsigned int offset;
 
 	/* Calculate the offset */
@@ -897,7 +898,7 @@ static int arkfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 	}
 
 	/* Set the offset */
-	svga_wcrt_multi(ark_start_address_regs, offset);
+	svga_wcrt_multi(par->state.vgabase, ark_start_address_regs, offset);
 
 	return 0;
 }

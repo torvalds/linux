@@ -373,6 +373,7 @@ static int vt8623fb_check_var(struct fb_var_screeninfo *var, struct fb_info *inf
 static int vt8623fb_set_par(struct fb_info *info)
 {
 	u32 mode, offset_value, fetch_value, screen_size;
+	struct vt8623fb_info *par = info->par;
 	u32 bpp = info->var.bits_per_pixel;
 
 	if (bpp != 0) {
@@ -428,10 +429,10 @@ static int vt8623fb_set_par(struct fb_info *info)
 	svga_set_default_atc_regs();
 	svga_set_default_seq_regs();
 	svga_set_default_crt_regs();
-	svga_wcrt_multi(vt8623_line_compare_regs, 0xFFFFFFFF);
-	svga_wcrt_multi(vt8623_start_address_regs, 0);
+	svga_wcrt_multi(par->state.vgabase, vt8623_line_compare_regs, 0xFFFFFFFF);
+	svga_wcrt_multi(par->state.vgabase, vt8623_start_address_regs, 0);
 
-	svga_wcrt_multi(vt8623_offset_regs, offset_value);
+	svga_wcrt_multi(par->state.vgabase, vt8623_offset_regs, offset_value);
 	svga_wseq_multi(vt8623_fetch_count_regs, fetch_value);
 
 	/* Clear H/V Skew */
@@ -603,6 +604,7 @@ static int vt8623fb_blank(int blank_mode, struct fb_info *info)
 
 static int vt8623fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
+	struct vt8623fb_info *par = info->par;
 	unsigned int offset;
 
 	/* Calculate the offset */
@@ -616,7 +618,7 @@ static int vt8623fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *i
 	}
 
 	/* Set the offset */
-	svga_wcrt_multi(vt8623_start_address_regs, offset);
+	svga_wcrt_multi(par->state.vgabase, vt8623_start_address_regs, offset);
 
 	return 0;
 }

@@ -518,8 +518,8 @@ static int s3fb_set_par(struct fb_info *info)
 	svga_set_default_atc_regs();
 	svga_set_default_seq_regs();
 	svga_set_default_crt_regs();
-	svga_wcrt_multi(s3_line_compare_regs, 0xFFFFFFFF);
-	svga_wcrt_multi(s3_start_address_regs, 0);
+	svga_wcrt_multi(par->state.vgabase, s3_line_compare_regs, 0xFFFFFFFF);
+	svga_wcrt_multi(par->state.vgabase, s3_start_address_regs, 0);
 
 	/* S3 specific initialization */
 	svga_wcrt_mask(0x58, 0x10, 0x10); /* enable linear framebuffer */
@@ -540,7 +540,7 @@ static int s3fb_set_par(struct fb_info *info)
 
 	/* Set the offset register */
 	pr_debug("fb%d: offset register       : %d\n", info->node, offset_value);
-	svga_wcrt_multi(s3_offset_regs, offset_value);
+	svga_wcrt_multi(par->state.vgabase, s3_offset_regs, offset_value);
 
 	if (par->chip != CHIP_360_TRIO3D_1X &&
 	    par->chip != CHIP_362_TRIO3D_2X &&
@@ -822,8 +822,9 @@ static int s3fb_blank(int blank_mode, struct fb_info *info)
 
 /* Pan the display */
 
-static int s3fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info) {
-
+static int s3fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+	struct s3fb_info *par = info->par;
 	unsigned int offset;
 
 	/* Calculate the offset */
@@ -837,7 +838,7 @@ static int s3fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	}
 
 	/* Set the offset */
-	svga_wcrt_multi(s3_start_address_regs, offset);
+	svga_wcrt_multi(par->state.vgabase, s3_start_address_regs, offset);
 
 	return 0;
 }

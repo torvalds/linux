@@ -20,12 +20,12 @@
 
 
 /* Write a CRT register value spread across multiple registers */
-void svga_wcrt_multi(const struct vga_regset *regset, u32 value) {
-
+void svga_wcrt_multi(void __iomem *regbase, const struct vga_regset *regset, u32 value)
+{
 	u8 regval, bitval, bitnum;
 
 	while (regset->regnum != VGA_REGSET_END_VAL) {
-		regval = vga_rcrt(NULL, regset->regnum);
+		regval = vga_rcrt(regbase, regset->regnum);
 		bitnum = regset->lowbit;
 		while (bitnum <= regset->highbit) {
 			bitval = 1 << bitnum;
@@ -34,7 +34,7 @@ void svga_wcrt_multi(const struct vga_regset *regset, u32 value) {
 			bitnum ++;
 			value = value >> 1;
 		}
-		vga_wcrt(NULL, regset->regnum, regval);
+		vga_wcrt(regbase, regset->regnum, regval);
 		regset ++;
 	}
 }
@@ -516,62 +516,62 @@ void svga_set_timings(const struct svga_timing_regs *tm, struct fb_var_screeninf
 	value = var->xres + var->left_margin + var->right_margin + var->hsync_len;
 	value = (value * hmul) / hdiv;
 	pr_debug("fb%d: horizontal total      : %d\n", node, value);
-	svga_wcrt_multi(tm->h_total_regs, (value / 8) - 5);
+	svga_wcrt_multi(NULL, tm->h_total_regs, (value / 8) - 5);
 
 	value = var->xres;
 	value = (value * hmul) / hdiv;
 	pr_debug("fb%d: horizontal display    : %d\n", node, value);
-	svga_wcrt_multi(tm->h_display_regs, (value / 8) - 1);
+	svga_wcrt_multi(NULL, tm->h_display_regs, (value / 8) - 1);
 
 	value = var->xres;
 	value = (value * hmul) / hdiv;
 	pr_debug("fb%d: horizontal blank start: %d\n", node, value);
-	svga_wcrt_multi(tm->h_blank_start_regs, (value / 8) - 1 + hborder);
+	svga_wcrt_multi(NULL, tm->h_blank_start_regs, (value / 8) - 1 + hborder);
 
 	value = var->xres + var->left_margin + var->right_margin + var->hsync_len;
 	value = (value * hmul) / hdiv;
 	pr_debug("fb%d: horizontal blank end  : %d\n", node, value);
-	svga_wcrt_multi(tm->h_blank_end_regs, (value / 8) - 1 - hborder);
+	svga_wcrt_multi(NULL, tm->h_blank_end_regs, (value / 8) - 1 - hborder);
 
 	value = var->xres + var->right_margin;
 	value = (value * hmul) / hdiv;
 	pr_debug("fb%d: horizontal sync start : %d\n", node, value);
-	svga_wcrt_multi(tm->h_sync_start_regs, (value / 8));
+	svga_wcrt_multi(NULL, tm->h_sync_start_regs, (value / 8));
 
 	value = var->xres + var->right_margin + var->hsync_len;
 	value = (value * hmul) / hdiv;
 	pr_debug("fb%d: horizontal sync end   : %d\n", node, value);
-	svga_wcrt_multi(tm->h_sync_end_regs, (value / 8));
+	svga_wcrt_multi(NULL, tm->h_sync_end_regs, (value / 8));
 
 	value = var->yres + var->upper_margin + var->lower_margin + var->vsync_len;
 	value = (value * vmul) / vdiv;
 	pr_debug("fb%d: vertical total        : %d\n", node, value);
-	svga_wcrt_multi(tm->v_total_regs, value - 2);
+	svga_wcrt_multi(NULL, tm->v_total_regs, value - 2);
 
 	value = var->yres;
 	value = (value * vmul) / vdiv;
 	pr_debug("fb%d: vertical display      : %d\n", node, value);
-	svga_wcrt_multi(tm->v_display_regs, value - 1);
+	svga_wcrt_multi(NULL, tm->v_display_regs, value - 1);
 
 	value = var->yres;
 	value = (value * vmul) / vdiv;
 	pr_debug("fb%d: vertical blank start  : %d\n", node, value);
-	svga_wcrt_multi(tm->v_blank_start_regs, value);
+	svga_wcrt_multi(NULL, tm->v_blank_start_regs, value);
 
 	value = var->yres + var->upper_margin + var->lower_margin + var->vsync_len;
 	value = (value * vmul) / vdiv;
 	pr_debug("fb%d: vertical blank end    : %d\n", node, value);
-	svga_wcrt_multi(tm->v_blank_end_regs, value - 2);
+	svga_wcrt_multi(NULL, tm->v_blank_end_regs, value - 2);
 
 	value = var->yres + var->lower_margin;
 	value = (value * vmul) / vdiv;
 	pr_debug("fb%d: vertical sync start   : %d\n", node, value);
-	svga_wcrt_multi(tm->v_sync_start_regs, value);
+	svga_wcrt_multi(NULL, tm->v_sync_start_regs, value);
 
 	value = var->yres + var->lower_margin + var->vsync_len;
 	value = (value * vmul) / vdiv;
 	pr_debug("fb%d: vertical sync end     : %d\n", node, value);
-	svga_wcrt_multi(tm->v_sync_end_regs, value);
+	svga_wcrt_multi(NULL, tm->v_sync_end_regs, value);
 
 	/* Set horizontal and vertical sync pulse polarity in misc register */
 
