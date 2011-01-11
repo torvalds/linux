@@ -67,11 +67,11 @@ struct svga_pll {
 
 /* Write a value to the attribute register */
 
-static inline void svga_wattr(u8 index, u8 data)
+static inline void svga_wattr(void __iomem *regbase, u8 index, u8 data)
 {
-	inb(VGA_IS1_RC);
-	outb(index, VGA_ATT_IW);
-	outb(data, VGA_ATT_W);
+	vga_r(regbase, VGA_IS1_RC);
+	vga_w(regbase, VGA_ATT_IW, index);
+	vga_w(regbase, VGA_ATT_W, data);
 }
 
 /* Write a value to a sequence register with a mask */

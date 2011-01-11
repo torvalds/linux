@@ -102,14 +102,14 @@ void svga_set_default_atc_regs(void)
 
 	/* All standard ATC registers (AR00 - AR14) */
 	for (count = 0; count <= 0xF; count ++)
-		svga_wattr(count, count);
+		svga_wattr(NULL, count, count);
 
-	svga_wattr(VGA_ATC_MODE, 0x01);
-/*	svga_wattr(VGA_ATC_MODE, 0x41); */
-	svga_wattr(VGA_ATC_OVERSCAN, 0x00);
-	svga_wattr(VGA_ATC_PLANE_ENABLE, 0x0F);
-	svga_wattr(VGA_ATC_PEL, 0x00);
-	svga_wattr(VGA_ATC_COLOR_PAGE, 0x00);
+	svga_wattr(NULL, VGA_ATC_MODE, 0x01);
+/*	svga_wattr(NULL, VGA_ATC_MODE, 0x41); */
+	svga_wattr(NULL, VGA_ATC_OVERSCAN, 0x00);
+	svga_wattr(NULL, VGA_ATC_PLANE_ENABLE, 0x0F);
+	svga_wattr(NULL, VGA_ATC_PEL, 0x00);
+	svga_wattr(NULL, VGA_ATC_COLOR_PAGE, 0x00);
 
 	vga_r(NULL, 0x3DA);
 	vga_w(NULL, VGA_ATT_W, 0x20);
@@ -159,8 +159,8 @@ void svga_set_textmode_vga_regs(void)
 	vga_r(NULL, 0x3DA);
 	vga_w(NULL, VGA_ATT_W, 0x00);
 
-	svga_wattr(0x10, 0x0C);			/* Attribute Mode Control Register - text mode, blinking and line graphics */
-	svga_wattr(0x13, 0x08);			/* Horizontal Pixel Panning Register  */
+	svga_wattr(NULL, 0x10, 0x0C);			/* Attribute Mode Control Register - text mode, blinking and line graphics */
+	svga_wattr(NULL, 0x13, 0x08);			/* Horizontal Pixel Panning Register  */
 
 	vga_r(NULL, 0x3DA);
 	vga_w(NULL, VGA_ATT_W, 0x20);

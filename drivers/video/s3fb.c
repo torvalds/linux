@@ -552,7 +552,7 @@ static int s3fb_set_par(struct fb_info *info)
 	}
 
 	vga_wcrt(NULL, 0x3A, 0x35);
-	svga_wattr(0x33, 0x00);
+	svga_wattr(par->state.vgabase, 0x33, 0x00);
 
 	if (info->var.vmode & FB_VMODE_DOUBLE)
 		svga_wcrt_mask(0x09, 0x80, 0x80);
