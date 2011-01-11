@@ -100,6 +100,7 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 			   is a platform bus, then it is never deleted. */
 			if (client)
 				i2c_unregister_device(client);
+			continue;
 		}
 #endif
 #if defined(CONFIG_SPI)
@@ -108,6 +109,7 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 
 			if (spi)
 				spi_unregister_device(spi);
+			continue;
 		}
 #endif
 	}
