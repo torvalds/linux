@@ -691,8 +691,9 @@ struct drm_nouveau_private {
 	struct {
 		enum {
 			NOUVEAU_GART_NONE = 0,
-			NOUVEAU_GART_AGP,
-			NOUVEAU_GART_SGDMA
+			NOUVEAU_GART_AGP,	/* AGP */
+			NOUVEAU_GART_PDMA,	/* paged dma object */
+			NOUVEAU_GART_HW		/* on-chip gart/vm */
 		} type;
 		uint64_t aper_base;
 		uint64_t aper_size;

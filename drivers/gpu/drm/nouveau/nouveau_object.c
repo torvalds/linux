@@ -490,16 +490,22 @@ nouveau_gpuobj_dma_new(struct nouveau_channel *chan, int class, u64 base,
 	}
 
 	if (target == NV_MEM_TARGET_GART) {
-		if (dev_priv->gart_info.type == NOUVEAU_GART_AGP) {
-			target = NV_MEM_TARGET_PCI_NOSNOOP;
-			base  += dev_priv->gart_info.aper_base;
-		} else
-		if (base != 0) {
-			base = nouveau_sgdma_get_physical(dev, base);
+		struct nouveau_gpuobj *gart = dev_priv->gart_info.sg_ctxdma;
+
+		if (dev_priv->gart_info.type == NOUVEAU_GART_PDMA) {
+			if (base == 0) {
+				nouveau_gpuobj_ref(gart, pobj);
+				return 0;
+			}
+
+			base   = nouveau_sgdma_get_physical(dev, base);
 			target = NV_MEM_TARGET_PCI;
 		} else {
-			nouveau_gpuobj_ref(dev_priv->gart_info.sg_ctxdma, pobj);
-			return 0;
+			base += dev_priv->gart_info.aper_base;
+			if (dev_priv->gart_info.type == NOUVEAU_GART_AGP)
+				target = NV_MEM_TARGET_PCI_NOSNOOP;
+			else
+				target = NV_MEM_TARGET_PCI;
 		}
 	}
 

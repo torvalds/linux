@@ -237,6 +237,7 @@ nouveau_sgdma_init(struct drm_device *dev)
 
 		dev_priv->gart_info.aper_base = dev_priv->gart_info.vma.offset;
 		dev_priv->gart_info.aper_size = 512 * 1024 * 1024;
+		dev_priv->gart_info.type = NOUVEAU_GART_HW;
 	} else {
 		if(dev_priv->ramin_rsvd_vram < 2 * 1024 * 1024)
 			aper_size = 64 * 1024 * 1024;
@@ -266,9 +267,9 @@ nouveau_sgdma_init(struct drm_device *dev)
 		dev_priv->gart_info.sg_ctxdma = gpuobj;
 		dev_priv->gart_info.aper_base = 0;
 		dev_priv->gart_info.aper_size = aper_size;
+		dev_priv->gart_info.type = NOUVEAU_GART_PDMA;
 	}
 
-	dev_priv->gart_info.type      = NOUVEAU_GART_SGDMA;
 	return 0;
 }
 
