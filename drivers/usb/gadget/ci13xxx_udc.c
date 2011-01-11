@@ -2427,7 +2427,6 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 
 	info("hw_ep_max = %d", hw_ep_max);
 
-	udc->driver = driver;
 	udc->gadget.dev.driver = NULL;
 
 	retval = 0;
@@ -2479,6 +2478,7 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 		goto done;
 	}
 
+	udc->driver = driver;
 	pm_runtime_get_sync(&udc->gadget.dev);
 	if (udc->udc_driver->flags & CI13XXX_PULLUP_ON_VBUS) {
 		if (udc->vbus_active) {
@@ -2496,8 +2496,6 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 
  done:
 	spin_unlock_irqrestore(udc->lock, flags);
-	if (retval)
-		usb_gadget_unregister_driver(driver);
 	return retval;
 }
 EXPORT_SYMBOL(usb_gadget_probe_driver);
