@@ -40,12 +40,12 @@ void svga_wcrt_multi(void __iomem *regbase, const struct vga_regset *regset, u32
 }
 
 /* Write a sequencer register value spread across multiple registers */
-void svga_wseq_multi(const struct vga_regset *regset, u32 value) {
-
+void svga_wseq_multi(void __iomem *regbase, const struct vga_regset *regset, u32 value)
+{
 	u8 regval, bitval, bitnum;
 
 	while (regset->regnum != VGA_REGSET_END_VAL) {
-		regval = vga_rseq(NULL, regset->regnum);
+		regval = vga_rseq(regbase, regset->regnum);
 		bitnum = regset->lowbit;
 		while (bitnum <= regset->highbit) {
 			bitval = 1 << bitnum;
@@ -54,7 +54,7 @@ void svga_wseq_multi(const struct vga_regset *regset, u32 value) {
 			bitnum ++;
 			value = value >> 1;
 		}
-		vga_wseq(NULL, regset->regnum, regval);
+		vga_wseq(regbase, regset->regnum, regval);
 		regset ++;
 	}
 }

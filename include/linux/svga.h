@@ -97,7 +97,7 @@ static inline int svga_primary_device(struct pci_dev *dev)
 
 
 void svga_wcrt_multi(void __iomem *regbase, const struct vga_regset *regset, u32 value);
-void svga_wseq_multi(const struct vga_regset *regset, u32 value);
+void svga_wseq_multi(void __iomem *regbase, const struct vga_regset *regset, u32 value);
 
 void svga_set_default_gfx_regs(void);
 void svga_set_default_atc_regs(void);
