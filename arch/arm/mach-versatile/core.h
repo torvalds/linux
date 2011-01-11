@@ -25,6 +25,7 @@
 #include <linux/amba/bus.h>
 
 extern void __init versatile_init(void);
+extern void __init versatile_init_early(void);
 extern void __init versatile_init_irq(void);
 extern void __init versatile_map_io(void);
 extern struct sys_timer versatile_timer;

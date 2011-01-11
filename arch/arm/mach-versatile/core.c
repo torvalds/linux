@@ -762,13 +762,20 @@ static void versatile_leds_event(led_event_t ledevt)
 }
 #endif	/* CONFIG_LEDS */
 
+/* Early initializations */
+void __init versatile_init_early(void)
+{
+	void __iomem *sys = __io_address(VERSATILE_SYS_BASE);
+
+	osc4_clk.vcoreg	= sys + VERSATILE_SYS_OSCCLCD_OFFSET;
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
+
+	versatile_sched_clock_init(sys + VERSATILE_SYS_24MHz_OFFSET, 24000000);
+}
+
 void __init versatile_init(void)
 {
 	int i;
-
-	osc4_clk.vcoreg	= __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_OSCCLCD_OFFSET;
-
-	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	platform_device_register(&versatile_flash_device);
 	platform_device_register(&versatile_i2c_device);
@@ -786,12 +793,6 @@ void __init versatile_init(void)
 }
 
 /*
- * The sched_clock counter
- */
-#define REFCOUNTER		(__io_address(VERSATILE_SYS_BASE) + \
-				 VERSATILE_SYS_24MHz_OFFSET)
-
-/*
  * Where is the timer (VA)?
  */
 #define TIMER0_VA_BASE		 __io_address(VERSATILE_TIMER0_1_BASE)
@@ -805,8 +806,6 @@ void __init versatile_init(void)
 static void __init versatile_timer_init(void)
 {
 	u32 val;
-
-	versatile_sched_clock_init(REFCOUNTER, 24000000);
 
 	/* 
 	 * set clock frequency: 
