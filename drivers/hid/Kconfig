@@ -292,9 +292,15 @@ config HID_MULTITOUCH
 	  Generic support for HID multitouch panels.
 
 	  Say Y here if you have one of the following devices:
-	  - PixCir touchscreen
-	  - Cypress TrueTouch
+	  - Cypress TrueTouch panels
+	  - Hanvon dual touch panels
+	  - Pixcir dual touch panels
 	  - 'Sensing Win7-TwoFinger' panel by GeneralTouch
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hid-multitouch.
 
 config HID_NTRIG
 	tristate "N-Trig touch screen"
