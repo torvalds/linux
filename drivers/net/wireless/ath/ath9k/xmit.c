@@ -858,6 +858,9 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 	txtid->paused = true;
 	*ssn = txtid->seq_start = txtid->seq_next;
 
+	memset(txtid->tx_buf, 0, sizeof(txtid->tx_buf));
+	txtid->baw_head = txtid->baw_tail = 0;
+
 	return 0;
 }
 
