@@ -136,7 +136,6 @@ int qib_lkey_ok(struct qib_lkey_table *rkt, struct qib_pd *pd,
 	struct qib_mregion *mr;
 	unsigned n, m;
 	size_t off;
-	int ret = 0;
 	unsigned long flags;
 
 	/*
@@ -152,27 +151,28 @@ int qib_lkey_ok(struct qib_lkey_table *rkt, struct qib_pd *pd,
 		if (!dev->dma_mr)
 			goto bail;
 		atomic_inc(&dev->dma_mr->refcount);
+		spin_unlock_irqrestore(&rkt->lock, flags);
+
 		isge->mr = dev->dma_mr;
 		isge->vaddr = (void *) sge->addr;
 		isge->length = sge->length;
 		isge->sge_length = sge->length;
 		isge->m = 0;
 		isge->n = 0;
-		spin_unlock_irqrestore(&rkt->lock, flags);
 		goto ok;
 	}
 	mr = rkt->table[(sge->lkey >> (32 - ib_qib_lkey_table_size))];
 	if (unlikely(mr == NULL || mr->lkey != sge->lkey ||
 		     mr->pd != &pd->ibpd))
 		goto bail;
-	atomic_inc(&mr->refcount);
-	spin_unlock_irqrestore(&rkt->lock, flags);
 
 	off = sge->addr - mr->user_base;
 	if (unlikely(sge->addr < mr->user_base ||
 		     off + sge->length > mr->length ||
 		     (mr->access_flags & acc) != acc))
-		return ret;
+		goto bail;
+	atomic_inc(&mr->refcount);
+	spin_unlock_irqrestore(&rkt->lock, flags);
 
 	off += mr->offset;
 	if (mr->page_shift) {
@@ -206,11 +206,10 @@ int qib_lkey_ok(struct qib_lkey_table *rkt, struct qib_pd *pd,
 	isge->m = m;
 	isge->n = n;
 ok:
-	ret = 1;
-	return ret;
+	return 1;
 bail:
 	spin_unlock_irqrestore(&rkt->lock, flags);
-	return ret;
+	return 0;
 }
 
 /**
@@ -231,7 +230,6 @@ int qib_rkey_ok(struct qib_qp *qp, struct qib_sge *sge,
 	struct qib_mregion *mr;
 	unsigned n, m;
 	size_t off;
-	int ret = 0;
 	unsigned long flags;
 
 	/*
@@ -248,26 +246,27 @@ int qib_rkey_ok(struct qib_qp *qp, struct qib_sge *sge,
 		if (!dev->dma_mr)
 			goto bail;
 		atomic_inc(&dev->dma_mr->refcount);
+		spin_unlock_irqrestore(&rkt->lock, flags);
+
 		sge->mr = dev->dma_mr;
 		sge->vaddr = (void *) vaddr;
 		sge->length = len;
 		sge->sge_length = len;
 		sge->m = 0;
 		sge->n = 0;
-		spin_unlock_irqrestore(&rkt->lock, flags);
 		goto ok;
 	}
 
 	mr = rkt->table[(rkey >> (32 - ib_qib_lkey_table_size))];
 	if (unlikely(mr == NULL || mr->lkey != rkey || qp->ibqp.pd != mr->pd))
 		goto bail;
-	atomic_inc(&mr->refcount);
-	spin_unlock_irqrestore(&rkt->lock, flags);
 
 	off = vaddr - mr->iova;
 	if (unlikely(vaddr < mr->iova || off + len > mr->length ||
 		     (mr->access_flags & acc) == 0))
-		return ret;
+		goto bail;
+	atomic_inc(&mr->refcount);
+	spin_unlock_irqrestore(&rkt->lock, flags);
 
 	off += mr->offset;
 	if (mr->page_shift) {
@@ -301,11 +300,10 @@ int qib_rkey_ok(struct qib_qp *qp, struct qib_sge *sge,
 	sge->m = m;
 	sge->n = n;
 ok:
-	ret = 1;
-	return ret;
+	return 1;
 bail:
 	spin_unlock_irqrestore(&rkt->lock, flags);
-	return ret;
+	return 0;
 }
 
 /*
