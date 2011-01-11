@@ -1331,6 +1331,42 @@ static int f10_lookup_addr_in_dct(u64 in_addr, u32 nid, u8 dct)
 	return cs_found;
 }
 
+/*
+ * See F2x10C. Non-interleaved graphics framebuffer memory under the 16G is
+ * swapped with a region located at the bottom of memory so that the GPU can use
+ * the interleaved region and thus two channels.
+ */
+static u64 f10_swap_interleaved_region(struct amd64_pvt *pvt, u64 sys_addr)
+{
+	u32 swap_reg, swap_base, swap_limit, rgn_size, tmp_addr;
+
+	if (boot_cpu_data.x86 == 0x10) {
+		/* only revC3 and revE have that feature */
+		if (boot_cpu_data.x86_model < 4 ||
+		    (boot_cpu_data.x86_model < 0xa &&
+		     boot_cpu_data.x86_mask < 3))
+			return sys_addr;
+	}
+
+	amd64_read_dct_pci_cfg(pvt, SWAP_INTLV_REG, &swap_reg);
+
+	if (!(swap_reg & 0x1))
+		return sys_addr;
+
+	swap_base	= (swap_reg >> 3) & 0x7f;
+	swap_limit	= (swap_reg >> 11) & 0x7f;
+	rgn_size	= (swap_reg >> 20) & 0x7f;
+	tmp_addr	= sys_addr >> 27;
+
+	if (!(sys_addr >> 34) &&
+	    (((tmp_addr >= swap_base) &&
+	     (tmp_addr <= swap_limit)) ||
+	     (tmp_addr < rgn_size)))
+		return sys_addr ^ (u64)swap_base << 27;
+
+	return sys_addr;
+}
+
 /* For a given @dram_range, check if @sys_addr falls within it. */
 static int f10_match_to_this_node(struct amd64_pvt *pvt, int range,
 				  u64 sys_addr, int *nid, int *chan_sel)
@@ -1351,6 +1387,8 @@ static int f10_match_to_this_node(struct amd64_pvt *pvt, int range,
 	if (intlv_en &&
 	    (intlv_sel != ((sys_addr >> 12) & intlv_en)))
 		return -EINVAL;
+
+	sys_addr = f10_swap_interleaved_region(pvt, sys_addr);
 
 	dct_sel_base = dct_sel_baseaddr(pvt);
 

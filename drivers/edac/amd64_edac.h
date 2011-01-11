@@ -239,6 +239,8 @@
 #define dct_dram_enabled(pvt)		((pvt)->dct_sel_lo & BIT(8))
 #define dct_memory_cleared(pvt)		((pvt)->dct_sel_lo & BIT(10))
 
+#define SWAP_INTLV_REG			0x10c
+
 #define DCT_SEL_HI			0x114
 
 /*
