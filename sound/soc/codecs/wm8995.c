@@ -1498,6 +1498,7 @@ static int wm8995_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_OFF:
 		snd_soc_update_bits(codec, WM8995_POWER_MANAGEMENT_1,
 				    WM8995_BG_ENA_MASK, 0);
+		codec->cache_sync = 1;
 		break;
 	}
 
