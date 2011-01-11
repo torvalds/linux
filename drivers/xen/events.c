@@ -387,23 +387,6 @@ static int get_nr_hw_irqs(void)
 	return ret;
 }
 
-static int find_unbound_pirq(int type)
-{
-	int rc, i;
-	struct physdev_get_free_pirq op_get_free_pirq;
-	op_get_free_pirq.type = type;
-
-	rc = HYPERVISOR_physdev_op(PHYSDEVOP_get_free_pirq, &op_get_free_pirq);
-	if (!rc)
-		return op_get_free_pirq.pirq;
-
-	for (i = 0; i < nr_irqs; i++) {
-		if (pirq_to_irq[i] < 0)
-			return i;
-	}
-	return -1;
-}
-
 static int find_unbound_irq(void)
 {
 	struct irq_data *data;
@@ -676,6 +659,23 @@ out:
 #ifdef CONFIG_PCI_MSI
 #include <linux/msi.h>
 #include "../pci/msi.h"
+
+static int find_unbound_pirq(int type)
+{
+	int rc, i;
+	struct physdev_get_free_pirq op_get_free_pirq;
+	op_get_free_pirq.type = type;
+
+	rc = HYPERVISOR_physdev_op(PHYSDEVOP_get_free_pirq, &op_get_free_pirq);
+	if (!rc)
+		return op_get_free_pirq.pirq;
+
+	for (i = 0; i < nr_irqs; i++) {
+		if (pirq_to_irq[i] < 0)
+			return i;
+	}
+	return -1;
+}
 
 void xen_allocate_pirq_msi(char *name, int *irq, int *pirq, int alloc)
 {
