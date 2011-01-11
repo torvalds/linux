@@ -374,14 +374,6 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 				goto out;
 		}
 
-		/*
-		 * If we are changing the size of the file, then
-		 * we need to break all leases.
-		 */
-		host_err = break_lease(inode, O_WRONLY | O_NONBLOCK);
-		if (host_err) /* ENOMEM or EWOULDBLOCK */
-			goto out_nfserr;
-
 		host_err = get_write_access(inode);
 		if (host_err)
 			goto out_nfserr;
@@ -422,7 +414,11 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 
 	err = nfserr_notsync;
 	if (!check_guard || guardtime == inode->i_ctime.tv_sec) {
+		host_err = break_lease(inode, O_WRONLY | O_NONBLOCK);
+		if (host_err)
+			goto out_nfserr;
 		fh_lock(fhp);
+
 		host_err = notify_change(dentry, iap);
 		err = nfserrno(host_err);
 		fh_unlock(fhp);
