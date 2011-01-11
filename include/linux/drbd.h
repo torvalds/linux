@@ -334,9 +334,7 @@ enum drbd_timeout_flag {
 #define UUID_JUST_CREATED ((__u64)4)
 
 #define DRBD_MAGIC 0x83740267
-#define BE_DRBD_MAGIC __constant_cpu_to_be32(DRBD_MAGIC)
 #define DRBD_MAGIC_BIG 0x835a
-#define BE_DRBD_MAGIC_BIG __constant_cpu_to_be16(DRBD_MAGIC_BIG)
 
 /* these are of type "int" */
 #define DRBD_MD_INDEX_INTERNAL -1

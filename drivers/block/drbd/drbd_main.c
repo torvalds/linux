@@ -1841,7 +1841,7 @@ int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
 	ERR_IF(!h) return false;
 	ERR_IF(!size) return false;
 
-	h->magic   = BE_DRBD_MAGIC;
+	h->magic   = cpu_to_be32(DRBD_MAGIC);
 	h->command = cpu_to_be16(cmd);
 	h->length  = cpu_to_be16(size-sizeof(struct p_header80));
 
@@ -1889,7 +1889,7 @@ int drbd_send_cmd2(struct drbd_conf *mdev, enum drbd_packets cmd, char *data,
 	struct p_header80 h;
 	int ok;
 
-	h.magic   = BE_DRBD_MAGIC;
+	h.magic   = cpu_to_be32(DRBD_MAGIC);
 	h.command = cpu_to_be16(cmd);
 	h.length  = cpu_to_be16(size);
 
@@ -2477,7 +2477,7 @@ int drbd_send_drequest_csum(struct drbd_conf *mdev,
 	p.block_id = ID_SYNCER /* unused */;
 	p.blksize  = cpu_to_be32(size);
 
-	p.head.magic   = BE_DRBD_MAGIC;
+	p.head.magic   = cpu_to_be32(DRBD_MAGIC);
 	p.head.command = cpu_to_be16(cmd);
 	p.head.length  = cpu_to_be16(sizeof(p) - sizeof(struct p_header80) + digest_size);
 
@@ -2682,12 +2682,12 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 		crypto_hash_digestsize(mdev->integrity_w_tfm) : 0;
 
 	if (req->size <= DRBD_MAX_SIZE_H80_PACKET) {
-		p.head.h80.magic   = BE_DRBD_MAGIC;
+		p.head.h80.magic   = cpu_to_be32(DRBD_MAGIC);
 		p.head.h80.command = cpu_to_be16(P_DATA);
 		p.head.h80.length  =
 			cpu_to_be16(sizeof(p) - sizeof(union p_header) + dgs + req->size);
 	} else {
-		p.head.h95.magic   = BE_DRBD_MAGIC_BIG;
+		p.head.h95.magic   = cpu_to_be16(DRBD_MAGIC_BIG);
 		p.head.h95.command = cpu_to_be16(P_DATA);
 		p.head.h95.length  =
 			cpu_to_be32(sizeof(p) - sizeof(union p_header) + dgs + req->size);
@@ -2767,12 +2767,12 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 		crypto_hash_digestsize(mdev->integrity_w_tfm) : 0;
 
 	if (e->size <= DRBD_MAX_SIZE_H80_PACKET) {
-		p.head.h80.magic   = BE_DRBD_MAGIC;
+		p.head.h80.magic   = cpu_to_be32(DRBD_MAGIC);
 		p.head.h80.command = cpu_to_be16(cmd);
 		p.head.h80.length  =
 			cpu_to_be16(sizeof(p) - sizeof(struct p_header80) + dgs + e->size);
 	} else {
-		p.head.h95.magic   = BE_DRBD_MAGIC_BIG;
+		p.head.h95.magic   = cpu_to_be16(DRBD_MAGIC_BIG);
 		p.head.h95.command = cpu_to_be16(cmd);
 		p.head.h95.length  =
 			cpu_to_be32(sizeof(p) - sizeof(struct p_header80) + dgs + e->size);

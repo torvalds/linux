@@ -712,7 +712,7 @@ static enum drbd_packets drbd_recv_fp(struct drbd_conf *mdev, struct socket *soc
 
 	rr = drbd_recv_short(mdev, sock, h, sizeof(*h), 0);
 
-	if (rr == sizeof(*h) && h->magic == BE_DRBD_MAGIC)
+	if (rr == sizeof(*h) && h->magic == cpu_to_be32(DRBD_MAGIC))
 		return be16_to_cpu(h->command);
 
 	return 0xffff;
@@ -935,10 +935,10 @@ static int drbd_recv_header(struct drbd_conf *mdev, enum drbd_packets *cmd, unsi
 		return false;
 	}
 
-	if (likely(h->h80.magic == BE_DRBD_MAGIC)) {
+	if (likely(h->h80.magic == cpu_to_be32(DRBD_MAGIC))) {
 		*cmd = be16_to_cpu(h->h80.command);
 		*packet_size = be16_to_cpu(h->h80.length);
-	} else if (h->h95.magic == BE_DRBD_MAGIC_BIG) {
+	} else if (h->h95.magic == cpu_to_be16(DRBD_MAGIC_BIG)) {
 		*cmd = be16_to_cpu(h->h95.command);
 		*packet_size = be32_to_cpu(h->h95.length);
 	} else {
@@ -4623,7 +4623,7 @@ int drbd_asender(struct drbd_thread *thi)
 		}
 
 		if (received == expect && cmd == NULL) {
-			if (unlikely(h->magic != BE_DRBD_MAGIC)) {
+			if (unlikely(h->magic != cpu_to_be32(DRBD_MAGIC))) {
 				dev_err(DEV, "magic?? on meta m: 0x%08x c: %d l: %d\n",
 				    be32_to_cpu(h->magic),
 				    be16_to_cpu(h->command),
