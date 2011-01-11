@@ -856,7 +856,7 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 
 	txtid->state |= AGGR_ADDBA_PROGRESS;
 	txtid->paused = true;
-	*ssn = txtid->seq_start;
+	*ssn = txtid->seq_start = txtid->seq_next;
 
 	return 0;
 }
