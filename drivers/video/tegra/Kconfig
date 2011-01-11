@@ -61,5 +61,14 @@ config NVMAP_HIGHMEM_ONLY
 	  Say Y here to restrict nvmap system memory allocations (both
 	  physical system memory and IOVMM) to just HIGHMEM pages.
 
+config NVMAP_CARVEOUT_KILLER
+	bool "Reclaim nvmap carveout by killing processes"
+	depends on TEGRA_NVMAP
+	default n
+	help
+	  Say Y here to allow the system to reclaim carveout space by killing
+	  processes. This will kill the largest consumers of lowest priority
+	  first.
+
 endif
 
