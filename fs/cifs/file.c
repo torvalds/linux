@@ -1377,6 +1377,7 @@ retry:
 				break;
 		}
 		if (n_iov) {
+retry_write:
 			open_file = find_writable_file(CIFS_I(mapping->host),
 							false);
 			if (!open_file) {
@@ -1389,31 +1390,55 @@ retry:
 						   &bytes_written, iov, n_iov,
 						   long_op);
 				cifsFileInfo_put(open_file);
-				cifs_update_eof(cifsi, offset, bytes_written);
 			}
 
-			if (rc || bytes_written < bytes_to_write) {
-				cERROR(1, "Write2 ret %d, wrote %d",
-					  rc, bytes_written);
-				mapping_set_error(mapping, rc);
-			} else {
+			cFYI(1, "Write2 rc=%d, wrote=%u", rc, bytes_written);
+
+			/*
+			 * For now, treat a short write as if nothing got
+			 * written. A zero length write however indicates
+			 * ENOSPC or EFBIG. We have no way to know which
+			 * though, so call it ENOSPC for now. EFBIG would
+			 * get translated to AS_EIO anyway.
+			 *
+			 * FIXME: make it take into account the data that did
+			 *	  get written
+			 */
+			if (rc == 0) {
+				if (bytes_written == 0)
+					rc = -ENOSPC;
+				else if (bytes_written < bytes_to_write)
+					rc = -EAGAIN;
+			}
+
+			/* retry on data-integrity flush */
+			if (wbc->sync_mode == WB_SYNC_ALL && rc == -EAGAIN)
+				goto retry_write;
+
+			/* fix the stats and EOF */
+			if (bytes_written > 0) {
 				cifs_stats_bytes_written(tcon, bytes_written);
+				cifs_update_eof(cifsi, offset, bytes_written);
 			}
 
 			for (i = 0; i < n_iov; i++) {
 				page = pvec.pages[first + i];
-				/* Should we also set page error on
-				success rc but too little data written? */
-				/* BB investigate retry logic on temporary
-				server crash cases and how recovery works
-				when page marked as error */
-				if (rc)
+				/* on retryable write error, redirty page */
+				if (rc == -EAGAIN)
+					redirty_page_for_writepage(wbc, page);
+				else if (rc != 0)
 					SetPageError(page);
 				kunmap(page);
 				unlock_page(page);
 				end_page_writeback(page);
 				page_cache_release(page);
 			}
+
+			if (rc != -EAGAIN)
+				mapping_set_error(mapping, rc);
+			else
+				rc = 0;
+
 			if ((wbc->nr_to_write -= n_iov) <= 0)
 				done = 1;
 			index = next;
