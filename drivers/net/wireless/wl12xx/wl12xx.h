@@ -457,6 +457,9 @@ struct wl1271 {
 
 	/* recoreded keys for AP-mode - set here before AP startup */
 	struct wl1271_ap_key *recorded_ap_keys[MAX_NUM_KEYS];
+
+	/* bands supported by this instance of wl12xx */
+	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 };
 
 struct wl1271_station {

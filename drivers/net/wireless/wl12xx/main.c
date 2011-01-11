@@ -3150,8 +3150,20 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 	 */
 	wl->hw->wiphy->max_scan_ie_len = WL1271_CMD_TEMPL_MAX_SIZE -
 			sizeof(struct ieee80211_header);
-	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl1271_band_2ghz;
-	wl->hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &wl1271_band_5ghz;
+
+	/*
+	 * We keep local copies of the band structs because we need to
+	 * modify them on a per-device basis.
+	 */
+	memcpy(&wl->bands[IEEE80211_BAND_2GHZ], &wl1271_band_2ghz,
+	       sizeof(wl1271_band_2ghz));
+	memcpy(&wl->bands[IEEE80211_BAND_5GHZ], &wl1271_band_5ghz,
+	       sizeof(wl1271_band_5ghz));
+
+	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
+		&wl->bands[IEEE80211_BAND_2GHZ];
+	wl->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
+		&wl->bands[IEEE80211_BAND_5GHZ];
 
 	wl->hw->queues = 4;
 	wl->hw->max_rates = 1;
