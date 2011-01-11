@@ -97,6 +97,7 @@ extern char usermode_helper[];
 #define ID_SYNCER (-1ULL)
 #define ID_VACANT 0
 #define is_syncer_block_id(id) ((id) == ID_SYNCER)
+#define UUID_NEW_BM_OFFSET ((u64)0x0001000000000000ULL)
 
 struct drbd_conf;
 

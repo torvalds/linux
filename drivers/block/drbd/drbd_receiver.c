@@ -2293,6 +2293,8 @@ static void drbd_uuid_dump(struct drbd_conf *mdev, char *text, u64 *uuid,
    -2	C_SYNC_TARGET set BitMap
  -100	after split brain, disconnect
 -1000	unrelated data
+-1091   requires proto 91
+-1096   requires proto 96
  */
 static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(local)
 {
@@ -2322,7 +2324,7 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
 		if (mdev->p_uuid[UI_BITMAP] == (u64)0 && mdev->ldev->md.uuid[UI_BITMAP] != (u64)0) {
 
 			if (mdev->agreed_pro_version < 91)
-				return -1001;
+				return -1091;
 
 			if ((mdev->ldev->md.uuid[UI_BITMAP] & ~((u64)1)) == (mdev->p_uuid[UI_HISTORY_START] & ~((u64)1)) &&
 			    (mdev->ldev->md.uuid[UI_HISTORY_START] & ~((u64)1)) == (mdev->p_uuid[UI_HISTORY_START + 1] & ~((u64)1))) {
@@ -2343,7 +2345,7 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
 		if (mdev->ldev->md.uuid[UI_BITMAP] == (u64)0 && mdev->p_uuid[UI_BITMAP] != (u64)0) {
 
 			if (mdev->agreed_pro_version < 91)
-				return -1001;
+				return -1091;
 
 			if ((mdev->ldev->md.uuid[UI_HISTORY_START] & ~((u64)1)) == (mdev->p_uuid[UI_BITMAP] & ~((u64)1)) &&
 			    (mdev->ldev->md.uuid[UI_HISTORY_START + 1] & ~((u64)1)) == (mdev->p_uuid[UI_HISTORY_START] & ~((u64)1))) {
@@ -2388,17 +2390,22 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
 	*rule_nr = 51;
 	peer = mdev->p_uuid[UI_HISTORY_START] & ~((u64)1);
 	if (self == peer) {
-		self = mdev->ldev->md.uuid[UI_HISTORY_START] & ~((u64)1);
-		peer = mdev->p_uuid[UI_HISTORY_START + 1] & ~((u64)1);
-		if (self == peer) {
+		if (mdev->agreed_pro_version < 96 ?
+		    (mdev->ldev->md.uuid[UI_HISTORY_START] & ~((u64)1)) ==
+		    (mdev->p_uuid[UI_HISTORY_START + 1] & ~((u64)1)) :
+		    peer + UUID_NEW_BM_OFFSET == (mdev->p_uuid[UI_BITMAP] & ~((u64)1))) {
 			/* The last P_SYNC_UUID did not get though. Undo the last start of
 			   resync as sync source modifications of the peer's UUIDs. */
 
 			if (mdev->agreed_pro_version < 91)
-				return -1001;
+				return -1091;
 
 			mdev->p_uuid[UI_BITMAP] = mdev->p_uuid[UI_HISTORY_START];
 			mdev->p_uuid[UI_HISTORY_START] = mdev->p_uuid[UI_HISTORY_START + 1];
+
+			dev_info(DEV, "Did not got last syncUUID packet, corrected:\n");
+			drbd_uuid_dump(mdev, "peer", mdev->p_uuid, mdev->p_uuid[UI_SIZE], mdev->p_uuid[UI_FLAGS]);
+
 			return -1;
 		}
 	}
@@ -2420,20 +2427,20 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
 	*rule_nr = 71;
 	self = mdev->ldev->md.uuid[UI_HISTORY_START] & ~((u64)1);
 	if (self == peer) {
-		self = mdev->ldev->md.uuid[UI_HISTORY_START + 1] & ~((u64)1);
-		peer = mdev->p_uuid[UI_HISTORY_START] & ~((u64)1);
-		if (self == peer) {
+		if (mdev->agreed_pro_version < 96 ?
+		    (mdev->ldev->md.uuid[UI_HISTORY_START + 1] & ~((u64)1)) ==
+		    (mdev->p_uuid[UI_HISTORY_START] & ~((u64)1)) :
+		    self + UUID_NEW_BM_OFFSET == (mdev->ldev->md.uuid[UI_BITMAP] & ~((u64)1))) {
 			/* The last P_SYNC_UUID did not get though. Undo the last start of
 			   resync as sync source modifications of our UUIDs. */
 
 			if (mdev->agreed_pro_version < 91)
-				return -1001;
+				return -1091;
 
 			_drbd_uuid_set(mdev, UI_BITMAP, mdev->ldev->md.uuid[UI_HISTORY_START]);
 			_drbd_uuid_set(mdev, UI_HISTORY_START, mdev->ldev->md.uuid[UI_HISTORY_START + 1]);
 
-			dev_info(DEV, "Undid last start of resync:\n");
-
+			dev_info(DEV, "Last syncUUID did not get through, corrected:\n");
 			drbd_uuid_dump(mdev, "self", mdev->ldev->md.uuid,
 				       mdev->state.disk >= D_NEGOTIATING ? drbd_bm_total_weight(mdev) : 0, 0);
 
@@ -2496,8 +2503,8 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 		dev_alert(DEV, "Unrelated data, aborting!\n");
 		return C_MASK;
 	}
-	if (hg == -1001) {
-		dev_alert(DEV, "To resolve this both sides have to support at least protocol 91\n");
+	if (hg < -1000) {
+		dev_alert(DEV, "To resolve this both sides have to support at least protocol %d\n", -hg - 1000);
 		return C_MASK;
 	}
 

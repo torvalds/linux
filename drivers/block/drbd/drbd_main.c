@@ -2022,7 +2022,7 @@ int drbd_gen_and_send_sync_uuid(struct drbd_conf *mdev)
 
 	D_ASSERT(mdev->state.disk == D_UP_TO_DATE);
 
-	get_random_bytes(&uuid, sizeof(u64));
+	uuid = mdev->ldev->md.uuid[UI_BITMAP] + UUID_NEW_BM_OFFSET;
 	drbd_uuid_set(mdev, UI_BITMAP, uuid);
 	drbd_md_sync(mdev);
 	p.uuid = cpu_to_be64(uuid);
