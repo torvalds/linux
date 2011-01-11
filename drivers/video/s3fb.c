@@ -517,7 +517,7 @@ static int s3fb_set_par(struct fb_info *info)
 	svga_set_default_gfx_regs(par->state.vgabase);
 	svga_set_default_atc_regs(par->state.vgabase);
 	svga_set_default_seq_regs(par->state.vgabase);
-	svga_set_default_crt_regs();
+	svga_set_default_crt_regs(par->state.vgabase);
 	svga_wcrt_multi(par->state.vgabase, s3_line_compare_regs, 0xFFFFFFFF);
 	svga_wcrt_multi(par->state.vgabase, s3_start_address_regs, 0);
 

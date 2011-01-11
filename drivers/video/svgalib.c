@@ -127,14 +127,14 @@ void svga_set_default_seq_regs(void __iomem *regbase)
 }
 
 /* Set CRTC registers to sane values */
-void svga_set_default_crt_regs(void)
+void svga_set_default_crt_regs(void __iomem *regbase)
 {
 	/* Standard CRT registers CR03 CR08 CR09 CR14 CR17 */
-	svga_wcrt_mask(NULL, 0x03, 0x80, 0x80);	/* Enable vertical retrace EVRA */
-	vga_wcrt(NULL, VGA_CRTC_PRESET_ROW, 0);
-	svga_wcrt_mask(NULL, VGA_CRTC_MAX_SCAN, 0, 0x1F);
-	vga_wcrt(NULL, VGA_CRTC_UNDERLINE, 0);
-	vga_wcrt(NULL, VGA_CRTC_MODE, 0xE3);
+	svga_wcrt_mask(regbase, 0x03, 0x80, 0x80);	/* Enable vertical retrace EVRA */
+	vga_wcrt(regbase, VGA_CRTC_PRESET_ROW, 0);
+	svga_wcrt_mask(regbase, VGA_CRTC_MAX_SCAN, 0, 0x1F);
+	vga_wcrt(regbase, VGA_CRTC_UNDERLINE, 0);
+	vga_wcrt(regbase, VGA_CRTC_MODE, 0xE3);
 }
 
 void svga_set_textmode_vga_regs(void)
