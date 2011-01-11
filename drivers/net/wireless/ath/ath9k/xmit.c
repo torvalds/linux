@@ -169,7 +169,7 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 			ath_tx_update_baw(sc, tid, fi->seqno);
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0, 0);
 		} else {
-			ath_tx_send_normal(sc, txq, tid, &bf_head);
+			ath_tx_send_normal(sc, txq, NULL, &bf_head);
 		}
 		spin_lock_bh(&txq->axq_lock);
 	}
