@@ -645,6 +645,7 @@ static struct usb_serial_driver spcp8x5_device = {
 		.name =		"SPCP8x5",
 	},
 	.id_table		= id_table,
+	.usb_driver		= &spcp8x5_driver,
 	.num_ports		= 1,
 	.open 			= spcp8x5_open,
 	.dtr_rts		= spcp8x5_dtr_rts,

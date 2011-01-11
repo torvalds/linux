@@ -86,6 +86,7 @@ static struct usb_serial_driver qcaux_device = {
 		.name =		"qcaux",
 	},
 	.id_table =		id_table,
+	.usb_driver =		&qcaux_driver,
 	.num_ports =		1,
 };
 
