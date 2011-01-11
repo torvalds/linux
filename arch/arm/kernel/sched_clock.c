@@ -34,7 +34,7 @@ void __init init_sched_clock(struct clock_data *cd, void (*update)(void),
 	sched_clock_update_fn = update;
 
 	/* calculate the mult/shift to convert counter ticks to ns. */
-	clocks_calc_mult_shift(&cd->mult, &cd->shift, rate, NSEC_PER_SEC, 60);
+	clocks_calc_mult_shift(&cd->mult, &cd->shift, rate, NSEC_PER_SEC, 0);
 
 	r = rate;
 	if (r >= 4000000) {
