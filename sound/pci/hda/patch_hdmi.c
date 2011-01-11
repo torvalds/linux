@@ -31,9 +31,14 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/moduleparam.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+
+static bool static_hdmi_pcm;
+module_param(static_hdmi_pcm, bool, 0644);
+MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
 
 /*
  * The HDMI/DisplayPort configuration can be highly dynamic. A graphics device
@@ -827,7 +832,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 		*codec_pars = *hinfo;
 
 	eld = &spec->sink_eld[idx];
-	if (eld->eld_valid && eld->sad_count > 0) {
+	if (!static_hdmi_pcm && eld->eld_valid && eld->sad_count > 0) {
 		hdmi_eld_update_pcm_info(eld, hinfo, codec_pars);
 		if (hinfo->channels_min > hinfo->channels_max ||
 		    !hinfo->rates || !hinfo->formats)
