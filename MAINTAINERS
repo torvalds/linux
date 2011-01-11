@@ -2692,6 +2692,14 @@ S:	Supported
 F:	drivers/i2c/busses/i2c-gpio.c
 F:	include/linux/i2c-gpio.h
 
+GENERIC GPIO I2C MULTIPLEXER DRIVER
+M:	Peter Korsgaard <peter.korsgaard@barco.com>
+L:	linux-i2c@vger.kernel.org
+S:	Supported
+F:	drivers/i2c/muxes/gpio-i2cmux.c
+F:	include/linux/gpio-i2cmux.h
+F:	Documentation/i2c/muxes/gpio-i2cmux
+
 GENERIC HDLC (WAN) DRIVERS
 M:	Krzysztof Halasa <khc@pm.waw.pl>
 W:	http://www.kernel.org/pub/linux/utils/net/hdlc/
