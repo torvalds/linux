@@ -8,11 +8,11 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/clkdev.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
 
-#include <asm/clkdev.h>
 #include <asm/clock.h>
 
 #include <cpu/sh7722.h>
