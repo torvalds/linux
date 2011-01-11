@@ -106,6 +106,27 @@ static void ehci_handover_companion_ports(struct ehci_hcd *ehci)
 	ehci->owned_ports = 0;
 }
 
+static int ehci_port_change(struct ehci_hcd *ehci)
+{
+	int i = HCS_N_PORTS(ehci->hcs_params);
+
+	/* First check if the controller indicates a change event */
+
+	if (ehci_readl(ehci, &ehci->regs->status) & STS_PCD)
+		return 1;
+
+	/*
+	 * Not all controllers appear to update this while going from D3 to D0,
+	 * so check the individual port status registers as well
+	 */
+
+	while (i--)
+		if (ehci_readl(ehci, &ehci->regs->port_status[i]) & PORT_CSC)
+			return 1;
+
+	return 0;
+}
+
 static void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 		bool suspending, bool do_wakeup)
 {
@@ -173,7 +194,7 @@ static void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 	}
 
 	/* Does the root hub have a port wakeup pending? */
-	if (!suspending && (ehci_readl(ehci, &ehci->regs->status) & STS_PCD))
+	if (!suspending && ehci_port_change(ehci))
 		usb_hcd_resume_root_hub(ehci_to_hcd(ehci));
 
 	spin_unlock_irqrestore(&ehci->lock, flags);
