@@ -450,6 +450,7 @@ static void __init igep3_init(void)
 
 MACHINE_START(IGEP0030, "IGEP OMAP3 module")
 	.boot_params	= 0x80000100,
+	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_irq	= igep3_init_irq,
 	.init_machine	= igep3_init,
