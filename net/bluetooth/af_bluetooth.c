@@ -240,7 +240,8 @@ int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (flags & (MSG_OOB))
 		return -EOPNOTSUPP;
 
-	if (!(skb = skb_recv_datagram(sk, flags, noblock, &err))) {
+	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	if (!skb) {
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			return 0;
 		return err;
@@ -323,7 +324,8 @@ int bt_sock_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 			if (copied >= target)
 				break;
 
-			if ((err = sock_error(sk)) != 0)
+			err = sock_error(sk);
+			if (err)
 				break;
 			if (sk->sk_shutdown & RCV_SHUTDOWN)
 				break;

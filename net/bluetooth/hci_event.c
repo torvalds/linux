@@ -851,11 +851,14 @@ static void hci_cs_add_sco(struct hci_dev *hdev, __u8 status)
 	hci_dev_lock(hdev);
 
 	acl = hci_conn_hash_lookup_handle(hdev, handle);
-	if (acl && (sco = acl->link)) {
-		sco->state = BT_CLOSED;
+	if (acl) {
+		sco = acl->link;
+		if (sco) {
+			sco->state = BT_CLOSED;
 
-		hci_proto_connect_cfm(sco, status);
-		hci_conn_del(sco);
+			hci_proto_connect_cfm(sco, status);
+			hci_conn_del(sco);
+		}
 	}
 
 	hci_dev_unlock(hdev);
@@ -1037,11 +1040,14 @@ static void hci_cs_setup_sync_conn(struct hci_dev *hdev, __u8 status)
 	hci_dev_lock(hdev);
 
 	acl = hci_conn_hash_lookup_handle(hdev, handle);
-	if (acl && (sco = acl->link)) {
-		sco->state = BT_CLOSED;
+	if (acl) {
+		sco = acl->link;
+		if (sco) {
+			sco->state = BT_CLOSED;
 
-		hci_proto_connect_cfm(sco, status);
-		hci_conn_del(sco);
+			hci_proto_connect_cfm(sco, status);
+			hci_conn_del(sco);
+		}
 	}
 
 	hci_dev_unlock(hdev);

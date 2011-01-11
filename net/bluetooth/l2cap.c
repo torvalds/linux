@@ -4724,7 +4724,10 @@ static int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 fl
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
 
-	if (!conn && !(conn = l2cap_conn_add(hcon, 0)))
+	if (!conn)
+		conn = l2cap_conn_add(hcon, 0);
+
+	if (!conn)
 		goto drop;
 
 	BT_DBG("conn %p len %d flags 0x%x", conn, skb->len, flags);

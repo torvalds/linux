@@ -429,7 +429,8 @@ int hci_inquiry(void __user *arg)
 	if (copy_from_user(&ir, ptr, sizeof(ir)))
 		return -EFAULT;
 
-	if (!(hdev = hci_dev_get(ir.dev_id)))
+	hdev = hci_dev_get(ir.dev_id);
+	if (!hdev)
 		return -ENODEV;
 
 	hci_dev_lock_bh(hdev);
@@ -489,7 +490,8 @@ int hci_dev_open(__u16 dev)
 	struct hci_dev *hdev;
 	int ret = 0;
 
-	if (!(hdev = hci_dev_get(dev)))
+	hdev = hci_dev_get(dev);
+	if (!hdev)
 		return -ENODEV;
 
 	BT_DBG("%s %p", hdev->name, hdev);
@@ -1940,7 +1942,11 @@ static void hci_cmd_task(unsigned long arg)
 	}
 
 	/* Send queued commands */
-	if (atomic_read(&hdev->cmd_cnt) && (skb = skb_dequeue(&hdev->cmd_q))) {
+	if (atomic_read(&hdev->cmd_cnt)) {
+		skb = skb_dequeue(&hdev->cmd_q);
+		if (!skb)
+			return;
+
 		kfree_skb(hdev->sent_cmd);
 
 		hdev->sent_cmd = skb_clone(skb, GFP_ATOMIC);
