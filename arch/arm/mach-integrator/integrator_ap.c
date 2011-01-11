@@ -499,8 +499,9 @@ static struct sys_timer ap_timer = {
 MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.boot_params	= 0x00000100,
-	.map_io		= ap_map_io,
 	.reserve	= integrator_reserve,
+	.map_io		= ap_map_io,
+	.init_early	= integrator_init_early,
 	.init_irq	= ap_init_irq,
 	.timer		= &ap_timer,
 	.init_machine	= ap_init,

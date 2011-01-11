@@ -520,11 +520,17 @@ static struct amba_device *amba_devs[] __initdata = {
 	&clcd_device,
 };
 
+static void __init intcp_init_early(void)
+{
+	clkdev_add_table(cp_lookups, ARRAY_SIZE(cp_lookups));
+
+	integrator_init_early();
+}
+
 static void __init intcp_init(void)
 {
 	int i;
 
-	clkdev_add_table(cp_lookups, ARRAY_SIZE(cp_lookups));
 	platform_add_devices(intcp_devs, ARRAY_SIZE(intcp_devs));
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
@@ -554,8 +560,9 @@ static struct sys_timer cp_timer = {
 MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.boot_params	= 0x00000100,
-	.map_io		= intcp_map_io,
 	.reserve	= integrator_reserve,
+	.map_io		= intcp_map_io,
+	.init_early	= intcp_init_early,
 	.init_irq	= intcp_init_irq,
 	.timer		= &cp_timer,
 	.init_machine	= intcp_init,
