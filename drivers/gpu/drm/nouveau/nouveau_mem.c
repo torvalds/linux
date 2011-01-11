@@ -393,11 +393,17 @@ nouveau_mem_vram_init(struct drm_device *dev)
 	struct ttm_bo_device *bdev = &dev_priv->ttm.bdev;
 	int ret, dma_bits;
 
-	if (dev_priv->card_type >= NV_50 &&
-	    pci_dma_supported(dev->pdev, DMA_BIT_MASK(40)))
-		dma_bits = 40;
-	else
-		dma_bits = 32;
+	dma_bits = 32;
+	if (dev_priv->card_type >= NV_50) {
+		if (pci_dma_supported(dev->pdev, DMA_BIT_MASK(40)))
+			dma_bits = 40;
+	} else
+	if (drm_pci_device_is_pcie(dev) &&
+	    dev_priv->chipset != 0x40 &&
+	    dev_priv->chipset != 0x45) {
+		if (pci_dma_supported(dev->pdev, DMA_BIT_MASK(39)))
+			dma_bits = 39;
+	}
 
 	ret = pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(dma_bits));
 	if (ret)
