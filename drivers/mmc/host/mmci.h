@@ -148,8 +148,10 @@
 
 struct clk;
 struct variant_data;
+struct dma_chan;
 
 struct mmci_host {
+	phys_addr_t		phybase;
 	void __iomem		*base;
 	struct mmc_request	*mrq;
 	struct mmc_command	*cmd;
@@ -179,5 +181,16 @@ struct mmci_host {
 	struct sg_mapping_iter	sg_miter;
 	unsigned int		size;
 	struct regulator	*vcc;
+
+#ifdef CONFIG_DMA_ENGINE
+	/* DMA stuff */
+	struct dma_chan		*dma_current;
+	struct dma_chan		*dma_rx_channel;
+	struct dma_chan		*dma_tx_channel;
+
+#define dma_inprogress(host)	((host)->dma_current)
+#else
+#define dma_inprogress(host)	(0)
+#endif
 };
 
