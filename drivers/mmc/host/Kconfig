@@ -142,6 +142,27 @@ config MMC_SDHCI_ESDHC_IMX
 
 	  If unsure, say N.
 
+config MMC_SDHCI_DOVE
+	bool "SDHCI support on Marvell's Dove SoC"
+	depends on ARCH_DOVE
+	depends on MMC_SDHCI_PLTFM
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Secure Digital Host Controller Interface in
+	  Marvell's Dove SoC.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_TEGRA
+	tristate "SDHCI platform support for the Tegra SD/MMC Controller"
+	depends on MMC_SDHCI_PLTFM && ARCH_TEGRA
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Tegra SD/MMC controller. If you have a Tegra
+	  platform with SD or MMC devices, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_S3C
 	tristate "SDHCI support on Samsung S3C SoC"
 	depends on MMC_SDHCI && PLAT_SAMSUNG
@@ -459,6 +480,22 @@ config SDH_BFIN_MISSING_CMD_PULLUP_WORKAROUND
 	depends on SDH_BFIN
 	help
 	  If you say yes here SD-Cards may work on the EZkit.
+
+config MMC_DW
+	tristate "Synopsys DesignWare Memory Card Interface"
+	depends on ARM
+	help
+	  This selects support for the Synopsys DesignWare Mobile Storage IP
+	  block, this provides host support for SD and MMC interfaces, in both
+	  PIO and external DMA modes.
+
+config MMC_DW_IDMAC
+	bool "Internal DMAC interface"
+	depends on MMC_DW
+	help
+	  This selects support for the internal DMAC block within the Synopsys
+	  Designware Mobile Storage IP block. This disables the external DMA
+	  interface.
 
 config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"
