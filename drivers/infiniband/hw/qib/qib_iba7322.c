@@ -3172,6 +3172,10 @@ static unsigned qib_7322_boardname(struct qib_devdata *dd)
 	case BOARD_QME7342:
 		n = "InfiniPath_QME7342";
 		break;
+	case 8:
+		n = "InfiniPath_QME7362";
+		dd->flags |= QIB_HAS_QSFP;
+		break;
 	case 15:
 		n = "InfiniPath_QLE7342_TEST";
 		dd->flags |= QIB_HAS_QSFP;
