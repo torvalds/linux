@@ -34,6 +34,7 @@
  *   GPIO 6 -> enable on-board S/PDIF input
  *
  * Claro models:
+ *   GPIO 6 -> S/PDIF from optical (0) or coaxial (1) input
  *   GPIO 8 -> enable headphone amplifier
  *
  * CM9780:
@@ -137,6 +138,7 @@ MODULE_DEVICE_TABLE(pci, oxygen_ids);
 #define GPIO_MERIDIAN_DIG_EXT	0x0010
 #define GPIO_MERIDIAN_DIG_BOARD	0x0040
 
+#define GPIO_CLARO_DIG_COAX	0x0040
 #define GPIO_CLARO_HP		0x0100
 
 struct generic_data {
@@ -268,6 +270,8 @@ static void claro_enable_hp(struct oxygen *chip)
 
 static void claro_init(struct oxygen *chip)
 {
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_CLARO_DIG_COAX);
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, GPIO_CLARO_DIG_COAX);
 	ak4396_init(chip);
 	wm8785_init(chip);
 	claro_enable_hp(chip);
@@ -275,6 +279,8 @@ static void claro_init(struct oxygen *chip)
 
 static void claro_halo_init(struct oxygen *chip)
 {
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_CLARO_DIG_COAX);
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, GPIO_CLARO_DIG_COAX);
 	ak4396_init(chip);
 	ak5385_init(chip);
 	claro_enable_hp(chip);
@@ -523,14 +529,24 @@ static const struct snd_kcontrol_new hpf_control = {
 	.put = hpf_put,
 };
 
-static int meridian_dig_source_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
+static int meridian_dig_source_info(struct snd_kcontrol *ctl,
+				    struct snd_ctl_elem_info *info)
 {
 	static const char *const names[2] = { "On-board", "Extension" };
 
 	return snd_ctl_enum_info(info, 1, 2, names);
 }
 
-static int meridian_dig_source_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
+static int claro_dig_source_info(struct snd_kcontrol *ctl,
+				 struct snd_ctl_elem_info *info)
+{
+	static const char *const names[2] = { "Optical", "Coaxial" };
+
+	return snd_ctl_enum_info(info, 1, 2, names);
+}
+
+static int meridian_dig_source_get(struct snd_kcontrol *ctl,
+				   struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
 
@@ -540,7 +556,19 @@ static int meridian_dig_source_get(struct snd_kcontrol *ctl, struct snd_ctl_elem
 	return 0;
 }
 
-static int meridian_dig_source_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
+static int claro_dig_source_get(struct snd_kcontrol *ctl,
+				struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+
+	value->value.enumerated.item[0] =
+		!!(oxygen_read16(chip, OXYGEN_GPIO_DATA) &
+		   GPIO_CLARO_DIG_COAX);
+	return 0;
+}
+
+static int meridian_dig_source_put(struct snd_kcontrol *ctl,
+				   struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
 	u16 old_reg, new_reg;
@@ -560,12 +588,39 @@ static int meridian_dig_source_put(struct snd_kcontrol *ctl, struct snd_ctl_elem
 	return changed;
 }
 
+static int claro_dig_source_put(struct snd_kcontrol *ctl,
+				struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	u16 old_reg, new_reg;
+	int changed;
+
+	mutex_lock(&chip->mutex);
+	old_reg = oxygen_read16(chip, OXYGEN_GPIO_DATA);
+	new_reg = old_reg & ~GPIO_CLARO_DIG_COAX;
+	if (value->value.enumerated.item[0])
+		new_reg |= GPIO_CLARO_DIG_COAX;
+	changed = new_reg != old_reg;
+	if (changed)
+		oxygen_write16(chip, OXYGEN_GPIO_DATA, new_reg);
+	mutex_unlock(&chip->mutex);
+	return changed;
+}
+
 static const struct snd_kcontrol_new meridian_dig_source_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "IEC958 Source Capture Enum",
 	.info = meridian_dig_source_info,
 	.get = meridian_dig_source_get,
 	.put = meridian_dig_source_put,
+};
+
+static const struct snd_kcontrol_new claro_dig_source_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "IEC958 Source Capture Enum",
+	.info = claro_dig_source_info,
+	.get = claro_dig_source_get,
+	.put = claro_dig_source_put,
 };
 
 static int generic_mixer_init(struct oxygen *chip)
@@ -595,6 +650,34 @@ static int meridian_mixer_init(struct oxygen *chip)
 		return err;
 	err = snd_ctl_add(chip->card,
 			  snd_ctl_new1(&meridian_dig_source_control, chip));
+	if (err < 0)
+		return err;
+	return 0;
+}
+
+static int claro_mixer_init(struct oxygen *chip)
+{
+	int err;
+
+	err = generic_wm8785_mixer_init(chip);
+	if (err < 0)
+		return err;
+	err = snd_ctl_add(chip->card,
+			  snd_ctl_new1(&claro_dig_source_control, chip));
+	if (err < 0)
+		return err;
+	return 0;
+}
+
+static int claro_halo_mixer_init(struct oxygen *chip)
+{
+	int err;
+
+	err = generic_mixer_init(chip);
+	if (err < 0)
+		return err;
+	err = snd_ctl_add(chip->card,
+			  snd_ctl_new1(&claro_dig_source_control, chip));
 	if (err < 0)
 		return err;
 	return 0;
@@ -700,13 +783,14 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 		break;
 	case MODEL_CLARO:
 		chip->model.init = claro_init;
+		chip->model.mixer_init = claro_mixer_init;
 		chip->model.cleanup = claro_cleanup;
 		chip->model.suspend = claro_suspend;
 		chip->model.resume = claro_resume;
 		break;
 	case MODEL_CLARO_HALO:
 		chip->model.init = claro_halo_init;
-		chip->model.mixer_init = generic_mixer_init;
+		chip->model.mixer_init = claro_halo_mixer_init;
 		chip->model.cleanup = claro_cleanup;
 		chip->model.suspend = claro_suspend;
 		chip->model.resume = claro_resume;
