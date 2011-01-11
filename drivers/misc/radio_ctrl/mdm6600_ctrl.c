@@ -94,6 +94,7 @@ static unsigned int bp_power_idx = 0;
 static void __devexit mdm_ctrl_shutdown(struct platform_device *pdev);
 static void mdm_ctrl_powerup(void);
 static void mdm_ctrl_set_bootmode(int mode);
+static void mdm_ctrl_dump_log(void);
 
 static const char *bp_status_string(unsigned int stat)
 {
@@ -142,6 +143,8 @@ static ssize_t mdm_user_command(struct radio_dev *rdev, char *post_strip)
 		mdm_ctrl_set_bootmode(0);
 	} else if (strcmp(post_strip,"bootmode_flash") == 0) {
 		mdm_ctrl_set_bootmode(1);
+	} else if (strcmp(post_strip,"dump_log") == 0) {
+		mdm_ctrl_dump_log();
 	} else {
 		return -EINVAL;
 	}
@@ -548,6 +551,23 @@ static void __devexit mdm_ctrl_shutdown(struct platform_device *pdev)
 
 	if (pd_failure)
 		pr_err("%s: Modem failed to power down.", mdmctrl);
+}
+
+static void mdm_ctrl_dump_log(void)
+{
+	pr_info("%s: Dumping modem log", mdmctrl);
+
+	/* To implement the dump, the BP expects BP_PWRON to be asserted
+	 * while the AP status pins remain normal.
+	 */
+	set_bp_pwron(1);
+	msleep(100);
+	set_bp_pwron(0);
+
+	/* Allow enough time for the log to dump fully to EFS on the BP,
+	 * so that users of this don't have to wait themselves.
+	 */
+	msleep(500);
 }
 
 static struct platform_driver mdm6x00_ctrl_driver = {
