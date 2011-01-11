@@ -63,6 +63,7 @@ extern void realview_timer_init(unsigned int timer_irq);
 extern int realview_flash_register(struct resource *res, u32 num);
 extern int realview_eth_register(const char *name, struct resource *res);
 extern int realview_usb_register(struct resource *res);
+extern void realview_init_early(void);
 extern void realview_fixup(struct machine_desc *mdesc, struct tag *tags,
 			   char **from, struct meminfo *meminfo);
 extern void (*realview_reset)(char);

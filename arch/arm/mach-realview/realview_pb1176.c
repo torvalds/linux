@@ -382,6 +382,7 @@ MACHINE_START(REALVIEW_PB1176, "ARM-RealView PB1176")
 	.boot_params	= PHYS_OFFSET + 0x00000100,
 	.fixup		= realview_pb1176_fixup,
 	.map_io		= realview_pb1176_map_io,
+	.init_early	= realview_init_early,
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_pb1176_timer,
 	.init_machine	= realview_pb1176_init,

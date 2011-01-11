@@ -334,6 +334,7 @@ MACHINE_START(REALVIEW_PBA8, "ARM-RealView PB-A8")
 	.boot_params	= PHYS_OFFSET + 0x00000100,
 	.fixup		= realview_fixup,
 	.map_io		= realview_pba8_map_io,
+	.init_early	= realview_init_early,
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_pba8_timer,
 	.init_machine	= realview_pba8_init,

@@ -360,18 +360,19 @@ static struct clk_lookup lookups[] = {
 	}
 };
 
-static int __init clk_init(void)
+void __init realview_init_early(void)
 {
+	void __iomem *sys = __io_address(REALVIEW_SYS_BASE);
+
 	if (machine_is_realview_pb1176())
-		oscvco_clk.vcoreg = __io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_OSC0_OFFSET;
+		oscvco_clk.vcoreg = sys + REALVIEW_SYS_OSC0_OFFSET;
 	else
-		oscvco_clk.vcoreg = __io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_OSC4_OFFSET;
+		oscvco_clk.vcoreg = sys + REALVIEW_SYS_OSC4_OFFSET;
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
-	return 0;
+	versatile_sched_clock_init(sys + REALVIEW_SYS_24MHz_OFFSET, 24000000);
 }
-core_initcall(clk_init);
 
 /*
  * CLCD support.
@@ -510,12 +511,6 @@ void realview_leds_event(led_event_t ledevt)
 #endif	/* CONFIG_LEDS */
 
 /*
- * The sched_clock counter
- */
-#define REFCOUNTER		(__io_address(REALVIEW_SYS_BASE) + \
-				 REALVIEW_SYS_24MHz_OFFSET)
-
-/*
  * Where is the timer (VA)?
  */
 void __iomem *timer0_va_base;
@@ -529,8 +524,6 @@ void __iomem *timer3_va_base;
 void __init realview_timer_init(unsigned int timer_irq)
 {
 	u32 val;
-
-	versatile_sched_clock_init(REFCOUNTER, 24000000);
 
 	/* 
 	 * set clock frequency: 
