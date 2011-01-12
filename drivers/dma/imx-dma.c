@@ -49,6 +49,7 @@ struct imxdma_channel {
 
 struct imxdma_engine {
 	struct device			*dev;
+	struct device_dma_parameters	dma_parms;
 	struct dma_device		dma_device;
 	struct imxdma_channel		channel[MAX_DMA_CHANNELS];
 };
@@ -369,6 +370,9 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	imxdma->dma_device.device_issue_pending = imxdma_issue_pending;
 
 	platform_set_drvdata(pdev, imxdma);
+
+	imxdma->dma_device.dev->dma_parms = &imxdma->dma_parms;
+	dma_set_max_seg_size(imxdma->dma_device.dev, 0xffffff);
 
 	ret = dma_async_device_register(&imxdma->dma_device);
 	if (ret) {
