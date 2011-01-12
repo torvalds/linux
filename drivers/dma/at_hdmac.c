@@ -253,7 +253,7 @@ atc_chain_complete(struct at_dma_chan *atchan, struct at_desc *desc)
 	/* move myself to free_list */
 	list_move(&desc->desc_node, &atchan->free_list);
 
-	/* unmap dma addresses */
+	/* unmap dma addresses (not on slave channels) */
 	if (!atchan->chan_common.private) {
 		struct device *parent = chan2parent(&atchan->chan_common);
 		if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
