@@ -703,7 +703,6 @@ wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid, u16 action)
 	params = kzalloc(params_size, GFP_KERNEL);
 	if (unlikely(!params))
 		return -ENOMEM;
-	memset(params, 0, params_size);
 	BUG_ON(unlikely(params_size >= WLC_IOCTL_SMLEN));
 
 	wl_iscan_prep(&params->params, ssid);
