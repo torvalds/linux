@@ -3180,6 +3180,8 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 
 	wl->hw->sta_data_size = sizeof(struct wl1271_station);
 
+	wl->hw->max_rx_aggregation_subframes = 8;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wl1271_init_ieee80211);
