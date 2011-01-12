@@ -239,6 +239,9 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 		buf_size = buf_size << sband->ht_cap.ampdu_factor;
 	}
 
+	/* make sure the size doesn't exceed the maximum supported by the hw */
+	if (buf_size > local->hw.max_rx_aggregation_subframes)
+		buf_size = local->hw.max_rx_aggregation_subframes;
 
 	/* examine state machine */
 	mutex_lock(&sta->ampdu_mlme.mtx);

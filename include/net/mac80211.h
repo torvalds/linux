@@ -1147,6 +1147,13 @@ enum ieee80211_hw_flags {
  * @napi_weight: weight used for NAPI polling.  You must specify an
  *	appropriate value here if a napi_poll operation is provided
  *	by your driver.
+
+ * @max_rx_aggregation_subframes: maximum buffer size (number of
+ *	sub-frames) to be used for A-MPDU block ack receiver
+ *	aggregation.
+ *	This is only relevant if the device has restrictions on the
+ *	number of subframes, if it relies on mac80211 to do reordering
+ *	it shouldn't be set.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -1165,6 +1172,7 @@ struct ieee80211_hw {
 	u8 max_rates;
 	u8 max_report_rates;
 	u8 max_rate_tries;
+	u8 max_rx_aggregation_subframes;
 };
 
 /**
