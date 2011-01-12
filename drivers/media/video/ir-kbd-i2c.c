@@ -244,15 +244,17 @@ static void ir_key_poll(struct IR_i2c *ir)
 	static u32 ir_key, ir_raw;
 	int rc;
 
-	dprintk(2,"ir_poll_key\n");
+	dprintk(3, "%s\n", __func__);
 	rc = ir->get_key(ir, &ir_key, &ir_raw);
 	if (rc < 0) {
 		dprintk(2,"error\n");
 		return;
 	}
 
-	if (rc)
+	if (rc) {
+		dprintk(1, "%s: keycode = 0x%04x\n", __func__, ir_key);
 		rc_keydown(ir->rc, ir_key, 0);
+	}
 }
 
 static void ir_work(struct work_struct *work)
