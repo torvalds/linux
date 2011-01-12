@@ -193,6 +193,19 @@ static void vhci_recv_ret_unlink(struct vhci_device *vdev,
 	return;
 }
 
+static int vhci_priv_tx_empty(struct vhci_device *vdev)
+{
+	int empty = 0;
+
+	spin_lock(&vdev->priv_lock);
+
+	empty = list_empty(&vdev->priv_rx);
+
+	spin_unlock(&vdev->priv_lock);
+
+	return empty;
+}
+
 /* recv a pdu */
 static void vhci_rx_pdu(struct usbip_device *ud)
 {
@@ -210,8 +223,14 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 	if (ret < 0) {
 		if (ret == -ECONNRESET)
 			usbip_uinfo("connection reset by peer\n");
-		else if (ret != -ERESTARTSYS)
+		else if (ret == -EAGAIN) {
+			/* ignore if connection was idle */
+			if (vhci_priv_tx_empty(vdev))
+				return;
+			usbip_uinfo("connection timed out with pending urbs\n");
+		} else if (ret != -ERESTARTSYS)
 			usbip_uinfo("xmit failed %d\n", ret);
+
 		usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
 		return;
 	}
