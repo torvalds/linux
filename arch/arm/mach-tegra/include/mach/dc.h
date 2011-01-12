@@ -101,6 +101,7 @@ struct tegra_dc_win {
 	unsigned		z;
 
 	int			dirty;
+	int			underflows;
 	struct tegra_dc		*dc;
 
 	struct nvmap_handle_ref	*cur_handle;
