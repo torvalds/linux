@@ -42,9 +42,9 @@ static unsigned long stack_maxrandom_size(void)
 /*
  * Top of mmap area (just below the process stack).
  *
- * Leave an at least ~128 MB hole.
+ * Leave at least a ~32 MB hole.
  */
-#define MIN_GAP (128*1024*1024)
+#define MIN_GAP (32*1024*1024)
 #define MAX_GAP (STACK_TOP/6*5)
 
 static inline unsigned long mmap_base(void)
