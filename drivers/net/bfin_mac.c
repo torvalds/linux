@@ -1284,19 +1284,12 @@ static void bfin_mac_multicast_hash(struct net_device *dev)
 {
 	u32 emac_hashhi, emac_hashlo;
 	struct netdev_hw_addr *ha;
-	char *addrs;
 	u32 crc;
 
 	emac_hashhi = emac_hashlo = 0;
 
 	netdev_for_each_mc_addr(ha, dev) {
-		addrs = ha->addr;
-
-		/* skip non-multicast addresses */
-		if (!is_multicast_ether_addr(addrs))
-			continue;
-
-		crc = ether_crc(ETH_ALEN, addrs);
+		crc = ether_crc(ETH_ALEN, ha->addr);
 		crc >>= 26;
 
 		if (crc & 0x20)
