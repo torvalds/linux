@@ -1135,7 +1135,7 @@ static int __init sdma_get_firmware(struct sdma_engine *sdma,
 	/* download the RAM image for SDMA */
 	sdma_load_script(sdma, ram_code,
 			header->ram_code_size,
-			sdma->script_addrs->ram_code_start_addr);
+			addr->ram_code_start_addr);
 	clk_disable(sdma->clk);
 
 	sdma_add_scripts(sdma, addr);
