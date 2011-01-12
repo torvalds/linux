@@ -2998,7 +2998,9 @@ static inline void qeth_l3_hdr_csum(struct qeth_card *card,
 	 */
 	if (iph->protocol == IPPROTO_UDP)
 		hdr->hdr.l3.ext_flags |= QETH_HDR_EXT_UDP;
-	hdr->hdr.l3.ext_flags |= QETH_HDR_EXT_CSUM_TRANSP_REQ;
+	hdr->hdr.l3.ext_flags |= QETH_HDR_EXT_CSUM_TRANSP_REQ |
+		QETH_HDR_EXT_CSUM_HDR_REQ;
+	iph->check = 0;
 	if (card->options.performance_stats)
 		card->perf_stats.tx_csum++;
 }
