@@ -351,7 +351,7 @@ EXPORT_SYMBOL(ether_setup);
  * @sizeof_priv: Size of additional driver-private structure to be allocated
  *	for this Ethernet device
  * @txqs: The number of TX queues this device has.
- * @txqs: The number of RX queues this device has.
+ * @rxqs: The number of RX queues this device has.
  *
  * Fill in the fields of the device structure with Ethernet-generic
  * values. Basically does everything except registering the device.
