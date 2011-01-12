@@ -24,6 +24,7 @@
 #define cpu_is_msm7x30()	0
 #define cpu_is_qsd8x50()	0
 #define cpu_is_msm8x60()	0
+#define cpu_is_msm8960()	0
 
 #ifdef CONFIG_ARCH_MSM7X00A
 # undef cpu_is_msm7x01
@@ -43,6 +44,11 @@
 #ifdef CONFIG_ARCH_MSM8X60
 # undef cpu_is_msm8x60
 # define cpu_is_msm8x60()	1
+#endif
+
+#ifdef CONFIG_ARCH_MSM8960
+# undef cpu_is_msm8960
+# define cpu_is_msm8960()	1
 #endif
 
 #endif
