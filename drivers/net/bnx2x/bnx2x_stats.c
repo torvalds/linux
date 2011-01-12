@@ -158,6 +158,11 @@ static void bnx2x_storm_stats_post(struct bnx2x *bp)
 
 		spin_lock_bh(&bp->stats_lock);
 
+		if (bp->stats_pending) {
+			spin_unlock_bh(&bp->stats_lock);
+			return;
+		}
+
 		ramrod_data.drv_counter = bp->stats_counter++;
 		ramrod_data.collect_port = bp->port.pmf ? 1 : 0;
 		for_each_eth_queue(bp, i)
