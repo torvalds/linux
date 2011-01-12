@@ -82,6 +82,14 @@ static int intel_idle(struct cpuidle_device *dev, struct cpuidle_state *state);
 static struct cpuidle_state *cpuidle_state_table;
 
 /*
+ * Set this flag for states where the HW flushes the TLB for us
+ * and so we don't need cross-calls to keep it consistent.
+ * If this flag is set, SW flushes the TLB, so even if the
+ * HW doesn't do the flushing, this flag is safe to use.
+ */
+#define CPUIDLE_FLAG_TLB_FLUSHED	0x10000
+
+/*
  * States are indexed by the cstate number,
  * which is also the index into the MWAIT hint array.
  * Thus C0 is a dummy.
