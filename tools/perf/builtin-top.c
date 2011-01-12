@@ -1210,74 +1210,16 @@ static void perf_session__mmap_read(struct perf_session *self)
 	}
 }
 
-int group_fd;
-
 static void start_counter(int i, struct perf_evlist *evlist,
 			  struct perf_evsel *evsel)
 {
 	struct xyarray *mmap_array = evsel->priv;
 	struct mmap_data *mm;
-	struct perf_event_attr *attr;
-	int cpu = -1;
 	int thread_index;
 
-	if (target_tid == -1)
-		cpu = cpus->map[i];
-
-	attr = &evsel->attr;
-
-	attr->sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
-
-	if (freq) {
-		attr->sample_type	|= PERF_SAMPLE_PERIOD;
-		attr->freq		= 1;
-		attr->sample_freq	= freq;
-	}
-
-	attr->inherit		= (cpu < 0) && inherit;
-	attr->mmap		= 1;
-
 	for (thread_index = 0; thread_index < threads->nr; thread_index++) {
-try_again:
-		FD(evsel, i, thread_index) = sys_perf_event_open(attr,
-				threads->map[thread_index], cpu, group_fd, 0);
-
-		if (FD(evsel, i, thread_index) < 0) {
-			int err = errno;
-
-			if (err == EPERM || err == EACCES)
-				die("Permission error - are you root?\n"
-					"\t Consider tweaking"
-					" /proc/sys/kernel/perf_event_paranoid.\n");
-			/*
-			 * If it's cycles then fall back to hrtimer
-			 * based cpu-clock-tick sw counter, which
-			 * is always available even if no PMU support:
-			 */
-			if (attr->type == PERF_TYPE_HARDWARE
-					&& attr->config == PERF_COUNT_HW_CPU_CYCLES) {
-
-				if (verbose)
-					warning(" ... trying to fall back to cpu-clock-ticks\n");
-
-				attr->type = PERF_TYPE_SOFTWARE;
-				attr->config = PERF_COUNT_SW_CPU_CLOCK;
-				goto try_again;
-			}
-			printf("\n");
-			error("sys_perf_event_open() syscall returned with %d (%s).  /bin/dmesg may provide additional information.\n",
-					FD(evsel, i, thread_index), strerror(err));
-			die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
-			exit(-1);
-		}
 		assert(FD(evsel, i, thread_index) >= 0);
 		fcntl(FD(evsel, i, thread_index), F_SETFL, O_NONBLOCK);
-
-		/*
-		 * First counter acts as the group leader:
-		 */
-		if (group && group_fd == -1)
-			group_fd = FD(evsel, i, thread_index);
 
 		evlist->pollfd[evlist->nr_fds].fd = FD(evsel, i, thread_index);
 		evlist->pollfd[evlist->nr_fds].events = POLLIN;
@@ -1293,11 +1235,65 @@ try_again:
 	}
 }
 
+static void start_counters(struct perf_evlist *evlist)
+{
+	struct perf_evsel *counter;
+	int i;
+
+	list_for_each_entry(counter, &evlist->entries, node) {
+		struct perf_event_attr *attr = &counter->attr;
+
+		attr->sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_TID;
+
+		if (freq) {
+			attr->sample_type |= PERF_SAMPLE_PERIOD;
+			attr->freq	  = 1;
+			attr->sample_freq = freq;
+		}
+
+		attr->mmap = 1;
+try_again:
+		if (perf_evsel__open(counter, cpus, threads, group, inherit) < 0) {
+			int err = errno;
+
+			if (err == EPERM || err == EACCES)
+				die("Permission error - are you root?\n"
+					"\t Consider tweaking"
+					" /proc/sys/kernel/perf_event_paranoid.\n");
+			/*
+			 * If it's cycles then fall back to hrtimer
+			 * based cpu-clock-tick sw counter, which
+			 * is always available even if no PMU support:
+			 */
+			if (attr->type == PERF_TYPE_HARDWARE &&
+			    attr->config == PERF_COUNT_HW_CPU_CYCLES) {
+
+				if (verbose)
+					warning(" ... trying to fall back to cpu-clock-ticks\n");
+
+				attr->type = PERF_TYPE_SOFTWARE;
+				attr->config = PERF_COUNT_SW_CPU_CLOCK;
+				goto try_again;
+			}
+			printf("\n");
+			error("sys_perf_event_open() syscall returned with %d "
+			      "(%s).  /bin/dmesg may provide additional information.\n",
+			      err, strerror(err));
+			die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
+			exit(-1);
+		}
+	}
+
+	for (i = 0; i < cpus->nr; i++) {
+		list_for_each_entry(counter, &evlist->entries, node)
+			start_counter(i, evsel_list, counter);
+	}
+}
+
 static int __cmd_top(void)
 {
 	pthread_t thread;
-	struct perf_evsel *counter;
-	int i, ret;
+	int ret;
 	/*
 	 * FIXME: perf_session__new should allow passing a O_MMAP, so that all this
 	 * mmap reading, etc is encapsulated in it. Use O_WRONLY for now.
@@ -1311,11 +1307,7 @@ static int __cmd_top(void)
 	else
 		event__synthesize_threads(event__process, session);
 
-	for (i = 0; i < cpus->nr; i++) {
-		group_fd = -1;
-		list_for_each_entry(counter, &evsel_list->entries, node)
-			start_counter(i, evsel_list, counter);
-	}
+	start_counters(evsel_list);
 
 	/* Wait for a minimal set of events before starting the snapshot */
 	poll(evsel_list->pollfd, evsel_list->nr_fds, 100);
