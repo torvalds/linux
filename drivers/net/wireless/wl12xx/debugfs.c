@@ -402,11 +402,6 @@ static int wl1271_debugfs_add_files(struct wl1271 *wl,
 
 	DEBUGFS_ADD(gpio_power, rootdir);
 
-	entry = debugfs_create_x32("debug_level", 0600, rootdir,
-				   &wl12xx_debug_level);
-	if (!entry || IS_ERR(entry))
-		goto err;
-
 	return 0;
 
 err:
