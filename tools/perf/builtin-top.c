@@ -1095,43 +1095,12 @@ static void event__process_sample(const event_t *self,
 	}
 }
 
-struct mmap_data {
-	void			*base;
-	int			mask;
-	unsigned int		prev;
-};
-
-static int perf_evsel__alloc_mmap_per_thread(struct perf_evsel *evsel,
-					     int ncpus, int nthreads)
-{
-	evsel->priv = xyarray__new(ncpus, nthreads, sizeof(struct mmap_data));
-	return evsel->priv != NULL ? 0 : -ENOMEM;
-}
-
-static void perf_evsel__free_mmap(struct perf_evsel *evsel)
-{
-	xyarray__delete(evsel->priv);
-	evsel->priv = NULL;
-}
-
-static unsigned int mmap_read_head(struct mmap_data *md)
-{
-	struct perf_event_mmap_page *pc = md->base;
-	int head;
-
-	head = pc->data_head;
-	rmb();
-
-	return head;
-}
-
 static void perf_session__mmap_read_counter(struct perf_session *self,
 					    struct perf_evsel *evsel,
 					    int cpu, int thread_idx)
 {
-	struct xyarray *mmap_array = evsel->priv;
-	struct mmap_data *md = xyarray__entry(mmap_array, cpu, thread_idx);
-	unsigned int head = mmap_read_head(md);
+	struct perf_mmap *md = xyarray__entry(evsel->mmap, cpu, thread_idx);
+	unsigned int head = perf_mmap__read_head(md);
 	unsigned int old = md->prev;
 	unsigned char *data = md->base + page_size;
 	struct sample_data sample;
@@ -1210,35 +1179,9 @@ static void perf_session__mmap_read(struct perf_session *self)
 	}
 }
 
-static void start_counter(int i, struct perf_evlist *evlist,
-			  struct perf_evsel *evsel)
-{
-	struct xyarray *mmap_array = evsel->priv;
-	struct mmap_data *mm;
-	int thread_index;
-
-	for (thread_index = 0; thread_index < threads->nr; thread_index++) {
-		assert(FD(evsel, i, thread_index) >= 0);
-		fcntl(FD(evsel, i, thread_index), F_SETFL, O_NONBLOCK);
-
-		evlist->pollfd[evlist->nr_fds].fd = FD(evsel, i, thread_index);
-		evlist->pollfd[evlist->nr_fds].events = POLLIN;
-		evlist->nr_fds++;
-
-		mm = xyarray__entry(mmap_array, i, thread_index);
-		mm->prev = 0;
-		mm->mask = mmap_pages*page_size - 1;
-		mm->base = mmap(NULL, (mmap_pages+1)*page_size,
-				PROT_READ, MAP_SHARED, FD(evsel, i, thread_index), 0);
-		if (mm->base == MAP_FAILED)
-			die("failed to mmap with %d (%s)\n", errno, strerror(errno));
-	}
-}
-
 static void start_counters(struct perf_evlist *evlist)
 {
 	struct perf_evsel *counter;
-	int i;
 
 	list_for_each_entry(counter, &evlist->entries, node) {
 		struct perf_event_attr *attr = &counter->attr;
@@ -1282,11 +1225,9 @@ try_again:
 			die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 			exit(-1);
 		}
-	}
 
-	for (i = 0; i < cpus->nr; i++) {
-		list_for_each_entry(counter, &evlist->entries, node)
-			start_counter(i, evsel_list, counter);
+		if (perf_evsel__mmap(counter, cpus, threads, mmap_pages, evlist) < 0)
+			die("failed to mmap with %d (%s)\n", errno, strerror(errno));
 	}
 }
 
@@ -1453,7 +1394,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(top_usage, options);
 
 	list_for_each_entry(pos, &evsel_list->entries, node) {
-		if (perf_evsel__alloc_mmap_per_thread(pos, cpus->nr, threads->nr) < 0 ||
+		if (perf_evsel__alloc_mmap(pos, cpus->nr, threads->nr) < 0 ||
 		    perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
 			goto out_free_fd;
 		/*
@@ -1485,8 +1426,6 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	status = __cmd_top();
 out_free_fd:
-	list_for_each_entry(pos, &evsel_list->entries, node)
-		perf_evsel__free_mmap(pos);
 	perf_evlist__delete(evsel_list);
 
 	return status;

@@ -29,19 +29,23 @@ struct perf_evsel {
 	struct perf_event_attr	attr;
 	char			*filter;
 	struct xyarray		*fd;
+	struct xyarray		*mmap;
 	struct perf_counts	*counts;
+	size_t			mmap_len;
 	int			idx;
 	void			*priv;
 };
 
 struct cpu_map;
 struct thread_map;
+struct perf_evlist;
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx);
 void perf_evsel__delete(struct perf_evsel *evsel);
 
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus);
+int perf_evsel__alloc_mmap(struct perf_evsel *evsel, int ncpus, int nthreads);
 void perf_evsel__free_fd(struct perf_evsel *evsel);
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 
@@ -51,6 +55,10 @@ int perf_evsel__open_per_thread(struct perf_evsel *evsel,
 				struct thread_map *threads, bool group, bool inherit);
 int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 		     struct thread_map *threads, bool group, bool inherit);
+int perf_evsel__mmap(struct perf_evsel *evsel, struct cpu_map *cpus,
+		     struct thread_map *threads, int pages,
+		     struct perf_evlist *evlist);
+void perf_evsel__munmap(struct perf_evsel *evsel, int ncpus, int nthreads);
 
 #define perf_evsel__match(evsel, t, c)		\
 	(evsel->attr.type == PERF_TYPE_##t &&	\

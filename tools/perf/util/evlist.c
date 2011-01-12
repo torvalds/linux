@@ -60,3 +60,11 @@ int perf_evlist__alloc_pollfd(struct perf_evlist *evlist, int ncpus, int nthread
 	evlist->pollfd = malloc(sizeof(struct pollfd) * nfds);
 	return evlist->pollfd != NULL ? 0 : -ENOMEM;
 }
+
+void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd)
+{
+	fcntl(fd, F_SETFL, O_NONBLOCK);
+	evlist->pollfd[evlist->nr_fds].fd = fd;
+	evlist->pollfd[evlist->nr_fds].events = POLLIN;
+	evlist->nr_fds++;
+}

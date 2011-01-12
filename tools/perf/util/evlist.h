@@ -21,5 +21,6 @@ void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry);
 int perf_evlist__add_default(struct perf_evlist *evlist);
 
 int perf_evlist__alloc_pollfd(struct perf_evlist *evlist, int ncpus, int nthreads);
+void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);
 
 #endif /* __PERF_EVLIST_H */

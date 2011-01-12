@@ -1,8 +1,12 @@
 #include "evsel.h"
+#include "evlist.h"
 #include "../perf.h"
 #include "util.h"
 #include "cpumap.h"
 #include "thread.h"
+
+#include <unistd.h>
+#include <sys/mman.h>
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 
@@ -49,10 +53,32 @@ void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 		}
 }
 
+void perf_evsel__munmap(struct perf_evsel *evsel, int ncpus, int nthreads)
+{
+	struct perf_mmap *mm;
+	int cpu, thread;
+
+	for (cpu = 0; cpu < ncpus; cpu++)
+		for (thread = 0; thread < nthreads; ++thread) {
+			mm = xyarray__entry(evsel->mmap, cpu, thread);
+			if (mm->base != NULL) {
+				munmap(mm->base, evsel->mmap_len);
+				mm->base = NULL;
+			}
+		}
+}
+
+int perf_evsel__alloc_mmap(struct perf_evsel *evsel, int ncpus, int nthreads)
+{
+	evsel->mmap = xyarray__new(ncpus, nthreads, sizeof(struct perf_mmap));
+	return evsel->mmap != NULL ? 0 : -ENOMEM;
+}
+
 void perf_evsel__delete(struct perf_evsel *evsel)
 {
 	assert(list_empty(&evsel->node));
 	xyarray__delete(evsel->fd);
+	xyarray__delete(evsel->mmap);
 	free(evsel);
 }
 
@@ -207,4 +233,49 @@ int perf_evsel__open_per_thread(struct perf_evsel *evsel,
 				struct thread_map *threads, bool group, bool inherit)
 {
 	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads, group, inherit);
+}
+
+int perf_evsel__mmap(struct perf_evsel *evsel, struct cpu_map *cpus,
+		     struct thread_map *threads, int pages,
+		     struct perf_evlist *evlist)
+{
+	unsigned int page_size = sysconf(_SC_PAGE_SIZE);
+	int mask = pages * page_size - 1, cpu;
+	struct perf_mmap *mm;
+	int thread;
+
+	if (evsel->mmap == NULL &&
+	    perf_evsel__alloc_mmap(evsel, cpus->nr, threads->nr) < 0)
+		return -ENOMEM;
+
+	evsel->mmap_len = (pages + 1) * page_size;
+
+	for (cpu = 0; cpu < cpus->nr; cpu++) {
+		for (thread = 0; thread < threads->nr; thread++) {
+			mm = xyarray__entry(evsel->mmap, cpu, thread);
+			mm->prev = 0;
+			mm->mask = mask;
+			mm->base = mmap(NULL, evsel->mmap_len, PROT_READ,
+					MAP_SHARED, FD(evsel, cpu, thread), 0);
+			if (mm->base == MAP_FAILED)
+				goto out_unmap;
+
+			if (evlist != NULL)
+				 perf_evlist__add_pollfd(evlist, FD(evsel, cpu, thread));
+		}
+	}
+
+	return 0;
+
+out_unmap:
+	do {
+		while (--thread >= 0) {
+			mm = xyarray__entry(evsel->mmap, cpu, thread);
+			munmap(mm->base, evsel->mmap_len);
+			mm->base = NULL;
+		}
+		thread = threads->nr;
+	} while (--cpu >= 0);
+
+	return -1;
 }
