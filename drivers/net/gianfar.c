@@ -95,6 +95,7 @@
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <linux/of.h>
+#include <linux/of_net.h>
 
 #include "gianfar.h"
 #include "fsl_pq_mdio.h"
@@ -143,7 +144,8 @@ void gfar_halt(struct net_device *dev);
 static void gfar_halt_nodisable(struct net_device *dev);
 void gfar_start(struct net_device *dev);
 static void gfar_clear_exact_match(struct net_device *dev);
-static void gfar_set_mac_for_addr(struct net_device *dev, int num, u8 *addr);
+static void gfar_set_mac_for_addr(struct net_device *dev, int num,
+				  const u8 *addr);
 static int gfar_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc");
@@ -3094,10 +3096,10 @@ static void gfar_set_multi(struct net_device *dev)
 static void gfar_clear_exact_match(struct net_device *dev)
 {
 	int idx;
-	u8 zero_arr[MAC_ADDR_LEN] = {0,0,0,0,0,0};
+	static const u8 zero_arr[MAC_ADDR_LEN] = {0, 0, 0, 0, 0, 0};
 
 	for(idx = 1;idx < GFAR_EM_NUM + 1;idx++)
-		gfar_set_mac_for_addr(dev, idx, (u8 *)zero_arr);
+		gfar_set_mac_for_addr(dev, idx, zero_arr);
 }
 
 /* Set the appropriate hash bit for the given addr */
@@ -3132,7 +3134,8 @@ static void gfar_set_hash_for_addr(struct net_device *dev, u8 *addr)
 /* There are multiple MAC Address register pairs on some controllers
  * This function sets the numth pair to a given address
  */
-static void gfar_set_mac_for_addr(struct net_device *dev, int num, u8 *addr)
+static void gfar_set_mac_for_addr(struct net_device *dev, int num,
+				  const u8 *addr)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;

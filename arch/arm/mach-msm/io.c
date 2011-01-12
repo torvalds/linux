@@ -105,6 +105,7 @@ static struct map_desc msm8x60_io_desc[] __initdata = {
 	MSM_DEVICE(QGIC_DIST),
 	MSM_DEVICE(QGIC_CPU),
 	MSM_DEVICE(TMR),
+	MSM_DEVICE(TMR0),
 	MSM_DEVICE(ACC),
 	MSM_DEVICE(GCC),
 };
@@ -163,3 +164,4 @@ __msm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
 	return __arm_ioremap_caller(phys_addr, size, mtype,
 		__builtin_return_address(0));
 }
+EXPORT_SYMBOL(__msm_ioremap);

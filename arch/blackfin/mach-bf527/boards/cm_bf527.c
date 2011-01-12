@@ -82,11 +82,13 @@ static struct resource musb_resources[] = {
 		.start	= IRQ_USB_INT0,
 		.end	= IRQ_USB_INT0,
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+		.name	= "mc"
 	},
 	[2] = {	/* DMA IRQ */
 		.start	= IRQ_USB_DMA,
 		.end	= IRQ_USB_DMA,
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+		.name	= "dma"
 	},
 };
 
@@ -102,6 +104,7 @@ static struct musb_hdrc_config musb_config = {
 	 * if it is the case.
 	 */
 	.gpio_vrsel_active	= 1,
+	.clkin          = 24,           /* musb CLKIN in MHZ */
 };
 
 static struct musb_hdrc_platform_data musb_plat = {
@@ -118,7 +121,7 @@ static struct musb_hdrc_platform_data musb_plat = {
 static u64 musb_dmamask = ~(u32)0;
 
 static struct platform_device musb_device = {
-	.name		= "musb_hdrc",
+	.name		= "musb-blackfin",
 	.id		= 0,
 	.dev = {
 		.dma_mask		= &musb_dmamask,
@@ -612,7 +615,7 @@ static struct resource bfin_uart0_resources[] = {
 	},
 };
 
-unsigned short bfin_uart0_peripherals[] = {
+static unsigned short bfin_uart0_peripherals[] = {
 	P_UART0_TX, P_UART0_RX, 0
 };
 
@@ -667,7 +670,7 @@ static struct resource bfin_uart1_resources[] = {
 #endif
 };
 
-unsigned short bfin_uart1_peripherals[] = {
+static unsigned short bfin_uart1_peripherals[] = {
 	P_UART1_TX, P_UART1_RX, 0
 };
 
@@ -799,9 +802,9 @@ static struct resource bfin_sport0_uart_resources[] = {
 	},
 };
 
-unsigned short bfin_sport0_peripherals[] = {
+static unsigned short bfin_sport0_peripherals[] = {
 	P_SPORT0_TFS, P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS,
-	P_SPORT0_DRPRI, P_SPORT0_RSCLK, P_SPORT0_DRSEC, P_SPORT0_DTSEC, 0
+	P_SPORT0_DRPRI, P_SPORT0_RSCLK, 0
 };
 
 static struct platform_device bfin_sport0_uart_device = {
@@ -833,9 +836,9 @@ static struct resource bfin_sport1_uart_resources[] = {
 	},
 };
 
-unsigned short bfin_sport1_peripherals[] = {
+static unsigned short bfin_sport1_peripherals[] = {
 	P_SPORT1_TFS, P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_RFS,
-	P_SPORT1_DRPRI, P_SPORT1_RSCLK, P_SPORT1_DRSEC, P_SPORT1_DTSEC, 0
+	P_SPORT1_DRPRI, P_SPORT1_RSCLK, 0
 };
 
 static struct platform_device bfin_sport1_uart_device = {

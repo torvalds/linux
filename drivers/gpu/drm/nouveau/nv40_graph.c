@@ -29,6 +29,9 @@
 #include "nouveau_drv.h"
 #include "nouveau_grctx.h"
 
+static int nv40_graph_register(struct drm_device *);
+static void nv40_graph_isr(struct drm_device *);
+
 struct nouveau_channel *
 nv40_graph_channel(struct drm_device *dev)
 {
@@ -42,7 +45,7 @@ nv40_graph_channel(struct drm_device *dev)
 	inst = (inst & NV40_PGRAPH_CTXCTL_CUR_INSTANCE) << 4;
 
 	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
-		struct nouveau_channel *chan = dev_priv->fifos[i];
+		struct nouveau_channel *chan = dev_priv->channels.ptr[i];
 
 		if (chan && chan->ramin_grctx &&
 		    chan->ramin_grctx->pinst == inst)
@@ -59,6 +62,7 @@ nv40_graph_create_context(struct nouveau_channel *chan)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	struct nouveau_grctx ctx = {};
+	unsigned long flags;
 	int ret;
 
 	ret = nouveau_gpuobj_new(dev, chan, pgraph->grctx_size, 16,
@@ -73,12 +77,39 @@ nv40_graph_create_context(struct nouveau_channel *chan)
 	nv40_grctx_init(&ctx);
 
 	nv_wo32(chan->ramin_grctx, 0, chan->ramin_grctx->pinst);
+
+	/* init grctx pointer in ramfc, and on PFIFO if channel is
+	 * already active there
+	 */
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	nv_wo32(chan->ramfc, 0x38, chan->ramin_grctx->pinst >> 4);
+	nv_mask(dev, 0x002500, 0x00000001, 0x00000000);
+	if ((nv_rd32(dev, 0x003204) & 0x0000001f) == chan->id)
+		nv_wr32(dev, 0x0032e0, chan->ramin_grctx->pinst >> 4);
+	nv_mask(dev, 0x002500, 0x00000001, 0x00000001);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 	return 0;
 }
 
 void
 nv40_graph_destroy_context(struct nouveau_channel *chan)
 {
+	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	pgraph->fifo_access(dev, false);
+
+	/* Unload the context if it's the currently active one */
+	if (pgraph->channel(dev) == chan)
+		pgraph->unload_context(dev);
+
+	pgraph->fifo_access(dev, true);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
+
+	/* Free the context resources */
 	nouveau_gpuobj_ref(NULL, &chan->ramin_grctx);
 }
 
@@ -174,43 +205,39 @@ nv40_graph_unload_context(struct drm_device *dev)
 }
 
 void
-nv40_graph_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
-			     uint32_t size, uint32_t pitch)
+nv40_graph_set_tile_region(struct drm_device *dev, int i)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t limit = max(1u, addr + size) - 1;
-
-	if (pitch)
-		addr |= 1;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
 
 	switch (dev_priv->chipset) {
 	case 0x44:
 	case 0x4a:
 	case 0x4e:
-		nv_wr32(dev, NV20_PGRAPH_TSIZE(i), pitch);
-		nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), limit);
-		nv_wr32(dev, NV20_PGRAPH_TILE(i), addr);
+		nv_wr32(dev, NV20_PGRAPH_TSIZE(i), tile->pitch);
+		nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), tile->limit);
+		nv_wr32(dev, NV20_PGRAPH_TILE(i), tile->addr);
 		break;
 
 	case 0x46:
 	case 0x47:
 	case 0x49:
 	case 0x4b:
-		nv_wr32(dev, NV47_PGRAPH_TSIZE(i), pitch);
-		nv_wr32(dev, NV47_PGRAPH_TLIMIT(i), limit);
-		nv_wr32(dev, NV47_PGRAPH_TILE(i), addr);
-		nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), pitch);
-		nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), limit);
-		nv_wr32(dev, NV40_PGRAPH_TILE1(i), addr);
+		nv_wr32(dev, NV47_PGRAPH_TSIZE(i), tile->pitch);
+		nv_wr32(dev, NV47_PGRAPH_TLIMIT(i), tile->limit);
+		nv_wr32(dev, NV47_PGRAPH_TILE(i), tile->addr);
+		nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), tile->pitch);
+		nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), tile->limit);
+		nv_wr32(dev, NV40_PGRAPH_TILE1(i), tile->addr);
 		break;
 
 	default:
-		nv_wr32(dev, NV20_PGRAPH_TSIZE(i), pitch);
-		nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), limit);
-		nv_wr32(dev, NV20_PGRAPH_TILE(i), addr);
-		nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), pitch);
-		nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), limit);
-		nv_wr32(dev, NV40_PGRAPH_TILE1(i), addr);
+		nv_wr32(dev, NV20_PGRAPH_TSIZE(i), tile->pitch);
+		nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), tile->limit);
+		nv_wr32(dev, NV20_PGRAPH_TILE(i), tile->addr);
+		nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), tile->pitch);
+		nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), tile->limit);
+		nv_wr32(dev, NV40_PGRAPH_TILE1(i), tile->addr);
 		break;
 	}
 }
@@ -232,7 +259,7 @@ nv40_graph_init(struct drm_device *dev)
 	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
 	struct nouveau_grctx ctx = {};
 	uint32_t vramsz, *cp;
-	int i, j;
+	int ret, i, j;
 
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) &
 			~NV_PMC_ENABLE_PGRAPH);
@@ -256,9 +283,14 @@ nv40_graph_init(struct drm_device *dev)
 
 	kfree(cp);
 
+	ret = nv40_graph_register(dev);
+	if (ret)
+		return ret;
+
 	/* No context present currently */
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR, 0x00000000);
 
+	nouveau_irq_register(dev, 12, nv40_graph_isr);
 	nv_wr32(dev, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
 	nv_wr32(dev, NV40_PGRAPH_INTR_EN, 0xFFFFFFFF);
 
@@ -347,7 +379,7 @@ nv40_graph_init(struct drm_device *dev)
 
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < pfb->num_tiles; i++)
-		nv40_graph_set_region_tiling(dev, i, 0, 0, 0);
+		nv40_graph_set_tile_region(dev, i);
 
 	/* begin RAM config */
 	vramsz = pci_resource_len(dev->pdev, 0) - 1;
@@ -390,26 +422,111 @@ nv40_graph_init(struct drm_device *dev)
 
 void nv40_graph_takedown(struct drm_device *dev)
 {
+	nouveau_irq_unregister(dev, 12);
 }
 
-struct nouveau_pgraph_object_class nv40_graph_grclass[] = {
-	{ 0x0030, false, NULL }, /* null */
-	{ 0x0039, false, NULL }, /* m2mf */
-	{ 0x004a, false, NULL }, /* gdirect */
-	{ 0x009f, false, NULL }, /* imageblit (nv12) */
-	{ 0x008a, false, NULL }, /* ifc */
-	{ 0x0089, false, NULL }, /* sifm */
-	{ 0x3089, false, NULL }, /* sifm (nv40) */
-	{ 0x0062, false, NULL }, /* surf2d */
-	{ 0x3062, false, NULL }, /* surf2d (nv40) */
-	{ 0x0043, false, NULL }, /* rop */
-	{ 0x0012, false, NULL }, /* beta1 */
-	{ 0x0072, false, NULL }, /* beta4 */
-	{ 0x0019, false, NULL }, /* cliprect */
-	{ 0x0044, false, NULL }, /* pattern */
-	{ 0x309e, false, NULL }, /* swzsurf */
-	{ 0x4097, false, NULL }, /* curie (nv40) */
-	{ 0x4497, false, NULL }, /* curie (nv44) */
-	{}
-};
+static int
+nv40_graph_register(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
+	if (dev_priv->engine.graph.registered)
+		return 0;
+
+	NVOBJ_CLASS(dev, 0x506e, SW); /* nvsw */
+	NVOBJ_CLASS(dev, 0x0030, GR); /* null */
+	NVOBJ_CLASS(dev, 0x0039, GR); /* m2mf */
+	NVOBJ_CLASS(dev, 0x004a, GR); /* gdirect */
+	NVOBJ_CLASS(dev, 0x009f, GR); /* imageblit (nv12) */
+	NVOBJ_CLASS(dev, 0x008a, GR); /* ifc */
+	NVOBJ_CLASS(dev, 0x0089, GR); /* sifm */
+	NVOBJ_CLASS(dev, 0x3089, GR); /* sifm (nv40) */
+	NVOBJ_CLASS(dev, 0x0062, GR); /* surf2d */
+	NVOBJ_CLASS(dev, 0x3062, GR); /* surf2d (nv40) */
+	NVOBJ_CLASS(dev, 0x0043, GR); /* rop */
+	NVOBJ_CLASS(dev, 0x0012, GR); /* beta1 */
+	NVOBJ_CLASS(dev, 0x0072, GR); /* beta4 */
+	NVOBJ_CLASS(dev, 0x0019, GR); /* cliprect */
+	NVOBJ_CLASS(dev, 0x0044, GR); /* pattern */
+	NVOBJ_CLASS(dev, 0x309e, GR); /* swzsurf */
+
+	/* curie */
+	if (dev_priv->chipset >= 0x60 ||
+	    0x00005450 & (1 << (dev_priv->chipset & 0x0f)))
+		NVOBJ_CLASS(dev, 0x4497, GR);
+	else
+		NVOBJ_CLASS(dev, 0x4097, GR);
+
+	/* nvsw */
+	NVOBJ_CLASS(dev, 0x506e, SW);
+	NVOBJ_MTHD (dev, 0x506e, 0x0500, nv04_graph_mthd_page_flip);
+
+	dev_priv->engine.graph.registered = true;
+	return 0;
+}
+
+static int
+nv40_graph_isr_chid(struct drm_device *dev, u32 inst)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_channel *chan;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&dev_priv->channels.lock, flags);
+	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
+		chan = dev_priv->channels.ptr[i];
+		if (!chan || !chan->ramin_grctx)
+			continue;
+
+		if (inst == chan->ramin_grctx->pinst)
+			break;
+	}
+	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
+	return i;
+}
+
+static void
+nv40_graph_isr(struct drm_device *dev)
+{
+	u32 stat;
+
+	while ((stat = nv_rd32(dev, NV03_PGRAPH_INTR))) {
+		u32 nsource = nv_rd32(dev, NV03_PGRAPH_NSOURCE);
+		u32 nstatus = nv_rd32(dev, NV03_PGRAPH_NSTATUS);
+		u32 inst = (nv_rd32(dev, 0x40032c) & 0x000fffff) << 4;
+		u32 chid = nv40_graph_isr_chid(dev, inst);
+		u32 addr = nv_rd32(dev, NV04_PGRAPH_TRAPPED_ADDR);
+		u32 subc = (addr & 0x00070000) >> 16;
+		u32 mthd = (addr & 0x00001ffc);
+		u32 data = nv_rd32(dev, NV04_PGRAPH_TRAPPED_DATA);
+		u32 class = nv_rd32(dev, 0x400160 + subc * 4) & 0xffff;
+		u32 show = stat;
+
+		if (stat & NV_PGRAPH_INTR_ERROR) {
+			if (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD) {
+				if (!nouveau_gpuobj_mthd_call2(dev, chid, class, mthd, data))
+					show &= ~NV_PGRAPH_INTR_ERROR;
+			} else
+			if (nsource & NV03_PGRAPH_NSOURCE_DMA_VTX_PROTECTION) {
+				nv_mask(dev, 0x402000, 0, 0);
+			}
+		}
+
+		nv_wr32(dev, NV03_PGRAPH_INTR, stat);
+		nv_wr32(dev, NV04_PGRAPH_FIFO, 0x00000001);
+
+		if (show && nouveau_ratelimit()) {
+			NV_INFO(dev, "PGRAPH -");
+			nouveau_bitfield_print(nv10_graph_intr, show);
+			printk(" nsource:");
+			nouveau_bitfield_print(nv04_graph_nsource, nsource);
+			printk(" nstatus:");
+			nouveau_bitfield_print(nv10_graph_nstatus, nstatus);
+			printk("\n");
+			NV_INFO(dev, "PGRAPH - ch %d (0x%08x) subc %d "
+				     "class 0x%04x mthd 0x%04x data 0x%08x\n",
+				chid, inst, subc, class, mthd, data);
+		}
+	}
+}

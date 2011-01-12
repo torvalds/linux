@@ -820,6 +820,49 @@ static inline void hid_hw_stop(struct hid_device *hdev)
 	hdev->ll_driver->stop(hdev);
 }
 
+/**
+ * hid_hw_open - signal underlaying HW to start delivering events
+ *
+ * @hdev: hid device
+ *
+ * Tell underlying HW to start delivering events from the device.
+ * This function should be called sometime after successful call
+ * to hid_hiw_start().
+ */
+static inline int __must_check hid_hw_open(struct hid_device *hdev)
+{
+	return hdev->ll_driver->open(hdev);
+}
+
+/**
+ * hid_hw_close - signal underlaying HW to stop delivering events
+ *
+ * @hdev: hid device
+ *
+ * This function indicates that we are not interested in the events
+ * from this device anymore. Delivery of events may or may not stop,
+ * depending on the number of users still outstanding.
+ */
+static inline void hid_hw_close(struct hid_device *hdev)
+{
+	hdev->ll_driver->close(hdev);
+}
+
+/**
+ * hid_hw_power - requests underlying HW to go into given power mode
+ *
+ * @hdev: hid device
+ * @level: requested power level (one of %PM_HINT_* defines)
+ *
+ * This function requests underlying hardware to enter requested power
+ * mode.
+ */
+
+static inline int hid_hw_power(struct hid_device *hdev, int level)
+{
+	return hdev->ll_driver->power ? hdev->ll_driver->power(hdev, level) : 0;
+}
+
 void hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 		int interrupt);
 
@@ -838,12 +881,32 @@ int hid_pidff_init(struct hid_device *hid);
 #define hid_pidff_init NULL
 #endif
 
-#define dbg_hid(format, arg...) if (hid_debug) \
-				printk(KERN_DEBUG "%s: " format ,\
-				__FILE__ , ## arg)
-#define err_hid(format, arg...) printk(KERN_ERR "%s: " format "\n" , \
-		__FILE__ , ## arg)
-#endif /* HID_FF */
+#define dbg_hid(format, arg...)						\
+do {									\
+	if (hid_debug)							\
+		printk(KERN_DEBUG "%s: " format, __FILE__, ##arg);	\
+} while (0)
+
+#define hid_printk(level, hid, fmt, arg...)		\
+	dev_printk(level, &(hid)->dev, fmt, ##arg)
+#define hid_emerg(hid, fmt, arg...)			\
+	dev_emerg(&(hid)->dev, fmt, ##arg)
+#define hid_crit(hid, fmt, arg...)			\
+	dev_crit(&(hid)->dev, fmt, ##arg)
+#define hid_alert(hid, fmt, arg...)			\
+	dev_alert(&(hid)->dev, fmt, ##arg)
+#define hid_err(hid, fmt, arg...)			\
+	dev_err(&(hid)->dev, fmt, ##arg)
+#define hid_notice(hid, fmt, arg...)			\
+	dev_notice(&(hid)->dev, fmt, ##arg)
+#define hid_warn(hid, fmt, arg...)			\
+	dev_warn(&(hid)->dev, fmt, ##arg)
+#define hid_info(hid, fmt, arg...)			\
+	dev_info(&(hid)->dev, fmt, ##arg)
+#define hid_dbg(hid, fmt, arg...)			\
+	dev_dbg(&(hid)->dev, fmt, ##arg)
+
+#endif /* __KERNEL__ */
 
 #endif
 

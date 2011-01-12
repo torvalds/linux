@@ -28,6 +28,8 @@
 #include <linux/math64.h>
 #include <linux/fault-inject.h>
 
+#include <trace/events/kmem.h>
+
 /*
  * Lock order:
  *   1. slab_lock(page)
@@ -1774,11 +1776,21 @@ void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
 EXPORT_SYMBOL(kmem_cache_alloc);
 
 #ifdef CONFIG_TRACING
-void *kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
+void *kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
 {
-	return slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
+	void *ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
+	trace_kmalloc(_RET_IP_, ret, size, s->size, gfpflags);
+	return ret;
 }
-EXPORT_SYMBOL(kmem_cache_alloc_notrace);
+EXPORT_SYMBOL(kmem_cache_alloc_trace);
+
+void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
+{
+	void *ret = kmalloc_order(size, flags, order);
+	trace_kmalloc(_RET_IP_, ret, size, PAGE_SIZE << order, flags);
+	return ret;
+}
+EXPORT_SYMBOL(kmalloc_order_trace);
 #endif
 
 #ifdef CONFIG_NUMA
@@ -1794,13 +1806,17 @@ void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags, int node)
 EXPORT_SYMBOL(kmem_cache_alloc_node);
 
 #ifdef CONFIG_TRACING
-void *kmem_cache_alloc_node_notrace(struct kmem_cache *s,
+void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
 				    gfp_t gfpflags,
-				    int node)
+				    int node, size_t size)
 {
-	return slab_alloc(s, gfpflags, node, _RET_IP_);
+	void *ret = slab_alloc(s, gfpflags, node, _RET_IP_);
+
+	trace_kmalloc_node(_RET_IP_, ret,
+			   size, s->size, gfpflags, node);
+	return ret;
 }
-EXPORT_SYMBOL(kmem_cache_alloc_node_notrace);
+EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
 #endif
 #endif
 
@@ -1916,17 +1932,6 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
 	trace_kmem_cache_free(_RET_IP_, x);
 }
 EXPORT_SYMBOL(kmem_cache_free);
-
-/* Figure out on which slab page the object resides */
-static struct page *get_object_page(const void *x)
-{
-	struct page *page = virt_to_head_page(x);
-
-	if (!PageSlab(page))
-		return NULL;
-
-	return page;
-}
 
 /*
  * Object placement in a slab is made very easy because we always start at
@@ -2384,35 +2389,6 @@ error:
 			s->offset, flags);
 	return 0;
 }
-
-/*
- * Check if a given pointer is valid
- */
-int kmem_ptr_validate(struct kmem_cache *s, const void *object)
-{
-	struct page *page;
-
-	if (!kern_ptr_validate(object, s->size))
-		return 0;
-
-	page = get_object_page(object);
-
-	if (!page || s != page->slab)
-		/* No slab or wrong slab */
-		return 0;
-
-	if (!check_valid_pointer(s, page, object))
-		return 0;
-
-	/*
-	 * We could also check if the object is on the slabs freelist.
-	 * But this would be too expensive and it seems that the main
-	 * purpose of kmem_ptr_valid() is to check if the object belongs
-	 * to a certain slab.
-	 */
-	return 1;
-}
-EXPORT_SYMBOL(kmem_ptr_validate);
 
 /*
  * Determine the size of a slab object

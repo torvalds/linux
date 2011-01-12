@@ -92,8 +92,6 @@ static int pdc_console_setup(struct console *co, char *options)
 
 static struct timer_list pdc_console_timer;
 
-extern struct console * console_drivers;
-
 static int pdc_console_tty_open(struct tty_struct *tty, struct file *filp)
 {
 
@@ -169,11 +167,13 @@ static int __init pdc_console_tty_driver_init(void)
 	 * It is unregistered if the pdc console was not selected as the
 	 * primary console. */
 
-	struct console *tmp = console_drivers;
+	struct console *tmp;
 
-	for (tmp = console_drivers; tmp; tmp = tmp->next)
+	acquire_console_sem();
+	for_each_console(tmp)
 		if (tmp == &pdc_cons)
 			break;
+	release_console_sem();
 
 	if (!tmp) {
 		printk(KERN_INFO "PDC console driver not registered anymore, not creating %s\n", pdc_cons.name);

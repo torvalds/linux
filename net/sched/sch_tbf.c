@@ -134,8 +134,7 @@ static int tbf_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	}
 
 	sch->q.qlen++;
-	sch->bstats.bytes += qdisc_pkt_len(skb);
-	sch->bstats.packets++;
+	qdisc_bstats_update(sch, skb);
 	return NET_XMIT_SUCCESS;
 }
 

@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/kfifo.h>
 #include <media/cx25840.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #include "cx25840-core.h"
 

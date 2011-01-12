@@ -731,10 +731,9 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	}
 
 	{
-		struct flowi fl = { .nl_u = { .ip4_u =
-					      { .daddr = dst,
-						.saddr = tiph->saddr,
-						.tos = RT_TOS(tos) } },
+		struct flowi fl = { .fl4_dst = dst,
+				    .fl4_src = tiph->saddr,
+				    .fl4_tos = RT_TOS(tos),
 				    .oif = tunnel->parms.link,
 				    .proto = IPPROTO_IPV6 };
 		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
@@ -856,10 +855,9 @@ static void ipip6_tunnel_bind_dev(struct net_device *dev)
 	iph = &tunnel->parms.iph;
 
 	if (iph->daddr) {
-		struct flowi fl = { .nl_u = { .ip4_u =
-					      { .daddr = iph->daddr,
-						.saddr = iph->saddr,
-						.tos = RT_TOS(iph->tos) } },
+		struct flowi fl = { .fl4_dst = iph->daddr,
+				    .fl4_src = iph->saddr,
+				    .fl4_tos = RT_TOS(iph->tos),
 				    .oif = tunnel->parms.link,
 				    .proto = IPPROTO_IPV6 };
 		struct rtable *rt;

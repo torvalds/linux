@@ -1,6 +1,5 @@
 config UDF_FS
 	tristate "UDF file system support"
-	depends on BKL # needs serious work to remove
 	select CRC_ITU_T
 	help
 	  This is the new file system used on some CD-ROMs and DVDs. Say Y if

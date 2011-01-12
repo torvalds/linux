@@ -28,18 +28,18 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/ioport.h>
 #include <linux/errno.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include "usbvision.h"
 
-#define DBG_I2C		1<<0
+#define DBG_I2C		(1 << 0)
 
 static int i2c_debug;
 
-module_param (i2c_debug, int, 0644);			// debug_i2c_usb mode of the device driver
+module_param(i2c_debug, int, 0644);			/* debug_i2c_usb mode of the device driver */
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
 #define PDEBUG(level, fmt, args...) { \
@@ -72,8 +72,8 @@ static inline int try_write_address(struct i2c_adapter *i2c_adap,
 		udelay(10);
 	}
 	if (i) {
-		PDEBUG(DBG_I2C,"Needed %d retries for address %#2x", i, addr);
-		PDEBUG(DBG_I2C,"Maybe there's no device at this address");
+		PDEBUG(DBG_I2C, "Needed %d retries for address %#2x", i, addr);
+		PDEBUG(DBG_I2C, "Maybe there's no device at this address");
 	}
 	return ret;
 }
@@ -96,8 +96,8 @@ static inline int try_read_address(struct i2c_adapter *i2c_adap,
 		udelay(10);
 	}
 	if (i) {
-		PDEBUG(DBG_I2C,"Needed %d retries for address %#2x", i, addr);
-		PDEBUG(DBG_I2C,"Maybe there's no device at this address");
+		PDEBUG(DBG_I2C, "Needed %d retries for address %#2x", i, addr);
+		PDEBUG(DBG_I2C, "Maybe there's no device at this address");
 	}
 	return ret;
 }
@@ -143,9 +143,8 @@ static inline int usb_find_address(struct i2c_adapter *i2c_adap,
 		else
 			ret = try_write_address(i2c_adap, addr, retries);
 
-		if (ret != 1) {
+		if (ret != 1)
 			return -EREMOTEIO;
-		}
 	}
 	return 0;
 }
@@ -164,22 +163,20 @@ usbvision_i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num)
 		pmsg = &msgs[i];
 		ret = usb_find_address(i2c_adap, pmsg, i2c_adap->retries, &addr);
 		if (ret != 0) {
-			PDEBUG(DBG_I2C,"got NAK from device, message #%d", i);
+			PDEBUG(DBG_I2C, "got NAK from device, message #%d", i);
 			return (ret < 0) ? ret : -EREMOTEIO;
 		}
 
 		if (pmsg->flags & I2C_M_RD) {
 			/* read bytes into buffer */
 			ret = (usbvision_i2c_read(usbvision, addr, pmsg->buf, pmsg->len));
-			if (ret < pmsg->len) {
+			if (ret < pmsg->len)
 				return (ret < 0) ? ret : -EREMOTEIO;
-			}
 		} else {
 			/* write bytes from buffer */
 			ret = (usbvision_i2c_write(usbvision, addr, pmsg->buf, pmsg->len));
-			if (ret < pmsg->len) {
+			if (ret < pmsg->len)
 				return (ret < 0) ? ret : -EREMOTEIO;
-			}
 		}
 	}
 	return num;
@@ -219,7 +216,7 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 
 	sprintf(usbvision->i2c_adap.name, "%s-%d-%s", i2c_adap_template.name,
 		usbvision->dev->bus->busnum, usbvision->dev->devpath);
-	PDEBUG(DBG_I2C,"Adaptername: %s", usbvision->i2c_adap.name);
+	PDEBUG(DBG_I2C, "Adaptername: %s", usbvision->i2c_adap.name);
 	usbvision->i2c_adap.dev.parent = &usbvision->dev->dev;
 
 	i2c_set_adapdata(&usbvision->i2c_adap, &usbvision->v4l2_dev);
@@ -244,7 +241,7 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 	PDEBUG(DBG_I2C, "i2c bus for %s registered", usbvision->i2c_adap.name);
 
 	/* Request the load of the i2c modules we need */
-	switch (usbvision_device_data[usbvision->DevModel].Codec) {
+	switch (usbvision_device_data[usbvision->dev_model].codec) {
 	case CODEC_SAA7113:
 	case CODEC_SAA7111:
 		/* Without this delay the detection of the saa711x is
@@ -255,7 +252,7 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 				"saa7115_auto", 0, saa711x_addrs);
 		break;
 	}
-	if (usbvision_device_data[usbvision->DevModel].Tuner == 1) {
+	if (usbvision_device_data[usbvision->dev_model].tuner == 1) {
 		struct v4l2_subdev *sd;
 		enum v4l2_i2c_tuner_type type;
 		struct tuner_setup tun_setup;
@@ -293,7 +290,7 @@ int usbvision_i2c_unregister(struct usb_usbvision *usbvision)
 	i2c_del_adapter(&(usbvision->i2c_adap));
 	usbvision->registered_i2c = 0;
 
-	PDEBUG(DBG_I2C,"i2c bus for %s unregistered", usbvision->i2c_adap.name);
+	PDEBUG(DBG_I2C, "i2c bus for %s unregistered", usbvision->i2c_adap.name);
 
 	return 0;
 }
@@ -355,9 +352,9 @@ usbvision_i2c_read_max4(struct usb_usbvision *usbvision, unsigned char addr,
 
 	if (i2c_debug & DBG_I2C) {
 		int idx;
-		for (idx = 0; idx < len; idx++) {
-			PDEBUG(DBG_I2C,"read %x from address %x", (unsigned char)buf[idx], addr);
-		}
+
+		for (idx = 0; idx < len; idx++)
+			PDEBUG(DBG_I2C, "read %x from address %x", (unsigned char)buf[idx], addr);
 	}
 	return len;
 }
@@ -416,9 +413,9 @@ static int usbvision_i2c_write_max4(struct usb_usbvision *usbvision,
 
 	if (i2c_debug & DBG_I2C) {
 		int idx;
-		for (idx = 0; idx < len; idx++) {
-			PDEBUG(DBG_I2C,"wrote %x at address %x", (unsigned char)buf[idx], addr);
-		}
+
+		for (idx = 0; idx < len; idx++)
+			PDEBUG(DBG_I2C, "wrote %x at address %x", (unsigned char)buf[idx], addr);
 	}
 	return len;
 }
@@ -426,18 +423,18 @@ static int usbvision_i2c_write_max4(struct usb_usbvision *usbvision,
 static int usbvision_i2c_write(struct usb_usbvision *usbvision, unsigned char addr, char *buf,
 			    short len)
 {
-	char *bufPtr = buf;
+	char *buf_ptr = buf;
 	int retval;
 	int wrcount = 0;
 	int count;
-	int maxLen = 4;
+	int max_len = 4;
 
 	while (len > 0) {
-		count = (len > maxLen) ? maxLen : len;
-		retval = usbvision_i2c_write_max4(usbvision, addr, bufPtr, count);
+		count = (len > max_len) ? max_len : len;
+		retval = usbvision_i2c_write_max4(usbvision, addr, buf_ptr, count);
 		if (retval > 0) {
 			len -= count;
-			bufPtr += count;
+			buf_ptr += count;
 			wrcount += count;
 		} else
 			return (retval < 0) ? retval : -EFAULT;

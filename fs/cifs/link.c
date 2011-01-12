@@ -525,9 +525,9 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 			      rc);
 		} else {
 			if (pTcon->nocase)
-				direntry->d_op = &cifs_ci_dentry_ops;
+				d_set_d_op(direntry, &cifs_ci_dentry_ops);
 			else
-				direntry->d_op = &cifs_dentry_ops;
+				d_set_d_op(direntry, &cifs_dentry_ops);
 			d_instantiate(direntry, newinode);
 		}
 	}

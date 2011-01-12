@@ -33,7 +33,7 @@
 	aliases {
 		ethernet0 = &EMAC0;
 		serial0 = &UART0;
-		serial1 = &UART1;
+		//serial1 = &UART1; --gcl missing UART1 label
 	};
 
 	cpus {
@@ -52,7 +52,7 @@
 			d-cache-size = <32768>;
 			dcr-controller;
 			dcr-access-method = "native";
-			next-level-cache = <&L2C0>;
+			//next-level-cache = <&L2C0>; --gcl missing L2C0 label
 		};
 	};
 
@@ -142,7 +142,7 @@
 					/*RXEOB*/ 0x7 0x4
 					/*SERR*/  0x3 0x4
 					/*TXDE*/  0x4 0x4
-					/*RXDE*/  0x5 0x4
+					/*RXDE*/  0x5 0x4>;
 		};
 
 		POB0: opb {
@@ -182,7 +182,7 @@
 						reg = <0x001a0000 0x00060000>;
 					};
 				};
-			}
+			};
 
 			UART0: serial@ef600300 {
 				device_type = "serial";

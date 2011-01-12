@@ -632,6 +632,11 @@ struct i2400m {
 	struct work_struct wake_tx_ws;
 	struct sk_buff *wake_tx_skb;
 
+	struct work_struct reset_ws;
+	const char *reset_reason;
+
+	struct work_struct recovery_ws;
+
 	struct dentry *debugfs_dentry;
 	const char *fw_name;		/* name of the current firmware image */
 	unsigned long fw_version;	/* version of the firmware interface */
@@ -895,20 +900,6 @@ struct device *i2400m_dev(struct i2400m *i2400m)
 {
 	return i2400m->wimax_dev.net_dev->dev.parent;
 }
-
-/*
- * Helper for scheduling simple work functions
- *
- * This struct can get any kind of payload attached (normally in the
- * form of a struct where you pack the stuff you want to pass to the
- * _work function).
- */
-struct i2400m_work {
-	struct work_struct ws;
-	struct i2400m *i2400m;
-	size_t pl_size;
-	u8 pl[0];
-};
 
 extern int i2400m_msg_check_status(const struct i2400m_l3l4_hdr *,
 				   char *, size_t);

@@ -80,12 +80,12 @@
 #define GPMC_PREFETCH_STATUS_COUNT(val)	(val & 0x00003fff)
 
 /*
- * Note that all values in this struct are in nanoseconds, while
- * the register values are in gpmc_fck cycles.
+ * Note that all values in this struct are in nanoseconds except sync_clk
+ * (which is in picoseconds), while the register values are in gpmc_fck cycles.
  */
 struct gpmc_timings {
-	/* Minimum clock period for synchronous mode */
-	u16 sync_clk;
+	/* Minimum clock period for synchronous mode (in picoseconds) */
+	u32 sync_clk;
 
 	/* Chip-select signal timings corresponding to GPMC_CS_CONFIG2 */
 	u16 cs_on;		/* Assertion time */
@@ -117,6 +117,7 @@ struct gpmc_timings {
 };
 
 extern unsigned int gpmc_ns_to_ticks(unsigned int time_ns);
+extern unsigned int gpmc_ps_to_ticks(unsigned int time_ps);
 extern unsigned int gpmc_ticks_to_ns(unsigned int ticks);
 extern unsigned int gpmc_round_ns_to_ticks(unsigned int time_ns);
 extern unsigned long gpmc_get_fclk_period(void);

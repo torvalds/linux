@@ -224,6 +224,7 @@ ifeq ($(ARCH),m68knommu)
 endif
 
 KCONFIG_CONFIG	?= .config
+export KCONFIG_CONFIG
 
 # SHELL used by kbuild
 CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \

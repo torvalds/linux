@@ -2079,7 +2079,7 @@ static int atl1c_tso_csum(struct atl1c_adapter *adapter,
 check_sum:
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		u8 css, cso;
-		cso = skb_transport_offset(skb);
+		cso = skb_checksum_start_offset(skb);
 
 		if (unlikely(cso & 0x1)) {
 			if (netif_msg_tx_err(adapter))

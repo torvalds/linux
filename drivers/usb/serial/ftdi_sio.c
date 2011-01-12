@@ -75,6 +75,7 @@ struct ftdi_private {
 	unsigned long last_dtr_rts;	/* saved modem control outputs */
 	wait_queue_head_t delta_msr_wait; /* Used for TIOCMIWAIT */
 	char prev_status, diff_status;        /* Used for TIOCMIWAIT */
+	char transmit_empty;	/* If transmitter is empty or not */
 	struct usb_serial_port *port;
 	__u16 interface;	/* FT2232C, FT2232H or FT4232H port interface
 				   (0 for FT232/245) */
@@ -1323,6 +1324,23 @@ check_and_exit:
 	return 0;
 }
 
+static int get_lsr_info(struct usb_serial_port *port,
+			struct serial_struct __user *retinfo)
+{
+	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	unsigned int result = 0;
+
+	if (!retinfo)
+		return -EFAULT;
+
+	if (priv->transmit_empty)
+		result = TIOCSER_TEMT;
+
+	if (copy_to_user(retinfo, &result, sizeof(unsigned int)))
+		return -EFAULT;
+	return 0;
+}
+
 
 /* Determine type of FTDI chip based on USB config and descriptor. */
 static void ftdi_determine_type(struct usb_serial_port *port)
@@ -1872,6 +1890,12 @@ static int ftdi_process_packet(struct tty_struct *tty,
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 	}
 
+	/* save if the transmitter is empty or not */
+	if (packet[1] & FTDI_RS_TEMT)
+		priv->transmit_empty = 1;
+	else
+		priv->transmit_empty = 0;
+
 	len -= 2;
 	if (!len)
 		return 0;	/* status only */
@@ -2235,6 +2259,9 @@ static int ftdi_ioctl(struct tty_struct *tty, struct file *file,
 			}
 		}
 		return 0;
+	case TIOCSERGETLSR:
+		return get_lsr_info(port, (struct serial_struct __user *)arg);
+		break;
 	default:
 		break;
 	}

@@ -17,19 +17,30 @@
 #include <linux/nmi.h>
 #include <linux/module.h>
 
+#ifdef CONFIG_HARDLOCKUP_DETECTOR
 u64 hw_nmi_get_sample_period(void)
 {
 	return (u64)(cpu_khz) * 1000 * 60;
 }
+#endif
 
-#ifdef ARCH_HAS_NMI_WATCHDOG
-
+#ifdef arch_trigger_all_cpu_backtrace
 /* For reliability, we're prepared to waste bits here. */
 static DECLARE_BITMAP(backtrace_mask, NR_CPUS) __read_mostly;
+
+/* "in progress" flag of arch_trigger_all_cpu_backtrace */
+static unsigned long backtrace_flag;
 
 void arch_trigger_all_cpu_backtrace(void)
 {
 	int i;
+
+	if (test_and_set_bit(0, &backtrace_flag))
+		/*
+		 * If there is already a trigger_all_cpu_backtrace() in progress
+		 * (backtrace_flag == 1), don't output double cpu dump infos.
+		 */
+		return;
 
 	cpumask_copy(to_cpumask(backtrace_mask), cpu_online_mask);
 
@@ -42,6 +53,9 @@ void arch_trigger_all_cpu_backtrace(void)
 			break;
 		mdelay(1);
 	}
+
+	clear_bit(0, &backtrace_flag);
+	smp_mb__after_clear_bit();
 }
 
 static int __kprobes
@@ -50,11 +64,10 @@ arch_trigger_all_cpu_backtrace_handler(struct notifier_block *self,
 {
 	struct die_args *args = __args;
 	struct pt_regs *regs;
-	int cpu = smp_processor_id();
+	int cpu;
 
 	switch (cmd) {
 	case DIE_NMI:
-	case DIE_NMI_IPI:
 		break;
 
 	default:
@@ -62,6 +75,7 @@ arch_trigger_all_cpu_backtrace_handler(struct notifier_block *self,
 	}
 
 	regs = args->regs;
+	cpu = smp_processor_id();
 
 	if (cpumask_test_cpu(cpu, to_cpumask(backtrace_mask))) {
 		static arch_spinlock_t lock = __ARCH_SPIN_LOCK_UNLOCKED;
@@ -81,7 +95,7 @@ arch_trigger_all_cpu_backtrace_handler(struct notifier_block *self,
 static __read_mostly struct notifier_block backtrace_notifier = {
 	.notifier_call          = arch_trigger_all_cpu_backtrace_handler,
 	.next                   = NULL,
-	.priority               = 1
+	.priority               = NMI_LOCAL_LOW_PRIOR,
 };
 
 static int __init register_trigger_all_cpu_backtrace(void)
@@ -91,18 +105,3 @@ static int __init register_trigger_all_cpu_backtrace(void)
 }
 early_initcall(register_trigger_all_cpu_backtrace);
 #endif
-
-/* STUB calls to mimic old nmi_watchdog behaviour */
-#if defined(CONFIG_X86_LOCAL_APIC)
-unsigned int nmi_watchdog = NMI_NONE;
-EXPORT_SYMBOL(nmi_watchdog);
-void acpi_nmi_enable(void) { return; }
-void acpi_nmi_disable(void) { return; }
-#endif
-atomic_t nmi_active = ATOMIC_INIT(0);           /* oprofile uses this */
-EXPORT_SYMBOL(nmi_active);
-int unknown_nmi_panic;
-void cpu_nmi_set_wd_enabled(void) { return; }
-void stop_apic_nmi_watchdog(void *unused) { return; }
-void setup_apic_nmi_watchdog(void *unused) { return; }
-int __init check_nmi_watchdog(void) { return 0; }

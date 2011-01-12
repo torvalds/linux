@@ -63,6 +63,11 @@
 #include <asm/outercache.h>
 
 #define __exception	__attribute__((section(".exception.text")))
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+#define __exception_irq_entry	__irq_entry
+#else
+#define __exception_irq_entry	__exception
+#endif
 
 struct thread_info;
 struct task_struct;
@@ -117,6 +122,13 @@ extern unsigned int user_debug;
 #define vectors_high()	(cr_alignment & CR_V)
 #else
 #define vectors_high()	(0)
+#endif
+
+#if __LINUX_ARM_ARCH__ >= 7 ||		\
+	(__LINUX_ARM_ARCH__ == 6 && defined(CONFIG_CPU_32v6K))
+#define sev()	__asm__ __volatile__ ("sev" : : : "memory")
+#define wfe()	__asm__ __volatile__ ("wfe" : : : "memory")
+#define wfi()	__asm__ __volatile__ ("wfi" : : : "memory")
 #endif
 
 #if __LINUX_ARM_ARCH__ >= 7

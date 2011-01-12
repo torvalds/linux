@@ -16,11 +16,12 @@
 #include <linux/types.h>
 
 #if defined(CONFIG_HID_ROCCAT) || defined(CONFIG_HID_ROCCAT_MODULE)
-int roccat_connect(struct hid_device *hid);
+int roccat_connect(struct class *klass, struct hid_device *hid);
 void roccat_disconnect(int minor);
 int roccat_report_event(int minor, u8 const *data, int len);
 #else
-static inline int roccat_connect(struct hid_device *hid) { return -1; }
+static inline int roccat_connect(struct class *klass,
+		struct hid_device *hid) { return -1; }
 static inline void roccat_disconnect(int minor) {}
 static inline int roccat_report_event(int minor, u8 const *data, int len)
 {

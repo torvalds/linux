@@ -1523,12 +1523,11 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
 	int desNo;
 
 	size = (int)sizeof(struct pch_gbe_buffer) * tx_ring->count;
-	tx_ring->buffer_info = vmalloc(size);
+	tx_ring->buffer_info = vzalloc(size);
 	if (!tx_ring->buffer_info) {
 		pr_err("Unable to allocate memory for the buffer infomation\n");
 		return -ENOMEM;
 	}
-	memset(tx_ring->buffer_info, 0, size);
 
 	tx_ring->size = tx_ring->count * (int)sizeof(struct pch_gbe_tx_desc);
 
@@ -1573,12 +1572,11 @@ int pch_gbe_setup_rx_resources(struct pch_gbe_adapter *adapter,
 	int desNo;
 
 	size = (int)sizeof(struct pch_gbe_buffer) * rx_ring->count;
-	rx_ring->buffer_info = vmalloc(size);
+	rx_ring->buffer_info = vzalloc(size);
 	if (!rx_ring->buffer_info) {
 		pr_err("Unable to allocate memory for the receive descriptor ring\n");
 		return -ENOMEM;
 	}
-	memset(rx_ring->buffer_info, 0, size);
 	rx_ring->size = rx_ring->count * (int)sizeof(struct pch_gbe_rx_desc);
 	rx_ring->desc =	dma_alloc_coherent(&pdev->dev, rx_ring->size,
 					   &rx_ring->dma, GFP_KERNEL);
@@ -2321,7 +2319,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	netdev->watchdog_timeo = PCH_GBE_WATCHDOG_PERIOD;
 	netif_napi_add(netdev, &adapter->napi,
 		       pch_gbe_napi_poll, PCH_GBE_RX_WEIGHT);
-	netdev->features = NETIF_F_HW_CSUM | NETIF_F_GRO;
+	netdev->features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_GRO;
 	pch_gbe_set_ethtool_ops(netdev);
 
 	pch_gbe_mac_reset_hw(&adapter->hw);
@@ -2360,9 +2358,9 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	pch_gbe_check_options(adapter);
 
 	if (adapter->tx_csum)
-		netdev->features |= NETIF_F_HW_CSUM;
+		netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	else
-		netdev->features &= ~NETIF_F_HW_CSUM;
+		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
 
 	/* initialize the wol settings based on the eeprom settings */
 	adapter->wake_up_evt = PCH_GBE_WL_INIT_SETTING;

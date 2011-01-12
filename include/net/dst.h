@@ -70,7 +70,7 @@ struct dst_entry {
 
 	struct  dst_ops	        *ops;
 
-	u32			metrics[RTAX_MAX];
+	u32			_metrics[RTAX_MAX];
 
 #ifdef CONFIG_NET_CLS_ROUTE
 	__u32			tclassid;
@@ -94,19 +94,59 @@ struct dst_entry {
 	int			__use;
 	unsigned long		lastuse;
 	union {
-		struct dst_entry *next;
-		struct rtable __rcu *rt_next;
-		struct rt6_info   *rt6_next;
-		struct dn_route  *dn_next;
+		struct dst_entry	*next;
+		struct rtable __rcu	*rt_next;
+		struct rt6_info		*rt6_next;
+		struct dn_route __rcu	*dn_next;
 	};
 };
 
 #ifdef __KERNEL__
 
 static inline u32
-dst_metric(const struct dst_entry *dst, int metric)
+dst_metric_raw(const struct dst_entry *dst, const int metric)
 {
-	return dst->metrics[metric-1];
+	return dst->_metrics[metric-1];
+}
+
+static inline u32
+dst_metric(const struct dst_entry *dst, const int metric)
+{
+	WARN_ON_ONCE(metric == RTAX_HOPLIMIT ||
+		     metric == RTAX_ADVMSS ||
+		     metric == RTAX_MTU);
+	return dst_metric_raw(dst, metric);
+}
+
+static inline u32
+dst_metric_advmss(const struct dst_entry *dst)
+{
+	u32 advmss = dst_metric_raw(dst, RTAX_ADVMSS);
+
+	if (!advmss)
+		advmss = dst->ops->default_advmss(dst);
+
+	return advmss;
+}
+
+static inline void dst_metric_set(struct dst_entry *dst, int metric, u32 val)
+{
+	dst->_metrics[metric-1] = val;
+}
+
+static inline void dst_import_metrics(struct dst_entry *dst, const u32 *src_metrics)
+{
+	memcpy(dst->_metrics, src_metrics, RTAX_MAX * sizeof(u32));
+}
+
+static inline void dst_copy_metrics(struct dst_entry *dest, const struct dst_entry *src)
+{
+	dst_import_metrics(dest, src->_metrics);
+}
+
+static inline u32 *dst_metrics_ptr(struct dst_entry *dst)
+{
+	return dst->_metrics;
 }
 
 static inline u32
@@ -117,11 +157,11 @@ dst_feature(const struct dst_entry *dst, u32 feature)
 
 static inline u32 dst_mtu(const struct dst_entry *dst)
 {
-	u32 mtu = dst_metric(dst, RTAX_MTU);
-	/*
-	 * Alexey put it here, so ask him about it :)
-	 */
-	barrier();
+	u32 mtu = dst_metric_raw(dst, RTAX_MTU);
+
+	if (!mtu)
+		mtu = dst->ops->default_mtu(dst);
+
 	return mtu;
 }
 
@@ -134,7 +174,7 @@ static inline unsigned long dst_metric_rtt(const struct dst_entry *dst, int metr
 static inline void set_dst_metric_rtt(struct dst_entry *dst, int metric,
 				      unsigned long rtt)
 {
-	dst->metrics[metric-1] = jiffies_to_msecs(rtt);
+	dst_metric_set(dst, metric, jiffies_to_msecs(rtt));
 }
 
 static inline u32
@@ -147,7 +187,7 @@ dst_allfrag(const struct dst_entry *dst)
 }
 
 static inline int
-dst_metric_locked(struct dst_entry *dst, int metric)
+dst_metric_locked(const struct dst_entry *dst, int metric)
 {
 	return dst_metric(dst, RTAX_LOCK) & (1<<metric);
 }

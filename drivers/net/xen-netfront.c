@@ -488,7 +488,7 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (unlikely(!netif_carrier_ok(dev) ||
 		     (frags > 1 && !xennet_can_sg(dev)) ||
-		     netif_needs_gso(dev, skb))) {
+		     netif_needs_gso(skb, netif_skb_features(skb)))) {
 		spin_unlock_irq(&np->tx_lock);
 		goto drop;
 	}

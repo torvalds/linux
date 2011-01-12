@@ -390,8 +390,7 @@ cbq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	ret = qdisc_enqueue(skb, cl->q);
 	if (ret == NET_XMIT_SUCCESS) {
 		sch->q.qlen++;
-		sch->bstats.packets++;
-		sch->bstats.bytes += qdisc_pkt_len(skb);
+		qdisc_bstats_update(sch, skb);
 		cbq_mark_toplevel(q, cl);
 		if (!cl->next_alive)
 			cbq_activate_class(cl);
@@ -650,8 +649,7 @@ static int cbq_reshape_fail(struct sk_buff *skb, struct Qdisc *child)
 		ret = qdisc_enqueue(skb, cl->q);
 		if (ret == NET_XMIT_SUCCESS) {
 			sch->q.qlen++;
-			sch->bstats.packets++;
-			sch->bstats.bytes += qdisc_pkt_len(skb);
+			qdisc_bstats_update(sch, skb);
 			if (!cl->next_alive)
 				cbq_activate_class(cl);
 			return 0;

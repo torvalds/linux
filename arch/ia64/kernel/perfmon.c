@@ -829,10 +829,9 @@ pfm_rvmalloc(unsigned long size)
 	unsigned long addr;
 
 	size = PAGE_ALIGN(size);
-	mem  = vmalloc(size);
+	mem  = vzalloc(size);
 	if (mem) {
 		//printk("perfmon: CPU%d pfm_rvmalloc(%ld)=%p\n", smp_processor_id(), size, mem);
-		memset(mem, 0, size);
 		addr = (unsigned long)mem;
 		while (size > 0) {
 			pfm_reserve_page(addr);
@@ -1542,7 +1541,7 @@ pfm_exit_smpl_buffer(pfm_buffer_fmt_t *fmt)
  * any operations on the root directory. However, we need a non-trivial
  * d_name - pfm: will go nicely and kill the special-casing in procfs.
  */
-static struct vfsmount *pfmfs_mnt;
+static struct vfsmount *pfmfs_mnt __read_mostly;
 
 static int __init
 init_pfm_fs(void)
@@ -2185,7 +2184,7 @@ static const struct file_operations pfm_file_ops = {
 };
 
 static int
-pfmfs_delete_dentry(struct dentry *dentry)
+pfmfs_delete_dentry(const struct dentry *dentry)
 {
 	return 1;
 }
@@ -2233,7 +2232,7 @@ pfm_alloc_file(pfm_context_t *ctx)
 	}
 	path.mnt = mntget(pfmfs_mnt);
 
-	path.dentry->d_op = &pfmfs_dentry_operations;
+	d_set_d_op(path.dentry, &pfmfs_dentry_operations);
 	d_add(path.dentry, inode);
 
 	file = alloc_file(&path, FMODE_READ, &pfm_file_ops);

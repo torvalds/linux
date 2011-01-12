@@ -322,76 +322,11 @@ your IRQs and make sure the card has its own interrupts.
 
 4. Programming interface
 
-This driver conforms to video4linux and video4linux2, both can be used to
-use the driver. Since video4linux didn't provide adequate calls to fully
-use the cards' features, we've introduced several programming extensions,
-which are currently officially accepted in the 2.4.x branch of the kernel.
-These extensions are known as the v4l/mjpeg extensions. See zoran.h for
-details (structs/ioctls).
-
-Information - video4linux:
-http://linux.bytesex.org/v4l2/API.html
-Documentation/video4linux/API.html
-/usr/include/linux/videodev.h
-
-Information - video4linux/mjpeg extensions:
-./zoran.h
-(also see below)
-
-Information - video4linux2:
-http://linuxtv.org
-http://v4l2spec.bytesex.org/
-/usr/include/linux/videodev2.h
-
-More information on the video4linux/mjpeg extensions, by Serguei
-Miridonovi and Rainer Johanni:
---
-The ioctls for that interface are as follows:
-
-BUZIOC_G_PARAMS
-BUZIOC_S_PARAMS
-
-Get and set the parameters of the buz. The user should always do a
-BUZIOC_G_PARAMS (with a struct buz_params) to obtain the default
-settings, change what he likes and then make a BUZIOC_S_PARAMS call.
-
-BUZIOC_REQBUFS
-
-Before being able to capture/playback, the user has to request
-the buffers he is wanting to use. Fill the structure
-zoran_requestbuffers with the size (recommended: 256*1024) and
-the number (recommended 32 up to 256). There are no such restrictions
-as for the Video for Linux buffers, you should LEAVE SUFFICIENT
-MEMORY for your system however, else strange things will happen ....
-On return, the zoran_requestbuffers structure contains number and
-size of the actually allocated buffers.
-You should use these numbers for doing a mmap of the buffers
-into the user space.
-The BUZIOC_REQBUFS ioctl also makes it happen, that the next mmap
-maps the MJPEG buffer instead of the V4L buffers.
-
-BUZIOC_QBUF_CAPT
-BUZIOC_QBUF_PLAY
-
-Queue a buffer for capture or playback. The first call also starts
-streaming capture. When streaming capture is going on, you may
-only queue further buffers or issue syncs until streaming
-capture is switched off again with a argument of -1 to
-a BUZIOC_QBUF_CAPT/BUZIOC_QBUF_PLAY ioctl.
-
-BUZIOC_SYNC
-
-Issue this ioctl when all buffers are queued. This ioctl will
-block until the first buffer becomes free for saving its
-data to disk (after BUZIOC_QBUF_CAPT) or for reuse (after BUZIOC_QBUF_PLAY).
-
-BUZIOC_G_STATUS
-
-Get the status of the input lines (video source connected/norm).
+This driver conforms to video4linux2. Support for V4L1 and for the custom
+zoran ioctls has been removed in kernel 2.6.38.
 
 For programming example, please, look at lavrec.c and lavplay.c code in
-lavtools-1.2p2 package (URL: http://www.cicese.mx/)
-and the 'examples' directory in the original Buz driver distribution.
+the MJPEG-tools (http://mjpeg.sf.net/).
 
 Additional notes for software developers:
 
@@ -402,9 +337,6 @@ Additional notes for software developers:
    standard is "more constant" for current country than geometry
    settings of a variety of TV capture cards which may work in ITU or
    square pixel format.
---
-Please note that lavplay/lavrec are also included in the MJPEG-tools
-(http://mjpeg.sf.net/).
 
 ===========================
 

@@ -27,9 +27,7 @@ struct iommu_table;
 struct rtc_time;
 struct file;
 struct pci_controller;
-#ifdef CONFIG_KEXEC
 struct kimage;
-#endif
 
 #ifdef CONFIG_SMP
 struct smp_ops_t {
@@ -72,7 +70,7 @@ struct machdep_calls {
 					     int psize, int ssize);
 	void		(*flush_hash_range)(unsigned long number, int local);
 
-	/* special for kexec, to be called in real mode, linar mapping is
+	/* special for kexec, to be called in real mode, linear mapping is
 	 * destroyed as well */
 	void		(*hpte_clear_all)(void);
 
@@ -323,8 +321,6 @@ typedef enum sys_ctrler_kind {
 extern sys_ctrler_t sys_ctrler;
 
 #endif /* CONFIG_PPC_PMAC */
-
-extern void setup_pci_ptrs(void);
 
 #ifdef CONFIG_SMP
 /* Poor default implementations */

@@ -15,10 +15,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/serio.h>
 #include <linux/init.h>
 #include <linux/ctype.h>
+#include <linux/delay.h>
 
 #define DRIVER_DESC	"Wacom W8001 serial touchscreen driver"
 
@@ -37,6 +38,7 @@ MODULE_LICENSE("GPL");
 
 #define W8001_QUERY_PACKET	0x20
 
+#define W8001_CMD_STOP		'0'
 #define W8001_CMD_START		'1'
 #define W8001_CMD_QUERY		'*'
 #define W8001_CMD_TOUCHQUERY	'%'
@@ -47,8 +49,6 @@ MODULE_LICENSE("GPL");
 #define W8001_PKTLEN_TPCPEN	9
 #define W8001_PKTLEN_TPCCTL	11	/* control packet */
 #define W8001_PKTLEN_TOUCH2FG	13
-
-#define MAX_TRACKING_ID		0xFF	/* arbitrarily chosen */
 
 struct w8001_coord {
 	u8 rdy;
@@ -87,7 +87,6 @@ struct w8001 {
 	char phys[32];
 	int type;
 	unsigned int pktlen;
-	int trkid[2];
 };
 
 static void parse_data(u8 *data, struct w8001_coord *coord)
@@ -116,28 +115,23 @@ static void parse_data(u8 *data, struct w8001_coord *coord)
 
 static void parse_touch(struct w8001 *w8001)
 {
-	static int trkid;
 	struct input_dev *dev = w8001->dev;
 	unsigned char *data = w8001->data;
 	int i;
 
 	for (i = 0; i < 2; i++) {
-		input_mt_slot(dev, i);
+		bool touch = data[0] & (1 << i);
 
-		if (data[0] & (1 << i)) {
+		input_mt_slot(dev, i);
+		input_mt_report_slot_state(dev, MT_TOOL_FINGER, touch);
+		if (touch) {
 			int x = (data[6 * i + 1] << 7) | (data[6 * i + 2]);
 			int y = (data[6 * i + 3] << 7) | (data[6 * i + 4]);
 			/* data[5,6] and [11,12] is finger capacity */
 
 			input_report_abs(dev, ABS_MT_POSITION_X, x);
 			input_report_abs(dev, ABS_MT_POSITION_Y, y);
-			input_report_abs(dev, ABS_MT_TOOL_TYPE, MT_TOOL_FINGER);
-			if (w8001->trkid[i] < 0)
-				w8001->trkid[i] = trkid++ & MAX_TRACKING_ID;
-		} else {
-			w8001->trkid[i] = -1;
 		}
-		input_report_abs(dev, ABS_MT_TRACKING_ID, w8001->trkid[i]);
 	}
 
 	input_sync(dev);
@@ -287,23 +281,45 @@ static int w8001_setup(struct w8001 *w8001)
 	struct w8001_coord coord;
 	int error;
 
-	error = w8001_command(w8001, W8001_CMD_QUERY, true);
+	error = w8001_command(w8001, W8001_CMD_STOP, false);
 	if (error)
 		return error;
 
-	parse_data(w8001->response, &coord);
+	msleep(250);	/* wait 250ms before querying the device */
 
-	input_set_abs_params(dev, ABS_X, 0, coord.x, 0, 0);
-	input_set_abs_params(dev, ABS_Y, 0, coord.y, 0, 0);
-	input_set_abs_params(dev, ABS_PRESSURE, 0, coord.pen_pressure, 0, 0);
-	input_set_abs_params(dev, ABS_TILT_X, 0, coord.tilt_x, 0, 0);
-	input_set_abs_params(dev, ABS_TILT_Y, 0, coord.tilt_y, 0, 0);
-
-	error = w8001_command(w8001, W8001_CMD_TOUCHQUERY, true);
+	/* penabled? */
+	error = w8001_command(w8001, W8001_CMD_QUERY, true);
 	if (!error) {
+		__set_bit(BTN_TOOL_PEN, dev->keybit);
+		__set_bit(BTN_TOOL_RUBBER, dev->keybit);
+		__set_bit(BTN_STYLUS, dev->keybit);
+		__set_bit(BTN_STYLUS2, dev->keybit);
+		parse_data(w8001->response, &coord);
+
+		input_set_abs_params(dev, ABS_X, 0, coord.x, 0, 0);
+		input_set_abs_params(dev, ABS_Y, 0, coord.y, 0, 0);
+		input_set_abs_params(dev, ABS_PRESSURE, 0, coord.pen_pressure, 0, 0);
+		if (coord.tilt_x && coord.tilt_y) {
+			input_set_abs_params(dev, ABS_TILT_X, 0, coord.tilt_x, 0, 0);
+			input_set_abs_params(dev, ABS_TILT_Y, 0, coord.tilt_y, 0, 0);
+		}
+	}
+
+	/* Touch enabled? */
+	error = w8001_command(w8001, W8001_CMD_TOUCHQUERY, true);
+
+	/*
+	 * Some non-touch devices may reply to the touch query. But their
+	 * second byte is empty, which indicates touch is not supported.
+	 */
+	if (!error && w8001->response[1]) {
 		struct w8001_touch_query touch;
 
 		parse_touchquery(w8001->response, &touch);
+
+		input_set_abs_params(dev, ABS_X, 0, touch.x, 0, 0);
+		input_set_abs_params(dev, ABS_Y, 0, touch.y, 0, 0);
+		__set_bit(BTN_TOOL_FINGER, dev->keybit);
 
 		switch (touch.sensor_id) {
 		case 0:
@@ -318,15 +334,13 @@ static int w8001_setup(struct w8001 *w8001)
 		case 5:
 			w8001->pktlen = W8001_PKTLEN_TOUCH2FG;
 
-			input_mt_create_slots(dev, 2);
-			input_set_abs_params(dev, ABS_MT_TRACKING_ID,
-						0, MAX_TRACKING_ID, 0, 0);
+			input_mt_init_slots(dev, 2);
 			input_set_abs_params(dev, ABS_MT_POSITION_X,
 						0, touch.x, 0, 0);
 			input_set_abs_params(dev, ABS_MT_POSITION_Y,
 						0, touch.y, 0, 0);
 			input_set_abs_params(dev, ABS_MT_TOOL_TYPE,
-						0, 0, 0, 0);
+						0, MT_TOOL_MAX, 0, 0);
 			break;
 		}
 	}
@@ -372,7 +386,6 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	w8001->serio = serio;
 	w8001->id = serio->id.id;
 	w8001->dev = input_dev;
-	w8001->trkid[0] = w8001->trkid[1] = -1;
 	init_completion(&w8001->cmd_done);
 	snprintf(w8001->phys, sizeof(w8001->phys), "%s/input0", serio->phys);
 
@@ -385,11 +398,7 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->dev.parent = &serio->dev;
 
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
-	input_dev->keybit[BIT_WORD(BTN_TOOL_PEN)] |= BIT_MASK(BTN_TOOL_PEN);
-	input_dev->keybit[BIT_WORD(BTN_TOOL_RUBBER)] |= BIT_MASK(BTN_TOOL_RUBBER);
-	input_dev->keybit[BIT_WORD(BTN_STYLUS)] |= BIT_MASK(BTN_STYLUS);
-	input_dev->keybit[BIT_WORD(BTN_STYLUS2)] |= BIT_MASK(BTN_STYLUS2);
+	__set_bit(BTN_TOUCH, input_dev->keybit);
 
 	serio_set_drvdata(serio, w8001);
 	err = serio_open(serio, drv);

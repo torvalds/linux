@@ -106,7 +106,7 @@ static void intel_lvds_enable(struct intel_lvds *intel_lvds)
 	I915_WRITE(ctl_reg, I915_READ(ctl_reg) | POWER_TARGET_ON);
 	POSTING_READ(lvds_reg);
 
-	intel_panel_set_backlight(dev, dev_priv->backlight_level);
+	intel_panel_enable_backlight(dev);
 }
 
 static void intel_lvds_disable(struct intel_lvds *intel_lvds)
@@ -123,8 +123,7 @@ static void intel_lvds_disable(struct intel_lvds *intel_lvds)
 		lvds_reg = LVDS;
 	}
 
-	dev_priv->backlight_level = intel_panel_get_backlight(dev);
-	intel_panel_set_backlight(dev, 0);
+	intel_panel_disable_backlight(dev);
 
 	I915_WRITE(ctl_reg, I915_READ(ctl_reg) & ~POWER_TARGET_ON);
 
@@ -304,14 +303,13 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			u32 scaled_width = adjusted_mode->hdisplay * mode->vdisplay;
 			u32 scaled_height = mode->hdisplay * adjusted_mode->vdisplay;
 
-			pfit_control |= PFIT_ENABLE;
 			/* 965+ is easy, it does everything in hw */
 			if (scaled_width > scaled_height)
-				pfit_control |= PFIT_SCALING_PILLAR;
+				pfit_control |= PFIT_ENABLE | PFIT_SCALING_PILLAR;
 			else if (scaled_width < scaled_height)
-				pfit_control |= PFIT_SCALING_LETTER;
-			else
-				pfit_control |= PFIT_SCALING_AUTO;
+				pfit_control |= PFIT_ENABLE | PFIT_SCALING_LETTER;
+			else if (adjusted_mode->hdisplay != mode->hdisplay)
+				pfit_control |= PFIT_ENABLE | PFIT_SCALING_AUTO;
 		} else {
 			u32 scaled_width = adjusted_mode->hdisplay * mode->vdisplay;
 			u32 scaled_height = mode->hdisplay * adjusted_mode->vdisplay;
@@ -358,13 +356,17 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		 * Full scaling, even if it changes the aspect ratio.
 		 * Fortunately this is all done for us in hw.
 		 */
-		pfit_control |= PFIT_ENABLE;
-		if (INTEL_INFO(dev)->gen >= 4)
-			pfit_control |= PFIT_SCALING_AUTO;
-		else
-			pfit_control |= (VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
-					 VERT_INTERP_BILINEAR |
-					 HORIZ_INTERP_BILINEAR);
+		if (mode->vdisplay != adjusted_mode->vdisplay ||
+		    mode->hdisplay != adjusted_mode->hdisplay) {
+			pfit_control |= PFIT_ENABLE;
+			if (INTEL_INFO(dev)->gen >= 4)
+				pfit_control |= PFIT_SCALING_AUTO;
+			else
+				pfit_control |= (VERT_AUTO_SCALE |
+						 VERT_INTERP_BILINEAR |
+						 HORIZ_AUTO_SCALE |
+						 HORIZ_INTERP_BILINEAR);
+		}
 		break;
 
 	default:
@@ -372,6 +374,10 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	}
 
 out:
+	if ((pfit_control & PFIT_ENABLE) == 0) {
+		pfit_control = 0;
+		pfit_pgm_ratios = 0;
+	}
 	if (pfit_control != intel_lvds->pfit_control ||
 	    pfit_pgm_ratios != intel_lvds->pfit_pgm_ratios) {
 		intel_lvds->pfit_control = pfit_control;
@@ -394,8 +400,6 @@ static void intel_lvds_prepare(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
-
-	dev_priv->backlight_level = intel_panel_get_backlight(dev);
 
 	/* We try to do the minimum that is necessary in order to unlock
 	 * the registers for mode setting.
@@ -426,9 +430,6 @@ static void intel_lvds_commit(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
-
-	if (dev_priv->backlight_level == 0)
-		dev_priv->backlight_level = intel_panel_get_max_backlight(dev);
 
 	/* Undo any unlocking done in prepare to prevent accidental
 	 * adjustment of the registers.
@@ -914,6 +915,8 @@ bool intel_lvds_init(struct drm_device *dev)
 
 	intel_encoder->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);
 	intel_encoder->crtc_mask = (1 << 1);
+	if (INTEL_INFO(dev)->gen >= 5)
+		intel_encoder->crtc_mask |= (1 << 0);
 	drm_encoder_helper_add(encoder, &intel_lvds_helper_funcs);
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
@@ -1019,10 +1022,18 @@ bool intel_lvds_init(struct drm_device *dev)
 out:
 	if (HAS_PCH_SPLIT(dev)) {
 		u32 pwm;
-		/* make sure PWM is enabled */
+
+		pipe = (I915_READ(PCH_LVDS) & LVDS_PIPEB_SELECT) ? 1 : 0;
+
+		/* make sure PWM is enabled and locked to the LVDS pipe */
 		pwm = I915_READ(BLC_PWM_CPU_CTL2);
-		pwm |= (PWM_ENABLE | PWM_PIPE_B);
-		I915_WRITE(BLC_PWM_CPU_CTL2, pwm);
+		if (pipe == 0 && (pwm & PWM_PIPE_B))
+			I915_WRITE(BLC_PWM_CPU_CTL2, pwm & ~PWM_ENABLE);
+		if (pipe)
+			pwm |= PWM_PIPE_B;
+		else
+			pwm &= ~PWM_PIPE_B;
+		I915_WRITE(BLC_PWM_CPU_CTL2, pwm | PWM_ENABLE);
 
 		pwm = I915_READ(BLC_PWM_PCH_CTL1);
 		pwm |= PWM_PCH_ENABLE;

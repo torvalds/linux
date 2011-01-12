@@ -250,13 +250,16 @@ static int rpm_callback(int (*cb)(struct device *), struct device *dev)
 	if (!cb)
 		return -ENOSYS;
 
-	spin_unlock_irq(&dev->power.lock);
+	if (dev->power.irq_safe) {
+		retval = cb(dev);
+	} else {
+		spin_unlock_irq(&dev->power.lock);
 
-	retval = cb(dev);
+		retval = cb(dev);
 
-	spin_lock_irq(&dev->power.lock);
+		spin_lock_irq(&dev->power.lock);
+	}
 	dev->power.runtime_error = retval;
-
 	return retval;
 }
 
@@ -404,7 +407,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 		goto out;
 	}
 
-	if (parent && !parent->power.ignore_children) {
+	if (parent && !parent->power.ignore_children && !dev->power.irq_safe) {
 		spin_unlock_irq(&dev->power.lock);
 
 		pm_request_idle(parent);
@@ -527,10 +530,13 @@ static int rpm_resume(struct device *dev, int rpmflags)
 
 	if (!parent && dev->parent) {
 		/*
-		 * Increment the parent's resume counter and resume it if
-		 * necessary.
+		 * Increment the parent's usage counter and resume it if
+		 * necessary.  Not needed if dev is irq-safe; then the
+		 * parent is permanently resumed.
 		 */
 		parent = dev->parent;
+		if (dev->power.irq_safe)
+			goto skip_parent;
 		spin_unlock(&dev->power.lock);
 
 		pm_runtime_get_noresume(parent);
@@ -553,6 +559,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 			goto out;
 		goto repeat;
 	}
+ skip_parent:
 
 	if (dev->power.no_callbacks)
 		goto no_callback;	/* Assume success. */
@@ -584,7 +591,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		rpm_idle(dev, RPM_ASYNC);
 
  out:
-	if (parent) {
+	if (parent && !dev->power.irq_safe) {
 		spin_unlock_irq(&dev->power.lock);
 
 		pm_runtime_put(parent);
@@ -1065,7 +1072,6 @@ EXPORT_SYMBOL_GPL(pm_runtime_allow);
  * Set the power.no_callbacks flag, which tells the PM core that this
  * device is power-managed through its parent and has no run-time PM
  * callbacks of its own.  The run-time sysfs attributes will be removed.
- *
  */
 void pm_runtime_no_callbacks(struct device *dev)
 {
@@ -1076,6 +1082,27 @@ void pm_runtime_no_callbacks(struct device *dev)
 		rpm_sysfs_remove(dev);
 }
 EXPORT_SYMBOL_GPL(pm_runtime_no_callbacks);
+
+/**
+ * pm_runtime_irq_safe - Leave interrupts disabled during callbacks.
+ * @dev: Device to handle
+ *
+ * Set the power.irq_safe flag, which tells the PM core that the
+ * ->runtime_suspend() and ->runtime_resume() callbacks for this device should
+ * always be invoked with the spinlock held and interrupts disabled.  It also
+ * causes the parent's usage counter to be permanently incremented, preventing
+ * the parent from runtime suspending -- otherwise an irq-safe child might have
+ * to wait for a non-irq-safe parent.
+ */
+void pm_runtime_irq_safe(struct device *dev)
+{
+	if (dev->parent)
+		pm_runtime_get_sync(dev->parent);
+	spin_lock_irq(&dev->power.lock);
+	dev->power.irq_safe = 1;
+	spin_unlock_irq(&dev->power.lock);
+}
+EXPORT_SYMBOL_GPL(pm_runtime_irq_safe);
 
 /**
  * update_autosuspend - Handle a change to a device's autosuspend settings.
@@ -1199,4 +1226,6 @@ void pm_runtime_remove(struct device *dev)
 	/* Change the status back to 'suspended' to match the initial status. */
 	if (dev->power.runtime_status == RPM_ACTIVE)
 		pm_runtime_set_suspended(dev);
+	if (dev->power.irq_safe && dev->parent)
+		pm_runtime_put_sync(dev->parent);
 }

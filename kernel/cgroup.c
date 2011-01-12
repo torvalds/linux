@@ -763,6 +763,8 @@ EXPORT_SYMBOL_GPL(cgroup_unlock);
  * -> cgroup_mkdir.
  */
 
+static struct dentry *cgroup_lookup(struct inode *dir,
+			struct dentry *dentry, struct nameidata *nd);
 static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, int mode);
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry);
 static int cgroup_populate_dir(struct cgroup *cgrp);
@@ -874,25 +876,29 @@ static void cgroup_clear_directory(struct dentry *dentry)
 	struct list_head *node;
 
 	BUG_ON(!mutex_is_locked(&dentry->d_inode->i_mutex));
-	spin_lock(&dcache_lock);
+	spin_lock(&dentry->d_lock);
 	node = dentry->d_subdirs.next;
 	while (node != &dentry->d_subdirs) {
 		struct dentry *d = list_entry(node, struct dentry, d_u.d_child);
+
+		spin_lock_nested(&d->d_lock, DENTRY_D_LOCK_NESTED);
 		list_del_init(node);
 		if (d->d_inode) {
 			/* This should never be called on a cgroup
 			 * directory with child cgroups */
 			BUG_ON(d->d_inode->i_mode & S_IFDIR);
-			d = dget_locked(d);
-			spin_unlock(&dcache_lock);
+			dget_dlock(d);
+			spin_unlock(&d->d_lock);
+			spin_unlock(&dentry->d_lock);
 			d_delete(d);
 			simple_unlink(dentry->d_inode, d);
 			dput(d);
-			spin_lock(&dcache_lock);
-		}
+			spin_lock(&dentry->d_lock);
+		} else
+			spin_unlock(&d->d_lock);
 		node = dentry->d_subdirs.next;
 	}
-	spin_unlock(&dcache_lock);
+	spin_unlock(&dentry->d_lock);
 }
 
 /*
@@ -900,11 +906,16 @@ static void cgroup_clear_directory(struct dentry *dentry)
  */
 static void cgroup_d_remove_dir(struct dentry *dentry)
 {
+	struct dentry *parent;
+
 	cgroup_clear_directory(dentry);
 
-	spin_lock(&dcache_lock);
+	parent = dentry->d_parent;
+	spin_lock(&parent->d_lock);
+	spin_lock(&dentry->d_lock);
 	list_del_init(&dentry->d_u.d_child);
-	spin_unlock(&dcache_lock);
+	spin_unlock(&dentry->d_lock);
+	spin_unlock(&parent->d_lock);
 	remove_dir(dentry);
 }
 
@@ -2180,7 +2191,7 @@ static const struct file_operations cgroup_file_operations = {
 };
 
 static const struct inode_operations cgroup_dir_inode_operations = {
-	.lookup = simple_lookup,
+	.lookup = cgroup_lookup,
 	.mkdir = cgroup_mkdir,
 	.rmdir = cgroup_rmdir,
 	.rename = cgroup_rename,
@@ -2196,13 +2207,29 @@ static inline struct cftype *__file_cft(struct file *file)
 	return __d_cft(file->f_dentry);
 }
 
-static int cgroup_create_file(struct dentry *dentry, mode_t mode,
-				struct super_block *sb)
+static int cgroup_delete_dentry(const struct dentry *dentry)
 {
-	static const struct dentry_operations cgroup_dops = {
+	return 1;
+}
+
+static struct dentry *cgroup_lookup(struct inode *dir,
+			struct dentry *dentry, struct nameidata *nd)
+{
+	static const struct dentry_operations cgroup_dentry_operations = {
+		.d_delete = cgroup_delete_dentry,
 		.d_iput = cgroup_diput,
 	};
 
+	if (dentry->d_name.len > NAME_MAX)
+		return ERR_PTR(-ENAMETOOLONG);
+	d_set_d_op(dentry, &cgroup_dentry_operations);
+	d_add(dentry, NULL);
+	return NULL;
+}
+
+static int cgroup_create_file(struct dentry *dentry, mode_t mode,
+				struct super_block *sb)
+{
 	struct inode *inode;
 
 	if (!dentry)
@@ -2228,7 +2255,6 @@ static int cgroup_create_file(struct dentry *dentry, mode_t mode,
 		inode->i_size = 0;
 		inode->i_fop = &cgroup_file_operations;
 	}
-	dentry->d_op = &cgroup_dops;
 	d_instantiate(dentry, inode);
 	dget(dentry);	/* Extra count - pin the dentry in core */
 	return 0;
@@ -3638,9 +3664,7 @@ again:
 	list_del(&cgrp->sibling);
 	cgroup_unlock_hierarchy(cgrp->root);
 
-	spin_lock(&cgrp->dentry->d_lock);
 	d = dget(cgrp->dentry);
-	spin_unlock(&d->d_lock);
 
 	cgroup_d_remove_dir(d);
 	dput(d);

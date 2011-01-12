@@ -185,18 +185,23 @@ static int btrfs_xattr_acl_set(struct dentry *dentry, const char *name,
 	return ret;
 }
 
-int btrfs_check_acl(struct inode *inode, int mask)
+int btrfs_check_acl(struct inode *inode, int mask, unsigned int flags)
 {
-	struct posix_acl *acl;
 	int error = -EAGAIN;
 
-	acl = btrfs_get_acl(inode, ACL_TYPE_ACCESS);
+	if (flags & IPERM_FLAG_RCU) {
+		if (!negative_cached_acl(inode, ACL_TYPE_ACCESS))
+			error = -ECHILD;
 
-	if (IS_ERR(acl))
-		return PTR_ERR(acl);
-	if (acl) {
-		error = posix_acl_permission(inode, acl, mask);
-		posix_acl_release(acl);
+	} else {
+		struct posix_acl *acl;
+		acl = btrfs_get_acl(inode, ACL_TYPE_ACCESS);
+		if (IS_ERR(acl))
+			return PTR_ERR(acl);
+		if (acl) {
+			error = posix_acl_permission(inode, acl, mask);
+			posix_acl_release(acl);
+		}
 	}
 
 	return error;

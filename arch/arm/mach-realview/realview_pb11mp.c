@@ -309,13 +309,13 @@ static void __init gic_init_irq(void)
 	writel(0x00000000, __io_address(REALVIEW_SYS_LOCK));
 
 	/* ARM11MPCore test chip GIC, primary */
-	gic_cpu_base_addr = __io_address(REALVIEW_TC11MP_GIC_CPU_BASE);
-	gic_dist_init(0, __io_address(REALVIEW_TC11MP_GIC_DIST_BASE), 29);
-	gic_cpu_init(0, gic_cpu_base_addr);
+	gic_init(0, 29, __io_address(REALVIEW_TC11MP_GIC_DIST_BASE),
+		 __io_address(REALVIEW_TC11MP_GIC_CPU_BASE));
 
 	/* board GIC, secondary */
-	gic_dist_init(1, __io_address(REALVIEW_PB11MP_GIC_DIST_BASE), IRQ_PB11MP_GIC_START);
-	gic_cpu_init(1, __io_address(REALVIEW_PB11MP_GIC_CPU_BASE));
+	gic_init(1, IRQ_PB11MP_GIC_START,
+		 __io_address(REALVIEW_PB11MP_GIC_DIST_BASE),
+		 __io_address(REALVIEW_PB11MP_GIC_CPU_BASE));
 	gic_cascade_irq(1, IRQ_TC11MP_PB_IRQ1);
 }
 

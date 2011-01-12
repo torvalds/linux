@@ -172,10 +172,10 @@
  * 	to the specified ISO/IEC 3166-1 alpha2 country code. The core will
  * 	store this as a valid request and then query userspace for it.
  *
- * @NL80211_CMD_GET_MESH_PARAMS: Get mesh networking properties for the
+ * @NL80211_CMD_GET_MESH_CONFIG: Get mesh networking properties for the
  *	interface identified by %NL80211_ATTR_IFINDEX
  *
- * @NL80211_CMD_SET_MESH_PARAMS: Set mesh networking properties for the
+ * @NL80211_CMD_SET_MESH_CONFIG: Set mesh networking properties for the
  *      interface identified by %NL80211_ATTR_IFINDEX
  *
  * @NL80211_CMD_SET_MGMT_EXTRA_IE: Set extra IEs for management frames. The
@@ -358,11 +358,16 @@
  *	user space application). %NL80211_ATTR_FRAME is used to specify the
  *	frame contents (including header). %NL80211_ATTR_WIPHY_FREQ (and
  *	optionally %NL80211_ATTR_WIPHY_CHANNEL_TYPE) is used to indicate on
- *	which channel the frame is to be transmitted or was received. This
- *	channel has to be the current channel (remain-on-channel or the
- *	operational channel). When called, this operation returns a cookie
- *	(%NL80211_ATTR_COOKIE) that will be included with the TX status event
- *	pertaining to the TX request.
+ *	which channel the frame is to be transmitted or was received. If this
+ *	channel is not the current channel (remain-on-channel or the
+ *	operational channel) the device will switch to the given channel and
+ *	transmit the frame, optionally waiting for a response for the time
+ *	specified using %NL80211_ATTR_DURATION. When called, this operation
+ *	returns a cookie (%NL80211_ATTR_COOKIE) that will be included with the
+ *	TX status event pertaining to the TX request.
+ * @NL80211_CMD_FRAME_WAIT_CANCEL: When an off-channel TX was requested, this
+ *	command may be used with the corresponding cookie to cancel the wait
+ *	time if it is known that it is no longer necessary.
  * @NL80211_CMD_ACTION: Alias for @NL80211_CMD_FRAME for backward compatibility.
  * @NL80211_CMD_FRAME_TX_STATUS: Report TX status of a management frame
  *	transmitted with %NL80211_CMD_FRAME. %NL80211_ATTR_COOKIE identifies
@@ -388,6 +393,18 @@
  *	precedence when they are used.
  *
  * @NL80211_CMD_SET_WDS_PEER: Set the MAC address of the peer on a WDS interface.
+ *
+ * @NL80211_CMD_JOIN_MESH: Join a mesh. The mesh ID must be given, and initial
+ *	mesh config parameters may be given.
+ * @NL80211_CMD_LEAVE_MESH: Leave the mesh network -- no special arguments, the
+ *	network is determined by the network interface.
+ *
+ * @NL80211_CMD_UNPROT_DEAUTHENTICATE: Unprotected deauthentication frame
+ *	notification. This event is used to indicate that an unprotected
+ *	deauthentication frame was dropped when MFP is in use.
+ * @NL80211_CMD_UNPROT_DISASSOCIATE: Unprotected disassociation frame
+ *	notification. This event is used to indicate that an unprotected
+ *	disassociation frame was dropped when MFP is in use.
  *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
@@ -431,8 +448,8 @@ enum nl80211_commands {
 	NL80211_CMD_SET_REG,
 	NL80211_CMD_REQ_SET_REG,
 
-	NL80211_CMD_GET_MESH_PARAMS,
-	NL80211_CMD_SET_MESH_PARAMS,
+	NL80211_CMD_GET_MESH_CONFIG,
+	NL80211_CMD_SET_MESH_CONFIG,
 
 	NL80211_CMD_SET_MGMT_EXTRA_IE /* reserved; not used */,
 
@@ -493,6 +510,14 @@ enum nl80211_commands {
 	NL80211_CMD_SET_CHANNEL,
 	NL80211_CMD_SET_WDS_PEER,
 
+	NL80211_CMD_FRAME_WAIT_CANCEL,
+
+	NL80211_CMD_JOIN_MESH,
+	NL80211_CMD_LEAVE_MESH,
+
+	NL80211_CMD_UNPROT_DEAUTHENTICATE,
+	NL80211_CMD_UNPROT_DISASSOCIATE,
+
 	/* add new commands above here */
 
 	/* used to define NL80211_CMD_MAX below */
@@ -512,6 +537,10 @@ enum nl80211_commands {
 #define NL80211_CMD_DEAUTHENTICATE NL80211_CMD_DEAUTHENTICATE
 #define NL80211_CMD_DISASSOCIATE NL80211_CMD_DISASSOCIATE
 #define NL80211_CMD_REG_BEACON_HINT NL80211_CMD_REG_BEACON_HINT
+
+/* source-level API compatibility */
+#define NL80211_CMD_GET_MESH_PARAMS NL80211_CMD_GET_MESH_CONFIG
+#define NL80211_CMD_SET_MESH_PARAMS NL80211_CMD_SET_MESH_CONFIG
 
 /**
  * enum nl80211_attrs - nl80211 netlink attributes
@@ -758,6 +787,9 @@ enum nl80211_commands {
  *	cache, a wiphy attribute.
  *
  * @NL80211_ATTR_DURATION: Duration of an operation in milliseconds, u32.
+ * @NL80211_ATTR_MAX_REMAIN_ON_CHANNEL_DURATION: Device attribute that
+ *	specifies the maximum duration that can be requested with the
+ *	remain-on-channel operation, in milliseconds, u32.
  *
  * @NL80211_ATTR_COOKIE: Generic 64-bit cookie to identify objects.
  *
@@ -803,6 +835,51 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_SUPPORT_IBSS_RSN: The device supports IBSS RSN, which mostly
  *	means support for per-station GTKs.
+ *
+ * @NL80211_ATTR_WIPHY_ANTENNA_TX: Bitmap of allowed antennas for transmitting.
+ *	This can be used to mask out antennas which are not attached or should
+ *	not be used for transmitting. If an antenna is not selected in this
+ *	bitmap the hardware is not allowed to transmit on this antenna.
+ *
+ *	Each bit represents one antenna, starting with antenna 1 at the first
+ *	bit. Depending on which antennas are selected in the bitmap, 802.11n
+ *	drivers can derive which chainmasks to use (if all antennas belonging to
+ *	a particular chain are disabled this chain should be disabled) and if
+ *	a chain has diversity antennas wether diversity should be used or not.
+ *	HT capabilities (STBC, TX Beamforming, Antenna selection) can be
+ *	derived from the available chains after applying the antenna mask.
+ *	Non-802.11n drivers can derive wether to use diversity or not.
+ *	Drivers may reject configurations or RX/TX mask combinations they cannot
+ *	support by returning -EINVAL.
+ *
+ * @NL80211_ATTR_WIPHY_ANTENNA_RX: Bitmap of allowed antennas for receiving.
+ *	This can be used to mask out antennas which are not attached or should
+ *	not be used for receiving. If an antenna is not selected in this bitmap
+ *	the hardware should not be configured to receive on this antenna.
+ *	For a more detailed descripton see @NL80211_ATTR_WIPHY_ANTENNA_TX.
+ *
+ * @NL80211_ATTR_WIPHY_ANTENNA_AVAIL_TX: Bitmap of antennas which are available
+ *	for configuration as TX antennas via the above parameters.
+ *
+ * @NL80211_ATTR_WIPHY_ANTENNA_AVAIL_RX: Bitmap of antennas which are available
+ *	for configuration as RX antennas via the above parameters.
+ *
+ * @NL80211_ATTR_MCAST_RATE: Multicast tx rate (in 100 kbps) for IBSS
+ *
+ * @NL80211_ATTR_OFFCHANNEL_TX_OK: For management frame TX, the frame may be
+ *	transmitted on another channel when the channel given doesn't match
+ *	the current channel. If the current channel doesn't match and this
+ *	flag isn't set, the frame will be rejected. This is also used as an
+ *	nl80211 capability flag.
+ *
+ * @NL80211_ATTR_BSS_HTOPMODE: HT operation mode (u16)
+ *
+ * @NL80211_ATTR_KEY_DEFAULT_TYPES: A nested attribute containing flags
+ *	attributes, specifying what a key should be set as default as.
+ *	See &enum nl80211_key_default_types.
+ *
+ * @NL80211_ATTR_MESH_SETUP: Optional mesh setup parameters.  These cannot be
+ * changed once the mesh is active.
  *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -858,7 +935,7 @@ enum nl80211_attrs {
 	NL80211_ATTR_REG_ALPHA2,
 	NL80211_ATTR_REG_RULES,
 
-	NL80211_ATTR_MESH_PARAMS,
+	NL80211_ATTR_MESH_CONFIG,
 
 	NL80211_ATTR_BSS_BASIC_RATES,
 
@@ -973,6 +1050,24 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_SUPPORT_IBSS_RSN,
 
+	NL80211_ATTR_WIPHY_ANTENNA_TX,
+	NL80211_ATTR_WIPHY_ANTENNA_RX,
+
+	NL80211_ATTR_MCAST_RATE,
+
+	NL80211_ATTR_OFFCHANNEL_TX_OK,
+
+	NL80211_ATTR_BSS_HT_OPMODE,
+
+	NL80211_ATTR_KEY_DEFAULT_TYPES,
+
+	NL80211_ATTR_MAX_REMAIN_ON_CHANNEL_DURATION,
+
+	NL80211_ATTR_MESH_SETUP,
+
+	NL80211_ATTR_WIPHY_ANTENNA_AVAIL_TX,
+	NL80211_ATTR_WIPHY_ANTENNA_AVAIL_RX,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -981,6 +1076,7 @@ enum nl80211_attrs {
 
 /* source-level API compatibility */
 #define NL80211_ATTR_SCAN_GENERATION NL80211_ATTR_GENERATION
+#define	NL80211_ATTR_MESH_PARAMS NL80211_ATTR_MESH_CONFIG
 
 /*
  * Allow user space programs to use #ifdef on new attributes by defining them
@@ -1139,6 +1235,7 @@ enum nl80211_rate_info {
  *	station)
  * @NL80211_STA_INFO_TX_RETRIES: total retries (u32, to this station)
  * @NL80211_STA_INFO_TX_FAILED: total failed packets (u32, to this station)
+ * @NL80211_STA_INFO_SIGNAL_AVG: signal strength average (u8, dBm)
  */
 enum nl80211_sta_info {
 	__NL80211_STA_INFO_INVALID,
@@ -1154,6 +1251,7 @@ enum nl80211_sta_info {
 	NL80211_STA_INFO_TX_PACKETS,
 	NL80211_STA_INFO_TX_RETRIES,
 	NL80211_STA_INFO_TX_FAILED,
+	NL80211_STA_INFO_SIGNAL_AVG,
 
 	/* keep last */
 	__NL80211_STA_INFO_AFTER_LAST,
@@ -1307,7 +1405,11 @@ enum nl80211_bitrate_attr {
  * 	wireless core it thinks its knows the regulatory domain we should be in.
  * @NL80211_REGDOM_SET_BY_COUNTRY_IE: the wireless core has received an
  * 	802.11 country information element with regulatory information it
- * 	thinks we should consider.
+ * 	thinks we should consider. cfg80211 only processes the country
+ *	code from the IE, and relies on the regulatory domain information
+ *	structure pased by userspace (CRDA) from our wireless-regdb.
+ *	If a channel is enabled but the country code indicates it should
+ *	be disabled we disable the channel and re-enable it upon disassociation.
  */
 enum nl80211_reg_initiator {
 	NL80211_REGDOM_SET_BY_CORE,
@@ -1476,7 +1578,8 @@ enum nl80211_mntr_flags {
 /**
  * enum nl80211_meshconf_params - mesh configuration parameters
  *
- * Mesh configuration parameters
+ * Mesh configuration parameters. These can be changed while the mesh is
+ * active.
  *
  * @__NL80211_MESHCONF_INVALID: internal use
  *
@@ -1525,6 +1628,9 @@ enum nl80211_mntr_flags {
  *
  * @NL80211_MESHCONF_ROOTMODE: whether root mode is enabled or not
  *
+ * @NL80211_MESHCONF_ELEMENT_TTL: specifies the value of TTL field set at a
+ * source mesh point for path selection elements.
+ *
  * @NL80211_MESHCONF_ATTR_MAX: highest possible mesh configuration attribute
  *
  * @__NL80211_MESHCONF_ATTR_AFTER_LAST: internal use
@@ -1545,10 +1651,44 @@ enum nl80211_meshconf_params {
 	NL80211_MESHCONF_HWMP_PREQ_MIN_INTERVAL,
 	NL80211_MESHCONF_HWMP_NET_DIAM_TRVS_TIME,
 	NL80211_MESHCONF_HWMP_ROOTMODE,
+	NL80211_MESHCONF_ELEMENT_TTL,
 
 	/* keep last */
 	__NL80211_MESHCONF_ATTR_AFTER_LAST,
 	NL80211_MESHCONF_ATTR_MAX = __NL80211_MESHCONF_ATTR_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_mesh_setup_params - mesh setup parameters
+ *
+ * Mesh setup parameters.  These are used to start/join a mesh and cannot be
+ * changed while the mesh is active.
+ *
+ * @__NL80211_MESH_SETUP_INVALID: Internal use
+ *
+ * @NL80211_MESH_SETUP_ENABLE_VENDOR_PATH_SEL: Enable this option to use a
+ * vendor specific path selection algorithm or disable it to use the default
+ * HWMP.
+ *
+ * @NL80211_MESH_SETUP_ENABLE_VENDOR_METRIC: Enable this option to use a
+ * vendor specific path metric or disable it to use the default Airtime
+ * metric.
+ *
+ * @NL80211_MESH_SETUP_VENDOR_PATH_SEL_IE: A vendor specific information
+ * element that vendors will use to identify the path selection methods and
+ * metrics in use.
+ *
+ * @__NL80211_MESH_SETUP_ATTR_AFTER_LAST: Internal use
+ */
+enum nl80211_mesh_setup_params {
+	__NL80211_MESH_SETUP_INVALID,
+	NL80211_MESH_SETUP_ENABLE_VENDOR_PATH_SEL,
+	NL80211_MESH_SETUP_ENABLE_VENDOR_METRIC,
+	NL80211_MESH_SETUP_VENDOR_PATH_SEL_IE,
+
+	/* keep last */
+	__NL80211_MESH_SETUP_ATTR_AFTER_LAST,
+	NL80211_MESH_SETUP_ATTR_MAX = __NL80211_MESH_SETUP_ATTR_AFTER_LAST - 1
 };
 
 /**
@@ -1709,6 +1849,23 @@ enum nl80211_wpa_versions {
 };
 
 /**
+ * enum nl80211_key_default_types - key default types
+ * @__NL80211_KEY_DEFAULT_TYPE_INVALID: invalid
+ * @NL80211_KEY_DEFAULT_TYPE_UNICAST: key should be used as default
+ *	unicast key
+ * @NL80211_KEY_DEFAULT_TYPE_MULTICAST: key should be used as default
+ *	multicast key
+ * @NUM_NL80211_KEY_DEFAULT_TYPES: number of default types
+ */
+enum nl80211_key_default_types {
+	__NL80211_KEY_DEFAULT_TYPE_INVALID,
+	NL80211_KEY_DEFAULT_TYPE_UNICAST,
+	NL80211_KEY_DEFAULT_TYPE_MULTICAST,
+
+	NUM_NL80211_KEY_DEFAULT_TYPES
+};
+
+/**
  * enum nl80211_key_attributes - key attributes
  * @__NL80211_KEY_INVALID: invalid
  * @NL80211_KEY_DATA: (temporal) key data; for TKIP this consists of
@@ -1724,6 +1881,9 @@ enum nl80211_wpa_versions {
  * @NL80211_KEY_TYPE: the key type from enum nl80211_key_type, if not
  *	specified the default depends on whether a MAC address was
  *	given with the command using the key or not (u32)
+ * @NL80211_KEY_DEFAULT_TYPES: A nested attribute containing flags
+ *	attributes, specifying what a key should be set as default as.
+ *	See &enum nl80211_key_default_types.
  * @__NL80211_KEY_AFTER_LAST: internal
  * @NL80211_KEY_MAX: highest key attribute
  */
@@ -1736,6 +1896,7 @@ enum nl80211_key_attributes {
 	NL80211_KEY_DEFAULT,
 	NL80211_KEY_DEFAULT_MGMT,
 	NL80211_KEY_TYPE,
+	NL80211_KEY_DEFAULT_TYPES,
 
 	/* keep last */
 	__NL80211_KEY_AFTER_LAST,
@@ -1786,6 +1947,8 @@ enum nl80211_ps_state {
  *	the minimum amount the RSSI level must change after an event before a
  *	new event may be issued (to reduce effects of RSSI oscillation).
  * @NL80211_ATTR_CQM_RSSI_THRESHOLD_EVENT: RSSI threshold event
+ * @NL80211_ATTR_CQM_PKT_LOSS_EVENT: a u32 value indicating that this many
+ *	consecutive packets were not acknowledged by the peer
  * @__NL80211_ATTR_CQM_AFTER_LAST: internal
  * @NL80211_ATTR_CQM_MAX: highest key attribute
  */
@@ -1794,6 +1957,7 @@ enum nl80211_attr_cqm {
 	NL80211_ATTR_CQM_RSSI_THOLD,
 	NL80211_ATTR_CQM_RSSI_HYST,
 	NL80211_ATTR_CQM_RSSI_THRESHOLD_EVENT,
+	NL80211_ATTR_CQM_PKT_LOSS_EVENT,
 
 	/* keep last */
 	__NL80211_ATTR_CQM_AFTER_LAST,

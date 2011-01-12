@@ -156,7 +156,7 @@ static const struct file_operations socket_file_ops = {
  */
 
 static DEFINE_SPINLOCK(net_family_lock);
-static const struct net_proto_family *net_families[NPROTO] __read_mostly;
+static const struct net_proto_family __rcu *net_families[NPROTO] __read_mostly;
 
 /*
  *	Statistics counters of the socket lists
@@ -262,6 +262,7 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 }
 
 
+
 static void wq_free_rcu(struct rcu_head *head)
 {
 	struct socket_wq *wq = container_of(head, struct socket_wq, rcu);
@@ -360,14 +361,14 @@ static int sock_alloc_file(struct socket *sock, struct file **f, int flags)
 	if (unlikely(fd < 0))
 		return fd;
 
-	path.dentry = d_alloc(sock_mnt->mnt_sb->s_root, &name);
+	path.dentry = d_alloc_pseudo(sock_mnt->mnt_sb, &name);
 	if (unlikely(!path.dentry)) {
 		put_unused_fd(fd);
 		return -ENOMEM;
 	}
 	path.mnt = mntget(sock_mnt);
 
-	path.dentry->d_op = &sockfs_dentry_operations;
+	d_set_d_op(path.dentry, &sockfs_dentry_operations);
 	d_instantiate(path.dentry, SOCK_INODE(sock));
 	SOCK_INODE(sock)->i_fop = &socket_file_ops;
 
@@ -1215,7 +1216,7 @@ int __sock_create(struct net *net, int family, int type, int protocol,
 	 * requested real, full-featured networking support upon configuration.
 	 * Otherwise module support will break!
 	 */
-	if (net_families[family] == NULL)
+	if (rcu_access_pointer(net_families[family]) == NULL)
 		request_module("net-pf-%d", family);
 #endif
 
@@ -2347,10 +2348,11 @@ int sock_register(const struct net_proto_family *ops)
 	}
 
 	spin_lock(&net_family_lock);
-	if (net_families[ops->family])
+	if (rcu_dereference_protected(net_families[ops->family],
+				      lockdep_is_held(&net_family_lock)))
 		err = -EEXIST;
 	else {
-		net_families[ops->family] = ops;
+		rcu_assign_pointer(net_families[ops->family], ops);
 		err = 0;
 	}
 	spin_unlock(&net_family_lock);
@@ -2378,7 +2380,7 @@ void sock_unregister(int family)
 	BUG_ON(family < 0 || family >= NPROTO);
 
 	spin_lock(&net_family_lock);
-	net_families[family] = NULL;
+	rcu_assign_pointer(net_families[family], NULL);
 	spin_unlock(&net_family_lock);
 
 	synchronize_rcu();
@@ -2389,6 +2391,8 @@ EXPORT_SYMBOL(sock_unregister);
 
 static int __init sock_init(void)
 {
+	int err;
+
 	/*
 	 *      Initialize sock SLAB cache.
 	 */
@@ -2405,8 +2409,15 @@ static int __init sock_init(void)
 	 */
 
 	init_inodecache();
-	register_filesystem(&sock_fs_type);
+
+	err = register_filesystem(&sock_fs_type);
+	if (err)
+		goto out_fs;
 	sock_mnt = kern_mount(&sock_fs_type);
+	if (IS_ERR(sock_mnt)) {
+		err = PTR_ERR(sock_mnt);
+		goto out_mount;
+	}
 
 	/* The real protocol initialization is performed in later initcalls.
 	 */
@@ -2419,7 +2430,13 @@ static int __init sock_init(void)
 	skb_timestamping_init();
 #endif
 
-	return 0;
+out:
+	return err;
+
+out_mount:
+	unregister_filesystem(&sock_fs_type);
+out_fs:
+	goto out;
 }
 
 core_initcall(sock_init);	/* early initcall */

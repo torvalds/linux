@@ -359,7 +359,7 @@ fail:
 
 static int mdio_read(struct net_device *dev, int phy_id, int loc)
 {
-	pegasus_t *pegasus = (pegasus_t *) netdev_priv(dev);
+	pegasus_t *pegasus = netdev_priv(dev);
 	u16 res;
 
 	read_mii_word(pegasus, phy_id, loc, &res);
@@ -397,7 +397,7 @@ fail:
 
 static void mdio_write(struct net_device *dev, int phy_id, int loc, int val)
 {
-	pegasus_t *pegasus = (pegasus_t *) netdev_priv(dev);
+	pegasus_t *pegasus = netdev_priv(dev);
 
 	write_mii_word(pegasus, phy_id, loc, val);
 }

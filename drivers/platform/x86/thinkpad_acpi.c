@@ -589,6 +589,7 @@ static int acpi_evalf(acpi_handle handle,
 		default:
 			printk(TPACPI_ERR "acpi_evalf() called "
 			       "with invalid format character '%c'\n", c);
+			va_end(ap);
 			return 0;
 		}
 	}
@@ -6345,7 +6346,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 			"as change notification\n");
 	tpacpi_hotkey_driver_mask_set(hotkey_driver_mask
 				| TP_ACPI_HKEY_BRGHTUP_MASK
-				| TP_ACPI_HKEY_BRGHTDWN_MASK);;
+				| TP_ACPI_HKEY_BRGHTDWN_MASK);
 	return 0;
 }
 

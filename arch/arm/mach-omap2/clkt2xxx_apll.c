@@ -26,7 +26,7 @@
 
 #include "clock.h"
 #include "clock2xxx.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
 #include "cm-regbits-24xx.h"
 
 /* CM_CLKEN_PLL.EN_{54,96}M_PLL options (24XX) */
@@ -49,14 +49,14 @@ static int omap2_clk_apll_enable(struct clk *clk, u32 status_mask)
 
 	apll_mask = EN_APLL_LOCKED << clk->enable_bit;
 
-	cval = cm_read_mod_reg(PLL_MOD, CM_CLKEN);
+	cval = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
 
 	if ((cval & apll_mask) == apll_mask)
 		return 0;   /* apll already enabled */
 
 	cval &= ~apll_mask;
 	cval |= apll_mask;
-	cm_write_mod_reg(cval, PLL_MOD, CM_CLKEN);
+	omap2_cm_write_mod_reg(cval, PLL_MOD, CM_CLKEN);
 
 	omap2_cm_wait_idlest(cm_idlest_pll, status_mask,
 			     OMAP24XX_CM_IDLEST_VAL, clk->name);
@@ -83,9 +83,9 @@ static void omap2_clk_apll_disable(struct clk *clk)
 {
 	u32 cval;
 
-	cval = cm_read_mod_reg(PLL_MOD, CM_CLKEN);
+	cval = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
 	cval &= ~(EN_APLL_LOCKED << clk->enable_bit);
-	cm_write_mod_reg(cval, PLL_MOD, CM_CLKEN);
+	omap2_cm_write_mod_reg(cval, PLL_MOD, CM_CLKEN);
 }
 
 /* Public data */
@@ -106,7 +106,7 @@ u32 omap2xxx_get_apll_clkin(void)
 {
 	u32 aplls, srate = 0;
 
-	aplls = cm_read_mod_reg(PLL_MOD, CM_CLKSEL1);
+	aplls = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL1);
 	aplls &= OMAP24XX_APLLS_CLKIN_MASK;
 	aplls >>= OMAP24XX_APLLS_CLKIN_SHIFT;
 

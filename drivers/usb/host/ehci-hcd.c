@@ -114,6 +114,9 @@ MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us\n");
 
 #define	INTR_MASK (STS_IAA | STS_FATAL | STS_PCD | STS_ERR | STS_INT)
 
+/* for ASPM quirk of ISOC on AMD SB800 */
+static struct pci_dev *amd_nb_dev;
+
 /*-------------------------------------------------------------------------*/
 
 #include "ehci.h"
@@ -528,6 +531,11 @@ static void ehci_stop (struct usb_hcd *hcd)
 		ehci_work (ehci);
 	spin_unlock_irq (&ehci->lock);
 	ehci_mem_cleanup (ehci);
+
+	if (amd_nb_dev) {
+		pci_dev_put(amd_nb_dev);
+		amd_nb_dev = NULL;
+	}
 
 #ifdef	EHCI_STATS
 	ehci_dbg (ehci, "irq normal %ld err %ld reclaim %ld (lost %ld)\n",
@@ -1166,12 +1174,17 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ehci_mxc_driver
 #endif
 
+#ifdef CONFIG_CPU_SUBTYPE_SH7786
+#include "ehci-sh.c"
+#define PLATFORM_DRIVER		ehci_hcd_sh_driver
+#endif
+
 #ifdef CONFIG_SOC_AU1200
 #include "ehci-au1xxx.c"
 #define	PLATFORM_DRIVER		ehci_hcd_au1xxx_driver
 #endif
 
-#ifdef CONFIG_ARCH_OMAP3
+#ifdef CONFIG_USB_EHCI_HCD_OMAP
 #include "ehci-omap.c"
 #define        PLATFORM_DRIVER         ehci_hcd_omap_driver
 #endif
@@ -1214,6 +1227,26 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_USB_OCTEON_EHCI
 #include "ehci-octeon.c"
 #define PLATFORM_DRIVER		ehci_octeon_driver
+#endif
+
+#ifdef CONFIG_USB_CNS3XXX_EHCI
+#include "ehci-cns3xxx.c"
+#define PLATFORM_DRIVER		cns3xxx_ehci_driver
+#endif
+
+#ifdef CONFIG_ARCH_VT8500
+#include "ehci-vt8500.c"
+#define	PLATFORM_DRIVER		vt8500_ehci_driver
+#endif
+
+#ifdef CONFIG_PLAT_SPEAR
+#include "ehci-spear.c"
+#define PLATFORM_DRIVER		spear_ehci_hcd_driver
+#endif
+
+#ifdef CONFIG_USB_EHCI_MSM
+#include "ehci-msm.c"
+#define PLATFORM_DRIVER		ehci_msm_driver
 #endif
 
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \

@@ -27,15 +27,17 @@
 
 #define REVISION_STRING(REVISION_) #REVISION_
 #define FILL_VMSTOR_REVISION(RESULT_LVALUE_)				\
-{									\
-	char *revisionString = REVISION_STRING($Revision : 6 $) + 11;	\
-	RESULT_LVALUE_ = 0;						\
-	while (*revisionString >= '0' && *revisionString <= '9') {	\
-		RESULT_LVALUE_ *= 10;					\
-		RESULT_LVALUE_ += *revisionString - '0';		\
-		revisionString++;					\
-	}								\
-}
+	do {								\
+		char *revision_string					\
+			= REVISION_STRING($Rev : 6 $) + 6;		\
+		RESULT_LVALUE_ = 0;					\
+		while (*revision_string >= '0'				\
+			&& *revision_string <= '9') {			\
+			RESULT_LVALUE_ *= 10;				\
+			RESULT_LVALUE_ += *revision_string - '0';	\
+			revision_string++;				\
+		}							\
+	} while (0)
 
 /* Major/minor macros.  Minor version is in LSB, meaning that earlier flat */
 /* version numbers will be interpreted as "0.x" (i.e., 1 becomes 0.1). */
@@ -65,17 +67,17 @@
 
 /*  Packet structure describing virtual storage requests. */
 enum vstor_packet_operation {
-	VStorOperationCompleteIo            = 1,
-	VStorOperationRemoveDevice          = 2,
-	VStorOperationExecuteSRB            = 3,
-	VStorOperationResetLun              = 4,
-	VStorOperationResetAdapter          = 5,
-	VStorOperationResetBus              = 6,
-	VStorOperationBeginInitialization   = 7,
-	VStorOperationEndInitialization     = 8,
-	VStorOperationQueryProtocolVersion  = 9,
-	VStorOperationQueryProperties       = 10,
-	VStorOperationMaximum               = 10
+	VSTOR_OPERATION_COMPLETE_IO		= 1,
+	VSTOR_OPERATION_REMOVE_DEVICE		= 2,
+	VSTOR_OPERATION_EXECUTE_SRB		= 3,
+	VSTOR_OPERATION_RESET_LUN		= 4,
+	VSTOR_OPERATION_RESET_ADAPTER		= 5,
+	VSTOR_OPERATION_RESET_BUS		= 6,
+	VSTOR_OPERATION_BEGIN_INITIALIZATION	= 7,
+	VSTOR_OPERATION_END_INITIALIZATION	= 8,
+	VSTOR_OPERATION_QUERY_PROTOCOL_VERSION	= 9,
+	VSTOR_OPERATION_QUERY_PROPERTIES	= 10,
+	VSTOR_OPERATION_MAXIMUM			= 10
 };
 
 /*
@@ -89,31 +91,29 @@ enum vstor_packet_operation {
 #define SENSE_BUFFER_SIZE			0x12
 #endif
 
-#define MAX_DATA_BUFFER_LENGTH_WITH_PADDING	0x14
+#define MAX_DATA_BUF_LEN_WITH_PADDING		0x14
 
 struct vmscsi_request {
-	unsigned short Length;
-	unsigned char SrbStatus;
-	unsigned char ScsiStatus;
+	unsigned short length;
+	unsigned char srb_status;
+	unsigned char scsi_status;
 
-	unsigned char PortNumber;
-	unsigned char PathId;
-	unsigned char TargetId;
-	unsigned char Lun;
+	unsigned char port_number;
+	unsigned char path_id;
+	unsigned char target_id;
+	unsigned char lun;
 
-	unsigned char CdbLength;
-	unsigned char SenseInfoLength;
-	unsigned char DataIn;
-	unsigned char Reserved;
+	unsigned char cdb_length;
+	unsigned char sense_info_length;
+	unsigned char data_in;
+	unsigned char reserved;
 
-	unsigned int DataTransferLength;
+	unsigned int data_transfer_length;
 
 	union {
-	unsigned char Cdb[CDB16GENERIC_LENGTH];
-
-	unsigned char SenseData[SENSE_BUFFER_SIZE];
-
-	unsigned char ReservedArray[MAX_DATA_BUFFER_LENGTH_WITH_PADDING];
+		unsigned char cdb[CDB16GENERIC_LENGTH];
+		unsigned char sense_data[SENSE_BUFFER_SIZE];
+		unsigned char reserved_array[MAX_DATA_BUF_LEN_WITH_PADDING];
 	};
 } __attribute((packed));
 
@@ -123,24 +123,24 @@ struct vmscsi_request {
  * properties of the channel.
  */
 struct vmstorage_channel_properties {
-	unsigned short ProtocolVersion;
-	unsigned char  PathId;
-	unsigned char  TargetId;
+	unsigned short protocol_version;
+	unsigned char path_id;
+	unsigned char target_id;
 
 	/* Note: port number is only really known on the client side */
-	unsigned int  PortNumber;
-	unsigned int  Flags;
-	unsigned int  MaxTransferBytes;
+	unsigned int port_number;
+	unsigned int flags;
+	unsigned int max_transfer_bytes;
 
 	/*  This id is unique for each channel and will correspond with */
 	/*  vendor specific data in the inquirydata */
-	unsigned long long UniqueId;
+	unsigned long long unique_id;
 } __attribute__((packed));
 
 /*  This structure is sent during the storage protocol negotiations. */
 struct vmstorage_protocol_version {
 	/* Major (MSW) and minor (LSW) version numbers. */
-	unsigned short MajorMinor;
+	unsigned short major_minor;
 
 	/*
 	 * Revision number is auto-incremented whenever this file is changed
@@ -148,7 +148,7 @@ struct vmstorage_protocol_version {
 	 * definitely indicate incompatibility--but it does indicate mismatched
 	 * builds.
 	 */
-	unsigned short Revision;
+	unsigned short revision;
 } __attribute__((packed));
 
 /* Channel Property Flags */
@@ -157,13 +157,13 @@ struct vmstorage_protocol_version {
 
 struct vstor_packet {
 	/* Requested operation type */
-	enum vstor_packet_operation Operation;
+	enum vstor_packet_operation operation;
 
 	/*  Flags - see below for values */
-	unsigned int     Flags;
+	unsigned int flags;
 
 	/* Status of the request returned from the server side. */
-	unsigned int     Status;
+	unsigned int status;
 
 	/* Data payload area */
 	union {
@@ -171,13 +171,13 @@ struct vstor_packet {
 		 * Structure used to forward SCSI commands from the
 		 * client to the server.
 		 */
-		struct vmscsi_request VmSrb;
+		struct vmscsi_request vm_srb;
 
 		/* Structure used to query channel properties. */
-		struct vmstorage_channel_properties StorageChannelProperties;
+		struct vmstorage_channel_properties storage_channel_properties;
 
 		/* Used during version negotiations. */
-		struct vmstorage_protocol_version Version;
+		struct vmstorage_protocol_version version;
 	};
 } __attribute__((packed));
 

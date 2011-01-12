@@ -87,7 +87,7 @@ exit:
 	return status;
 }
 
-static int ql_soft_reset_mpi_risc(struct ql_adapter *qdev)
+int ql_soft_reset_mpi_risc(struct ql_adapter *qdev)
 {
 	int status;
 	status = ql_write_mpi_reg(qdev, 0x00001010, 1);

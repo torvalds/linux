@@ -251,19 +251,17 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw,
 
 	/* Configure PFC Tx thresholds per TC */
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
-		if (dcb_config->rx_pba_cfg == pba_equal)
-			rx_pba_size = IXGBE_RXPBSIZE_64KB;
-		else
-			rx_pba_size = (i < 4) ? IXGBE_RXPBSIZE_80KB
-			                      : IXGBE_RXPBSIZE_48KB;
+		rx_pba_size = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(i));
+		rx_pba_size >>= IXGBE_RXPBSIZE_SHIFT;
 
-		reg = ((rx_pba_size >> 5) & 0xFFE0);
+		reg = (rx_pba_size - hw->fc.low_water) << 10;
+
 		if (dcb_config->tc_config[i].dcb_pfc == pfc_enabled_full ||
 		    dcb_config->tc_config[i].dcb_pfc == pfc_enabled_tx)
 			reg |= IXGBE_FCRTL_XONE;
 		IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), reg);
 
-		reg = ((rx_pba_size >> 2) & 0xFFE0);
+		reg = (rx_pba_size - hw->fc.high_water) << 10;
 		if (dcb_config->tc_config[i].dcb_pfc == pfc_enabled_full ||
 		    dcb_config->tc_config[i].dcb_pfc == pfc_enabled_tx)
 			reg |= IXGBE_FCRTH_FCEN;

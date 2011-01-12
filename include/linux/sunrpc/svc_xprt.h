@@ -78,6 +78,7 @@ struct svc_xprt {
 	size_t			xpt_remotelen;	/* length of address */
 	struct rpc_wait_queue	xpt_bc_pending;	/* backchannel wait queue */
 	struct list_head	xpt_users;	/* callbacks on free */
+	void			*xpt_bc_sid;	/* back channel session ID */
 
 	struct net		*xpt_net;
 };

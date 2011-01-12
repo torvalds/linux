@@ -468,8 +468,8 @@ static int remove_tree(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 		return -ENOMEM;
 	ret = read_blk(info, *blk, buf);
 	if (ret < 0) {
-		quota_error(dquot->dq_sb, "Can't read quota data "
-			    "block %u", blk);
+		quota_error(dquot->dq_sb, "Can't read quota data block %u",
+			    *blk);
 		goto out_buf;
 	}
 	newblk = le32_to_cpu(ref[get_index(info, dquot->dq_id, depth)]);
@@ -493,8 +493,9 @@ static int remove_tree(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 		} else {
 			ret = write_blk(info, *blk, buf);
 			if (ret < 0)
-				quota_error(dquot->dq_sb, "Can't write quota "
-					    "tree block %u", blk);
+				quota_error(dquot->dq_sb,
+					    "Can't write quota tree block %u",
+					    *blk);
 		}
 	}
 out_buf:

@@ -33,6 +33,7 @@
  *                EASYCAP_NEEDS_USBVIDEO_H
  *                EASYCAP_NEEDS_V4L2_DEVICE_H
  *                EASYCAP_NEEDS_V4L2_FOPS
+ *                EASYCAP_NEEDS_UNLOCKED_IOCTL
  *
  *  IF REQUIRED THEY MUST BE EXTERNALLY DEFINED, FOR EXAMPLE AS COMPILER
  *  OPTIONS.
@@ -42,35 +43,24 @@
 #if (!defined(EASYCAP_H))
 #define EASYCAP_H
 
-#if defined(EASYCAP_DEBUG)
-#if (9 < EASYCAP_DEBUG)
-#error Debug levels 0 to 9 are okay.\
-  To achieve higher levels, remove this trap manually from easycap.h
-#endif
-#endif /*EASYCAP_DEBUG*/
+/*---------------------------------------------------------------------------*/
+/*
+ *  THESE ARE NORMALLY DEFINED
+ */
+/*---------------------------------------------------------------------------*/
+#define  PATIENCE  500
+#undef   PREFER_NTSC
+#define  PERSEVERE
 /*---------------------------------------------------------------------------*/
 /*
  *  THESE ARE FOR MAINTENANCE ONLY - NORMALLY UNDEFINED:
  */
 /*---------------------------------------------------------------------------*/
-#undef  PREFER_NTSC
 #undef  EASYCAP_TESTCARD
 #undef  EASYCAP_TESTTONE
-#undef  LOCKFRAME
 #undef  NOREADBACK
 #undef  AUDIOTIME
 /*---------------------------------------------------------------------------*/
-/*
- *
- *  DEFINE   BRIDGER   TO ACTIVATE THE ROUTINE FOR BRIDGING VIDEOTAPE DROPOUTS.
- *
- *             *** UNDER DEVELOPMENT/TESTING - NOT READY YET!***
- *
- */
-/*---------------------------------------------------------------------------*/
-#undef  BRIDGER
-/*---------------------------------------------------------------------------*/
-
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -92,25 +82,14 @@
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-#if (!defined(__OLD_VIDIOC_))
-#define __OLD_VIDIOC_
-#endif /* !defined(__OLD_VIDIOC_) */
-
 #include <media/v4l2-dev.h>
-
 #if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
 #include <media/v4l2-device.h>
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-
-#if (!defined(__OLD_VIDIOC_))
-#define __OLD_VIDIOC_
-#endif /* !defined(__OLD_VIDIOC_) */
 #include <linux/videodev2.h>
-
 #include <linux/soundcard.h>
-
 #if defined(EASYCAP_NEEDS_USBVIDEO_H)
 #include <config/video/usbvideo.h>
 #endif /*EASYCAP_NEEDS_USBVIDEO_H*/
@@ -121,7 +100,6 @@
 
 #define STRINGIZE_AGAIN(x) #x
 #define STRINGIZE(x) STRINGIZE_AGAIN(x)
-
 /*---------------------------------------------------------------------------*/
 /*  VENDOR, PRODUCT:  Syntek Semiconductor Co., Ltd
  *
@@ -135,12 +113,12 @@
 #define USB_EASYCAP_VENDOR_ID	0x05e1
 #define USB_EASYCAP_PRODUCT_ID	0x0408
 
-#define EASYCAP_DRIVER_VERSION "0.8.21"
+#define EASYCAP_DRIVER_VERSION "0.8.41"
 #define EASYCAP_DRIVER_DESCRIPTION "easycapdc60"
 
 #define USB_SKEL_MINOR_BASE     192
-#define VIDEO_DEVICE_MANY 8
-
+#define DONGLE_MANY 8
+#define INPUT_MANY 6
 /*---------------------------------------------------------------------------*/
 /*
  *  DEFAULT LUMINANCE, CONTRAST, SATURATION AND HUE
@@ -164,6 +142,8 @@
 #if (USB_2_0_MAXPACKETSIZE > PAGE_SIZE)
 #error video_isoc_buffer[.] will not be big enough
 #endif
+#define VIDEO_JUNK_TOLERATE VIDEO_ISOC_BUFFER_MANY
+#define VIDEO_LOST_TOLERATE 50
 /*---------------------------------------------------------------------------*/
 /*
  *  VIDEO BUFFERS
@@ -210,7 +190,17 @@
 #define  NTSC_M_JP      5
 #define  PAL_60         7
 #define  PAL_M          9
-#define  STANDARD_MANY 10
+#define  PAL_BGHIN_SLOW    10
+#define  PAL_Nc_SLOW       12
+#define  SECAM_SLOW        14
+#define  NTSC_N_SLOW       16
+#define  NTSC_N_443_SLOW   18
+#define  NTSC_M_SLOW       11
+#define  NTSC_443_SLOW     13
+#define  NTSC_M_JP_SLOW    15
+#define  PAL_60_SLOW       17
+#define  PAL_M_SLOW        19
+#define  STANDARD_MANY 20
 /*---------------------------------------------------------------------------*/
 /*
  *  ENUMS
@@ -238,7 +228,6 @@ PIXELFORMAT_MANY
 enum {
 FIELD_NONE,
 FIELD_INTERLACED,
-FIELD_ALTERNATE,
 INTERLACE_MANY
 };
 #define SETTINGS_MANY	(STANDARD_MANY * \
@@ -251,11 +240,18 @@ INTERLACE_MANY
  *  STRUCTURE DEFINITIONS
  */
 /*---------------------------------------------------------------------------*/
+struct easycap_dongle {
+struct easycap *peasycap;
+struct mutex mutex_video;
+struct mutex mutex_audio;
+};
+/*---------------------------------------------------------------------------*/
 struct data_buffer {
 struct list_head list_head;
 void *pgo;
 void *pto;
 __u16 kount;
+__u16 input;
 };
 /*---------------------------------------------------------------------------*/
 struct data_urb {
@@ -274,6 +270,22 @@ __u16 mask;
 char name[128];
 struct v4l2_format v4l2_format;
 };
+struct inputset {
+int input;
+int input_ok;
+int standard_offset;
+int standard_offset_ok;
+int format_offset;
+int format_offset_ok;
+int brightness;
+int brightness_ok;
+int contrast;
+int contrast_ok;
+int saturation;
+int saturation_ok;
+int hue;
+int hue_ok;
+};
 /*---------------------------------------------------------------------------*/
 /*
  *   easycap.ilk == 0   =>  CVBS+S-VIDEO HARDWARE, AUDIO wMaxPacketSize=256
@@ -282,6 +294,19 @@ struct v4l2_format v4l2_format;
  */
 /*---------------------------------------------------------------------------*/
 struct easycap {
+#define TELLTALE "expectedstring"
+char telltale[16];
+int isdongle;
+
+/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
+struct video_device video_device;
+#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+struct v4l2_device v4l2_device;
+#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
+#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+int status;
 unsigned int audio_pages_per_fragment;
 unsigned int audio_bytes_per_fragment;
 unsigned int audio_buffer_page_many;
@@ -291,25 +316,13 @@ unsigned int audio_buffer_page_many;
 __s16 oldaudio;
 #endif /*UPSAMPLE*/
 
-struct easycap_format easycap_format[1 + SETTINGS_MANY];
-
 int ilk;
 bool microphone;
-
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-struct video_device *pvideo_device;
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 struct usb_device *pusb_device;
 struct usb_interface *pusb_interface;
 
 struct kref kref;
-
-struct mutex mutex_mmap_video[FRAME_BUFFER_MANY];
-struct mutex mutex_timeval0;
-struct mutex mutex_timeval1;
 
 int queued[FRAME_BUFFER_MANY];
 int done[FRAME_BUFFER_MANY];
@@ -321,16 +334,24 @@ int input;
 int polled;
 int standard_offset;
 int format_offset;
+struct inputset inputset[INPUT_MANY];
 
+bool ntsc;
 int fps;
 int usec;
 int tolerate;
+int skip;
+int skipped;
+int lost[INPUT_MANY];
 int merit[180];
 
 struct timeval timeval0;
 struct timeval timeval1;
 struct timeval timeval2;
+struct timeval timeval3;
+struct timeval timeval6;
 struct timeval timeval7;
+struct timeval timeval8;
 long long int dnbydt;
 
 int    video_interface;
@@ -347,8 +368,6 @@ int    video_idle;
 int    video_eof;
 int    video_junk;
 
-int    fudge;
-
 struct data_buffer video_isoc_buffer[VIDEO_ISOC_BUFFER_MANY];
 struct data_buffer \
 	     field_buffer[FIELD_BUFFER_MANY][(FIELD_BUFFER_SIZE/PAGE_SIZE)];
@@ -357,6 +376,13 @@ struct data_buffer \
 
 struct list_head urb_video_head;
 struct list_head *purb_video_head;
+
+__u8 cache[8];
+__u8 *pcache;
+int video_mt;
+int audio_mt;
+long long audio_bytes;
+__u32 isequence;
 
 int vma_many;
 
@@ -383,7 +409,6 @@ int frame_lock;		/* Flag set to 1 by DQBUF and cleared by QBUF        */
  */
 /*---------------------------------------------------------------------------*/
 __u32                   pixelformat;
-__u32                   field;
 int                     width;
 int                     height;
 int                     bytesperpixel;
@@ -463,8 +488,10 @@ struct data_buffer audio_buffer[];
 void             easycap_complete(struct urb *);
 int              easycap_open(struct inode *, struct file *);
 int              easycap_release(struct inode *, struct file *);
-long             easycap_ioctl(struct file *, unsigned int,  unsigned long);
-
+long             easycap_ioctl_noinode(struct file *, unsigned int, \
+								unsigned long);
+int              easycap_ioctl(struct inode *, struct file *, unsigned int, \
+								unsigned long);
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
 int              easycap_open_noinode(struct file *);
@@ -489,12 +516,10 @@ int              kill_video_urbs(struct easycap *);
 int              field2frame(struct easycap *);
 int              redaub(struct easycap *, void *, void *, \
 						int, int, __u8, __u8, bool);
-void             debrief(struct easycap *);
-void             sayreadonly(struct easycap *);
 void             easycap_testcard(struct easycap *, int);
-int              explain_ioctl(__u32);
-int              explain_cid(__u32);
 int              fillin_formats(void);
+int              reset(struct easycap *);
+int              newinput(struct easycap *, int);
 int              adjust_standard(struct easycap *, v4l2_std_id);
 int              adjust_format(struct easycap *, __u32, __u32, __u32, \
 								int, bool);
@@ -512,7 +537,10 @@ void             easysnd_complete(struct urb *);
 ssize_t          easysnd_read(struct file *, char __user *, size_t, loff_t *);
 int              easysnd_open(struct inode *, struct file *);
 int              easysnd_release(struct inode *, struct file *);
-long             easysnd_ioctl(struct file *, unsigned int,  unsigned long);
+long             easysnd_ioctl_noinode(struct file *, unsigned int, \
+								unsigned long);
+int              easysnd_ioctl(struct inode *, struct file *, unsigned int, \
+								unsigned long);
 unsigned int     easysnd_poll(struct file *, poll_table *);
 void             easysnd_delete(struct kref *);
 int              submit_audio_urbs(struct easycap *);
@@ -532,11 +560,11 @@ int              wakeup_device(struct usb_device *);
 int              confirm_resolution(struct usb_device *);
 int              confirm_stream(struct usb_device *);
 
-int              setup_stk(struct usb_device *);
-int              setup_saa(struct usb_device *);
+int              setup_stk(struct usb_device *, bool);
+int              setup_saa(struct usb_device *, bool);
 int              setup_vt(struct usb_device *);
-int              check_stk(struct usb_device *);
-int              check_saa(struct usb_device *);
+int              check_stk(struct usb_device *, bool);
+int              check_saa(struct usb_device *, bool);
 int              ready_saa(struct usb_device *);
 int              merit_saa(struct usb_device *);
 int              check_vt(struct usb_device *);
@@ -554,12 +582,9 @@ int              stop_100(struct usb_device *);
 int              write_300(struct usb_device *);
 int              read_vt(struct usb_device *, __u16);
 int              write_vt(struct usb_device *, __u16, __u16);
-
-int              set2to78(struct usb_device *);
-int              set2to93(struct usb_device *);
-
 int              regset(struct usb_device *, __u16, __u16);
 int              regget(struct usb_device *, __u16, void *);
+int		isdongle(struct easycap *);
 /*---------------------------------------------------------------------------*/
 struct signed_div_result {
 long long int quotient;
@@ -587,23 +612,40 @@ unsigned long long int remainder;
 	} \
 } while (0)
 /*---------------------------------------------------------------------------*/
-
+/*
+ *  MACROS SAM(...) AND JOM(...) ALLOW DIAGNOSTIC OUTPUT TO BE TAGGED WITH
+ *  THE IDENTITY OF THE DONGLE TO WHICH IT APPLIES, BUT IF INVOKED WHEN THE
+ *  POINTER peasycap IS INVALID AN Oops IS LIKELY, AND ITS CAUSE MAY NOT BE
+ *  IMMEDIATELY OBVIOUS FROM A CASUAL READING OF THE SOURCE CODE.  BEWARE.
+*/
+/*---------------------------------------------------------------------------*/
 #define SAY(format, args...) do { \
-	printk(KERN_DEBUG "easycap: %s: " format, __func__, ##args); \
+	printk(KERN_DEBUG "easycap:: %s: " \
+			format, __func__, ##args); \
 } while (0)
-
+#define SAM(format, args...) do { \
+	printk(KERN_DEBUG "easycap::%i%s: " \
+			format, peasycap->isdongle, __func__, ##args);\
+} while (0)
 
 #if defined(EASYCAP_DEBUG)
 #define JOT(n, format, args...) do { \
 	if (n <= easycap_debug) { \
-		printk(KERN_DEBUG "easycap: %s: " format, __func__, ##args); \
+		printk(KERN_DEBUG "easycap:: %s: " \
+			format, __func__, ##args);\
 	} \
 } while (0)
+#define JOM(n, format, args...) do { \
+	if (n <= easycap_debug) { \
+		printk(KERN_DEBUG "easycap::%i%s: " \
+			format, peasycap->isdongle, __func__, ##args);\
+	} \
+} while (0)
+
 #else
 #define JOT(n, format, args...) do {} while (0)
+#define JOM(n, format, args...) do {} while (0)
 #endif /*EASYCAP_DEBUG*/
-
-#define POUT JOT(8, ":-(in file %s line %4i\n", __FILE__, __LINE__)
 
 #define MICROSECONDS(X, Y) \
 			((1000000*((long long int)(X.tv_sec - Y.tv_sec))) + \

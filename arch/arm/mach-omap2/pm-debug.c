@@ -29,12 +29,13 @@
 
 #include <plat/clock.h>
 #include <plat/board.h>
-#include <plat/powerdomain.h>
-#include <plat/clockdomain.h>
+#include "powerdomain.h"
+#include "clockdomain.h"
 #include <plat/dmtimer.h>
+#include <plat/omap-pm.h>
 
-#include "prm.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
+#include "prm2xxx_3xxx.h"
 #include "pm.h"
 
 int omap2_pm_debug;
@@ -45,10 +46,10 @@ u32 wakeup_timer_milliseconds;
 
 #define DUMP_PRM_MOD_REG(mod, reg)    \
 	regs[reg_count].name = #mod "." #reg; \
-	regs[reg_count++].val = prm_read_mod_reg(mod, reg)
+	regs[reg_count++].val = omap2_prm_read_mod_reg(mod, reg)
 #define DUMP_CM_MOD_REG(mod, reg)     \
 	regs[reg_count].name = #mod "." #reg; \
-	regs[reg_count++].val = cm_read_mod_reg(mod, reg)
+	regs[reg_count++].val = omap2_cm_read_mod_reg(mod, reg)
 #define DUMP_PRM_REG(reg) \
 	regs[reg_count].name = #reg; \
 	regs[reg_count++].val = __raw_readl(reg)
@@ -328,10 +329,10 @@ static void pm_dbg_regset_store(u32 *ptr)
 		for (j = pm_dbg_reg_modules[i].low;
 			j <= pm_dbg_reg_modules[i].high; j += 4) {
 			if (pm_dbg_reg_modules[i].type == MOD_CM)
-				val = cm_read_mod_reg(
+				val = omap2_cm_read_mod_reg(
 					pm_dbg_reg_modules[i].offset, j);
 			else
-				val = prm_read_mod_reg(
+				val = omap2_prm_read_mod_reg(
 					pm_dbg_reg_modules[i].offset, j);
 			*(ptr++) = val;
 		}
@@ -581,6 +582,10 @@ static int option_set(void *data, u64 val)
 	*option = val;
 
 	if (option == &enable_off_mode) {
+		if (val)
+			omap_pm_enable_off_mode();
+		else
+			omap_pm_disable_off_mode();
 		if (cpu_is_omap34xx())
 			omap3_pm_off_mode_enable(val);
 	}

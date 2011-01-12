@@ -175,7 +175,7 @@ static void mxc_gpio_irq_handler(struct mxc_gpio_port *port, u32 irq_stat)
 static void mx3_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 {
 	u32 irq_stat;
-	struct mxc_gpio_port *port = (struct mxc_gpio_port *)get_irq_data(irq);
+	struct mxc_gpio_port *port = get_irq_data(irq);
 
 	irq_stat = __raw_readl(port->base + GPIO_ISR) &
 			__raw_readl(port->base + GPIO_IMR);
@@ -188,7 +188,7 @@ static void mx2_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 {
 	int i;
 	u32 irq_msk, irq_stat;
-	struct mxc_gpio_port *port = (struct mxc_gpio_port *)get_irq_data(irq);
+	struct mxc_gpio_port *port = get_irq_data(irq);
 
 	/* walk through all interrupt status registers */
 	for (i = 0; i < gpio_table_size; i++) {
@@ -349,3 +349,113 @@ int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 
 	return 0;
 }
+
+#define DEFINE_IMX_GPIO_PORT_IRQ_HIGH(soc, _id, _hwid, _irq, _irq_high)	\
+	{								\
+		.chip.label = "gpio-" #_id,				\
+		.irq = _irq,						\
+		.irq_high = _irq_high,					\
+		.base = soc ## _IO_ADDRESS(				\
+				soc ## _GPIO ## _hwid ## _BASE_ADDR),	\
+		.virtual_irq_start = MXC_GPIO_IRQ_START + (_id) * 32,	\
+	}
+
+#define DEFINE_IMX_GPIO_PORT_IRQ(soc, _id, _hwid, _irq)			\
+	DEFINE_IMX_GPIO_PORT_IRQ_HIGH(soc, _id, _hwid, _irq, 0)
+#define DEFINE_IMX_GPIO_PORT(soc, _id, _hwid)				\
+	DEFINE_IMX_GPIO_PORT_IRQ(soc, _id, _hwid, 0)
+
+#define DEFINE_REGISTER_FUNCTION(prefix)				\
+int __init prefix ## _register_gpios(void)				\
+{									\
+	return mxc_gpio_init(prefix ## _gpio_ports,			\
+			ARRAY_SIZE(prefix ## _gpio_ports));		\
+}
+
+#if defined(CONFIG_SOC_IMX1)
+static struct mxc_gpio_port imx1_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX1, 0, 1, MX1_GPIO_INT_PORTA),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX1, 1, 2, MX1_GPIO_INT_PORTB),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX1, 2, 3, MX1_GPIO_INT_PORTC),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX1, 3, 4, MX1_GPIO_INT_PORTD),
+};
+
+DEFINE_REGISTER_FUNCTION(imx1)
+
+#endif /* if defined(CONFIG_SOC_IMX1) */
+
+#if defined(CONFIG_SOC_IMX21)
+static struct mxc_gpio_port imx21_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX21, 0, 1, MX21_INT_GPIO),
+	DEFINE_IMX_GPIO_PORT(MX21, 1, 2),
+	DEFINE_IMX_GPIO_PORT(MX21, 2, 3),
+	DEFINE_IMX_GPIO_PORT(MX21, 3, 4),
+	DEFINE_IMX_GPIO_PORT(MX21, 4, 5),
+	DEFINE_IMX_GPIO_PORT(MX21, 5, 6),
+};
+
+DEFINE_REGISTER_FUNCTION(imx21)
+
+#endif /* if defined(CONFIG_SOC_IMX21) */
+
+#if defined(CONFIG_SOC_IMX25)
+static struct mxc_gpio_port imx25_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX25, 0, 1, MX25_INT_GPIO1),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX25, 1, 2, MX25_INT_GPIO2),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX25, 2, 3, MX25_INT_GPIO3),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX25, 3, 4, MX25_INT_GPIO4),
+};
+
+DEFINE_REGISTER_FUNCTION(imx25)
+
+#endif /* if defined(CONFIG_SOC_IMX25) */
+
+#if defined(CONFIG_SOC_IMX27)
+static struct mxc_gpio_port imx27_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX27, 0, 1, MX27_INT_GPIO),
+	DEFINE_IMX_GPIO_PORT(MX27, 1, 2),
+	DEFINE_IMX_GPIO_PORT(MX27, 2, 3),
+	DEFINE_IMX_GPIO_PORT(MX27, 3, 4),
+	DEFINE_IMX_GPIO_PORT(MX27, 4, 5),
+	DEFINE_IMX_GPIO_PORT(MX27, 5, 6),
+};
+
+DEFINE_REGISTER_FUNCTION(imx27)
+
+#endif /* if defined(CONFIG_SOC_IMX27) */
+
+#if defined(CONFIG_SOC_IMX31)
+static struct mxc_gpio_port imx31_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX31, 0, 1, MX31_INT_GPIO1),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX31, 1, 2, MX31_INT_GPIO2),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX31, 2, 3, MX31_INT_GPIO3),
+};
+
+DEFINE_REGISTER_FUNCTION(imx31)
+
+#endif /* if defined(CONFIG_SOC_IMX31) */
+
+#if defined(CONFIG_SOC_IMX35)
+static struct mxc_gpio_port imx35_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX35, 0, 1, MX35_INT_GPIO1),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX35, 1, 2, MX35_INT_GPIO2),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX35, 2, 3, MX35_INT_GPIO3),
+};
+
+DEFINE_REGISTER_FUNCTION(imx35)
+
+#endif /* if defined(CONFIG_SOC_IMX35) */
+
+#if defined(CONFIG_SOC_IMX50)
+static struct mxc_gpio_port imx50_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ_HIGH(MX50, 0, 1, MX50_INT_GPIO1_LOW, MX50_INT_GPIO1_HIGH),
+	DEFINE_IMX_GPIO_PORT_IRQ_HIGH(MX50, 1, 2, MX50_INT_GPIO2_LOW, MX50_INT_GPIO2_HIGH),
+	DEFINE_IMX_GPIO_PORT_IRQ_HIGH(MX50, 2, 3, MX50_INT_GPIO3_LOW, MX50_INT_GPIO3_HIGH),
+	DEFINE_IMX_GPIO_PORT_IRQ_HIGH(MX50, 3, 4, MX50_INT_GPIO3_LOW, MX50_INT_GPIO3_HIGH),
+	DEFINE_IMX_GPIO_PORT_IRQ_HIGH(MX50, 4, 5, MX50_INT_GPIO3_LOW, MX50_INT_GPIO3_HIGH),
+	DEFINE_IMX_GPIO_PORT_IRQ_HIGH(MX50, 5, 6, MX50_INT_GPIO3_LOW, MX50_INT_GPIO3_HIGH),
+};
+
+DEFINE_REGISTER_FUNCTION(imx50)
+
+#endif /* if defined(CONFIG_SOC_IMX50) */

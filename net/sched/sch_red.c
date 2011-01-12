@@ -94,8 +94,7 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 	ret = qdisc_enqueue(skb, child);
 	if (likely(ret == NET_XMIT_SUCCESS)) {
-		sch->bstats.bytes += qdisc_pkt_len(skb);
-		sch->bstats.packets++;
+		qdisc_bstats_update(sch, skb);
 		sch->q.qlen++;
 	} else if (net_xmit_drop_count(ret)) {
 		q->stats.pdrop++;
@@ -239,6 +238,7 @@ static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 		.Scell_log	= q->parms.Scell_log,
 	};
 
+	sch->qstats.backlog = q->qdisc->qstats.backlog;
 	opts = nla_nest_start(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;

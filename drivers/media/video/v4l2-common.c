@@ -150,7 +150,7 @@ EXPORT_SYMBOL(v4l2_prio_check);
    struct v4l2_queryctrl and the available menu items. Note that
    menu_items may be NULL, in that case it is ignored. */
 int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
-		const char **menu_items)
+		const char * const *menu_items)
 {
 	if (qctrl->flags & V4L2_CTRL_FLAG_DISABLED)
 		return -EINVAL;
@@ -199,7 +199,7 @@ EXPORT_SYMBOL(v4l2_ctrl_query_fill);
    If menu_items is NULL, then the menu items are retrieved using
    v4l2_ctrl_get_menu. */
 int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu, struct v4l2_queryctrl *qctrl,
-	       const char **menu_items)
+	       const char * const *menu_items)
 {
 	int i;
 
@@ -222,7 +222,7 @@ EXPORT_SYMBOL(v4l2_ctrl_query_menu);
    Use this if there are 'holes' in the list of valid menu items. */
 int v4l2_ctrl_query_menu_valid_items(struct v4l2_querymenu *qmenu, const u32 *ids)
 {
-	const char **menu_items = v4l2_ctrl_get_menu(qmenu->id);
+	const char * const *menu_items = v4l2_ctrl_get_menu(qmenu->id);
 
 	qmenu->reserved = 0;
 	if (menu_items == NULL || ids == NULL)

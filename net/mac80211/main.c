@@ -245,9 +245,12 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				sdata->vif.bss_conf.enable_beacon =
 					!!sdata->u.ibss.presp;
 				break;
+#ifdef CONFIG_MAC80211_MESH
 			case NL80211_IFTYPE_MESH_POINT:
-				sdata->vif.bss_conf.enable_beacon = true;
+				sdata->vif.bss_conf.enable_beacon =
+					!!sdata->u.mesh.mesh_id_len;
 				break;
+#endif
 			default:
 				/* not reached */
 				WARN_ON(1);
@@ -481,6 +484,10 @@ ieee80211_default_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 			BIT(IEEE80211_STYPE_DEAUTH >> 4) |
 			BIT(IEEE80211_STYPE_ACTION >> 4),
 	},
+	[NL80211_IFTYPE_MESH_POINT] = {
+		.tx = 0xffff,
+		.rx = BIT(IEEE80211_STYPE_ACTION >> 4),
+	},
 };
 
 struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
@@ -514,10 +521,15 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	wiphy->mgmt_stypes = ieee80211_default_mgmt_stypes;
 
+	wiphy->privid = mac80211_wiphy_privid;
+
 	wiphy->flags |= WIPHY_FLAG_NETNS_OK |
 			WIPHY_FLAG_4ADDR_AP |
-			WIPHY_FLAG_4ADDR_STATION;
-	wiphy->privid = mac80211_wiphy_privid;
+			WIPHY_FLAG_4ADDR_STATION |
+			WIPHY_FLAG_SUPPORTS_SEPARATE_DEFAULT_KEYS;
+
+	if (!ops->set_key)
+		wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 
 	wiphy->bss_priv_size = sizeof(struct ieee80211_bss);
 
@@ -557,6 +569,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	spin_lock_init(&local->filter_lock);
 	spin_lock_init(&local->queue_stop_reason_lock);
 
+	skb_queue_head_init(&local->rx_skb_queue);
+
 	INIT_DELAYED_WORK(&local->scan_work, ieee80211_scan_work);
 
 	ieee80211_work_init(local);
@@ -592,6 +606,10 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	/* init dummy netdev for use w/ NAPI */
 	init_dummy_netdev(&local->napi_dev);
+
+	ieee80211_led_names(local);
+
+	ieee80211_hw_roc_setup(local);
 
 	return local_to_hw(local);
 }
@@ -736,6 +754,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			local->wiphy_ciphers_allocated = true;
 		}
 	}
+
+	if (!local->ops->remain_on_channel)
+		local->hw.wiphy->max_remain_on_channel_duration = 5000;
 
 	result = wiphy_register(local->hw.wiphy);
 	if (result < 0)
@@ -898,6 +919,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 		wiphy_warn(local->hw.wiphy, "skb_queue not empty\n");
 	skb_queue_purge(&local->skb_queue);
 	skb_queue_purge(&local->skb_queue_unreliable);
+	skb_queue_purge(&local->rx_skb_queue);
 
 	destroy_workqueue(local->workqueue);
 	wiphy_unregister(local->hw.wiphy);

@@ -197,17 +197,15 @@ static inline void __init board_smsc911x_init(void)
 
 static void __init omap3logic_init_irq(void)
 {
-	omap2_init_common_hw(NULL, NULL);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(NULL, NULL);
 	omap_init_irq();
-	omap_gpio_init();
 }
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
-#else
-#define board_mux       NULL
 #endif
 
 static void __init omap3logic_init(void)

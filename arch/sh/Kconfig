@@ -1,7 +1,7 @@
 config SUPERH
 	def_bool y
 	select EMBEDDED
-	select HAVE_CLK
+	select CLKDEV_LOOKUP
 	select HAVE_IDE if HAS_IOPORT
 	select HAVE_MEMBLOCK
 	select HAVE_OPROFILE
@@ -162,7 +162,8 @@ config ARCH_HAS_CPU_IDLE_WAIT
 	def_bool y
 
 config NO_IOPORT
-	bool
+	def_bool !PCI
+	depends on !SH_CAYMAN && !SH_SH4202_MICRODEV
 
 config IO_TRAPPED
 	bool
@@ -275,6 +276,7 @@ config CPU_SUBTYPE_SH7203
 	select CPU_HAS_FPU
 	select SYS_SUPPORTS_CMT
 	select SYS_SUPPORTS_MTU2
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config CPU_SUBTYPE_SH7206
 	bool "Support SH7206 processor"
@@ -346,6 +348,8 @@ config CPU_SUBTYPE_SH7720
 	select CPU_SH3
 	select CPU_HAS_DSP
 	select SYS_SUPPORTS_CMT
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select USB_ARCH_HAS_OHCI
 	help
 	  Select SH7720 if you have a SH3-DSP SH7720 CPU.
 
@@ -354,6 +358,7 @@ config CPU_SUBTYPE_SH7721
 	select CPU_SH3
 	select CPU_HAS_DSP
 	select SYS_SUPPORTS_CMT
+	select USB_ARCH_HAS_OHCI
 	help
 	  Select SH7721 if you have a SH3-DSP SH7721 CPU.
 
@@ -408,6 +413,7 @@ config CPU_SUBTYPE_SH7723
 	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_CMT
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Select SH7723 if you have an SH-MobileR2 CPU.
 
@@ -418,6 +424,7 @@ config CPU_SUBTYPE_SH7724
 	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_CMT
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Select SH7724 if you have an SH-MobileR2R CPU.
 
@@ -425,12 +432,14 @@ config CPU_SUBTYPE_SH7757
 	bool "Support SH7757 processor"
 	select CPU_SH4A
 	select CPU_SHX2
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Select SH7757 if you have a SH4A SH7757 CPU.
 
 config CPU_SUBTYPE_SH7763
 	bool "Support SH7763 processor"
 	select CPU_SH4A
+	select USB_ARCH_HAS_OHCI
 	help
 	  Select SH7763 if you have a SH4A SH7763(R5S77631) CPU.
 
@@ -448,6 +457,7 @@ config CPU_SUBTYPE_SH7785
 	select CPU_SHX2
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config CPU_SUBTYPE_SH7786
 	bool "Support SH7786 processor"
@@ -455,6 +465,9 @@ config CPU_SUBTYPE_SH7786
 	select CPU_SHX3
 	select CPU_HAS_PTEAEX
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select USB_ARCH_HAS_OHCI
+	select USB_ARCH_HAS_EHCI
 
 config CPU_SUBTYPE_SHX3
 	bool "Support SH-X3 processor"
@@ -479,6 +492,7 @@ config CPU_SUBTYPE_SH7722
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_CMT
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config CPU_SUBTYPE_SH7366
 	bool "Support SH7366 processor"
@@ -567,15 +581,6 @@ config SH_CLK_CPG_LEGACY
 	depends on SH_CLK_CPG
 	def_bool y if !CPU_SUBTYPE_SH7785 && !ARCH_SHMOBILE && \
 		      !CPU_SHX3 && !CPU_SUBTYPE_SH7757
-
-config SH_CLK_MD
-	int "CPU Mode Pin Setting"
-	depends on CPU_SH2
-	default 6 if CPU_SUBTYPE_SH7206
-	default 5 if CPU_SUBTYPE_SH7619
-	default 0
-	help
-	  MD2 - MD0 pin setting.
 
 source "kernel/time/Kconfig"
 

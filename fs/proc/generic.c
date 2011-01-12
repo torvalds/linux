@@ -400,7 +400,7 @@ static const struct inode_operations proc_link_inode_operations = {
  * smarter: we could keep a "volatile" flag in the 
  * inode to indicate which ones to keep.
  */
-static int proc_delete_dentry(struct dentry * dentry)
+static int proc_delete_dentry(const struct dentry * dentry)
 {
 	return 1;
 }
@@ -439,7 +439,7 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 out_unlock:
 
 	if (inode) {
-		dentry->d_op = &proc_dentry_operations;
+		d_set_d_op(dentry, &proc_dentry_operations);
 		d_add(dentry, inode);
 		return NULL;
 	}

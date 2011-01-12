@@ -194,13 +194,7 @@ static int siena_reset_hw(struct efx_nic *efx, enum reset_type method)
 
 static int siena_probe_nvconfig(struct efx_nic *efx)
 {
-	int rc;
-
-	rc = efx_mcdi_get_board_cfg(efx, efx->mac_address, NULL);
-	if (rc)
-		return rc;
-
-	return 0;
+	return efx_mcdi_get_board_cfg(efx, efx->net_dev->perm_addr, NULL);
 }
 
 static int siena_probe_nic(struct efx_nic *efx)
@@ -562,7 +556,7 @@ static int siena_set_wol(struct efx_nic *efx, u32 type)
 		if (nic_data->wol_filter_id != -1)
 			efx_mcdi_wol_filter_remove(efx,
 						   nic_data->wol_filter_id);
-		rc = efx_mcdi_wol_filter_set_magic(efx, efx->mac_address,
+		rc = efx_mcdi_wol_filter_set_magic(efx, efx->net_dev->dev_addr,
 						   &nic_data->wol_filter_id);
 		if (rc)
 			goto fail;

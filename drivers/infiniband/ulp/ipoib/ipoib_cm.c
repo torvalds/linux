@@ -1480,6 +1480,7 @@ static ssize_t set_mode(struct device *d, struct device_attribute *attr,
 
 		if (test_bit(IPOIB_FLAG_CSUM, &priv->flags)) {
 			dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
+			priv->dev->features |= NETIF_F_GRO;
 			if (priv->hca_caps & IB_DEVICE_UD_TSO)
 				dev->features |= NETIF_F_TSO;
 		}

@@ -42,7 +42,6 @@
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
 #include <mach/board-mx31lilly.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"
@@ -230,13 +229,13 @@ static struct mxc_usbh_platform_data usbotg_pdata = {
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
 };
 
-static struct mxc_usbh_platform_data usbh1_pdata = {
+static const struct mxc_usbh_platform_data usbh1_pdata __initconst = {
 	.init	= usbh1_init,
 	.portsc	= MXC_EHCI_MODE_UTMI | MXC_EHCI_SERIAL,
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_SINGLE_UNI,
 };
 
-static struct mxc_usbh_platform_data usbh2_pdata = {
+static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.init	= usbh2_init,
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
@@ -249,8 +248,8 @@ static void lilly1131_usb_init(void)
 	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-	mxc_register_device(&mxc_usbh1, &usbh1_pdata);
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+	imx31_add_mxc_ehci_hs(1, &usbh1_pdata);
+	imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
 }
 
 #else

@@ -216,7 +216,6 @@ had ->revalidate()) add calls in ->follow_link()/->readlink().
 ->d_parent changes are not protected by BKL anymore.  Read access is safe
 if at least one of the following is true:
 	* filesystem has no cross-directory rename()
-	* dcache_lock is held
 	* we know that parent had been locked (e.g. we are looking at
 ->d_parent of ->lookup() argument).
 	* we are called from ->rename().
@@ -318,3 +317,71 @@ if it's zero is not *and* *never* *had* *been* enough.  Final unlink() and iput(
 may happen while the inode is in the middle of ->write_inode(); e.g. if you blindly
 free the on-disk inode, you may end up doing that while ->write_inode() is writing
 to it.
+
+---
+[mandatory]
+
+	.d_delete() now only advises the dcache as to whether or not to cache
+unreferenced dentries, and is now only called when the dentry refcount goes to
+0. Even on 0 refcount transition, it must be able to tolerate being called 0,
+1, or more times (eg. constant, idempotent).
+
+---
+[mandatory]
+
+	.d_compare() calling convention and locking rules are significantly
+changed. Read updated documentation in Documentation/filesystems/vfs.txt (and
+look at examples of other filesystems) for guidance.
+
+---
+[mandatory]
+
+	.d_hash() calling convention and locking rules are significantly
+changed. Read updated documentation in Documentation/filesystems/vfs.txt (and
+look at examples of other filesystems) for guidance.
+
+---
+[mandatory]
+	dcache_lock is gone, replaced by fine grained locks. See fs/dcache.c
+for details of what locks to replace dcache_lock with in order to protect
+particular things. Most of the time, a filesystem only needs ->d_lock, which
+protects *all* the dcache state of a given dentry.
+
+--
+[mandatory]
+
+	Filesystems must RCU-free their inodes, if they can have been accessed
+via rcu-walk path walk (basically, if the file can have had a path name in the
+vfs namespace).
+
+	i_dentry and i_rcu share storage in a union, and the vfs expects
+i_dentry to be reinitialized before it is freed, so an:
+
+  INIT_LIST_HEAD(&inode->i_dentry);
+
+must be done in the RCU callback.
+
+--
+[recommended]
+	vfs now tries to do path walking in "rcu-walk mode", which avoids
+atomic operations and scalability hazards on dentries and inodes (see
+Documentation/filesystems/path-walk.txt). d_hash and d_compare changes (above)
+are examples of the changes required to support this. For more complex
+filesystem callbacks, the vfs drops out of rcu-walk mode before the fs call, so
+no changes are required to the filesystem. However, this is costly and loses
+the benefits of rcu-walk mode. We will begin to add filesystem callbacks that
+are rcu-walk aware, shown below. Filesystems should take advantage of this
+where possible.
+
+--
+[mandatory]
+	d_revalidate is a callback that is made on every path element (if
+the filesystem provides it), which requires dropping out of rcu-walk mode. This
+may now be called in rcu-walk mode (nd->flags & LOOKUP_RCU). -ECHILD should be
+returned if the filesystem cannot handle rcu-walk. See
+Documentation/filesystems/vfs.txt for more details.
+
+	permission and check_acl are inode permission checks that are called
+on many or all directory inodes on the way down a path walk (to check for
+exec permission). These must now be rcu-walk aware (flags & IPERM_RCU). See
+Documentation/filesystems/vfs.txt for more details.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2009 Analog Devices Inc.
+ * Copyright 2005-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -7,57 +7,48 @@
 #ifndef _MACH_PLL_H
 #define _MACH_PLL_H
 
+#ifndef __ASSEMBLY__
+
+#ifdef CONFIG_SMP
+
 #include <asm/blackfin.h>
 #include <asm/irqflags.h>
+#include <mach/irq.h>
 
-/* Writing to PLL_CTL initiates a PLL relock sequence. */
-static __inline__ void bfin_write_PLL_CTL(unsigned int val)
+#define SUPPLE_0_WAKEUP ((IRQ_SUPPLE_0 - (IRQ_CORETMR + 1)) % 32)
+
+static inline void
+bfin_iwr_restore(unsigned long iwr0, unsigned long iwr1, unsigned long iwr2)
 {
-	unsigned long flags, iwr0, iwr1;
+	unsigned long SICA_SICB_OFF = ((bfin_read_DSPID() & 0xff) ? 0x1000 : 0);
 
-	if (val == bfin_read_PLL_CTL())
-		return;
+	bfin_write32(SIC_IWR0 + SICA_SICB_OFF, iwr0);
+	bfin_write32(SIC_IWR1 + SICA_SICB_OFF, iwr1);
+}
+#define bfin_iwr_restore bfin_iwr_restore
 
-	flags = hard_local_irq_save();
-	/* Enable the PLL Wakeup bit in SIC IWR */
-	iwr0 = bfin_read32(SICA_IWR0);
-	iwr1 = bfin_read32(SICA_IWR1);
-	/* Only allow PPL Wakeup) */
-	bfin_write32(SICA_IWR0, IWR_ENABLE(0));
-	bfin_write32(SICA_IWR1, 0);
+static inline void
+bfin_iwr_save(unsigned long niwr0, unsigned long niwr1, unsigned long niwr2,
+              unsigned long *iwr0, unsigned long *iwr1, unsigned long *iwr2)
+{
+	unsigned long SICA_SICB_OFF = ((bfin_read_DSPID() & 0xff) ? 0x1000 : 0);
 
-	bfin_write16(PLL_CTL, val);
-	SSYNC();
-	asm("IDLE;");
+	*iwr0 = bfin_read32(SIC_IWR0 + SICA_SICB_OFF);
+	*iwr1 = bfin_read32(SIC_IWR1 + SICA_SICB_OFF);
+	bfin_iwr_restore(niwr0, niwr1, niwr2);
+}
+#define bfin_iwr_save bfin_iwr_save
 
-	bfin_write32(SICA_IWR0, iwr0);
-	bfin_write32(SICA_IWR1, iwr1);
-	hard_local_irq_restore(flags);
+static inline void
+bfin_iwr_set_sup0(unsigned long *iwr0, unsigned long *iwr1, unsigned long *iwr2)
+{
+	bfin_iwr_save(0, IWR_ENABLE(SUPPLE_0_WAKEUP), 0, iwr0, iwr1, iwr2);
 }
 
-/* Writing to VR_CTL initiates a PLL relock sequence. */
-static __inline__ void bfin_write_VR_CTL(unsigned int val)
-{
-	unsigned long flags, iwr0, iwr1;
+#endif
 
-	if (val == bfin_read_VR_CTL())
-		return;
+#endif
 
-	flags = hard_local_irq_save();
-	/* Enable the PLL Wakeup bit in SIC IWR */
-	iwr0 = bfin_read32(SICA_IWR0);
-	iwr1 = bfin_read32(SICA_IWR1);
-	/* Only allow PPL Wakeup) */
-	bfin_write32(SICA_IWR0, IWR_ENABLE(0));
-	bfin_write32(SICA_IWR1, 0);
+#include <mach-common/pll.h>
 
-	bfin_write16(VR_CTL, val);
-	SSYNC();
-	asm("IDLE;");
-
-	bfin_write32(SICA_IWR0, iwr0);
-	bfin_write32(SICA_IWR1, iwr1);
-	hard_local_irq_restore(flags);
-}
-
-#endif /* _MACH_PLL_H */
+#endif
