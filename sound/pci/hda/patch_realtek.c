@@ -14846,6 +14846,7 @@ static const struct alc_fixup alc269_fixups[] = {
 			{0x01, AC_VERB_SET_GPIO_MASK, 0x04},
 			{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x04},
 			{0x01, AC_VERB_SET_GPIO_DATA, 0x00},
+			{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREFGRD},
 			{ }
 		}
 	},
