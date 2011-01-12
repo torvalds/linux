@@ -343,8 +343,11 @@ bool nvmap_shrink_carveout(struct nvmap_carveout_node *node)
 			get_client_from_carveout_commit(node, commit);
 		size_t size = commit->commit;
 		struct task_struct *task = client->task;
-		struct signal_struct *sig = task->signal;
+		struct signal_struct *sig;
 
+		if (!task)
+			continue;
+		sig = task->signal;
 		if (!task->mm || !sig)
 			continue;
 		if (sig->oom_adj < selected_oom_adj)
@@ -526,6 +529,7 @@ struct nvmap_client *nvmap_create_client(struct nvmap_device *dev,
 					 const char *name)
 {
 	struct nvmap_client *client;
+	struct task_struct *task;
 	int i;
 
 	if (WARN_ON(!dev))
@@ -553,7 +557,17 @@ struct nvmap_client *nvmap_create_client(struct nvmap_device *dev,
 	}
 
 	get_task_struct(current);
-	client->task = current;
+	task_lock(current);
+	/* don't bother to store task struct for kernel threads,
+	   they can't be killed anyway */
+	if (current->flags & PF_KTHREAD) {
+		put_task_struct(current);
+		task = NULL;
+	} else {
+		task = current;
+	}
+	task_unlock(current);
+	client->task = task;
 
 	spin_lock_init(&client->ref_lock);
 	atomic_set(&client->count, 1);
@@ -850,7 +864,11 @@ static struct attribute_group heap_extra_attr_group = {
 
 static void client_stringify(struct nvmap_client *client, struct seq_file *s)
 {
-	char task_comm[sizeof(client->task->comm)];
+	char task_comm[TASK_COMM_LEN];
+	if (!client->task) {
+		seq_printf(s, "%8s %16s %8u", client->name, "kernel", 0);
+		return;
+	}
 	get_task_comm(task_comm, client->task);
 	seq_printf(s, "%8s %16s %8u", client->name, task_comm,
 		   client->task->pid);
