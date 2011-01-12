@@ -119,6 +119,9 @@ void rh_port_disconnect(int rhport);
 void vhci_rx_loop(struct usbip_task *ut);
 void vhci_tx_loop(struct usbip_task *ut);
 
+struct urb *pickup_urb_and_free_priv(struct vhci_device *vdev,
+					    __u32 seqnum);
+
 #define hardware		(&the_controller->pdev.dev)
 
 static inline struct vhci_device *port_to_vdev(__u32 port)
