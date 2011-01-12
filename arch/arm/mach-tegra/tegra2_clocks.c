@@ -827,9 +827,9 @@ static long tegra2_pll_div_clk_round_rate(struct clk *c, unsigned long rate)
 		divider = clk_div71_get_divider(parent_rate, rate);
 		if (divider < 0)
 			return divider;
-		return parent_rate * 2 / (divider + 2);
+		return DIV_ROUND_UP(parent_rate * 2, divider + 2);
 	} else if (c->flags & DIV_2) {
-		return parent_rate / 2;
+		return DIV_ROUND_UP(parent_rate, 2);
 	}
 	return -EINVAL;
 }
@@ -1006,12 +1006,12 @@ static long tegra2_periph_clk_round_rate(struct clk *c,
 		if (divider < 0)
 			return divider;
 
-		return parent_rate * 2 / (divider + 2);
+		return DIV_ROUND_UP(parent_rate * 2, divider + 2);
 	} else if (c->flags & DIV_U16) {
 		divider = clk_div16_get_divider(parent_rate, rate);
 		if (divider < 0)
 			return divider;
-		return parent_rate / (divider + 1);
+		return DIV_ROUND_UP(parent_rate, divider + 1);
 	}
 	return -EINVAL;
 }
