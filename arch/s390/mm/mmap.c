@@ -27,6 +27,7 @@
 #include <linux/personality.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/random.h>
 #include <asm/pgalloc.h>
 #include <asm/compat.h>
 
@@ -56,6 +57,14 @@ static inline int mmap_is_legacy(void)
 	return sysctl_legacy_va_layout;
 }
 
+static unsigned long mmap_rnd(void)
+{
+	if (!(current->flags & PF_RANDOMIZE))
+		return 0;
+	/* 8MB randomization for mmap_base */
+	return (get_random_int() & 0x7ffUL) << PAGE_SHIFT;
+}
+
 static inline unsigned long mmap_base(void)
 {
 	unsigned long gap = rlimit(RLIMIT_STACK);
@@ -64,8 +73,8 @@ static inline unsigned long mmap_base(void)
 		gap = MIN_GAP;
 	else if (gap > MAX_GAP)
 		gap = MAX_GAP;
-
-	return STACK_TOP - stack_maxrandom_size() - (gap & PAGE_MASK);
+	gap &= PAGE_MASK;
+	return STACK_TOP - stack_maxrandom_size() - mmap_rnd() - gap;
 }
 
 #ifndef CONFIG_64BIT
