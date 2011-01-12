@@ -433,7 +433,6 @@ static void gfar_init_mac(struct net_device *ndev)
 static struct net_device_stats *gfar_get_stats(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct netdev_queue *txq;
 	unsigned long rx_packets = 0, rx_bytes = 0, rx_dropped = 0;
 	unsigned long tx_packets = 0, tx_bytes = 0;
 	int i = 0;
@@ -449,9 +448,8 @@ static struct net_device_stats *gfar_get_stats(struct net_device *dev)
 	dev->stats.rx_dropped = rx_dropped;
 
 	for (i = 0; i < priv->num_tx_queues; i++) {
-		txq = netdev_get_tx_queue(dev, i);
-		tx_bytes += txq->tx_bytes;
-		tx_packets += txq->tx_packets;
+		tx_bytes += priv->tx_queue[i]->stats.tx_bytes;
+		tx_packets += priv->tx_queue[i]->stats.tx_packets;
 	}
 
 	dev->stats.tx_bytes = tx_bytes;
@@ -2108,8 +2106,8 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Update transmit stats */
-	txq->tx_bytes += skb->len;
-	txq->tx_packets ++;
+	tx_queue->stats.tx_bytes += skb->len;
+	tx_queue->stats.tx_packets++;
 
 	txbdp = txbdp_start = tx_queue->cur_tx;
 	lstatus = txbdp->lstatus;
