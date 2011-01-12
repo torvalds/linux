@@ -88,7 +88,7 @@ static void aaci_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 		v = readl(aaci->base + AACI_SLFR);
 	} while ((v & (SLFR_1TXB|SLFR_2TXB)) && --timeout);
 
-	if (!timeout)
+	if (v & (SLFR_1TXB|SLFR_2TXB))
 		dev_err(&aaci->dev->dev,
 			"timeout waiting for write to complete\n");
 
@@ -124,7 +124,7 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 		v = readl(aaci->base + AACI_SLFR);
 	} while ((v & SLFR_1TXB) && --timeout);
 
-	if (!timeout) {
+	if (v & SLFR_1TXB) {
 		dev_err(&aaci->dev->dev, "timeout on slot 1 TX busy\n");
 		v = ~0;
 		goto out;
@@ -145,7 +145,7 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 		v = readl(aaci->base + AACI_SLFR) & (SLFR_1RXV|SLFR_2RXV);
 	} while ((v != (SLFR_1RXV|SLFR_2RXV)) && --timeout);
 
-	if (!timeout) {
+	if (v != (SLFR_1RXV|SLFR_2RXV)) {
 		dev_err(&aaci->dev->dev, "timeout on RX valid\n");
 		v = ~0;
 		goto out;
