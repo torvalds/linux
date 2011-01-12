@@ -3240,12 +3240,14 @@ tx_drop:
 	return NETDEV_TX_OK;
 }
 
-static int qeth_l3_open(struct net_device *dev)
+static int __qeth_l3_open(struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
 	int rc = 0;
 
 	QETH_CARD_TEXT(card, 4, "qethopen");
+	if (card->state == CARD_STATE_UP)
+		return rc;
 	if (card->state != CARD_STATE_SOFTSETUP)
 		return -ENODEV;
 	card->data.state = CH_STATE_UP;
@@ -3258,6 +3260,18 @@ static int qeth_l3_open(struct net_device *dev)
 	} else
 		rc = -EIO;
 	return rc;
+}
+
+static int qeth_l3_open(struct net_device *dev)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	QETH_CARD_TEXT(card, 5, "qethope_");
+	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
+		QETH_CARD_TEXT(card, 3, "openREC");
+		return -ERESTARTSYS;
+	}
+	return __qeth_l3_open(dev);
 }
 
 static int qeth_l3_stop(struct net_device *dev)
@@ -3564,7 +3578,7 @@ contin:
 		netif_carrier_off(card->dev);
 	if (recover_flag == CARD_STATE_RECOVER) {
 		if (recovery_mode)
-			qeth_l3_open(card->dev);
+			__qeth_l3_open(card->dev);
 		else {
 			rtnl_lock();
 			dev_open(card->dev);
