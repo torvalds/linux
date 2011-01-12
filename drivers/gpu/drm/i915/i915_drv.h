@@ -172,20 +172,21 @@ struct drm_i915_error_state {
 		int page_count;
 		u32 gtt_offset;
 		u32 *pages[0];
-	} *ringbuffer, *batchbuffer[2];
+	} *ringbuffer, *batchbuffer[I915_NUM_RINGS];
 	struct drm_i915_error_buffer {
-		size_t size;
+		u32 size;
 		u32 name;
 		u32 seqno;
 		u32 gtt_offset;
 		u32 read_domains;
 		u32 write_domain;
-		u32 fence_reg;
+		s32 fence_reg:5;
 		s32 pinned:2;
 		u32 tiling:2;
 		u32 dirty:1;
 		u32 purgeable:1;
 		u32 ring:4;
+		u32 agp_type:1;
 	} *active_bo, *pinned_bo;
 	u32 active_bo_count, pinned_bo_count;
 	struct intel_overlay_error_state *overlay;
@@ -332,6 +333,7 @@ typedef struct drm_i915_private {
 
 	/* LVDS info */
 	int backlight_level;  /* restore backlight to this value */
+	bool backlight_enabled;
 	struct drm_display_mode *panel_fixed_mode;
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
@@ -794,6 +796,7 @@ struct drm_i915_gem_object {
 	 */
 	struct hlist_node exec_node;
 	unsigned long exec_handle;
+	struct drm_i915_gem_exec_object2 *exec_entry;
 
 	/**
 	 * Current offset of the object in GTT space.
@@ -1006,12 +1009,6 @@ extern u32 i915_get_vblank_counter(struct drm_device *dev, int crtc);
 extern u32 gm45_get_vblank_counter(struct drm_device *dev, int crtc);
 extern int i915_vblank_swap(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
-extern void i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask);
-extern void i915_disable_irq(drm_i915_private_t *dev_priv, u32 mask);
-extern void ironlake_enable_graphics_irq(drm_i915_private_t *dev_priv,
-		u32 mask);
-extern void ironlake_disable_graphics_irq(drm_i915_private_t *dev_priv,
-		u32 mask);
 
 void
 i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
@@ -1091,10 +1088,10 @@ int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
 int i915_gem_init_object(struct drm_gem_object *obj);
-void i915_gem_flush_ring(struct drm_device *dev,
-			 struct intel_ring_buffer *ring,
-			 uint32_t invalidate_domains,
-			 uint32_t flush_domains);
+int __must_check i915_gem_flush_ring(struct drm_device *dev,
+				     struct intel_ring_buffer *ring,
+				     uint32_t invalidate_domains,
+				     uint32_t flush_domains);
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size);
 void i915_gem_free_object(struct drm_gem_object *obj);
@@ -1265,6 +1262,7 @@ extern void intel_disable_fbc(struct drm_device *dev);
 extern void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
 extern bool intel_fbc_enabled(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
+extern void ironlake_enable_rc6(struct drm_device *dev);
 extern void gen6_set_rps(struct drm_device *dev, u8 val);
 extern void intel_detect_pch (struct drm_device *dev);
 extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);

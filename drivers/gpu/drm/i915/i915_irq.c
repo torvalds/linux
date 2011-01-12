@@ -64,26 +64,6 @@
 #define DRM_I915_VBLANK_PIPE_ALL	(DRM_I915_VBLANK_PIPE_A | \
 					 DRM_I915_VBLANK_PIPE_B)
 
-void
-ironlake_enable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask)
-{
-	if ((dev_priv->gt_irq_mask & mask) != 0) {
-		dev_priv->gt_irq_mask &= ~mask;
-		I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
-		POSTING_READ(GTIMR);
-	}
-}
-
-void
-ironlake_disable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask)
-{
-	if ((dev_priv->gt_irq_mask & mask) != mask) {
-		dev_priv->gt_irq_mask |= mask;
-		I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
-		POSTING_READ(GTIMR);
-	}
-}
-
 /* For display hotplug interrupt */
 static void
 ironlake_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
@@ -102,26 +82,6 @@ ironlake_disable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 		dev_priv->irq_mask |= mask;
 		I915_WRITE(DEIMR, dev_priv->irq_mask);
 		POSTING_READ(DEIMR);
-	}
-}
-
-void
-i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask)
-{
-	if ((dev_priv->irq_mask & mask) != 0) {
-		dev_priv->irq_mask &= ~mask;
-		I915_WRITE(IMR, dev_priv->irq_mask);
-		POSTING_READ(IMR);
-	}
-}
-
-void
-i915_disable_irq(drm_i915_private_t *dev_priv, u32 mask)
-{
-	if ((dev_priv->irq_mask & mask) != mask) {
-		dev_priv->irq_mask |= mask;
-		I915_WRITE(IMR, dev_priv->irq_mask);
-		POSTING_READ(IMR);
 	}
 }
 
@@ -389,9 +349,12 @@ static void notify_ring(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 seqno = ring->get_seqno(ring);
-	ring->irq_seqno = seqno;
+
 	trace_i915_gem_request_complete(dev, seqno);
+
+	ring->irq_seqno = seqno;
 	wake_up_all(&ring->irq_queue);
+
 	dev_priv->hangcheck_count = 0;
 	mod_timer(&dev_priv->hangcheck_timer,
 		  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
@@ -433,6 +396,50 @@ static void gen6_pm_irq_handler(struct drm_device *dev)
 	dev_priv->cur_delay = new_delay;
 
 	I915_WRITE(GEN6_PMIIR, pm_iir);
+}
+
+static void pch_irq_handler(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u32 pch_iir;
+
+	pch_iir = I915_READ(SDEIIR);
+
+	if (pch_iir & SDE_AUDIO_POWER_MASK)
+		DRM_DEBUG_DRIVER("PCH audio power change on port %d\n",
+				 (pch_iir & SDE_AUDIO_POWER_MASK) >>
+				 SDE_AUDIO_POWER_SHIFT);
+
+	if (pch_iir & SDE_GMBUS)
+		DRM_DEBUG_DRIVER("PCH GMBUS interrupt\n");
+
+	if (pch_iir & SDE_AUDIO_HDCP_MASK)
+		DRM_DEBUG_DRIVER("PCH HDCP audio interrupt\n");
+
+	if (pch_iir & SDE_AUDIO_TRANS_MASK)
+		DRM_DEBUG_DRIVER("PCH transcoder audio interrupt\n");
+
+	if (pch_iir & SDE_POISON)
+		DRM_ERROR("PCH poison interrupt\n");
+
+	if (pch_iir & SDE_FDI_MASK) {
+		u32 fdia, fdib;
+
+		fdia = I915_READ(FDI_RXA_IIR);
+		fdib = I915_READ(FDI_RXB_IIR);
+		DRM_DEBUG_DRIVER("PCH FDI RX interrupt; FDI RXA IIR: 0x%08x, FDI RXB IIR: 0x%08x\n", fdia, fdib);
+	}
+
+	if (pch_iir & (SDE_TRANSB_CRC_DONE | SDE_TRANSA_CRC_DONE))
+		DRM_DEBUG_DRIVER("PCH transcoder CRC done interrupt\n");
+
+	if (pch_iir & (SDE_TRANSB_CRC_ERR | SDE_TRANSA_CRC_ERR))
+		DRM_DEBUG_DRIVER("PCH transcoder CRC error interrupt\n");
+
+	if (pch_iir & SDE_TRANSB_FIFO_UNDER)
+		DRM_DEBUG_DRIVER("PCH transcoder B underrun interrupt\n");
+	if (pch_iir & SDE_TRANSA_FIFO_UNDER)
+		DRM_DEBUG_DRIVER("PCH transcoder A underrun interrupt\n");
 }
 
 static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
@@ -502,8 +509,11 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 		drm_handle_vblank(dev, 1);
 
 	/* check event from PCH */
-	if ((de_iir & DE_PCH_EVENT) && (pch_iir & hotplug_mask))
-		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
+	if (de_iir & DE_PCH_EVENT) {
+		if (pch_iir & hotplug_mask)
+			queue_work(dev_priv->wq, &dev_priv->hotplug_work);
+		pch_irq_handler(dev);
+	}
 
 	if (de_iir & DE_PCU_EVENT) {
 		I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
@@ -556,10 +566,9 @@ static void i915_error_work_func(struct work_struct *work)
 
 #ifdef CONFIG_DEBUG_FS
 static struct drm_i915_error_object *
-i915_error_object_create(struct drm_device *dev,
+i915_error_object_create(struct drm_i915_private *dev_priv,
 			 struct drm_i915_gem_object *src)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_object *dst;
 	int page, page_count;
 	u32 reloc_offset;
@@ -632,52 +641,6 @@ i915_error_state_free(struct drm_device *dev,
 	kfree(error);
 }
 
-static u32
-i915_get_bbaddr(struct drm_device *dev, u32 *ring)
-{
-	u32 cmd;
-
-	if (IS_I830(dev) || IS_845G(dev))
-		cmd = MI_BATCH_BUFFER;
-	else if (INTEL_INFO(dev)->gen >= 4)
-		cmd = (MI_BATCH_BUFFER_START | (2 << 6) |
-		       MI_BATCH_NON_SECURE_I965);
-	else
-		cmd = (MI_BATCH_BUFFER_START | (2 << 6));
-
-	return ring[0] == cmd ? ring[1] : 0;
-}
-
-static u32
-i915_ringbuffer_last_batch(struct drm_device *dev,
-			   struct intel_ring_buffer *ring)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 head, bbaddr;
-	u32 *val;
-
-	/* Locate the current position in the ringbuffer and walk back
-	 * to find the most recently dispatched batch buffer.
-	 */
-	head = I915_READ_HEAD(ring) & HEAD_ADDR;
-
-	val = (u32 *)(ring->virtual_start + head);
-	while (--val >= (u32 *)ring->virtual_start) {
-		bbaddr = i915_get_bbaddr(dev, val);
-		if (bbaddr)
-			return bbaddr;
-	}
-
-	val = (u32 *)(ring->virtual_start + ring->size);
-	while (--val >= (u32 *)ring->virtual_start) {
-		bbaddr = i915_get_bbaddr(dev, val);
-		if (bbaddr)
-			return bbaddr;
-	}
-
-	return 0;
-}
-
 static u32 capture_bo_list(struct drm_i915_error_buffer *err,
 			   int count,
 			   struct list_head *head)
@@ -702,6 +665,7 @@ static u32 capture_bo_list(struct drm_i915_error_buffer *err,
 		err->dirty = obj->dirty;
 		err->purgeable = obj->madv != I915_MADV_WILLNEED;
 		err->ring = obj->ring ? obj->ring->id : 0;
+		err->agp_type = obj->agp_type == AGP_USER_CACHED_MEMORY;
 
 		if (++i == count)
 			break;
@@ -741,6 +705,36 @@ static void i915_gem_record_fences(struct drm_device *dev,
 	}
 }
 
+static struct drm_i915_error_object *
+i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
+			     struct intel_ring_buffer *ring)
+{
+	struct drm_i915_gem_object *obj;
+	u32 seqno;
+
+	if (!ring->get_seqno)
+		return NULL;
+
+	seqno = ring->get_seqno(ring);
+	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
+		if (obj->ring != ring)
+			continue;
+
+		if (!i915_seqno_passed(obj->last_rendering_seqno, seqno))
+			continue;
+
+		if ((obj->base.read_domains & I915_GEM_DOMAIN_COMMAND) == 0)
+			continue;
+
+		/* We need to copy these to an anonymous buffer as the simplest
+		 * method to avoid being overwritten by userspace.
+		 */
+		return i915_error_object_create(dev_priv, obj);
+	}
+
+	return NULL;
+}
+
 /**
  * i915_capture_error_state - capture an error record for later analysis
  * @dev: drm device
@@ -755,10 +749,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	struct drm_i915_error_state *error;
-	struct drm_i915_gem_object *batchbuffer[2];
 	unsigned long flags;
-	u32 bbaddr;
-	int count;
+	int i;
 
 	spin_lock_irqsave(&dev_priv->error_lock, flags);
 	error = dev_priv->first_error;
@@ -817,83 +809,30 @@ static void i915_capture_error_state(struct drm_device *dev)
 	}
 	i915_gem_record_fences(dev, error);
 
-	bbaddr = i915_ringbuffer_last_batch(dev, &dev_priv->ring[RCS]);
-
-	/* Grab the current batchbuffer, most likely to have crashed. */
-	batchbuffer[0] = NULL;
-	batchbuffer[1] = NULL;
-	count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
-		if (batchbuffer[0] == NULL &&
-		    bbaddr >= obj->gtt_offset &&
-		    bbaddr < obj->gtt_offset + obj->base.size)
-			batchbuffer[0] = obj;
-
-		if (batchbuffer[1] == NULL &&
-		    error->acthd >= obj->gtt_offset &&
-		    error->acthd < obj->gtt_offset + obj->base.size)
-			batchbuffer[1] = obj;
-
-		count++;
-	}
-	/* Scan the other lists for completeness for those bizarre errors. */
-	if (batchbuffer[0] == NULL || batchbuffer[1] == NULL) {
-		list_for_each_entry(obj, &dev_priv->mm.flushing_list, mm_list) {
-			if (batchbuffer[0] == NULL &&
-			    bbaddr >= obj->gtt_offset &&
-			    bbaddr < obj->gtt_offset + obj->base.size)
-				batchbuffer[0] = obj;
-
-			if (batchbuffer[1] == NULL &&
-			    error->acthd >= obj->gtt_offset &&
-			    error->acthd < obj->gtt_offset + obj->base.size)
-				batchbuffer[1] = obj;
-
-			if (batchbuffer[0] && batchbuffer[1])
-				break;
-		}
-	}
-	if (batchbuffer[0] == NULL || batchbuffer[1] == NULL) {
-		list_for_each_entry(obj, &dev_priv->mm.inactive_list, mm_list) {
-			if (batchbuffer[0] == NULL &&
-			    bbaddr >= obj->gtt_offset &&
-			    bbaddr < obj->gtt_offset + obj->base.size)
-				batchbuffer[0] = obj;
-
-			if (batchbuffer[1] == NULL &&
-			    error->acthd >= obj->gtt_offset &&
-			    error->acthd < obj->gtt_offset + obj->base.size)
-				batchbuffer[1] = obj;
-
-			if (batchbuffer[0] && batchbuffer[1])
-				break;
-		}
-	}
-
-	/* We need to copy these to an anonymous buffer as the simplest
-	 * method to avoid being overwritten by userspace.
-	 */
-	error->batchbuffer[0] = i915_error_object_create(dev, batchbuffer[0]);
-	if (batchbuffer[1] != batchbuffer[0])
-		error->batchbuffer[1] = i915_error_object_create(dev, batchbuffer[1]);
-	else
-		error->batchbuffer[1] = NULL;
+	/* Record the active batchbuffers */
+	for (i = 0; i < I915_NUM_RINGS; i++)
+		error->batchbuffer[i] =
+			i915_error_first_batchbuffer(dev_priv,
+						     &dev_priv->ring[i]);
 
 	/* Record the ringbuffer */
-	error->ringbuffer = i915_error_object_create(dev,
+	error->ringbuffer = i915_error_object_create(dev_priv,
 						     dev_priv->ring[RCS].obj);
 
 	/* Record buffers on the active and pinned lists. */
 	error->active_bo = NULL;
 	error->pinned_bo = NULL;
 
-	error->active_bo_count = count;
+	i = 0;
+	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list)
+		i++;
+	error->active_bo_count = i;
 	list_for_each_entry(obj, &dev_priv->mm.pinned_list, mm_list)
-		count++;
-	error->pinned_bo_count = count - error->active_bo_count;
+		i++;
+	error->pinned_bo_count = i - error->active_bo_count;
 
-	if (count) {
-		error->active_bo = kmalloc(sizeof(*error->active_bo)*count,
+	if (i) {
+		error->active_bo = kmalloc(sizeof(*error->active_bo)*i,
 					   GFP_ATOMIC);
 		if (error->active_bo)
 			error->pinned_bo =
@@ -1673,11 +1612,6 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
-	if (IS_GEN6(dev)) {
-		I915_WRITE(GEN6_RENDER_IMR, ~GEN6_RENDER_USER_INTERRUPT);
-		I915_WRITE(GEN6_BSD_IMR, ~GEN6_BSD_USER_INTERRUPT);
-		I915_WRITE(GEN6_BLITTER_IMR, ~GEN6_BLITTER_USER_INTERRUPT);
-	}
 
 	if (IS_GEN6(dev))
 		render_irqs =
@@ -1698,6 +1632,9 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	} else {
 		hotplug_mask = SDE_CRT_HOTPLUG | SDE_PORTB_HOTPLUG |
 			       SDE_PORTC_HOTPLUG | SDE_PORTD_HOTPLUG;
+		hotplug_mask |= SDE_AUX_MASK | SDE_FDI_MASK | SDE_TRANS_MASK;
+		I915_WRITE(FDI_RXA_IMR, 0);
+		I915_WRITE(FDI_RXB_IMR, 0);
 	}
 
 	dev_priv->pch_irq_mask = ~hotplug_mask;

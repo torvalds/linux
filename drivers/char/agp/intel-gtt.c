@@ -814,6 +814,12 @@ static bool intel_enable_gtt(void)
 		}
 	}
 
+	/* On the resume path we may be adjusting the PGTBL value, so
+	 * be paranoid and flush all chipset write buffers...
+	 */
+	if (INTEL_GTT_GEN >= 3)
+		writel(0, intel_private.registers+GFX_FLSH_CNTL);
+
 	reg = intel_private.registers+I810_PGETBL_CTL;
 	writel(intel_private.PGETBL_save, reg);
 	if (HAS_PGTBL_EN && (readl(reg) & I810_PGETBL_ENABLED) == 0) {
@@ -822,6 +828,9 @@ static bool intel_enable_gtt(void)
 			readl(reg), intel_private.PGETBL_save);
 		return false;
 	}
+
+	if (INTEL_GTT_GEN >= 3)
+		writel(0, intel_private.registers+GFX_FLSH_CNTL);
 
 	return true;
 }

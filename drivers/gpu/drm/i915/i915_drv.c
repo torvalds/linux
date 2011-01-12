@@ -49,6 +49,9 @@ module_param_named(powersave, i915_powersave, int, 0600);
 unsigned int i915_lvds_downclock = 0;
 module_param_named(lvds_downclock, i915_lvds_downclock, int, 0400);
 
+bool i915_try_reset = true;
+module_param_named(reset, i915_try_reset, bool, 0600);
+
 static struct drm_driver driver;
 extern int intel_agp_enabled;
 
@@ -352,6 +355,9 @@ static int i915_drm_thaw(struct drm_device *dev)
 
 		/* Resume the modeset for every activated CRTC */
 		drm_helper_resume_force_mode(dev);
+
+		if (dev_priv->renderctx && dev_priv->pwrctx)
+			ironlake_enable_rc6(dev);
 	}
 
 	intel_opregion_init(dev);
@@ -474,6 +480,9 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	 */
 	bool need_display = true;
 	int ret;
+
+	if (!i915_try_reset)
+		return 0;
 
 	if (!mutex_trylock(&dev->struct_mutex))
 		return -EBUSY;
