@@ -143,6 +143,7 @@ static unsigned long clk_predict_rate_from_parent(struct clk *c, struct clk *p)
 
 	if (c->mul != 0 && c->div != 0) {
 		rate *= c->mul;
+		rate += c->div / 2; /* round up */
 		do_div(rate, c->div);
 	}
 
