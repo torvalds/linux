@@ -160,15 +160,14 @@ handle_irq(int irq)
 		return;
 	}
 
-	irq_enter();
 	/*
-	 * handle_irq() must be called with IPL_MAX. Note that we do not
+	 * From here we must proceed with IPL_MAX. Note that we do not
 	 * explicitly enable interrupts afterwards - some MILO PALcode
 	 * (namely LX164 one) seems to have severe problems with RTI
 	 * at IPL 0.
 	 */
 	local_irq_disable();
+	irq_enter();
 	generic_handle_irq_desc(irq, desc);
 	irq_exit();
 }
-
