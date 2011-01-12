@@ -688,13 +688,13 @@ static int intel_gtt_init(void)
 
 	intel_private.base.stolen_size = intel_gtt_stolen_size();
 
+	intel_private.base.needs_dmar = USE_PCI_DMA_API && INTEL_GTT_GEN > 2;
+
 	ret = intel_gtt_setup_scratch_page();
 	if (ret != 0) {
 		intel_gtt_cleanup();
 		return ret;
 	}
-
-	intel_private.base.needs_dmar = USE_PCI_DMA_API && INTEL_GTT_GEN > 2;
 
 	return 0;
 }
