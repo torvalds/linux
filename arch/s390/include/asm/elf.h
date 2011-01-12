@@ -161,7 +161,9 @@ extern unsigned int vdso_enabled;
    use of this is to invoke "./ld.so someprog" to test out a new version of
    the loader.  We need to make sure that it is out of the way of the program
    that it will "exec", and that there is sufficient room for the brk.  */
-#define ELF_ET_DYN_BASE		(STACK_TOP / 3 * 2)
+
+extern unsigned long randomize_et_dyn(unsigned long base);
+#define ELF_ET_DYN_BASE		(randomize_et_dyn(STACK_TOP / 3 * 2))
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports. */
