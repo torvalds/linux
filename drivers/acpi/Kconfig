@@ -51,7 +51,6 @@ config ACPI_PROCFS
 	  For backwards compatibility, this option allows
 	  deprecated /proc/acpi/ files to exist, even when
 	  they have been replaced by functions in /sys.
-	  The deprecated files (and their replacements) include:
 
 	  This option has no effect on /proc/acpi/ files
 	  and functions which do not yet exist in /sys.
