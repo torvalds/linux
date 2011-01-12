@@ -50,7 +50,7 @@
 #define WDT_SEL_TMR1	(0 << 4)
 #define WDT_SYS_RST	(1 << 2)
 
-static int heartbeat = 60;
+static int heartbeat = 30;
 
 struct tegra_wdt {
 	struct miscdevice	miscdev;
@@ -208,6 +208,7 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res_src, *res_wdt, *res_irq;
 	struct tegra_wdt *wdt;
+	u32 src;
 	int ret = 0;
 
 	if (pdev->id != -1) {
@@ -262,6 +263,10 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	src = readl(wdt->wdt_source);
+	if (src & BIT(12))
+		dev_info(&pdev->dev, "last reset due to watchdog timeout\n");
+
 	tegra_wdt_disable(wdt);
 
 	ret = request_irq(res_irq->start, tegra_wdt_interrupt, IRQF_DISABLED,
@@ -292,6 +297,9 @@ static int tegra_wdt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wdt);
 	tegra_wdt_dev = wdt;
+#ifdef CONFIG_TEGRA_WATCHDOG_ENABLE_ON_PROBE
+	tegra_wdt_enable(wdt);
+#endif
 	return 0;
 fail:
 	if (wdt->irq != -1)
