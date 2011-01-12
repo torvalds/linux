@@ -48,7 +48,7 @@ static void cpcap_set(struct led_classdev *led_cdev,
 		brightness = 255;
 
 	cpcap_led_data->brightness = brightness;
-	schedule_work(&cpcap_led_data->brightness_work);
+	queue_work(system_nrt_wq, &cpcap_led_data->brightness_work);
 }
 EXPORT_SYMBOL(cpcap_set);
 
@@ -62,7 +62,7 @@ cpcap_led_set_blink(struct cpcap_led_data *info, unsigned long blink)
 			cpcap_uc_start(info->cpcap, CPCAP_MACRO_6);
 		} else {
 			cpcap_uc_stop(info->cpcap, CPCAP_MACRO_6);
-			schedule_work(&info->brightness_work);
+			queue_work(system_nrt_wq, &info->brightness_work);
 		}
 	}
 }
