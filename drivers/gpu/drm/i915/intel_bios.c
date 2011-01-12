@@ -251,6 +251,20 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 	return;
 }
 
+static int intel_bios_ssc_frequency(struct drm_device *dev,
+				    bool alternate)
+{
+	switch (INTEL_INFO(dev)->gen) {
+	case 2:
+		return alternate ? 66 : 48;
+	case 3:
+	case 4:
+		return alternate ? 100 : 96;
+	default:
+		return alternate ? 100 : 120;
+	}
+}
+
 static void
 parse_general_features(struct drm_i915_private *dev_priv,
 		       struct bdb_header *bdb)
@@ -263,13 +277,8 @@ parse_general_features(struct drm_i915_private *dev_priv,
 		dev_priv->int_tv_support = general->int_tv_support;
 		dev_priv->int_crt_support = general->int_crt_support;
 		dev_priv->lvds_use_ssc = general->enable_ssc;
-
-		if (IS_I85X(dev))
-			dev_priv->lvds_ssc_freq = general->ssc_freq ? 66 : 48;
-		else if (IS_GEN5(dev) || IS_GEN6(dev))
-			dev_priv->lvds_ssc_freq = general->ssc_freq ? 100 : 120;
-		else
-			dev_priv->lvds_ssc_freq = general->ssc_freq ? 100 : 96;
+		dev_priv->lvds_ssc_freq =
+			intel_bios_ssc_frequency(dev, general->ssc_freq);
 	}
 }
 
@@ -553,6 +562,8 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 static void
 init_vbt_defaults(struct drm_i915_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
+
 	dev_priv->crt_ddc_pin = GMBUS_PORT_VGADDC;
 
 	/* LFP panel data */
@@ -565,7 +576,11 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	/* general features */
 	dev_priv->int_tv_support = 1;
 	dev_priv->int_crt_support = 1;
-	dev_priv->lvds_use_ssc = 0;
+
+	/* Default to using SSC */
+	dev_priv->lvds_use_ssc = 1;
+	dev_priv->lvds_ssc_freq = intel_bios_ssc_frequency(dev, 1);
+	DRM_DEBUG("Set default to SSC at %dMHz\n", dev_priv->lvds_ssc_freq);
 
 	/* eDP data */
 	dev_priv->edp.bpp = 18;
