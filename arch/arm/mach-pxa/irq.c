@@ -53,6 +53,17 @@ static inline int cpu_has_ipr(void)
 	return !cpu_is_pxa25x();
 }
 
+static inline void __iomem *irq_base(int i)
+{
+	static unsigned long phys_base[] = {
+		0x40d00000,
+		0x40d0009c,
+		0x40d00130,
+	};
+
+	return (void __iomem *)io_p2v(phys_base[i]);
+}
+
 static void pxa_mask_irq(struct irq_data *d)
 {
 	void __iomem *base = irq_data_get_irq_chip_data(d);
@@ -108,25 +119,11 @@ static void pxa_ack_low_gpio(struct irq_data *d)
 	GEDR0 = (1 << (d->irq - IRQ_GPIO0));
 }
 
-static void pxa_mask_low_gpio(struct irq_data *d)
-{
-	struct irq_desc *desc = irq_to_desc(d->irq);
-
-	desc->irq_data.chip->irq_mask(d);
-}
-
-static void pxa_unmask_low_gpio(struct irq_data *d)
-{
-	struct irq_desc *desc = irq_to_desc(d->irq);
-
-	desc->irq_data.chip->irq_unmask(d);
-}
-
 static struct irq_chip pxa_low_gpio_chip = {
 	.name		= "GPIO-l",
 	.irq_ack	= pxa_ack_low_gpio,
-	.irq_mask	= pxa_mask_low_gpio,
-	.irq_unmask	= pxa_unmask_low_gpio,
+	.irq_mask	= pxa_mask_irq,
+	.irq_unmask	= pxa_unmask_irq,
 	.irq_set_type	= pxa_set_low_gpio_type,
 };
 
@@ -141,22 +138,12 @@ static void __init pxa_init_low_gpio_irq(set_wake_t fn)
 
 	for (irq = IRQ_GPIO0; irq <= IRQ_GPIO1; irq++) {
 		set_irq_chip(irq, &pxa_low_gpio_chip);
+		set_irq_chip_data(irq, irq_base(0));
 		set_irq_handler(irq, handle_edge_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
 	pxa_low_gpio_chip.irq_set_wake = fn;
-}
-
-static inline void __iomem *irq_base(int i)
-{
-	static unsigned long phys_base[] = {
-		0x40d00000,
-		0x40d0009c,
-		0x40d00130,
-	};
-
-	return (void __iomem *)io_p2v(phys_base[i]);
 }
 
 void __init pxa_init_irq(int irq_nr, set_wake_t fn)
