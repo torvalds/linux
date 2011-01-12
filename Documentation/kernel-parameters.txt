@@ -199,11 +199,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			unusable.  The "log_buf_len" parameter may be useful
 			if you need to capture more output.
 
-	acpi_display_output=	[HW,ACPI]
-			acpi_display_output=vendor
-			acpi_display_output=video
-			See above.
-
 	acpi_irq_balance [HW,ACPI]
 			ACPI will balance active IRQs
 			default in APIC mode
