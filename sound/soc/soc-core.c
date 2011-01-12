@@ -3500,6 +3500,7 @@ int snd_soc_register_codec(struct device *dev,
 	/* allocate CODEC register cache */
 	if (codec_drv->reg_cache_size && codec_drv->reg_word_size) {
 		reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
+		codec->reg_size = reg_size;
 		/* it is necessary to make a copy of the default register cache
 		 * because in the case of using a compression type that requires
 		 * the default register cache to be marked as __devinitconst the

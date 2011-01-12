@@ -1100,34 +1100,28 @@ static inline int snd_soc_lzo_get_blkindex(struct snd_soc_codec *codec,
 		unsigned int reg)
 {
 	const struct snd_soc_codec_driver *codec_drv;
-	size_t reg_size;
 
 	codec_drv = codec->driver;
-	reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
 	return (reg * codec_drv->reg_word_size) /
-	       DIV_ROUND_UP(reg_size, snd_soc_lzo_block_count());
+	       DIV_ROUND_UP(codec->reg_size, snd_soc_lzo_block_count());
 }
 
 static inline int snd_soc_lzo_get_blkpos(struct snd_soc_codec *codec,
 		unsigned int reg)
 {
 	const struct snd_soc_codec_driver *codec_drv;
-	size_t reg_size;
 
 	codec_drv = codec->driver;
-	reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
-	return reg % (DIV_ROUND_UP(reg_size, snd_soc_lzo_block_count()) /
+	return reg % (DIV_ROUND_UP(codec->reg_size, snd_soc_lzo_block_count()) /
 		      codec_drv->reg_word_size);
 }
 
 static inline int snd_soc_lzo_get_blksize(struct snd_soc_codec *codec)
 {
 	const struct snd_soc_codec_driver *codec_drv;
-	size_t reg_size;
 
 	codec_drv = codec->driver;
-	reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
-	return DIV_ROUND_UP(reg_size, snd_soc_lzo_block_count());
+	return DIV_ROUND_UP(codec->reg_size, snd_soc_lzo_block_count());
 }
 
 static int snd_soc_lzo_cache_sync(struct snd_soc_codec *codec)
@@ -1287,7 +1281,7 @@ static int snd_soc_lzo_cache_exit(struct snd_soc_codec *codec)
 static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 {
 	struct snd_soc_lzo_ctx **lzo_blocks;
-	size_t reg_size, bmp_size;
+	size_t bmp_size;
 	const struct snd_soc_codec_driver *codec_drv;
 	int ret, tofree, i, blksize, blkcount;
 	const char *p, *end;
@@ -1295,7 +1289,6 @@ static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 
 	ret = 0;
 	codec_drv = codec->driver;
-	reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
 
 	/*
 	 * If we have not been given a default register cache
@@ -1307,8 +1300,7 @@ static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 		tofree = 1;
 
 	if (!codec->reg_def_copy) {
-		codec->reg_def_copy = kzalloc(reg_size,
-						       GFP_KERNEL);
+		codec->reg_def_copy = kzalloc(codec->reg_size, GFP_KERNEL);
 		if (!codec->reg_def_copy)
 			return -ENOMEM;
 	}
@@ -1356,7 +1348,7 @@ static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 
 	blksize = snd_soc_lzo_get_blksize(codec);
 	p = codec->reg_def_copy;
-	end = codec->reg_def_copy + reg_size;
+	end = codec->reg_def_copy + codec->reg_size;
 	/* compress the register map and fill the lzo blocks */
 	for (i = 0; i < blkcount; ++i, p += blksize) {
 		lzo_blocks[i]->src = p;
@@ -1441,16 +1433,14 @@ static int snd_soc_flat_cache_exit(struct snd_soc_codec *codec)
 static int snd_soc_flat_cache_init(struct snd_soc_codec *codec)
 {
 	const struct snd_soc_codec_driver *codec_drv;
-	size_t reg_size;
 
 	codec_drv = codec->driver;
-	reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
 
 	if (codec->reg_def_copy)
 		codec->reg_cache = kmemdup(codec->reg_def_copy,
-					   reg_size, GFP_KERNEL);
+					   codec->reg_size, GFP_KERNEL);
 	else
-		codec->reg_cache = kzalloc(reg_size, GFP_KERNEL);
+		codec->reg_cache = kzalloc(codec->reg_size, GFP_KERNEL);
 	if (!codec->reg_cache)
 		return -ENOMEM;
 
