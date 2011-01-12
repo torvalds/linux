@@ -41,9 +41,10 @@ static inline int acpi_debugfs_init(void) { return 0; }
 int acpi_power_init(void);
 int acpi_device_sleep_wake(struct acpi_device *dev,
                            int enable, int sleep_state, int dev_state);
-int acpi_power_get_inferred_state(struct acpi_device *device);
+int acpi_power_get_inferred_state(struct acpi_device *device, int *state);
+int acpi_power_on_resources(struct acpi_device *device, int state);
 int acpi_power_transition(struct acpi_device *device, int state);
-extern int acpi_power_nocheck;
+int acpi_bus_init_power(struct acpi_device *device);
 
 int acpi_wakeup_device_init(void);
 void acpi_early_processor_set_pdc(void);

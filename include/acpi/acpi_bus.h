@@ -149,8 +149,7 @@ struct acpi_device_flags {
 	u32 power_manageable:1;
 	u32 performance_manageable:1;
 	u32 wake_capable:1;	/* Wakeup(_PRW) supported? */
-	u32 force_power_state:1;
-	u32 reserved:22;
+	u32 reserved:23;
 };
 
 /* File System */
@@ -328,8 +327,8 @@ void acpi_bus_data_handler(acpi_handle handle, void *context);
 acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta);
 int acpi_bus_get_status(struct acpi_device *device);
-int acpi_bus_get_power(acpi_handle handle, int *state);
 int acpi_bus_set_power(acpi_handle handle, int state);
+int acpi_bus_update_power(acpi_handle handle, int *state_p);
 bool acpi_bus_power_manageable(acpi_handle handle);
 bool acpi_bus_can_wakeup(acpi_handle handle);
 #ifdef CONFIG_ACPI_PROC_EVENT
