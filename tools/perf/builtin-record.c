@@ -72,9 +72,6 @@ static struct perf_evlist	*evsel_list;
 static long			samples				=      0;
 static u64			bytes_written			=      0;
 
-static struct pollfd		*event_array;
-
-static int			nr_poll				=      0;
 static int			nr_cpu				=      0;
 
 static int			file_new			=      1;
@@ -432,9 +429,9 @@ try_again:
 				exit(-1);
 			}
 
-			event_array[nr_poll].fd = FD(evsel, nr_cpu, thread_index);
-			event_array[nr_poll].events = POLLIN;
-			nr_poll++;
+			evlist->pollfd[evlist->nr_fds].fd = FD(evsel, nr_cpu, thread_index);
+			evlist->pollfd[evlist->nr_fds].events = POLLIN;
+			evlist->nr_fds++;
 		}
 
 		if (filter != NULL) {
@@ -793,7 +790,7 @@ static int __cmd_record(int argc, const char **argv)
 		if (hits == samples) {
 			if (done)
 				break;
-			err = poll(event_array, nr_poll, -1);
+			err = poll(evsel_list->pollfd, evsel_list->nr_fds, -1);
 			waking++;
 		}
 
@@ -948,9 +945,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		if (perf_header__push_event(pos->attr.config, event_name(pos)))
 			goto out_free_fd;
 	}
-	event_array = malloc((sizeof(struct pollfd) * MAX_NR_CPUS *
-			      MAX_COUNTERS * threads->nr));
-	if (!event_array)
+
+	if (perf_evlist__alloc_pollfd(evsel_list, cpus->nr, threads->nr) < 0)
 		goto out_free_fd;
 
 	if (user_interval != ULLONG_MAX)
@@ -968,13 +964,11 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	} else {
 		fprintf(stderr, "frequency and count are zero, aborting\n");
 		err = -EINVAL;
-		goto out_free_event_array;
+		goto out_free_fd;
 	}
 
 	err = __cmd_record(argc, argv);
 
-out_free_event_array:
-	free(event_array);
 out_free_fd:
 	thread_map__delete(threads);
 	threads = NULL;

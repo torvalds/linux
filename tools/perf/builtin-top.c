@@ -1193,8 +1193,6 @@ static void perf_session__mmap_read_counter(struct perf_session *self,
 	md->prev = old;
 }
 
-static struct pollfd *event_array;
-
 static void perf_session__mmap_read(struct perf_session *self)
 {
 	struct perf_evsel *counter;
@@ -1212,10 +1210,10 @@ static void perf_session__mmap_read(struct perf_session *self)
 	}
 }
 
-int nr_poll;
 int group_fd;
 
-static void start_counter(int i, struct perf_evsel *evsel)
+static void start_counter(int i, struct perf_evlist *evlist,
+			  struct perf_evsel *evsel)
 {
 	struct xyarray *mmap_array = evsel->priv;
 	struct mmap_data *mm;
@@ -1281,9 +1279,9 @@ try_again:
 		if (group && group_fd == -1)
 			group_fd = FD(evsel, i, thread_index);
 
-		event_array[nr_poll].fd = FD(evsel, i, thread_index);
-		event_array[nr_poll].events = POLLIN;
-		nr_poll++;
+		evlist->pollfd[evlist->nr_fds].fd = FD(evsel, i, thread_index);
+		evlist->pollfd[evlist->nr_fds].events = POLLIN;
+		evlist->nr_fds++;
 
 		mm = xyarray__entry(mmap_array, i, thread_index);
 		mm->prev = 0;
@@ -1316,11 +1314,11 @@ static int __cmd_top(void)
 	for (i = 0; i < cpus->nr; i++) {
 		group_fd = -1;
 		list_for_each_entry(counter, &evsel_list->entries, node)
-			start_counter(i, counter);
+			start_counter(i, evsel_list, counter);
 	}
 
 	/* Wait for a minimal set of events before starting the snapshot */
-	poll(&event_array[0], nr_poll, 100);
+	poll(evsel_list->pollfd, evsel_list->nr_fds, 100);
 
 	perf_session__mmap_read(session);
 
@@ -1345,7 +1343,7 @@ static int __cmd_top(void)
 		perf_session__mmap_read(session);
 
 		if (hits == samples)
-			ret = poll(event_array, nr_poll, 100);
+			ret = poll(evsel_list->pollfd, evsel_list->nr_fds, 100);
 	}
 
 	return 0;
@@ -1426,11 +1424,6 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(top_usage, options);
 	}
 
-	event_array = malloc((sizeof(struct pollfd) *
-			      MAX_NR_CPUS * MAX_COUNTERS * threads->nr));
-	if (!event_array)
-		return -ENOMEM;
-
 	/* CPU and PID are mutually exclusive */
 	if (target_tid > 0 && cpu_list) {
 		printf("WARNING: PID switch overriding CPU\n");
@@ -1479,6 +1472,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 		pos->attr.sample_period = default_interval;
 	}
+
+	if (perf_evlist__alloc_pollfd(evsel_list, cpus->nr, threads->nr) < 0)
+		goto out_free_fd;
 
 	sym_evsel = list_entry(evsel_list->entries.next, struct perf_evsel, node);
 

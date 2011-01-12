@@ -1,3 +1,4 @@
+#include <poll.h>
 #include "evlist.h"
 #include "evsel.h"
 #include "util.h"
@@ -28,6 +29,7 @@ static void perf_evlist__purge(struct perf_evlist *evlist)
 void perf_evlist__delete(struct perf_evlist *evlist)
 {
 	perf_evlist__purge(evlist);
+	free(evlist->pollfd);
 	free(evlist);
 }
 
@@ -50,4 +52,11 @@ int perf_evlist__add_default(struct perf_evlist *evlist)
 
 	perf_evlist__add(evlist, evsel);
 	return 0;
+}
+
+int perf_evlist__alloc_pollfd(struct perf_evlist *evlist, int ncpus, int nthreads)
+{
+	int nfds = ncpus * nthreads * evlist->nr_entries;
+	evlist->pollfd = malloc(sizeof(struct pollfd) * nfds);
+	return evlist->pollfd != NULL ? 0 : -ENOMEM;
 }
