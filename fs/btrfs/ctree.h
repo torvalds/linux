@@ -27,6 +27,7 @@
 #include <linux/backing-dev.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
+#include <linux/kobject.h>
 #include <asm/kmap_types.h>
 #include "extent_io.h"
 #include "extent_map.h"
