@@ -1590,7 +1590,7 @@ static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);   /* for ISA devices */
  * created unconditionally. The attributes that need modification of their
  * permissions are created read-only and write permissions are added or removed
  * on the fly when required */
-static struct attribute *dme1737_attr[] ={
+static struct attribute *dme1737_attr[] = {
 	/* Voltages */
 	&sensor_dev_attr_in0_input.dev_attr.attr,
 	&sensor_dev_attr_in0_min.dev_attr.attr,
@@ -1695,7 +1695,7 @@ static const struct attribute_group dme1737_zone3_group = {
 };
 
 
-/* The following struct holds temp zone hysteresis  related attributes, which
+/* The following struct holds temp zone hysteresis related attributes, which
  * are not available in all chips. The following chips support them:
  * DME1737, SCH311x */
 static struct attribute *dme1737_zone_hyst_attr[] = {
@@ -2031,36 +2031,44 @@ static int dme1737_create_files(struct device *dev)
 	int err, ix;
 
 	/* Create a name attribute for ISA devices */
-	if (!data->client &&
-	    (err = sysfs_create_file(&dev->kobj, &dev_attr_name.attr))) {
-		goto exit;
+	if (!data->client) {
+		err = sysfs_create_file(&dev->kobj, &dev_attr_name.attr);
+		if (err) {
+			goto exit;
+		}
 	}
 
 	/* Create standard sysfs attributes */
-	if ((err = sysfs_create_group(&dev->kobj, &dme1737_group))) {
+	err = sysfs_create_group(&dev->kobj, &dme1737_group);
+	if (err) {
 		goto exit_remove;
 	}
 
 	/* Create chip-dependent sysfs attributes */
-	if ((data->has_features & HAS_TEMP_OFFSET) &&
-	    (err = sysfs_create_group(&dev->kobj,
-				      &dme1737_temp_offset_group))) {
-		goto exit_remove;
+	if (data->has_features & HAS_TEMP_OFFSET) {
+		err = sysfs_create_group(&dev->kobj,
+					 &dme1737_temp_offset_group);
+		if (err) {
+			goto exit_remove;
+		}
 	}
-	if ((data->has_features & HAS_VID) &&
-	    (err = sysfs_create_group(&dev->kobj,
-				      &dme1737_vid_group))) {
-		goto exit_remove;
+	if (data->has_features & HAS_VID) {
+		err = sysfs_create_group(&dev->kobj, &dme1737_vid_group);
+		if (err) {
+			goto exit_remove;
+		}
 	}
-	if ((data->has_features & HAS_ZONE3) &&
-	    (err = sysfs_create_group(&dev->kobj,
-				      &dme1737_zone3_group))) {
-		goto exit_remove;
+	if (data->has_features & HAS_ZONE3) {
+		err = sysfs_create_group(&dev->kobj, &dme1737_zone3_group);
+		if (err) {
+			goto exit_remove;
+		}
 	}
-	if ((data->has_features & HAS_ZONE_HYST) &&
-	    (err = sysfs_create_group(&dev->kobj,
-				      &dme1737_zone_hyst_group))) {
-		goto exit_remove;
+	if (data->has_features & HAS_ZONE_HYST) {
+		err = sysfs_create_group(&dev->kobj, &dme1737_zone_hyst_group);
+		if (err) {
+			goto exit_remove;
+		}
 	}
 	if (data->has_features & HAS_IN7) {
 		err = sysfs_create_group(&dev->kobj, &dme1737_in7_group);
@@ -2072,8 +2080,9 @@ static int dme1737_create_files(struct device *dev)
 	/* Create fan sysfs attributes */
 	for (ix = 0; ix < ARRAY_SIZE(dme1737_fan_group); ix++) {
 		if (data->has_features & HAS_FAN(ix)) {
-			if ((err = sysfs_create_group(&dev->kobj,
-						&dme1737_fan_group[ix]))) {
+			err = sysfs_create_group(&dev->kobj,
+						 &dme1737_fan_group[ix]);
+			if (err) {
 				goto exit_remove;
 			}
 		}
@@ -2082,14 +2091,17 @@ static int dme1737_create_files(struct device *dev)
 	/* Create PWM sysfs attributes */
 	for (ix = 0; ix < ARRAY_SIZE(dme1737_pwm_group); ix++) {
 		if (data->has_features & HAS_PWM(ix)) {
-			if ((err = sysfs_create_group(&dev->kobj,
-						&dme1737_pwm_group[ix]))) {
+			err = sysfs_create_group(&dev->kobj,
+						 &dme1737_pwm_group[ix]);
+			if (err) {
 				goto exit_remove;
 			}
-			if ((data->has_features & HAS_PWM_MIN) && ix < 3 &&
-			    (err = sysfs_create_file(&dev->kobj,
-					dme1737_auto_pwm_min_attr[ix]))) {
-				goto exit_remove;
+			if ((data->has_features & HAS_PWM_MIN) && (ix < 3)) {
+				err = sysfs_create_file(&dev->kobj,
+						dme1737_auto_pwm_min_attr[ix]);
+				if (err) {
+					goto exit_remove;
+				}
 			}
 		}
 	}
@@ -2319,8 +2331,9 @@ static int dme1737_i2c_get_features(int sio_cip, struct dme1737_data *data)
 	dme1737_sio_outb(sio_cip, 0x07, 0x0a);
 
 	/* Get the base address of the runtime registers */
-	if (!(addr = (dme1737_sio_inb(sio_cip, 0x60) << 8) |
-		      dme1737_sio_inb(sio_cip, 0x61))) {
+	addr = (dme1737_sio_inb(sio_cip, 0x60) << 8) |
+		dme1737_sio_inb(sio_cip, 0x61);
+	if (!addr) {
 		err = -ENODEV;
 		goto exit;
 	}
@@ -2401,13 +2414,15 @@ static int dme1737_i2c_probe(struct i2c_client *client,
 	mutex_init(&data->update_lock);
 
 	/* Initialize the DME1737 chip */
-	if ((err = dme1737_init_device(dev))) {
+	err = dme1737_init_device(dev);
+	if (err) {
 		dev_err(dev, "Failed to initialize device.\n");
 		goto exit_kfree;
 	}
 
 	/* Create sysfs files */
-	if ((err = dme1737_create_files(dev))) {
+	err = dme1737_create_files(dev);
+	if (err) {
 		dev_err(dev, "Failed to create sysfs files.\n");
 		goto exit_kfree;
 	}
@@ -2484,8 +2499,9 @@ static int __init dme1737_isa_detect(int sio_cip, unsigned short *addr)
 	dme1737_sio_outb(sio_cip, 0x07, 0x0a);
 
 	/* Get the base address of the runtime registers */
-	if (!(base_addr = (dme1737_sio_inb(sio_cip, 0x60) << 8) |
-			   dme1737_sio_inb(sio_cip, 0x61))) {
+	base_addr = (dme1737_sio_inb(sio_cip, 0x60) << 8) |
+		     dme1737_sio_inb(sio_cip, 0x61);
+	if (!base_addr) {
 		pr_err("Base address not set\n");
 		err = -ENODEV;
 		goto exit;
@@ -2514,18 +2530,21 @@ static int __init dme1737_isa_device_add(unsigned short addr)
 	if (err)
 		goto exit;
 
-	if (!(pdev = platform_device_alloc("dme1737", addr))) {
+	pdev = platform_device_alloc("dme1737", addr);
+	if (!pdev) {
 		pr_err("Failed to allocate device\n");
 		err = -ENOMEM;
 		goto exit;
 	}
 
-	if ((err = platform_device_add_resources(pdev, &res, 1))) {
+	err = platform_device_add_resources(pdev, &res, 1);
+	if (err) {
 		pr_err("Failed to add device resource (err = %d)\n", err);
 		goto exit_device_put;
 	}
 
-	if ((err = platform_device_add(pdev))) {
+	err = platform_device_add(pdev);
+	if (err) {
 		pr_err("Failed to add device (err = %d)\n", err);
 		goto exit_device_put;
 	}
@@ -2552,11 +2571,12 @@ static int __devinit dme1737_isa_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to request region 0x%04x-0x%04x.\n",
 			(unsigned short)res->start,
 			(unsigned short)res->start + DME1737_EXTENT - 1);
-                err = -EBUSY;
-                goto exit;
-        }
+		err = -EBUSY;
+		goto exit;
+	}
 
-	if (!(data = kzalloc(sizeof(struct dme1737_data), GFP_KERNEL))) {
+	data = kzalloc(sizeof(struct dme1737_data), GFP_KERNEL);
+	if (!data) {
 		err = -ENOMEM;
 		goto exit_release_region;
 	}
@@ -2603,13 +2623,15 @@ static int __devinit dme1737_isa_probe(struct platform_device *pdev)
 		 data->type == sch5127 ? "SCH5127" : "SCH311x", data->addr);
 
 	/* Initialize the chip */
-	if ((err = dme1737_init_device(dev))) {
+	err = dme1737_init_device(dev);
+	if (err) {
 		dev_err(dev, "Failed to initialize device.\n");
 		goto exit_kfree;
 	}
 
 	/* Create sysfs files */
-	if ((err = dme1737_create_files(dev))) {
+	err = dme1737_create_files(dev);
+	if (err) {
 		dev_err(dev, "Failed to create sysfs files.\n");
 		goto exit_kfree;
 	}
@@ -2666,7 +2688,8 @@ static int __init dme1737_init(void)
 	int err;
 	unsigned short addr;
 
-	if ((err = i2c_add_driver(&dme1737_i2c_driver))) {
+	err = i2c_add_driver(&dme1737_i2c_driver);
+	if (err) {
 		goto exit;
 	}
 
@@ -2679,12 +2702,14 @@ static int __init dme1737_init(void)
 		return 0;
 	}
 
-	if ((err = platform_driver_register(&dme1737_isa_driver))) {
+	err = platform_driver_register(&dme1737_isa_driver);
+	if (err) {
 		goto exit_del_i2c_driver;
 	}
 
 	/* Sets global pdev as a side effect */
-	if ((err = dme1737_isa_device_add(addr))) {
+	err = dme1737_isa_device_add(addr);
+	if (err) {
 		goto exit_del_isa_driver;
 	}
 
