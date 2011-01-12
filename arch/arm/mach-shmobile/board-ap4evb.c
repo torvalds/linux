@@ -247,10 +247,7 @@ static struct platform_device smc911x_device = {
  */
 static int slot_cn7_get_cd(struct platform_device *pdev)
 {
-	if (gpio_is_valid(GPIO_PORT41))
-		return !gpio_get_value(GPIO_PORT41);
-	else
-		return -ENXIO;
+	return !gpio_get_value(GPIO_PORT41);
 }
 
 /* SH_MMCIF */
