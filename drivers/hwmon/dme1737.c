@@ -77,12 +77,14 @@ enum chips { dme1737, sch5027, sch311x, sch5127 };
  * in4   +12V
  * in5   VTR   (+3.3V stby)
  * in6   Vbat
+ * in7   Vtrip (sch5127 only)
  *
  * --------------------------------------------------------------------- */
 
-/* Voltages (in) numbered 0-6 (ix) */
-#define	DME1737_REG_IN(ix)		((ix) < 5 ? 0x20 + (ix) \
-						  : 0x94 + (ix))
+/* Voltages (in) numbered 0-7 (ix) */
+#define	DME1737_REG_IN(ix)		((ix) < 5 ? 0x20 + (ix) : \
+					 (ix) < 7 ? 0x94 + (ix) : \
+						    0x1f)
 #define	DME1737_REG_IN_MIN(ix)		((ix) < 5 ? 0x44 + (ix) * 2 \
 						  : 0x91 + (ix) * 2)
 #define	DME1737_REG_IN_MAX(ix)		((ix) < 5 ? 0x45 + (ix) * 2 \
@@ -101,10 +103,11 @@ enum chips { dme1737, sch5027, sch311x, sch5127 };
  *    IN_TEMP_LSB(1) = [temp3, temp1]
  *    IN_TEMP_LSB(2) = [in4, temp2]
  *    IN_TEMP_LSB(3) = [in3, in0]
- *    IN_TEMP_LSB(4) = [in2, in1] */
+ *    IN_TEMP_LSB(4) = [in2, in1]
+ *    IN_TEMP_LSB(5) = [res, in7] */
 #define DME1737_REG_IN_TEMP_LSB(ix)	(0x84 + (ix))
-static const u8 DME1737_REG_IN_LSB[] = {3, 4, 4, 3, 2, 0, 0};
-static const u8 DME1737_REG_IN_LSB_SHL[] = {4, 4, 0, 0, 0, 0, 4};
+static const u8 DME1737_REG_IN_LSB[] = {3, 4, 4, 3, 2, 0, 0, 5};
+static const u8 DME1737_REG_IN_LSB_SHL[] = {4, 4, 0, 0, 0, 0, 4, 4};
 static const u8 DME1737_REG_TEMP_LSB[] = {1, 2, 1};
 static const u8 DME1737_REG_TEMP_LSB_SHL[] = {4, 4, 0};
 
@@ -145,7 +148,7 @@ static const u8 DME1737_REG_TEMP_LSB_SHL[] = {4, 4, 0};
 #define DME1737_REG_ALARM1		0x41
 #define DME1737_REG_ALARM2		0x42
 #define DME1737_REG_ALARM3		0x83
-static const u8 DME1737_BIT_ALARM_IN[] = {0, 1, 2, 3, 8, 16, 17};
+static const u8 DME1737_BIT_ALARM_IN[] = {0, 1, 2, 3, 8, 16, 17, 18};
 static const u8 DME1737_BIT_ALARM_TEMP[] = {4, 5, 6};
 static const u8 DME1737_BIT_ALARM_FAN[] = {10, 11, 12, 13, 22, 23};
 
@@ -190,6 +193,7 @@ static const u8 DME1737_BIT_ALARM_FAN[] = {10, 11, 12, 13, 22, 23};
 #define HAS_PWM_MIN		(1 << 4)		/* bit 4 */
 #define HAS_FAN(ix)		(1 << ((ix) + 5))	/* bits 5-10 */
 #define HAS_PWM(ix)		(1 << ((ix) + 11))	/* bits 11-16 */
+#define HAS_IN7			(1 << 17)		/* bit 17 */
 
 /* ---------------------------------------------------------------------
  * Data structures and manipulation thereof
@@ -213,9 +217,9 @@ struct dme1737_data {
 	u32 has_features;
 
 	/* Register values */
-	u16 in[7];
-	u8  in_min[7];
-	u8  in_max[7];
+	u16 in[8];
+	u8  in_min[8];
+	u8  in_max[8];
 	s16 temp[3];
 	s8  temp_min[3];
 	s8  temp_max[3];
@@ -247,7 +251,7 @@ static const int IN_NOMINAL_SCH311x[] = {2500, 1500, 3300, 5000, 12000, 3300,
 static const int IN_NOMINAL_SCH5027[] = {5000, 2250, 3300, 1125, 1125, 3300,
 					 3300};
 static const int IN_NOMINAL_SCH5127[] = {2500, 2250, 3300, 1125, 1125, 3300,
-					 3300};
+					 3300, 1500};
 #define IN_NOMINAL(type)	((type) == sch311x ? IN_NOMINAL_SCH311x : \
 				 (type) == sch5027 ? IN_NOMINAL_SCH5027 : \
 				 (type) == sch5127 ? IN_NOMINAL_SCH5127 : \
@@ -580,7 +584,7 @@ static struct dme1737_data *dme1737_update_device(struct device *dev)
 {
 	struct dme1737_data *data = dev_get_drvdata(dev);
 	int ix;
-	u8 lsb[5];
+	u8 lsb[6];
 
 	mutex_lock(&data->update_lock);
 
@@ -603,6 +607,9 @@ static struct dme1737_data *dme1737_update_device(struct device *dev)
 			/* Voltage inputs are stored as 16 bit values even
 			 * though they have only 12 bits resolution. This is
 			 * to make it consistent with the temp inputs. */
+			if (ix == 7 && !(data->has_features & HAS_IN7)) {
+				continue;
+			}
 			data->in[ix] = dme1737_read(data,
 					DME1737_REG_IN(ix)) << 8;
 			data->in_min[ix] = dme1737_read(data,
@@ -635,10 +642,16 @@ static struct dme1737_data *dme1737_update_device(struct device *dev)
 		 * which the registers are read (MSB first, then LSB) is
 		 * important! */
 		for (ix = 0; ix < ARRAY_SIZE(lsb); ix++) {
+			if (ix == 5 && !(data->has_features & HAS_IN7)) {
+				continue;
+			}
 			lsb[ix] = dme1737_read(data,
 					DME1737_REG_IN_TEMP_LSB(ix));
 		}
 		for (ix = 0; ix < ARRAY_SIZE(data->in); ix++) {
+			if (ix == 7 && !(data->has_features & HAS_IN7)) {
+				continue;
+			}
 			data->in[ix] |= (lsb[DME1737_REG_IN_LSB[ix]] <<
 					DME1737_REG_IN_LSB_SHL[ix]) & 0xf0;
 		}
@@ -762,7 +775,7 @@ static struct dme1737_data *dme1737_update_device(struct device *dev)
 
 /* ---------------------------------------------------------------------
  * Voltage sysfs attributes
- * ix = [0-5]
+ * ix = [0-7]
  * --------------------------------------------------------------------- */
 
 #define SYS_IN_INPUT	0
@@ -1439,7 +1452,7 @@ static ssize_t show_name(struct device *dev, struct device_attribute *attr,
  * Sysfs device attribute defines and structs
  * --------------------------------------------------------------------- */
 
-/* Voltages 0-6 */
+/* Voltages 0-7 */
 
 #define SENSOR_DEVICE_ATTR_IN(ix) \
 static SENSOR_DEVICE_ATTR_2(in##ix##_input, S_IRUGO, \
@@ -1458,6 +1471,7 @@ SENSOR_DEVICE_ATTR_IN(3);
 SENSOR_DEVICE_ATTR_IN(4);
 SENSOR_DEVICE_ATTR_IN(5);
 SENSOR_DEVICE_ATTR_IN(6);
+SENSOR_DEVICE_ATTR_IN(7);
 
 /* Temperatures 1-3 */
 
@@ -1693,6 +1707,21 @@ static struct attribute *dme1737_zone_hyst_attr[] = {
 
 static const struct attribute_group dme1737_zone_hyst_group = {
 	.attrs = dme1737_zone_hyst_attr,
+};
+
+/* The following struct holds voltage in7 related attributes, which
+ * are not available in all chips. The following chips support them:
+ * SCH5127 */
+static struct attribute *dme1737_in7_attr[] = {
+	&sensor_dev_attr_in7_input.dev_attr.attr,
+	&sensor_dev_attr_in7_min.dev_attr.attr,
+	&sensor_dev_attr_in7_max.dev_attr.attr,
+	&sensor_dev_attr_in7_alarm.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group dme1737_in7_group = {
+	.attrs = dme1737_in7_attr,
 };
 
 /* The following structs hold the PWM attributes, some of which are optional.
@@ -1986,6 +2015,9 @@ static void dme1737_remove_files(struct device *dev)
 	if (data->has_features & HAS_ZONE_HYST) {
 		sysfs_remove_group(&dev->kobj, &dme1737_zone_hyst_group);
 	}
+	if (data->has_features & HAS_IN7) {
+		sysfs_remove_group(&dev->kobj, &dme1737_in7_group);
+	}
 	sysfs_remove_group(&dev->kobj, &dme1737_group);
 
 	if (!data->client) {
@@ -2029,6 +2061,12 @@ static int dme1737_create_files(struct device *dev)
 	    (err = sysfs_create_group(&dev->kobj,
 				      &dme1737_zone_hyst_group))) {
 		goto exit_remove;
+	}
+	if (data->has_features & HAS_IN7) {
+		err = sysfs_create_group(&dev->kobj, &dme1737_in7_group);
+		if (err) {
+			goto exit_remove;
+		}
 	}
 
 	/* Create fan sysfs attributes */
@@ -2188,7 +2226,7 @@ static int dme1737_init_device(struct device *dev)
 		data->has_features |= HAS_ZONE3;
 		break;
 	case sch5127:
-		data->has_features |= HAS_FAN(2) | HAS_PWM(2);
+		data->has_features |= HAS_FAN(2) | HAS_PWM(2) | HAS_IN7;
 		break;
 	default:
 		break;
