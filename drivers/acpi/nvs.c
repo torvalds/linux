@@ -1,7 +1,7 @@
 /*
- * linux/kernel/power/hibernate_nvs.c - Routines for handling NVS memory
+ * nvs.c - Routines for saving and restoring ACPI NVS memory region
  *
- * Copyright (C) 2008,2009 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+ * Copyright (C) 2008-2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
  *
  * This file is released under the GPLv2.
  */
@@ -11,7 +11,8 @@
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/suspend.h>
+#include <linux/acpi.h>
+#include <acpi/acpiosxf.h>
 
 /*
  * Platforms, like ACPI, may want us to save some memory used by them during
@@ -79,7 +80,7 @@ void suspend_nvs_free(void)
 			free_page((unsigned long)entry->data);
 			entry->data = NULL;
 			if (entry->kaddr) {
-				iounmap(entry->kaddr);
+				acpi_os_unmap_memory(entry->kaddr, entry->size);
 				entry->kaddr = NULL;
 			}
 		}
@@ -105,7 +106,7 @@ int suspend_nvs_alloc(void)
 /**
  *	suspend_nvs_save - save NVS memory regions
  */
-void suspend_nvs_save(void)
+int suspend_nvs_save(void)
 {
 	struct nvs_page *entry;
 
@@ -113,9 +114,16 @@ void suspend_nvs_save(void)
 
 	list_for_each_entry(entry, &nvs_list, node)
 		if (entry->data) {
-			entry->kaddr = ioremap(entry->phys_start, entry->size);
+			entry->kaddr = acpi_os_map_memory(entry->phys_start,
+							  entry->size);
+			if (!entry->kaddr) {
+				suspend_nvs_free();
+				return -ENOMEM;
+			}
 			memcpy(entry->data, entry->kaddr, entry->size);
 		}
+
+	return 0;
 }
 
 /**
