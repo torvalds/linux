@@ -18,6 +18,7 @@ struct fsi_ak4642_data {
 	const char *cpu_dai;
 	const char *codec;
 	const char *platform;
+	int id;
 };
 
 static int fsi_ak4642_dai_init(struct snd_soc_pcm_runtime *rtd)
@@ -60,7 +61,7 @@ static int fsi_ak4642_probe(struct platform_device *pdev)
 
 	pdata = (struct fsi_ak4642_data *)id_entry->driver_data;
 
-	fsi_snd_device = platform_device_alloc("soc-audio", FSI_PORT_A);
+	fsi_snd_device = platform_device_alloc("soc-audio", pdata->id);
 	if (!fsi_snd_device)
 		goto out;
 
@@ -93,6 +94,7 @@ static struct fsi_ak4642_data fsi_a_ak4642 = {
 	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi.0",
+	.id		= FSI_PORT_A,
 };
 
 static struct fsi_ak4642_data fsi_b_ak4642 = {
@@ -101,6 +103,7 @@ static struct fsi_ak4642_data fsi_b_ak4642 = {
 	.cpu_dai	= "fsib-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi.0",
+	.id		= FSI_PORT_B,
 };
 
 static struct fsi_ak4642_data fsi_a_ak4643 = {
@@ -109,6 +112,7 @@ static struct fsi_ak4642_data fsi_a_ak4643 = {
 	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi.0",
+	.id		= FSI_PORT_A,
 };
 
 static struct fsi_ak4642_data fsi_b_ak4643 = {
@@ -117,6 +121,7 @@ static struct fsi_ak4642_data fsi_b_ak4643 = {
 	.cpu_dai	= "fsib-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi.0",
+	.id		= FSI_PORT_B,
 };
 
 static struct fsi_ak4642_data fsi2_a_ak4642 = {
@@ -125,6 +130,7 @@ static struct fsi_ak4642_data fsi2_a_ak4642 = {
 	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi2",
+	.id		= FSI_PORT_A,
 };
 
 static struct fsi_ak4642_data fsi2_b_ak4642 = {
@@ -133,6 +139,7 @@ static struct fsi_ak4642_data fsi2_b_ak4642 = {
 	.cpu_dai	= "fsib-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi2",
+	.id		= FSI_PORT_B,
 };
 
 static struct fsi_ak4642_data fsi2_a_ak4643 = {
@@ -141,6 +148,7 @@ static struct fsi_ak4642_data fsi2_a_ak4643 = {
 	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi2",
+	.id		= FSI_PORT_A,
 };
 
 static struct fsi_ak4642_data fsi2_b_ak4643 = {
@@ -149,6 +157,7 @@ static struct fsi_ak4642_data fsi2_b_ak4643 = {
 	.cpu_dai	= "fsib-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi2",
+	.id		= FSI_PORT_B,
 };
 
 static struct platform_device_id fsi_id_table[] = {
