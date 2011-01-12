@@ -1209,7 +1209,7 @@ static int __init at_dma_init(void)
 {
 	return platform_driver_probe(&at_dma_driver, at_dma_probe);
 }
-module_init(at_dma_init);
+subsys_initcall(at_dma_init);
 
 static void __exit at_dma_exit(void)
 {
