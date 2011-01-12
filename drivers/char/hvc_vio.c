@@ -39,7 +39,7 @@
 
 #include "hvc_console.h"
 
-char hvc_driver_name[] = "hvc_console";
+static const char hvc_driver_name[] = "hvc_console";
 
 static struct vio_device_id hvc_driver_table[] __devinitdata = {
 	{"serial", "hvterm1"},

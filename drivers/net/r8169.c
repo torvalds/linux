@@ -1632,36 +1632,134 @@ rtl_phy_write_fw(struct rtl8169_private *tp, const struct firmware *fw)
 {
 	__le32 *phytable = (__le32 *)fw->data;
 	struct net_device *dev = tp->dev;
-	size_t i;
+	size_t index, fw_size = fw->size / sizeof(*phytable);
+	u32 predata, count;
 
 	if (fw->size % sizeof(*phytable)) {
 		netif_err(tp, probe, dev, "odd sized firmware %zd\n", fw->size);
 		return;
 	}
 
-	for (i = 0; i < fw->size / sizeof(*phytable); i++) {
-		u32 action = le32_to_cpu(phytable[i]);
+	for (index = 0; index < fw_size; index++) {
+		u32 action = le32_to_cpu(phytable[index]);
+		u32 regno = (action & 0x0fff0000) >> 16;
 
-		if (!action)
+		switch(action & 0xf0000000) {
+		case PHY_READ:
+		case PHY_DATA_OR:
+		case PHY_DATA_AND:
+		case PHY_READ_EFUSE:
+		case PHY_CLEAR_READCOUNT:
+		case PHY_WRITE:
+		case PHY_WRITE_PREVIOUS:
+		case PHY_DELAY_MS:
 			break;
 
-		if ((action & 0xf0000000) != PHY_WRITE) {
-			netif_err(tp, probe, dev,
-				  "unknown action 0x%08x\n", action);
+		case PHY_BJMPN:
+			if (regno > index) {
+				netif_err(tp, probe, tp->dev,
+					"Out of range of firmware\n");
+				return;
+			}
+			break;
+		case PHY_READCOUNT_EQ_SKIP:
+			if (index + 2 >= fw_size) {
+				netif_err(tp, probe, tp->dev,
+					"Out of range of firmware\n");
+				return;
+			}
+			break;
+		case PHY_COMP_EQ_SKIPN:
+		case PHY_COMP_NEQ_SKIPN:
+		case PHY_SKIPN:
+			if (index + 1 + regno >= fw_size) {
+				netif_err(tp, probe, tp->dev,
+					"Out of range of firmware\n");
+				return;
+			}
+			break;
+
+		case PHY_READ_MAC_BYTE:
+		case PHY_WRITE_MAC_BYTE:
+		case PHY_WRITE_ERI_WORD:
+		default:
+			netif_err(tp, probe, tp->dev,
+				  "Invalid action 0x%08x\n", action);
 			return;
 		}
 	}
 
-	while (i-- != 0) {
-		u32 action = le32_to_cpu(*phytable);
+	predata = 0;
+	count = 0;
+
+	for (index = 0; index < fw_size; ) {
+		u32 action = le32_to_cpu(phytable[index]);
 		u32 data = action & 0x0000ffff;
-		u32 reg = (action & 0x0fff0000) >> 16;
+		u32 regno = (action & 0x0fff0000) >> 16;
+
+		if (!action)
+			break;
 
 		switch(action & 0xf0000000) {
-		case PHY_WRITE:
-			rtl_writephy(tp, reg, data);
-			phytable++;
+		case PHY_READ:
+			predata = rtl_readphy(tp, regno);
+			count++;
+			index++;
 			break;
+		case PHY_DATA_OR:
+			predata |= data;
+			index++;
+			break;
+		case PHY_DATA_AND:
+			predata &= data;
+			index++;
+			break;
+		case PHY_BJMPN:
+			index -= regno;
+			break;
+		case PHY_READ_EFUSE:
+			predata = rtl8168d_efuse_read(tp->mmio_addr, regno);
+			index++;
+			break;
+		case PHY_CLEAR_READCOUNT:
+			count = 0;
+			index++;
+			break;
+		case PHY_WRITE:
+			rtl_writephy(tp, regno, data);
+			index++;
+			break;
+		case PHY_READCOUNT_EQ_SKIP:
+			if (count == data)
+				index += 2;
+			else
+				index += 1;
+			break;
+		case PHY_COMP_EQ_SKIPN:
+			if (predata == data)
+				index += regno;
+			index++;
+			break;
+		case PHY_COMP_NEQ_SKIPN:
+			if (predata != data)
+				index += regno;
+			index++;
+			break;
+		case PHY_WRITE_PREVIOUS:
+			rtl_writephy(tp, regno, predata);
+			index++;
+			break;
+		case PHY_SKIPN:
+			index += regno + 1;
+			break;
+		case PHY_DELAY_MS:
+			mdelay(data);
+			index++;
+			break;
+
+		case PHY_READ_MAC_BYTE:
+		case PHY_WRITE_MAC_BYTE:
+		case PHY_WRITE_ERI_WORD:
 		default:
 			BUG();
 		}
@@ -3069,15 +3167,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rtl8168_driver_start(tp);
 	}
 
-	rtl8169_init_phy(dev, tp);
-
-	/*
-	 * Pretend we are using VLANs; This bypasses a nasty bug where
-	 * Interrupts stop flowing on high load on 8110SCd controllers.
-	 */
-	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
-		RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) | RxVlan);
-
 	device_set_wakeup_enable(&pdev->dev, tp->features & RTL_FEATURE_WOL);
 
 	if (pci_dev_run_wake(pdev))
@@ -3127,6 +3216,7 @@ static void __devexit rtl8169_remove_one(struct pci_dev *pdev)
 static int rtl8169_open(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
 	struct pci_dev *pdev = tp->pci_dev;
 	int retval = -ENOMEM;
 
@@ -3162,6 +3252,15 @@ static int rtl8169_open(struct net_device *dev)
 
 	napi_enable(&tp->napi);
 
+	rtl8169_init_phy(dev, tp);
+
+	/*
+	 * Pretend we are using VLANs; This bypasses a nasty bug where
+	 * Interrupts stop flowing on high load on 8110SCd controllers.
+	 */
+	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
+		RTL_W16(CPlusCmd, RTL_R16(CPlusCmd) | RxVlan);
+
 	rtl_pll_power_up(tp);
 
 	rtl_hw_start(dev);
@@ -3171,7 +3270,7 @@ static int rtl8169_open(struct net_device *dev)
 	tp->saved_wolopts = 0;
 	pm_runtime_put_noidle(&pdev->dev);
 
-	rtl8169_check_link_status(dev, tp, tp->mmio_addr);
+	rtl8169_check_link_status(dev, tp, ioaddr);
 out:
 	return retval;
 

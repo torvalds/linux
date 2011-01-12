@@ -598,7 +598,9 @@ static void nfs_show_mountd_options(struct seq_file *m, struct nfs_server *nfss,
 
 	if (nfss->mountd_version || showdefaults)
 		seq_printf(m, ",mountvers=%u", nfss->mountd_version);
-	if (nfss->mountd_port || showdefaults)
+	if ((nfss->mountd_port &&
+		nfss->mountd_port != (unsigned short)NFS_UNSPEC_PORT) ||
+		showdefaults)
 		seq_printf(m, ",mountport=%u", nfss->mountd_port);
 
 	nfs_show_mountd_netid(m, nfss, showdefaults);
@@ -2494,7 +2496,13 @@ static void nfs4_clone_super(struct super_block *sb,
 	sb->s_maxbytes = old_sb->s_maxbytes;
 	sb->s_time_gran = 1;
 	sb->s_op = old_sb->s_op;
- 	nfs_initialise_sb(sb);
+	/*
+	 * The VFS shouldn't apply the umask to mode bits. We will do
+	 * so ourselves when necessary.
+	 */
+	sb->s_flags  |= MS_POSIXACL;
+	sb->s_xattr  = old_sb->s_xattr;
+	nfs_initialise_sb(sb);
 }
 
 /*
@@ -2504,6 +2512,12 @@ static void nfs4_fill_super(struct super_block *sb)
 {
 	sb->s_time_gran = 1;
 	sb->s_op = &nfs4_sops;
+	/*
+	 * The VFS shouldn't apply the umask to mode bits. We will do
+	 * so ourselves when necessary.
+	 */
+	sb->s_flags  |= MS_POSIXACL;
+	sb->s_xattr = nfs4_xattr_handlers;
 	nfs_initialise_sb(sb);
 }
 

@@ -74,6 +74,8 @@ struct ttm_placement {
  * @is_iomem:		is this io memory ?
  * @size:		size in byte
  * @offset:		offset from the base address
+ * @io_reserved_vm:     The VM system has a refcount in @io_reserved_count
+ * @io_reserved_count:  Refcounting the numbers of callers to ttm_mem_io_reserve
  *
  * Structure indicating the bus placement of an object.
  */
@@ -83,7 +85,8 @@ struct ttm_bus_placement {
 	unsigned long	size;
 	unsigned long	offset;
 	bool		is_iomem;
-	bool		io_reserved;
+	bool		io_reserved_vm;
+	uint64_t        io_reserved_count;
 };
 
 
@@ -154,7 +157,6 @@ struct ttm_tt;
  * keeps one refcount. When this refcount reaches zero,
  * the object is destroyed.
  * @event_queue: Queue for processes waiting on buffer object status change.
- * @lock: spinlock protecting mostly synchronization members.
  * @mem: structure describing current placement.
  * @persistant_swap_storage: Usually the swap storage is deleted for buffers
  * pinned in physical memory. If this behaviour is not desired, this member
@@ -213,7 +215,6 @@ struct ttm_buffer_object {
 	struct kref kref;
 	struct kref list_kref;
 	wait_queue_head_t event_queue;
-	spinlock_t lock;
 
 	/**
 	 * Members protected by the bo::reserved lock.
@@ -237,6 +238,7 @@ struct ttm_buffer_object {
 	struct list_head lru;
 	struct list_head ddestroy;
 	struct list_head swap;
+	struct list_head io_reserve_lru;
 	uint32_t val_seq;
 	bool seq_valid;
 
@@ -248,10 +250,10 @@ struct ttm_buffer_object {
 	atomic_t reserved;
 
 	/**
-	 * Members protected by the bo::lock
+	 * Members protected by struct buffer_object_device::fence_lock
 	 * In addition, setting sync_obj to anything else
 	 * than NULL requires bo::reserved to be held. This allows for
-	 * checking NULL while reserved but not holding bo::lock.
+	 * checking NULL while reserved but not holding the mentioned lock.
 	 */
 
 	void *sync_obj_arg;
@@ -363,6 +365,44 @@ extern int ttm_bo_validate(struct ttm_buffer_object *bo,
  * Unreference and clear a pointer to a buffer object.
  */
 extern void ttm_bo_unref(struct ttm_buffer_object **bo);
+
+
+/**
+ * ttm_bo_list_ref_sub
+ *
+ * @bo: The buffer object.
+ * @count: The number of references with which to decrease @bo::list_kref;
+ * @never_free: The refcount should not reach zero with this operation.
+ *
+ * Release @count lru list references to this buffer object.
+ */
+extern void ttm_bo_list_ref_sub(struct ttm_buffer_object *bo, int count,
+				bool never_free);
+
+/**
+ * ttm_bo_add_to_lru
+ *
+ * @bo: The buffer object.
+ *
+ * Add this bo to the relevant mem type lru and, if it's backed by
+ * system pages (ttms) to the swap list.
+ * This function must be called with struct ttm_bo_global::lru_lock held, and
+ * is typically called immediately prior to unreserving a bo.
+ */
+extern void ttm_bo_add_to_lru(struct ttm_buffer_object *bo);
+
+/**
+ * ttm_bo_del_from_lru
+ *
+ * @bo: The buffer object.
+ *
+ * Remove this bo from all lru lists used to lookup and reserve an object.
+ * This function must be called with struct ttm_bo_global::lru_lock held,
+ * and is usually called just immediately after the bo has been reserved to
+ * avoid recursive reservation from lru lists.
+ */
+extern int ttm_bo_del_from_lru(struct ttm_buffer_object *bo);
+
 
 /**
  * ttm_bo_lock_delayed_workqueue

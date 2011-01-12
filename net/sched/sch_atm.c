@@ -422,10 +422,8 @@ drop: __maybe_unused
 		}
 		return ret;
 	}
-	sch->bstats.bytes += qdisc_pkt_len(skb);
-	sch->bstats.packets++;
-	flow->bstats.bytes += qdisc_pkt_len(skb);
-	flow->bstats.packets++;
+	qdisc_bstats_update(sch, skb);
+	bstats_update(&flow->bstats, skb);
 	/*
 	 * Okay, this may seem weird. We pretend we've dropped the packet if
 	 * it goes via ATM. The reason for this is that the outer qdisc

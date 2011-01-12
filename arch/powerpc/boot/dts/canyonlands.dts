@@ -105,6 +105,15 @@
 		dcr-reg = <0x00c 0x002>;
 	};
 
+	CPM0: cpm {
+		compatible = "ibm,cpm";
+		dcr-access-method = "native";
+		dcr-reg = <0x160 0x003>;
+		unused-units = <0x00000100>;
+		idle-doze = <0x02000000>;
+		standby = <0xfeff791d>;
+	};
+
 	L2C0: l2c {
 		compatible = "ibm,l2-cache-460ex", "ibm,l2-cache";
 		dcr-reg = <0x020 0x008		/* Internal SRAM DCR's */
@@ -268,28 +277,6 @@
 				current-speed = <0>; /* Filled in by U-Boot */
 				interrupt-parent = <&UIC0>;
 				interrupts = <0x1 0x4>;
-			};
-
-			UART2: serial@ef600500 {
-				device_type = "serial";
-				compatible = "ns16550";
-				reg = <0xef600500 0x00000008>;
-				virtual-reg = <0xef600500>;
-				clock-frequency = <0>; /* Filled in by U-Boot */
-				current-speed = <0>; /* Filled in by U-Boot */
-				interrupt-parent = <&UIC1>;
-				interrupts = <28 0x4>;
-			};
-
-			UART3: serial@ef600600 {
-				device_type = "serial";
-				compatible = "ns16550";
-				reg = <0xef600600 0x00000008>;
-				virtual-reg = <0xef600600>;
-				clock-frequency = <0>; /* Filled in by U-Boot */
-				current-speed = <0>; /* Filled in by U-Boot */
-				interrupt-parent = <&UIC1>;
-				interrupts = <29 0x4>;
 			};
 
 			IIC0: i2c@ef600700 {

@@ -285,6 +285,41 @@ L:	linux-parisc@vger.kernel.org
 S:	Maintained
 F:	sound/pci/ad1889.*
 
+AD525X ANALOG DEVICES DIGITAL POTENTIOMETERS DRIVER
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/AD5254
+S:	Supported
+F:	drivers/misc/ad525x_dpot.c
+
+AD5398 CURRENT REGULATOR DRIVER (AD5398/AD5821)
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/AD5398
+S:	Supported
+F:	drivers/regulator/ad5398.c
+
+AD714X CAPACITANCE TOUCH SENSOR DRIVER (AD7142/3/7/8/7A)
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/AD7142
+S:	Supported
+F:	drivers/input/misc/ad714x.c
+
+AD7877 TOUCHSCREEN DRIVER
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/AD7877
+S:	Supported
+F:	drivers/input/touchscreen/ad7877.c
+
+AD7879 TOUCHSCREEN DRIVER (AD7879/AD7889)
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/AD7879
+S:	Supported
+F:	drivers/input/touchscreen/ad7879.c
+
 ADM1025 HARDWARE MONITOR DRIVER
 M:	Jean Delvare <khali@linux-fr.org>
 L:	lm-sensors@lm-sensors.org
@@ -304,6 +339,32 @@ W:	http://linuxwireless.org/
 S:	Orphan
 F:	drivers/net/wireless/adm8211.*
 
+ADP5520 BACKLIGHT DRIVER WITH IO EXPANDER (ADP5520/ADP5501)
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/ADP5520
+S:	Supported
+F:	drivers/mfd/adp5520.c
+F:	drivers/video/backlight/adp5520_bl.c
+F:	drivers/led/leds-adp5520.c
+F:	drivers/gpio/adp5520-gpio.c
+F:	drivers/input/keyboard/adp5520-keys.c
+
+ADP5588 QWERTY KEYPAD AND IO EXPANDER DRIVER (ADP5588/ADP5587)
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/ADP5588
+S:	Supported
+F:	drivers/input/keyboard/adp5588-keys.c
+F:	drivers/gpio/adp5588-gpio.c
+
+ADP8860 BACKLIGHT DRIVER (ADP8860/ADP8861/ADP8863)
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/ADP8860
+S:	Supported
+F:	drivers/video/backlight/adp8860_bl.c
+
 ADT746X FAN DRIVER
 M:	Colin Leroy <colin@colino.net>
 S:	Maintained
@@ -315,6 +376,13 @@ L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/adt7475
 F:	drivers/hwmon/adt7475.c
+
+ADXL34X THREE-AXIS DIGITAL ACCELEROMETER DRIVER (ADXL345/ADXL346)
+M:	Michael Hennerich <michael.hennerich@analog.com>
+L:	device-driver-devel@blackfin.uclinux.org
+W:	http://wiki-analog.com/ADXL345
+S:	Supported
+F:	drivers/input/misc/adxl34x.c
 
 ADVANSYS SCSI DRIVER
 M:	Matthew Wilcox <matthew@wil.cx>
@@ -440,16 +508,22 @@ L:	linux-rdma@vger.kernel.org
 S:	Maintained
 F:	drivers/infiniband/hw/amso1100/
 
+ANALOG DEVICES INC ASOC CODEC DRIVERS
+L:	device-driver-devel@blackfin.uclinux.org
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+W:	http://wiki-analog.com/
+S:	Supported
+F:	sound/soc/codecs/ad1*
+F:	sound/soc/codecs/adau*
+F:	sound/soc/codecs/adav*
+F:	sound/soc/codecs/ssm*
+
 ANALOG DEVICES INC ASOC DRIVERS
 L:	uclinux-dist-devel@blackfin.uclinux.org
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 W:	http://blackfin.uclinux.org/
 S:	Supported
 F:	sound/soc/blackfin/*
-F:	sound/soc/codecs/ad1*
-F:	sound/soc/codecs/adau*
-F:	sound/soc/codecs/adav*
-F:	sound/soc/codecs/ssm*
 
 AOA (Apple Onboard Audio) ALSA DRIVER
 M:	Johannes Berg <johannes@sipsolutions.net>
@@ -1711,7 +1785,8 @@ S:	Maintained
 F:	drivers/usb/atm/cxacru.c
 
 CONFIGFS
-M:	Joel Becker <joel.becker@oracle.com>
+M:	Joel Becker <jlbec@evilplan.org>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jlbec/configfs.git
 S:	Supported
 F:	fs/configfs/
 F:	include/linux/configfs.h
@@ -2617,6 +2692,14 @@ M:	Haavard Skinnemoen <hskinnemoen@gmail.com>
 S:	Supported
 F:	drivers/i2c/busses/i2c-gpio.c
 F:	include/linux/i2c-gpio.h
+
+GENERIC GPIO I2C MULTIPLEXER DRIVER
+M:	Peter Korsgaard <peter.korsgaard@barco.com>
+L:	linux-i2c@vger.kernel.org
+S:	Supported
+F:	drivers/i2c/muxes/gpio-i2cmux.c
+F:	include/linux/gpio-i2cmux.h
+F:	Documentation/i2c/muxes/gpio-i2cmux
 
 GENERIC HDLC (WAN) DRIVERS
 M:	Krzysztof Halasa <khc@pm.waw.pl>
@@ -4467,7 +4550,7 @@ F:	include/linux/oprofile.h
 
 ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 M:	Mark Fasheh <mfasheh@suse.com>
-M:	Joel Becker <joel.becker@oracle.com>
+M:	Joel Becker <jlbec@evilplan.org>
 L:	ocfs2-devel@oss.oracle.com (moderated for non-subscribers)
 W:	http://oss.oracle.com/projects/ocfs2/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jlbec/ocfs2.git

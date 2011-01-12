@@ -178,27 +178,24 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 			break;
 		case 's':{
 				char **sptr = va_arg(ap, char **);
-				int16_t len;
-				int size;
+				uint16_t len;
 
 				errcode = p9pdu_readf(pdu, proto_version,
 								"w", &len);
 				if (errcode)
 					break;
 
-				size = max_t(int16_t, len, 0);
-
-				*sptr = kmalloc(size + 1, GFP_KERNEL);
+				*sptr = kmalloc(len + 1, GFP_KERNEL);
 				if (*sptr == NULL) {
 					errcode = -EFAULT;
 					break;
 				}
-				if (pdu_read(pdu, *sptr, size)) {
+				if (pdu_read(pdu, *sptr, len)) {
 					errcode = -EFAULT;
 					kfree(*sptr);
 					*sptr = NULL;
 				} else
-					(*sptr)[size] = 0;
+					(*sptr)[len] = 0;
 			}
 			break;
 		case 'Q':{
@@ -234,14 +231,14 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 			}
 			break;
 		case 'D':{
-				int32_t *count = va_arg(ap, int32_t *);
+				uint32_t *count = va_arg(ap, uint32_t *);
 				void **data = va_arg(ap, void **);
 
 				errcode =
 				    p9pdu_readf(pdu, proto_version, "d", count);
 				if (!errcode) {
 					*count =
-					    min_t(int32_t, *count,
+					    min_t(uint32_t, *count,
 						  pdu->size - pdu->offset);
 					*data = &pdu->sdata[pdu->offset];
 				}
@@ -404,9 +401,10 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 			break;
 		case 's':{
 				const char *sptr = va_arg(ap, const char *);
-				int16_t len = 0;
+				uint16_t len = 0;
 				if (sptr)
-					len = min_t(int16_t, strlen(sptr), USHRT_MAX);
+					len = min_t(uint16_t, strlen(sptr),
+								USHRT_MAX);
 
 				errcode = p9pdu_writef(pdu, proto_version,
 								"w", len);
@@ -438,7 +436,7 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 						 stbuf->n_gid, stbuf->n_muid);
 			} break;
 		case 'D':{
-				int32_t count = va_arg(ap, int32_t);
+				uint32_t count = va_arg(ap, uint32_t);
 				const void *data = va_arg(ap, const void *);
 
 				errcode = p9pdu_writef(pdu, proto_version, "d",

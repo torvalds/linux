@@ -23,6 +23,7 @@
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/ptrace.h>
 
 #ifdef CONFIG_VSX
 #define REST_32FPVSRS(n,c,base)						\

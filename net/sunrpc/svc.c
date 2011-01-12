@@ -488,10 +488,6 @@ svc_destroy(struct svc_serv *serv)
 	if (svc_serv_is_pooled(serv))
 		svc_pool_map_put();
 
-#if defined(CONFIG_NFS_V4_1)
-	svc_sock_destroy(serv->bc_xprt);
-#endif /* CONFIG_NFS_V4_1 */
-
 	svc_unregister(serv);
 	kfree(serv->sv_pools);
 	kfree(serv);
@@ -1147,7 +1143,6 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
  dropit:
 	svc_authorise(rqstp);	/* doesn't hurt to call this twice */
 	dprintk("svc: svc_process dropit\n");
-	svc_drop(rqstp);
 	return 0;
 
 err_short_len:
@@ -1218,7 +1213,6 @@ svc_process(struct svc_rqst *rqstp)
 	struct kvec		*resv = &rqstp->rq_res.head[0];
 	struct svc_serv		*serv = rqstp->rq_server;
 	u32			dir;
-	int			error;
 
 	/*
 	 * Setup response xdr_buf.
@@ -1246,11 +1240,13 @@ svc_process(struct svc_rqst *rqstp)
 		return 0;
 	}
 
-	error = svc_process_common(rqstp, argv, resv);
-	if (error <= 0)
-		return error;
-
-	return svc_send(rqstp);
+	/* Returns 1 for send, 0 for drop */
+	if (svc_process_common(rqstp, argv, resv))
+		return svc_send(rqstp);
+	else {
+		svc_drop(rqstp);
+		return 0;
+	}
 }
 
 #if defined(CONFIG_NFS_V4_1)
@@ -1264,10 +1260,9 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 {
 	struct kvec	*argv = &rqstp->rq_arg.head[0];
 	struct kvec	*resv = &rqstp->rq_res.head[0];
-	int 		error;
 
 	/* Build the svc_rqst used by the common processing routine */
-	rqstp->rq_xprt = serv->bc_xprt;
+	rqstp->rq_xprt = serv->sv_bc_xprt;
 	rqstp->rq_xid = req->rq_xid;
 	rqstp->rq_prot = req->rq_xprt->prot;
 	rqstp->rq_server = serv;
@@ -1292,12 +1287,15 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 	svc_getu32(argv);	/* XID */
 	svc_getnl(argv);	/* CALLDIR */
 
-	error = svc_process_common(rqstp, argv, resv);
-	if (error <= 0)
-		return error;
-
-	memcpy(&req->rq_snd_buf, &rqstp->rq_res, sizeof(req->rq_snd_buf));
-	return bc_send(req);
+	/* Returns 1 for send, 0 for drop */
+	if (svc_process_common(rqstp, argv, resv)) {
+		memcpy(&req->rq_snd_buf, &rqstp->rq_res,
+						sizeof(req->rq_snd_buf));
+		return bc_send(req);
+	} else {
+		/* Nothing to do to drop request */
+		return 0;
+	}
 }
 EXPORT_SYMBOL(bc_svc_process);
 #endif /* CONFIG_NFS_V4_1 */

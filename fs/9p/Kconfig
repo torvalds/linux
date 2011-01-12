@@ -9,6 +9,8 @@ config 9P_FS
 
 	  If unsure, say N.
 
+if 9P_FS
+
 config 9P_FSCACHE
 	bool "Enable 9P client caching support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
@@ -20,7 +22,6 @@ config 9P_FSCACHE
 
 config 9P_FS_POSIX_ACL
 	bool "9P POSIX Access Control Lists"
-	depends on 9P_FS
 	select FS_POSIX_ACL
 	help
 	  POSIX Access Control Lists (ACLs) support permissions for users and
@@ -30,3 +31,5 @@ config 9P_FS_POSIX_ACL
 	  Linux website <http://acl.bestbits.at/>.
 
 	  If you don't know what Access Control Lists are, say N
+
+endif

@@ -167,6 +167,7 @@ rx_ccid = 2
 seq_window = 100
 	The initial sequence window (sec. 7.5.2) of the sender. This influences
 	the local ackno validity and the remote seqno validity windows (7.5.1).
+	Values in the range Wmin = 32 (RFC 4340, 7.5.2) up to 2^32-1 can be set.
 
 tx_qlen = 5
 	The size of the transmit buffer in packets. A value of 0 corresponds
