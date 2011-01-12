@@ -21,9 +21,7 @@
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 
-#include <linux/ncp_fs.h>
-
-#include "ncplib_kernel.h"
+#include "ncp_fs.h"
 
 static void ncp_read_volume_list(struct file *, void *, filldir_t,
 				struct ncp_cache_control *);

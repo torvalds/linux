@@ -13,14 +13,29 @@
 #include <linux/net.h>
 #include <linux/mutex.h>
 #include <linux/backing-dev.h>
-
-#ifdef __KERNEL__
-
 #include <linux/workqueue.h>
 
 #define NCP_DEFAULT_OPTIONS 0		/* 2 for packet signatures */
 
 struct sock;
+
+struct ncp_mount_data_kernel {
+	unsigned long    flags;		/* NCP_MOUNT_* flags */
+	unsigned int	 int_flags;	/* internal flags */
+#define NCP_IMOUNT_LOGGEDIN_POSSIBLE	0x0001
+	__kernel_uid32_t mounted_uid;	/* Who may umount() this filesystem? */
+	struct pid      *wdog_pid;	/* Who cares for our watchdog packets? */
+	unsigned int     ncp_fd;	/* The socket to the ncp port */
+	unsigned int     time_out;	/* How long should I wait after
+					   sending a NCP request? */
+	unsigned int     retry_count;	/* And how often should I retry? */
+	unsigned char	 mounted_vol[NCP_VOLNAME_LEN + 1];
+	__kernel_uid32_t uid;
+	__kernel_gid32_t gid;
+	__kernel_mode_t  file_mode;
+	__kernel_mode_t  dir_mode;
+	int		 info_fd;
+};
 
 struct ncp_server {
 
@@ -158,7 +173,4 @@ static inline void ncp_invalidate_conn(struct ncp_server *server)
 	server->conn_status |= 0x01;
 }
 
-#endif				/* __KERNEL__ */
-
 #endif
- 

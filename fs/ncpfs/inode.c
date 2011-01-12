@@ -31,11 +31,9 @@
 #include <linux/seq_file.h>
 #include <linux/namei.h>
 
-#include <linux/ncp_fs.h>
-
 #include <net/sock.h>
 
-#include "ncplib_kernel.h"
+#include "ncp_fs.h"
 #include "getopt.h"
 
 #define NCP_DEFAULT_FILE_MODE 0600
