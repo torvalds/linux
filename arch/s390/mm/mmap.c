@@ -47,6 +47,15 @@ static unsigned long stack_maxrandom_size(void)
 #define MIN_GAP (32*1024*1024)
 #define MAX_GAP (STACK_TOP/6*5)
 
+static inline int mmap_is_legacy(void)
+{
+	if (current->personality & ADDR_COMPAT_LAYOUT)
+		return 1;
+	if (rlimit(RLIMIT_STACK) == RLIM_INFINITY)
+		return 1;
+	return sysctl_legacy_va_layout;
+}
+
 static inline unsigned long mmap_base(void)
 {
 	unsigned long gap = rlimit(RLIMIT_STACK);
@@ -57,15 +66,6 @@ static inline unsigned long mmap_base(void)
 		gap = MAX_GAP;
 
 	return STACK_TOP - stack_maxrandom_size() - (gap & PAGE_MASK);
-}
-
-static inline int mmap_is_legacy(void)
-{
-	if (current->personality & ADDR_COMPAT_LAYOUT)
-		return 1;
-	if (rlimit(RLIMIT_STACK) == RLIM_INFINITY)
-		return 1;
-	return sysctl_legacy_va_layout;
 }
 
 #ifndef CONFIG_64BIT
