@@ -61,16 +61,11 @@ static inline unsigned long mmap_base(void)
 
 static inline int mmap_is_legacy(void)
 {
-#ifdef CONFIG_64BIT
-	/*
-	 * Force standard allocation for 64 bit programs.
-	 */
-	if (!is_compat_task())
+	if (current->personality & ADDR_COMPAT_LAYOUT)
 		return 1;
-#endif
-	return sysctl_legacy_va_layout ||
-	    (current->personality & ADDR_COMPAT_LAYOUT) ||
-	    rlimit(RLIMIT_STACK) == RLIM_INFINITY;
+	if (rlimit(RLIMIT_STACK) == RLIM_INFINITY)
+		return 1;
+	return sysctl_legacy_va_layout;
 }
 
 #ifndef CONFIG_64BIT
