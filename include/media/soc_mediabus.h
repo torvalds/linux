@@ -61,5 +61,6 @@ struct soc_mbus_pixelfmt {
 const struct soc_mbus_pixelfmt *soc_mbus_get_fmtdesc(
 	enum v4l2_mbus_pixelcode code);
 s32 soc_mbus_bytes_per_line(u32 width, const struct soc_mbus_pixelfmt *mf);
+int soc_mbus_samples_per_pixel(const struct soc_mbus_pixelfmt *mf);
 
 #endif
