@@ -20,7 +20,7 @@
 #include <linux/wait.h>		
 #include <linux/types.h>
 #include <linux/fs.h>
-#include <linux/coda_fs_i.h>
+#include "coda_fs_i.h"
 
 /* operations */
 extern const struct inode_operations coda_dir_inode_operations;
