@@ -29,6 +29,14 @@ config XEN_DEV_EVTCHN
 	  firing.
 	  If in doubt, say yes.
 
+config XEN_BACKEND
+	bool "Backend driver support"
+	depends on XEN_DOM0
+	default y
+	help
+	  Support for backend device drivers that provide I/O services
+	  to other virtual machines.
+
 config XENFS
 	tristate "Xen filesystem"
 	default y
@@ -61,6 +69,9 @@ config XEN_SYS_HYPERVISOR
 	 hypervisor environment.  When running native or in another
 	 virtual environment, /sys/hypervisor will still be present,
 	 but will have no xen contents.
+
+config XEN_XENBUS_FRONTEND
+       tristate
 
 config XEN_PLATFORM_PCI
 	tristate "xen platform pci device driver"
