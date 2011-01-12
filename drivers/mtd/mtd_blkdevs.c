@@ -40,7 +40,7 @@
 static LIST_HEAD(blktrans_majors);
 static DEFINE_MUTEX(blktrans_ref_mutex);
 
-void blktrans_dev_release(struct kref *kref)
+static void blktrans_dev_release(struct kref *kref)
 {
 	struct mtd_blktrans_dev *dev =
 		container_of(kref, struct mtd_blktrans_dev, ref);
@@ -67,7 +67,7 @@ unlock:
 	return dev;
 }
 
-void blktrans_dev_put(struct mtd_blktrans_dev *dev)
+static void blktrans_dev_put(struct mtd_blktrans_dev *dev)
 {
 	mutex_lock(&blktrans_ref_mutex);
 	kref_put(&dev->ref, blktrans_dev_release);
