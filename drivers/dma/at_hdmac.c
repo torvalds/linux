@@ -603,7 +603,7 @@ atc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	/* set end-of-link to the last link descriptor of list*/
 	set_desc_eol(desc);
 
-	desc->txd.flags = flags; /* client is in control of this ack */
+	first->txd.flags = flags; /* client is in control of this ack */
 
 	return &first->txd;
 
@@ -748,8 +748,8 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	first->txd.cookie = -EBUSY;
 	first->len = total_len;
 
-	/* last link descriptor of list is responsible of flags */
-	prev->txd.flags = flags; /* client is in control of this ack */
+	/* first link descriptor of list is responsible of flags */
+	first->txd.flags = flags; /* client is in control of this ack */
 
 	return &first->txd;
 
