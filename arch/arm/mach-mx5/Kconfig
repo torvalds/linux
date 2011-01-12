@@ -141,6 +141,14 @@ config MACH_MX53_SMD
 	  Include support for MX53 SMD platform. This includes specific
 	  configurations for the board and its peripherals.
 
+config MACH_MX53_LOCO
+	bool "Support MX53 LOCO platforms"
+	select SOC_IMX53
+	select IMX_HAVE_PLATFORM_IMX_UART
+	help
+	  Include support for MX53 LOCO platform. This includes specific
+	  configurations for the board and its peripherals.
+
 config MACH_MX50_RDP
 	bool "Support MX50 reference design platform"
 	depends on BROKEN
