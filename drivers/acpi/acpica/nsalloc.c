@@ -234,8 +234,8 @@ void acpi_ns_install_node(struct acpi_walk_state *walk_state, struct acpi_namesp
 			 * modified the namespace. This is used for cleanup when the
 			 * method exits.
 			 */
-			walk_state->method_desc->method.flags |=
-			    AOPOBJ_MODIFIED_NAMESPACE;
+			walk_state->method_desc->method.info_flags |=
+			    ACPI_METHOD_MODIFIED_NAMESPACE;
 		}
 	}
 

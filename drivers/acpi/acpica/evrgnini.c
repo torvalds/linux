@@ -590,9 +590,9 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 				 * See acpi_ns_exec_module_code
 				 */
 				if (obj_desc->method.
-				    flags & AOPOBJ_MODULE_LEVEL) {
+				    info_flags & ACPI_METHOD_MODULE_LEVEL) {
 					handler_obj =
-					    obj_desc->method.extra.handler;
+					    obj_desc->method.dispatch.handler;
 				}
 				break;
 

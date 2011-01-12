@@ -603,10 +603,9 @@ acpi_status acpi_install_method(u8 *buffer)
 	method_obj->method.param_count = (u8)
 	    (method_flags & AML_METHOD_ARG_COUNT);
 
-	method_obj->method.method_flags = (u8)
-	    (method_flags & ~AML_METHOD_ARG_COUNT);
-
 	if (method_flags & AML_METHOD_SERIALIZED) {
+		method_obj->method.info_flags = ACPI_METHOD_SERIALIZED;
+
 		method_obj->method.sync_level = (u8)
 		    ((method_flags & AML_METHOD_SYNC_LEVEL) >> 4);
 	}
