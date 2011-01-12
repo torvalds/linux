@@ -31,7 +31,7 @@
 
 #include <mach/cpcap_audio.h>
 
-#define CODEC_WARMUP_TIME_MS            25
+#define MICBIAS_WARMUP_TIME_MS		39
 #define SLEEP_ACTIVATE_POWER_DELAY_MS	2
 #define STM_STDAC_ACTIVATE_RAMP_TIME	1
 #define CLOCK_TREE_RESET_DELAY_MS	1
@@ -672,8 +672,6 @@ static void cpcap_audio_configure_codec(struct cpcap_audio_state *state,
 		mdelay(CLOCK_TREE_RESET_DELAY_MS);
 	}
 
-	/* Todo: Follow-up with STMicro about why this is needed */
-	msleep(CODEC_WARMUP_TIME_MS);
 	/* Clear old settings */
 	codec_changes.mask = codec_changes.value | prev_codec_data;
 	prev_codec_data    = codec_changes.value;
@@ -946,6 +944,7 @@ static void cpcap_audio_configure_input(struct cpcap_audio_state *state,
 {
 	static unsigned int prev_input_data = 0x0;
 	struct cpcap_regacc reg_changes = { 0 };
+	bool bias_settle = false;
 
 	if (state->microphone == prev->microphone &&
 			!codec_loopback_changed(state, prev))
@@ -963,6 +962,7 @@ static void cpcap_audio_configure_input(struct cpcap_audio_state *state,
 		pr_debug("%s: handset\n", __func__);
 		reg_changes.value |= CPCAP_BIT_MB_ON1R
 			| CPCAP_BIT_MIC1_MUX | CPCAP_BIT_MIC1_PGA_EN;
+		bias_settle = true;
 		break;
 
 	case CPCAP_AUDIO_IN_HEADSET:
@@ -972,6 +972,7 @@ static void cpcap_audio_configure_input(struct cpcap_audio_state *state,
 		if (state->rat_type == CPCAP_AUDIO_RAT_CDMA)
 			logged_cpcap_write(state->cpcap, CPCAP_REG_GPIO4,
 				CPCAP_BIT_GPIO4DRV, CPCAP_BIT_GPIO4DRV);
+		bias_settle = true;
 		break;
 
 	case CPCAP_AUDIO_IN_EXT_BUS:
@@ -1007,6 +1008,8 @@ static void cpcap_audio_configure_input(struct cpcap_audio_state *state,
 
 	logged_cpcap_write(state->cpcap, CPCAP_REG_TXI,
 				reg_changes.value, reg_changes.mask);
+	if (bias_settle)
+		msleep(MICBIAS_WARMUP_TIME_MS);
 }
 
 static void cpcap_audio_configure_power(int power)
@@ -1170,12 +1173,20 @@ void cpcap_audio_set_audio_state(struct cpcap_audio_state *state)
 	if (is_speaker_turning_off(state, prev))
 		cpcap_audio_configure_output(state, prev);
 
+	cpcap_audio_configure_analog_source(state, prev);
+
+	cpcap_audio_configure_input(state, prev);
+
+	cpcap_audio_configure_input_gains(state, prev);
+
 	if (is_codec_changed(state, prev) || is_stdac_changed(state, prev)) {
 		int codec_mute = state->codec_mute;
 		int stdac_mute = state->stdac_mute;
 
-		state->codec_mute = CPCAP_AUDIO_CODEC_MUTE;
-		state->stdac_mute = CPCAP_AUDIO_STDAC_MUTE;
+		if (is_codec_changed(state, prev))
+			state->codec_mute = CPCAP_AUDIO_CODEC_MUTE;
+		if (is_stdac_changed(state, prev))
+			state->stdac_mute = CPCAP_AUDIO_STDAC_MUTE;
 
 		cpcap_audio_configure_aud_mute(state, prev);
 
@@ -1188,12 +1199,6 @@ void cpcap_audio_set_audio_state(struct cpcap_audio_state *state)
 		cpcap_audio_configure_codec(state, prev);
 		cpcap_audio_configure_stdac(state, prev);
 	}
-
-	cpcap_audio_configure_analog_source(state, prev);
-
-	cpcap_audio_configure_input(state, prev);
-
-	cpcap_audio_configure_input_gains(state, prev);
 
 	cpcap_audio_configure_output(state, prev);
 
