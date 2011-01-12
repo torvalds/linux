@@ -92,9 +92,11 @@ unsigned long *qib_cpulist;
 /* set number of contexts we'll actually use */
 void qib_set_ctxtcnt(struct qib_devdata *dd)
 {
-	if (!qib_cfgctxts)
+	if (!qib_cfgctxts) {
 		dd->cfgctxts = dd->first_user_ctxt + num_online_cpus();
-	else if (qib_cfgctxts < dd->num_pports)
+		if (dd->cfgctxts > dd->ctxtcnt)
+			dd->cfgctxts = dd->ctxtcnt;
+	} else if (qib_cfgctxts < dd->num_pports)
 		dd->cfgctxts = dd->ctxtcnt;
 	else if (qib_cfgctxts <= dd->ctxtcnt)
 		dd->cfgctxts = qib_cfgctxts;
