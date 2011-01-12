@@ -3822,6 +3822,11 @@ static void intel_update_watermarks(struct drm_device *dev)
 				    sr_hdisplay, sr_htotal, pixel_size);
 }
 
+static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->lvds_use_ssc && i915_panel_use_ssc;
+}
+
 static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode,
@@ -3884,7 +3889,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		num_connectors++;
 	}
 
-	if (is_lvds && dev_priv->lvds_use_ssc && num_connectors < 2) {
+	if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
 		refclk = dev_priv->lvds_ssc_freq * 1000;
 		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
 			      refclk / 1000);
@@ -4059,7 +4064,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		udelay(200);
 
 		if (has_edp_encoder) {
-			if (dev_priv->lvds_use_ssc) {
+			if (intel_panel_use_ssc(dev_priv)) {
 				temp |= DREF_SSC1_ENABLE;
 				I915_WRITE(PCH_DREF_CONTROL, temp);
 
@@ -4070,13 +4075,13 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 			/* Enable CPU source on CPU attached eDP */
 			if (!intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
-				if (dev_priv->lvds_use_ssc)
+				if (intel_panel_use_ssc(dev_priv))
 					temp |= DREF_CPU_SOURCE_OUTPUT_DOWNSPREAD;
 				else
 					temp |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
 			} else {
 				/* Enable SSC on PCH eDP if needed */
-				if (dev_priv->lvds_use_ssc) {
+				if (intel_panel_use_ssc(dev_priv)) {
 					DRM_ERROR("enabling SSC on PCH\n");
 					temp |= DREF_SUPERSPREAD_SOURCE_ENABLE;
 				}
@@ -4104,7 +4109,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		int factor = 21;
 
 		if (is_lvds) {
-			if ((dev_priv->lvds_use_ssc &&
+			if ((intel_panel_use_ssc(dev_priv) &&
 			     dev_priv->lvds_ssc_freq == 100) ||
 			    (I915_READ(PCH_LVDS) & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP)
 				factor = 25;
@@ -4183,7 +4188,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		/* XXX: just matching BIOS for now */
 		/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
 		dpll |= 3;
-	else if (is_lvds && dev_priv->lvds_use_ssc && num_connectors < 2)
+	else if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2)
 		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
