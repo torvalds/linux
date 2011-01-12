@@ -720,7 +720,7 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 		if (obj->ring != ring)
 			continue;
 
-		if (!i915_seqno_passed(obj->last_rendering_seqno, seqno))
+		if (i915_seqno_passed(seqno, obj->last_rendering_seqno))
 			continue;
 
 		if ((obj->base.read_domains & I915_GEM_DOMAIN_COMMAND) == 0)
