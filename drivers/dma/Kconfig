@@ -109,7 +109,7 @@ config FSL_DMA
 
 config MPC512X_DMA
 	tristate "Freescale MPC512x built-in DMA engine support"
-	depends on PPC_MPC512x
+	depends on PPC_MPC512x || PPC_MPC831x
 	select DMA_ENGINE
 	---help---
 	  Enable support for the Freescale MPC512x built-in DMA engine.
