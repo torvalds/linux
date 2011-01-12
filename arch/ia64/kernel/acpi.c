@@ -479,7 +479,7 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 
 	if (srat_num_cpus >= ARRAY_SIZE(node_cpuid)) {
 		printk_once(KERN_WARNING
-			    "node_cpuid[%d] is too small, may not be able to use all cpus\n",
+			    "node_cpuid[%ld] is too small, may not be able to use all cpus\n",
 			    ARRAY_SIZE(node_cpuid));
 		return;
 	}
