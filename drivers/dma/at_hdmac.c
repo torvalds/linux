@@ -853,11 +853,11 @@ static void atc_issue_pending(struct dma_chan *chan)
 
 	dev_vdbg(chan2dev(chan), "issue_pending\n");
 
+	spin_lock_bh(&atchan->lock);
 	if (!atc_chan_is_enabled(atchan)) {
-		spin_lock_bh(&atchan->lock);
 		atc_advance_work(atchan);
-		spin_unlock_bh(&atchan->lock);
 	}
+	spin_unlock_bh(&atchan->lock);
 }
 
 /**
