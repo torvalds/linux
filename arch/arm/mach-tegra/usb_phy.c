@@ -136,7 +136,7 @@
 #define   UTMIP_PD_CHRG			(1 << 0)
 
 #define UTMIP_SPARE_CFG0	0x834
-#define   FUSE_SETUP_SEL		(1 << 3);
+#define   FUSE_SETUP_SEL		(1 << 3)
 
 #define UTMIP_XCVR_CFG1		0x838
 #define   UTMIP_FORCE_PDDISC_POWERDOWN	(1 << 0)
@@ -419,6 +419,15 @@ static void utmi_phy_power_on(struct tegra_usb_phy *phy)
 	val &= ~UTMIP_BIAS_PDTRK_COUNT(~0);
 	val |= UTMIP_BIAS_PDTRK_COUNT(0x5);
 	writel(val, base + UTMIP_BIAS_CFG1);
+
+	if (phy->instance == 0) {
+		val = readl(base + UTMIP_SPARE_CFG0);
+		if (phy->mode == TEGRA_USB_PHY_MODE_DEVICE)
+			val &= ~FUSE_SETUP_SEL;
+		else
+			val |= FUSE_SETUP_SEL;
+		writel(val, base + UTMIP_SPARE_CFG0);
+	}
 
 	if (phy->instance == 2) {
 		val = readl(base + USB_SUSP_CTRL);
