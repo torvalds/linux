@@ -205,11 +205,23 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 
 	memset(&pdu, 0, sizeof(pdu));
 
-
 	/* 1. receive a pdu header */
 	ret = usbip_xmit(0, ud->tcp_socket, (char *) &pdu, sizeof(pdu), 0);
+	if (ret < 0) {
+		if (ret == -ECONNRESET)
+			usbip_uinfo("connection reset by peer\n");
+		else if (ret != -ERESTARTSYS)
+			usbip_uinfo("xmit failed %d\n", ret);
+		usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
+		return;
+	}
+	if (ret == 0) {
+		usbip_uinfo("connection closed");
+		usbip_event_add(ud, VDEV_EVENT_DOWN);
+		return;
+	}
 	if (ret != sizeof(pdu)) {
-		usbip_uerr("receiving pdu failed! size is %d, should be %d\n",
+		usbip_uerr("received pdu size is %d, should be %d\n",
 					ret, (unsigned int)sizeof(pdu));
 		usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
 		return;
