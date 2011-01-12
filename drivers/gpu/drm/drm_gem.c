@@ -101,7 +101,7 @@ drm_gem_init(struct drm_device *dev)
 
 	dev->mm_private = mm;
 
-	if (drm_ht_create(&mm->offset_hash, 19)) {
+	if (drm_ht_create(&mm->offset_hash, 12)) {
 		kfree(mm);
 		return -ENOMEM;
 	}
