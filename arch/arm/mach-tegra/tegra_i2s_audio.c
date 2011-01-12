@@ -633,18 +633,18 @@ static const struct sound_ops *sound_ops = &dma_sound_ops;
 static int start_recording_if_necessary(struct audio_stream *ais, int size)
 {
 	int rc = 0;
-	bool started = false;
 	unsigned long flags;
 	prevent_suspend(ais);
 	spin_lock_irqsave(&ais->dma_req_lock, flags);
 	if (!ais->stop && !pending_buffer_requests(ais)) {
 		/* pr_debug("%s: starting recording\n", __func__); */
 		rc = sound_ops->start_recording(ais, size);
-		started = !rc;
+		if (rc) {
+			pr_err("%s start_recording() failed\n", __func__);
+			allow_suspend(ais);
+		}
 	}
 	spin_unlock_irqrestore(&ais->dma_req_lock, flags);
-	if (!started)
-		allow_suspend(ais);
 	return rc;
 }
 
@@ -816,8 +816,11 @@ static void tear_down_dma(struct audio_driver_state *ads)
 
 static void dma_tx_complete_callback(struct tegra_dma_req *req)
 {
+	unsigned long flags;
 	struct audio_stream *aos = req->dev;
 	unsigned req_num;
+
+	spin_lock_irqsave(&aos->dma_req_lock, flags);
 
 	req_num = req - aos->dma_req;
 	pr_debug("%s: completed buffer %d size %d\n", __func__,
@@ -830,6 +833,8 @@ static void dma_tx_complete_callback(struct tegra_dma_req *req)
 		pr_debug("%s: Playback underflow\n", __func__);
 		complete(&aos->stop_completion);
 	}
+
+	spin_unlock_irqrestore(&aos->dma_req_lock, flags);
 }
 
 static void dma_rx_complete_callback(struct tegra_dma_req *req)
