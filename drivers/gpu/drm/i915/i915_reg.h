@@ -145,6 +145,8 @@
 #define   MI_END_SCENE		(1 << 4) /* flush binner and incr scene count */
 #define   MI_INVALIDATE_ISP	(1 << 5) /* invalidate indirect state pointers */
 #define MI_BATCH_BUFFER_END	MI_INSTR(0x0a, 0)
+#define MI_SUSPEND_FLUSH	MI_INSTR(0x0b, 0)
+#define   MI_SUSPEND_FLUSH_EN	(1<<0)
 #define MI_REPORT_HEAD		MI_INSTR(0x07, 0)
 #define MI_OVERLAY_FLIP		MI_INSTR(0x11,0)
 #define   MI_OVERLAY_CONTINUE	(0x0<<21)
@@ -159,6 +161,7 @@
 #define   MI_MM_SPACE_PHYSICAL		(0<<8)
 #define   MI_SAVE_EXT_STATE_EN		(1<<3)
 #define   MI_RESTORE_EXT_STATE_EN	(1<<2)
+#define   MI_FORCE_RESTORE		(1<<1)
 #define   MI_RESTORE_INHIBIT		(1<<0)
 #define MI_STORE_DWORD_IMM	MI_INSTR(0x20, 1)
 #define   MI_MEM_VIRTUAL	(1 << 22) /* 965+ only */
@@ -288,6 +291,7 @@
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
 #define RING_ACTHD(base)	((base)+0x74)
 #define RING_NOPID(base)	((base)+0x94)
+#define RING_IMR(base)		((base)+0xa8)
 #define   TAIL_ADDR		0x001FFFF8
 #define   HEAD_WRAP_COUNT	0xFFE00000
 #define   HEAD_WRAP_ONE		0x00200000
@@ -1130,9 +1134,50 @@
 #define RCBMINAVG		0x111a0
 #define RCUPEI			0x111b0
 #define RCDNEI			0x111b4
-#define MCHBAR_RENDER_STANDBY		0x111b8
-#define   RCX_SW_EXIT		(1<<23)
-#define   RSX_STATUS_MASK	0x00700000
+#define RSTDBYCTL		0x111b8
+#define   RS1EN			(1<<31)
+#define   RS2EN			(1<<30)
+#define   RS3EN			(1<<29)
+#define   D3RS3EN		(1<<28) /* Display D3 imlies RS3 */
+#define   SWPROMORSX		(1<<27) /* RSx promotion timers ignored */
+#define   RCWAKERW		(1<<26) /* Resetwarn from PCH causes wakeup */
+#define   DPRSLPVREN		(1<<25) /* Fast voltage ramp enable */
+#define   GFXTGHYST		(1<<24) /* Hysteresis to allow trunk gating */
+#define   RCX_SW_EXIT		(1<<23) /* Leave RSx and prevent re-entry */
+#define   RSX_STATUS_MASK	(7<<20)
+#define   RSX_STATUS_ON		(0<<20)
+#define   RSX_STATUS_RC1	(1<<20)
+#define   RSX_STATUS_RC1E	(2<<20)
+#define   RSX_STATUS_RS1	(3<<20)
+#define   RSX_STATUS_RS2	(4<<20) /* aka rc6 */
+#define   RSX_STATUS_RSVD	(5<<20) /* deep rc6 unsupported on ilk */
+#define   RSX_STATUS_RS3	(6<<20) /* rs3 unsupported on ilk */
+#define   RSX_STATUS_RSVD2	(7<<20)
+#define   UWRCRSXE		(1<<19) /* wake counter limit prevents rsx */
+#define   RSCRP			(1<<18) /* rs requests control on rs1/2 reqs */
+#define   JRSC			(1<<17) /* rsx coupled to cpu c-state */
+#define   RS2INC0		(1<<16) /* allow rs2 in cpu c0 */
+#define   RS1CONTSAV_MASK	(3<<14)
+#define   RS1CONTSAV_NO_RS1	(0<<14) /* rs1 doesn't save/restore context */
+#define   RS1CONTSAV_RSVD	(1<<14)
+#define   RS1CONTSAV_SAVE_RS1	(2<<14) /* rs1 saves context */
+#define   RS1CONTSAV_FULL_RS1	(3<<14) /* rs1 saves and restores context */
+#define   NORMSLEXLAT_MASK	(3<<12)
+#define   SLOW_RS123		(0<<12)
+#define   SLOW_RS23		(1<<12)
+#define   SLOW_RS3		(2<<12)
+#define   NORMAL_RS123		(3<<12)
+#define   RCMODE_TIMEOUT	(1<<11) /* 0 is eval interval method */
+#define   IMPROMOEN		(1<<10) /* promo is immediate or delayed until next idle interval (only for timeout method above) */
+#define   RCENTSYNC		(1<<9) /* rs coupled to cpu c-state (3/6/7) */
+#define   STATELOCK		(1<<7) /* locked to rs_cstate if 0 */
+#define   RS_CSTATE_MASK	(3<<4)
+#define   RS_CSTATE_C367_RS1	(0<<4)
+#define   RS_CSTATE_C36_RS1_C7_RS2 (1<<4)
+#define   RS_CSTATE_RSVD	(2<<4)
+#define   RS_CSTATE_C367_RS2	(3<<4)
+#define   REDSAVES		(1<<3) /* no context save if was idle during rs0 */
+#define   REDRESTORES		(1<<2) /* no restore if was idle during rs0 */
 #define VIDCTL			0x111c0
 #define VIDSTS			0x111c8
 #define VIDSTART		0x111cc /* 8 bits */
@@ -2345,8 +2390,13 @@
 
 /* Memory latency timer register */
 #define MLTR_ILK		0x11222
+#define  MLTR_WM1_SHIFT		0
+#define  MLTR_WM2_SHIFT		8
 /* the unit of memory self-refresh latency time is 0.5us */
 #define  ILK_SRLT_MASK		0x3f
+#define ILK_LATENCY(shift)	(I915_READ(MLTR_ILK) >> (shift) & ILK_SRLT_MASK)
+#define ILK_READ_WM1_LATENCY()	ILK_LATENCY(MLTR_WM1_SHIFT)
+#define ILK_READ_WM2_LATENCY()	ILK_LATENCY(MLTR_WM2_SHIFT)
 
 /* define the fifo size on Ironlake */
 #define ILK_DISPLAY_FIFO	128
@@ -2728,12 +2778,41 @@
 /* PCH */
 
 /* south display engine interrupt */
+#define SDE_AUDIO_POWER_D	(1 << 27)
+#define SDE_AUDIO_POWER_C	(1 << 26)
+#define SDE_AUDIO_POWER_B	(1 << 25)
+#define SDE_AUDIO_POWER_SHIFT	(25)
+#define SDE_AUDIO_POWER_MASK	(7 << SDE_AUDIO_POWER_SHIFT)
+#define SDE_GMBUS		(1 << 24)
+#define SDE_AUDIO_HDCP_TRANSB	(1 << 23)
+#define SDE_AUDIO_HDCP_TRANSA	(1 << 22)
+#define SDE_AUDIO_HDCP_MASK	(3 << 22)
+#define SDE_AUDIO_TRANSB	(1 << 21)
+#define SDE_AUDIO_TRANSA	(1 << 20)
+#define SDE_AUDIO_TRANS_MASK	(3 << 20)
+#define SDE_POISON		(1 << 19)
+/* 18 reserved */
+#define SDE_FDI_RXB		(1 << 17)
+#define SDE_FDI_RXA		(1 << 16)
+#define SDE_FDI_MASK		(3 << 16)
+#define SDE_AUXD		(1 << 15)
+#define SDE_AUXC		(1 << 14)
+#define SDE_AUXB		(1 << 13)
+#define SDE_AUX_MASK		(7 << 13)
+/* 12 reserved */
 #define SDE_CRT_HOTPLUG         (1 << 11)
 #define SDE_PORTD_HOTPLUG       (1 << 10)
 #define SDE_PORTC_HOTPLUG       (1 << 9)
 #define SDE_PORTB_HOTPLUG       (1 << 8)
 #define SDE_SDVOB_HOTPLUG       (1 << 6)
 #define SDE_HOTPLUG_MASK	(0xf << 8)
+#define SDE_TRANSB_CRC_DONE	(1 << 5)
+#define SDE_TRANSB_CRC_ERR	(1 << 4)
+#define SDE_TRANSB_FIFO_UNDER	(1 << 3)
+#define SDE_TRANSA_CRC_DONE	(1 << 2)
+#define SDE_TRANSA_CRC_ERR	(1 << 1)
+#define SDE_TRANSA_FIFO_UNDER	(1 << 0)
+#define SDE_TRANS_MASK		(0x3f)
 /* CPT */
 #define SDE_CRT_HOTPLUG_CPT	(1 << 19)
 #define SDE_PORTD_HOTPLUG_CPT	(1 << 23)
@@ -3174,10 +3253,11 @@
 #define  EDP_LINK_TRAIN_600MV_3_5DB_SNB_A	(0x01<<22)
 #define  EDP_LINK_TRAIN_800MV_0DB_SNB_A		(0x0<<22)
 /* SNB B-stepping */
-#define  EDP_LINK_TRAIN_400MV_0DB_SNB_B		(0x0<<22)
-#define  EDP_LINK_TRAIN_400MV_6DB_SNB_B		(0x3a<<22)
-#define  EDP_LINK_TRAIN_600MV_3_5DB_SNB_B	(0x39<<22)
-#define  EDP_LINK_TRAIN_800MV_0DB_SNB_B		(0x38<<22)
+#define  EDP_LINK_TRAIN_400_600MV_0DB_SNB_B	(0x0<<22)
+#define  EDP_LINK_TRAIN_400MV_3_5DB_SNB_B	(0x1<<22)
+#define  EDP_LINK_TRAIN_400_600MV_6DB_SNB_B	(0x3a<<22)
+#define  EDP_LINK_TRAIN_600_800MV_3_5DB_SNB_B	(0x39<<22)
+#define  EDP_LINK_TRAIN_800_1200MV_0DB_SNB_B	(0x38<<22)
 #define  EDP_LINK_TRAIN_VOL_EMP_MASK_SNB	(0x3f<<22)
 
 #define  FORCEWAKE				0xA18C
@@ -3239,6 +3319,7 @@
 
 #define GEN6_PCODE_MAILBOX			0x138124
 #define   GEN6_PCODE_READY			(1<<31)
+#define   GEN6_READ_OC_PARAMS			0xc
 #define   GEN6_PCODE_WRITE_MIN_FREQ_TABLE	0x9
 #define GEN6_PCODE_DATA				0x138128
 

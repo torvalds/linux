@@ -94,6 +94,8 @@
 #define G4x_GMCH_SIZE_VT_1_5M	(0xa << 8)
 #define G4x_GMCH_SIZE_VT_2M	(0xc << 8)
 
+#define GFX_FLSH_CNTL		0x2170 /* 915+ */
+
 #define I810_DRAM_CTL		0x3000
 #define I810_DRAM_ROW_0		0x00000001
 #define I810_DRAM_ROW_0_SDRAM	0x00000001

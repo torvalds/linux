@@ -16,21 +16,24 @@ struct  intel_hw_status_page {
 
 #define I915_RING_READ(reg) i915_safe_read(dev_priv, reg)
 
-#define I915_READ_TAIL(ring) I915_RING_READ(RING_TAIL(ring->mmio_base))
-#define I915_WRITE_TAIL(ring, val) I915_WRITE(RING_TAIL(ring->mmio_base), val)
+#define I915_READ_TAIL(ring) I915_RING_READ(RING_TAIL((ring)->mmio_base))
+#define I915_WRITE_TAIL(ring, val) I915_WRITE(RING_TAIL((ring)->mmio_base), val)
 
-#define I915_READ_START(ring) I915_RING_READ(RING_START(ring->mmio_base))
-#define I915_WRITE_START(ring, val) I915_WRITE(RING_START(ring->mmio_base), val)
+#define I915_READ_START(ring) I915_RING_READ(RING_START((ring)->mmio_base))
+#define I915_WRITE_START(ring, val) I915_WRITE(RING_START((ring)->mmio_base), val)
 
-#define I915_READ_HEAD(ring)  I915_RING_READ(RING_HEAD(ring->mmio_base))
-#define I915_WRITE_HEAD(ring, val) I915_WRITE(RING_HEAD(ring->mmio_base), val)
+#define I915_READ_HEAD(ring)  I915_RING_READ(RING_HEAD((ring)->mmio_base))
+#define I915_WRITE_HEAD(ring, val) I915_WRITE(RING_HEAD((ring)->mmio_base), val)
 
-#define I915_READ_CTL(ring) I915_RING_READ(RING_CTL(ring->mmio_base))
-#define I915_WRITE_CTL(ring, val) I915_WRITE(RING_CTL(ring->mmio_base), val)
+#define I915_READ_CTL(ring) I915_RING_READ(RING_CTL((ring)->mmio_base))
+#define I915_WRITE_CTL(ring, val) I915_WRITE(RING_CTL((ring)->mmio_base), val)
 
-#define I915_READ_NOPID(ring) I915_RING_READ(RING_NOPID(ring->mmio_base))
-#define I915_READ_SYNC_0(ring) I915_RING_READ(RING_SYNC_0(ring->mmio_base))
-#define I915_READ_SYNC_1(ring) I915_RING_READ(RING_SYNC_1(ring->mmio_base))
+#define I915_WRITE_IMR(ring, val) I915_WRITE(RING_IMR((ring)->mmio_base), val)
+#define I915_READ_IMR(ring) I915_RING_READ(RING_IMR((ring)->mmio_base))
+
+#define I915_READ_NOPID(ring) I915_RING_READ(RING_NOPID((ring)->mmio_base))
+#define I915_READ_SYNC_0(ring) I915_RING_READ(RING_SYNC_0((ring)->mmio_base))
+#define I915_READ_SYNC_1(ring) I915_RING_READ(RING_SYNC_1((ring)->mmio_base))
 
 struct  intel_ring_buffer {
 	const char	*name;
@@ -49,12 +52,15 @@ struct  intel_ring_buffer {
 	u32		tail;
 	int		space;
 	int		size;
+	int		effective_size;
 	struct intel_hw_status_page status_page;
 
+	spinlock_t	irq_lock;
+	u32		irq_refcount;
+	u32		irq_mask;
 	u32		irq_seqno;		/* last seq seem at irq time */
 	u32		waiting_seqno;
 	u32		sync_seqno[I915_NUM_RINGS-1];
-	atomic_t	irq_refcount;
 	bool __must_check (*irq_get)(struct intel_ring_buffer *ring);
 	void		(*irq_put)(struct intel_ring_buffer *ring);
 
@@ -62,9 +68,9 @@ struct  intel_ring_buffer {
 
 	void		(*write_tail)(struct intel_ring_buffer *ring,
 				      u32 value);
-	void		(*flush)(struct intel_ring_buffer *ring,
-				 u32	invalidate_domains,
-				 u32	flush_domains);
+	int __must_check (*flush)(struct intel_ring_buffer *ring,
+				  u32	invalidate_domains,
+				  u32	flush_domains);
 	int		(*add_request)(struct intel_ring_buffer *ring,
 				       u32 *seqno);
 	u32		(*get_seqno)(struct intel_ring_buffer *ring);
