@@ -2437,6 +2437,7 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 		dev->init_data.ir_codes = RC_MAP_RC5_HAUPPAUGE_NEW;
 		dev->init_data.get_key = em28xx_get_key_em_haup;
 		dev->init_data.name = "i2c IR (EM2840 Hauppauge)";
+		break;
 	case EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE:
 		dev->init_data.ir_codes = RC_MAP_WINFAST_USBII_DELUXE;
 		dev->init_data.get_key = em28xx_get_key_winfast_usbii_deluxe;
