@@ -25,91 +25,12 @@
  * machine ID for example).
  */
 	__HEAD
-__error_a:
-#ifdef CONFIG_DEBUG_LL
-	mov	r4, r1				@ preserve machine ID
-	adr	r0, str_a1
-	bl	printascii
-	mov	r0, r4
-	bl	printhex8
-	adr	r0, str_a2
-	bl	printascii
-	adr	r3, __lookup_machine_type_data
-	ldmia	r3, {r4, r5, r6}		@ get machine desc list
-	sub	r4, r3, r4			@ get offset between virt&phys
-	add	r5, r5, r4			@ convert virt addresses to
-	add	r6, r6, r4			@ physical address space
-1:	ldr	r0, [r5, #MACHINFO_TYPE]	@ get machine type
-	bl	printhex8
-	mov	r0, #'\t'
-	bl	printch
-	ldr     r0, [r5, #MACHINFO_NAME]	@ get machine name
-	add	r0, r0, r4
-	bl	printascii
-	mov	r0, #'\n'
-	bl	printch
-	add	r5, r5, #SIZEOF_MACHINE_DESC	@ next machine_desc
-	cmp	r5, r6
-	blo	1b
-	adr	r0, str_a3
-	bl	printascii
-	b	__error
-ENDPROC(__error_a)
-
-str_a1:	.asciz	"\nError: unrecognized/unsupported machine ID (r1 = 0x"
-str_a2:	.asciz	").\n\nAvailable machine support:\n\nID (hex)\tNAME\n"
-str_a3:	.asciz	"\nPlease check your kernel config and/or bootloader.\n"
-	.align
-#else
-	b	__error
-#endif
-
-/*
- * Lookup machine architecture in the linker-build list of architectures.
- * Note that we can't use the absolute addresses for the __arch_info
- * lists since we aren't running with the MMU on (and therefore, we are
- * not in the correct address space).  We have to calculate the offset.
- *
- *  r1 = machine architecture number
- * Returns:
- *  r3, r4, r6 corrupted
- *  r5 = mach_info pointer in physical address space
- */
-__lookup_machine_type:
-	adr	r3, __lookup_machine_type_data
-	ldmia	r3, {r4, r5, r6}
-	sub	r3, r3, r4			@ get offset between virt&phys
-	add	r5, r5, r3			@ convert virt addresses to
-	add	r6, r6, r3			@ physical address space
-1:	ldr	r3, [r5, #MACHINFO_TYPE]	@ get machine type
-	teq	r3, r1				@ matches loader number?
-	beq	2f				@ found
-	add	r5, r5, #SIZEOF_MACHINE_DESC	@ next machine_desc
-	cmp	r5, r6
-	blo	1b
-	mov	r5, #0				@ unknown machine
-2:	mov	pc, lr
-ENDPROC(__lookup_machine_type)
-
-/*
- * Look in arch/arm/kernel/arch.[ch] for information about the
- * __arch_info structures.
- */
-	.align	2
-	.type	__lookup_machine_type_data, %object
-__lookup_machine_type_data:
-	.long	.
-	.long	__arch_info_begin
-	.long	__arch_info_end
-	.size	__lookup_machine_type_data, . - __lookup_machine_type_data
 
 /* Determine validity of the r2 atags pointer.  The heuristic requires
  * that the pointer be aligned, in the first 16k of physical RAM and
  * that the ATAG_CORE marker is first and present.  Future revisions
  * of this function may be more lenient with the physical address and
  * may also be able to move the ATAGS block if necessary.
- *
- * r8  = machinfo
  *
  * Returns:
  *  r2 either valid atags pointer, or zero
@@ -183,17 +104,6 @@ __mmap_switched_data:
 	.long	cr_alignment			@ r7
 	.long	init_thread_union + THREAD_START_SP @ sp
 	.size	__mmap_switched_data, . - __mmap_switched_data
-
-/*
- * This provides a C-API version of __lookup_machine_type
- */
-ENTRY(lookup_machine_type)
-	stmfd	sp!, {r4 - r6, lr}
-	mov	r1, r0
-	bl	__lookup_machine_type
-	mov	r0, r5
-	ldmfd	sp!, {r4 - r6, pc}
-ENDPROC(lookup_machine_type)
 
 /*
  * This provides a C-API version of __lookup_processor_type
