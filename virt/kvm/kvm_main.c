@@ -171,7 +171,12 @@ static bool make_all_cpus_request(struct kvm *kvm, unsigned int req)
 		if (kvm_make_check_request(req, vcpu))
 			continue;
 		cpu = vcpu->cpu;
-		if (cpus != NULL && cpu != -1 && cpu != me)
+
+		/* Set ->requests bit before we read ->mode */
+		smp_mb();
+
+		if (cpus != NULL && cpu != -1 && cpu != me &&
+		      kvm_vcpu_exiting_guest_mode(vcpu) != OUTSIDE_GUEST_MODE)
 			cpumask_set_cpu(cpu, cpus);
 	}
 	if (unlikely(cpus == NULL))

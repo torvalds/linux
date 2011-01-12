@@ -5210,14 +5210,18 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		kvm_load_guest_fpu(vcpu);
 	kvm_load_guest_xcr0(vcpu);
 
-	atomic_set(&vcpu->guest_mode, 1);
-	smp_wmb();
+	vcpu->mode = IN_GUEST_MODE;
+
+	/* We should set ->mode before check ->requests,
+	 * see the comment in make_all_cpus_request.
+	 */
+	smp_mb();
 
 	local_irq_disable();
 
-	if (!atomic_read(&vcpu->guest_mode) || vcpu->requests
+	if (vcpu->mode == EXITING_GUEST_MODE || vcpu->requests
 	    || need_resched() || signal_pending(current)) {
-		atomic_set(&vcpu->guest_mode, 0);
+		vcpu->mode = OUTSIDE_GUEST_MODE;
 		smp_wmb();
 		local_irq_enable();
 		preempt_enable();
@@ -5253,7 +5257,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 
 	kvm_get_msr(vcpu, MSR_IA32_TSC, &vcpu->arch.last_guest_tsc);
 
-	atomic_set(&vcpu->guest_mode, 0);
+	vcpu->mode = OUTSIDE_GUEST_MODE;
 	smp_wmb();
 	local_irq_enable();
 
@@ -6157,7 +6161,7 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 
 	me = get_cpu();
 	if (cpu != me && (unsigned)cpu < nr_cpu_ids && cpu_online(cpu))
-		if (atomic_xchg(&vcpu->guest_mode, 0))
+		if (kvm_vcpu_exiting_guest_mode(vcpu) == IN_GUEST_MODE)
 			smp_send_reschedule(cpu);
 	put_cpu();
 }

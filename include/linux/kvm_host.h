@@ -98,19 +98,26 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
 int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
 #endif
 
+enum {
+	OUTSIDE_GUEST_MODE,
+	IN_GUEST_MODE,
+	EXITING_GUEST_MODE
+};
+
 struct kvm_vcpu {
 	struct kvm *kvm;
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	struct preempt_notifier preempt_notifier;
 #endif
+	int cpu;
 	int vcpu_id;
-	struct mutex mutex;
-	int   cpu;
-	atomic_t guest_mode;
-	struct kvm_run *run;
+	int srcu_idx;
+	int mode;
 	unsigned long requests;
 	unsigned long guest_debug;
-	int srcu_idx;
+
+	struct mutex mutex;
+	struct kvm_run *run;
 
 	int fpu_active;
 	int guest_fpu_loaded, guest_xcr0_loaded;
@@ -139,6 +146,11 @@ struct kvm_vcpu {
 
 	struct kvm_vcpu_arch arch;
 };
+
+static inline int kvm_vcpu_exiting_guest_mode(struct kvm_vcpu *vcpu)
+{
+	return cmpxchg(&vcpu->mode, IN_GUEST_MODE, EXITING_GUEST_MODE);
+}
 
 /*
  * Some of the bitops functions do not support too long bitmaps.
