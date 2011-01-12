@@ -1000,13 +1000,13 @@ static int intel_fake_agp_remove_entries(struct agp_memory *mem,
 	if (mem->page_count == 0)
 		return 0;
 
+	intel_gtt_clear_range(pg_start, mem->page_count);
+
 	if (intel_private.base.needs_dmar) {
 		intel_gtt_unmap_memory(mem->sg_list, mem->num_sg);
 		mem->sg_list = NULL;
 		mem->num_sg = 0;
 	}
-
-	intel_gtt_clear_range(pg_start, mem->page_count);
 
 	return 0;
 }
