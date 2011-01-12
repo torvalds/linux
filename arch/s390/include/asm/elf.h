@@ -206,6 +206,8 @@ do {								\
 	current->mm->context.noexec == 0;		\
 })
 
+#define STACK_RND_MASK	0x7ffUL
+
 #define ARCH_DLINFO							    \
 do {									    \
 	if (vdso_enabled)						    \

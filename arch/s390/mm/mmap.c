@@ -30,6 +30,15 @@
 #include <asm/pgalloc.h>
 #include <asm/compat.h>
 
+static unsigned long stack_maxrandom_size(void)
+{
+	if (!(current->flags & PF_RANDOMIZE))
+		return 0;
+	if (current->personality & ADDR_NO_RANDOMIZE)
+		return 0;
+	return STACK_RND_MASK << PAGE_SHIFT;
+}
+
 /*
  * Top of mmap area (just below the process stack).
  *
@@ -47,7 +56,7 @@ static inline unsigned long mmap_base(void)
 	else if (gap > MAX_GAP)
 		gap = MAX_GAP;
 
-	return STACK_TOP - (gap & PAGE_MASK);
+	return STACK_TOP - stack_maxrandom_size() - (gap & PAGE_MASK);
 }
 
 static inline int mmap_is_legacy(void)
