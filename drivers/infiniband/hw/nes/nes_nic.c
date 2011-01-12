@@ -908,8 +908,8 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 					nesvnic->nic_index &&
 					mc_index < max_pft_entries_avaiable) {
 						nes_debug(NES_DBG_NIC_RX,
-					"mc_index=%d skipping nic_index=%d,\
-					used for=%d \n", mc_index,
+					"mc_index=%d skipping nic_index=%d, "
+					"used for=%d \n", mc_index,
 					nesvnic->nic_index,
 					nesadapter->pft_mcast_map[mc_index]);
 				mc_index++;

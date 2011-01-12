@@ -44,12 +44,7 @@
 
 static kmem_zone_t *xfs_buf_zone;
 STATIC int xfsbufd(void *);
-STATIC int xfsbufd_wakeup(struct shrinker *, int, gfp_t);
 STATIC void xfs_buf_delwri_queue(xfs_buf_t *, int);
-static struct shrinker xfs_buf_shake = {
-	.shrink = xfsbufd_wakeup,
-	.seeks = DEFAULT_SEEKS,
-};
 
 static struct workqueue_struct *xfslogd_workqueue;
 struct workqueue_struct *xfsdatad_workqueue;
@@ -168,8 +163,79 @@ test_page_region(
 }
 
 /*
- *	Internal xfs_buf_t object manipulation
+ * xfs_buf_lru_add - add a buffer to the LRU.
+ *
+ * The LRU takes a new reference to the buffer so that it will only be freed
+ * once the shrinker takes the buffer off the LRU.
  */
+STATIC void
+xfs_buf_lru_add(
+	struct xfs_buf	*bp)
+{
+	struct xfs_buftarg *btp = bp->b_target;
+
+	spin_lock(&btp->bt_lru_lock);
+	if (list_empty(&bp->b_lru)) {
+		atomic_inc(&bp->b_hold);
+		list_add_tail(&bp->b_lru, &btp->bt_lru);
+		btp->bt_lru_nr++;
+	}
+	spin_unlock(&btp->bt_lru_lock);
+}
+
+/*
+ * xfs_buf_lru_del - remove a buffer from the LRU
+ *
+ * The unlocked check is safe here because it only occurs when there are not
+ * b_lru_ref counts left on the inode under the pag->pag_buf_lock. it is there
+ * to optimise the shrinker removing the buffer from the LRU and calling
+ * xfs_buf_free(). i.e. it removes an unneccessary round trip on the
+ * bt_lru_lock.
+ */
+STATIC void
+xfs_buf_lru_del(
+	struct xfs_buf	*bp)
+{
+	struct xfs_buftarg *btp = bp->b_target;
+
+	if (list_empty(&bp->b_lru))
+		return;
+
+	spin_lock(&btp->bt_lru_lock);
+	if (!list_empty(&bp->b_lru)) {
+		list_del_init(&bp->b_lru);
+		btp->bt_lru_nr--;
+	}
+	spin_unlock(&btp->bt_lru_lock);
+}
+
+/*
+ * When we mark a buffer stale, we remove the buffer from the LRU and clear the
+ * b_lru_ref count so that the buffer is freed immediately when the buffer
+ * reference count falls to zero. If the buffer is already on the LRU, we need
+ * to remove the reference that LRU holds on the buffer.
+ *
+ * This prevents build-up of stale buffers on the LRU.
+ */
+void
+xfs_buf_stale(
+	struct xfs_buf	*bp)
+{
+	bp->b_flags |= XBF_STALE;
+	atomic_set(&(bp)->b_lru_ref, 0);
+	if (!list_empty(&bp->b_lru)) {
+		struct xfs_buftarg *btp = bp->b_target;
+
+		spin_lock(&btp->bt_lru_lock);
+		if (!list_empty(&bp->b_lru)) {
+			list_del_init(&bp->b_lru);
+			btp->bt_lru_nr--;
+			atomic_dec(&bp->b_hold);
+		}
+		spin_unlock(&btp->bt_lru_lock);
+	}
+	ASSERT(atomic_read(&bp->b_hold) >= 1);
+}
 
 STATIC void
 _xfs_buf_initialize(
@@ -186,7 +252,9 @@ _xfs_buf_initialize(
 
 	memset(bp, 0, sizeof(xfs_buf_t));
 	atomic_set(&bp->b_hold, 1);
+	atomic_set(&bp->b_lru_ref, 1);
 	init_completion(&bp->b_iowait);
+	INIT_LIST_HEAD(&bp->b_lru);
 	INIT_LIST_HEAD(&bp->b_list);
 	RB_CLEAR_NODE(&bp->b_rbnode);
 	sema_init(&bp->b_sema, 0); /* held, no waiters */
@@ -261,6 +329,8 @@ xfs_buf_free(
 	xfs_buf_t		*bp)
 {
 	trace_xfs_buf_free(bp, _RET_IP_);
+
+	ASSERT(list_empty(&bp->b_lru));
 
 	if (bp->b_flags & (_XBF_PAGE_CACHE|_XBF_PAGES)) {
 		uint		i;
@@ -337,7 +407,6 @@ _xfs_buf_lookup_pages(
 					__func__, gfp_mask);
 
 			XFS_STATS_INC(xb_page_retries);
-			xfsbufd_wakeup(NULL, 0, gfp_mask);
 			congestion_wait(BLK_RW_ASYNC, HZ/50);
 			goto retry;
 		}
@@ -828,6 +897,7 @@ xfs_buf_rele(
 
 	if (!pag) {
 		ASSERT(!bp->b_relse);
+		ASSERT(list_empty(&bp->b_lru));
 		ASSERT(RB_EMPTY_NODE(&bp->b_rbnode));
 		if (atomic_dec_and_test(&bp->b_hold))
 			xfs_buf_free(bp);
@@ -835,13 +905,19 @@ xfs_buf_rele(
 	}
 
 	ASSERT(!RB_EMPTY_NODE(&bp->b_rbnode));
+
 	ASSERT(atomic_read(&bp->b_hold) > 0);
 	if (atomic_dec_and_lock(&bp->b_hold, &pag->pag_buf_lock)) {
 		if (bp->b_relse) {
 			atomic_inc(&bp->b_hold);
 			spin_unlock(&pag->pag_buf_lock);
 			bp->b_relse(bp);
+		} else if (!(bp->b_flags & XBF_STALE) &&
+			   atomic_read(&bp->b_lru_ref)) {
+			xfs_buf_lru_add(bp);
+			spin_unlock(&pag->pag_buf_lock);
 		} else {
+			xfs_buf_lru_del(bp);
 			ASSERT(!(bp->b_flags & (XBF_DELWRI|_XBF_DELWRI_Q)));
 			rb_erase(&bp->b_rbnode, &pag->pag_buf_tree);
 			spin_unlock(&pag->pag_buf_lock);
@@ -1438,51 +1514,84 @@ xfs_buf_iomove(
  */
 
 /*
- *	Wait for any bufs with callbacks that have been submitted but
- *	have not yet returned... walk the hash list for the target.
+ * Wait for any bufs with callbacks that have been submitted but have not yet
+ * returned. These buffers will have an elevated hold count, so wait on those
+ * while freeing all the buffers only held by the LRU.
  */
 void
 xfs_wait_buftarg(
 	struct xfs_buftarg	*btp)
 {
-	struct xfs_perag	*pag;
-	uint			i;
+	struct xfs_buf		*bp;
 
-	for (i = 0; i < btp->bt_mount->m_sb.sb_agcount; i++) {
-		pag = xfs_perag_get(btp->bt_mount, i);
-		spin_lock(&pag->pag_buf_lock);
-		while (rb_first(&pag->pag_buf_tree)) {
-			spin_unlock(&pag->pag_buf_lock);
+restart:
+	spin_lock(&btp->bt_lru_lock);
+	while (!list_empty(&btp->bt_lru)) {
+		bp = list_first_entry(&btp->bt_lru, struct xfs_buf, b_lru);
+		if (atomic_read(&bp->b_hold) > 1) {
+			spin_unlock(&btp->bt_lru_lock);
 			delay(100);
-			spin_lock(&pag->pag_buf_lock);
+			goto restart;
 		}
-		spin_unlock(&pag->pag_buf_lock);
-		xfs_perag_put(pag);
+		/*
+		 * clear the LRU reference count so the bufer doesn't get
+		 * ignored in xfs_buf_rele().
+		 */
+		atomic_set(&bp->b_lru_ref, 0);
+		spin_unlock(&btp->bt_lru_lock);
+		xfs_buf_rele(bp);
+		spin_lock(&btp->bt_lru_lock);
 	}
+	spin_unlock(&btp->bt_lru_lock);
 }
 
-/*
- *	buftarg list for delwrite queue processing
- */
-static LIST_HEAD(xfs_buftarg_list);
-static DEFINE_SPINLOCK(xfs_buftarg_lock);
-
-STATIC void
-xfs_register_buftarg(
-	xfs_buftarg_t           *btp)
+int
+xfs_buftarg_shrink(
+	struct shrinker		*shrink,
+	int			nr_to_scan,
+	gfp_t			mask)
 {
-	spin_lock(&xfs_buftarg_lock);
-	list_add(&btp->bt_list, &xfs_buftarg_list);
-	spin_unlock(&xfs_buftarg_lock);
-}
+	struct xfs_buftarg	*btp = container_of(shrink,
+					struct xfs_buftarg, bt_shrinker);
+	struct xfs_buf		*bp;
+	LIST_HEAD(dispose);
 
-STATIC void
-xfs_unregister_buftarg(
-	xfs_buftarg_t           *btp)
-{
-	spin_lock(&xfs_buftarg_lock);
-	list_del(&btp->bt_list);
-	spin_unlock(&xfs_buftarg_lock);
+	if (!nr_to_scan)
+		return btp->bt_lru_nr;
+
+	spin_lock(&btp->bt_lru_lock);
+	while (!list_empty(&btp->bt_lru)) {
+		if (nr_to_scan-- <= 0)
+			break;
+
+		bp = list_first_entry(&btp->bt_lru, struct xfs_buf, b_lru);
+
+		/*
+		 * Decrement the b_lru_ref count unless the value is already
+		 * zero. If the value is already zero, we need to reclaim the
+		 * buffer, otherwise it gets another trip through the LRU.
+		 */
+		if (!atomic_add_unless(&bp->b_lru_ref, -1, 0)) {
+			list_move_tail(&bp->b_lru, &btp->bt_lru);
+			continue;
+		}
+
+		/*
+		 * remove the buffer from the LRU now to avoid needing another
+		 * lock round trip inside xfs_buf_rele().
+		 */
+		list_move(&bp->b_lru, &dispose);
+		btp->bt_lru_nr--;
+	}
+	spin_unlock(&btp->bt_lru_lock);
+
+	while (!list_empty(&dispose)) {
+		bp = list_first_entry(&dispose, struct xfs_buf, b_lru);
+		list_del_init(&bp->b_lru);
+		xfs_buf_rele(bp);
+	}
+
+	return btp->bt_lru_nr;
 }
 
 void
@@ -1490,17 +1599,14 @@ xfs_free_buftarg(
 	struct xfs_mount	*mp,
 	struct xfs_buftarg	*btp)
 {
+	unregister_shrinker(&btp->bt_shrinker);
+
 	xfs_flush_buftarg(btp, 1);
 	if (mp->m_flags & XFS_MOUNT_BARRIER)
 		xfs_blkdev_issue_flush(btp);
 	iput(btp->bt_mapping->host);
 
-	/* Unregister the buftarg first so that we don't get a
-	 * wakeup finding a non-existent task
-	 */
-	xfs_unregister_buftarg(btp);
 	kthread_stop(btp->bt_task);
-
 	kmem_free(btp);
 }
 
@@ -1597,20 +1703,13 @@ xfs_alloc_delwrite_queue(
 	xfs_buftarg_t		*btp,
 	const char		*fsname)
 {
-	int	error = 0;
-
-	INIT_LIST_HEAD(&btp->bt_list);
 	INIT_LIST_HEAD(&btp->bt_delwrite_queue);
 	spin_lock_init(&btp->bt_delwrite_lock);
 	btp->bt_flags = 0;
 	btp->bt_task = kthread_run(xfsbufd, btp, "xfsbufd/%s", fsname);
-	if (IS_ERR(btp->bt_task)) {
-		error = PTR_ERR(btp->bt_task);
-		goto out_error;
-	}
-	xfs_register_buftarg(btp);
-out_error:
-	return error;
+	if (IS_ERR(btp->bt_task))
+		return PTR_ERR(btp->bt_task);
+	return 0;
 }
 
 xfs_buftarg_t *
@@ -1627,12 +1726,17 @@ xfs_alloc_buftarg(
 	btp->bt_mount = mp;
 	btp->bt_dev =  bdev->bd_dev;
 	btp->bt_bdev = bdev;
+	INIT_LIST_HEAD(&btp->bt_lru);
+	spin_lock_init(&btp->bt_lru_lock);
 	if (xfs_setsize_buftarg_early(btp, bdev))
 		goto error;
 	if (xfs_mapping_buftarg(btp, bdev))
 		goto error;
 	if (xfs_alloc_delwrite_queue(btp, fsname))
 		goto error;
+	btp->bt_shrinker.shrink = xfs_buftarg_shrink;
+	btp->bt_shrinker.seeks = DEFAULT_SEEKS;
+	register_shrinker(&btp->bt_shrinker);
 	return btp;
 
 error:
@@ -1735,27 +1839,6 @@ xfs_buf_runall_queues(
 	struct workqueue_struct	*queue)
 {
 	flush_workqueue(queue);
-}
-
-STATIC int
-xfsbufd_wakeup(
-	struct shrinker		*shrink,
-	int			priority,
-	gfp_t			mask)
-{
-	xfs_buftarg_t		*btp;
-
-	spin_lock(&xfs_buftarg_lock);
-	list_for_each_entry(btp, &xfs_buftarg_list, bt_list) {
-		if (test_bit(XBT_FORCE_SLEEP, &btp->bt_flags))
-			continue;
-		if (list_empty(&btp->bt_delwrite_queue))
-			continue;
-		set_bit(XBT_FORCE_FLUSH, &btp->bt_flags);
-		wake_up_process(btp->bt_task);
-	}
-	spin_unlock(&xfs_buftarg_lock);
-	return 0;
 }
 
 /*
@@ -1952,7 +2035,6 @@ xfs_buf_init(void)
 	if (!xfsconvertd_workqueue)
 		goto out_destroy_xfsdatad_workqueue;
 
-	register_shrinker(&xfs_buf_shake);
 	return 0;
 
  out_destroy_xfsdatad_workqueue:
@@ -1968,7 +2050,6 @@ xfs_buf_init(void)
 void
 xfs_buf_terminate(void)
 {
-	unregister_shrinker(&xfs_buf_shake);
 	destroy_workqueue(xfsconvertd_workqueue);
 	destroy_workqueue(xfsdatad_workqueue);
 	destroy_workqueue(xfslogd_workqueue);

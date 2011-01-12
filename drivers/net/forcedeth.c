@@ -3949,6 +3949,7 @@ static int nv_set_wol(struct net_device *dev, struct ethtool_wolinfo *wolinfo)
 		writel(flags, base + NvRegWakeUpFlags);
 		spin_unlock_irq(&np->lock);
 	}
+	device_set_wakeup_enable(&np->pci_dev->dev, np->wolenabled);
 	return 0;
 }
 
@@ -5488,14 +5489,10 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	/* set mac address */
 	nv_copy_mac_to_hw(dev);
 
-	/* Workaround current PCI init glitch:  wakeup bits aren't
-	 * being set from PCI PM capability.
-	 */
-	device_init_wakeup(&pci_dev->dev, 1);
-
 	/* disable WOL */
 	writel(0, base + NvRegWakeUpFlags);
 	np->wolenabled = 0;
+	device_set_wakeup_enable(&pci_dev->dev, false);
 
 	if (id->driver_data & DEV_HAS_POWER_CNTRL) {
 
@@ -5746,8 +5743,9 @@ static void __devexit nv_remove(struct pci_dev *pci_dev)
 }
 
 #ifdef CONFIG_PM
-static int nv_suspend(struct pci_dev *pdev, pm_message_t state)
+static int nv_suspend(struct device *device)
 {
+	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
@@ -5763,24 +5761,16 @@ static int nv_suspend(struct pci_dev *pdev, pm_message_t state)
 	for (i = 0; i <= np->register_size/sizeof(u32); i++)
 		np->saved_config_space[i] = readl(base + i*sizeof(u32));
 
-	pci_save_state(pdev);
-	pci_enable_wake(pdev, pci_choose_state(pdev, state), np->wolenabled);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 	return 0;
 }
 
-static int nv_resume(struct pci_dev *pdev)
+static int nv_resume(struct device *device)
 {
+	struct pci_dev *pdev = to_pci_dev(device);
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
 	int i, rc = 0;
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	/* ack any pending wake events, disable PME */
-	pci_enable_wake(pdev, PCI_D0, 0);
 
 	/* restore non-pci configuration space */
 	for (i = 0; i <= np->register_size/sizeof(u32); i++)
@@ -5799,6 +5789,9 @@ static int nv_resume(struct pci_dev *pdev)
 	}
 	return rc;
 }
+
+static SIMPLE_DEV_PM_OPS(nv_pm_ops, nv_suspend, nv_resume);
+#define NV_PM_OPS (&nv_pm_ops)
 
 static void nv_shutdown(struct pci_dev *pdev)
 {
@@ -5822,15 +5815,13 @@ static void nv_shutdown(struct pci_dev *pdev)
 	 * only put the device into D3 if we really go for poweroff.
 	 */
 	if (system_state == SYSTEM_POWER_OFF) {
-		if (pci_enable_wake(pdev, PCI_D3cold, np->wolenabled))
-			pci_enable_wake(pdev, PCI_D3hot, np->wolenabled);
+		pci_wake_from_d3(pdev, np->wolenabled);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
 }
 #else
-#define nv_suspend NULL
+#define NV_PM_OPS NULL
 #define nv_shutdown NULL
-#define nv_resume NULL
 #endif /* CONFIG_PM */
 
 static DEFINE_PCI_DEVICE_TABLE(pci_tbl) = {
@@ -6002,9 +5993,8 @@ static struct pci_driver driver = {
 	.id_table	= pci_tbl,
 	.probe		= nv_probe,
 	.remove		= __devexit_p(nv_remove),
-	.suspend	= nv_suspend,
-	.resume		= nv_resume,
 	.shutdown	= nv_shutdown,
+	.driver.pm	= NV_PM_OPS,
 };
 
 static int __init init_nic(void)

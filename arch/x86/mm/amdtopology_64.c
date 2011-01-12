@@ -27,6 +27,7 @@
 #include <asm/amd_nb.h>
 
 static struct bootnode __initdata nodes[8];
+static unsigned char __initdata nodeids[8];
 static nodemask_t __initdata nodes_parsed = NODE_MASK_NONE;
 
 static __init int find_northbridge(void)
@@ -68,19 +69,6 @@ static __init void early_get_boot_cpu_id(void)
 #endif
 }
 
-int __init amd_get_nodes(struct bootnode *physnodes)
-{
-	int i;
-	int ret = 0;
-
-	for_each_node_mask(i, nodes_parsed) {
-		physnodes[ret].start = nodes[i].start;
-		physnodes[ret].end = nodes[i].end;
-		ret++;
-	}
-	return ret;
-}
-
 int __init amd_numa_init(unsigned long start_pfn, unsigned long end_pfn)
 {
 	unsigned long start = PFN_PHYS(start_pfn);
@@ -113,7 +101,7 @@ int __init amd_numa_init(unsigned long start_pfn, unsigned long end_pfn)
 		base = read_pci_config(0, nb, 1, 0x40 + i*8);
 		limit = read_pci_config(0, nb, 1, 0x44 + i*8);
 
-		nodeid = limit & 7;
+		nodeids[i] = nodeid = limit & 7;
 		if ((base & 3) == 0) {
 			if (i < numnodes)
 				pr_info("Skipping disabled node %d\n", i);
@@ -192,6 +180,76 @@ int __init amd_numa_init(unsigned long start_pfn, unsigned long end_pfn)
 		return -1;
 	return 0;
 }
+
+#ifdef CONFIG_NUMA_EMU
+static s16 fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
+	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
+};
+
+void __init amd_get_nodes(struct bootnode *physnodes)
+{
+	int i;
+
+	for_each_node_mask(i, nodes_parsed) {
+		physnodes[i].start = nodes[i].start;
+		physnodes[i].end = nodes[i].end;
+	}
+}
+
+static int __init find_node_by_addr(unsigned long addr)
+{
+	int ret = NUMA_NO_NODE;
+	int i;
+
+	for (i = 0; i < 8; i++)
+		if (addr >= nodes[i].start && addr < nodes[i].end) {
+			ret = i;
+			break;
+		}
+	return ret;
+}
+
+/*
+ * For NUMA emulation, fake proximity domain (_PXM) to node id mappings must be
+ * setup to represent the physical topology but reflect the emulated
+ * environment.  For each emulated node, the real node which it appears on is
+ * found and a fake pxm to nid mapping is created which mirrors the actual
+ * locality.  node_distance() then represents the correct distances between
+ * emulated nodes by using the fake acpi mappings to pxms.
+ */
+void __init amd_fake_nodes(const struct bootnode *nodes, int nr_nodes)
+{
+	unsigned int bits;
+	unsigned int cores;
+	unsigned int apicid_base = 0;
+	int i;
+
+	bits = boot_cpu_data.x86_coreid_bits;
+	cores = 1 << bits;
+	early_get_boot_cpu_id();
+	if (boot_cpu_physical_apicid > 0)
+		apicid_base = boot_cpu_physical_apicid;
+
+	for (i = 0; i < nr_nodes; i++) {
+		int index;
+		int nid;
+		int j;
+
+		nid = find_node_by_addr(nodes[i].start);
+		if (nid == NUMA_NO_NODE)
+			continue;
+
+		index = nodeids[nid] << bits;
+		if (fake_apicid_to_node[index + apicid_base] == NUMA_NO_NODE)
+			for (j = apicid_base; j < cores + apicid_base; j++)
+				fake_apicid_to_node[index + j] = i;
+#ifdef CONFIG_ACPI_NUMA
+		__acpi_map_pxm_to_node(nid, i);
+#endif
+	}
+	memcpy(apicid_to_node, fake_apicid_to_node, sizeof(apicid_to_node));
+}
+#endif /* CONFIG_NUMA_EMU */
 
 int __init amd_scan_nodes(void)
 {

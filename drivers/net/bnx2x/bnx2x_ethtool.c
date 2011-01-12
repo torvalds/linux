@@ -24,6 +24,7 @@
 #include "bnx2x.h"
 #include "bnx2x_cmn.h"
 #include "bnx2x_dump.h"
+#include "bnx2x_init.h"
 
 /* Note: in the format strings below %s is replaced by the queue-name which is
  * either its index or 'fcoe' for the fcoe queue. Make sure the format string
@@ -472,7 +473,7 @@ static int bnx2x_get_regs_len(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	int regdump_len = 0;
-	int i;
+	int i, j, k;
 
 	if (CHIP_IS_E1(bp)) {
 		for (i = 0; i < REGS_COUNT; i++)
@@ -502,6 +503,15 @@ static int bnx2x_get_regs_len(struct net_device *dev)
 			if (IS_E2_ONLINE(wreg_addrs_e2[i].info))
 				regdump_len += wreg_addrs_e2[i].size *
 					(1 + wreg_addrs_e2[i].read_regs_count);
+
+		for (i = 0; i < PAGE_MODE_VALUES_E2; i++)
+			for (j = 0; j < PAGE_WRITE_REGS_E2; j++) {
+				for (k = 0; k < PAGE_READ_REGS_E2; k++)
+					if (IS_E2_ONLINE(page_read_regs_e2[k].
+							 info))
+						regdump_len +=
+						page_read_regs_e2[k].size;
+			}
 	}
 	regdump_len *= 4;
 	regdump_len += sizeof(struct dump_hdr);
@@ -538,6 +548,12 @@ static void bnx2x_get_regs(struct net_device *dev,
 
 	if (!netif_running(bp->dev))
 		return;
+
+	/* Disable parity attentions as long as following dump may
+	 * cause false alarms by reading never written registers. We
+	 * will re-enable parity attentions right after the dump.
+	 */
+	bnx2x_disable_blocks_parity(bp);
 
 	dump_hdr.hdr_size = (sizeof(struct dump_hdr) / 4) - 1;
 	dump_hdr.dump_sign = dump_sign_all;
@@ -580,6 +596,10 @@ static void bnx2x_get_regs(struct net_device *dev,
 
 		bnx2x_read_pages_regs_e2(bp, p);
 	}
+	/* Re-enable parity attentions */
+	bnx2x_clear_blocks_parity(bp);
+	if (CHIP_PARITY_ENABLED(bp))
+		bnx2x_enable_blocks_parity(bp);
 }
 
 #define PHY_FW_VER_LEN			20

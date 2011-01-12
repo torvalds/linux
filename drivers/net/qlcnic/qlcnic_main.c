@@ -31,15 +31,15 @@ static const char qlcnic_driver_string[] = "QLogic 1/10 GbE "
 
 static struct workqueue_struct *qlcnic_wq;
 static int qlcnic_mac_learn;
-module_param(qlcnic_mac_learn, int, 0644);
+module_param(qlcnic_mac_learn, int, 0444);
 MODULE_PARM_DESC(qlcnic_mac_learn, "Mac Filter (0=disabled, 1=enabled)");
 
 static int use_msi = 1;
-module_param(use_msi, int, 0644);
+module_param(use_msi, int, 0444);
 MODULE_PARM_DESC(use_msi, "MSI interrupt (0=disabled, 1=enabled");
 
 static int use_msi_x = 1;
-module_param(use_msi_x, int, 0644);
+module_param(use_msi_x, int, 0444);
 MODULE_PARM_DESC(use_msi_x, "MSI-X interrupt (0=disabled, 1=enabled");
 
 static int auto_fw_reset = AUTO_FW_RESET_ENABLED;
@@ -47,11 +47,11 @@ module_param(auto_fw_reset, int, 0644);
 MODULE_PARM_DESC(auto_fw_reset, "Auto firmware reset (0=disabled, 1=enabled");
 
 static int load_fw_file;
-module_param(load_fw_file, int, 0644);
+module_param(load_fw_file, int, 0444);
 MODULE_PARM_DESC(load_fw_file, "Load firmware from (0=flash, 1=file");
 
 static int qlcnic_config_npars;
-module_param(qlcnic_config_npars, int, 0644);
+module_param(qlcnic_config_npars, int, 0444);
 MODULE_PARM_DESC(qlcnic_config_npars, "Configure NPARs (0=disabled, 1=enabled");
 
 static int __devinit qlcnic_probe(struct pci_dev *pdev,

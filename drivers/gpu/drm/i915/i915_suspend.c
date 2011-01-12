@@ -235,6 +235,7 @@ static void i915_restore_vga(struct drm_device *dev)
 static void i915_save_modeset_reg(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	int i;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
@@ -367,6 +368,28 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 	}
 	i915_save_palette(dev, PIPE_B);
 	dev_priv->savePIPEBSTAT = I915_READ(PIPEBSTAT);
+
+	/* Fences */
+	switch (INTEL_INFO(dev)->gen) {
+	case 6:
+		for (i = 0; i < 16; i++)
+			dev_priv->saveFENCE[i] = I915_READ64(FENCE_REG_SANDYBRIDGE_0 + (i * 8));
+		break;
+	case 5:
+	case 4:
+		for (i = 0; i < 16; i++)
+			dev_priv->saveFENCE[i] = I915_READ64(FENCE_REG_965_0 + (i * 8));
+		break;
+	case 3:
+		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+			for (i = 0; i < 8; i++)
+				dev_priv->saveFENCE[i+8] = I915_READ(FENCE_REG_945_8 + (i * 4));
+	case 2:
+		for (i = 0; i < 8; i++)
+			dev_priv->saveFENCE[i] = I915_READ(FENCE_REG_830_0 + (i * 4));
+		break;
+	}
+
 	return;
 }
 
@@ -375,9 +398,32 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int dpll_a_reg, fpa0_reg, fpa1_reg;
 	int dpll_b_reg, fpb0_reg, fpb1_reg;
+	int i;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
+
+	/* Fences */
+	switch (INTEL_INFO(dev)->gen) {
+	case 6:
+		for (i = 0; i < 16; i++)
+			I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 + (i * 8), dev_priv->saveFENCE[i]);
+		break;
+	case 5:
+	case 4:
+		for (i = 0; i < 16; i++)
+			I915_WRITE64(FENCE_REG_965_0 + (i * 8), dev_priv->saveFENCE[i]);
+		break;
+	case 3:
+	case 2:
+		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+			for (i = 0; i < 8; i++)
+				I915_WRITE(FENCE_REG_945_8 + (i * 4), dev_priv->saveFENCE[i+8]);
+		for (i = 0; i < 8; i++)
+			I915_WRITE(FENCE_REG_830_0 + (i * 4), dev_priv->saveFENCE[i]);
+		break;
+	}
+
 
 	if (HAS_PCH_SPLIT(dev)) {
 		dpll_a_reg = PCH_DPLL_A;
@@ -771,8 +817,14 @@ int i915_save_state(struct drm_device *dev)
 		dev_priv->saveIMR = I915_READ(IMR);
 	}
 
-	if (HAS_PCH_SPLIT(dev))
+	if (IS_IRONLAKE_M(dev))
 		ironlake_disable_drps(dev);
+	if (IS_GEN6(dev))
+		gen6_disable_rps(dev);
+
+	/* XXX disabling the clock gating breaks suspend on gm45
+	intel_disable_clock_gating(dev);
+	 */
 
 	/* Cache mode state */
 	dev_priv->saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
@@ -788,28 +840,6 @@ int i915_save_state(struct drm_device *dev)
 	for (i = 0; i < 3; i++)
 		dev_priv->saveSWF2[i] = I915_READ(SWF30 + (i << 2));
 
-	/* Fences */
-	switch (INTEL_INFO(dev)->gen) {
-	case 6:
-		for (i = 0; i < 16; i++)
-			dev_priv->saveFENCE[i] = I915_READ64(FENCE_REG_SANDYBRIDGE_0 + (i * 8));
-		break;
-	case 5:
-	case 4:
-		for (i = 0; i < 16; i++)
-			dev_priv->saveFENCE[i] = I915_READ64(FENCE_REG_965_0 + (i * 8));
-		break;
-	case 3:
-		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
-			for (i = 0; i < 8; i++)
-				dev_priv->saveFENCE[i+8] = I915_READ(FENCE_REG_945_8 + (i * 4));
-	case 2:
-		for (i = 0; i < 8; i++)
-			dev_priv->saveFENCE[i] = I915_READ(FENCE_REG_830_0 + (i * 4));
-		break;
-
-	}
-
 	return 0;
 }
 
@@ -822,27 +852,6 @@ int i915_restore_state(struct drm_device *dev)
 
 	/* Hardware status page */
 	I915_WRITE(HWS_PGA, dev_priv->saveHWS);
-
-	/* Fences */
-	switch (INTEL_INFO(dev)->gen) {
-	case 6:
-		for (i = 0; i < 16; i++)
-			I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 + (i * 8), dev_priv->saveFENCE[i]);
-		break;
-	case 5:
-	case 4:
-		for (i = 0; i < 16; i++)
-			I915_WRITE64(FENCE_REG_965_0 + (i * 8), dev_priv->saveFENCE[i]);
-		break;
-	case 3:
-	case 2:
-		if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
-			for (i = 0; i < 8; i++)
-				I915_WRITE(FENCE_REG_945_8 + (i * 4), dev_priv->saveFENCE[i+8]);
-		for (i = 0; i < 8; i++)
-			I915_WRITE(FENCE_REG_830_0 + (i * 4), dev_priv->saveFENCE[i]);
-		break;
-	}
 
 	i915_restore_display(dev);
 
@@ -860,12 +869,15 @@ int i915_restore_state(struct drm_device *dev)
 	}
 
 	/* Clock gating state */
-	intel_init_clock_gating(dev);
+	intel_enable_clock_gating(dev);
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (IS_IRONLAKE_M(dev)) {
 		ironlake_enable_drps(dev);
 		intel_init_emon(dev);
 	}
+
+	if (IS_GEN6(dev))
+		gen6_enable_rps(dev_priv);
 
 	/* Cache mode state */
 	I915_WRITE (CACHE_MODE_0, dev_priv->saveCACHE_MODE_0 | 0xffff0000);

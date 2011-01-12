@@ -24,6 +24,7 @@ struct bfin_mii_bus_platform_data {
 	const unsigned short *mac_peripherals;
 	int phy_mode;
 	unsigned int phy_mask;
+	unsigned short vlan1_mask, vlan2_mask;
 };
 
 #endif

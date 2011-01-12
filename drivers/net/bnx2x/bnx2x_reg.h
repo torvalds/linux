@@ -18,6 +18,8 @@
  * WR - Write Clear (write 1 to clear the bit)
  *
  */
+#ifndef BNX2X_REG_H
+#define BNX2X_REG_H
 
 #define ATC_ATC_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
 #define ATC_ATC_INT_STS_REG_ATC_GPA_MULTIPLE_HITS		 (0x1<<2)
@@ -39,6 +41,8 @@
 #define BRB1_REG_BRB1_PRTY_MASK 				 0x60138
 /* [R 4] Parity register #0 read */
 #define BRB1_REG_BRB1_PRTY_STS					 0x6012c
+/* [RC 4] Parity register #0 read clear */
+#define BRB1_REG_BRB1_PRTY_STS_CLR				 0x60130
 /* [RW 10] At address BRB1_IND_FREE_LIST_PRS_CRDT initialize free head. At
  * address BRB1_IND_FREE_LIST_PRS_CRDT+1 initialize free tail. At address
  * BRB1_IND_FREE_LIST_PRS_CRDT+2 initialize parser initial credit. Warning -
@@ -132,8 +136,12 @@
 #define CCM_REG_CCM_INT_MASK					 0xd01e4
 /* [R 11] Interrupt register #0 read */
 #define CCM_REG_CCM_INT_STS					 0xd01d8
+/* [RW 27] Parity mask register #0 read/write */
+#define CCM_REG_CCM_PRTY_MASK					 0xd01f4
 /* [R 27] Parity register #0 read */
 #define CCM_REG_CCM_PRTY_STS					 0xd01e8
+/* [RC 27] Parity register #0 read clear */
+#define CCM_REG_CCM_PRTY_STS_CLR				 0xd01ec
 /* [RW 3] The size of AG context region 0 in REG-pairs. Designates the MS
    REG-pair number (e.g. if region 0 is 6 REG-pairs; the value should be 5).
    Is used to determine the number of the AG context REG-pairs written back;
@@ -350,6 +358,8 @@
 #define CDU_REG_CDU_PRTY_MASK					 0x10104c
 /* [R 5] Parity register #0 read */
 #define CDU_REG_CDU_PRTY_STS					 0x101040
+/* [RC 5] Parity register #0 read clear */
+#define CDU_REG_CDU_PRTY_STS_CLR				 0x101044
 /* [RC 32] logging of error data in case of a CDU load error:
    {expected_cid[15:0]; xpected_type[2:0]; xpected_region[2:0]; ctive_error;
    ype_error; ctual_active; ctual_compressed_context}; */
@@ -381,6 +391,8 @@
 #define CFC_REG_CFC_PRTY_MASK					 0x104118
 /* [R 4] Parity register #0 read */
 #define CFC_REG_CFC_PRTY_STS					 0x10410c
+/* [RC 4] Parity register #0 read clear */
+#define CFC_REG_CFC_PRTY_STS_CLR				 0x104110
 /* [RW 21] CID cam access (21:1 - Data; alid - 0) */
 #define CFC_REG_CID_CAM 					 0x104800
 #define CFC_REG_CONTROL0					 0x104028
@@ -466,6 +478,8 @@
 #define CSDM_REG_CSDM_PRTY_MASK 				 0xc22bc
 /* [R 11] Parity register #0 read */
 #define CSDM_REG_CSDM_PRTY_STS					 0xc22b0
+/* [RC 11] Parity register #0 read clear */
+#define CSDM_REG_CSDM_PRTY_STS_CLR				 0xc22b4
 #define CSDM_REG_ENABLE_IN1					 0xc2238
 #define CSDM_REG_ENABLE_IN2					 0xc223c
 #define CSDM_REG_ENABLE_OUT1					 0xc2240
@@ -556,6 +570,9 @@
 /* [R 32] Parity register #0 read */
 #define CSEM_REG_CSEM_PRTY_STS_0				 0x200124
 #define CSEM_REG_CSEM_PRTY_STS_1				 0x200134
+/* [RC 32] Parity register #0 read clear */
+#define CSEM_REG_CSEM_PRTY_STS_CLR_0				 0x200128
+#define CSEM_REG_CSEM_PRTY_STS_CLR_1				 0x200138
 #define CSEM_REG_ENABLE_IN					 0x2000a4
 #define CSEM_REG_ENABLE_OUT					 0x2000a8
 /* [RW 32] This address space contains all registers and memories that are
@@ -648,6 +665,8 @@
 #define DBG_REG_DBG_PRTY_MASK					 0xc0a8
 /* [R 1] Parity register #0 read */
 #define DBG_REG_DBG_PRTY_STS					 0xc09c
+/* [RC 1] Parity register #0 read clear */
+#define DBG_REG_DBG_PRTY_STS_CLR				 0xc0a0
 /* [RW 1] When set the DMAE will process the commands as in E1.5. 1.The
  * function that is used is always SRC-PCI; 2.VF_Valid = 0; 3.VFID=0;
  * 4.Completion function=0; 5.Error handling=0 */
@@ -668,6 +687,8 @@
 #define DMAE_REG_DMAE_PRTY_MASK 				 0x102064
 /* [R 4] Parity register #0 read */
 #define DMAE_REG_DMAE_PRTY_STS					 0x102058
+/* [RC 4] Parity register #0 read clear */
+#define DMAE_REG_DMAE_PRTY_STS_CLR				 0x10205c
 /* [RW 1] Command 0 go. */
 #define DMAE_REG_GO_C0						 0x102080
 /* [RW 1] Command 1 go. */
@@ -734,6 +755,8 @@
 #define DORQ_REG_DORQ_PRTY_MASK 				 0x170190
 /* [R 2] Parity register #0 read */
 #define DORQ_REG_DORQ_PRTY_STS					 0x170184
+/* [RC 2] Parity register #0 read clear */
+#define DORQ_REG_DORQ_PRTY_STS_CLR				 0x170188
 /* [RW 8] The address to write the DPM CID to STORM. */
 #define DORQ_REG_DPM_CID_ADDR					 0x170044
 /* [RW 5] The DPM mode CID extraction offset. */
@@ -842,8 +865,12 @@
 /* [R 1] data availble for error memory. If this bit is clear do not red
  * from error_handling_memory. */
 #define IGU_REG_ERROR_HANDLING_DATA_VALID			 0x130130
+/* [RW 11] Parity mask register #0 read/write */
+#define IGU_REG_IGU_PRTY_MASK					 0x1300a8
 /* [R 11] Parity register #0 read */
 #define IGU_REG_IGU_PRTY_STS					 0x13009c
+/* [RC 11] Parity register #0 read clear */
+#define IGU_REG_IGU_PRTY_STS_CLR				 0x1300a0
 /* [R 4] Debug: int_handle_fsm */
 #define IGU_REG_INT_HANDLE_FSM					 0x130050
 #define IGU_REG_LEADING_EDGE_LATCH				 0x130134
@@ -1501,6 +1528,8 @@
 #define MISC_REG_MISC_PRTY_MASK 				 0xa398
 /* [R 1] Parity register #0 read */
 #define MISC_REG_MISC_PRTY_STS					 0xa38c
+/* [RC 1] Parity register #0 read clear */
+#define MISC_REG_MISC_PRTY_STS_CLR				 0xa390
 #define MISC_REG_NIG_WOL_P0					 0xa270
 #define MISC_REG_NIG_WOL_P1					 0xa274
 /* [R 1] If set indicate that the pcie_rst_b was asserted without perst
@@ -2082,6 +2111,10 @@
 #define PBF_REG_PBF_INT_MASK					 0x1401d4
 /* [R 5] Interrupt register #0 read */
 #define PBF_REG_PBF_INT_STS					 0x1401c8
+/* [RW 20] Parity mask register #0 read/write */
+#define PBF_REG_PBF_PRTY_MASK					 0x1401e4
+/* [RC 20] Parity register #0 read clear */
+#define PBF_REG_PBF_PRTY_STS_CLR				 0x1401dc
 #define PB_REG_CONTROL						 0
 /* [RW 2] Interrupt mask register #0 read/write */
 #define PB_REG_PB_INT_MASK					 0x28
@@ -2091,6 +2124,8 @@
 #define PB_REG_PB_PRTY_MASK					 0x38
 /* [R 4] Parity register #0 read */
 #define PB_REG_PB_PRTY_STS					 0x2c
+/* [RC 4] Parity register #0 read clear */
+#define PB_REG_PB_PRTY_STS_CLR					 0x30
 #define PGLUE_B_PGLUE_B_INT_STS_REG_ADDRESS_ERROR		 (0x1<<0)
 #define PGLUE_B_PGLUE_B_INT_STS_REG_CSSNOOP_FIFO_OVERFLOW	 (0x1<<8)
 #define PGLUE_B_PGLUE_B_INT_STS_REG_INCORRECT_RCV_BEHAVIOR	 (0x1<<1)
@@ -2446,6 +2481,8 @@
 #define PRS_REG_PRS_PRTY_MASK					 0x401a4
 /* [R 8] Parity register #0 read */
 #define PRS_REG_PRS_PRTY_STS					 0x40198
+/* [RC 8] Parity register #0 read clear */
+#define PRS_REG_PRS_PRTY_STS_CLR				 0x4019c
 /* [RW 8] Context region for pure acknowledge packets. Used in CFC load
    request message */
 #define PRS_REG_PURE_REGIONS					 0x40024
@@ -2599,6 +2636,9 @@
 /* [R 32] Parity register #0 read */
 #define PXP2_REG_PXP2_PRTY_STS_0				 0x12057c
 #define PXP2_REG_PXP2_PRTY_STS_1				 0x12058c
+/* [RC 32] Parity register #0 read clear */
+#define PXP2_REG_PXP2_PRTY_STS_CLR_0				 0x120580
+#define PXP2_REG_PXP2_PRTY_STS_CLR_1				 0x120590
 /* [R 1] Debug only: The 'almost full' indication from each fifo (gives
    indication about backpressure) */
 #define PXP2_REG_RD_ALMOST_FULL_0				 0x120424
@@ -3001,6 +3041,8 @@
 #define PXP_REG_PXP_PRTY_MASK					 0x103094
 /* [R 26] Parity register #0 read */
 #define PXP_REG_PXP_PRTY_STS					 0x103088
+/* [RC 27] Parity register #0 read clear */
+#define PXP_REG_PXP_PRTY_STS_CLR				 0x10308c
 /* [RW 4] The activity counter initial increment value sent in the load
    request */
 #define QM_REG_ACTCTRINITVAL_0					 0x168040
@@ -3157,6 +3199,8 @@
 #define QM_REG_QM_PRTY_MASK					 0x168454
 /* [R 12] Parity register #0 read */
 #define QM_REG_QM_PRTY_STS					 0x168448
+/* [RC 12] Parity register #0 read clear */
+#define QM_REG_QM_PRTY_STS_CLR					 0x16844c
 /* [R 32] Current queues in pipeline: Queues from 32 to 63 */
 #define QM_REG_QSTATUS_HIGH					 0x16802c
 /* [R 32] Current queues in pipeline: Queues from 96 to 127 */
@@ -3442,6 +3486,8 @@
 #define QM_REG_WRRWEIGHTS_9					 0x168848
 /* [R 6] Keep the fill level of the fifo from write client 1 */
 #define QM_REG_XQM_WRC_FIFOLVL					 0x168000
+/* [W 1] reset to parity interrupt */
+#define SEM_FAST_REG_PARITY_RST					 0x18840
 #define SRC_REG_COUNTFREE0					 0x40500
 /* [RW 1] If clr the searcher is compatible to E1 A0 - support only two
    ports. If set the searcher support 8 functions. */
@@ -3470,6 +3516,8 @@
 #define SRC_REG_SRC_PRTY_MASK					 0x404c8
 /* [R 3] Parity register #0 read */
 #define SRC_REG_SRC_PRTY_STS					 0x404bc
+/* [RC 3] Parity register #0 read clear */
+#define SRC_REG_SRC_PRTY_STS_CLR				 0x404c0
 /* [R 4] Used to read the value of the XX protection CAM occupancy counter. */
 #define TCM_REG_CAM_OCCUP					 0x5017c
 /* [RW 1] CDU AG read Interface enable. If 0 - the request input is
@@ -3596,8 +3644,12 @@
 #define TCM_REG_TCM_INT_MASK					 0x501dc
 /* [R 11] Interrupt register #0 read */
 #define TCM_REG_TCM_INT_STS					 0x501d0
+/* [RW 27] Parity mask register #0 read/write */
+#define TCM_REG_TCM_PRTY_MASK					 0x501ec
 /* [R 27] Parity register #0 read */
 #define TCM_REG_TCM_PRTY_STS					 0x501e0
+/* [RC 27] Parity register #0 read clear */
+#define TCM_REG_TCM_PRTY_STS_CLR				 0x501e4
 /* [RW 3] The size of AG context region 0 in REG-pairs. Designates the MS
    REG-pair number (e.g. if region 0 is 6 REG-pairs; the value should be 5).
    Is used to determine the number of the AG context REG-pairs written back;
@@ -3755,6 +3807,10 @@
 #define TM_REG_TM_INT_MASK					 0x1640fc
 /* [R 1] Interrupt register #0 read */
 #define TM_REG_TM_INT_STS					 0x1640f0
+/* [RW 7] Parity mask register #0 read/write */
+#define TM_REG_TM_PRTY_MASK					 0x16410c
+/* [RC 7] Parity register #0 read clear */
+#define TM_REG_TM_PRTY_STS_CLR					 0x164104
 /* [RW 8] The event id for aggregated interrupt 0 */
 #define TSDM_REG_AGG_INT_EVENT_0				 0x42038
 #define TSDM_REG_AGG_INT_EVENT_1				 0x4203c
@@ -3835,6 +3891,8 @@
 #define TSDM_REG_TSDM_PRTY_MASK 				 0x422bc
 /* [R 11] Parity register #0 read */
 #define TSDM_REG_TSDM_PRTY_STS					 0x422b0
+/* [RC 11] Parity register #0 read clear */
+#define TSDM_REG_TSDM_PRTY_STS_CLR				 0x422b4
 /* [RW 5] The number of time_slots in the arbitration cycle */
 #define TSEM_REG_ARB_CYCLE_SIZE 				 0x180034
 /* [RW 3] The source that is associated with arbitration element 0. Source
@@ -3914,6 +3972,9 @@
 #define TSEM_REG_SLOW_EXT_STORE_EMPTY				 0x1802a0
 /* [RW 8] List of free threads . There is a bit per thread. */
 #define TSEM_REG_THREADS_LIST					 0x1802e4
+/* [RC 32] Parity register #0 read clear */
+#define TSEM_REG_TSEM_PRTY_STS_CLR_0				 0x180118
+#define TSEM_REG_TSEM_PRTY_STS_CLR_1				 0x180128
 /* [RW 3] The arbitration scheme of time_slot 0 */
 #define TSEM_REG_TS_0_AS					 0x180038
 /* [RW 3] The arbitration scheme of time_slot 10 */
@@ -4116,6 +4177,8 @@
 #define UCM_REG_UCM_INT_STS					 0xe01c8
 /* [R 27] Parity register #0 read */
 #define UCM_REG_UCM_PRTY_STS					 0xe01d8
+/* [RC 27] Parity register #0 read clear */
+#define UCM_REG_UCM_PRTY_STS_CLR				 0xe01dc
 /* [RW 2] The size of AG context region 0 in REG-pairs. Designates the MS
    REG-pair number (e.g. if region 0 is 6 REG-pairs; the value should be 5).
    Is used to determine the number of the AG context REG-pairs written back;
@@ -4292,6 +4355,8 @@
 #define USDM_REG_USDM_PRTY_MASK 				 0xc42c0
 /* [R 11] Parity register #0 read */
 #define USDM_REG_USDM_PRTY_STS					 0xc42b4
+/* [RC 11] Parity register #0 read clear */
+#define USDM_REG_USDM_PRTY_STS_CLR				 0xc42b8
 /* [RW 5] The number of time_slots in the arbitration cycle */
 #define USEM_REG_ARB_CYCLE_SIZE 				 0x300034
 /* [RW 3] The source that is associated with arbitration element 0. Source
@@ -4421,6 +4486,9 @@
 /* [R 32] Parity register #0 read */
 #define USEM_REG_USEM_PRTY_STS_0				 0x300124
 #define USEM_REG_USEM_PRTY_STS_1				 0x300134
+/* [RC 32] Parity register #0 read clear */
+#define USEM_REG_USEM_PRTY_STS_CLR_0				 0x300128
+#define USEM_REG_USEM_PRTY_STS_CLR_1				 0x300138
 /* [W 7] VF or PF ID for reset error bit. Values 0-63 reset error bit for 64
  * VF; values 64-67 reset error for 4 PF; values 68-127 are not valid. */
 #define USEM_REG_VFPF_ERR_NUM					 0x300380
@@ -4797,6 +4865,8 @@
 #define XSDM_REG_XSDM_PRTY_MASK 				 0x1662bc
 /* [R 11] Parity register #0 read */
 #define XSDM_REG_XSDM_PRTY_STS					 0x1662b0
+/* [RC 11] Parity register #0 read clear */
+#define XSDM_REG_XSDM_PRTY_STS_CLR				 0x1662b4
 /* [RW 5] The number of time_slots in the arbitration cycle */
 #define XSEM_REG_ARB_CYCLE_SIZE 				 0x280034
 /* [RW 3] The source that is associated with arbitration element 0. Source
@@ -4929,6 +4999,9 @@
 /* [R 32] Parity register #0 read */
 #define XSEM_REG_XSEM_PRTY_STS_0				 0x280124
 #define XSEM_REG_XSEM_PRTY_STS_1				 0x280134
+/* [RC 32] Parity register #0 read clear */
+#define XSEM_REG_XSEM_PRTY_STS_CLR_0				 0x280128
+#define XSEM_REG_XSEM_PRTY_STS_CLR_1				 0x280138
 #define MCPR_NVM_ACCESS_ENABLE_EN				 (1L<<0)
 #define MCPR_NVM_ACCESS_ENABLE_WR_EN				 (1L<<1)
 #define MCPR_NVM_ADDR_NVM_ADDR_VALUE				 (0xffffffL<<0)
@@ -6316,3 +6389,4 @@ static inline u8 calc_crc8(u32 data, u8 crc)
 }
 
 
+#endif /* BNX2X_REG_H */

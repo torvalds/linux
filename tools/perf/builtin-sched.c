@@ -489,7 +489,8 @@ static void create_tasks(void)
 
 	err = pthread_attr_init(&attr);
 	BUG_ON(err);
-	err = pthread_attr_setstacksize(&attr, (size_t)(16*1024));
+	err = pthread_attr_setstacksize(&attr,
+			(size_t) max(16 * 1024, PTHREAD_STACK_MIN));
 	BUG_ON(err);
 	err = pthread_mutex_lock(&start_work_mutex);
 	BUG_ON(err);
@@ -1861,7 +1862,7 @@ static int __cmd_record(int argc, const char **argv)
 	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 
-	if (rec_argv)
+	if (rec_argv == NULL)
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)

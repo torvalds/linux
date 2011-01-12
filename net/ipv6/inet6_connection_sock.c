@@ -44,7 +44,7 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 		     !sk2->sk_bound_dev_if ||
 		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if) &&
 		    (!sk->sk_reuse || !sk2->sk_reuse ||
-		     sk2->sk_state == TCP_LISTEN) &&
+		     ((1 << sk2->sk_state) & (TCPF_LISTEN | TCPF_CLOSE))) &&
 		     ipv6_rcv_saddr_equal(sk, sk2))
 			break;
 	}

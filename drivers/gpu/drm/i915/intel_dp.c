@@ -1442,8 +1442,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 		/* Changes to enable or select take place the vblank
 		 * after being written.
 		 */
-		intel_wait_for_vblank(intel_dp->base.base.dev,
-				      intel_crtc->pipe);
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
 	}
 
 	I915_WRITE(intel_dp->output_reg, DP & ~DP_PORT_EN);

@@ -764,14 +764,21 @@ static void mmc_sd_attach_bus_ops(struct mmc_host *host)
 /*
  * Starting point for SD card init.
  */
-int mmc_attach_sd(struct mmc_host *host, u32 ocr)
+int mmc_attach_sd(struct mmc_host *host)
 {
 	int err;
+	u32 ocr;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
+	err = mmc_send_app_op_cond(host, 0, &ocr);
+	if (err)
+		return err;
+
 	mmc_sd_attach_bus_ops(host);
+	if (host->ocr_avail_sd)
+		host->ocr_avail = host->ocr_avail_sd;
 
 	/*
 	 * We need to get OCR a different way for SPI.
@@ -795,7 +802,8 @@ int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 		ocr &= ~0x7F;
 	}
 
-	if (ocr & MMC_VDD_165_195) {
+	if ((ocr & MMC_VDD_165_195) &&
+	    !(host->ocr_avail_sd & MMC_VDD_165_195)) {
 		printk(KERN_WARNING "%s: SD card claims to support the "
 		       "incompletely defined 'low voltage range'. This "
 		       "will be ignored.\n", mmc_hostname(host));
@@ -820,20 +828,20 @@ int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 		goto err;
 
 	mmc_release_host(host);
-
 	err = mmc_add_card(host->card);
+	mmc_claim_host(host);
 	if (err)
 		goto remove_card;
 
 	return 0;
 
 remove_card:
+	mmc_release_host(host);
 	mmc_remove_card(host->card);
 	host->card = NULL;
 	mmc_claim_host(host);
 err:
 	mmc_detach_bus(host);
-	mmc_release_host(host);
 
 	printk(KERN_ERR "%s: error %d whilst initialising SD card\n",
 		mmc_hostname(host), err);

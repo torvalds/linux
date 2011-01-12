@@ -1017,8 +1017,11 @@ static int ocfs2_double_lock(struct ocfs2_super *osb,
 		 * An error return must mean that no cluster locks
 		 * were held on function exit.
 		 */
-		if (oi1->ip_blkno != oi2->ip_blkno)
+		if (oi1->ip_blkno != oi2->ip_blkno) {
 			ocfs2_inode_unlock(inode2, 1);
+			brelse(*bh2);
+			*bh2 = NULL;
+		}
 
 		if (status != -ENOENT)
 			mlog_errno(status);

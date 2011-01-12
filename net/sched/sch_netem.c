@@ -240,8 +240,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	if (likely(ret == NET_XMIT_SUCCESS)) {
 		sch->q.qlen++;
-		sch->bstats.bytes += qdisc_pkt_len(skb);
-		sch->bstats.packets++;
+		qdisc_bstats_update(sch, skb);
 	} else if (net_xmit_drop_count(ret)) {
 		sch->qstats.drops++;
 	}
@@ -477,8 +476,7 @@ static int tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
 		__skb_queue_after(list, skb, nskb);
 
 		sch->qstats.backlog += qdisc_pkt_len(nskb);
-		sch->bstats.bytes += qdisc_pkt_len(nskb);
-		sch->bstats.packets++;
+		qdisc_bstats_update(sch, nskb);
 
 		return NET_XMIT_SUCCESS;
 	}

@@ -40,7 +40,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ehea"
-#define DRV_VERSION	"EHEA_0106"
+#define DRV_VERSION	"EHEA_0107"
 
 /* eHEA capability flags */
 #define DLPAR_PORT_ADD_REM 1

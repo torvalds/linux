@@ -6053,52 +6053,17 @@ static struct dcb_entry *new_dcb_entry(struct dcb_table *dcb)
 	return entry;
 }
 
-static void fabricate_vga_output(struct dcb_table *dcb, int i2c, int heads)
+static void fabricate_dcb_output(struct dcb_table *dcb, int type, int i2c,
+				 int heads, int or)
 {
 	struct dcb_entry *entry = new_dcb_entry(dcb);
 
-	entry->type = 0;
+	entry->type = type;
 	entry->i2c_index = i2c;
 	entry->heads = heads;
-	entry->location = DCB_LOC_ON_CHIP;
-	entry->or = 1;
-}
-
-static void fabricate_dvi_i_output(struct dcb_table *dcb, bool twoHeads)
-{
-	struct dcb_entry *entry = new_dcb_entry(dcb);
-
-	entry->type = 2;
-	entry->i2c_index = LEGACY_I2C_PANEL;
-	entry->heads = twoHeads ? 3 : 1;
-	entry->location = !DCB_LOC_ON_CHIP;	/* ie OFF CHIP */
-	entry->or = 1;	/* means |0x10 gets set on CRE_LCD__INDEX */
-	entry->duallink_possible = false; /* SiI164 and co. are single link */
-
-#if 0
-	/*
-	 * For dvi-a either crtc probably works, but my card appears to only
-	 * support dvi-d.  "nvidia" still attempts to program it for dvi-a,
-	 * doing the full fp output setup (program 0x6808.. fp dimension regs,
-	 * setting 0x680848 to 0x10000111 to enable, maybe setting 0x680880);
-	 * the monitor picks up the mode res ok and lights up, but no pixel
-	 * data appears, so the board manufacturer probably connected up the
-	 * sync lines, but missed the video traces / components
-	 *
-	 * with this introduction, dvi-a left as an exercise for the reader.
-	 */
-	fabricate_vga_output(dcb, LEGACY_I2C_PANEL, entry->heads);
-#endif
-}
-
-static void fabricate_tv_output(struct dcb_table *dcb, bool twoHeads)
-{
-	struct dcb_entry *entry = new_dcb_entry(dcb);
-
-	entry->type = 1;
-	entry->i2c_index = LEGACY_I2C_TV;
-	entry->heads = twoHeads ? 3 : 1;
-	entry->location = !DCB_LOC_ON_CHIP;	/* ie OFF CHIP */
+	if (type != OUTPUT_ANALOG)
+		entry->location = !DCB_LOC_ON_CHIP; /* ie OFF CHIP */
+	entry->or = or;
 }
 
 static bool
@@ -6365,8 +6330,36 @@ apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 	return true;
 }
 
+static void
+fabricate_dcb_encoder_table(struct drm_device *dev, struct nvbios *bios)
+{
+	struct dcb_table *dcb = &bios->dcb;
+	int all_heads = (nv_two_heads(dev) ? 3 : 1);
+
+#ifdef __powerpc__
+	/* Apple iMac G4 NV17 */
+	if (of_machine_is_compatible("PowerMac4,5")) {
+		fabricate_dcb_output(dcb, OUTPUT_TMDS, 0, all_heads, 1);
+		fabricate_dcb_output(dcb, OUTPUT_ANALOG, 1, all_heads, 2);
+		return;
+	}
+#endif
+
+	/* Make up some sane defaults */
+	fabricate_dcb_output(dcb, OUTPUT_ANALOG, LEGACY_I2C_CRT, 1, 1);
+
+	if (nv04_tv_identify(dev, bios->legacy.i2c_indices.tv) >= 0)
+		fabricate_dcb_output(dcb, OUTPUT_TV, LEGACY_I2C_TV,
+				     all_heads, 0);
+
+	else if (bios->tmds.output0_script_ptr ||
+		 bios->tmds.output1_script_ptr)
+		fabricate_dcb_output(dcb, OUTPUT_TMDS, LEGACY_I2C_PANEL,
+				     all_heads, 1);
+}
+
 static int
-parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
+parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct dcb_table *dcb = &bios->dcb;
@@ -6386,12 +6379,7 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 
 	/* this situation likely means a really old card, pre DCB */
 	if (dcbptr == 0x0) {
-		NV_INFO(dev, "Assuming a CRT output exists\n");
-		fabricate_vga_output(dcb, LEGACY_I2C_CRT, 1);
-
-		if (nv04_tv_identify(dev, bios->legacy.i2c_indices.tv) >= 0)
-			fabricate_tv_output(dcb, twoHeads);
-
+		fabricate_dcb_encoder_table(dev, bios);
 		return 0;
 	}
 
@@ -6451,21 +6439,7 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 		 */
 		NV_TRACEWARN(dev, "No useful information in BIOS output table; "
 				  "adding all possible outputs\n");
-		fabricate_vga_output(dcb, LEGACY_I2C_CRT, 1);
-
-		/*
-		 * Attempt to detect TV before DVI because the test
-		 * for the former is more accurate and it rules the
-		 * latter out.
-		 */
-		if (nv04_tv_identify(dev,
-				     bios->legacy.i2c_indices.tv) >= 0)
-			fabricate_tv_output(dcb, twoHeads);
-
-		else if (bios->tmds.output0_script_ptr ||
-			 bios->tmds.output1_script_ptr)
-			fabricate_dvi_i_output(dcb, twoHeads);
-
+		fabricate_dcb_encoder_table(dev, bios);
 		return 0;
 	}
 
@@ -6859,7 +6833,7 @@ nouveau_bios_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	ret = parse_dcb_table(dev, bios, nv_two_heads(dev));
+	ret = parse_dcb_table(dev, bios);
 	if (ret)
 		return ret;
 

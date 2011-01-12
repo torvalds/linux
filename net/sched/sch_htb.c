@@ -569,15 +569,12 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		}
 		return ret;
 	} else {
-		cl->bstats.packets +=
-			skb_is_gso(skb)?skb_shinfo(skb)->gso_segs:1;
-		cl->bstats.bytes += qdisc_pkt_len(skb);
+		bstats_update(&cl->bstats, skb);
 		htb_activate(q, cl);
 	}
 
 	sch->q.qlen++;
-	sch->bstats.packets += skb_is_gso(skb)?skb_shinfo(skb)->gso_segs:1;
-	sch->bstats.bytes += qdisc_pkt_len(skb);
+	qdisc_bstats_update(sch, skb);
 	return NET_XMIT_SUCCESS;
 }
 
@@ -648,12 +645,10 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
 				htb_add_to_wait_tree(q, cl, diff);
 		}
 
-		/* update byte stats except for leaves which are already updated */
-		if (cl->level) {
-			cl->bstats.bytes += bytes;
-			cl->bstats.packets += skb_is_gso(skb)?
-					skb_shinfo(skb)->gso_segs:1;
-		}
+		/* update basic stats except for leaves which are already updated */
+		if (cl->level)
+			bstats_update(&cl->bstats, skb);
+
 		cl = cl->parent;
 	}
 }
