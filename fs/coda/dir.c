@@ -61,7 +61,7 @@ static int coda_return_EIO(void)
 }
 #define CODA_EIO_ERROR ((void *) (coda_return_EIO))
 
-static const struct dentry_operations coda_dentry_operations =
+const struct dentry_operations coda_dentry_operations =
 {
 	.d_revalidate	= coda_dentry_revalidate,
 	.d_delete	= coda_dentry_delete,
@@ -126,8 +126,6 @@ static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, struc
 		return ERR_PTR(error);
 
 exit:
-	d_set_d_op(entry, &coda_dentry_operations);
-
 	if (inode && (type & CODA_NOCACHE))
 		coda_flag_inode(inode, C_VATTR | C_PURGE);
 

@@ -193,6 +193,7 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = 12;
 	sb->s_magic = CODA_SUPER_MAGIC;
 	sb->s_op = &coda_super_operations;
+	sb->s_d_op = &coda_dentry_operations;
 	sb->s_bdi = &vc->bdi;
 
 	/* get root fid from Venus: this needs the root inode */
