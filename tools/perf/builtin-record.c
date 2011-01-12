@@ -80,17 +80,6 @@ static const char		*cpu_list;
 
 static struct perf_mmap		mmap_array[MAX_NR_CPUS];
 
-static void mmap_write_tail(struct perf_mmap *md, unsigned long tail)
-{
-	struct perf_event_mmap_page *pc = md->base;
-
-	/*
-	 * ensure all reads are done before we write the tail out.
-	 */
-	/* mb(); */
-	pc->data_tail = tail;
-}
-
 static void advance_output(size_t size)
 {
 	bytes_written += size;
@@ -165,7 +154,7 @@ static void mmap_read(struct perf_mmap *md)
 	write_output(buf, size);
 
 	md->prev = old;
-	mmap_write_tail(md, old);
+	perf_mmap__write_tail(md, old);
 }
 
 static volatile int done = 0;
