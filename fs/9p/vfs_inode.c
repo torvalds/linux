@@ -699,11 +699,6 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 		goto error_iput;
 
 inst_out:
-	if (v9ses->cache)
-		d_set_d_op(dentry, &v9fs_cached_dentry_operations);
-	else
-		d_set_d_op(dentry, &v9fs_dentry_operations);
-
 	d_add(dentry, inode);
 	return NULL;
 
