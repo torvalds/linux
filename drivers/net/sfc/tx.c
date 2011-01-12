@@ -347,6 +347,13 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 	return efx_enqueue_skb(tx_queue, skb);
 }
 
+void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
+{
+	/* Must be inverse of queue lookup in efx_hard_start_xmit() */
+	tx_queue->core_txq = netdev_get_tx_queue(
+		tx_queue->efx->net_dev, tx_queue->queue / EFX_TXQ_TYPES);
+}
+
 void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 {
 	unsigned fill_level;

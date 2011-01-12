@@ -1910,10 +1910,8 @@ static int efx_register_netdev(struct efx_nic *efx)
 
 	efx_for_each_channel(channel, efx) {
 		struct efx_tx_queue *tx_queue;
-		efx_for_each_channel_tx_queue(tx_queue, channel) {
-			tx_queue->core_txq = netdev_get_tx_queue(
-				efx->net_dev, tx_queue->queue / EFX_TXQ_TYPES);
-		}
+		efx_for_each_channel_tx_queue(tx_queue, channel)
+			efx_init_tx_queue_core_txq(tx_queue);
 	}
 
 	/* Always start with carrier off; PHY events will detect the link */
