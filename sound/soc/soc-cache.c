@@ -1400,8 +1400,8 @@ static int snd_soc_flat_cache_sync(struct snd_soc_codec *codec)
 		ret = snd_soc_cache_read(codec, i, &val);
 		if (ret)
 			return ret;
-		if (codec_drv->reg_cache_default)
-			if (snd_soc_get_cache_val(codec_drv->reg_cache_default,
+		if (codec->reg_def_copy)
+			if (snd_soc_get_cache_val(codec->reg_def_copy,
 						  i, codec_drv->reg_word_size) == val)
 				continue;
 		ret = snd_soc_write(codec, i, val);
@@ -1446,16 +1446,8 @@ static int snd_soc_flat_cache_init(struct snd_soc_codec *codec)
 	codec_drv = codec->driver;
 	reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
 
-	/*
-	 * for flat compression, we don't need to keep a copy of the
-	 * original defaults register cache as it will definitely not
-	 * be marked as __devinitconst
-	 */
-	kfree(codec->reg_def_copy);
-	codec->reg_def_copy = NULL;
-
-	if (codec_drv->reg_cache_default)
-		codec->reg_cache = kmemdup(codec_drv->reg_cache_default,
+	if (codec->reg_def_copy)
+		codec->reg_cache = kmemdup(codec->reg_def_copy,
 					   reg_size, GFP_KERNEL);
 	else
 		codec->reg_cache = kzalloc(reg_size, GFP_KERNEL);
