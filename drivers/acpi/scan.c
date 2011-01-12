@@ -803,7 +803,7 @@ static void acpi_bus_set_run_wake_flags(struct acpi_device *device)
 	/* Power button, Lid switch always enable wakeup */
 	if (!acpi_match_device_ids(device, button_device_ids)) {
 		device->wakeup.flags.run_wake = 1;
-		device->wakeup.flags.always_enabled = 1;
+		device_set_wakeup_capable(&device->dev, true);
 		return;
 	}
 
