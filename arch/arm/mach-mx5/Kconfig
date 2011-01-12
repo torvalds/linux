@@ -133,6 +133,13 @@ config MACH_MX53_EVK
 	  Include support for MX53 EVK platform. This includes specific
 	  configurations for the board and its peripherals.
 
+config MACH_MX53_SMD
+	bool "Support MX53 SMD platforms"
+	select SOC_IMX53
+	select IMX_HAVE_PLATFORM_IMX_UART
+	help
+	  Include support for MX53 SMD platform. This includes specific
+	  configurations for the board and its peripherals.
 
 config MACH_MX50_RDP
 	bool "Support MX50 reference design platform"
