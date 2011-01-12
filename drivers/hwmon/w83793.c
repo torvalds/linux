@@ -51,7 +51,6 @@
 #define WATCHDOG_TIMEOUT 2	/* 2 minute default timeout */
 
 /* Addresses to scan */
-static DEFINE_MUTEX(watchdog_mutex);
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 						I2C_CLIENT_END };
 
@@ -1350,7 +1349,7 @@ static ssize_t watchdog_write(struct file *filp, const char __user *buf,
 static long watchdog_ioctl(struct file *filp, unsigned int cmd,
 			   unsigned long arg)
 {
-	static struct watchdog_info ident = {
+	struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING |
 			   WDIOF_SETTIMEOUT |
 			   WDIOF_CARDRESET,
@@ -1360,7 +1359,6 @@ static long watchdog_ioctl(struct file *filp, unsigned int cmd,
 	int val, ret = 0;
 	struct w83793_data *data = filp->private_data;
 
-	mutex_lock(&watchdog_mutex);
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
 		if (!nowayout)
@@ -1414,7 +1412,6 @@ static long watchdog_ioctl(struct file *filp, unsigned int cmd,
 	default:
 		ret = -ENOTTY;
 	}
-	mutex_unlock(&watchdog_mutex);
 	return ret;
 }
 
