@@ -816,6 +816,7 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 	struct tegra_dc *dc = ptr;
 	unsigned long status;
 	unsigned long val;
+	unsigned long underflow_mask;
 	int i;
 
 	status = tegra_dc_readl(dc, DC_CMD_INT_STATUS);
@@ -844,6 +845,45 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 		if (completed)
 			wake_up(&dc->wq);
 	}
+
+
+	/*
+	 * Overlays can get thier internal state corrupted during and underflow
+	 * condition.  The only way to fix this state is to reset the DC.
+	 * if we get 4 consecutive frames with underflows, assume we're
+	 * hosed and reset.
+	 */
+	underflow_mask = status & (WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT);
+	if (underflow_mask) {
+		val = tegra_dc_readl(dc, DC_CMD_INT_ENABLE);
+		val |= V_BLANK_INT;
+		tegra_dc_writel(dc, val, DC_CMD_INT_ENABLE);
+		dc->underflow_mask |= underflow_mask;
+	}
+
+	if (status & V_BLANK_INT) {
+		int i;
+
+		for (i = 0; i< DC_N_WINDOWS; i++) {
+			if (dc->underflow_mask & (WIN_A_UF_INT <<i)) {
+				dc->windows[i].underflows++;
+
+				if (dc->windows[i].underflows > 4)
+					schedule_work(&dc->reset_work);
+			} else {
+				dc->windows[i].underflows = 0;
+			}
+		}
+
+		if (!dc->underflow_mask) {
+			val = tegra_dc_readl(dc, DC_CMD_INT_ENABLE);
+			val &= ~V_BLANK_INT;
+			tegra_dc_writel(dc, val, DC_CMD_INT_ENABLE);
+		}
+
+		dc->underflow_mask = 0;
+	}
+
 
 	return IRQ_HANDLED;
 }
@@ -935,8 +975,14 @@ static void tegra_dc_init(struct tegra_dc *dc)
 	tegra_dc_writel(dc, 0x00202020, DC_DISP_MEM_HIGH_PRIORITY);
 	tegra_dc_writel(dc, 0x00010101, DC_DISP_MEM_HIGH_PRIORITY_TIMER);
 
-	tegra_dc_writel(dc, 0x00000002, DC_CMD_INT_MASK);
-	tegra_dc_writel(dc, 0x00000000, DC_CMD_INT_ENABLE);
+	tegra_dc_writel(dc, (FRAME_END_INT |
+			     V_BLANK_INT |
+			     WIN_A_UF_INT |
+			     WIN_B_UF_INT |
+			     WIN_C_UF_INT), DC_CMD_INT_MASK);
+	tegra_dc_writel(dc, (WIN_A_UF_INT |
+			     WIN_B_UF_INT |
+			     WIN_C_UF_INT), DC_CMD_INT_ENABLE);
 
 	tegra_dc_writel(dc, 0x00000000, DC_DISP_BORDER_COLOR);
 
@@ -1031,6 +1077,25 @@ void tegra_dc_disable(struct tegra_dc *dc)
 	mutex_unlock(&dc->lock);
 }
 
+static void tegra_dc_reset_worker(struct work_struct *work)
+{
+	struct tegra_dc *dc =
+		container_of(work, struct tegra_dc, reset_work);
+
+	dev_warn(&dc->ndev->dev, "overlay stuck in underflow state.  resetting.\n");
+
+	mutex_lock(&dc->lock);
+	_tegra_dc_disable(dc);
+
+	tegra_periph_reset_assert(dc->clk);
+	msleep(10);
+	tegra_periph_reset_deassert(dc->clk);
+
+	_tegra_dc_enable(dc);
+	mutex_unlock(&dc->lock);
+}
+
+
 static int tegra_dc_probe(struct nvhost_device *ndev)
 {
 	struct tegra_dc *dc;
@@ -1120,6 +1185,7 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 
 	mutex_init(&dc->lock);
 	init_waitqueue_head(&dc->wq);
+	INIT_WORK(&dc->reset_work, tegra_dc_reset_worker);
 
 	dc->n_windows = DC_N_WINDOWS;
 	for (i = 0; i < dc->n_windows; i++) {
