@@ -64,7 +64,7 @@ config XEN_SYS_HYPERVISOR
 
 config XEN_PLATFORM_PCI
 	tristate "xen platform pci device driver"
-	depends on XEN_PVHVM
+	depends on XEN_PVHVM && PCI
 	default m
 	help
 	  Driver for the Xen PCI Platform device: it is responsible for
