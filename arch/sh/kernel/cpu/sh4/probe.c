@@ -154,6 +154,11 @@ void __cpuinit cpu_probe(void)
 		case 0x11:
 			boot_cpu_data.type = CPU_SH7757;
 			break;
+		case 0xd0:
+		case 0x40: /* yon-ten-go */
+			boot_cpu_data.type = CPU_SH7372;
+			break;
+
 		}
 		break;
 	case 0x4000:	/* 1st cut */
