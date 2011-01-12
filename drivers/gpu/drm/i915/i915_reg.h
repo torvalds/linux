@@ -1437,6 +1437,10 @@
 #define   LVDS_PIPEB_SELECT		(1 << 30)
 /* LVDS dithering flag on 965/g4x platform */
 #define   LVDS_ENABLE_DITHER		(1 << 25)
+/* LVDS sync polarity flags. Set to invert (i.e. negative) */
+#define   LVDS_VSYNC_POLARITY		(1 << 21)
+#define   LVDS_HSYNC_POLARITY		(1 << 20)
+
 /* Enable border for unscaled (or aspect-scaled) display */
 #define   LVDS_BORDER_ENABLE		(1 << 15)
 /*

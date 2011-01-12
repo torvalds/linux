@@ -4304,6 +4304,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	int ret;
 	struct fdi_m_n m_n = {0};
 	u32 reg, temp;
+	u32 lvds_sync = 0;
 	int target_clock;
 
 	drm_vblank_pre_modeset(dev, pipe);
@@ -4754,6 +4755,22 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				temp |= LVDS_ENABLE_DITHER;
 			else
 				temp &= ~LVDS_ENABLE_DITHER;
+		}
+		if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
+			lvds_sync |= LVDS_HSYNC_POLARITY;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
+			lvds_sync |= LVDS_VSYNC_POLARITY;
+		if ((temp & (LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY))
+		    != lvds_sync) {
+			char flags[2] = "-+";
+			DRM_INFO("Changing LVDS panel from "
+				 "(%chsync, %cvsync) to (%chsync, %cvsync)\n",
+				 flags[!(temp & LVDS_HSYNC_POLARITY)],
+				 flags[!(temp & LVDS_VSYNC_POLARITY)],
+				 flags[!(lvds_sync & LVDS_HSYNC_POLARITY)],
+				 flags[!(lvds_sync & LVDS_VSYNC_POLARITY)]);
+			temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
+			temp |= lvds_sync;
 		}
 		I915_WRITE(reg, temp);
 	}
