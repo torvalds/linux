@@ -583,7 +583,6 @@ atc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		desc->lli.ctrlb = ctrlb;
 
 		desc->txd.cookie = 0;
-		async_tx_ack(&desc->txd);
 
 		if (!first) {
 			first = desc;
