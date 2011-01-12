@@ -3727,11 +3727,6 @@ int btrfs_block_rsv_check(struct btrfs_trans_handle *trans,
 		return 0;
 	}
 
-	WARN_ON(1);
-	printk(KERN_INFO"block_rsv size %llu reserved %llu freed %llu %llu\n",
-		block_rsv->size, block_rsv->reserved,
-		block_rsv->freed[0], block_rsv->freed[1]);
-
 	return -ENOSPC;
 }
 
