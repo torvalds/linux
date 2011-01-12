@@ -11,6 +11,13 @@ config HAVE_FB_ATMEL
 config HAVE_FB_IMX
 	bool
 
+config SH_MIPI_DSI
+	tristate
+	depends on (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
+
+config SH_LCD_MIPI_DSI
+	bool
+
 source "drivers/char/agp/Kconfig"
 
 source "drivers/gpu/vga/Kconfig"
@@ -1989,13 +1996,6 @@ config FB_W100
 	  say M here and read <file:Documentation/kbuild/modules.txt>.
 
 	  If unsure, say N.
-
-config SH_MIPI_DSI
-	tristate
-	depends on (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
-
-config SH_LCD_MIPI_DSI
-	bool
 
 config FB_SH_MOBILE_LCDC
 	tristate "SuperH Mobile LCDC framebuffer support"
