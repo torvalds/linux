@@ -301,6 +301,7 @@ struct sdma_firmware_header {
 
 struct sdma_engine {
 	struct device			*dev;
+	struct device_dma_parameters	dma_parms;
 	struct sdma_channel		channel[MAX_DMA_CHANNELS];
 	struct sdma_channel_control	*channel_control;
 	void __iomem			*regs;
@@ -1317,6 +1318,8 @@ static int __init sdma_probe(struct platform_device *pdev)
 	sdma->dma_device.device_prep_dma_cyclic = sdma_prep_dma_cyclic;
 	sdma->dma_device.device_control = sdma_control;
 	sdma->dma_device.device_issue_pending = sdma_issue_pending;
+	sdma->dma_device.dev->dma_parms = &sdma->dma_parms;
+	dma_set_max_seg_size(sdma->dma_device.dev, 65535);
 
 	ret = dma_async_device_register(&sdma->dma_device);
 	if (ret) {
