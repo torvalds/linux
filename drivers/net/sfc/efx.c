@@ -1153,6 +1153,9 @@ static int efx_wanted_channels(void)
 	int count;
 	int cpu;
 
+	if (rss_cpus)
+		return rss_cpus;
+
 	if (unlikely(!zalloc_cpumask_var(&core_mask, GFP_KERNEL))) {
 		printk(KERN_WARNING
 		       "sfc: RSS disabled due to allocation failure\n");
