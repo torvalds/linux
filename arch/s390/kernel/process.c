@@ -30,9 +30,11 @@
 #include <linux/tick.h>
 #include <linux/elfcore.h>
 #include <linux/kernel_stat.h>
+#include <linux/personality.h>
 #include <linux/syscalls.h>
 #include <linux/compat.h>
 #include <linux/kprobes.h>
+#include <linux/random.h>
 #include <asm/compat.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -331,4 +333,11 @@ unsigned long get_wchan(struct task_struct *p)
 			return return_address;
 	}
 	return 0;
+}
+
+unsigned long arch_align_stack(unsigned long sp)
+{
+	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
+		sp -= get_random_int() & ~PAGE_MASK;
+	return sp & ~0xf;
 }
