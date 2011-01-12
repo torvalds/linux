@@ -41,6 +41,40 @@
 static const struct vm_operations_struct xfs_file_vm_ops;
 
 /*
+ * Locking primitives for read and write IO paths to ensure we consistently use
+ * and order the inode->i_mutex, ip->i_lock and ip->i_iolock.
+ */
+static inline void
+xfs_rw_ilock(
+	struct xfs_inode	*ip,
+	int			type)
+{
+	if (type & XFS_IOLOCK_EXCL)
+		mutex_lock(&VFS_I(ip)->i_mutex);
+	xfs_ilock(ip, type);
+}
+
+static inline void
+xfs_rw_iunlock(
+	struct xfs_inode	*ip,
+	int			type)
+{
+	xfs_iunlock(ip, type);
+	if (type & XFS_IOLOCK_EXCL)
+		mutex_unlock(&VFS_I(ip)->i_mutex);
+}
+
+static inline void
+xfs_rw_ilock_demote(
+	struct xfs_inode	*ip,
+	int			type)
+{
+	xfs_ilock_demote(ip, type);
+	if (type & XFS_IOLOCK_EXCL)
+		mutex_unlock(&VFS_I(ip)->i_mutex);
+}
+
+/*
  *	xfs_iozero
  *
  *	xfs_iozero clears the specified range of buffer supplied,
@@ -262,22 +296,21 @@ xfs_file_aio_read(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	if (unlikely(ioflags & IO_ISDIRECT))
-		mutex_lock(&inode->i_mutex);
-	xfs_ilock(ip, XFS_IOLOCK_SHARED);
-
 	if (unlikely(ioflags & IO_ISDIRECT)) {
+		xfs_rw_ilock(ip, XFS_IOLOCK_EXCL);
+
 		if (inode->i_mapping->nrpages) {
 			ret = -xfs_flushinval_pages(ip,
 					(iocb->ki_pos & PAGE_CACHE_MASK),
 					-1, FI_REMAPF_LOCKED);
+			if (ret) {
+				xfs_rw_iunlock(ip, XFS_IOLOCK_EXCL);
+				return ret;
+			}
 		}
-		mutex_unlock(&inode->i_mutex);
-		if (ret) {
-			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-			return ret;
-		}
-	}
+		xfs_rw_ilock_demote(ip, XFS_IOLOCK_EXCL);
+	} else
+		xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
 
 	trace_xfs_file_read(ip, size, iocb->ki_pos, ioflags);
 
@@ -285,7 +318,7 @@ xfs_file_aio_read(
 	if (ret > 0)
 		XFS_STATS_ADD(xs_read_bytes, ret);
 
-	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
+	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
 	return ret;
 }
 
@@ -309,7 +342,7 @@ xfs_file_splice_read(
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return -EIO;
 
-	xfs_ilock(ip, XFS_IOLOCK_SHARED);
+	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
 
 	trace_xfs_file_splice_read(ip, count, *ppos, ioflags);
 
@@ -317,7 +350,7 @@ xfs_file_splice_read(
 	if (ret > 0)
 		XFS_STATS_ADD(xs_read_bytes, ret);
 
-	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
+	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
 	return ret;
 }
 
@@ -338,10 +371,10 @@ xfs_aio_write_isize_update(
 		*ppos = isize;
 
 	if (*ppos > ip->i_size) {
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		xfs_rw_ilock(ip, XFS_ILOCK_EXCL);
 		if (*ppos > ip->i_size)
 			ip->i_size = *ppos;
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
 	}
 }
 
@@ -356,14 +389,22 @@ xfs_aio_write_newsize_update(
 	struct xfs_inode	*ip)
 {
 	if (ip->i_new_size) {
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		xfs_rw_ilock(ip, XFS_ILOCK_EXCL);
 		ip->i_new_size = 0;
 		if (ip->i_d.di_size > ip->i_size)
 			ip->i_d.di_size = ip->i_size;
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
 	}
 }
 
+/*
+ * xfs_file_splice_write() does not use xfs_rw_ilock() because
+ * generic_file_splice_write() takes the i_mutex itself. This, in theory,
+ * couuld cause lock inversions between the aio_write path and the splice path
+ * if someone is doing concurrent splice(2) based writes and write(2) based
+ * writes to the same inode. The only real way to fix this is to re-implement
+ * the generic code here with correct locking orders.
+ */
 STATIC ssize_t
 xfs_file_splice_write(
 	struct pipe_inode_info	*pipe,
@@ -604,7 +645,6 @@ xfs_file_aio_write(
 	xfs_fsize_t		new_size;
 	int			iolock;
 	size_t			ocount = 0, count;
-	int			need_i_mutex;
 
 	XFS_STATS_INC(xs_write_calls);
 
@@ -631,21 +671,17 @@ xfs_file_aio_write(
 relock:
 	if (ioflags & IO_ISDIRECT) {
 		iolock = XFS_IOLOCK_SHARED;
-		need_i_mutex = 0;
 	} else {
 		iolock = XFS_IOLOCK_EXCL;
-		need_i_mutex = 1;
-		mutex_lock(&inode->i_mutex);
 	}
 
-	xfs_ilock(ip, XFS_ILOCK_EXCL|iolock);
-
 start:
+	xfs_rw_ilock(ip, XFS_ILOCK_EXCL|iolock);
 	ret = generic_write_checks(file, &pos, &count,
 					S_ISBLK(inode->i_mode));
 	if (ret) {
-		xfs_iunlock(ip, XFS_ILOCK_EXCL|iolock);
-		goto out_unlock_mutex;
+		xfs_rw_iunlock(ip, XFS_ILOCK_EXCL|iolock);
+		return ret;
 	}
 
 	if (ioflags & IO_ISDIRECT) {
@@ -654,16 +690,20 @@ start:
 				mp->m_rtdev_targp : mp->m_ddev_targp;
 
 		if ((pos & target->bt_smask) || (count & target->bt_smask)) {
-			xfs_iunlock(ip, XFS_ILOCK_EXCL|iolock);
+			xfs_rw_iunlock(ip, XFS_ILOCK_EXCL|iolock);
 			return XFS_ERROR(-EINVAL);
 		}
 
-		if (!need_i_mutex && (mapping->nrpages || pos > ip->i_size)) {
-			xfs_iunlock(ip, XFS_ILOCK_EXCL|iolock);
+		/*
+		 * For direct I/O, if there are cached pages or we're extending
+		 * the file, we need IOLOCK_EXCL until we're sure the bytes at
+		 * the new EOF have been zeroed and/or the cached pages are
+		 * flushed out.  Upgrade the I/O lock and start again.
+		 */
+		if (iolock != XFS_IOLOCK_EXCL &&
+		    (mapping->nrpages || pos > ip->i_size)) {
+			xfs_rw_iunlock(ip, XFS_ILOCK_EXCL|iolock);
 			iolock = XFS_IOLOCK_EXCL;
-			need_i_mutex = 1;
-			mutex_lock(&inode->i_mutex);
-			xfs_ilock(ip, XFS_ILOCK_EXCL|iolock);
 			goto start;
 		}
 	}
@@ -687,11 +727,11 @@ start:
 	if (pos > ip->i_size) {
 		ret = -xfs_zero_eof(ip, pos, ip->i_size);
 		if (ret) {
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
+			xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
 			goto out_unlock_internal;
 		}
 	}
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
 
 	/*
 	 * If we're writing the file then make sure to clear the
@@ -708,7 +748,7 @@ start:
 
 	if ((ioflags & IO_ISDIRECT)) {
 		if (mapping->nrpages) {
-			WARN_ON(need_i_mutex == 0);
+			WARN_ON(iolock != XFS_IOLOCK_EXCL);
 			ret = -xfs_flushinval_pages(ip,
 					(pos & PAGE_CACHE_MASK),
 					-1, FI_REMAPF_LOCKED);
@@ -716,13 +756,10 @@ start:
 				goto out_unlock_internal;
 		}
 
-		if (need_i_mutex) {
+		if (iolock == XFS_IOLOCK_EXCL) {
 			/* demote the lock now the cached pages are gone */
-			xfs_ilock_demote(ip, XFS_IOLOCK_EXCL);
-			mutex_unlock(&inode->i_mutex);
-
+			xfs_rw_ilock_demote(ip, XFS_IOLOCK_EXCL);
 			iolock = XFS_IOLOCK_SHARED;
-			need_i_mutex = 0;
 		}
 
 		trace_xfs_file_direct_write(ip, count, iocb->ki_pos, ioflags);
@@ -740,7 +777,7 @@ start:
 			count -= ret;
 
 			ioflags &= ~IO_ISDIRECT;
-			xfs_iunlock(ip, iolock);
+			xfs_rw_iunlock(ip, iolock);
 			goto relock;
 		}
 	} else {
@@ -775,14 +812,9 @@ write_retry:
 		loff_t end = pos + ret - 1;
 		int error, error2;
 
-		xfs_iunlock(ip, iolock);
-		if (need_i_mutex)
-			mutex_unlock(&inode->i_mutex);
-
+		xfs_rw_iunlock(ip, iolock);
 		error = filemap_write_and_wait_range(mapping, pos, end);
-		if (need_i_mutex)
-			mutex_lock(&inode->i_mutex);
-		xfs_ilock(ip, iolock);
+		xfs_rw_ilock(ip, iolock);
 
 		error2 = -xfs_file_fsync(file,
 					 (file->f_flags & __O_SYNC) ? 0 : 1);
@@ -794,10 +826,7 @@ write_retry:
 
  out_unlock_internal:
 	xfs_aio_write_newsize_update(ip);
-	xfs_iunlock(ip, iolock);
- out_unlock_mutex:
-	if (need_i_mutex)
-		mutex_unlock(&inode->i_mutex);
+	xfs_rw_iunlock(ip, iolock);
 	return ret;
 }
 
