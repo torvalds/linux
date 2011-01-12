@@ -243,6 +243,21 @@ static struct dma_async_tx_descriptor *imxdma_prep_slave_sg(
 	else
 		dmamode = DMA_MODE_WRITE;
 
+	switch (imxdmac->word_size) {
+	case DMA_SLAVE_BUSWIDTH_4_BYTES:
+		if (sgl->length & 3 || sgl->dma_address & 3)
+			return NULL;
+		break;
+	case DMA_SLAVE_BUSWIDTH_2_BYTES:
+		if (sgl->length & 1 || sgl->dma_address & 1)
+			return NULL;
+		break;
+	case DMA_SLAVE_BUSWIDTH_1_BYTE:
+		break;
+	default:
+		return NULL;
+	}
+
 	ret = imx_dma_setup_sg(imxdmac->imxdma_channel, sgl, sg_len,
 		 dma_length, imxdmac->per_address, dmamode);
 	if (ret)
