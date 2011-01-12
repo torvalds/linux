@@ -280,12 +280,18 @@ cpu_resume_l1_flags:
  */
 __v7_ca5mp_setup:
 __v7_ca9mp_setup:
+	mov	r10, #(1 << 0)			@ TLB ops broadcasting
+	b	1f
+__v7_ca15mp_setup:
+	mov	r10, #0
+1:
 #ifdef CONFIG_SMP
 	ALT_SMP(mrc	p15, 0, r0, c1, c0, 1)
 	ALT_UP(mov	r0, #(1 << 6))		@ fake it for UP
 	tst	r0, #(1 << 6)			@ SMP/nAMP mode enabled?
-	orreq	r0, r0, #(1 << 6) | (1 << 0)	@ Enable SMP/nAMP mode and
-	mcreq	p15, 0, r0, c1, c0, 1		@ TLB ops broadcasting
+	orreq	r0, r0, #(1 << 6)		@ Enable SMP/nAMP mode
+	orreq	r0, r0, r10			@ Enable CPU-specific SMP bits
+	mcreq	p15, 0, r0, c1, c0, 1
 #endif
 __v7_setup:
 	adr	r12, __v7_setup_stack		@ the local stack
@@ -463,6 +469,16 @@ __v7_ca9mp_proc_info:
 	.long	0xff0ffff0
 	__v7_proc __v7_ca9mp_setup
 	.size	__v7_ca9mp_proc_info, . - __v7_ca9mp_proc_info
+
+	/*
+	 * ARM Ltd. Cortex A15 processor.
+	 */
+	.type	__v7_ca15mp_proc_info, #object
+__v7_ca15mp_proc_info:
+	.long	0x410fc0f0
+	.long	0xff0ffff0
+	__v7_proc __v7_ca15mp_setup, hwcaps = HWCAP_IDIV
+	.size	__v7_ca15mp_proc_info, . - __v7_ca15mp_proc_info
 
 	/*
 	 * Match any ARMv7 processor core.
