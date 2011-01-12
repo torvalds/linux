@@ -141,63 +141,63 @@ struct {
 } *buffers;
 unsigned int i;
 
-memset (&amp;reqbuf, 0, sizeof (reqbuf));
+memset(&amp;reqbuf, 0, sizeof(reqbuf));
 reqbuf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 reqbuf.memory = V4L2_MEMORY_MMAP;
 reqbuf.count = 20;
 
 if (-1 == ioctl (fd, &VIDIOC-REQBUFS;, &amp;reqbuf)) {
 	if (errno == EINVAL)
-		printf ("Video capturing or mmap-streaming is not supported\n");
+		printf("Video capturing or mmap-streaming is not supported\n");
 	else
-		perror ("VIDIOC_REQBUFS");
+		perror("VIDIOC_REQBUFS");
 
-	exit (EXIT_FAILURE);
+	exit(EXIT_FAILURE);
 }
 
 /* We want at least five buffers. */
 
 if (reqbuf.count &lt; 5) {
 	/* You may need to free the buffers here. */
-	printf ("Not enough buffer memory\n");
-	exit (EXIT_FAILURE);
+	printf("Not enough buffer memory\n");
+	exit(EXIT_FAILURE);
 }
 
-buffers = calloc (reqbuf.count, sizeof (*buffers));
-assert (buffers != NULL);
+buffers = calloc(reqbuf.count, sizeof(*buffers));
+assert(buffers != NULL);
 
 for (i = 0; i &lt; reqbuf.count; i++) {
 	&v4l2-buffer; buffer;
 
-	memset (&amp;buffer, 0, sizeof (buffer));
+	memset(&amp;buffer, 0, sizeof(buffer));
 	buffer.type = reqbuf.type;
 	buffer.memory = V4L2_MEMORY_MMAP;
 	buffer.index = i;
 
 	if (-1 == ioctl (fd, &VIDIOC-QUERYBUF;, &amp;buffer)) {
-		perror ("VIDIOC_QUERYBUF");
-		exit (EXIT_FAILURE);
+		perror("VIDIOC_QUERYBUF");
+		exit(EXIT_FAILURE);
 	}
 
 	buffers[i].length = buffer.length; /* remember for munmap() */
 
-	buffers[i].start = mmap (NULL, buffer.length,
-				 PROT_READ | PROT_WRITE, /* recommended */
-				 MAP_SHARED,             /* recommended */
-				 fd, buffer.m.offset);
+	buffers[i].start = mmap(NULL, buffer.length,
+				PROT_READ | PROT_WRITE, /* recommended */
+				MAP_SHARED,             /* recommended */
+				fd, buffer.m.offset);
 
 	if (MAP_FAILED == buffers[i].start) {
 		/* If you do not exit here you should unmap() and free()
 		   the buffers mapped so far. */
-		perror ("mmap");
-		exit (EXIT_FAILURE);
+		perror("mmap");
+		exit(EXIT_FAILURE);
 	}
 }
 
 /* Cleanup. */
 
 for (i = 0; i &lt; reqbuf.count; i++)
-	munmap (buffers[i].start, buffers[i].length);
+	munmap(buffers[i].start, buffers[i].length);
       </programlisting>
     </example>
 
