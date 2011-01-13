@@ -821,7 +821,6 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
 		return;
 	VM_BUG_ON(list_empty(&pc->lru));
 	list_del_init(&pc->lru);
-	return;
 }
 
 void mem_cgroup_del_lru(struct page *page)
