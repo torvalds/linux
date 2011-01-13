@@ -98,13 +98,22 @@ STATIC int INIT gunzip(unsigned char *buf, int len,
 	 * possible asciz filename)
 	 */
 	strm->next_in = zbuf + 10;
+	strm->avail_in = len - 10;
 	/* skip over asciz filename */
 	if (zbuf[3] & 0x8) {
-		while (strm->next_in[0])
-			strm->next_in++;
-		strm->next_in++;
+		do {
+			/*
+			 * If the filename doesn't fit into the buffer,
+			 * the file is very probably corrupt. Don't try
+			 * to read more data.
+			 */
+			if (strm->avail_in == 0) {
+				error("header error");
+				goto gunzip_5;
+			}
+			--strm->avail_in;
+		} while (*strm->next_in++);
 	}
-	strm->avail_in = len - (strm->next_in - zbuf);
 
 	strm->next_out = out_buf;
 	strm->avail_out = out_len;
