@@ -42,6 +42,8 @@ struct compact_control {
 	unsigned int order;		/* order a direct compactor needs */
 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
 	struct zone *zone;
+
+	int compact_mode;
 };
 
 static unsigned long release_freepages(struct list_head *freelist)
@@ -382,10 +384,10 @@ static void update_nr_listpages(struct compact_control *cc)
 }
 
 static int compact_finished(struct zone *zone,
-						struct compact_control *cc)
+			    struct compact_control *cc)
 {
 	unsigned int order;
-	unsigned long watermark = low_wmark_pages(zone) + (1 << cc->order);
+	unsigned long watermark;
 
 	if (fatal_signal_pending(current))
 		return COMPACT_PARTIAL;
@@ -395,10 +397,25 @@ static int compact_finished(struct zone *zone,
 		return COMPACT_COMPLETE;
 
 	/* Compaction run is not finished if the watermark is not met */
+	if (cc->compact_mode != COMPACT_MODE_KSWAPD)
+		watermark = low_wmark_pages(zone);
+	else
+		watermark = high_wmark_pages(zone);
+	watermark += (1 << cc->order);
+
 	if (!zone_watermark_ok(zone, cc->order, watermark, 0, 0))
 		return COMPACT_CONTINUE;
 
 	if (cc->order == -1)
+		return COMPACT_CONTINUE;
+
+	/*
+	 * Generating only one page of the right order is not enough
+	 * for kswapd, we must continue until we're above the high
+	 * watermark as a pool for high order GFP_ATOMIC allocations
+	 * too.
+	 */
+	if (cc->compact_mode == COMPACT_MODE_KSWAPD)
 		return COMPACT_CONTINUE;
 
 	/* Direct compactor: Is a suitable page free? */
@@ -514,8 +531,9 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 }
 
 unsigned long compact_zone_order(struct zone *zone,
-						int order, gfp_t gfp_mask,
-						bool sync)
+				 int order, gfp_t gfp_mask,
+				 bool sync,
+				 int compact_mode)
 {
 	struct compact_control cc = {
 		.nr_freepages = 0,
@@ -524,6 +542,7 @@ unsigned long compact_zone_order(struct zone *zone,
 		.migratetype = allocflags_to_migratetype(gfp_mask),
 		.zone = zone,
 		.sync = sync,
+		.compact_mode = compact_mode,
 	};
 	INIT_LIST_HEAD(&cc.freepages);
 	INIT_LIST_HEAD(&cc.migratepages);
@@ -569,7 +588,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
 								nodemask) {
 		int status;
 
-		status = compact_zone_order(zone, order, gfp_mask, sync);
+		status = compact_zone_order(zone, order, gfp_mask, sync,
+					    COMPACT_MODE_DIRECT_RECLAIM);
 		rc = max(status, rc);
 
 		/* If a normal allocation would succeed, stop compacting */
@@ -600,6 +620,7 @@ static int compact_node(int nid)
 			.nr_freepages = 0,
 			.nr_migratepages = 0,
 			.order = -1,
+			.compact_mode = COMPACT_MODE_DIRECT_RECLAIM,
 		};
 
 		zone = &pgdat->node_zones[zoneid];
