@@ -228,6 +228,36 @@ static void tl_cleanup(struct drbd_conf *mdev)
 	mdev->tl_hash_s = 0;
 }
 
+static void drbd_free_tl_hash(struct drbd_conf *mdev)
+{
+	struct hlist_head *h;
+
+	spin_lock_irq(&mdev->req_lock);
+
+	if (!mdev->tl_hash || mdev->state.conn != C_STANDALONE) {
+		spin_unlock_irq(&mdev->req_lock);
+		return;
+	}
+	/* paranoia code */
+	for (h = mdev->ee_hash; h < mdev->ee_hash + mdev->ee_hash_s; h++)
+		if (h->first)
+			dev_err(DEV, "ASSERT FAILED ee_hash[%u].first == %p, expected NULL\n",
+				(int)(h - mdev->ee_hash), h->first);
+	kfree(mdev->ee_hash);
+	mdev->ee_hash = NULL;
+	mdev->ee_hash_s = 0;
+
+	/* paranoia code */
+	for (h = mdev->tl_hash; h < mdev->tl_hash + mdev->tl_hash_s; h++)
+		if (h->first)
+			dev_err(DEV, "ASSERT FAILED tl_hash[%u] == %p, expected NULL\n",
+				(int)(h - mdev->tl_hash), h->first);
+	kfree(mdev->tl_hash);
+	mdev->tl_hash = NULL;
+	mdev->tl_hash_s = 0;
+	spin_unlock_irq(&mdev->req_lock);
+}
+
 /**
  * _tl_add_barrier() - Adds a barrier to the transfer log
  * @mdev:	DRBD device.
