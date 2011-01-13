@@ -357,6 +357,7 @@ void prep_compound_page(struct page *page, unsigned long order)
 	}
 }
 
+/* update __split_huge_page_refcount if you change this function */
 static int destroy_compound_page(struct page *page, unsigned long order)
 {
 	int i;
