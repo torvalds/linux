@@ -19,7 +19,6 @@
 #include <linux/vmalloc.h>
 #include <linux/log2.h>
 #include <linux/dm-kcopyd.h>
-#include <linux/workqueue.h>
 
 #include "dm-exception-store.h"
 
@@ -106,10 +105,6 @@ struct dm_snapshot {
 
 	struct dm_kcopyd_client *kcopyd_client;
 
-	/* Queue of snapshot writes for ksnapd to flush */
-	struct bio_list queued_bios;
-	struct work_struct queued_bios_work;
-
 	/* Wait for events based on state_bits */
 	unsigned long state_bits;
 
@@ -159,9 +154,6 @@ struct dm_dev *dm_snap_cow(struct dm_snapshot *s)
 	return s->cow;
 }
 EXPORT_SYMBOL(dm_snap_cow);
-
-static struct workqueue_struct *ksnapd;
-static void flush_queued_bios(struct work_struct *work);
 
 static sector_t chunk_to_sector(struct dm_exception_store *store,
 				chunk_t chunk)
@@ -1153,9 +1145,6 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	spin_lock_init(&s->tracked_chunk_lock);
 
-	bio_list_init(&s->queued_bios);
-	INIT_WORK(&s->queued_bios_work, flush_queued_bios);
-
 	ti->private = s;
 	ti->num_flush_requests = num_flush_requests;
 
@@ -1279,8 +1268,6 @@ static void snapshot_dtr(struct dm_target *ti)
 	struct dm_snapshot *s = ti->private;
 	struct dm_snapshot *snap_src = NULL, *snap_dest = NULL;
 
-	flush_workqueue(ksnapd);
-
 	down_read(&_origins_lock);
 	/* Check whether exception handover must be cancelled */
 	(void) __find_snapshots_sharing_cow(s, &snap_src, &snap_dest, NULL);
@@ -1340,20 +1327,6 @@ static void flush_bios(struct bio *bio)
 		generic_make_request(bio);
 		bio = n;
 	}
-}
-
-static void flush_queued_bios(struct work_struct *work)
-{
-	struct dm_snapshot *s =
-		container_of(work, struct dm_snapshot, queued_bios_work);
-	struct bio *queued_bios;
-	unsigned long flags;
-
-	spin_lock_irqsave(&s->pe_lock, flags);
-	queued_bios = bio_list_get(&s->queued_bios);
-	spin_unlock_irqrestore(&s->pe_lock, flags);
-
-	flush_bios(queued_bios);
 }
 
 static int do_origin(struct dm_dev *origin, struct bio *bio);
@@ -2291,17 +2264,8 @@ static int __init dm_snapshot_init(void)
 		goto bad_tracked_chunk_cache;
 	}
 
-	ksnapd = create_singlethread_workqueue("ksnapd");
-	if (!ksnapd) {
-		DMERR("Failed to create ksnapd workqueue.");
-		r = -ENOMEM;
-		goto bad_pending_pool;
-	}
-
 	return 0;
 
-bad_pending_pool:
-	kmem_cache_destroy(tracked_chunk_cache);
 bad_tracked_chunk_cache:
 	kmem_cache_destroy(pending_cache);
 bad_pending_cache:
@@ -2322,8 +2286,6 @@ bad_register_snapshot_target:
 
 static void __exit dm_snapshot_exit(void)
 {
-	destroy_workqueue(ksnapd);
-
 	dm_unregister_target(&snapshot_target);
 	dm_unregister_target(&origin_target);
 	dm_unregister_target(&merge_target);
