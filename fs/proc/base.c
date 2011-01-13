@@ -386,7 +386,7 @@ static int lstats_show_proc(struct seq_file *m, void *v)
 					break;
 				seq_printf(m, " %ps", (void *)bt);
 			}
-			seq_printf(m, "\n");
+			seq_putc(m, '\n');
 		}
 
 	}

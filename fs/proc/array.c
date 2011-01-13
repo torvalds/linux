@@ -95,7 +95,7 @@ static inline void task_name(struct seq_file *m, struct task_struct *p)
 
 	get_task_comm(tcomm, p);
 
-	seq_printf(m, "Name:\t");
+	seq_puts(m, "Name:\t");
 	end = m->buf + m->size;
 	buf = m->buf + m->count;
 	name = tcomm;
@@ -122,7 +122,7 @@ static inline void task_name(struct seq_file *m, struct task_struct *p)
 		buf++;
 	}
 	m->count = buf - m->buf;
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 }
 
 /*
@@ -208,7 +208,7 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 		seq_printf(m, "%d ", GROUP_AT(group_info, g));
 	put_cred(cred);
 
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 }
 
 static void render_sigset_t(struct seq_file *m, const char *header,
@@ -216,7 +216,7 @@ static void render_sigset_t(struct seq_file *m, const char *header,
 {
 	int i;
 
-	seq_printf(m, "%s", header);
+	seq_puts(m, header);
 
 	i = _NSIG;
 	do {
@@ -230,7 +230,7 @@ static void render_sigset_t(struct seq_file *m, const char *header,
 		seq_printf(m, "%x", x);
 	} while (i >= 4);
 
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 }
 
 static void collect_sigign_sigcatch(struct task_struct *p, sigset_t *ign,
@@ -291,12 +291,12 @@ static void render_cap_t(struct seq_file *m, const char *header,
 {
 	unsigned __capi;
 
-	seq_printf(m, "%s", header);
+	seq_puts(m, header);
 	CAP_FOR_EACH_U32(__capi) {
 		seq_printf(m, "%08x",
 			   a->cap[(_KERNEL_CAPABILITY_U32S-1) - __capi]);
 	}
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 }
 
 static inline void task_cap(struct seq_file *m, struct task_struct *p)
@@ -329,12 +329,12 @@ static inline void task_context_switch_counts(struct seq_file *m,
 
 static void task_cpus_allowed(struct seq_file *m, struct task_struct *task)
 {
-	seq_printf(m, "Cpus_allowed:\t");
+	seq_puts(m, "Cpus_allowed:\t");
 	seq_cpumask(m, &task->cpus_allowed);
-	seq_printf(m, "\n");
-	seq_printf(m, "Cpus_allowed_list:\t");
+	seq_putc(m, '\n');
+	seq_puts(m, "Cpus_allowed_list:\t");
 	seq_cpumask_list(m, &task->cpus_allowed);
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 }
 
 int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
