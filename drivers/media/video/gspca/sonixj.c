@@ -25,11 +25,11 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define V4L2_CID_INFRARED (V4L2_CID_PRIVATE_BASE + 0)
-
 MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA/SONIX JPEG USB Camera Driver");
 MODULE_LICENSE("GPL");
+
+static int starcam;
 
 /* controls */
 enum e_ctrl {
@@ -43,7 +43,7 @@ enum e_ctrl {
 	HFLIP,
 	VFLIP,
 	SHARPNESS,
-	INFRARED,
+	ILLUM,
 	FREQ,
 	NCTRLS		/* number of controls */
 };
@@ -100,7 +100,8 @@ enum sensors {
 };
 
 /* device flags */
-#define PDN_INV	1		/* inverse pin S_PWR_DN / sn_xxx tables */
+#define F_PDN_INV	0x01	/* inverse pin S_PWR_DN / sn_xxx tables */
+#define F_ILLUM		0x02	/* presence of illuminator */
 
 /* sn9c1xx definitions */
 /* register 0x01 */
@@ -124,7 +125,7 @@ static void setgamma(struct gspca_dev *gspca_dev);
 static void setautogain(struct gspca_dev *gspca_dev);
 static void sethvflip(struct gspca_dev *gspca_dev);
 static void setsharpness(struct gspca_dev *gspca_dev);
-static void setinfrared(struct gspca_dev *gspca_dev);
+static void setillum(struct gspca_dev *gspca_dev);
 static void setfreq(struct gspca_dev *gspca_dev);
 
 static const struct ctrl sd_ctrls[NCTRLS] = {
@@ -251,18 +252,17 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 	    },
 	    .set_control = setsharpness
 	},
-/* mt9v111 only */
-[INFRARED] = {
+[ILLUM] = {
 	    {
-		.id      = V4L2_CID_INFRARED,
+		.id      = V4L2_CID_ILLUMINATORS_1,
 		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Infrared",
+		.name    = "Illuminator / infrared",
 		.minimum = 0,
 		.maximum = 1,
 		.step    = 1,
 		.default_value = 0,
 	    },
-	    .set_control = setinfrared
+	    .set_control = setillum
 	},
 /* ov7630/ov7648/ov7660 only */
 [FREQ] = {
@@ -282,32 +282,26 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 /* table of the disabled controls */
 static const __u32 ctrl_dis[] = {
 [SENSOR_ADCM1700] =	(1 << AUTOGAIN) |
-			(1 << INFRARED) |
 			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_GC0307] =	(1 << INFRARED) |
-			(1 << HFLIP) |
+[SENSOR_GC0307] =	(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_HV7131R] =	(1 << INFRARED) |
-			(1 << HFLIP) |
+[SENSOR_HV7131R] =	(1 << HFLIP) |
 			(1 << FREQ),
 
-[SENSOR_MI0360] =	(1 << INFRARED) |
-			(1 << HFLIP) |
+[SENSOR_MI0360] =	(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_MI0360B] =	(1 << INFRARED) |
-			(1 << HFLIP) |
+[SENSOR_MI0360B] =	(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_MO4000] =	(1 << INFRARED) |
-			(1 << HFLIP) |
+[SENSOR_MO4000] =	(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
@@ -315,40 +309,32 @@ static const __u32 ctrl_dis[] = {
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_OM6802] =	(1 << INFRARED) |
-			(1 << HFLIP) |
+[SENSOR_OM6802] =	(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_OV7630] =	(1 << INFRARED) |
-			(1 << HFLIP),
+[SENSOR_OV7630] =	(1 << HFLIP),
 
-[SENSOR_OV7648] =	(1 << INFRARED) |
-			(1 << HFLIP),
+[SENSOR_OV7648] =	(1 << HFLIP),
 
 [SENSOR_OV7660] =	(1 << AUTOGAIN) |
-			(1 << INFRARED) |
 			(1 << HFLIP) |
 			(1 << VFLIP),
 
 [SENSOR_PO1030] =	(1 << AUTOGAIN) |
-			(1 << INFRARED) |
 			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
 [SENSOR_PO2030N] =	(1 << AUTOGAIN) |
-			(1 << INFRARED) |
 			(1 << FREQ),
 
 [SENSOR_SOI768] =	(1 << AUTOGAIN) |
-			(1 << INFRARED) |
 			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
 [SENSOR_SP80708] =	(1 << AUTOGAIN) |
-			(1 << INFRARED) |
 			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
@@ -1876,6 +1862,8 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	sd->i2c_addr = sn9c1xx[9];
 
 	gspca_dev->ctrl_dis = ctrl_dis[sd->sensor];
+	if (!(sd->flags & F_ILLUM))
+		gspca_dev->ctrl_dis |= (1 << ILLUM);
 
 	return gspca_dev->usb_err;
 }
@@ -2199,16 +2187,20 @@ static void setsharpness(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x99, sd->ctrls[SHARPNESS].val);
 }
 
-static void setinfrared(struct gspca_dev *gspca_dev)
+static void setillum(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (gspca_dev->ctrl_dis & (1 << INFRARED))
+	if (gspca_dev->ctrl_dis & (1 << ILLUM))
 		return;
-/*fixme: different sequence for StarCam Clip and StarCam 370i */
-/* Clip */
-	i2c_w1(gspca_dev, 0x02,				/* gpio */
-		sd->ctrls[INFRARED].val ? 0x66 : 0x64);
+	if (starcam)
+		reg_w1(gspca_dev, 0x02,			/* gpio */
+			sd->ctrls[ILLUM].val ?
+					0x55 : 0x54);	/* 370i */
+	else
+		reg_w1(gspca_dev, 0x02,
+			sd->ctrls[ILLUM].val ?
+					0x66 : 0x64);	/* Clip */
 }
 
 static void setfreq(struct gspca_dev *gspca_dev)
@@ -2346,7 +2338,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* sensor clock already enabled in sd_init */
 	/* reg_w1(gspca_dev, 0xf1, 0x00); */
 	reg01 = sn9c1xx[1];
-	if (sd->flags & PDN_INV)
+	if (sd->flags & F_PDN_INV)
 		reg01 ^= S_PDN_INV;		/* power down inverted */
 	reg_w1(gspca_dev, 0x01, reg01);
 
@@ -2912,8 +2904,8 @@ static const struct sd_desc sd_desc = {
 static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0458, 0x7025), BS(SN9C120, MI0360)},
 	{USB_DEVICE(0x0458, 0x702e), BS(SN9C120, OV7660)},
-	{USB_DEVICE(0x045e, 0x00f5), BSF(SN9C105, OV7660, PDN_INV)},
-	{USB_DEVICE(0x045e, 0x00f7), BSF(SN9C105, OV7660, PDN_INV)},
+	{USB_DEVICE(0x045e, 0x00f5), BSF(SN9C105, OV7660, F_PDN_INV)},
+	{USB_DEVICE(0x045e, 0x00f7), BSF(SN9C105, OV7660, F_PDN_INV)},
 	{USB_DEVICE(0x0471, 0x0327), BS(SN9C105, MI0360)},
 	{USB_DEVICE(0x0471, 0x0328), BS(SN9C105, MI0360)},
 	{USB_DEVICE(0x0471, 0x0330), BS(SN9C105, MI0360)},
@@ -2925,7 +2917,7 @@ static const struct usb_device_id device_table[] = {
 /*	{USB_DEVICE(0x0c45, 0x607b), BS(SN9C102P, OV7660)}, */
 	{USB_DEVICE(0x0c45, 0x607c), BS(SN9C102P, HV7131R)},
 /*	{USB_DEVICE(0x0c45, 0x607e), BS(SN9C102P, OV7630)}, */
-	{USB_DEVICE(0x0c45, 0x60c0), BS(SN9C105, MI0360)},
+	{USB_DEVICE(0x0c45, 0x60c0), BSF(SN9C105, MI0360, F_ILLUM)},
 						/* or MT9V111 */
 /*	{USB_DEVICE(0x0c45, 0x60c2), BS(SN9C105, P1030xC)}, */
 /*	{USB_DEVICE(0x0c45, 0x60c8), BS(SN9C105, OM6802)}, */
@@ -3004,3 +2996,7 @@ static void __exit sd_mod_exit(void)
 
 module_init(sd_mod_init);
 module_exit(sd_mod_exit);
+
+module_param(starcam, int, 0644);
+MODULE_PARM_DESC(starcam,
+	"StarCam model. 0: Clip, 1: 370i");
