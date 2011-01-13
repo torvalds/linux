@@ -1664,9 +1664,9 @@ static void __collapse_huge_page_copy(pte_t *pte, struct page *page,
 
 static void collapse_huge_page(struct mm_struct *mm,
 			       unsigned long address,
-			       struct page **hpage)
+			       struct page **hpage,
+			       struct vm_area_struct *vma)
 {
-	struct vm_area_struct *vma;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd, _pmd;
@@ -1680,9 +1680,34 @@ static void collapse_huge_page(struct mm_struct *mm,
 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
 #ifndef CONFIG_NUMA
 	VM_BUG_ON(!*hpage);
+	new_page = *hpage;
 #else
 	VM_BUG_ON(*hpage);
+	/*
+	 * Allocate the page while the vma is still valid and under
+	 * the mmap_sem read mode so there is no memory allocation
+	 * later when we take the mmap_sem in write mode. This is more
+	 * friendly behavior (OTOH it may actually hide bugs) to
+	 * filesystems in userland with daemons allocating memory in
+	 * the userland I/O paths.  Allocating memory with the
+	 * mmap_sem in read mode is good idea also to allow greater
+	 * scalability.
+	 */
+	new_page = alloc_hugepage_vma(khugepaged_defrag(), vma, address);
+	if (unlikely(!new_page)) {
+		up_read(&mm->mmap_sem);
+		*hpage = ERR_PTR(-ENOMEM);
+		return;
+	}
 #endif
+	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
+		up_read(&mm->mmap_sem);
+		put_page(new_page);
+		return;
+	}
+
+	/* after allocating the hugepage upgrade to mmap_sem write mode */
+	up_read(&mm->mmap_sem);
 
 	/*
 	 * Prevent all access to pagetables with the exception of
@@ -1720,18 +1745,6 @@ static void collapse_huge_page(struct mm_struct *mm,
 	if (!pmd_present(*pmd) || pmd_trans_huge(*pmd))
 		goto out;
 
-#ifndef CONFIG_NUMA
-	new_page = *hpage;
-#else
-	new_page = alloc_hugepage_vma(khugepaged_defrag(), vma, address);
-	if (unlikely(!new_page)) {
-		*hpage = ERR_PTR(-ENOMEM);
-		goto out;
-	}
-#endif
-	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL)))
-		goto out_put_page;
-
 	anon_vma_lock(vma->anon_vma);
 
 	pte = pte_offset_map(pmd, address);
@@ -1759,7 +1772,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 		spin_unlock(&mm->page_table_lock);
 		anon_vma_unlock(vma->anon_vma);
 		mem_cgroup_uncharge_page(new_page);
-		goto out_put_page;
+		goto out;
 	}
 
 	/*
@@ -1798,15 +1811,15 @@ static void collapse_huge_page(struct mm_struct *mm,
 	*hpage = NULL;
 #endif
 	khugepaged_pages_collapsed++;
-out:
+out_up_write:
 	up_write(&mm->mmap_sem);
 	return;
 
-out_put_page:
+out:
 #ifdef CONFIG_NUMA
 	put_page(new_page);
 #endif
-	goto out;
+	goto out_up_write;
 }
 
 static int khugepaged_scan_pmd(struct mm_struct *mm,
@@ -1865,10 +1878,9 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
 		ret = 1;
 out_unmap:
 	pte_unmap_unlock(pte, ptl);
-	if (ret) {
-		up_read(&mm->mmap_sem);
-		collapse_huge_page(mm, address, hpage);
-	}
+	if (ret)
+		/* collapse_huge_page will return with the mmap_sem released */
+		collapse_huge_page(mm, address, hpage, vma);
 out:
 	return ret;
 }
