@@ -131,7 +131,15 @@ struct p1003_platform_data {
     int     (*p1003_platform_wakeup)(void);
     void    (*exit_platform_hw)(void);
 };
+struct eeti_egalax_platform_data{
+	u16     model;
 
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*eeti_egalax_platform_sleep)(void);
+    int     (*eeti_egalax_platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
 struct mma8452_platform_data {
     u16     model;
 	u16     swap_xy;

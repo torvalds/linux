@@ -345,7 +345,40 @@ struct p1003_platform_data p1003_info = {
 
 };
 #endif
+#if defined (CONFIG_EETI_EGALAX)
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
 
+int EETI_EGALAX_init_platform_hw(void)
+{
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("p1003_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("p1003_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+    gpio_pull_updown(TOUCH_INT_PIN, 1);
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    msleep(500);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    msleep(500);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+
+    return 0;
+}
+
+
+struct eeti_egalax_platform_data eeti_egalax_info = {
+  .model= 1003,
+  .init_platform_hw= EETI_EGALAX_init_platform_hw,
+
+};
+#endif
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN   RK29_PIN0_PA3
@@ -543,6 +576,15 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
       .flags          = 0,
       .irq            = RK29_PIN0_PA2,
       .platform_data  = &p1003_info,
+    },
+#endif
+#if defined (CONFIG_EETI_EGALAX)
+    {
+      .type           = "egalax_i2c",
+      .addr           = 0x04,
+      .flags          = 0,
+      .irq            = RK29_PIN0_PA2,
+      .platform_data  = &eeti_egalax_info,
     },
 #endif
 };

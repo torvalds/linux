@@ -596,13 +596,22 @@ config HANNSTAR_P1003
                 help
                   RK29 hannstar touch max Y size
 
-
 	config HANNSTAR_DEBUG
        		bool "hannstar debug"
        		depends on HANNSTAR_P1003
 		default n
 		help
         	  RK29 hannstar touch debug
+
+config EETI_EGALAX
+        tristate "EETI_EGALAX touchscreen panel support"
+        depends on I2C
+        help
+          Say Y here to enable support for I2C connected EETI touch panels.
+
+          To compile this driver as a module, choose M here: the
+          module will be called eeti_egalax_ts.
+
 
 config TOUCHSCREEN_IT7260
 	tristate "IT7260 based touchscreens: IT7260 Interface"
