@@ -6587,7 +6587,7 @@ F:	net/8021q/
 
 VLYNQ BUS
 M:	Florian Fainelli <florian@openwrt.org>
-L:	openwrt-devel@lists.openwrt.org
+L:	openwrt-devel@lists.openwrt.org (subscribers-only)
 S:	Maintained
 F:	drivers/vlynq/vlynq.c
 F:	include/linux/vlynq.h
