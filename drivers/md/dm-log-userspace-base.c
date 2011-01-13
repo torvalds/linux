@@ -181,8 +181,11 @@ static int userspace_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 	r = dm_consult_userspace(lc->uuid, lc->luid, DM_ULOG_CTR,
 				 ctr_str, str_size, NULL, NULL);
 
-	if (r == -ESRCH) {
-		DMERR("Userspace log server not found");
+	if (r < 0) {
+		if (r == -ESRCH)
+			DMERR("Userspace log server not found");
+		else
+			DMERR("Userspace log server failed to create log");
 		goto out;
 	}
 
@@ -214,10 +217,9 @@ out:
 
 static void userspace_dtr(struct dm_dirty_log *log)
 {
-	int r;
 	struct log_c *lc = log->context;
 
-	r = dm_consult_userspace(lc->uuid, lc->luid, DM_ULOG_DTR,
+	(void) dm_consult_userspace(lc->uuid, lc->luid, DM_ULOG_DTR,
 				 NULL, 0,
 				 NULL, NULL);
 
