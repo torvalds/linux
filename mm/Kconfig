@@ -302,6 +302,20 @@ config NOMMU_INITIAL_TRIM_EXCESS
 
 	  See Documentation/nommu-mmap.txt for more information.
 
+config TRANSPARENT_HUGEPAGE
+	bool "Transparent Hugepage Support" if EMBEDDED
+	depends on X86_64 && MMU
+	default y
+	help
+	  Transparent Hugepages allows the kernel to use huge pages and
+	  huge tlb transparently to the applications whenever possible.
+	  This feature can improve computing performance to certain
+	  applications by speeding up page faults during memory
+	  allocation, by reducing the number of tlb misses and by speeding
+	  up the pagetable walking.
+
+	  If memory constrained on embedded, you may want to say N.
+
 #
 # UP and nommu archs use km based percpu allocator
 #
