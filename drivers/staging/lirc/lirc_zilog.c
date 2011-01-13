@@ -60,17 +60,9 @@
 #include <media/lirc_dev.h>
 #include <media/lirc.h>
 
-struct IR {
-	struct lirc_driver l;
-
-	/* Device info */
-	struct mutex ir_lock;
-	int open;
-	bool is_hdpvr;
-
+struct IR_rx {
 	/* RX device */
 	struct i2c_client c_rx;
-	int have_rx;
 
 	/* RX device buffer & lock */
 	struct lirc_buffer buf;
@@ -84,11 +76,26 @@ struct IR {
 
 	/* RX read data */
 	unsigned char b[3];
+	bool hdpvr_data_fmt;
+};
 
+struct IR_tx {
 	/* TX device */
 	struct i2c_client c_tx;
+
+	/* TX additional actions needed */
 	int need_boot;
-	int have_tx;
+	bool post_tx_ready_poll;
+};
+
+struct IR {
+	struct lirc_driver l;
+
+	struct mutex ir_lock;
+	int open;
+
+	struct IR_rx *rx;
+	struct IR_tx *tx;
 };
 
 /* Minor -> data mapping */
@@ -149,8 +156,12 @@ static int add_to_buf(struct IR *ir)
 	int ret;
 	int failures = 0;
 	unsigned char sendbuf[1] = { 0 };
+	struct IR_rx *rx = ir->rx;
 
-	if (lirc_buffer_full(&ir->buf)) {
+	if (rx == NULL)
+		return -ENXIO;
+
+	if (lirc_buffer_full(&rx->buf)) {
 		dprintk("buffer overflow\n");
 		return -EOVERFLOW;
 	}
@@ -170,7 +181,7 @@ static int add_to_buf(struct IR *ir)
 		 * Send random "poll command" (?)  Windows driver does this
 		 * and it is a good point to detect chip failure.
 		 */
-		ret = i2c_master_send(&ir->c_rx, sendbuf, 1);
+		ret = i2c_master_send(&rx->c_rx, sendbuf, 1);
 		if (ret != 1) {
 			zilog_error("i2c_master_send failed with %d\n",	ret);
 			if (failures >= 3) {
@@ -186,44 +197,45 @@ static int add_to_buf(struct IR *ir)
 
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			schedule_timeout((100 * HZ + 999) / 1000);
-			ir->need_boot = 1;
+			if (ir->tx != NULL)
+				ir->tx->need_boot = 1;
 
 			++failures;
 			mutex_unlock(&ir->ir_lock);
 			continue;
 		}
 
-		ret = i2c_master_recv(&ir->c_rx, keybuf, sizeof(keybuf));
+		ret = i2c_master_recv(&rx->c_rx, keybuf, sizeof(keybuf));
 		mutex_unlock(&ir->ir_lock);
 		if (ret != sizeof(keybuf)) {
 			zilog_error("i2c_master_recv failed with %d -- "
 				    "keeping last read buffer\n", ret);
 		} else {
-			ir->b[0] = keybuf[3];
-			ir->b[1] = keybuf[4];
-			ir->b[2] = keybuf[5];
-			dprintk("key (0x%02x/0x%02x)\n", ir->b[0], ir->b[1]);
+			rx->b[0] = keybuf[3];
+			rx->b[1] = keybuf[4];
+			rx->b[2] = keybuf[5];
+			dprintk("key (0x%02x/0x%02x)\n", rx->b[0], rx->b[1]);
 		}
 
 		/* key pressed ? */
-		if (ir->is_hdpvr) {
+		if (rx->hdpvr_data_fmt) {
 			if (got_data && (keybuf[0] == 0x80))
 				return 0;
 			else if (got_data && (keybuf[0] == 0x00))
 				return -ENODATA;
-		} else if ((ir->b[0] & 0x80) == 0)
+		} else if ((rx->b[0] & 0x80) == 0)
 			return got_data ? 0 : -ENODATA;
 
 		/* look what we have */
-		code = (((__u16)ir->b[0] & 0x7f) << 6) | (ir->b[1] >> 2);
+		code = (((__u16)rx->b[0] & 0x7f) << 6) | (rx->b[1] >> 2);
 
 		codes[0] = (code >> 8) & 0xff;
 		codes[1] = code & 0xff;
 
 		/* return it */
-		lirc_buffer_write(&ir->buf, codes);
+		lirc_buffer_write(&rx->buf, codes);
 		++got_data;
-	} while (!lirc_buffer_full(&ir->buf));
+	} while (!lirc_buffer_full(&rx->buf));
 
 	return 0;
 }
@@ -241,9 +253,13 @@ static int add_to_buf(struct IR *ir)
 static int lirc_thread(void *arg)
 {
 	struct IR *ir = arg;
+	struct IR_rx *rx = ir->rx;
 
-	if (ir->t_notify != NULL)
-		complete(ir->t_notify);
+	if (rx == NULL)
+		return -ENXIO;
+
+	if (rx->t_notify != NULL)
+		complete(rx->t_notify);
 
 	dprintk("poll thread started\n");
 
@@ -264,23 +280,23 @@ static int lirc_thread(void *arg)
 			 * lost keypresses.
 			 */
 			schedule_timeout((260 * HZ) / 1000);
-			if (ir->shutdown)
+			if (rx->shutdown)
 				break;
 			if (!add_to_buf(ir))
-				wake_up_interruptible(&ir->buf.wait_poll);
+				wake_up_interruptible(&rx->buf.wait_poll);
 		} else {
 			/* if device not opened so we can sleep half a second */
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(HZ/2);
 		}
-	} while (!ir->shutdown);
+	} while (!rx->shutdown);
 
-	if (ir->t_notify2 != NULL)
-		wait_for_completion(ir->t_notify2);
+	if (rx->t_notify2 != NULL)
+		wait_for_completion(rx->t_notify2);
 
-	ir->task = NULL;
-	if (ir->t_notify != NULL)
-		complete(ir->t_notify);
+	rx->task = NULL;
+	if (rx->t_notify != NULL)
+		complete(rx->t_notify);
 
 	dprintk("poll thread ended\n");
 	return 0;
@@ -298,10 +314,10 @@ static int set_use_inc(void *data)
 	 * this is completely broken code. lirc_unregister_driver()
 	 * must be possible even when the device is open
 	 */
-	if (ir->c_rx.addr)
-		i2c_use_client(&ir->c_rx);
-	if (ir->c_tx.addr)
-		i2c_use_client(&ir->c_tx);
+	if (ir->rx != NULL)
+		i2c_use_client(&ir->rx->c_rx);
+	if (ir->tx != NULL)
+		i2c_use_client(&ir->tx->c_tx);
 
 	return 0;
 }
@@ -310,10 +326,10 @@ static void set_use_dec(void *data)
 {
 	struct IR *ir = data;
 
-	if (ir->c_rx.addr)
-		i2c_release_client(&ir->c_rx);
-	if (ir->c_tx.addr)
-		i2c_release_client(&ir->c_tx);
+	if (ir->rx)
+		i2c_release_client(&ir->rx->c_rx);
+	if (ir->tx)
+		i2c_release_client(&ir->tx->c_tx);
 	if (ir->l.owner != NULL)
 		module_put(ir->l.owner);
 }
@@ -452,7 +468,7 @@ corrupt:
 }
 
 /* send a block of data to the IR TX device */
-static int send_data_block(struct IR *ir, unsigned char *data_block)
+static int send_data_block(struct IR_tx *tx, unsigned char *data_block)
 {
 	int i, j, ret;
 	unsigned char buf[5];
@@ -466,7 +482,7 @@ static int send_data_block(struct IR *ir, unsigned char *data_block)
 			buf[1 + j] = data_block[i + j];
 		dprintk("%02x %02x %02x %02x %02x",
 			buf[0], buf[1], buf[2], buf[3], buf[4]);
-		ret = i2c_master_send(&ir->c_tx, buf, tosend + 1);
+		ret = i2c_master_send(&tx->c_tx, buf, tosend + 1);
 		if (ret != tosend + 1) {
 			zilog_error("i2c_master_send failed with %d\n", ret);
 			return ret < 0 ? ret : -EFAULT;
@@ -477,32 +493,32 @@ static int send_data_block(struct IR *ir, unsigned char *data_block)
 }
 
 /* send boot data to the IR TX device */
-static int send_boot_data(struct IR *ir)
+static int send_boot_data(struct IR_tx *tx)
 {
 	int ret;
 	unsigned char buf[4];
 
 	/* send the boot block */
-	ret = send_data_block(ir, tx_data->boot_data);
+	ret = send_data_block(tx, tx_data->boot_data);
 	if (ret != 0)
 		return ret;
 
 	/* kick it off? */
 	buf[0] = 0x00;
 	buf[1] = 0x20;
-	ret = i2c_master_send(&ir->c_tx, buf, 2);
+	ret = i2c_master_send(&tx->c_tx, buf, 2);
 	if (ret != 2) {
 		zilog_error("i2c_master_send failed with %d\n", ret);
 		return ret < 0 ? ret : -EFAULT;
 	}
-	ret = i2c_master_send(&ir->c_tx, buf, 1);
+	ret = i2c_master_send(&tx->c_tx, buf, 1);
 	if (ret != 1) {
 		zilog_error("i2c_master_send failed with %d\n", ret);
 		return ret < 0 ? ret : -EFAULT;
 	}
 
 	/* Here comes the firmware version... (hopefully) */
-	ret = i2c_master_recv(&ir->c_tx, buf, 4);
+	ret = i2c_master_recv(&tx->c_tx, buf, 4);
 	if (ret != 4) {
 		zilog_error("i2c_master_recv failed with %d\n", ret);
 		return 0;
@@ -542,7 +558,7 @@ static void fw_unload(void)
 }
 
 /* load "firmware" for the IR TX device */
-static int fw_load(struct IR *ir)
+static int fw_load(struct IR_tx *tx)
 {
 	int ret;
 	unsigned int i;
@@ -557,7 +573,7 @@ static int fw_load(struct IR *ir)
 	}
 
 	/* Request codeset data file */
-	ret = request_firmware(&fw_entry, "haup-ir-blaster.bin", &ir->c_tx.dev);
+	ret = request_firmware(&fw_entry, "haup-ir-blaster.bin", &tx->c_tx.dev);
 	if (ret != 0) {
 		zilog_error("firmware haup-ir-blaster.bin not available "
 			    "(%d)\n", ret);
@@ -684,20 +700,20 @@ out:
 }
 
 /* initialise the IR TX device */
-static int tx_init(struct IR *ir)
+static int tx_init(struct IR_tx *tx)
 {
 	int ret;
 
 	/* Load 'firmware' */
-	ret = fw_load(ir);
+	ret = fw_load(tx);
 	if (ret != 0)
 		return ret;
 
 	/* Send boot block */
-	ret = send_boot_data(ir);
+	ret = send_boot_data(tx);
 	if (ret != 0)
 		return ret;
-	ir->need_boot = 0;
+	tx->need_boot = 0;
 
 	/* Looks good */
 	return 0;
@@ -713,20 +729,20 @@ static loff_t lseek(struct file *filep, loff_t offset, int orig)
 static ssize_t read(struct file *filep, char *outbuf, size_t n, loff_t *ppos)
 {
 	struct IR *ir = filep->private_data;
-	unsigned char buf[ir->buf.chunk_size];
+	struct IR_rx *rx = ir->rx;
 	int ret = 0, written = 0;
 	DECLARE_WAITQUEUE(wait, current);
 
 	dprintk("read called\n");
-	if (ir->c_rx.addr == 0)
+	if (rx == NULL)
 		return -ENODEV;
 
-	if (mutex_lock_interruptible(&ir->buf_lock))
+	if (mutex_lock_interruptible(&rx->buf_lock))
 		return -ERESTARTSYS;
 
-	if (n % ir->buf.chunk_size) {
+	if (n % rx->buf.chunk_size) {
 		dprintk("read result = -EINVAL\n");
-		mutex_unlock(&ir->buf_lock);
+		mutex_unlock(&rx->buf_lock);
 		return -EINVAL;
 	}
 
@@ -735,7 +751,7 @@ static ssize_t read(struct file *filep, char *outbuf, size_t n, loff_t *ppos)
 	 * to avoid losing scan code (in case when queue is awaken somewhere
 	 * between while condition checking and scheduling)
 	 */
-	add_wait_queue(&ir->buf.wait_poll, &wait);
+	add_wait_queue(&rx->buf.wait_poll, &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
 
 	/*
@@ -743,7 +759,7 @@ static ssize_t read(struct file *filep, char *outbuf, size_t n, loff_t *ppos)
 	 * mode and 'copy_to_user' is happy, wait for data.
 	 */
 	while (written < n && ret == 0) {
-		if (lirc_buffer_empty(&ir->buf)) {
+		if (lirc_buffer_empty(&rx->buf)) {
 			/*
 			 * According to the read(2) man page, 'written' can be
 			 * returned as less than 'n', instead of blocking
@@ -763,16 +779,17 @@ static ssize_t read(struct file *filep, char *outbuf, size_t n, loff_t *ppos)
 			schedule();
 			set_current_state(TASK_INTERRUPTIBLE);
 		} else {
-			lirc_buffer_read(&ir->buf, buf);
+			unsigned char buf[rx->buf.chunk_size];
+			lirc_buffer_read(&rx->buf, buf);
 			ret = copy_to_user((void *)outbuf+written, buf,
-					   ir->buf.chunk_size);
-			written += ir->buf.chunk_size;
+					   rx->buf.chunk_size);
+			written += rx->buf.chunk_size;
 		}
 	}
 
-	remove_wait_queue(&ir->buf.wait_poll, &wait);
+	remove_wait_queue(&rx->buf.wait_poll, &wait);
 	set_current_state(TASK_RUNNING);
-	mutex_unlock(&ir->buf_lock);
+	mutex_unlock(&rx->buf_lock);
 
 	dprintk("read result = %s (%d)\n",
 		ret ? "-EFAULT" : "OK", ret);
@@ -781,7 +798,7 @@ static ssize_t read(struct file *filep, char *outbuf, size_t n, loff_t *ppos)
 }
 
 /* send a keypress to the IR TX device */
-static int send_code(struct IR *ir, unsigned int code, unsigned int key)
+static int send_code(struct IR_tx *tx, unsigned int code, unsigned int key)
 {
 	unsigned char data_block[TX_BLOCK_SIZE];
 	unsigned char buf[2];
@@ -798,26 +815,26 @@ static int send_code(struct IR *ir, unsigned int code, unsigned int key)
 		return ret;
 
 	/* Send the data block */
-	ret = send_data_block(ir, data_block);
+	ret = send_data_block(tx, data_block);
 	if (ret != 0)
 		return ret;
 
 	/* Send data block length? */
 	buf[0] = 0x00;
 	buf[1] = 0x40;
-	ret = i2c_master_send(&ir->c_tx, buf, 2);
+	ret = i2c_master_send(&tx->c_tx, buf, 2);
 	if (ret != 2) {
 		zilog_error("i2c_master_send failed with %d\n", ret);
 		return ret < 0 ? ret : -EFAULT;
 	}
-	ret = i2c_master_send(&ir->c_tx, buf, 1);
+	ret = i2c_master_send(&tx->c_tx, buf, 1);
 	if (ret != 1) {
 		zilog_error("i2c_master_send failed with %d\n", ret);
 		return ret < 0 ? ret : -EFAULT;
 	}
 
 	/* Send finished download? */
-	ret = i2c_master_recv(&ir->c_tx, buf, 1);
+	ret = i2c_master_recv(&tx->c_tx, buf, 1);
 	if (ret != 1) {
 		zilog_error("i2c_master_recv failed with %d\n", ret);
 		return ret < 0 ? ret : -EFAULT;
@@ -831,7 +848,7 @@ static int send_code(struct IR *ir, unsigned int code, unsigned int key)
 	/* Send prepare command? */
 	buf[0] = 0x00;
 	buf[1] = 0x80;
-	ret = i2c_master_send(&ir->c_tx, buf, 2);
+	ret = i2c_master_send(&tx->c_tx, buf, 2);
 	if (ret != 2) {
 		zilog_error("i2c_master_send failed with %d\n", ret);
 		return ret < 0 ? ret : -EFAULT;
@@ -842,7 +859,7 @@ static int send_code(struct IR *ir, unsigned int code, unsigned int key)
 	 * last i2c_master_recv always fails with a -5, so for now, we're
 	 * going to skip this whole mess and say we're done on the HD PVR
 	 */
-	if (ir->is_hdpvr) {
+	if (!tx->post_tx_ready_poll) {
 		dprintk("sent code %u, key %u\n", code, key);
 		return 0;
 	}
@@ -856,7 +873,7 @@ static int send_code(struct IR *ir, unsigned int code, unsigned int key)
 	for (i = 0; i < 20; ++i) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout((50 * HZ + 999) / 1000);
-		ret = i2c_master_send(&ir->c_tx, buf, 1);
+		ret = i2c_master_send(&tx->c_tx, buf, 1);
 		if (ret == 1)
 			break;
 		dprintk("NAK expected: i2c_master_send "
@@ -869,7 +886,7 @@ static int send_code(struct IR *ir, unsigned int code, unsigned int key)
 	}
 
 	/* Seems to be an 'ok' response */
-	i = i2c_master_recv(&ir->c_tx, buf, 1);
+	i = i2c_master_recv(&tx->c_tx, buf, 1);
 	if (i != 1) {
 		zilog_error("i2c_master_recv failed with %d\n", ret);
 		return -EFAULT;
@@ -894,10 +911,11 @@ static ssize_t write(struct file *filep, const char *buf, size_t n,
 			  loff_t *ppos)
 {
 	struct IR *ir = filep->private_data;
+	struct IR_tx *tx = ir->tx;
 	size_t i;
 	int failures = 0;
 
-	if (ir->c_tx.addr == 0)
+	if (tx == NULL)
 		return -ENODEV;
 
 	/* Validate user parameters */
@@ -918,15 +936,15 @@ static ssize_t write(struct file *filep, const char *buf, size_t n,
 		}
 
 		/* Send boot data first if required */
-		if (ir->need_boot == 1) {
-			ret = send_boot_data(ir);
+		if (tx->need_boot == 1) {
+			ret = send_boot_data(tx);
 			if (ret == 0)
-				ir->need_boot = 0;
+				tx->need_boot = 0;
 		}
 
 		/* Send the code */
 		if (ret == 0) {
-			ret = send_code(ir, (unsigned)command >> 16,
+			ret = send_code(tx, (unsigned)command >> 16,
 					    (unsigned)command & 0xFFFF);
 			if (ret == -EPROTO) {
 				mutex_unlock(&ir->ir_lock);
@@ -951,7 +969,7 @@ static ssize_t write(struct file *filep, const char *buf, size_t n,
 			}
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			schedule_timeout((100 * HZ + 999) / 1000);
-			ir->need_boot = 1;
+			tx->need_boot = 1;
 			++failures;
 		} else
 			i += sizeof(int);
@@ -968,22 +986,23 @@ static ssize_t write(struct file *filep, const char *buf, size_t n,
 static unsigned int poll(struct file *filep, poll_table *wait)
 {
 	struct IR *ir = filep->private_data;
+	struct IR_rx *rx = ir->rx;
 	unsigned int ret;
 
 	dprintk("poll called\n");
-	if (ir->c_rx.addr == 0)
+	if (rx == NULL)
 		return -ENODEV;
 
-	mutex_lock(&ir->buf_lock);
+	mutex_lock(&rx->buf_lock);
 
-	poll_wait(filep, &ir->buf.wait_poll, wait);
+	poll_wait(filep, &rx->buf.wait_poll, wait);
 
 	dprintk("poll result = %s\n",
-		lirc_buffer_empty(&ir->buf) ? "0" : "POLLIN|POLLRDNORM");
+		lirc_buffer_empty(&rx->buf) ? "0" : "POLLIN|POLLRDNORM");
 
-	ret = lirc_buffer_empty(&ir->buf) ? 0 : (POLLIN|POLLRDNORM);
+	ret = lirc_buffer_empty(&rx->buf) ? 0 : (POLLIN|POLLRDNORM);
 
-	mutex_unlock(&ir->buf_lock);
+	mutex_unlock(&rx->buf_lock);
 	return ret;
 }
 
@@ -993,9 +1012,9 @@ static long ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	int result;
 	unsigned long mode, features = 0;
 
-	if (ir->c_rx.addr != 0)
+	if (ir->rx != NULL)
 		features |= LIRC_CAN_REC_LIRCCODE;
-	if (ir->c_tx.addr != 0)
+	if (ir->tx != NULL)
 		features |= LIRC_CAN_SEND_PULSE;
 
 	switch (cmd) {
@@ -1146,23 +1165,26 @@ static const struct file_operations lirc_fops = {
 static int ir_remove(struct i2c_client *client)
 {
 	struct IR *ir = i2c_get_clientdata(client);
+	struct IR_rx *rx = ir->rx;
+	struct IR_tx *tx = ir->tx;
 
+	/* FIXME make tx, rx senitive */
 	mutex_lock(&ir->ir_lock);
 
-	if (ir->have_rx || ir->have_tx) {
+	if (rx != NULL || tx != NULL) {
 		DECLARE_COMPLETION(tn);
 		DECLARE_COMPLETION(tn2);
 
 		/* end up polling thread */
-		if (ir->task && !IS_ERR(ir->task)) {
-			ir->t_notify = &tn;
-			ir->t_notify2 = &tn2;
-			ir->shutdown = 1;
-			wake_up_process(ir->task);
+		if (rx->task && !IS_ERR(rx->task)) {
+			rx->t_notify = &tn;
+			rx->t_notify2 = &tn2;
+			rx->shutdown = 1;
+			wake_up_process(rx->task);
 			complete(&tn2);
 			wait_for_completion(&tn);
-			ir->t_notify = NULL;
-			ir->t_notify2 = NULL;
+			rx->t_notify = NULL;
+			rx->t_notify2 = NULL;
 		}
 
 	} else {
@@ -1173,13 +1195,15 @@ static int ir_remove(struct i2c_client *client)
 	}
 
 	/* unregister lirc driver */
+	/* FIXME make tx, rx senitive */
 	if (ir->l.minor >= 0 && ir->l.minor < MAX_IRCTL_DEVICES) {
 		lirc_unregister_driver(ir->l.minor);
 		ir_devices[ir->l.minor] = NULL;
 	}
 
 	/* free memory */
-	lirc_buffer_free(&ir->buf);
+	/* FIXME make tx, rx senitive */
+	lirc_buffer_free(&rx->buf);
 	mutex_unlock(&ir->ir_lock);
 	kfree(ir);
 
@@ -1240,18 +1264,37 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			have_rx ? "RX only" : "TX only");
 
 	ir = kzalloc(sizeof(struct IR), GFP_KERNEL);
-
 	if (!ir)
 		goto out_nomem;
 
-	ret = lirc_buffer_init(&ir->buf, 2, BUFLEN / 2);
-	if (ret)
-		goto out_nomem;
+	if (have_tx) {
+		ir->tx = kzalloc(sizeof(struct IR_tx), GFP_KERNEL);
+		if (ir->tx != NULL) {
+			ir->tx->need_boot = 1;
+			ir->tx->post_tx_ready_poll =
+			       (id->driver_data & ID_FLAG_HDPVR) ? false : true;
+		}
+	}
+
+	if (have_rx) {
+		ir->rx = kzalloc(sizeof(struct IR_rx), GFP_KERNEL);
+
+		if (ir->rx == NULL) {
+			ret = -ENOMEM;
+		} else {
+			ir->rx->hdpvr_data_fmt =
+			       (id->driver_data & ID_FLAG_HDPVR) ? true : false;
+			mutex_init(&ir->rx->buf_lock);
+			ret = lirc_buffer_init(&ir->rx->buf, 2, BUFLEN / 2);
+		}
+
+		if (ret && (ir->rx != NULL)) {
+			kfree(ir->rx);
+			ir->rx = NULL;
+		}
+	}
 
 	mutex_init(&ir->ir_lock);
-	mutex_init(&ir->buf_lock);
-	ir->need_boot = 1;
-	ir->is_hdpvr = (id->driver_data & ID_FLAG_HDPVR) ? true : false;
 
 	memcpy(&ir->l, &lirc_template, sizeof(struct lirc_driver));
 	ir->l.minor = -1;
@@ -1260,40 +1303,38 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	i2c_set_clientdata(client, ir);
 
 	/* initialise RX device */
-	if (have_rx) {
+	if (ir->rx != NULL) {
 		DECLARE_COMPLETION(tn);
-		memcpy(&ir->c_rx, client, sizeof(struct i2c_client));
+		memcpy(&ir->rx->c_rx, client, sizeof(struct i2c_client));
 
-		ir->c_rx.addr = 0x71;
-		strlcpy(ir->c_rx.name, ZILOG_HAUPPAUGE_IR_RX_NAME,
+		ir->rx->c_rx.addr = 0x71;
+		strlcpy(ir->rx->c_rx.name, ZILOG_HAUPPAUGE_IR_RX_NAME,
 			I2C_NAME_SIZE);
 
 		/* try to fire up polling thread */
-		ir->t_notify = &tn;
-		ir->task = kthread_run(lirc_thread, ir, "lirc_zilog");
-		if (IS_ERR(ir->task)) {
-			ret = PTR_ERR(ir->task);
+		ir->rx->t_notify = &tn;
+		ir->rx->task = kthread_run(lirc_thread, ir, "lirc_zilog");
+		if (IS_ERR(ir->rx->task)) {
+			ret = PTR_ERR(ir->rx->task);
 			zilog_error("lirc_register_driver: cannot run "
 				    "poll thread %d\n", ret);
 			goto err;
 		}
 		wait_for_completion(&tn);
-		ir->t_notify = NULL;
-		ir->have_rx = 1;
+		ir->rx->t_notify = NULL;
 	}
 
 	/* initialise TX device */
-	if (have_tx) {
-		memcpy(&ir->c_tx, client, sizeof(struct i2c_client));
-		ir->c_tx.addr = 0x70;
-		strlcpy(ir->c_tx.name, ZILOG_HAUPPAUGE_IR_TX_NAME,
+	if (ir->tx) {
+		memcpy(&ir->tx->c_tx, client, sizeof(struct i2c_client));
+		ir->tx->c_tx.addr = 0x70;
+		strlcpy(ir->tx->c_tx.name, ZILOG_HAUPPAUGE_IR_TX_NAME,
 			I2C_NAME_SIZE);
-		ir->have_tx = 1;
 	}
 
 	/* set lirc_dev stuff */
 	ir->l.code_length = 13;
-	ir->l.rbuf	  = &ir->buf;
+	ir->l.rbuf	  = (ir->rx == NULL) ? NULL : &ir->rx->buf;
 	ir->l.fops	  = &lirc_fops;
 	ir->l.data	  = ir;
 	ir->l.minor       = minor;
@@ -1317,9 +1358,9 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 * after registering with lirc as otherwise hotplug seems to take
 	 * 10s to create the lirc device.
 	 */
-	if (have_tx) {
+	if (ir->tx != NULL) {
 		/* Special TX init */
-		ret = tx_init(ir);
+		ret = tx_init(ir->tx);
 		if (ret != 0)
 			goto err;
 	}
@@ -1327,18 +1368,21 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 
 err:
+	/* FIXME - memory deallocation for all error cases needs work */
 	/* undo everything, hopefully... */
-	if (ir->c_rx.addr)
-		ir_remove(&ir->c_rx);
-	if (ir->c_tx.addr)
-		ir_remove(&ir->c_tx);
+	if (ir->rx != NULL)
+		ir_remove(&ir->rx->c_rx);
+	if (ir->tx != NULL)
+		ir_remove(&ir->tx->c_tx);
 	return ret;
 
 out_nodev:
+	/* FIXME - memory deallocation for all error cases needs work */
 	zilog_error("no device found\n");
 	return -ENODEV;
 
 out_nomem:
+	/* FIXME - memory deallocation for all error cases needs work */
 	zilog_error("memory allocation failure\n");
 	kfree(ir);
 	return -ENOMEM;
