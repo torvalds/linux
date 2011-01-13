@@ -378,12 +378,30 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 	struct rio_dev *rdev;
 	struct rio_switch *rswitch = NULL;
 	int result, rdid;
+	size_t size;
+	u32 swpinfo = 0;
 
-	rdev = kzalloc(sizeof(struct rio_dev), GFP_KERNEL);
+	size = sizeof(struct rio_dev);
+	if (rio_mport_read_config_32(port, destid, hopcount,
+				     RIO_PEF_CAR, &result))
+		return NULL;
+
+	if (result & (RIO_PEF_SWITCH | RIO_PEF_MULTIPORT)) {
+		rio_mport_read_config_32(port, destid, hopcount,
+					 RIO_SWP_INFO_CAR, &swpinfo);
+		if (result & RIO_PEF_SWITCH) {
+			size += (RIO_GET_TOTAL_PORTS(swpinfo) *
+				sizeof(rswitch->nextdev[0])) + sizeof(*rswitch);
+		}
+	}
+
+	rdev = kzalloc(size, GFP_KERNEL);
 	if (!rdev)
 		return NULL;
 
 	rdev->net = net;
+	rdev->pef = result;
+	rdev->swpinfo = swpinfo;
 	rio_mport_read_config_32(port, destid, hopcount, RIO_DEV_ID_CAR,
 				 &result);
 	rdev->did = result >> 16;
@@ -397,8 +415,6 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 	rio_mport_read_config_32(port, destid, hopcount, RIO_ASM_INFO_CAR,
 				 &result);
 	rdev->asm_rev = result >> 16;
-	rio_mport_read_config_32(port, destid, hopcount, RIO_PEF_CAR,
-				 &rdev->pef);
 	if (rdev->pef & RIO_PEF_EXT_FEATURES) {
 		rdev->efptr = result & 0xffff;
 		rdev->phys_efptr = rio_mport_get_physefb(port, 0, destid,
@@ -406,11 +422,6 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 
 		rdev->em_efptr = rio_mport_get_feature(port, 0, destid,
 						hopcount, RIO_EFB_ERR_MGMNT);
-	}
-
-	if (rdev->pef & (RIO_PEF_SWITCH | RIO_PEF_MULTIPORT)) {
-		rio_mport_read_config_32(port, destid, hopcount,
-					 RIO_SWP_INFO_CAR, &rdev->swpinfo);
 	}
 
 	rio_mport_read_config_32(port, destid, hopcount, RIO_SRC_OPS_CAR,
@@ -449,12 +460,7 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 
 	/* If a PE has both switch and other functions, show it as a switch */
 	if (rio_is_switch(rdev)) {
-		rswitch = kzalloc(sizeof(*rswitch) +
-				  RIO_GET_TOTAL_PORTS(rdev->swpinfo) *
-				  sizeof(rswitch->nextdev[0]),
-				  GFP_KERNEL);
-		if (!rswitch)
-			goto cleanup;
+		rswitch = rdev->rswitch;
 		rswitch->switchid = next_switchid;
 		rswitch->port_ok = 0;
 		rswitch->route_table = kzalloc(sizeof(u8)*
@@ -466,15 +472,13 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 		for (rdid = 0; rdid < RIO_MAX_ROUTE_ENTRIES(port->sys_size);
 				rdid++)
 			rswitch->route_table[rdid] = RIO_INVALID_ROUTE;
-		rdev->rswitch = rswitch;
-		rswitch->rdev = rdev;
 		dev_set_name(&rdev->dev, "%02x:s:%04x", rdev->net->id,
-			     rdev->rswitch->switchid);
+			     rswitch->switchid);
 		rio_switch_init(rdev, do_enum);
 
-		if (do_enum && rdev->rswitch->clr_table)
-			rdev->rswitch->clr_table(port, destid, hopcount,
-						 RIO_GLOBAL_TABLE);
+		if (do_enum && rswitch->clr_table)
+			rswitch->clr_table(port, destid, hopcount,
+					   RIO_GLOBAL_TABLE);
 
 		list_add_tail(&rswitch->node, &rio_switches);
 
@@ -510,10 +514,9 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 	return rdev;
 
 cleanup:
-	if (rswitch) {
+	if (rswitch->route_table)
 		kfree(rswitch->route_table);
-		kfree(rswitch);
-	}
+
 	kfree(rdev);
 	return NULL;
 }
@@ -1072,7 +1075,7 @@ static struct rio_net __devinit *rio_alloc_net(struct rio_mport *port)
  */
 static void rio_update_route_tables(struct rio_mport *port)
 {
-	struct rio_dev *rdev;
+	struct rio_dev *rdev, *swrdev;
 	struct rio_switch *rswitch;
 	u8 sport;
 	u16 destid;
@@ -1087,14 +1090,16 @@ static void rio_update_route_tables(struct rio_mport *port)
 				continue;
 
 			if (RIO_INVALID_ROUTE == rswitch->route_table[destid]) {
+				swrdev = sw_to_rio_dev(rswitch);
+
 				/* Skip if destid ends in empty switch*/
-				if (rswitch->rdev->destid == destid)
+				if (swrdev->destid == destid)
 					continue;
 
-				sport = RIO_GET_PORT_NUM(rswitch->rdev->swpinfo);
+				sport = RIO_GET_PORT_NUM(swrdev->swpinfo);
 
 				if (rswitch->add_entry)	{
-					rio_route_add_entry(rswitch->rdev,
+					rio_route_add_entry(swrdev,
 						RIO_GLOBAL_TABLE, destid,
 						sport, 0);
 					rswitch->route_table[destid] = sport;
