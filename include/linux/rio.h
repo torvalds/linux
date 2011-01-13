@@ -66,6 +66,16 @@
 
 #define RIO_PW_MSG_SIZE		64
 
+/*
+ * A component tag value (stored in the component tag CSR) is used as device's
+ * unique identifier assigned during enumeration. Besides being used for
+ * identifying switches (which do not have device ID register), it also is used
+ * by error management notification and therefore has to be assigned
+ * to endpoints as well.
+ */
+#define RIO_CTAG_RESRVD	0xfffe0000 /* Reserved */
+#define RIO_CTAG_UDEVID	0x0001ffff /* Unique device identifier */
+
 extern struct bus_type rio_bus_type;
 extern struct device rio_bus;
 extern struct list_head rio_devices;	/* list of all devices */

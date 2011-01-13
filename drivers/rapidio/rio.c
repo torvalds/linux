@@ -710,7 +710,7 @@ int rio_inb_pwrite_handler(union rio_pw_msg *pw_msg)
 	u32 err_status, em_perrdet, em_ltlerrdet;
 	int rc, portnum;
 
-	rdev = rio_get_comptag(pw_msg->em.comptag, NULL);
+	rdev = rio_get_comptag((pw_msg->em.comptag & RIO_CTAG_UDEVID), NULL);
 	if (rdev == NULL) {
 		/* Device removed or enumeration error */
 		pr_debug("RIO: %s No matching device for CTag 0x%08x\n",
