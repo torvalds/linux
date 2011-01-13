@@ -1603,3 +1603,52 @@ int snd_soc_cache_sync(struct snd_soc_codec *codec)
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(snd_soc_cache_sync);
+
+static int snd_soc_get_reg_access_index(struct snd_soc_codec *codec,
+					unsigned int reg)
+{
+	const struct snd_soc_codec_driver *codec_drv;
+	unsigned int min, max, index;
+
+	codec_drv = codec->driver;
+	min = 0;
+	max = codec_drv->reg_access_size - 1;
+	do {
+		index = (min + max) / 2;
+		if (codec_drv->reg_access_default[index].reg == reg)
+			return index;
+		if (codec_drv->reg_access_default[index].reg < reg)
+			min = index + 1;
+		else
+			max = index;
+	} while (min <= max);
+	return -1;
+}
+
+int snd_soc_default_volatile_register(struct snd_soc_codec *codec,
+				      unsigned int reg)
+{
+	int index;
+
+	if (reg >= codec->driver->reg_cache_size)
+		return 1;
+	index = snd_soc_get_reg_access_index(codec, reg);
+	if (index < 0)
+		return 0;
+	return codec->driver->reg_access_default[index].vol;
+}
+EXPORT_SYMBOL_GPL(snd_soc_default_volatile_register);
+
+int snd_soc_default_readable_register(struct snd_soc_codec *codec,
+				      unsigned int reg)
+{
+	int index;
+
+	if (reg >= codec->driver->reg_cache_size)
+		return 1;
+	index = snd_soc_get_reg_access_index(codec, reg);
+	if (index < 0)
+		return 0;
+	return codec->driver->reg_access_default[index].read;
+}
+EXPORT_SYMBOL_GPL(snd_soc_default_readable_register);
