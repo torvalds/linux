@@ -1992,13 +1992,14 @@ static void event_callback(void *context)
 	wake_up(&md->eventq);
 }
 
+/*
+ * Protected by md->suspend_lock obtained by dm_swap_table().
+ */
 static void __set_size(struct mapped_device *md, sector_t size)
 {
 	set_capacity(md->disk, size);
 
-	mutex_lock(&md->bdev->bd_inode->i_mutex);
 	i_size_write(md->bdev->bd_inode, (loff_t)size << SECTOR_SHIFT);
-	mutex_unlock(&md->bdev->bd_inode->i_mutex);
 }
 
 /*
