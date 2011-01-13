@@ -106,9 +106,9 @@ static const struct file_operations proc_consoles_operations = {
 	.release	= seq_release,
 };
 
-static int register_proc_consoles(void)
+static int __init proc_consoles_init(void)
 {
 	proc_create("consoles", 0, NULL, &proc_consoles_operations);
 	return 0;
 }
-module_init(register_proc_consoles);
+module_init(proc_consoles_init);
