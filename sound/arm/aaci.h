@@ -219,14 +219,14 @@ struct aaci_runtime {
 	void			*end;
 	void			*ptr;
 	int			bytes;
-	unsigned int		fifosz;
+	unsigned int		fifo_bytes;
 };
 
 struct aaci {
 	struct amba_device	*dev;
 	struct snd_card		*card;
 	void			__iomem *base;
-	unsigned int		fifosize;
+	unsigned int		fifo_depth;
 	unsigned int		users;
 	struct mutex		irq_lock;
 

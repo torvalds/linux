@@ -219,7 +219,7 @@ static void aaci_fifo_irq(struct aaci *aaci, int channel, u32 mask)
 
 		ptr = aacirun->ptr;
 		do {
-			unsigned int len = aacirun->fifosz;
+			unsigned int len = aacirun->fifo_bytes;
 			u32 val;
 
 			if (aacirun->bytes <= 0) {
@@ -279,7 +279,7 @@ static void aaci_fifo_irq(struct aaci *aaci, int channel, u32 mask)
 
 		ptr = aacirun->ptr;
 		do {
-			unsigned int len = aacirun->fifosz;
+			unsigned int len = aacirun->fifo_bytes;
 			u32 val;
 
 			if (aacirun->bytes <= 0) {
@@ -430,13 +430,11 @@ static int aaci_pcm_open(struct snd_pcm_substream *substream)
 	}
 
 	/*
-	 * FIXME: ALSA specifies fifo_size in bytes.  If we're in normal
-	 * mode, each 32-bit word contains one sample.  If we're in
-	 * compact mode, each 32-bit word contains two samples, effectively
-	 * halving the FIFO size.  However, we don't know for sure which
-	 * we'll be using at this point.  We set this to the lower limit.
+	 * ALSA wants the byte-size of the FIFOs.  As we only support
+	 * 16-bit samples, this is twice the FIFO depth irrespective
+	 * of whether it's in compact mode or not.
 	 */
-	runtime->hw.fifo_size = aaci->fifosize * 2;
+	runtime->hw.fifo_size = aaci->fifo_depth * 2;
 
 	mutex_lock(&aaci->irq_lock);
 	if (!aaci->users++) {
@@ -529,10 +527,13 @@ static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 		aacirun->pcm_open = err == 0;
 		aacirun->cr = CR_FEN | CR_COMPACT | CR_SZ16;
 		aacirun->cr |= channels_to_slotmask[channels + dbl * 2];
-		aacirun->fifosz = aaci->fifosize * 4;
 
-		if (aacirun->cr & CR_COMPACT)
-			aacirun->fifosz >>= 1;
+		/*
+		 * fifo_bytes is the number of bytes we transfer to/from
+		 * the FIFO, including padding.  So that's x4.  As we're
+		 * in compact mode, the FIFO is half the size.
+		 */
+		aacirun->fifo_bytes = aaci->fifo_depth * 4 / 2;
 	}
 
 	return err;
@@ -948,6 +949,10 @@ static unsigned int __devinit aaci_size_fifo(struct aaci *aaci)
 	struct aaci_runtime *aacirun = &aaci->playback;
 	int i;
 
+	/*
+	 * Enable the channel, but don't assign it to any slots, so
+	 * it won't empty onto the AC'97 link.
+	 */
 	writel(CR_FEN | CR_SZ16 | CR_EN, aacirun->base + AACI_TXCR);
 
 	for (i = 0; !(readl(aacirun->base + AACI_SR) & SR_TXFF) && i < 4096; i++)
@@ -964,7 +969,7 @@ static unsigned int __devinit aaci_size_fifo(struct aaci *aaci)
 	writel(aaci->maincr, aaci->base + AACI_MAINCR);
 
 	/*
-	 * If we hit 4096, we failed.  Go back to the specified
+	 * If we hit 4096 entries, we failed.  Go back to the specified
 	 * fifo depth.
 	 */
 	if (i == 4096)
@@ -1029,11 +1034,12 @@ static int __devinit aaci_probe(struct amba_device *dev, struct amba_id *id)
 
 	/*
 	 * Size the FIFOs (must be multiple of 16).
+	 * This is the number of entries in the FIFO.
 	 */
-	aaci->fifosize = aaci_size_fifo(aaci);
-	if (aaci->fifosize & 15) {
-		printk(KERN_WARNING "AACI: fifosize = %d not supported\n",
-		       aaci->fifosize);
+	aaci->fifo_depth = aaci_size_fifo(aaci);
+	if (aaci->fifo_depth & 15) {
+		printk(KERN_WARNING "AACI: FIFO depth %d not supported\n",
+		       aaci->fifo_depth);
 		ret = -ENODEV;
 		goto out;
 	}
@@ -1046,8 +1052,8 @@ static int __devinit aaci_probe(struct amba_device *dev, struct amba_id *id)
 
 	ret = snd_card_register(aaci->card);
 	if (ret == 0) {
-		dev_info(&dev->dev, "%s, fifo %d\n", aaci->card->longname,
-			 aaci->fifosize);
+		dev_info(&dev->dev, "%s\n", aaci->card->longname);
+		dev_info(&dev->dev, "FIFO %u entries\n", aaci->fifo_depth);
 		amba_set_drvdata(dev, aaci->card);
 		return ret;
 	}
