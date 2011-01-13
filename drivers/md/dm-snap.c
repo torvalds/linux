@@ -79,9 +79,6 @@ struct dm_snapshot {
 	/* Origin writes don't trigger exceptions until this is set */
 	int active;
 
-	/* Whether or not owning mapped_device is suspended */
-	int suspended;
-
 	atomic_t pending_exceptions_count;
 
 	mempool_t *pending_pool;
@@ -1102,7 +1099,6 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	s->ti = ti;
 	s->valid = 1;
 	s->active = 0;
-	s->suspended = 0;
 	atomic_set(&s->pending_exceptions_count, 0);
 	init_rwsem(&s->lock);
 	INIT_LIST_HEAD(&s->list);
@@ -1733,15 +1729,6 @@ static void snapshot_merge_presuspend(struct dm_target *ti)
 	stop_merge(s);
 }
 
-static void snapshot_postsuspend(struct dm_target *ti)
-{
-	struct dm_snapshot *s = ti->private;
-
-	down_write(&s->lock);
-	s->suspended = 1;
-	up_write(&s->lock);
-}
-
 static int snapshot_preresume(struct dm_target *ti)
 {
 	int r = 0;
@@ -1756,7 +1743,7 @@ static int snapshot_preresume(struct dm_target *ti)
 			DMERR("Unable to resume snapshot source until "
 			      "handover completes.");
 			r = -EINVAL;
-		} else if (!snap_src->suspended) {
+		} else if (!dm_suspended(snap_src->ti)) {
 			DMERR("Unable to perform snapshot handover until "
 			      "source is suspended.");
 			r = -EINVAL;
@@ -1789,7 +1776,6 @@ static void snapshot_resume(struct dm_target *ti)
 
 	down_write(&s->lock);
 	s->active = 1;
-	s->suspended = 0;
 	up_write(&s->lock);
 }
 
@@ -2167,7 +2153,7 @@ static int origin_iterate_devices(struct dm_target *ti,
 
 static struct target_type origin_target = {
 	.name    = "snapshot-origin",
-	.version = {1, 7, 0},
+	.version = {1, 7, 1},
 	.module  = THIS_MODULE,
 	.ctr     = origin_ctr,
 	.dtr     = origin_dtr,
@@ -2180,13 +2166,12 @@ static struct target_type origin_target = {
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 9, 0},
+	.version = {1, 10, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
 	.map     = snapshot_map,
 	.end_io  = snapshot_end_io,
-	.postsuspend = snapshot_postsuspend,
 	.preresume  = snapshot_preresume,
 	.resume  = snapshot_resume,
 	.status  = snapshot_status,
@@ -2195,14 +2180,13 @@ static struct target_type snapshot_target = {
 
 static struct target_type merge_target = {
 	.name    = dm_snapshot_merge_target_name,
-	.version = {1, 0, 0},
+	.version = {1, 1, 0},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
 	.map     = snapshot_merge_map,
 	.end_io  = snapshot_end_io,
 	.presuspend = snapshot_merge_presuspend,
-	.postsuspend = snapshot_postsuspend,
 	.preresume  = snapshot_preresume,
 	.resume  = snapshot_merge_resume,
 	.status  = snapshot_status,
