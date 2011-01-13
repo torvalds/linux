@@ -779,6 +779,16 @@ static inline void *snd_soc_pcm_get_drvdata(struct snd_soc_pcm_runtime *rtd)
 	return dev_get_drvdata(&rtd->dev);
 }
 
+static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
+{
+	INIT_LIST_HEAD(&card->dai_dev_list);
+	INIT_LIST_HEAD(&card->codec_dev_list);
+	INIT_LIST_HEAD(&card->platform_dev_list);
+	INIT_LIST_HEAD(&card->widgets);
+	INIT_LIST_HEAD(&card->paths);
+	INIT_LIST_HEAD(&card->dapm_list);
+}
+
 #include <sound/soc-dai.h>
 
 #ifdef CONFIG_DEBUG_FS

@@ -1872,12 +1872,7 @@ static int soc_probe(struct platform_device *pdev)
 
 	/* Bodge while we unpick instantiation */
 	card->dev = &pdev->dev;
-	INIT_LIST_HEAD(&card->dai_dev_list);
-	INIT_LIST_HEAD(&card->codec_dev_list);
-	INIT_LIST_HEAD(&card->platform_dev_list);
-	INIT_LIST_HEAD(&card->widgets);
-	INIT_LIST_HEAD(&card->paths);
-	INIT_LIST_HEAD(&card->dapm_list);
+	snd_soc_initialize_card_lists(card);
 
 	ret = snd_soc_register_card(card);
 	if (ret != 0) {
