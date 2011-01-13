@@ -254,6 +254,8 @@ extern void dec_zone_state(struct zone *, enum zone_stat_item);
 extern void __dec_zone_state(struct zone *, enum zone_stat_item);
 
 void refresh_cpu_vm_stats(int);
+void reduce_pgdat_percpu_threshold(pg_data_t *pgdat);
+void restore_pgdat_percpu_threshold(pg_data_t *pgdat);
 #else /* CONFIG_SMP */
 
 /*
@@ -297,6 +299,9 @@ static inline void __dec_zone_page_state(struct page *page,
 #define inc_zone_page_state __inc_zone_page_state
 #define dec_zone_page_state __dec_zone_page_state
 #define mod_zone_page_state __mod_zone_page_state
+
+static inline void reduce_pgdat_percpu_threshold(pg_data_t *pgdat) { }
+static inline void restore_pgdat_percpu_threshold(pg_data_t *pgdat) { }
 
 static inline void refresh_cpu_vm_stats(int cpu) { }
 #endif

@@ -83,6 +83,30 @@ EXPORT_SYMBOL(vm_stat);
 
 #ifdef CONFIG_SMP
 
+static int calculate_pressure_threshold(struct zone *zone)
+{
+	int threshold;
+	int watermark_distance;
+
+	/*
+	 * As vmstats are not up to date, there is drift between the estimated
+	 * and real values. For high thresholds and a high number of CPUs, it
+	 * is possible for the min watermark to be breached while the estimated
+	 * value looks fine. The pressure threshold is a reduced value such
+	 * that even the maximum amount of drift will not accidentally breach
+	 * the min watermark
+	 */
+	watermark_distance = low_wmark_pages(zone) - min_wmark_pages(zone);
+	threshold = max(1, (int)(watermark_distance / num_online_cpus()));
+
+	/*
+	 * Maximum threshold is 125
+	 */
+	threshold = min(125, threshold);
+
+	return threshold;
+}
+
 static int calculate_threshold(struct zone *zone)
 {
 	int threshold;
@@ -159,6 +183,48 @@ static void refresh_zone_stat_thresholds(void)
 			zone->percpu_drift_mark = high_wmark_pages(zone) +
 					max_drift;
 	}
+}
+
+void reduce_pgdat_percpu_threshold(pg_data_t *pgdat)
+{
+	struct zone *zone;
+	int cpu;
+	int threshold;
+	int i;
+
+	get_online_cpus();
+	for (i = 0; i < pgdat->nr_zones; i++) {
+		zone = &pgdat->node_zones[i];
+		if (!zone->percpu_drift_mark)
+			continue;
+
+		threshold = calculate_pressure_threshold(zone);
+		for_each_online_cpu(cpu)
+			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+							= threshold;
+	}
+	put_online_cpus();
+}
+
+void restore_pgdat_percpu_threshold(pg_data_t *pgdat)
+{
+	struct zone *zone;
+	int cpu;
+	int threshold;
+	int i;
+
+	get_online_cpus();
+	for (i = 0; i < pgdat->nr_zones; i++) {
+		zone = &pgdat->node_zones[i];
+		if (!zone->percpu_drift_mark)
+			continue;
+
+		threshold = calculate_threshold(zone);
+		for_each_online_cpu(cpu)
+			per_cpu_ptr(zone->pageset, cpu)->stat_threshold
+							= threshold;
+	}
+	put_online_cpus();
 }
 
 /*
@@ -911,7 +977,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   "\n        scanned  %lu"
 		   "\n        spanned  %lu"
 		   "\n        present  %lu",
-		   zone_nr_free_pages(zone),
+		   zone_page_state(zone, NR_FREE_PAGES),
 		   min_wmark_pages(zone),
 		   low_wmark_pages(zone),
 		   high_wmark_pages(zone),
