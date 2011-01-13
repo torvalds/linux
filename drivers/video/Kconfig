@@ -11,6 +11,13 @@ config HAVE_FB_ATMEL
 config HAVE_FB_IMX
 	bool
 
+config SH_MIPI_DSI
+	tristate
+	depends on (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
+
+config SH_LCD_MIPI_DSI
+	bool
+
 source "drivers/char/agp/Kconfig"
 
 source "drivers/gpu/vga/Kconfig"
@@ -414,7 +421,7 @@ config FB_SA1100
 	  Y here.
 
 config FB_IMX
-	tristate "Motorola i.MX LCD support"
+	tristate "Freescale i.MX LCD support"
 	depends on FB && (HAVE_FB_IMX || ARCH_MX1 || ARCH_MX2)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -1273,7 +1280,7 @@ config FB_MATROX
 	  module will be called matroxfb.
 
 	  You can pass several parameters to the driver at boot time or at
-	  module load time. The parameters look like "video=matrox:XXX", and
+	  module load time. The parameters look like "video=matroxfb:XXX", and
 	  are described in <file:Documentation/fb/matroxfb.txt>.
 
 config FB_MATROX_MILLENIUM
@@ -1989,13 +1996,6 @@ config FB_W100
 	  say M here and read <file:Documentation/kbuild/modules.txt>.
 
 	  If unsure, say N.
-
-config SH_MIPI_DSI
-	tristate
-	depends on (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
-
-config SH_LCD_MIPI_DSI
-	bool
 
 config FB_SH_MOBILE_LCDC
 	tristate "SuperH Mobile LCDC framebuffer support"

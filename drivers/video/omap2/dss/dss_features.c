@@ -82,6 +82,18 @@ static const enum omap_display_type omap3_dss_supported_displays[] = {
 	OMAP_DISPLAY_TYPE_VENC,
 };
 
+static const enum omap_display_type omap4_dss_supported_displays[] = {
+	/* OMAP_DSS_CHANNEL_LCD */
+	OMAP_DISPLAY_TYPE_DBI | OMAP_DISPLAY_TYPE_DSI,
+
+	/* OMAP_DSS_CHANNEL_DIGIT */
+	OMAP_DISPLAY_TYPE_VENC,
+
+	/* OMAP_DSS_CHANNEL_LCD2 */
+	OMAP_DISPLAY_TYPE_DPI | OMAP_DISPLAY_TYPE_DBI |
+	OMAP_DISPLAY_TYPE_DSI,
+};
+
 static const enum omap_color_mode omap2_dss_supported_color_modes[] = {
 	/* OMAP_DSS_GFX */
 	OMAP_DSS_COLOR_CLUT1 | OMAP_DSS_COLOR_CLUT2 |
@@ -127,6 +139,10 @@ static struct omap_dss_features omap2_dss_features = {
 	.reg_fields = omap2_dss_reg_fields,
 	.num_reg_fields = ARRAY_SIZE(omap2_dss_reg_fields),
 
+	.has_feature	=
+		FEAT_LCDENABLEPOL | FEAT_LCDENABLESIGNAL |
+		FEAT_PCKFREEENABLE | FEAT_FUNCGATED,
+
 	.num_mgrs = 2,
 	.num_ovls = 3,
 	.supported_displays = omap2_dss_supported_displays,
@@ -134,15 +150,48 @@ static struct omap_dss_features omap2_dss_features = {
 };
 
 /* OMAP3 DSS Features */
-static struct omap_dss_features omap3_dss_features = {
+static struct omap_dss_features omap3430_dss_features = {
 	.reg_fields = omap3_dss_reg_fields,
 	.num_reg_fields = ARRAY_SIZE(omap3_dss_reg_fields),
 
-	.has_feature	= FEAT_GLOBAL_ALPHA,
+	.has_feature	=
+		FEAT_GLOBAL_ALPHA | FEAT_LCDENABLEPOL |
+		FEAT_LCDENABLESIGNAL | FEAT_PCKFREEENABLE |
+		FEAT_FUNCGATED,
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
 	.supported_displays = omap3_dss_supported_displays,
+	.supported_color_modes = omap3_dss_supported_color_modes,
+};
+
+static struct omap_dss_features omap3630_dss_features = {
+	.reg_fields = omap3_dss_reg_fields,
+	.num_reg_fields = ARRAY_SIZE(omap3_dss_reg_fields),
+
+	.has_feature    =
+		FEAT_GLOBAL_ALPHA | FEAT_LCDENABLEPOL |
+		FEAT_LCDENABLESIGNAL | FEAT_PCKFREEENABLE |
+		FEAT_PRE_MULT_ALPHA | FEAT_FUNCGATED,
+
+	.num_mgrs = 2,
+	.num_ovls = 3,
+	.supported_displays = omap3_dss_supported_displays,
+	.supported_color_modes = omap3_dss_supported_color_modes,
+};
+
+/* OMAP4 DSS Features */
+static struct omap_dss_features omap4_dss_features = {
+	.reg_fields = omap3_dss_reg_fields,
+	.num_reg_fields = ARRAY_SIZE(omap3_dss_reg_fields),
+
+	.has_feature	=
+		FEAT_GLOBAL_ALPHA | FEAT_PRE_MULT_ALPHA |
+		FEAT_MGR_LCD2,
+
+	.num_mgrs = 3,
+	.num_ovls = 3,
+	.supported_displays = omap4_dss_supported_displays,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 };
 
@@ -167,6 +216,13 @@ enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane)
 	return omap_current_dss_features->supported_color_modes[plane];
 }
 
+bool dss_feat_color_mode_supported(enum omap_plane plane,
+		enum omap_color_mode color_mode)
+{
+	return omap_current_dss_features->supported_color_modes[plane] &
+			color_mode;
+}
+
 /* DSS has_feature check */
 bool dss_has_feature(enum dss_feat_id id)
 {
@@ -186,6 +242,10 @@ void dss_features_init(void)
 {
 	if (cpu_is_omap24xx())
 		omap_current_dss_features = &omap2_dss_features;
+	else if (cpu_is_omap3630())
+		omap_current_dss_features = &omap3630_dss_features;
+	else if (cpu_is_omap34xx())
+		omap_current_dss_features = &omap3430_dss_features;
 	else
-		omap_current_dss_features = &omap3_dss_features;
+		omap_current_dss_features = &omap4_dss_features;
 }
