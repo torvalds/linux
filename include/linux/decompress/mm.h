@@ -70,6 +70,7 @@ static void free(void *where)
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 /* Use defines rather than static inline in order to avoid spurious

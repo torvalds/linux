@@ -33,7 +33,6 @@
 #define PREBOOT
 #else
 #include <linux/decompress/unlzma.h>
-#include <linux/slab.h>
 #endif /* STATIC */
 
 #include <linux/decompress/mm.h>

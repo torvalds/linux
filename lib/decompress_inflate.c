@@ -19,7 +19,6 @@
 #include "zlib_inflate/inflate.h"
 
 #include "zlib_inflate/infutil.h"
-#include <linux/slab.h>
 
 #endif /* STATIC */
 
