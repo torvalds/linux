@@ -754,11 +754,10 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 		       sizeof(struct analog_demod_ops));
 	}
 
-	if ((!(cfg) || (TDA829X_PROBE_TUNER == cfg->probe_tuner)) &&
-	    (tda829x_find_tuner(fe) < 0)) {
-		memset(&fe->ops.analog_ops, 0, sizeof(struct analog_demod_ops));
-
-		goto fail;
+	if (!(cfg) || (TDA829X_PROBE_TUNER == cfg->probe_tuner)) {
+		tda8295_power(fe, 1);
+		if (tda829x_find_tuner(fe) < 0)
+			goto fail;
 	}
 
 	switch (priv->ver) {
@@ -803,6 +802,8 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 	return fe;
 
 fail:
+	memset(&fe->ops.analog_ops, 0, sizeof(struct analog_demod_ops));
+
 	tda829x_release(fe);
 	return NULL;
 }
