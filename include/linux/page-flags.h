@@ -409,6 +409,18 @@ static inline void ClearPageCompound(struct page *page)
 
 #endif /* !PAGEFLAGS_EXTENDED */
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+static inline int PageTransCompound(struct page *page)
+{
+	return PageCompound(page);
+}
+#else
+static inline int PageTransCompound(struct page *page)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_MMU
 #define __PG_MLOCKED		(1 << PG_mlocked)
 #else
