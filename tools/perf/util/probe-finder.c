@@ -1234,51 +1234,38 @@ static int find_probe_point_by_line(struct probe_finder *pf)
 static int find_lazy_match_lines(struct list_head *head,
 				 const char *fname, const char *pat)
 {
-	char *fbuf, *p1, *p2;
-	int fd, line, nlines = -1;
-	struct stat st;
+	FILE *fp;
+	char *line = NULL;
+	size_t line_len;
+	ssize_t len;
+	int count = 0, linenum = 1;
 
-	fd = open(fname, O_RDONLY);
-	if (fd < 0) {
-		pr_warning("Failed to open %s: %s\n", fname, strerror(-fd));
+	fp = fopen(fname, "r");
+	if (!fp) {
+		pr_warning("Failed to open %s: %s\n", fname, strerror(errno));
 		return -errno;
 	}
 
-	if (fstat(fd, &st) < 0) {
-		pr_warning("Failed to get the size of %s: %s\n",
-			   fname, strerror(errno));
-		nlines = -errno;
-		goto out_close;
+	while ((len = getline(&line, &line_len, fp)) > 0) {
+
+		if (line[len - 1] == '\n')
+			line[len - 1] = '\0';
+
+		if (strlazymatch(line, pat)) {
+			line_list__add_line(head, linenum);
+			count++;
+		}
+		linenum++;
 	}
 
-	nlines = -ENOMEM;
-	fbuf = malloc(st.st_size + 2);
-	if (fbuf == NULL)
-		goto out_close;
-	if (read(fd, fbuf, st.st_size) < 0) {
-		pr_warning("Failed to read %s: %s\n", fname, strerror(errno));
-		nlines = -errno;
-		goto out_free_fbuf;
-	}
-	fbuf[st.st_size] = '\n';	/* Dummy line */
-	fbuf[st.st_size + 1] = '\0';
-	p1 = fbuf;
-	line = 1;
-	nlines = 0;
-	while ((p2 = strchr(p1, '\n')) != NULL) {
-		*p2 = '\0';
-		if (strlazymatch(p1, pat)) {
-			line_list__add_line(head, line);
-			nlines++;
-		}
-		line++;
-		p1 = p2 + 1;
-	}
-out_free_fbuf:
-	free(fbuf);
-out_close:
-	close(fd);
-	return nlines;
+	if (ferror(fp))
+		count = -errno;
+	free(line);
+	fclose(fp);
+
+	if (count == 0)
+		pr_debug("No matched lines found in %s.\n", fname);
+	return count;
 }
 
 static int probe_point_lazy_walker(const char *fname, int lineno,
@@ -1312,10 +1299,7 @@ static int find_probe_point_lazy(Dwarf_Die *sp_die, struct probe_finder *pf)
 		/* Matching lazy line pattern */
 		ret = find_lazy_match_lines(&pf->lcache, pf->fname,
 					    pf->pev->point.lazy_line);
-		if (ret == 0) {
-			pr_debug("No matched lines found in %s.\n", pf->fname);
-			return 0;
-		} else if (ret < 0)
+		if (ret <= 0)
 			return ret;
 	}
 
