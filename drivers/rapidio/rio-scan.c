@@ -46,7 +46,6 @@ static void rio_init_em(struct rio_dev *rdev);
 DEFINE_SPINLOCK(rio_global_list_lock);
 
 static int next_destid = 0;
-static int next_switchid = 0;
 static int next_net = 0;
 static int next_comptag = 1;
 
@@ -438,6 +437,10 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 		rio_mport_write_config_32(port, destid, hopcount,
 					  RIO_COMPONENT_TAG_CSR, next_comptag);
 		rdev->comp_tag = next_comptag++;
+	}  else {
+		rio_mport_read_config_32(port, destid, hopcount,
+					 RIO_COMPONENT_TAG_CSR,
+					 &rdev->comp_tag);
 	}
 
 	if (rio_device_has_destid(port, rdev->src_ops, rdev->dst_ops)) {
@@ -461,7 +464,7 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 	/* If a PE has both switch and other functions, show it as a switch */
 	if (rio_is_switch(rdev)) {
 		rswitch = rdev->rswitch;
-		rswitch->switchid = next_switchid;
+		rswitch->switchid = rdev->comp_tag & RIO_CTAG_UDEVID;
 		rswitch->port_ok = 0;
 		rswitch->route_table = kzalloc(sizeof(u8)*
 					RIO_MAX_ROUTE_ENTRIES(port->sys_size),
@@ -816,7 +819,6 @@ static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 		return -1;
 
 	if (rio_is_switch(rdev)) {
-		next_switchid++;
 		sw_inport = RIO_GET_PORT_NUM(rdev->swpinfo);
 		rio_route_add_entry(rdev, RIO_GLOBAL_TABLE,
 				    port->host_deviceid, sw_inport, 0);
@@ -964,8 +966,6 @@ rio_disc_peer(struct rio_net *net, struct rio_mport *port, u16 destid,
 		return -1;
 
 	if (rio_is_switch(rdev)) {
-		next_switchid++;
-
 		/* Associated destid is how we accessed this switch */
 		rdev->destid = destid;
 
