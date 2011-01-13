@@ -330,6 +330,14 @@ config SH_APSH4A3A
 	help
 	  Select AP-SH4A-3A if configuring for an ALPHAPROJECT AP-SH4A-3A.
 
+config SH_APSH4AD0A
+	bool "AP-SH4AD-0A"
+	select SH_ALPHA_BOARD
+	select SYS_SUPPORTS_PCI
+	depends on CPU_SUBTYPE_SH7786
+	help
+	  Select AP-SH4AD-0A if configuring for an ALPHAPROJECT AP-SH4AD-0A.
+
 endmenu
 
 source "arch/sh/boards/mach-r2d/Kconfig"
