@@ -68,6 +68,11 @@ static void ramoops_do_dump(struct kmsg_dumper *dumper,
 	char *buf, *buf_orig;
 	struct timeval timestamp;
 
+	if (reason != KMSG_DUMP_OOPS &&
+	    reason != KMSG_DUMP_PANIC &&
+	    reason != KMSG_DUMP_KEXEC)
+		return;
+
 	/* Only dump oopses if dump_oops is set */
 	if (reason == KMSG_DUMP_OOPS && !dump_oops)
 		return;

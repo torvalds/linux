@@ -307,6 +307,11 @@ static void mtdoops_do_dump(struct kmsg_dumper *dumper,
 	unsigned long l1_cpy, l2_cpy;
 	char *dst;
 
+	if (reason != KMSG_DUMP_OOPS &&
+	    reason != KMSG_DUMP_PANIC &&
+	    reason != KMSG_DUMP_KEXEC)
+		return;
+
 	/* Only dump oopses if dump_oops is set */
 	if (reason == KMSG_DUMP_OOPS && !dump_oops)
 		return;
