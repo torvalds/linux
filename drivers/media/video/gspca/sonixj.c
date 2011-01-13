@@ -2193,14 +2193,22 @@ static void setillum(struct gspca_dev *gspca_dev)
 
 	if (gspca_dev->ctrl_dis & (1 << ILLUM))
 		return;
-	if (starcam)
-		reg_w1(gspca_dev, 0x02,			/* gpio */
-			sd->ctrls[ILLUM].val ?
-					0x55 : 0x54);	/* 370i */
-	else
-		reg_w1(gspca_dev, 0x02,
-			sd->ctrls[ILLUM].val ?
-					0x66 : 0x64);	/* Clip */
+	switch (sd->sensor) {
+	case SENSOR_ADCM1700:
+		reg_w1(gspca_dev, 0x02,				/* gpio */
+			sd->ctrls[ILLUM].val ? 0x64 : 0x60);
+		break;
+	case SENSOR_MT9V111:
+		if (starcam)
+			reg_w1(gspca_dev, 0x02,
+				sd->ctrls[ILLUM].val ?
+						0x55 : 0x54);	/* 370i */
+		else
+			reg_w1(gspca_dev, 0x02,
+				sd->ctrls[ILLUM].val ?
+						0x66 : 0x64);	/* Clip */
+		break;
+	}
 }
 
 static void setfreq(struct gspca_dev *gspca_dev)
@@ -2959,7 +2967,7 @@ static const struct usb_device_id device_table[] = {
 						/* or GC0305 / GC0307 */
 	{USB_DEVICE(0x0c45, 0x6143), BS(SN9C120, SP80708)},	/*sn9c120b*/
 	{USB_DEVICE(0x0c45, 0x6148), BS(SN9C120, OM6802)},	/*sn9c120b*/
-	{USB_DEVICE(0x0c45, 0x614a), BS(SN9C120, ADCM1700)},	/*sn9c120b*/
+	{USB_DEVICE(0x0c45, 0x614a), BSF(SN9C120, ADCM1700, F_ILLUM)},
 /*	{USB_DEVICE(0x0c45, 0x614c), BS(SN9C120, GC0306)}, */	/*sn9c120b*/
 	{}
 };
