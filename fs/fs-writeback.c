@@ -1303,11 +1303,11 @@ int sync_inode(struct inode *inode, struct writeback_control *wbc)
 EXPORT_SYMBOL(sync_inode);
 
 /**
- * sync_inode - write an inode to disk
+ * sync_inode_metadata - write an inode to disk
  * @inode: the inode to sync
  * @wait: wait for I/O to complete.
  *
- * Write an inode to disk and adjust it's dirty state after completion.
+ * Write an inode to disk and adjust its dirty state after completion.
  *
  * Note: only writes the actual inode, no associated data or other metadata.
  */
