@@ -54,7 +54,10 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
 
-#define CONFIG_SENSOR_I2C_SPEED     400000       /* Hz */
+#define CONFIG_SENSOR_I2C_SPEED     100000       /* Hz */
+/* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
+#define CONFIG_SENSOR_I2C_NOSCHED   1
+#define CONFIG_SENSOR_I2C_RDWRCHK   1
 
 #define CONFIG_SENSOR_TR      1
 #define CONFIG_SENSOR_DEBUG	  1
@@ -1432,11 +1435,34 @@ struct sensor
     struct i2c_client *client;
     sensor_info_priv_t info_priv;
     int model;	/* V4L2_IDENT_OV* codes from v4l2-chip-ident.h */
+#if CONFIG_SENSOR_I2C_NOSCHED
+	atomic_t tasklock_cnt;
+#endif
 };
 
 static struct sensor* to_sensor(const struct i2c_client *client)
 {
     return container_of(i2c_get_clientdata(client), struct sensor, subdev);
+}
+
+static int sensor_task_lock(struct i2c_client *client, int lock)
+{
+#if CONFIG_SENSOR_I2C_NOSCHED
+    struct sensor *sensor = to_sensor(client);
+
+	if (lock) {
+		if (atomic_read(&sensor->tasklock_cnt) == 0)
+			preempt_disable();
+
+		atomic_add(1, &sensor->tasklock_cnt);
+	} else {
+		atomic_sub(1, &sensor->tasklock_cnt);
+
+		if (atomic_read(&sensor->tasklock_cnt) == 0)
+			preempt_enable();
+	}
+#endif
+	return 0;
 }
 
 /* sensor register write */
@@ -1457,16 +1483,16 @@ static int sensor_write(struct i2c_client *client, u16 reg, u8 val)
     msg->scl_rate = CONFIG_SENSOR_I2C_SPEED;         /* ddl@rock-chips.com : 100kHz */
     msg->read_type = 0;               /* fpga i2c:0==I2C_NORMAL : direct use number not enum for don't want include spi_fpga.h */
 
-    cnt = 1;
+    cnt = 3;
     err = -EAGAIN;
 
-    while ((cnt--) && (err < 0)) {                       /* ddl@rock-chips.com :  Transfer again if transent is failed   */
+    while ((cnt-- > 0) && (err < 0)) {                       /* ddl@rock-chips.com :  Transfer again if transent is failed   */
         err = i2c_transfer(client->adapter, msg, 1);
 
         if (err >= 0) {
             return 0;
         } else {
-            SENSOR_TR("\n %s write reg failed, try to write again!\n",SENSOR_NAME_STRING());
+            SENSOR_TR("\n %s write reg(0x%x, val:0x%x) failed, try to write again!\n",SENSOR_NAME_STRING(),reg, val);
             udelay(10);
         }
     }
@@ -1498,16 +1524,16 @@ static int sensor_read(struct i2c_client *client, u16 reg, u8 *val)
     msg[1].scl_rate = CONFIG_SENSOR_I2C_SPEED;                       /* ddl@rock-chips.com : 100kHz */
     msg[1].read_type = 2;                             /* fpga i2c:0==I2C_NO_STOP : direct use number not enum for don't want include spi_fpga.h */
 
-    cnt = 1;
+    cnt = 3;
     err = -EAGAIN;
-    while ((cnt--) && (err < 0)) {                       /* ddl@rock-chips.com :  Transfer again if transent is failed   */
+    while ((cnt-- > 0) && (err < 0)) {                       /* ddl@rock-chips.com :  Transfer again if transent is failed   */
         err = i2c_transfer(client->adapter, msg, 2);
 
         if (err >= 0) {
             *val = buf[0];
             return 0;
         } else {
-        	SENSOR_TR("\n %s read reg failed, try to read again! reg:0x%x \n",SENSOR_NAME_STRING(),(unsigned int)val);
+        	SENSOR_TR("\n %s read reg(0x%x val:0x%x) failed, try to read again! \n",SENSOR_NAME_STRING(),reg, *val);
             udelay(10);
         }
     }
@@ -1518,10 +1544,12 @@ static int sensor_read(struct i2c_client *client, u16 reg, u8 *val)
 /* write a array of registers  */
 static int sensor_write_array(struct i2c_client *client, struct reginfo *regarray)
 {
-    int err, cnt;
+    int err = 0, cnt;
     int i = 0;
+	char valchk;
 
 	cnt = 0;
+	sensor_task_lock(client, 1);
     while (regarray[i].reg != 0)
     {
         err = sensor_write(client, regarray[i].reg, regarray[i].val);
@@ -1533,9 +1561,37 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
 				continue;
             } else {
                 SENSOR_TR("%s..write array failed!!!\n", SENSOR_NAME_STRING());
-                return -EPERM;
+                err = -EPERM;
+				goto sensor_write_array_end;
             }
+        } else {
+        #if CONFIG_SENSOR_I2C_RDWRCHK
+			sensor_read(client, regarray[i].reg, &valchk);
+			if (valchk != regarray[i].val)
+				SENSOR_TR("%s Reg:0x%x write(0x%x, 0x%x) fail\n",SENSOR_NAME_STRING(), regarray[i].reg, regarray[i].val, valchk);
+		#endif
         }
+        i++;
+    }
+
+sensor_write_array_end:
+	sensor_task_lock(client,0);
+	return err;
+}
+static int sensor_readchk_array(struct i2c_client *client, struct reginfo *regarray)
+{
+    int cnt;
+    int i = 0;
+	char valchk;
+
+	cnt = 0;
+	valchk = 0;
+    while (regarray[i].reg != 0)
+    {
+		sensor_read(client, regarray[i].reg, &valchk);
+		if (valchk != regarray[i].val)
+			SENSOR_TR("%s Reg:0x%x read(0x%x, 0x%x) error\n",SENSOR_NAME_STRING(), regarray[i].reg, regarray[i].val, valchk);
+
         i++;
     }
     return 0;
@@ -1553,6 +1609,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
 
     /* soft reset */
+	sensor_task_lock(client,1);
     ret = sensor_write(client, 0x3012, 0x80);
     if (ret != 0)
     {
@@ -1595,7 +1652,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         SENSOR_TR("error: %s initial failed\n",SENSOR_NAME_STRING());
         goto sensor_INIT_ERR;
     }
-
+	sensor_task_lock(client,0);
     icd->user_width = SENSOR_INIT_WIDTH;
     icd->user_height = SENSOR_INIT_HEIGHT;
     sensor->info_priv.winseqe_cur_addr  = (int)SENSOR_INIT_WINSEQADR;
@@ -1649,7 +1706,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         sensor->info_priv.flash = qctrl->default_value;
     #endif
 
-    SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,icd->user_width,icd->user_height);
+    SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),((val == 0)?__FUNCTION__:"sensor_reinit"),icd->user_width,icd->user_height);
 
     return 0;
 sensor_INIT_ERR:
@@ -1663,9 +1720,10 @@ static int sensor_deactivate(struct v4l2_subdev *sd)
 	SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
 
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
+	sensor_task_lock(client, 1);
     sensor_write(client, 0x30b0, 0x00);
 	sensor_write(client, 0x30b1, 0x00);
-
+	sensor_task_lock(client, 0);
 	return 0;
 }
 
@@ -2701,6 +2759,9 @@ static int sensor_probe(struct i2c_client *client,
     /* Second stage probe - when a capture adapter is there */
     icd->ops		= &sensor_ops;
     icd->y_skip_top		= 0;
+	#if CONFIG_SENSOR_I2C_NOSCHED
+	atomic_set(&sensor->tasklock_cnt,0);
+	#endif
 
     ret = sensor_video_probe(icd, client);
     if (ret) {
