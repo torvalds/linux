@@ -574,8 +574,10 @@ STATIC inline int INIT unlzma(unsigned char *buf, int in_len,
 		((unsigned char *)&header)[i] = *rc.ptr++;
 	}
 
-	if (header.pos >= (9 * 5 * 5))
+	if (header.pos >= (9 * 5 * 5)) {
 		error("bad header");
+		goto exit_1;
+	}
 
 	mi = 0;
 	lc = header.pos;
