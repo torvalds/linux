@@ -357,7 +357,7 @@ static struct snd_pcm_hardware aaci_hw_info = {
 
 	/* rates are setup from the AC'97 codec */
 	.channels_min		= 2,
-	.channels_max		= 6,
+	.channels_max		= 2,
 	.buffer_bytes_max	= 64 * 1024,
 	.period_bytes_min	= 256,
 	.period_bytes_max	= PAGE_SIZE,
@@ -365,12 +365,46 @@ static struct snd_pcm_hardware aaci_hw_info = {
 	.periods_max		= PAGE_SIZE / 16,
 };
 
-static int __aaci_pcm_open(struct aaci *aaci,
-			   struct snd_pcm_substream *substream,
-			   struct aaci_runtime *aacirun)
+/*
+ * We can support two and four channel audio.  Unfortunately
+ * six channel audio requires a non-standard channel ordering:
+ *   2 -> FL(3), FR(4)
+ *   4 -> FL(3), FR(4), SL(7), SR(8)
+ *   6 -> FL(3), FR(4), SL(7), SR(8), C(6), LFE(9) (required)
+ *        FL(3), FR(4), C(6), SL(7), SR(8), LFE(9) (actual)
+ * This requires an ALSA configuration file to correct.
+ */
+static int aaci_rule_channels(struct snd_pcm_hw_params *p,
+	struct snd_pcm_hw_rule *rule)
+{
+	static unsigned int channel_list[] = { 2, 4, 6 };
+	struct aaci *aaci = rule->private;
+	unsigned int mask = 1 << 0, slots;
+
+	/* pcms[0] is the our 5.1 PCM instance. */
+	slots = aaci->ac97_bus->pcms[0].r[0].slots;
+	if (slots & (1 << AC97_SLOT_PCM_SLEFT)) {
+		mask |= 1 << 1;
+		if (slots & (1 << AC97_SLOT_LFE))
+			mask |= 1 << 2;
+	}
+
+	return snd_interval_list(hw_param_interval(p, rule->var),
+				 ARRAY_SIZE(channel_list), channel_list, mask);
+}
+
+static int aaci_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct aaci *aaci = substream->private_data;
+	struct aaci_runtime *aacirun;
 	int ret = 0;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		aacirun = &aaci->playback;
+	} else {
+		aacirun = &aaci->capture;
+	}
 
 	aacirun->substream = substream;
 	runtime->private_data = aacirun;
@@ -378,9 +412,20 @@ static int __aaci_pcm_open(struct aaci *aaci,
 	runtime->hw.rates = aacirun->pcm->rates;
 	snd_pcm_limit_hw_rates(runtime);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
-	    aacirun->pcm->r[1].slots)
-		snd_ac97_pcm_double_rate_rules(runtime);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		runtime->hw.channels_max = 6;
+
+		/* Add rule describing channel dependency. */
+		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
+					  SNDRV_PCM_HW_PARAM_CHANNELS,
+					  aaci_rule_channels, aaci,
+					  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+		if (ret)
+			return ret;
+
+		if (aacirun->pcm->r[1].slots)
+			snd_ac97_pcm_double_rate_rules(runtime);
+	}
 
 	/*
 	 * FIXME: ALSA specifies fifo_size in bytes.  If we're in normal
@@ -511,61 +556,6 @@ static const u32 channels_to_txmask[] = {
 	[4] = CR_SL3 | CR_SL4 | CR_SL7 | CR_SL8,
 	[6] = CR_SL3 | CR_SL4 | CR_SL7 | CR_SL8 | CR_SL6 | CR_SL9,
 };
-
-/*
- * We can support two and four channel audio.  Unfortunately
- * six channel audio requires a non-standard channel ordering:
- *   2 -> FL(3), FR(4)
- *   4 -> FL(3), FR(4), SL(7), SR(8)
- *   6 -> FL(3), FR(4), SL(7), SR(8), C(6), LFE(9) (required)
- *        FL(3), FR(4), C(6), SL(7), SR(8), LFE(9) (actual)
- * This requires an ALSA configuration file to correct.
- */
-static unsigned int channel_list[] = { 2, 4, 6 };
-
-static int
-aaci_rule_channels(struct snd_pcm_hw_params *p, struct snd_pcm_hw_rule *rule)
-{
-	struct aaci *aaci = rule->private;
-	unsigned int chan_mask = 1 << 0, slots;
-
-	/*
-	 * pcms[0] is the our 5.1 PCM instance.
-	 */
-	slots = aaci->ac97_bus->pcms[0].r[0].slots;
-	if (slots & (1 << AC97_SLOT_PCM_SLEFT)) {
-		chan_mask |= 1 << 1;
-		if (slots & (1 << AC97_SLOT_LFE))
-			chan_mask |= 1 << 2;
-	}
-
-	return snd_interval_list(hw_param_interval(p, rule->var),
-				 ARRAY_SIZE(channel_list), channel_list,
-				 chan_mask);
-}
-
-static int aaci_pcm_open(struct snd_pcm_substream *substream)
-{
-	struct aaci *aaci = substream->private_data;
-	int ret;
-
-	/*
-	 * Add rule describing channel dependency.
-	 */
-	ret = snd_pcm_hw_rule_add(substream->runtime, 0,
-				  SNDRV_PCM_HW_PARAM_CHANNELS,
-				  aaci_rule_channels, aaci,
-				  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
-	if (ret)
-		return ret;
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		ret = __aaci_pcm_open(aaci, substream, &aaci->playback);
-	} else {
-		ret = __aaci_pcm_open(aaci, substream, &aaci->capture);
-	}
-	return ret;
-}
 
 static int aaci_pcm_playback_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *params)
