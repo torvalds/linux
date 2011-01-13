@@ -210,6 +210,8 @@ struct aaci_runtime {
 	u32			cr;
 	struct snd_pcm_substream	*substream;
 
+	unsigned int		period;	/* byte size of a "period" */
+
 	/*
 	 * PIO support
 	 */
@@ -217,7 +219,6 @@ struct aaci_runtime {
 	void			*end;
 	void			*ptr;
 	int			bytes;
-	unsigned int		period;
 	unsigned int		fifosz;
 };
 
