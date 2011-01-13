@@ -210,11 +210,11 @@ static struct page *read_sb_page(mddev_t *mddev, loff_t offset,
 		    || test_bit(Faulty, &rdev->flags))
 			continue;
 
-		target = rdev->sb_start + offset + index * (PAGE_SIZE/512);
+		target = offset + index * (PAGE_SIZE/512);
 
 		if (sync_page_io(rdev, target,
 				 roundup(size, bdev_logical_block_size(rdev->bdev)),
-				 page, READ)) {
+				 page, READ, true)) {
 			page->index = index;
 			attach_page_buffers(page, NULL); /* so that free_buffer will
 							  * quietly no-op */

@@ -1560,9 +1560,9 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 				rcu_read_unlock();
 				success = sync_page_io(rdev,
 						       r10_bio->devs[sl].addr +
-						       sect + rdev->data_offset,
+						       sect,
 						       s<<9,
-						       conf->tmppage, READ);
+						       conf->tmppage, READ, false);
 				rdev_dec_pending(rdev, mddev);
 				rcu_read_lock();
 				if (success)
@@ -1599,8 +1599,8 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 				atomic_add(s, &rdev->corrected_errors);
 				if (sync_page_io(rdev,
 						 r10_bio->devs[sl].addr +
-						 sect + rdev->data_offset,
-						 s<<9, conf->tmppage, WRITE)
+						 sect,
+						 s<<9, conf->tmppage, WRITE, false)
 				    == 0) {
 					/* Well, this device is dead */
 					printk(KERN_NOTICE
@@ -1636,9 +1636,9 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 				rcu_read_unlock();
 				if (sync_page_io(rdev,
 						 r10_bio->devs[sl].addr +
-						 sect + rdev->data_offset,
+						 sect,
 						 s<<9, conf->tmppage,
-						 READ) == 0) {
+						 READ, false) == 0) {
 					/* Well, this device is dead */
 					printk(KERN_NOTICE
 					       "md/raid10:%s: unable to read back "

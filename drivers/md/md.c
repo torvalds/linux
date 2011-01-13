@@ -795,7 +795,7 @@ static void bi_complete(struct bio *bio, int error)
 }
 
 int sync_page_io(mdk_rdev_t *rdev, sector_t sector, int size,
-		 struct page *page, int rw)
+		 struct page *page, int rw, bool metadata_op)
 {
 	struct bio *bio = bio_alloc_mddev(GFP_NOIO, 1, rdev->mddev);
 	struct completion event;
@@ -804,7 +804,10 @@ int sync_page_io(mdk_rdev_t *rdev, sector_t sector, int size,
 	rw |= REQ_SYNC | REQ_UNPLUG;
 
 	bio->bi_bdev = rdev->bdev;
-	bio->bi_sector = sector;
+	if (metadata_op)
+		bio->bi_sector = sector + rdev->sb_start;
+	else
+		bio->bi_sector = sector + rdev->data_offset;
 	bio_add_page(bio, page, size, 0);
 	init_completion(&event);
 	bio->bi_private = &event;
@@ -829,7 +832,7 @@ static int read_disk_sb(mdk_rdev_t * rdev, int size)
 		return 0;
 
 
-	if (!sync_page_io(rdev, rdev->sb_start, size, rdev->sb_page, READ))
+	if (!sync_page_io(rdev, 0, size, rdev->sb_page, READ, true))
 		goto fail;
 	rdev->sb_loaded = 1;
 	return 0;

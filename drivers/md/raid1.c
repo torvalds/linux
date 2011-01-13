@@ -1365,10 +1365,10 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 					 */
 					rdev = conf->mirrors[d].rdev;
 					if (sync_page_io(rdev,
-							 sect + rdev->data_offset,
+							 sect,
 							 s<<9,
 							 bio->bi_io_vec[idx].bv_page,
-							 READ)) {
+							 READ, false)) {
 						success = 1;
 						break;
 					}
@@ -1391,10 +1391,10 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 					rdev = conf->mirrors[d].rdev;
 					atomic_add(s, &rdev->corrected_errors);
 					if (sync_page_io(rdev,
-							 sect + rdev->data_offset,
+							 sect,
 							 s<<9,
 							 bio->bi_io_vec[idx].bv_page,
-							 WRITE) == 0)
+							 WRITE, false) == 0)
 						md_error(mddev, rdev);
 				}
 				d = start;
@@ -1406,10 +1406,10 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 						continue;
 					rdev = conf->mirrors[d].rdev;
 					if (sync_page_io(rdev,
-							 sect + rdev->data_offset,
+							 sect,
 							 s<<9,
 							 bio->bi_io_vec[idx].bv_page,
-							 READ) == 0)
+							 READ, false) == 0)
 						md_error(mddev, rdev);
 				}
 			} else {
@@ -1489,10 +1489,8 @@ static void fix_read_error(conf_t *conf, int read_disk,
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
 			    test_bit(In_sync, &rdev->flags) &&
-			    sync_page_io(rdev,
-					 sect + rdev->data_offset,
-					 s<<9,
-					 conf->tmppage, READ))
+			    sync_page_io(rdev, sect, s<<9,
+					 conf->tmppage, READ, false))
 				success = 1;
 			else {
 				d++;
@@ -1515,9 +1513,8 @@ static void fix_read_error(conf_t *conf, int read_disk,
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
 			    test_bit(In_sync, &rdev->flags)) {
-				if (sync_page_io(rdev,
-						 sect + rdev->data_offset,
-						 s<<9, conf->tmppage, WRITE)
+				if (sync_page_io(rdev, sect, s<<9,
+						 conf->tmppage, WRITE, false)
 				    == 0)
 					/* Well, this device is dead */
 					md_error(mddev, rdev);
@@ -1532,9 +1529,8 @@ static void fix_read_error(conf_t *conf, int read_disk,
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
 			    test_bit(In_sync, &rdev->flags)) {
-				if (sync_page_io(rdev,
-						 sect + rdev->data_offset,
-						 s<<9, conf->tmppage, READ)
+				if (sync_page_io(rdev, sect, s<<9,
+						 conf->tmppage, READ, false)
 				    == 0)
 					/* Well, this device is dead */
 					md_error(mddev, rdev);
