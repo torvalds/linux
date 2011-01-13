@@ -206,6 +206,7 @@ static void aaci_fifo_irq(struct aaci *aaci, int channel, u32 mask)
 
 	if (mask & ISR_RXINTR) {
 		struct aaci_runtime *aacirun = &aaci->capture;
+		bool period_elapsed = false;
 		void *ptr;
 
 		if (!aacirun->substream || !aacirun->start) {
@@ -223,10 +224,7 @@ static void aaci_fifo_irq(struct aaci *aaci, int channel, u32 mask)
 
 			if (aacirun->bytes <= 0) {
 				aacirun->bytes += aacirun->period;
-				aacirun->ptr = ptr;
-				spin_unlock(&aacirun->lock);
-				snd_pcm_period_elapsed(aacirun->substream);
-				spin_lock(&aacirun->lock);
+				period_elapsed = true;
 			}
 			if (!(aacirun->cr & CR_EN))
 				break;
@@ -256,6 +254,9 @@ static void aaci_fifo_irq(struct aaci *aaci, int channel, u32 mask)
 		aacirun->ptr = ptr;
 
 		spin_unlock(&aacirun->lock);
+
+		if (period_elapsed)
+			snd_pcm_period_elapsed(aacirun->substream);
 	}
 
 	if (mask & ISR_URINTR) {
@@ -265,6 +266,7 @@ static void aaci_fifo_irq(struct aaci *aaci, int channel, u32 mask)
 
 	if (mask & ISR_TXINTR) {
 		struct aaci_runtime *aacirun = &aaci->playback;
+		bool period_elapsed = false;
 		void *ptr;
 
 		if (!aacirun->substream || !aacirun->start) {
@@ -282,10 +284,7 @@ static void aaci_fifo_irq(struct aaci *aaci, int channel, u32 mask)
 
 			if (aacirun->bytes <= 0) {
 				aacirun->bytes += aacirun->period;
-				aacirun->ptr = ptr;
-				spin_unlock(&aacirun->lock);
-				snd_pcm_period_elapsed(aacirun->substream);
-				spin_lock(&aacirun->lock);
+				period_elapsed = true;
 			}
 			if (!(aacirun->cr & CR_EN))
 				break;
@@ -315,6 +314,9 @@ static void aaci_fifo_irq(struct aaci *aaci, int channel, u32 mask)
 		aacirun->ptr = ptr;
 
 		spin_unlock(&aacirun->lock);
+
+		if (period_elapsed)
+			snd_pcm_period_elapsed(aacirun->substream);
 	}
 }
 
