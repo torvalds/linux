@@ -40,7 +40,7 @@
 #if 0
 #define DBG     printk
 #else
-#define DBG
+#define DBG(...)
 #endif
 /*
  * We wrap our port structure around the generic uart_port.
@@ -629,6 +629,10 @@ static int __init rk29_console_setup(struct console *co, char *options)
 	rk29_set_baud_rate(port, baud);
 
 	printk(KERN_INFO "rk29_serial: console setup on port %d\n", port->line);
+
+	/* clear rx fifo, else will blocked on set_termios (always busy) */
+	while ((rk29_uart_read(port, UART_USR) & UART_RECEIVE_FIFO_NOT_EMPTY) == UART_RECEIVE_FIFO_NOT_EMPTY)
+		rk29_uart_read(port, UART_RBR);
 
 	return uart_set_options(port, co, baud, parity, bits, flow);	
 }
