@@ -765,6 +765,8 @@ static int jmb38x_ms_set_param(struct memstick_host *msh,
 #define  PMOS0_SW_LED_POLARITY_ENABLE	0x80
 #define  PMOS0_ACTIVE_BITS (PMOS0_ENABLE | PMOS0_EN_OVERCURRENT_DEBOUNCE | \
 			    PMOS0_OVERCURRENT_LEVEL_2_4V)
+#define PCI_PMOS1_CONTROL		0xbd
+#define  PMOS1_ACTIVE_BITS		0x4a
 #define PCI_CLOCK_CTL			0xb9
 
 static int jmb38x_ms_pmos(struct pci_dev *pdev, int flag)
@@ -778,6 +780,16 @@ static int jmb38x_ms_pmos(struct pci_dev *pdev, int flag)
 		val &= ~PMOS0_ACTIVE_BITS;
 	pci_write_config_byte(pdev, PCI_PMOS0_CONTROL, val);
 	dev_dbg(&pdev->dev, "JMB38x: set PMOS0 val 0x%x\n", val);
+
+	if (pci_resource_flags(pdev, 1)) {
+		pci_read_config_byte(pdev, PCI_PMOS1_CONTROL, &val);
+		if (flag)
+			val |= PMOS1_ACTIVE_BITS;
+		else
+			val &= ~PMOS1_ACTIVE_BITS;
+		pci_write_config_byte(pdev, PCI_PMOS1_CONTROL, val);
+		dev_dbg(&pdev->dev, "JMB38x: set PMOS1 val 0x%x\n", val);
+	}
 
 	pci_read_config_byte(pdev, PCI_CLOCK_CTL, &val);
 	pci_write_config_byte(pdev, PCI_CLOCK_CTL, val & ~0x0f);
@@ -1018,8 +1030,9 @@ static void jmb38x_ms_remove(struct pci_dev *dev)
 }
 
 static struct pci_device_id jmb38x_ms_id_tbl [] = {
-	{ PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB38X_MS, PCI_ANY_ID,
-	  PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_VDEVICE(JMICRON, PCI_DEVICE_ID_JMICRON_JMB38X_MS) },
+	{ PCI_VDEVICE(JMICRON, PCI_DEVICE_ID_JMICRON_JMB385_MS) },
+	{ PCI_VDEVICE(JMICRON, PCI_DEVICE_ID_JMICRON_JMB390_MS) },
 	{ }
 };
 
