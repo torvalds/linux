@@ -224,6 +224,7 @@ struct rk29_camera_dev
 	void __iomem *grf_base;
     int frame_inval;           /* ddl@rock-chips.com : The first frames is invalidate  */
     unsigned int irq;
+	unsigned int fps;
 	unsigned int pixfmt;
 	unsigned int vipmem_phybase;
 	unsigned int vipmem_size;
@@ -243,6 +244,8 @@ struct rk29_camera_dev
 	struct rk29_camera_reg reginfo_suspend;
 	struct workqueue_struct *camera_wq;
 	struct rk29_camera_work *camera_work;
+	struct hrtimer fps_timer;
+	struct work_struct camera_reinit_work;
 };
 static DEFINE_MUTEX(camera_lock);
 static const char *rk29_cam_driver_description = "RK29_Camera";
@@ -466,7 +469,6 @@ static void rk29_camera_capture_process(struct work_struct *work)
 
 	wake_up(&(camera_work->vb->done));
 }
-
 static irqreturn_t rk29_camera_irq(int irq, void *data)
 {
     struct rk29_camera_dev *pcdev = data;
@@ -474,10 +476,9 @@ static irqreturn_t rk29_camera_irq(int irq, void *data)
 	struct rk29_camera_work *wk;
 
     read_vip_reg(RK29_VIP_INT_STS);    /* clear vip interrupte single  */
-
     /* ddl@rock-chps.com : Current VIP is run in One Frame Mode, Frame 1 is validate */
     if (read_vip_reg(RK29_VIP_FB_SR) & 0x01) {
-
+		pcdev->fps++;
 		if (!pcdev->active)
 			goto RK29_CAMERA_IRQ_END;
 
@@ -1279,6 +1280,28 @@ static int rk29_camera_resume(struct soc_camera_device *icd)
     return ret;
 }
 
+static void rk29_camera_reinit_work(struct work_struct *work)
+{
+	struct device *control;
+    struct v4l2_subdev *sd;
+	int ret;
+
+	control = to_soc_camera_control(rk29_camdev_info_ptr->icd);
+	sd = dev_get_drvdata(control);
+	ret = v4l2_subdev_call(sd,core, init, 1);
+	RK29CAMERA_DG("Camera host haven't recevie data from sensor,Reinit sensor now! ret:0x%x\n",ret);
+}
+static enum hrtimer_restart rk29_camera_fps_func(struct hrtimer *timer)
+{
+	RK29CAMERA_DG("rk29_camera_fps_func fps:0x%x\n",rk29_camdev_info_ptr->fps);
+	if (rk29_camdev_info_ptr->fps < 3) {
+		RK29CAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor delay!\n");
+		INIT_WORK(&rk29_camdev_info_ptr->camera_reinit_work, rk29_camera_reinit_work);
+		queue_work(rk29_camdev_info_ptr->camera_wq,&(rk29_camdev_info_ptr->camera_reinit_work));
+	}
+
+	return HRTIMER_NORESTART;
+}
 static int rk29_camera_s_stream(struct soc_camera_device *icd, int enable)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
@@ -1289,13 +1312,18 @@ static int rk29_camera_s_stream(struct soc_camera_device *icd, int enable)
 
 	vip_ctrl_val = read_vip_reg(RK29_VIP_CTRL);
 	if (enable) {
+		pcdev->fps = 0;
+		hrtimer_cancel(&pcdev->fps_timer);
+		hrtimer_start(&pcdev->fps_timer,ktime_set(1, 0),HRTIMER_MODE_REL);
+
 		vip_ctrl_val |= ENABLE_CAPTURE;
+
 	} else {
         vip_ctrl_val &= ~ENABLE_CAPTURE;
 	}
 	write_vip_reg(RK29_VIP_CTRL, vip_ctrl_val);
 
-	RK29CAMERA_DG("%s.. enable : %d\n", __FUNCTION__, enable);
+	RK29CAMERA_DG("%s.. enable : 0x%x \n", __FUNCTION__, enable);
 	return 0;
 }
 
@@ -1434,6 +1462,9 @@ static int rk29_camera_probe(struct platform_device *pdev)
     err = soc_camera_host_register(&pcdev->soc_host);
     if (err)
         goto exit_free_irq;
+
+	hrtimer_init(&pcdev->fps_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	pcdev->fps_timer.function = rk29_camera_fps_func;
 
     RK29CAMERA_DG("\n%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
     return 0;
