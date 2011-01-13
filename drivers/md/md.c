@@ -6042,7 +6042,8 @@ static int md_thread(void * arg)
 			 || kthread_should_stop(),
 			 thread->timeout);
 
-		if (test_and_clear_bit(THREAD_WAKEUP, &thread->flags))
+		clear_bit(THREAD_WAKEUP, &thread->flags);
+		if (!kthread_should_stop())
 			thread->run(thread->mddev);
 	}
 
