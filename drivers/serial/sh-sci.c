@@ -794,7 +794,7 @@ static inline unsigned long port_rx_irq_mask(struct uart_port *port)
 	 * it's unset, it's logically inferred that there's no point in
 	 * testing for it.
 	 */
-	return SCSCR_RIE | (to_sci_port(port)->scscr & SCSR_REIE);
+	return SCSCR_RIE | (to_sci_port(port)->scscr & SCSCR_REIE);
 }
 
 static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
@@ -1540,7 +1540,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	sci_out(port, SCSMR, smr_val);
 
 	dev_dbg(port->dev, "%s: SMR %x, t %x, SCSCR %x\n", __func__, smr_val, t,
-		SCSCR_INIT(port));
+		s->scscr);
 
 	if (t > 0) {
 		if (t >= 256) {
