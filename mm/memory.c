@@ -1288,7 +1288,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
 	pud = pud_offset(pgd, address);
 	if (pud_none(*pud))
 		goto no_page_table;
-	if (pud_huge(*pud)) {
+	if (pud_huge(*pud) && vma->vm_flags & VM_HUGETLB) {
 		BUG_ON(flags & FOLL_GET);
 		page = follow_huge_pud(mm, address, pud, flags & FOLL_WRITE);
 		goto out;
