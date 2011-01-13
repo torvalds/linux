@@ -2785,8 +2785,13 @@ sub process {
 		}
 
 # check for pointless casting of kmalloc return
-		if ($line =~ /\*\s*\)\s*k[czm]alloc\b/) {
+		if ($line =~ /\*\s*\)\s*[kv][czm]alloc(_node){0,1}\b/) {
 			WARN("unnecessary cast may hide bugs, see http://c-faq.com/malloc/mallocnocast.html\n" . $herecurr);
+		}
+
+# check for multiple semicolons
+		if ($line =~ /;\s*;\s*$/) {
+		    WARN("Statements terminations use 1 semicolon\n" . $herecurr);
 		}
 
 # check for gcc specific __FUNCTION__
