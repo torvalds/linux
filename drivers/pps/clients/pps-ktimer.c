@@ -40,17 +40,12 @@ static struct timer_list ktimer;
 
 static void pps_ktimer_event(unsigned long ptr)
 {
-	struct timespec __ts;
-	struct pps_ktime ts;
+	struct pps_event_time ts;
 
 	/* First of all we get the time stamp... */
-	getnstimeofday(&__ts);
+	pps_get_ts(&ts);
 
 	pr_info("PPS event at %lu\n", jiffies);
-
-	/* ... and translate it to PPS time data struct */
-	ts.sec = __ts.tv_sec;
-	ts.nsec = __ts.tv_nsec;
 
 	pps_event(source, &ts, PPS_CAPTUREASSERT, NULL);
 

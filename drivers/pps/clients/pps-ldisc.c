@@ -27,26 +27,20 @@
 #define PPS_TTY_MAGIC		0x0001
 
 static void pps_tty_dcd_change(struct tty_struct *tty, unsigned int status,
-				struct timespec *ts)
+				struct pps_event_time *ts)
 {
 	int id = (long)tty->disc_data;
-	struct timespec __ts;
-	struct pps_ktime pps_ts;
+	struct pps_event_time __ts;
 
 	/* First of all we get the time stamp... */
-	getnstimeofday(&__ts);
+	pps_get_ts(&__ts);
 
 	/* Does caller give us a timestamp? */
-	if (ts) {	/* Yes. Let's use it! */
-		pps_ts.sec = ts->tv_sec;
-		pps_ts.nsec = ts->tv_nsec;
-	} else {	/* No. Do it ourself! */
-		pps_ts.sec = __ts.tv_sec;
-		pps_ts.nsec = __ts.tv_nsec;
-	}
+	if (!ts)	/* No. Do it ourself! */
+		ts = &__ts;
 
 	/* Now do the PPS event report */
-	pps_event(id, &pps_ts, status ? PPS_CAPTUREASSERT : PPS_CAPTURECLEAR,
+	pps_event(id, ts, status ? PPS_CAPTUREASSERT : PPS_CAPTURECLEAR,
 			NULL);
 
 	pr_debug("PPS %s at %lu on source #%d\n",
