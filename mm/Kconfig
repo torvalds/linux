@@ -304,7 +304,7 @@ config NOMMU_INITIAL_TRIM_EXCESS
 
 config TRANSPARENT_HUGEPAGE
 	bool "Transparent Hugepage Support" if EMBEDDED
-	depends on X86_64 && MMU
+	depends on X86 && MMU
 	default y
 	help
 	  Transparent Hugepages allows the kernel to use huge pages and
