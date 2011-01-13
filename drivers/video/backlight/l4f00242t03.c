@@ -25,7 +25,7 @@
 struct l4f00242t03_priv {
 	struct spi_device	*spi;
 	struct lcd_device	*ld;
-	int lcd_on:1;
+	unsigned int lcd_on:1;
 	struct regulator *io_reg;
 	struct regulator *core_reg;
 };
