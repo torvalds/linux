@@ -1225,7 +1225,7 @@ EXPORT_SYMBOL(writeback_inodes_sb_nr_if_idle);
  * @sb: the superblock
  *
  * This function writes and waits on any dirty inode belonging to this
- * super_block. The number of pages synced is returned.
+ * super_block.
  */
 void sync_inodes_sb(struct super_block *sb)
 {
