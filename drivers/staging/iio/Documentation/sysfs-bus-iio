@@ -168,6 +168,7 @@ Description:
 What:		/sys/bus/iio/devices/deviceX/inY_scale
 What:		/sys/bus/iio/devices/deviceX/inY_supply_scale
 What:		/sys/bus/iio/devices/deviceX/in_scale
+What:		/sys/bus/iio/devices/deviceX/outY_scale
 What:		/sys/bus/iio/devices/deviceX/accel_scale
 What:		/sys/bus/iio/devices/deviceX/accel_peak_scale
 What:		/sys/bus/iio/devices/deviceX/gyro_scale
@@ -221,6 +222,23 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		If a discrete set of scale values are available, they
 		are listed in this attribute.
+
+What:		/sys/bus/iio/devices/deviceX/outY_raw
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled, no bias etc.) output voltage for
+		channel Y.  The number must always be specified and
+		unique if the output corresponds to a single channel.
+
+What:		/sys/bus/iio/devices/deviceX/outY&Z_raw
+KernelVersion:	2.6.37
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled, no bias etc.) output voltage for an aggregate of
+		channel Y, channel Z, etc.  This interface is available in cases
+		where a single output sets the value for multiple channels
+		simultaneously.
 
 What:		/sys/bus/iio/devices/deviceX/deviceX:eventY
 KernelVersion:	2.6.35
