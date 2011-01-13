@@ -193,6 +193,20 @@ Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
 
 ---------------------------
 
+What:	CS5535/CS5536 obsolete GPIO driver
+When:	June 2011
+Files:	drivers/staging/cs5535_gpio/*
+Check:	drivers/staging/cs5535_gpio/cs5535_gpio.c
+Why:	A newer driver replaces this; it is drivers/gpio/cs5535-gpio.c, and
+	integrates with the Linux GPIO subsystem.  The old driver has been
+	moved to staging, and will be removed altogether around 2.6.40.
+	Please test the new driver, and ensure that the functionality you
+	need and any bugfixes from the old driver are available in the new
+	one.
+Who:	Andres Salomon <dilinger@queued.net>
+
+--------------------------
+
 What:	remove EXPORT_SYMBOL(kernel_thread)
 When:	August 2006
 Files:	arch/*/kernel/*_ksyms.c
