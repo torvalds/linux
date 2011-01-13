@@ -1363,7 +1363,8 @@ no_page_table:
 
 int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		     unsigned long start, int nr_pages, unsigned int gup_flags,
-		     struct page **pages, struct vm_area_struct **vmas)
+		     struct page **pages, struct vm_area_struct **vmas,
+		     int *nonblocking)
 {
 	int i;
 	unsigned long vm_flags;
@@ -1463,10 +1464,15 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			cond_resched();
 			while (!(page = follow_page(vma, start, foll_flags))) {
 				int ret;
+				unsigned int fault_flags = 0;
+
+				if (foll_flags & FOLL_WRITE)
+					fault_flags |= FAULT_FLAG_WRITE;
+				if (nonblocking)
+					fault_flags |= FAULT_FLAG_ALLOW_RETRY;
 
 				ret = handle_mm_fault(mm, vma, start,
-					(foll_flags & FOLL_WRITE) ?
-					FAULT_FLAG_WRITE : 0);
+							fault_flags);
 
 				if (ret & VM_FAULT_ERROR) {
 					if (ret & VM_FAULT_OOM)
@@ -1481,6 +1487,11 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 					tsk->maj_flt++;
 				else
 					tsk->min_flt++;
+
+				if (ret & VM_FAULT_RETRY) {
+					*nonblocking = 0;
+					return i;
+				}
 
 				/*
 				 * The VM_FAULT_WRITE bit tells us that
@@ -1581,7 +1592,8 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 	if (force)
 		flags |= FOLL_FORCE;
 
-	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas);
+	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas,
+				NULL);
 }
 EXPORT_SYMBOL(get_user_pages);
 
@@ -1606,7 +1618,8 @@ struct page *get_dump_page(unsigned long addr)
 	struct page *page;
 
 	if (__get_user_pages(current, current->mm, addr, 1,
-			FOLL_FORCE | FOLL_DUMP | FOLL_GET, &page, &vma) < 1)
+			     FOLL_FORCE | FOLL_DUMP | FOLL_GET, &page, &vma,
+			     NULL) < 1)
 		return NULL;
 	flush_cache_page(vma, addr, page_to_pfn(page));
 	return page;

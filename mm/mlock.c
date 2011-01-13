@@ -155,13 +155,13 @@ static inline int stack_guard_page(struct vm_area_struct *vma, unsigned long add
  * vma->vm_mm->mmap_sem must be held for at least read.
  */
 static long __mlock_vma_pages_range(struct vm_area_struct *vma,
-				    unsigned long start, unsigned long end)
+				    unsigned long start, unsigned long end,
+				    int *nonblocking)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long addr = start;
 	int nr_pages = (end - start) / PAGE_SIZE;
 	int gup_flags;
-	int ret;
 
 	VM_BUG_ON(start & ~PAGE_MASK);
 	VM_BUG_ON(end   & ~PAGE_MASK);
@@ -187,9 +187,8 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 		nr_pages--;
 	}
 
-	ret = __get_user_pages(current, mm, addr, nr_pages, gup_flags,
-			       NULL, NULL);
-	return max(ret, 0);	/* 0 or negative error code */
+	return __get_user_pages(current, mm, addr, nr_pages, gup_flags,
+				NULL, NULL, nonblocking);
 }
 
 /*
@@ -233,7 +232,7 @@ long mlock_vma_pages_range(struct vm_area_struct *vma,
 			is_vm_hugetlb_page(vma) ||
 			vma == get_gate_vma(current))) {
 
-		__mlock_vma_pages_range(vma, start, end);
+		__mlock_vma_pages_range(vma, start, end, NULL);
 
 		/* Hide errors from mmap() and other callers */
 		return 0;
@@ -429,21 +428,23 @@ static int do_mlock_pages(unsigned long start, size_t len, int ignore_errors)
 	struct mm_struct *mm = current->mm;
 	unsigned long end, nstart, nend;
 	struct vm_area_struct *vma = NULL;
+	int locked = 0;
 	int ret = 0;
 
 	VM_BUG_ON(start & ~PAGE_MASK);
 	VM_BUG_ON(len != PAGE_ALIGN(len));
 	end = start + len;
 
-	down_read(&mm->mmap_sem);
 	for (nstart = start; nstart < end; nstart = nend) {
 		/*
 		 * We want to fault in pages for [nstart; end) address range.
 		 * Find first corresponding VMA.
 		 */
-		if (!vma)
+		if (!locked) {
+			locked = 1;
+			down_read(&mm->mmap_sem);
 			vma = find_vma(mm, nstart);
-		else
+		} else if (nstart >= vma->vm_end)
 			vma = vma->vm_next;
 		if (!vma || vma->vm_start >= end)
 			break;
@@ -457,19 +458,24 @@ static int do_mlock_pages(unsigned long start, size_t len, int ignore_errors)
 		if (nstart < vma->vm_start)
 			nstart = vma->vm_start;
 		/*
-		 * Now fault in a range of pages within the first VMA.
+		 * Now fault in a range of pages. __mlock_vma_pages_range()
+		 * double checks the vma flags, so that it won't mlock pages
+		 * if the vma was already munlocked.
 		 */
-		ret = __mlock_vma_pages_range(vma, nstart, nend);
-		if (ret < 0 && ignore_errors) {
-			ret = 0;
-			continue;	/* continue at next VMA */
-		}
-		if (ret) {
+		ret = __mlock_vma_pages_range(vma, nstart, nend, &locked);
+		if (ret < 0) {
+			if (ignore_errors) {
+				ret = 0;
+				continue;	/* continue at next VMA */
+			}
 			ret = __mlock_posix_error_return(ret);
 			break;
 		}
+		nend = nstart + ret * PAGE_SIZE;
+		ret = 0;
 	}
-	up_read(&mm->mmap_sem);
+	if (locked)
+		up_read(&mm->mmap_sem);
 	return ret;	/* 0 or negative error code */
 }
 
