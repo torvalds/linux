@@ -1721,7 +1721,6 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 		set_bit(Faulty, &rdev->flags);
 		printk(KERN_ALERT
 		       "md/raid:%s: Disk failure on %s, disabling device.\n"
-		       KERN_ALERT
 		       "md/raid:%s: Operation continuing on %d devices.\n",
 		       mdname(mddev),
 		       bdevname(rdev->bdev, b),
