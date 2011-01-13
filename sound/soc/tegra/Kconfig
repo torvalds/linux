@@ -8,7 +8,6 @@ config SND_TEGRA_SOC
 config SND_TEGRA_SOC_I2S
 	tristate
 	depends on SND_TEGRA_SOC
-	depends on !TEGRA_I2S_AUDIO
 	default m
 	help
 	  Say Y or M if you want to add support for codecs attached to the
