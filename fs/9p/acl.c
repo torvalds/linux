@@ -71,10 +71,14 @@ int v9fs_get_acl(struct inode *inode, struct p9_fid *fid)
 	if (!IS_ERR(dacl) && !IS_ERR(pacl)) {
 		set_cached_acl(inode, ACL_TYPE_DEFAULT, dacl);
 		set_cached_acl(inode, ACL_TYPE_ACCESS, pacl);
-		posix_acl_release(dacl);
-		posix_acl_release(pacl);
 	} else
 		retval = -EIO;
+
+	if (!IS_ERR(dacl))
+		posix_acl_release(dacl);
+
+	if (!IS_ERR(pacl))
+		posix_acl_release(pacl);
 
 	return retval;
 }
