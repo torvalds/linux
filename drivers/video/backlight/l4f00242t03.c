@@ -134,10 +134,12 @@ static int l4f00242t03_lcd_power_set(struct lcd_device *ld, int power)
 		}
 	} else {
 		/* power == FB_BLANK_POWERDOWN */
-		/* Clear the screen before shutting down */
-		spi_write(spi, (const u8 *)&disoff, sizeof(u16));
-		msleep(60);
-		l4f00242t03_lcd_powerdown(spi);
+		if (priv->lcd_state != FB_BLANK_POWERDOWN) {
+			/* Clear the screen before shutting down */
+			spi_write(spi, (const u8 *)&disoff, sizeof(u16));
+			msleep(60);
+			l4f00242t03_lcd_powerdown(spi);
+		}
 	}
 
 	priv->lcd_state = power;
