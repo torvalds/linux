@@ -527,6 +527,14 @@ static int __init hugepage_init(void)
 		goto out;
 	}
 
+	/*
+	 * By default disable transparent hugepages on smaller systems,
+	 * where the extra memory used could hurt more than TLB overhead
+	 * is likely to save.  The admin can still enable it through /sys.
+	 */
+	if (totalram_pages < (512 << (20 - PAGE_SHIFT)))
+		transparent_hugepage_flags = 0;
+
 	start_khugepaged();
 
 	set_recommended_min_free_kbytes();
