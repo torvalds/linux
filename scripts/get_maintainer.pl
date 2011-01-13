@@ -494,6 +494,40 @@ if ($web) {
 
 exit($exit);
 
+sub range_is_maintained {
+    my ($start, $end) = @_;
+
+    for (my $i = $start; $i < $end; $i++) {
+	my $line = $typevalue[$i];
+	if ($line =~ m/^(\C):\s*(.*)/) {
+	    my $type = $1;
+	    my $value = $2;
+	    if ($type eq 'S') {
+		if ($value =~ /(maintain|support)/i) {
+		    return 1;
+		}
+	    }
+	}
+    }
+    return 0;
+}
+
+sub range_has_maintainer {
+    my ($start, $end) = @_;
+
+    for (my $i = $start; $i < $end; $i++) {
+	my $line = $typevalue[$i];
+	if ($line =~ m/^(\C):\s*(.*)/) {
+	    my $type = $1;
+	    my $value = $2;
+	    if ($type eq 'M') {
+		return 1;
+	    }
+	}
+    }
+    return 0;
+}
+
 sub get_maintainers {
     %email_hash_name = ();
     %email_hash_address = ();
@@ -556,7 +590,9 @@ sub get_maintainers {
 				my $file_pd = ($file  =~ tr@/@@);
 				$value_pd++ if (substr($value,-1,1) ne "/");
 				$value_pd = -1 if ($value =~ /^\.\*/);
-				if ($value_pd >= $file_pd) {
+				if ($value_pd >= $file_pd &&
+				    range_is_maintained($start, $end) &&
+				    range_has_maintainer($start, $end)) {
 				    $exact_pattern_match_hash{$file} = 1;
 				}
 				if ($pattern_depth == 0 ||
