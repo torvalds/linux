@@ -100,6 +100,9 @@ struct nouveau_bo {
 	int pin_refcnt;
 };
 
+#define nouveau_bo_tile_layout(nvbo)				\
+	((nvbo)->tile_flags & NOUVEAU_GEM_TILE_LAYOUT_MASK)
+
 static inline struct nouveau_bo *
 nouveau_bo(struct ttm_buffer_object *bo)
 {
@@ -304,6 +307,7 @@ struct nouveau_fifo_engine {
 	void (*destroy_context)(struct nouveau_channel *);
 	int  (*load_context)(struct nouveau_channel *);
 	int  (*unload_context)(struct drm_device *);
+	void (*tlb_flush)(struct drm_device *dev);
 };
 
 struct nouveau_pgraph_object_method {
@@ -336,6 +340,7 @@ struct nouveau_pgraph_engine {
 	void (*destroy_context)(struct nouveau_channel *);
 	int  (*load_context)(struct nouveau_channel *);
 	int  (*unload_context)(struct drm_device *);
+	void (*tlb_flush)(struct drm_device *dev);
 
 	void (*set_region_tiling)(struct drm_device *dev, int i, uint32_t addr,
 				  uint32_t size, uint32_t pitch);
@@ -485,13 +490,13 @@ enum nv04_fp_display_regs {
 };
 
 struct nv04_crtc_reg {
-	unsigned char MiscOutReg;     /* */
+	unsigned char MiscOutReg;
 	uint8_t CRTC[0xa0];
 	uint8_t CR58[0x10];
 	uint8_t Sequencer[5];
 	uint8_t Graphics[9];
 	uint8_t Attribute[21];
-	unsigned char DAC[768];       /* Internal Colorlookuptable */
+	unsigned char DAC[768];
 
 	/* PCRTC regs */
 	uint32_t fb_start;
@@ -539,43 +544,9 @@ struct nv04_output_reg {
 };
 
 struct nv04_mode_state {
-	uint32_t bpp;
-	uint32_t width;
-	uint32_t height;
-	uint32_t interlace;
-	uint32_t repaint0;
-	uint32_t repaint1;
-	uint32_t screen;
-	uint32_t scale;
-	uint32_t dither;
-	uint32_t extra;
-	uint32_t fifo;
-	uint32_t pixel;
-	uint32_t horiz;
-	int arbitration0;
-	int arbitration1;
-	uint32_t pll;
-	uint32_t pllB;
-	uint32_t vpll;
-	uint32_t vpll2;
-	uint32_t vpllB;
-	uint32_t vpll2B;
+	struct nv04_crtc_reg crtc_reg[2];
 	uint32_t pllsel;
 	uint32_t sel_clk;
-	uint32_t general;
-	uint32_t crtcOwner;
-	uint32_t head;
-	uint32_t head2;
-	uint32_t cursorConfig;
-	uint32_t cursor0;
-	uint32_t cursor1;
-	uint32_t cursor2;
-	uint32_t timingH;
-	uint32_t timingV;
-	uint32_t displayV;
-	uint32_t crtcSync;
-
-	struct nv04_crtc_reg crtc_reg[2];
 };
 
 enum nouveau_card_type {
@@ -612,6 +583,12 @@ struct drm_nouveau_private {
 	struct workqueue_struct *wq;
 	struct work_struct irq_work;
 	struct work_struct hpd_work;
+
+	struct {
+		spinlock_t lock;
+		uint32_t hpd0_bits;
+		uint32_t hpd1_bits;
+	} hpd_state;
 
 	struct list_head vbl_waiting;
 
@@ -1045,6 +1022,7 @@ extern int  nv50_fifo_create_context(struct nouveau_channel *);
 extern void nv50_fifo_destroy_context(struct nouveau_channel *);
 extern int  nv50_fifo_load_context(struct nouveau_channel *);
 extern int  nv50_fifo_unload_context(struct drm_device *);
+extern void nv50_fifo_tlb_flush(struct drm_device *dev);
 
 /* nvc0_fifo.c */
 extern int  nvc0_fifo_init(struct drm_device *);
@@ -1122,6 +1100,8 @@ extern int  nv50_graph_load_context(struct nouveau_channel *);
 extern int  nv50_graph_unload_context(struct drm_device *);
 extern void nv50_graph_context_switch(struct drm_device *);
 extern int  nv50_grctx_init(struct nouveau_grctx *);
+extern void nv50_graph_tlb_flush(struct drm_device *dev);
+extern void nv86_graph_tlb_flush(struct drm_device *dev);
 
 /* nvc0_graph.c */
 extern int  nvc0_graph_init(struct drm_device *);
@@ -1239,7 +1219,6 @@ extern u16 nouveau_bo_rd16(struct nouveau_bo *nvbo, unsigned index);
 extern void nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val);
 extern u32 nouveau_bo_rd32(struct nouveau_bo *nvbo, unsigned index);
 extern void nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val);
-extern int nouveau_bo_sync_gpu(struct nouveau_bo *, struct nouveau_channel *);
 
 /* nouveau_fence.c */
 struct nouveau_fence;

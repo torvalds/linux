@@ -289,6 +289,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 		} else if (S_ISDIR(inode->i_mode)) {
 			inode->i_op = NFS_SB(sb)->nfs_client->rpc_ops->dir_inode_ops;
 			inode->i_fop = &nfs_dir_operations;
+			inode->i_data.a_ops = &nfs_dir_aops;
 			if (nfs_server_capable(inode, NFS_CAP_READDIRPLUS))
 				set_bit(NFS_INO_ADVISE_RDPLUS, &NFS_I(inode)->flags);
 			/* Deal with crossing mountpoints */
@@ -1437,9 +1438,16 @@ struct inode *nfs_alloc_inode(struct super_block *sb)
 	return &nfsi->vfs_inode;
 }
 
+static void nfs_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(nfs_inode_cachep, NFS_I(inode));
+}
+
 void nfs_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(nfs_inode_cachep, NFS_I(inode));
+	call_rcu(&inode->i_rcu, nfs_i_callback);
 }
 
 static inline void nfs4_init_once(struct nfs_inode *nfsi)

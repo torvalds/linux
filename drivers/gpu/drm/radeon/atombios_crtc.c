@@ -253,7 +253,8 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
 		drm_vblank_pre_modeset(dev, radeon_crtc->crtc_id);
-		atombios_blank_crtc(crtc, ATOM_ENABLE);
+		if (radeon_crtc->enabled)
+			atombios_blank_crtc(crtc, ATOM_ENABLE);
 		if (ASIC_IS_DCE3(rdev))
 			atombios_enable_crtc_memreq(crtc, ATOM_DISABLE);
 		atombios_enable_crtc(crtc, ATOM_DISABLE);
@@ -530,7 +531,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 					dp_clock = dig_connector->dp_clock;
 				}
 			}
-
+#if 0 /* doesn't work properly on some laptops */
 			/* use recommended ref_div for ss */
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 				if (ss_enabled) {
@@ -540,7 +541,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 					}
 				}
 			}
-
+#endif
 			if (ASIC_IS_AVIVO(rdev)) {
 				/* DVO wants 2x pixel clock if the DVO chip is in 12 bit mode */
 				if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1)

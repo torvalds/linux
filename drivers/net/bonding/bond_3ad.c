@@ -2474,8 +2474,7 @@ int bond_3ad_lacpdu_recv(struct sk_buff *skb, struct net_device *dev, struct pac
 		goto out;
 
 	read_lock(&bond->lock);
-	slave = bond_get_slave_by_dev((struct bonding *)netdev_priv(dev),
-					orig_dev);
+	slave = bond_get_slave_by_dev(netdev_priv(dev), orig_dev);
 	if (!slave)
 		goto out_unlock;
 

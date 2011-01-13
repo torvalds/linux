@@ -284,7 +284,10 @@ void omap3_intc_suspend(void)
 
 void omap3_intc_prepare_idle(void)
 {
-	/* Disable autoidle as it can stall interrupt controller */
+	/*
+	 * Disable autoidle as it can stall interrupt controller,
+	 * cf. errata ID i540 for 3430 (all revisions up to 3.1.x)
+	 */
 	intc_bank_write_reg(0, &irq_banks[0], INTC_SYSCONFIG);
 }
 

@@ -100,7 +100,7 @@ void __init device_tree_init(void)
 		return;
 
 	base = virt_to_phys((void *)initial_boot_params);
-	size = initial_boot_params->totalsize;
+	size = be32_to_cpu(initial_boot_params->totalsize);
 
 	/* Before we do anything, lets reserve the dt blob */
 	reserve_mem_mach(base, size);

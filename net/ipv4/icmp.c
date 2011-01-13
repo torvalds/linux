@@ -386,10 +386,9 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 			daddr = icmp_param->replyopts.faddr;
 	}
 	{
-		struct flowi fl = { .nl_u = { .ip4_u =
-					      { .daddr = daddr,
-						.saddr = rt->rt_spec_dst,
-						.tos = RT_TOS(ip_hdr(skb)->tos) } },
+		struct flowi fl = { .fl4_dst= daddr,
+				    .fl4_src = rt->rt_spec_dst,
+				    .fl4_tos = RT_TOS(ip_hdr(skb)->tos),
 				    .proto = IPPROTO_ICMP };
 		security_skb_classify_flow(skb, &fl);
 		if (ip_route_output_key(net, &rt, &fl))
@@ -542,22 +541,13 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 
 	{
 		struct flowi fl = {
-			.nl_u = {
-				.ip4_u = {
-					.daddr = icmp_param.replyopts.srr ?
-						icmp_param.replyopts.faddr :
-						iph->saddr,
-					.saddr = saddr,
-					.tos = RT_TOS(tos)
-				}
-			},
+			.fl4_dst = icmp_param.replyopts.srr ?
+				   icmp_param.replyopts.faddr : iph->saddr,
+			.fl4_src = saddr,
+			.fl4_tos = RT_TOS(tos),
 			.proto = IPPROTO_ICMP,
-			.uli_u = {
-				.icmpt = {
-					.type = type,
-					.code = code
-				}
-			}
+			.fl_icmp_type = type,
+			.fl_icmp_code = code,
 		};
 		int err;
 		struct rtable *rt2;
@@ -568,6 +558,9 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 
 		/* No need to clone since we're just using its address. */
 		rt2 = rt;
+
+		if (!fl.nl_u.ip4_u.saddr)
+			fl.nl_u.ip4_u.saddr = rt->rt_src;
 
 		err = xfrm_lookup(net, (struct dst_entry **)&rt, &fl, NULL, 0);
 		switch (err) {

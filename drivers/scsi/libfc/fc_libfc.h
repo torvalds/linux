@@ -66,9 +66,21 @@ extern unsigned int fc_debug_logging;
 
 #define FC_FCP_DBG(pkt, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_FCP_LOGGING,				\
-			 printk(KERN_INFO "host%u: fcp: %6.6x: " fmt,	\
+	{								\
+		if ((pkt)->seq_ptr) {					\
+			struct fc_exch *_ep = NULL;			\
+			_ep = fc_seq_exch((pkt)->seq_ptr);		\
+			printk(KERN_INFO "host%u: fcp: %6.6x: "		\
+				"xid %04x-%04x: " fmt,			\
 				(pkt)->lp->host->host_no,		\
-				pkt->rport->port_id, ##args))
+				(pkt)->rport->port_id,			\
+				(_ep)->oxid, (_ep)->rxid, ##args);	\
+		} else {						\
+			printk(KERN_INFO "host%u: fcp: %6.6x: " fmt,	\
+				(pkt)->lp->host->host_no,		\
+				(pkt)->rport->port_id, ##args);		\
+		}							\
+	})
 
 #define FC_EXCH_DBG(exch, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_EXCH_LOGGING,				\

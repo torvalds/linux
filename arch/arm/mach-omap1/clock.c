@@ -17,9 +17,9 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/clkdev.h>
 
 #include <asm/mach-types.h>
-#include <asm/clkdev.h>
 
 #include <plat/cpu.h>
 #include <plat/usb.h>

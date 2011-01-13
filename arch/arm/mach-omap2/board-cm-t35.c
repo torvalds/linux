@@ -600,8 +600,8 @@ static struct ehci_hcd_omap_platform_data ehci_pdata __initdata = {
 	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
 
 	.phy_reset  = true,
-	.reset_gpio_port[0]  = -EINVAL,
-	.reset_gpio_port[1]  = -EINVAL,
+	.reset_gpio_port[0]  = OMAP_MAX_GPIO_LINES + 6,
+	.reset_gpio_port[1]  = OMAP_MAX_GPIO_LINES + 7,
 	.reset_gpio_port[2]  = -EINVAL
 };
 
@@ -629,12 +629,6 @@ static int cm_t35_twl_gpio_setup(struct device *dev, unsigned gpio,
 	/* link regulators to MMC adapters */
 	cm_t35_vmmc1_supply.dev = mmc[0].dev;
 	cm_t35_vsim_supply.dev = mmc[0].dev;
-
-	/* setup USB with proper PHY reset GPIOs */
-	ehci_pdata.reset_gpio_port[0] = gpio + 6;
-	ehci_pdata.reset_gpio_port[1] = gpio + 7;
-
-	usb_ehci_init(&ehci_pdata);
 
 	return 0;
 }
@@ -683,10 +677,10 @@ static void __init cm_t35_init_irq(void)
 	omap_board_config = cm_t35_config;
 	omap_board_config_size = ARRAY_SIZE(cm_t35_config);
 
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
 			     mt46h32m32lf6_sdrc_params);
 	omap_init_irq();
-	omap_gpio_init();
 }
 
 static struct omap_board_mux board_mux[] __initdata = {
@@ -805,6 +799,7 @@ static void __init cm_t35_init(void)
 	cm_t35_init_display();
 
 	usb_musb_init(&musb_board_data);
+	usb_ehci_init(&ehci_pdata);
 }
 
 MACHINE_START(CM_T35, "Compulab CM-T35")

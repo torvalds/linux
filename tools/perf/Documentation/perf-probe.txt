@@ -115,9 +115,9 @@ Each probe argument follows below syntax.
 
 LINE SYNTAX
 -----------
-Line range is descripted by following syntax.
+Line range is described by following syntax.
 
- "FUNC[:RLN[+NUM|-RLN2]]|SRC:ALN[+NUM|-ALN2]"
+ "FUNC[:RLN[+NUM|-RLN2]]|SRC[:ALN[+NUM|-ALN2]]"
 
 FUNC specifies the function name of showing lines. 'RLN' is the start line
 number from function entry line, and 'RLN2' is the end line number. As same as

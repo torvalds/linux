@@ -1,7 +1,7 @@
 /*
  * UIO Hilscher CIF card driver
  *
- * (C) 2007 Hans J. Koch <hjk@linutronix.de>
+ * (C) 2007 Hans J. Koch <hjk@hansjkoch.de>
  * Original code (C) 2005 Benedikt Spranger <b.spranger@linutronix.de>
  *
  * Licensed under GPL version 2 only.

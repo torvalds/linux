@@ -29,6 +29,7 @@
 
 #define MODULE_NAME "xirlink-cit"
 
+#include <linux/input.h>
 #include "gspca.h"
 
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
@@ -58,6 +59,7 @@ struct sd {
 #define CIT_MODEL4 4
 #define CIT_IBM_NETCAM_PRO 5
 	u8 input_index;
+	u8 button_state;
 	u8 stop_on_control_change;
 	u8 sof_read;
 	u8 sof_len;
@@ -185,60 +187,60 @@ static const struct ctrl sd_ctrls[] = {
 static const struct v4l2_pix_format cif_yuv_mode[] = {
 	{176, 144, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
 		.bytesperline = 176,
-		.sizeimage = 176 * 144 * 3 / 2,
+		.sizeimage = 176 * 144 * 3 / 2 + 4,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 	{352, 288, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
 		.bytesperline = 352,
-		.sizeimage = 352 * 288 * 3 / 2,
+		.sizeimage = 352 * 288 * 3 / 2 + 4,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 };
 
 static const struct v4l2_pix_format vga_yuv_mode[] = {
 	{160, 120, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
 		.bytesperline = 160,
-		.sizeimage = 160 * 120 * 3 / 2,
+		.sizeimage = 160 * 120 * 3 / 2 + 4,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 	{320, 240, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
 		.bytesperline = 320,
-		.sizeimage = 320 * 240 * 3 / 2,
+		.sizeimage = 320 * 240 * 3 / 2 + 4,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 	{640, 480, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
 		.bytesperline = 640,
-		.sizeimage = 640 * 480 * 3 / 2,
+		.sizeimage = 640 * 480 * 3 / 2 + 4,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 };
 
 static const struct v4l2_pix_format model0_mode[] = {
 	{160, 120, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
 		.bytesperline = 160,
-		.sizeimage = 160 * 120 * 3 / 2,
+		.sizeimage = 160 * 120 * 3 / 2 + 4,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 	{176, 144, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
 		.bytesperline = 176,
-		.sizeimage = 176 * 144 * 3 / 2,
+		.sizeimage = 176 * 144 * 3 / 2 + 4,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 	{320, 240, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
 		.bytesperline = 320,
-		.sizeimage = 320 * 240 * 3 / 2,
+		.sizeimage = 320 * 240 * 3 / 2 + 4,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 };
 
 static const struct v4l2_pix_format model2_mode[] = {
 	{160, 120, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
 		.bytesperline = 160,
-		.sizeimage = 160 * 120 * 3 / 2,
+		.sizeimage = 160 * 120 * 3 / 2 + 4,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 	{176, 144, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
 		.bytesperline = 176,
-		.sizeimage = 176 * 144 * 3 / 2,
+		.sizeimage = 176 * 144 * 3 / 2 + 4,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 	{320, 240, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_NONE,
 		.bytesperline = 320,
-		.sizeimage = 320 * 240,
+		.sizeimage = 320 * 240 + 4,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 	{352, 288, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_NONE,
 		.bytesperline = 352,
-		.sizeimage = 352 * 288,
+		.sizeimage = 352 * 288 + 4,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 };
 
@@ -804,7 +806,7 @@ static int cit_write_reg(struct gspca_dev *gspca_dev, u16 value, u16 index)
 	return 0;
 }
 
-static int cit_read_reg(struct gspca_dev *gspca_dev, u16 index)
+static int cit_read_reg(struct gspca_dev *gspca_dev, u16 index, int verbose)
 {
 	struct usb_device *udev = gspca_dev->dev;
 	__u8 *buf = gspca_dev->usb_buf;
@@ -819,10 +821,8 @@ static int cit_read_reg(struct gspca_dev *gspca_dev, u16 index)
 		return res;
 	}
 
-	PDEBUG(D_PROBE,
-	       "Register %04x value: %02x %02x %02x %02x %02x %02x %02x %02x",
-	       index,
-	       buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
+	if (verbose)
+		PDEBUG(D_PROBE, "Register %04x value: %02x", index, buf[0]);
 
 	return 0;
 }
@@ -907,7 +907,7 @@ static void cit_Packet_Format1(struct gspca_dev *gspca_dev, u16 fkey, u16 val)
 	cit_send_x_00_05(gspca_dev, 0x0089);
 	cit_send_x_00(gspca_dev, fkey);
 	cit_send_00_04_06(gspca_dev);
-	cit_read_reg(gspca_dev, 0x0126);
+	cit_read_reg(gspca_dev, 0x0126, 0);
 	cit_send_FF_04_02(gspca_dev);
 }
 
@@ -1074,12 +1074,12 @@ static int cit_init_model0(struct gspca_dev *gspca_dev)
 
 static int cit_init_ibm_netcam_pro(struct gspca_dev *gspca_dev)
 {
-	cit_read_reg(gspca_dev, 0x128);
+	cit_read_reg(gspca_dev, 0x128, 1);
 	cit_write_reg(gspca_dev, 0x0003, 0x0133);
 	cit_write_reg(gspca_dev, 0x0000, 0x0117);
 	cit_write_reg(gspca_dev, 0x0008, 0x0123);
 	cit_write_reg(gspca_dev, 0x0000, 0x0100);
-	cit_read_reg(gspca_dev, 0x0116);
+	cit_read_reg(gspca_dev, 0x0116, 0);
 	cit_write_reg(gspca_dev, 0x0060, 0x0116);
 	cit_write_reg(gspca_dev, 0x0002, 0x0112);
 	cit_write_reg(gspca_dev, 0x0000, 0x0133);
@@ -1098,7 +1098,7 @@ static int cit_init_ibm_netcam_pro(struct gspca_dev *gspca_dev)
 	cit_write_reg(gspca_dev, 0x00ff, 0x0130);
 	cit_write_reg(gspca_dev, 0xcd41, 0x0124);
 	cit_write_reg(gspca_dev, 0xfffa, 0x0124);
-	cit_read_reg(gspca_dev, 0x0126);
+	cit_read_reg(gspca_dev, 0x0126, 1);
 
 	cit_model3_Packet1(gspca_dev, 0x0000, 0x0000);
 	cit_model3_Packet1(gspca_dev, 0x0000, 0x0001);
@@ -1557,18 +1557,20 @@ static int cit_restart_stream(struct gspca_dev *gspca_dev)
 	switch (sd->model) {
 	case CIT_MODEL0:
 	case CIT_MODEL1:
-	case CIT_MODEL3:
-	case CIT_IBM_NETCAM_PRO:
 		cit_write_reg(gspca_dev, 0x0001, 0x0114);
 		/* Fall through */
 	case CIT_MODEL2:
 	case CIT_MODEL4:
 		cit_write_reg(gspca_dev, 0x00c0, 0x010c); /* Go! */
 		usb_clear_halt(gspca_dev->dev, gspca_dev->urb[0]->pipe);
-		/* This happens repeatedly while streaming with the ibm netcam
-		   pro and the ibmcam driver did it for model3 after changing
-		   settings, but it does not seem to have any effect. */
-		/* cit_write_reg(gspca_dev, 0x0001, 0x0113); */
+		break;
+	case CIT_MODEL3:
+	case CIT_IBM_NETCAM_PRO:
+		cit_write_reg(gspca_dev, 0x0001, 0x0114);
+		cit_write_reg(gspca_dev, 0x00c0, 0x010c); /* Go! */
+		usb_clear_halt(gspca_dev->dev, gspca_dev->urb[0]->pipe);
+		/* Clear button events from while we were not streaming */
+		cit_write_reg(gspca_dev, 0x0001, 0x0113);
 		break;
 	}
 
@@ -1680,23 +1682,23 @@ static int cit_start_model1(struct gspca_dev *gspca_dev)
 	if (clock_div < 0)
 		return clock_div;
 
-	cit_read_reg(gspca_dev, 0x0128);
-	cit_read_reg(gspca_dev, 0x0100);
+	cit_read_reg(gspca_dev, 0x0128, 1);
+	cit_read_reg(gspca_dev, 0x0100, 0);
 	cit_write_reg(gspca_dev, 0x01, 0x0100);	/* LED On  */
-	cit_read_reg(gspca_dev, 0x0100);
+	cit_read_reg(gspca_dev, 0x0100, 0);
 	cit_write_reg(gspca_dev, 0x81, 0x0100);	/* LED Off */
-	cit_read_reg(gspca_dev, 0x0100);
+	cit_read_reg(gspca_dev, 0x0100, 0);
 	cit_write_reg(gspca_dev, 0x01, 0x0100);	/* LED On  */
 	cit_write_reg(gspca_dev, 0x01, 0x0108);
 
 	cit_write_reg(gspca_dev, 0x03, 0x0112);
-	cit_read_reg(gspca_dev, 0x0115);
+	cit_read_reg(gspca_dev, 0x0115, 0);
 	cit_write_reg(gspca_dev, 0x06, 0x0115);
-	cit_read_reg(gspca_dev, 0x0116);
+	cit_read_reg(gspca_dev, 0x0116, 0);
 	cit_write_reg(gspca_dev, 0x44, 0x0116);
-	cit_read_reg(gspca_dev, 0x0116);
+	cit_read_reg(gspca_dev, 0x0116, 0);
 	cit_write_reg(gspca_dev, 0x40, 0x0116);
-	cit_read_reg(gspca_dev, 0x0115);
+	cit_read_reg(gspca_dev, 0x0115, 0);
 	cit_write_reg(gspca_dev, 0x0e, 0x0115);
 	cit_write_reg(gspca_dev, 0x19, 0x012c);
 
@@ -1878,7 +1880,7 @@ static int cit_start_model2(struct gspca_dev *gspca_dev)
 	int clock_div = 0;
 
 	cit_write_reg(gspca_dev, 0x0000, 0x0100);	/* LED on */
-	cit_read_reg(gspca_dev, 0x0116);
+	cit_read_reg(gspca_dev, 0x0116, 0);
 	cit_write_reg(gspca_dev, 0x0060, 0x0116);
 	cit_write_reg(gspca_dev, 0x0002, 0x0112);
 	cit_write_reg(gspca_dev, 0x00bc, 0x012c);
@@ -2070,10 +2072,10 @@ static int cit_start_model3(struct gspca_dev *gspca_dev)
 
 	/* HDG not in ibmcam driver, added to see if it helps with
 	   auto-detecting between model3 and ibm netcamera pro */
-	cit_read_reg(gspca_dev, 0x128);
+	cit_read_reg(gspca_dev, 0x128, 1);
 
 	cit_write_reg(gspca_dev, 0x0000, 0x0100);
-	cit_read_reg(gspca_dev, 0x0116);
+	cit_read_reg(gspca_dev, 0x0116, 0);
 	cit_write_reg(gspca_dev, 0x0060, 0x0116);
 	cit_write_reg(gspca_dev, 0x0002, 0x0112);
 	cit_write_reg(gspca_dev, 0x0000, 0x0123);
@@ -2083,7 +2085,7 @@ static int cit_start_model3(struct gspca_dev *gspca_dev)
 	cit_write_reg(gspca_dev, 0x0060, 0x0116);
 	cit_write_reg(gspca_dev, 0x0002, 0x0115);
 	cit_write_reg(gspca_dev, 0x0003, 0x0115);
-	cit_read_reg(gspca_dev, 0x0115);
+	cit_read_reg(gspca_dev, 0x0115, 0);
 	cit_write_reg(gspca_dev, 0x000b, 0x0115);
 
 	/* TESTME HDG not in ibmcam driver, added to see if it helps with
@@ -2096,7 +2098,7 @@ static int cit_start_model3(struct gspca_dev *gspca_dev)
 		cit_write_reg(gspca_dev, 0x00ff, 0x0130);
 		cit_write_reg(gspca_dev, 0xcd41, 0x0124);
 		cit_write_reg(gspca_dev, 0xfffa, 0x0124);
-		cit_read_reg(gspca_dev, 0x0126);
+		cit_read_reg(gspca_dev, 0x0126, 1);
 	}
 
 	cit_model3_Packet1(gspca_dev, 0x000a, 0x0040);
@@ -2293,7 +2295,7 @@ static int cit_start_model3(struct gspca_dev *gspca_dev)
 	if (rca_input) {
 		for (i = 0; i < ARRAY_SIZE(rca_initdata); i++) {
 			if (rca_initdata[i][0])
-				cit_read_reg(gspca_dev, rca_initdata[i][2]);
+				cit_read_reg(gspca_dev, rca_initdata[i][2], 0);
 			else
 				cit_write_reg(gspca_dev, rca_initdata[i][1],
 					      rca_initdata[i][2]);
@@ -2712,7 +2714,7 @@ static int cit_start_ibm_netcam_pro(struct gspca_dev *gspca_dev)
 	if (rca_input) {
 		for (i = 0; i < ARRAY_SIZE(rca_initdata); i++) {
 			if (rca_initdata[i][0])
-				cit_read_reg(gspca_dev, rca_initdata[i][2]);
+				cit_read_reg(gspca_dev, rca_initdata[i][2], 0);
 			else
 				cit_write_reg(gspca_dev, rca_initdata[i][1],
 					      rca_initdata[i][2]);
@@ -2769,16 +2771,55 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
+static int sd_isoc_init(struct gspca_dev *gspca_dev)
+{
+	struct usb_host_interface *alt;
+	int max_packet_size;
+
+	switch (gspca_dev->width) {
+	case 160:
+		max_packet_size = 450;
+		break;
+	case 176:
+		max_packet_size = 600;
+		break;
+	default:
+		max_packet_size = 1022;
+		break;
+	}
+
+	/* Start isoc bandwidth "negotiation" at max isoc bandwidth */
+	alt = &gspca_dev->dev->config->intf_cache[0]->altsetting[1];
+	alt->endpoint[0].desc.wMaxPacketSize = cpu_to_le16(max_packet_size);
+
+	return 0;
+}
+
 static int sd_isoc_nego(struct gspca_dev *gspca_dev)
 {
-	int ret, packet_size;
+	int ret, packet_size, min_packet_size;
 	struct usb_host_interface *alt;
+
+	switch (gspca_dev->width) {
+	case 160:
+		min_packet_size = 200;
+		break;
+	case 176:
+		min_packet_size = 266;
+		break;
+	default:
+		min_packet_size = 400;
+		break;
+	}
 
 	alt = &gspca_dev->dev->config->intf_cache[0]->altsetting[1];
 	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
-	packet_size -= 100;
-	if (packet_size < 300)
+	if (packet_size <= min_packet_size)
 		return -EIO;
+
+	packet_size -= 100;
+	if (packet_size < min_packet_size)
+		packet_size = min_packet_size;
 	alt->endpoint[0].desc.wMaxPacketSize = cpu_to_le16(packet_size);
 
 	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, 1);
@@ -2796,14 +2837,11 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_host_interface *alt;
 
 	/* We cannot use gspca_dev->present here as that is not set when
 	   sd_init gets called and we get called from sd_init */
 	if (!gspca_dev->dev)
 		return;
-
-	alt = &gspca_dev->dev->config->intf_cache[0]->altsetting[1];
 
 	switch (sd->model) {
 	case CIT_MODEL0:
@@ -2815,7 +2853,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		break;
 	case CIT_MODEL1:
 		cit_send_FF_04_02(gspca_dev);
-		cit_read_reg(gspca_dev, 0x0100);
+		cit_read_reg(gspca_dev, 0x0100, 0);
 		cit_write_reg(gspca_dev, 0x81, 0x0100);	/* LED Off */
 		break;
 	case CIT_MODEL2:
@@ -2834,9 +2872,9 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	case CIT_MODEL3:
 		cit_write_reg(gspca_dev, 0x0006, 0x012c);
 		cit_model3_Packet1(gspca_dev, 0x0046, 0x0000);
-		cit_read_reg(gspca_dev, 0x0116);
+		cit_read_reg(gspca_dev, 0x0116, 0);
 		cit_write_reg(gspca_dev, 0x0064, 0x0116);
-		cit_read_reg(gspca_dev, 0x0115);
+		cit_read_reg(gspca_dev, 0x0115, 0);
 		cit_write_reg(gspca_dev, 0x0003, 0x0115);
 		cit_write_reg(gspca_dev, 0x0008, 0x0123);
 		cit_write_reg(gspca_dev, 0x0000, 0x0117);
@@ -2859,12 +2897,17 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		   restarting the stream after this */
 		/* cit_write_reg(gspca_dev, 0x0000, 0x0112); */
 		cit_write_reg(gspca_dev, 0x00c0, 0x0100);
-
-		/* Start isoc bandwidth "negotiation" at max isoc bandwith
-		   next stream start */
-		alt->endpoint[0].desc.wMaxPacketSize = cpu_to_le16(1022);
 		break;
 	}
+
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+	/* If the last button state is pressed, release it now! */
+	if (sd->button_state) {
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+		input_sync(gspca_dev->input_dev);
+		sd->button_state = 0;
+	}
+#endif
 }
 
 static u8 *cit_find_sof(struct gspca_dev *gspca_dev, u8 *data, int len)
@@ -3158,6 +3201,38 @@ static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+static void cit_check_button(struct gspca_dev *gspca_dev)
+{
+	int new_button_state;
+	struct sd *sd = (struct sd *)gspca_dev;
+
+	switch (sd->model) {
+	case CIT_MODEL3:
+	case CIT_IBM_NETCAM_PRO:
+		break;
+	default: /* TEST ME unknown if this works on other models too */
+		return;
+	}
+
+	/* Read the button state */
+	cit_read_reg(gspca_dev, 0x0113, 0);
+	new_button_state = !gspca_dev->usb_buf[0];
+
+	/* Tell the cam we've seen the button press, notice that this
+	   is a nop (iow the cam keeps reporting pressed) until the
+	   button is actually released. */
+	if (new_button_state)
+		cit_write_reg(gspca_dev, 0x01, 0x0113);
+
+	if (sd->button_state != new_button_state) {
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA,
+				 new_button_state);
+		input_sync(gspca_dev->input_dev);
+		sd->button_state = new_button_state;
+	}
+}
+#endif
 
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
@@ -3170,6 +3245,10 @@ static const struct sd_desc sd_desc = {
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+	.dq_callback = cit_check_button,
+	.other_input = 1,
+#endif
 };
 
 static const struct sd_desc sd_desc_isoc_nego = {
@@ -3179,10 +3258,15 @@ static const struct sd_desc sd_desc_isoc_nego = {
 	.config = sd_config,
 	.init = sd_init,
 	.start = sd_start,
+	.isoc_init = sd_isoc_init,
 	.isoc_nego = sd_isoc_nego,
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+	.dq_callback = cit_check_button,
+	.other_input = 1,
+#endif
 };
 
 /* -- module initialisation -- */

@@ -21,7 +21,6 @@
 #include <linux/kdev_t.h>
 #include <linux/fs.h>
 #include <linux/fcntl.h>
-#include <linux/smp_lock.h>
 #include <linux/uaccess.h>
 #include <linux/signal.h>
 #include <asm/syscalls.h>

@@ -659,7 +659,7 @@ int vmw_fb_off(struct vmw_private *vmw_priv)
 	par->dirty.active = false;
 	spin_unlock_irqrestore(&par->dirty.lock, flags);
 
-	flush_scheduled_work();
+	flush_delayed_work_sync(&info->deferred_work);
 
 	par->bo_ptr = NULL;
 	ttm_bo_kunmap(&par->map);

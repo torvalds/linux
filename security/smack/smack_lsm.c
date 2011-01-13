@@ -157,14 +157,10 @@ static int smack_ptrace_traceme(struct task_struct *ptp)
  *
  * Returns 0 on success, error code otherwise.
  */
-static int smack_syslog(int type, bool from_file)
+static int smack_syslog(int typefrom_file)
 {
-	int rc;
+	int rc = 0;
 	char *sp = current_security();
-
-	rc = cap_syslog(type, from_file);
-	if (rc != 0)
-		return rc;
 
 	if (capable(CAP_MAC_OVERRIDE))
 		return 0;
@@ -2412,22 +2408,22 @@ static int smack_setprocattr(struct task_struct *p, char *name,
 
 /**
  * smack_unix_stream_connect - Smack access on UDS
- * @sock: one socket
- * @other: the other socket
+ * @sock: one sock
+ * @other: the other sock
  * @newsk: unused
  *
  * Return 0 if a subject with the smack of sock could access
  * an object with the smack of other, otherwise an error code
  */
-static int smack_unix_stream_connect(struct socket *sock,
-				     struct socket *other, struct sock *newsk)
+static int smack_unix_stream_connect(struct sock *sock,
+				     struct sock *other, struct sock *newsk)
 {
-	struct inode *sp = SOCK_INODE(sock);
-	struct inode *op = SOCK_INODE(other);
+	struct inode *sp = SOCK_INODE(sock->sk_socket);
+	struct inode *op = SOCK_INODE(other->sk_socket);
 	struct smk_audit_info ad;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_NET);
-	smk_ad_setfield_u_net_sk(&ad, other->sk);
+	smk_ad_setfield_u_net_sk(&ad, other);
 	return smk_access(smk_of_inode(sp), smk_of_inode(op),
 				 MAY_READWRITE, &ad);
 }

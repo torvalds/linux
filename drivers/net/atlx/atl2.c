@@ -1504,8 +1504,8 @@ static void __devexit atl2_remove(struct pci_dev *pdev)
 
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_config_timer);
-
-	flush_scheduled_work();
+	cancel_work_sync(&adapter->reset_task);
+	cancel_work_sync(&adapter->link_chg_task);
 
 	unregister_netdev(netdev);
 

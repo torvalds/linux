@@ -46,10 +46,11 @@
 #include <plat/i2c.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
-#include <mach/pxa2xx_spi.h>
 #include <mach/pxa27x-udc.h>
+#include <mach/smemc.h>
 
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/mfd/da903x.h>
 #include <linux/sht15.h>
 
@@ -976,7 +977,7 @@ static void __init stargate2_init(void)
 {
 	/* This is probably a board specific hack as this must be set
 	   prior to connecting the MFP stuff up. */
-	MECR &= ~MECR_NOS;
+	__raw_writel(__raw_readl(MECR) & ~MECR_NOS, MECR);
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(stargate2_pin_config));
 
@@ -998,7 +999,7 @@ static void __init stargate2_init(void)
 
 #ifdef CONFIG_MACH_INTELMOTE2
 MACHINE_START(INTELMOTE2, "IMOTE 2")
-	.map_io		= pxa_map_io,
+	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= imote2_init,
@@ -1008,7 +1009,7 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_STARGATE2
 MACHINE_START(STARGATE2, "Stargate 2")
-	.map_io = pxa_map_io,
+	.map_io = pxa27x_map_io,
 	.nr_irqs = STARGATE_NR_IRQS,
 	.init_irq = pxa27x_init_irq,
 	.timer = &pxa_timer,

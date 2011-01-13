@@ -76,6 +76,8 @@ static void edac_mc_dump_mci(struct mem_ctl_info *mci)
 	debugf3("\tpvt_info = %p\n\n", mci->pvt_info);
 }
 
+#endif				/* CONFIG_EDAC_DEBUG */
+
 /*
  * keep those in sync with the enum mem_type
  */
@@ -99,8 +101,6 @@ const char *edac_mem_types[] = {
 	"Registered DDR3 RAM",
 };
 EXPORT_SYMBOL_GPL(edac_mem_types);
-
-#endif				/* CONFIG_EDAC_DEBUG */
 
 /* 'ptr' points to a possibly unaligned item X such that sizeof(X) is 'size'.
  * Adjust 'ptr' so that its alignment is at least as stringent as what the
@@ -586,14 +586,16 @@ struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 		return NULL;
 	}
 
-	/* marking MCI offline */
-	mci->op_state = OP_OFFLINE;
-
 	del_mc_from_global_list(mci);
 	mutex_unlock(&mem_ctls_mutex);
 
-	/* flush workq processes and remove sysfs */
+	/* flush workq processes */
 	edac_mc_workq_teardown(mci);
+
+	/* marking MCI offline */
+	mci->op_state = OP_OFFLINE;
+
+	/* remove from sysfs */
 	edac_remove_sysfs_mci_device(mci);
 
 	edac_printk(KERN_INFO, EDAC_MC,

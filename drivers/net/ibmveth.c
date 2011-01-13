@@ -729,11 +729,6 @@ static void netdev_get_drvinfo(struct net_device *dev,
 		sizeof(info->version) - 1);
 }
 
-static u32 netdev_get_link(struct net_device *dev)
-{
-	return 1;
-}
-
 static void ibmveth_set_rx_csum_flags(struct net_device *dev, u32 data)
 {
 	struct ibmveth_adapter *adapter = netdev_priv(dev);
@@ -918,7 +913,7 @@ static void ibmveth_get_ethtool_stats(struct net_device *dev,
 static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 	.get_settings		= netdev_get_settings,
-	.get_link		= netdev_get_link,
+	.get_link		= ethtool_op_get_link,
 	.set_tx_csum		= ibmveth_set_tx_csum,
 	.get_rx_csum		= ibmveth_get_rx_csum,
 	.set_rx_csum		= ibmveth_set_rx_csum,

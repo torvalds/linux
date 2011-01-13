@@ -770,7 +770,7 @@ static void xs_destroy(struct rpc_xprt *xprt)
 
 	dprintk("RPC:       xs_destroy xprt %p\n", xprt);
 
-	cancel_rearming_delayed_work(&transport->connect_worker);
+	cancel_delayed_work_sync(&transport->connect_worker);
 
 	xs_close(xprt);
 	xs_free_peer_addresses(xprt);

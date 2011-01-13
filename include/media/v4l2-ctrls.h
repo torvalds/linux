@@ -112,7 +112,7 @@ struct v4l2_ctrl {
 		u32 step;
 		u32 menu_skip_mask;
 	};
-	const char **qmenu;
+	const char * const *qmenu;
 	unsigned long flags;
 	union {
 		s32 val;
@@ -202,7 +202,7 @@ struct v4l2_ctrl_config {
 	s32 def;
 	u32 flags;
 	u32 menu_skip_mask;
-	const char **qmenu;
+	const char * const *qmenu;
 	unsigned int is_private:1;
 	unsigned int is_volatile:1;
 };

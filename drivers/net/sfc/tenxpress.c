@@ -15,9 +15,7 @@
 #include "mdio_10g.h"
 #include "nic.h"
 #include "phy.h"
-#include "regs.h"
 #include "workarounds.h"
-#include "selftest.h"
 
 /* We expect these MMDs to be in the package. */
 #define TENXPRESS_REQUIRED_DEVS (MDIO_DEVS_PMAPMD	| \

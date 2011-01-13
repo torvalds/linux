@@ -132,7 +132,7 @@ static int vp2040_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 		msleep(250);
 
 		dprintk(MANTIS_ERROR, 1, "Probing for CU1216 (DVB-C)");
-		fe = tda10021_attach(&vp2040_tda1002x_cu1216_config,
+		fe = dvb_attach(tda10021_attach, &vp2040_tda1002x_cu1216_config,
 				     adapter,
 				     read_pwm(mantis));
 
@@ -141,7 +141,7 @@ static int vp2040_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 				"found Philips CU1216 DVB-C frontend (TDA10021) @ 0x%02x",
 				vp2040_tda1002x_cu1216_config.demod_address);
 		} else {
-			fe = tda10023_attach(&vp2040_tda10023_cu1216_config,
+			fe = dvb_attach(tda10023_attach, &vp2040_tda10023_cu1216_config,
 					     adapter,
 					     read_pwm(mantis));
 

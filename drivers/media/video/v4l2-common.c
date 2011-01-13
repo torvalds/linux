@@ -150,7 +150,7 @@ EXPORT_SYMBOL(v4l2_prio_check);
    struct v4l2_queryctrl and the available menu items. Note that
    menu_items may be NULL, in that case it is ignored. */
 int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
-		const char **menu_items)
+		const char * const *menu_items)
 {
 	if (qctrl->flags & V4L2_CTRL_FLAG_DISABLED)
 		return -EINVAL;
@@ -199,7 +199,7 @@ EXPORT_SYMBOL(v4l2_ctrl_query_fill);
    If menu_items is NULL, then the menu items are retrieved using
    v4l2_ctrl_get_menu. */
 int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu, struct v4l2_queryctrl *qctrl,
-	       const char **menu_items)
+	       const char * const *menu_items)
 {
 	int i;
 
@@ -222,7 +222,7 @@ EXPORT_SYMBOL(v4l2_ctrl_query_menu);
    Use this if there are 'holes' in the list of valid menu items. */
 int v4l2_ctrl_query_menu_valid_items(struct v4l2_querymenu *qmenu, const u32 *ids)
 {
-	const char **menu_items = v4l2_ctrl_get_menu(qmenu->id);
+	const char * const *menu_items = v4l2_ctrl_get_menu(qmenu->id);
 
 	qmenu->reserved = 0;
 	if (menu_items == NULL || ids == NULL)
@@ -368,18 +368,15 @@ EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_init);
 
 /* Load an i2c sub-device. */
 struct v4l2_subdev *v4l2_i2c_new_subdev_board(struct v4l2_device *v4l2_dev,
-		struct i2c_adapter *adapter, const char *module_name,
-		struct i2c_board_info *info, const unsigned short *probe_addrs)
+		struct i2c_adapter *adapter, struct i2c_board_info *info,
+		const unsigned short *probe_addrs)
 {
 	struct v4l2_subdev *sd = NULL;
 	struct i2c_client *client;
 
 	BUG_ON(!v4l2_dev);
 
-	if (module_name)
-		request_module(module_name);
-	else
-		request_module(I2C_MODULE_PREFIX "%s", info->type);
+	request_module(I2C_MODULE_PREFIX "%s", info->type);
 
 	/* Create the i2c client */
 	if (info->addr == 0 && probe_addrs)
@@ -432,8 +429,7 @@ error:
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev_board);
 
 struct v4l2_subdev *v4l2_i2c_new_subdev_cfg(struct v4l2_device *v4l2_dev,
-		struct i2c_adapter *adapter,
-		const char *module_name, const char *client_type,
+		struct i2c_adapter *adapter, const char *client_type,
 		int irq, void *platform_data,
 		u8 addr, const unsigned short *probe_addrs)
 {
@@ -447,8 +443,7 @@ struct v4l2_subdev *v4l2_i2c_new_subdev_cfg(struct v4l2_device *v4l2_dev,
 	info.irq = irq;
 	info.platform_data = platform_data;
 
-	return v4l2_i2c_new_subdev_board(v4l2_dev, adapter, module_name,
-			&info, probe_addrs);
+	return v4l2_i2c_new_subdev_board(v4l2_dev, adapter, &info, probe_addrs);
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_subdev_cfg);
 

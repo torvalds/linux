@@ -38,10 +38,10 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	struct cifs_sb_info *cifs_sb;
 #ifdef CONFIG_CIFS_POSIX
 	struct cifsFileInfo *pSMBFile = filep->private_data;
-	struct cifsTconInfo *tcon = tlink_tcon(pSMBFile->tlink);
+	struct cifsTconInfo *tcon;
 	__u64	ExtAttrBits = 0;
 	__u64	ExtAttrMask = 0;
-	__u64   caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
+	__u64   caps;
 #endif /* CONFIG_CIFS_POSIX */
 
 	xid = GetXid();
@@ -62,6 +62,10 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			break;
 #ifdef CONFIG_CIFS_POSIX
 		case FS_IOC_GETFLAGS:
+			if (pSMBFile == NULL)
+				break;
+			tcon = tlink_tcon(pSMBFile->tlink);
+			caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 			if (CIFS_UNIX_EXTATTR_CAP & caps) {
 				rc = CIFSGetExtAttr(xid, tcon, pSMBFile->netfid,
 					&ExtAttrBits, &ExtAttrMask);
@@ -73,6 +77,10 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			break;
 
 		case FS_IOC_SETFLAGS:
+			if (pSMBFile == NULL)
+				break;
+			tcon = tlink_tcon(pSMBFile->tlink);
+			caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
 			if (CIFS_UNIX_EXTATTR_CAP & caps) {
 				if (get_user(ExtAttrBits, (int __user *)arg)) {
 					rc = -EFAULT;

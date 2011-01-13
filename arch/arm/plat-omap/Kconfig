@@ -11,13 +11,14 @@ choice
 
 config ARCH_OMAP1
 	bool "TI OMAP1"
-	select COMMON_CLKDEV
+	select CLKDEV_LOOKUP
 	help
 	  "Systems based on omap7xx, omap15xx or omap16xx"
 
 config ARCH_OMAP2PLUS
 	bool "TI OMAP2/3/4"
-	select COMMON_CLKDEV
+	select CLKDEV_LOOKUP
+	select OMAP_DM_TIMER
 	help
 	  "Systems based on OMAP2, OMAP3 or OMAP4"
 
@@ -34,6 +35,37 @@ config OMAP_DEBUG_LEDS
 	bool
 	depends on OMAP_DEBUG_DEVICES
 	default y if LEDS_CLASS
+
+config OMAP_SMARTREFLEX
+	bool "SmartReflex support"
+	depends on (ARCH_OMAP3 || ARCH_OMAP4) && PM
+	help
+	  Say Y if you want to enable SmartReflex.
+
+	  SmartReflex can perform continuous dynamic voltage
+	  scaling around the nominal operating point voltage
+	  according to silicon characteristics and operating
+	  conditions. Enabling SmartReflex reduces power
+	  consumption.
+
+	  Please note, that by default SmartReflex is only
+	  initialized. To enable the automatic voltage
+	  compensation for vdd mpu  and vdd core from user space,
+	  user must write 1 to
+		/debug/voltage/vdd_<X>/smartreflex/autocomp,
+	  where X is mpu or core for OMAP3.
+	  Optionallly autocompensation can be enabled in the kernel
+	  by default during system init via the enable_on_init flag
+	  which an be passed as platform data to the smartreflex driver.
+
+config OMAP_SMARTREFLEX_CLASS3
+	bool "Class 3 mode of Smartreflex Implementation"
+	depends on OMAP_SMARTREFLEX && TWL4030_CORE
+	help
+	  Say Y to enable Class 3 implementation of Smartreflex
+
+	  Class 3 implementation of Smartreflex employs continuous hardware
+	  voltage calibration.
 
 config OMAP_RESET_CLOCKS
 	bool "Reset unused clocks during boot"
@@ -108,6 +140,9 @@ config OMAP_IOMMU_DEBUG
          the internal state of OMAP IOMMU in debugfs.
 
          Say N unless you know you need this.
+
+config OMAP_IOMMU_IVA2
+	bool
 
 choice
 	prompt "System timer"

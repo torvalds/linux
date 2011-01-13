@@ -288,6 +288,8 @@ struct fc_host_statistics *fc_get_host_stats(struct Scsi_Host *shost)
 	struct fc_lport *lport = shost_priv(shost);
 	struct timespec v0, v1;
 	unsigned int cpu;
+	u64 fcp_in_bytes = 0;
+	u64 fcp_out_bytes = 0;
 
 	fcoe_stats = &lport->host_stats;
 	memset(fcoe_stats, 0, sizeof(struct fc_host_statistics));
@@ -310,10 +312,12 @@ struct fc_host_statistics *fc_get_host_stats(struct Scsi_Host *shost)
 		fcoe_stats->fcp_input_requests += stats->InputRequests;
 		fcoe_stats->fcp_output_requests += stats->OutputRequests;
 		fcoe_stats->fcp_control_requests += stats->ControlRequests;
-		fcoe_stats->fcp_input_megabytes += stats->InputMegabytes;
-		fcoe_stats->fcp_output_megabytes += stats->OutputMegabytes;
+		fcp_in_bytes += stats->InputBytes;
+		fcp_out_bytes += stats->OutputBytes;
 		fcoe_stats->link_failure_count += stats->LinkFailureCount;
 	}
+	fcoe_stats->fcp_input_megabytes = div_u64(fcp_in_bytes, 1000000);
+	fcoe_stats->fcp_output_megabytes = div_u64(fcp_out_bytes, 1000000);
 	fcoe_stats->lip_count = -1;
 	fcoe_stats->nos_count = -1;
 	fcoe_stats->loss_of_sync_count = -1;
@@ -1703,8 +1707,10 @@ static int fc_lport_els_request(struct fc_bsg_job *job,
 	info->sg = job->reply_payload.sg_list;
 
 	if (!lport->tt.exch_seq_send(lport, fp, fc_lport_bsg_resp,
-				     NULL, info, tov))
+				     NULL, info, tov)) {
+		kfree(info);
 		return -ECOMM;
+	}
 	return 0;
 }
 
@@ -1762,8 +1768,10 @@ static int fc_lport_ct_request(struct fc_bsg_job *job,
 	info->sg = job->reply_payload.sg_list;
 
 	if (!lport->tt.exch_seq_send(lport, fp, fc_lport_bsg_resp,
-				     NULL, info, tov))
+				     NULL, info, tov)) {
+		kfree(info);
 		return -ECOMM;
+	}
 	return 0;
 }
 

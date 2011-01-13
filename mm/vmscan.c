@@ -494,9 +494,16 @@ static int __remove_mapping(struct address_space *mapping, struct page *page)
 		spin_unlock_irq(&mapping->tree_lock);
 		swapcache_free(swap, page);
 	} else {
+		void (*freepage)(struct page *);
+
+		freepage = mapping->a_ops->freepage;
+
 		__remove_from_page_cache(page);
 		spin_unlock_irq(&mapping->tree_lock);
 		mem_cgroup_uncharge_cache_page(page);
+
+		if (freepage != NULL)
+			freepage(page);
 	}
 
 	return 1;
@@ -913,7 +920,7 @@ keep_lumpy:
 	 * back off and wait for congestion to clear because further reclaim
 	 * will encounter the same problem
 	 */
-	if (nr_dirty == nr_congested)
+	if (nr_dirty == nr_congested && nr_dirty != 0)
 		zone_set_flag(zone, ZONE_CONGESTED);
 
 	free_page_list(&free_pages);

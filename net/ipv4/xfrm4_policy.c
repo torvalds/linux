@@ -11,6 +11,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/inetdevice.h>
+#include <linux/if_tunnel.h>
 #include <net/dst.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
@@ -22,12 +23,8 @@ static struct dst_entry *xfrm4_dst_lookup(struct net *net, int tos,
 					  xfrm_address_t *daddr)
 {
 	struct flowi fl = {
-		.nl_u = {
-			.ip4_u = {
-				.tos = tos,
-				.daddr = daddr->a4,
-			},
-		},
+		.fl4_dst = daddr->a4,
+		.fl4_tos = tos,
 	};
 	struct dst_entry *dst;
 	struct rtable *rt;
@@ -154,6 +151,20 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 				fl->fl_ipsec_spi = htonl(ntohs(ipcomp_hdr[1]));
 			}
 			break;
+
+		case IPPROTO_GRE:
+			if (pskb_may_pull(skb, xprth + 12 - skb->data)) {
+				__be16 *greflags = (__be16 *)xprth;
+				__be32 *gre_hdr = (__be32 *)xprth;
+
+				if (greflags[0] & GRE_KEY) {
+					if (greflags[0] & GRE_CSUM)
+						gre_hdr++;
+					fl->fl_gre_key = gre_hdr[1];
+				}
+			}
+			break;
+
 		default:
 			fl->fl_ipsec_spi = 0;
 			break;

@@ -330,9 +330,6 @@ static bool reserve_pmc_hardware(void)
 {
 	int i;
 
-	if (nmi_watchdog == NMI_LOCAL_APIC)
-		disable_lapic_nmi_watchdog();
-
 	for (i = 0; i < x86_pmu.num_counters; i++) {
 		if (!reserve_perfctr_nmi(x86_pmu.perfctr + i))
 			goto perfctr_fail;
@@ -355,9 +352,6 @@ perfctr_fail:
 	for (i--; i >= 0; i--)
 		release_perfctr_nmi(x86_pmu.perfctr + i);
 
-	if (nmi_watchdog == NMI_LOCAL_APIC)
-		enable_lapic_nmi_watchdog();
-
 	return false;
 }
 
@@ -369,9 +363,6 @@ static void release_pmc_hardware(void)
 		release_perfctr_nmi(x86_pmu.perfctr + i);
 		release_evntsel_nmi(x86_pmu.eventsel + i);
 	}
-
-	if (nmi_watchdog == NMI_LOCAL_APIC)
-		enable_lapic_nmi_watchdog();
 }
 
 #else
@@ -380,6 +371,58 @@ static bool reserve_pmc_hardware(void) { return true; }
 static void release_pmc_hardware(void) {}
 
 #endif
+
+static bool check_hw_exists(void)
+{
+	u64 val, val_new = 0;
+	int i, reg, ret = 0;
+
+	/*
+	 * Check to see if the BIOS enabled any of the counters, if so
+	 * complain and bail.
+	 */
+	for (i = 0; i < x86_pmu.num_counters; i++) {
+		reg = x86_pmu.eventsel + i;
+		ret = rdmsrl_safe(reg, &val);
+		if (ret)
+			goto msr_fail;
+		if (val & ARCH_PERFMON_EVENTSEL_ENABLE)
+			goto bios_fail;
+	}
+
+	if (x86_pmu.num_counters_fixed) {
+		reg = MSR_ARCH_PERFMON_FIXED_CTR_CTRL;
+		ret = rdmsrl_safe(reg, &val);
+		if (ret)
+			goto msr_fail;
+		for (i = 0; i < x86_pmu.num_counters_fixed; i++) {
+			if (val & (0x03 << i*4))
+				goto bios_fail;
+		}
+	}
+
+	/*
+	 * Now write a value and read it back to see if it matches,
+	 * this is needed to detect certain hardware emulators (qemu/kvm)
+	 * that don't trap on the MSR access and always return 0s.
+	 */
+	val = 0xabcdUL;
+	ret = checking_wrmsrl(x86_pmu.perfctr, val);
+	ret |= rdmsrl_safe(x86_pmu.perfctr, &val_new);
+	if (ret || val != val_new)
+		goto msr_fail;
+
+	return true;
+
+bios_fail:
+	printk(KERN_CONT "Broken BIOS detected, using software events only.\n");
+	printk(KERN_ERR FW_BUG "the BIOS has corrupted hw-PMU resources (MSR %x is %Lx)\n", reg, val);
+	return false;
+
+msr_fail:
+	printk(KERN_CONT "Broken PMU hardware detected, using software events only.\n");
+	return false;
+}
 
 static void reserve_ds_buffers(void);
 static void release_ds_buffers(void);
@@ -437,7 +480,7 @@ static int x86_setup_perfctr(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	u64 config;
 
-	if (!hwc->sample_period) {
+	if (!is_sampling_event(event)) {
 		hwc->sample_period = x86_pmu.max_period;
 		hwc->last_period = hwc->sample_period;
 		local64_set(&hwc->period_left, hwc->sample_period);
@@ -954,8 +997,7 @@ x86_perf_event_set_period(struct perf_event *event)
 
 static void x86_pmu_enable_event(struct perf_event *event)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-	if (cpuc->enabled)
+	if (__this_cpu_read(cpu_hw_events.enabled))
 		__x86_pmu_enable_event(&event->hw,
 				       ARCH_PERFMON_EVENTSEL_ENABLE);
 }
@@ -1229,7 +1271,7 @@ perf_event_nmi_handler(struct notifier_block *self,
 		break;
 	case DIE_NMIUNKNOWN:
 		this_nmi = percpu_read(irq_stat.__nmi_count);
-		if (this_nmi != __get_cpu_var(pmu_nmi).marked)
+		if (this_nmi != __this_cpu_read(pmu_nmi.marked))
 			/* let the kernel handle the unknown nmi */
 			return NOTIFY_DONE;
 		/*
@@ -1253,8 +1295,8 @@ perf_event_nmi_handler(struct notifier_block *self,
 	this_nmi = percpu_read(irq_stat.__nmi_count);
 	if ((handled > 1) ||
 		/* the next nmi could be a back-to-back nmi */
-	    ((__get_cpu_var(pmu_nmi).marked == this_nmi) &&
-	     (__get_cpu_var(pmu_nmi).handled > 1))) {
+	    ((__this_cpu_read(pmu_nmi.marked) == this_nmi) &&
+	     (__this_cpu_read(pmu_nmi.handled) > 1))) {
 		/*
 		 * We could have two subsequent back-to-back nmis: The
 		 * first handles more than one counter, the 2nd
@@ -1265,8 +1307,8 @@ perf_event_nmi_handler(struct notifier_block *self,
 		 * handling more than one counter. We will mark the
 		 * next (3rd) and then drop it if unhandled.
 		 */
-		__get_cpu_var(pmu_nmi).marked	= this_nmi + 1;
-		__get_cpu_var(pmu_nmi).handled	= handled;
+		__this_cpu_write(pmu_nmi.marked, this_nmi + 1);
+		__this_cpu_write(pmu_nmi.handled, handled);
 	}
 
 	return NOTIFY_STOP;
@@ -1348,7 +1390,7 @@ static void __init pmu_check_apic(void)
 	pr_info("no hardware sampling interrupt available.\n");
 }
 
-void __init init_hw_perf_events(void)
+int __init init_hw_perf_events(void)
 {
 	struct event_constraint *c;
 	int err;
@@ -1363,14 +1405,18 @@ void __init init_hw_perf_events(void)
 		err = amd_pmu_init();
 		break;
 	default:
-		return;
+		return 0;
 	}
 	if (err != 0) {
 		pr_cont("no PMU driver, software events only.\n");
-		return;
+		return 0;
 	}
 
 	pmu_check_apic();
+
+	/* sanity check that the hardware exists or is emulated */
+	if (!check_hw_exists())
+		return 0;
 
 	pr_cont("%s PMU driver.\n", x86_pmu.name);
 
@@ -1418,9 +1464,12 @@ void __init init_hw_perf_events(void)
 	pr_info("... fixed-purpose events:   %d\n",     x86_pmu.num_counters_fixed);
 	pr_info("... event mask:             %016Lx\n", x86_pmu.intel_ctrl);
 
-	perf_pmu_register(&pmu);
+	perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
 	perf_cpu_notifier(x86_pmu_notifier);
+
+	return 0;
 }
+early_initcall(init_hw_perf_events);
 
 static inline void x86_pmu_read(struct perf_event *event)
 {
@@ -1434,11 +1483,9 @@ static inline void x86_pmu_read(struct perf_event *event)
  */
 static void x86_pmu_start_txn(struct pmu *pmu)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-
 	perf_pmu_disable(pmu);
-	cpuc->group_flag |= PERF_EVENT_TXN;
-	cpuc->n_txn = 0;
+	__this_cpu_or(cpu_hw_events.group_flag, PERF_EVENT_TXN);
+	__this_cpu_write(cpu_hw_events.n_txn, 0);
 }
 
 /*
@@ -1448,14 +1495,12 @@ static void x86_pmu_start_txn(struct pmu *pmu)
  */
 static void x86_pmu_cancel_txn(struct pmu *pmu)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-
-	cpuc->group_flag &= ~PERF_EVENT_TXN;
+	__this_cpu_and(cpu_hw_events.group_flag, ~PERF_EVENT_TXN);
 	/*
 	 * Truncate the collected events.
 	 */
-	cpuc->n_added -= cpuc->n_txn;
-	cpuc->n_events -= cpuc->n_txn;
+	__this_cpu_sub(cpu_hw_events.n_added, __this_cpu_read(cpu_hw_events.n_txn));
+	__this_cpu_sub(cpu_hw_events.n_events, __this_cpu_read(cpu_hw_events.n_txn));
 	perf_pmu_enable(pmu);
 }
 
@@ -1666,7 +1711,7 @@ perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 
 	perf_callchain_store(entry, regs->ip);
 
-	dump_trace(NULL, regs, NULL, regs->bp, &backtrace_ops, entry);
+	dump_trace(NULL, regs, NULL, &backtrace_ops, entry);
 }
 
 #ifdef CONFIG_COMPAT

@@ -84,7 +84,7 @@ static struct saa7146_format formats[] = {
 
 static int NUM_FORMATS = sizeof(formats)/sizeof(struct saa7146_format);
 
-struct saa7146_format* format_by_fourcc(struct saa7146_dev *dev, int fourcc)
+struct saa7146_format* saa7146_format_by_fourcc(struct saa7146_dev *dev, int fourcc)
 {
 	int i, j = NUM_FORMATS;
 
@@ -266,7 +266,7 @@ static int saa7146_pgtable_build(struct saa7146_dev *dev, struct saa7146_buf *bu
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 	struct scatterlist *list = dma->sglist;
 	int length = dma->sglen;
-	struct saa7146_format *sfmt = format_by_fourcc(dev,buf->fmt->pixelformat);
+	struct saa7146_format *sfmt = saa7146_format_by_fourcc(dev,buf->fmt->pixelformat);
 
 	DEB_EE(("dev:%p, buf:%p, sg_len:%d\n",dev,buf,length));
 
@@ -408,7 +408,7 @@ static int video_begin(struct saa7146_fh *fh)
 		}
 	}
 
-	fmt = format_by_fourcc(dev,fh->video_fmt.pixelformat);
+	fmt = saa7146_format_by_fourcc(dev,fh->video_fmt.pixelformat);
 	/* we need to have a valid format set here */
 	BUG_ON(NULL == fmt);
 
@@ -460,7 +460,7 @@ static int video_end(struct saa7146_fh *fh, struct file *file)
 		return -EBUSY;
 	}
 
-	fmt = format_by_fourcc(dev,fh->video_fmt.pixelformat);
+	fmt = saa7146_format_by_fourcc(dev,fh->video_fmt.pixelformat);
 	/* we need to have a valid format set here */
 	BUG_ON(NULL == fmt);
 
@@ -536,7 +536,7 @@ static int vidioc_s_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *f
 		return -EPERM;
 
 	/* check args */
-	fmt = format_by_fourcc(dev, fb->fmt.pixelformat);
+	fmt = saa7146_format_by_fourcc(dev, fb->fmt.pixelformat);
 	if (NULL == fmt)
 		return -EINVAL;
 
@@ -760,7 +760,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_forma
 
 	DEB_EE(("V4L2_BUF_TYPE_VIDEO_CAPTURE: dev:%p, fh:%p\n", dev, fh));
 
-	fmt = format_by_fourcc(dev, f->fmt.pix.pixelformat);
+	fmt = saa7146_format_by_fourcc(dev, f->fmt.pix.pixelformat);
 	if (NULL == fmt)
 		return -EINVAL;
 
@@ -1129,35 +1129,6 @@ static int vidioc_g_chip_ident(struct file *file, void *__fh,
 			core, g_chip_ident, chip);
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *__fh, struct video_mbuf *mbuf)
-{
-	struct saa7146_fh *fh = __fh;
-	struct videobuf_queue *q = &fh->video_q;
-	int err, i;
-
-	/* fixme: number of capture buffers and sizes for v4l apps */
-	int gbuffers = 2;
-	int gbufsize = 768 * 576 * 4;
-
-	DEB_D(("VIDIOCGMBUF \n"));
-
-	q = &fh->video_q;
-	err = videobuf_mmap_setup(q, gbuffers, gbufsize,
-			V4L2_MEMORY_MMAP);
-	if (err < 0)
-		return err;
-
-	gbuffers = err;
-	memset(mbuf, 0, sizeof(*mbuf));
-	mbuf->frames = gbuffers;
-	mbuf->size   = gbuffers * gbufsize;
-	for (i = 0; i < gbuffers; i++)
-		mbuf->offsets[i] = i * gbufsize;
-	return 0;
-}
-#endif
-
 const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_querycap             = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap     = vidioc_enum_fmt_vid_cap,
@@ -1186,9 +1157,6 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_streamon             = vidioc_streamon,
 	.vidioc_streamoff            = vidioc_streamoff,
 	.vidioc_g_parm 		     = vidioc_g_parm,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf                 = vidiocgmbuf,
-#endif
 };
 
 /*********************************************************************************/
@@ -1264,7 +1232,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 		buf->fmt       = &fh->video_fmt;
 		buf->vb.field  = fh->video_fmt.field;
 
-		sfmt = format_by_fourcc(dev,buf->fmt->pixelformat);
+		sfmt = saa7146_format_by_fourcc(dev,buf->fmt->pixelformat);
 
 		release_all_pagetables(dev, buf);
 		if( 0 != IS_PLANAR(sfmt->trans)) {
@@ -1378,7 +1346,7 @@ static int video_open(struct saa7146_dev *dev, struct file *file)
 	fh->video_fmt.pixelformat = V4L2_PIX_FMT_BGR24;
 	fh->video_fmt.bytesperline = 0;
 	fh->video_fmt.field = V4L2_FIELD_ANY;
-	sfmt = format_by_fourcc(dev,fh->video_fmt.pixelformat);
+	sfmt = saa7146_format_by_fourcc(dev,fh->video_fmt.pixelformat);
 	fh->video_fmt.sizeimage = (fh->video_fmt.width * fh->video_fmt.height * sfmt->depth)/8;
 
 	videobuf_queue_sg_init(&fh->video_q, &video_qops,

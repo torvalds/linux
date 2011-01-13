@@ -124,15 +124,6 @@ void mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata)
 		ieee80211_mesh_housekeeping_timer((unsigned long) sdata);
 }
 
-void mesh_ids_set_default(struct ieee80211_if_mesh *sta)
-{
-	sta->mesh_pp_id = 0;	/* HWMP */
-	sta->mesh_pm_id = 0;	/* Airtime */
-	sta->mesh_cc_id = 0;	/* Disabled */
-	sta->mesh_sp_id = 0;	/* Neighbor Offset */
-	sta->mesh_auth_id = 0;	/* Disabled */
-}
-
 int mesh_rmc_init(struct ieee80211_sub_if_data *sdata)
 {
 	int i;
@@ -287,6 +278,13 @@ void mesh_mgmt_ies_add(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	*pos++ |= sdata->u.mesh.accepting_plinks ?
 	    MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
 	*pos++ = 0x00;
+
+	if (sdata->u.mesh.vendor_ie) {
+		int len = sdata->u.mesh.vendor_ie_len;
+		const u8 *data = sdata->u.mesh.vendor_ie;
+		if (skb_tailroom(skb) > len)
+			memcpy(skb_put(skb, len), data, len);
+	}
 }
 
 u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata, struct mesh_table *tbl)
@@ -412,39 +410,33 @@ int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
  * ieee80211_new_mesh_header - create a new mesh header
  * @meshhdr:    uninitialized mesh header
  * @sdata:	mesh interface to be used
- * @addr4:	addr4 of the mesh frame (1st in ae header)
- *              may be NULL
- * @addr5:	addr5 of the mesh frame (1st or 2nd in ae header)
- *              may be NULL unless addr6 is present
- * @addr6:	addr6 of the mesh frame (2nd or 3rd in ae header)
- * 		may be NULL unless addr5 is present
+ * @addr4or5:   1st address in the ae header, which may correspond to address 4
+ *              (if addr6 is NULL) or address 5 (if addr6 is present). It may
+ *              be NULL.
+ * @addr6:	2nd address in the ae header, which corresponds to addr6 of the
+ *              mesh frame
  *
  * Return the header length.
  */
 int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
-		struct ieee80211_sub_if_data *sdata, char *addr4,
-		char *addr5, char *addr6)
+		struct ieee80211_sub_if_data *sdata, char *addr4or5,
+		char *addr6)
 {
 	int aelen = 0;
+	BUG_ON(!addr4or5 && addr6);
 	memset(meshhdr, 0, sizeof(*meshhdr));
 	meshhdr->ttl = sdata->u.mesh.mshcfg.dot11MeshTTL;
 	put_unaligned(cpu_to_le32(sdata->u.mesh.mesh_seqnum), &meshhdr->seqnum);
 	sdata->u.mesh.mesh_seqnum++;
-	if (addr4) {
+	if (addr4or5 && !addr6) {
 		meshhdr->flags |= MESH_FLAGS_AE_A4;
 		aelen += ETH_ALEN;
-		memcpy(meshhdr->eaddr1, addr4, ETH_ALEN);
-	}
-	if (addr5 && addr6) {
+		memcpy(meshhdr->eaddr1, addr4or5, ETH_ALEN);
+	} else if (addr4or5 && addr6) {
 		meshhdr->flags |= MESH_FLAGS_AE_A5_A6;
 		aelen += 2 * ETH_ALEN;
-		if (!addr4) {
-			memcpy(meshhdr->eaddr1, addr5, ETH_ALEN);
-			memcpy(meshhdr->eaddr2, addr6, ETH_ALEN);
-		} else {
-			memcpy(meshhdr->eaddr2, addr5, ETH_ALEN);
-			memcpy(meshhdr->eaddr3, addr6, ETH_ALEN);
-		}
+		memcpy(meshhdr->eaddr1, addr4or5, ETH_ALEN);
+		memcpy(meshhdr->eaddr2, addr6, ETH_ALEN);
 	}
 	return 6 + aelen;
 }
@@ -513,6 +505,14 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
 
+	local->fif_other_bss++;
+	/* mesh ifaces must set allmulti to forward mcast traffic */
+	atomic_inc(&local->iff_allmultis);
+	ieee80211_configure_filter(local);
+
+	ifmsh->mesh_cc_id = 0;	/* Disabled */
+	ifmsh->mesh_sp_id = 0;	/* Neighbor Offset */
+	ifmsh->mesh_auth_id = 0;	/* Disabled */
 	set_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags);
 	ieee80211_mesh_root_setup(ifmsh);
 	ieee80211_queue_work(&local->hw, &sdata->work);
@@ -524,6 +524,13 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 {
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+
+	ifmsh->mesh_id_len = 0;
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
+	sta_info_flush(local, NULL);
+
 	del_timer_sync(&sdata->u.mesh.housekeeping_timer);
 	del_timer_sync(&sdata->u.mesh.mesh_path_root_timer);
 	/*
@@ -534,6 +541,10 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	 * it no longer is.
 	 */
 	cancel_work_sync(&sdata->work);
+
+	local->fif_other_bss--;
+	atomic_dec(&local->iff_allmultis);
+	ieee80211_configure_filter(local);
 }
 
 static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
@@ -663,26 +674,6 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 		    ieee80211_mesh_housekeeping_timer,
 		    (unsigned long) sdata);
 
-	ifmsh->mshcfg.dot11MeshRetryTimeout = MESH_RET_T;
-	ifmsh->mshcfg.dot11MeshConfirmTimeout = MESH_CONF_T;
-	ifmsh->mshcfg.dot11MeshHoldingTimeout = MESH_HOLD_T;
-	ifmsh->mshcfg.dot11MeshMaxRetries = MESH_MAX_RETR;
-	ifmsh->mshcfg.dot11MeshTTL = MESH_TTL;
-	ifmsh->mshcfg.auto_open_plinks = true;
-	ifmsh->mshcfg.dot11MeshMaxPeerLinks =
-		MESH_MAX_ESTAB_PLINKS;
-	ifmsh->mshcfg.dot11MeshHWMPactivePathTimeout =
-		MESH_PATH_TIMEOUT;
-	ifmsh->mshcfg.dot11MeshHWMPpreqMinInterval =
-		MESH_PREQ_MIN_INT;
-	ifmsh->mshcfg.dot11MeshHWMPnetDiameterTraversalTime =
-		MESH_DIAM_TRAVERSAL_TIME;
-	ifmsh->mshcfg.dot11MeshHWMPmaxPREQretries =
-		MESH_MAX_PREQ_RETRIES;
-	ifmsh->mshcfg.path_refresh_time =
-		MESH_PATH_REFRESH_TIME;
-	ifmsh->mshcfg.min_discovery_timeout =
-		MESH_MIN_DISCOVERY_TIMEOUT;
 	ifmsh->accepting_plinks = true;
 	ifmsh->preq_id = 0;
 	ifmsh->sn = 0;
@@ -692,7 +683,6 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	/* Allocate all mesh structures when creating the first mesh interface. */
 	if (!mesh_allocated)
 		ieee80211s_init();
-	mesh_ids_set_default(ifmsh);
 	setup_timer(&ifmsh->mesh_path_timer,
 		    ieee80211_mesh_path_timer,
 		    (unsigned long) sdata);

@@ -488,6 +488,9 @@
 #define E1000_BLK_PHY_RESET   12
 #define E1000_ERR_SWFW_SYNC 13
 #define E1000_NOT_IMPLEMENTED 14
+#define E1000_ERR_INVALID_ARGUMENT  16
+#define E1000_ERR_NO_SPACE          17
+#define E1000_ERR_NVM_PBA_SECTION   18
 
 /* Loop limit on how long we wait for auto-negotiation to complete */
 #define FIBER_LINK_UP_LIMIT               50
@@ -516,6 +519,7 @@
 #define E1000_TXCW_ANE        0x80000000        /* Auto-neg enable */
 
 /* Receive Configuration Word */
+#define E1000_RXCW_CW         0x0000ffff        /* RxConfigWord mask */
 #define E1000_RXCW_IV         0x08000000        /* Receive config invalid */
 #define E1000_RXCW_C          0x20000000        /* Receive config */
 #define E1000_RXCW_SYNCH      0x40000000        /* Receive config synch */
@@ -649,13 +653,16 @@
 /* Mask bits for fields in Word 0x03 of the EEPROM */
 #define NVM_COMPAT_LOM    0x0800
 
+/* length of string needed to store PBA number */
+#define E1000_PBANUM_LENGTH             11
+
 /* For checksumming, the sum of all words in the NVM should equal 0xBABA. */
 #define NVM_SUM                    0xBABA
 
 /* PBA (printed board assembly) number words */
 #define NVM_PBA_OFFSET_0           8
 #define NVM_PBA_OFFSET_1           9
-
+#define NVM_PBA_PTR_GUARD          0xFAFA
 #define NVM_WORD_SIZE_BASE_SHIFT   6
 
 /* NVM Commands - SPI */

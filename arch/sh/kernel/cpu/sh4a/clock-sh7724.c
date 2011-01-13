@@ -22,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/clk.h>
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 #include <asm/clock.h>
 #include <asm/hwblk.h>
 #include <cpu/sh7724.h>
@@ -111,12 +111,21 @@ static struct clk div3_clk = {
 	.parent		= &pll_clk,
 };
 
+/* External input clock (pin name: FSIMCKA/FSIMCKB ) */
+struct clk sh7724_fsimcka_clk = {
+};
+
+struct clk sh7724_fsimckb_clk = {
+};
+
 static struct clk *main_clks[] = {
 	&r_clk,
 	&extal_clk,
 	&fll_clk,
 	&pll_clk,
 	&div3_clk,
+	&sh7724_fsimcka_clk,
+	&sh7724_fsimckb_clk,
 };
 
 static void div4_kick(struct clk *clk)
@@ -154,14 +163,36 @@ struct clk div4_clks[DIV4_NR] = {
 	[DIV4_M1] = DIV4(FRQCRB, 4, 0x2f7c, CLK_ENABLE_ON_INIT),
 };
 
-enum { DIV6_V, DIV6_FA, DIV6_FB, DIV6_I, DIV6_S, DIV6_NR };
+enum { DIV6_V, DIV6_I, DIV6_S, DIV6_NR };
 
 static struct clk div6_clks[DIV6_NR] = {
 	[DIV6_V] = SH_CLK_DIV6(&div3_clk, VCLKCR, 0),
-	[DIV6_FA] = SH_CLK_DIV6(&div3_clk, FCLKACR, 0),
-	[DIV6_FB] = SH_CLK_DIV6(&div3_clk, FCLKBCR, 0),
 	[DIV6_I] = SH_CLK_DIV6(&div3_clk, IRDACLKCR, 0),
 	[DIV6_S] = SH_CLK_DIV6(&div3_clk, SPUCLKCR, CLK_ENABLE_ON_INIT),
+};
+
+enum { DIV6_FA, DIV6_FB, DIV6_REPARENT_NR };
+
+/* Indices are important - they are the actual src selecting values */
+static struct clk *fclkacr_parent[] = {
+	[0] = &div3_clk,
+	[1] = NULL,
+	[2] = &sh7724_fsimcka_clk,
+	[3] = NULL,
+};
+
+static struct clk *fclkbcr_parent[] = {
+	[0] = &div3_clk,
+	[1] = NULL,
+	[2] = &sh7724_fsimckb_clk,
+	[3] = NULL,
+};
+
+static struct clk div6_reparent_clks[DIV6_REPARENT_NR] = {
+	[DIV6_FA] = SH_CLK_DIV6_EXT(&div3_clk, FCLKACR, 0,
+				      fclkacr_parent, ARRAY_SIZE(fclkacr_parent), 6, 2),
+	[DIV6_FB] = SH_CLK_DIV6_EXT(&div3_clk, FCLKBCR, 0,
+				      fclkbcr_parent, ARRAY_SIZE(fclkbcr_parent), 6, 2),
 };
 
 static struct clk mstp_clks[HWBLK_NR] = {
@@ -240,8 +271,8 @@ static struct clk_lookup lookups[] = {
 
 	/* DIV6 clocks */
 	CLKDEV_CON_ID("video_clk", &div6_clks[DIV6_V]),
-	CLKDEV_CON_ID("fsia_clk", &div6_clks[DIV6_FA]),
-	CLKDEV_CON_ID("fsib_clk", &div6_clks[DIV6_FB]),
+	CLKDEV_CON_ID("fsia_clk", &div6_reparent_clks[DIV6_FA]),
+	CLKDEV_CON_ID("fsib_clk", &div6_reparent_clks[DIV6_FB]),
 	CLKDEV_CON_ID("irda_clk", &div6_clks[DIV6_I]),
 	CLKDEV_CON_ID("spu_clk", &div6_clks[DIV6_S]),
 
@@ -374,6 +405,9 @@ int __init arch_clk_init(void)
 
 	if (!ret)
 		ret = sh_clk_div6_register(div6_clks, DIV6_NR);
+
+	if (!ret)
+		ret = sh_clk_div6_reparent_register(div6_reparent_clks, DIV6_REPARENT_NR);
 
 	if (!ret)
 		ret = sh_hwblk_clk_register(mstp_clks, HWBLK_NR);

@@ -746,7 +746,7 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 	struct acpi_processor *pr;
 	struct acpi_processor_cx *cx = cpuidle_get_statedata(state);
 
-	pr = __get_cpu_var(processors);
+	pr = __this_cpu_read(processors);
 
 	if (unlikely(!pr))
 		return 0;
@@ -787,7 +787,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	s64 idle_time_ns;
 	s64 idle_time;
 
-	pr = __get_cpu_var(processors);
+	pr = __this_cpu_read(processors);
 
 	if (unlikely(!pr))
 		return 0;
@@ -864,7 +864,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	s64 idle_time;
 
 
-	pr = __get_cpu_var(processors);
+	pr = __this_cpu_read(processors);
 
 	if (unlikely(!pr))
 		return 0;

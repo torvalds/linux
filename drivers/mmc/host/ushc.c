@@ -425,7 +425,7 @@ static int ushc_probe(struct usb_interface *intf, const struct usb_device_id *id
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	struct mmc_host *mmc;
 	struct ushc_data *ushc;
-	int ret = -ENOMEM;
+	int ret;
 
 	mmc = mmc_alloc_host(sizeof(struct ushc_data), &intf->dev);
 	if (mmc == NULL)
@@ -462,11 +462,15 @@ static int ushc_probe(struct usb_interface *intf, const struct usb_device_id *id
 	mmc->max_blk_count = 511;
 
 	ushc->int_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (ushc->int_urb == NULL)
+	if (ushc->int_urb == NULL) {
+		ret = -ENOMEM;
 		goto err;
+	}
 	ushc->int_data = kzalloc(sizeof(struct ushc_int_data), GFP_KERNEL);
-	if (ushc->int_data == NULL)
+	if (ushc->int_data == NULL) {
+		ret = -ENOMEM;
 		goto err;
+	}
 	usb_fill_int_urb(ushc->int_urb, ushc->usb_dev,
 			 usb_rcvintpipe(usb_dev,
 					intf->cur_altsetting->endpoint[0].desc.bEndpointAddress),
@@ -475,11 +479,15 @@ static int ushc_probe(struct usb_interface *intf, const struct usb_device_id *id
 			 intf->cur_altsetting->endpoint[0].desc.bInterval);
 
 	ushc->cbw_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (ushc->cbw_urb == NULL)
+	if (ushc->cbw_urb == NULL) {
+		ret = -ENOMEM;
 		goto err;
+	}
 	ushc->cbw = kzalloc(sizeof(struct ushc_cbw), GFP_KERNEL);
-	if (ushc->cbw == NULL)
+	if (ushc->cbw == NULL) {
+		ret = -ENOMEM;
 		goto err;
+	}
 	ushc->cbw->signature = USHC_CBW_SIGNATURE;
 
 	usb_fill_bulk_urb(ushc->cbw_urb, ushc->usb_dev, usb_sndbulkpipe(usb_dev, 2),
@@ -487,15 +495,21 @@ static int ushc_probe(struct usb_interface *intf, const struct usb_device_id *id
 			  cbw_callback, ushc);
 
 	ushc->data_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (ushc->data_urb == NULL)
+	if (ushc->data_urb == NULL) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	ushc->csw_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (ushc->csw_urb == NULL)
+	if (ushc->csw_urb == NULL) {
+		ret = -ENOMEM;
 		goto err;
+	}
 	ushc->csw = kzalloc(sizeof(struct ushc_cbw), GFP_KERNEL);
-	if (ushc->csw == NULL)
+	if (ushc->csw == NULL) {
+		ret = -ENOMEM;
 		goto err;
+	}
 	usb_fill_bulk_urb(ushc->csw_urb, ushc->usb_dev, usb_rcvbulkpipe(usb_dev, 6),
 			  ushc->csw, sizeof(struct ushc_csw),
 			  csw_callback, ushc);

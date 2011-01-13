@@ -23,6 +23,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
+#include <linux/dma-mapping.h>
 
 #if defined(CONFIG_KGDB_SERIAL_CONSOLE) || \
 	defined(CONFIG_KGDB_SERIAL_CONSOLE_MODULE)
@@ -33,12 +34,10 @@
 #include <asm/gpio.h>
 #include <mach/bfin_serial_5xx.h>
 
-#ifdef CONFIG_SERIAL_BFIN_DMA
-#include <linux/dma-mapping.h>
+#include <asm/dma.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/cacheflush.h>
-#endif
 
 #ifdef CONFIG_SERIAL_BFIN_MODULE
 # undef CONFIG_EARLY_PRINTK
@@ -360,7 +359,6 @@ static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
 		UART_PUT_CHAR(uart, xmit->buf[xmit->tail]);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		uart->port.icount.tx++;
-		SSYNC();
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -688,6 +686,13 @@ static int bfin_serial_startup(struct uart_port *port)
 
 # ifdef CONFIG_BF54x
 	{
+		/*
+		 * UART2 and UART3 on BF548 share interrupt PINs and DMA
+		 * controllers with SPORT2 and SPORT3. UART rx and tx
+		 * interrupts are generated in PIO mode only when configure
+		 * their peripheral mapping registers properly, which means
+		 * request corresponding DMA channels in PIO mode as well.
+		 */
 		unsigned uart_dma_ch_rx, uart_dma_ch_tx;
 
 		switch (uart->port.irq) {
@@ -734,8 +739,7 @@ static int bfin_serial_startup(struct uart_port *port)
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
 			IRQF_DISABLED, "BFIN_UART_CTS", uart)) {
 			uart->cts_pin = -1;
-			pr_info("Unable to attach BlackFin UART CTS interrupt.\
-				 So, disable it.\n");
+			pr_info("Unable to attach BlackFin UART CTS interrupt. So, disable it.\n");
 		}
 	}
 	if (uart->rts_pin >= 0) {
@@ -747,8 +751,7 @@ static int bfin_serial_startup(struct uart_port *port)
 	if (request_irq(uart->status_irq,
 		bfin_serial_mctrl_cts_int,
 		IRQF_DISABLED, "BFIN_UART_MODEM_STATUS", uart)) {
-		pr_info("Unable to attach BlackFin UART Modem \
-			Status interrupt.\n");
+		pr_info("Unable to attach BlackFin UART Modem Status interrupt.\n");
 	}
 
 	/* CTS RTS PINs are negative assertive. */
@@ -846,6 +849,8 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (termios->c_cflag & CMSPAR)
 		lcr |= STP;
 
+	spin_lock_irqsave(&uart->port.lock, flags);
+
 	port->read_status_mask = OE;
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= (FE | PE);
@@ -874,8 +879,6 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	/* If discipline is not IRDA, apply ANOMALY_05000230 */
 	if (termios->c_line != N_IRDA)
 		quot -= ANOMALY_05000230;
-
-	spin_lock_irqsave(&uart->port.lock, flags);
 
 	UART_SET_ANOMALY_THRESHOLD(uart, USEC_PER_SEC / baud * 15);
 
@@ -1320,6 +1323,14 @@ struct console __init *bfin_earlyserial_init(unsigned int port,
 {
 	struct bfin_serial_port *uart;
 	struct ktermios t;
+
+#ifdef CONFIG_SERIAL_BFIN_CONSOLE
+	/*
+	 * If we are using early serial, don't let the normal console rewind
+	 * log buffer, since that causes things to be printed multiple times
+	 */
+	bfin_serial_console.flags &= ~CON_PRINTBUFFER;
+#endif
 
 	if (port == -1 || port >= nr_active_ports)
 		port = 0;

@@ -237,6 +237,7 @@ static void __init sdk7786_setup(char **cmdline_p)
 	pr_info("Renesas Technology Europe SDK7786 support:\n");
 
 	sdk7786_fpga_init();
+	sdk7786_nmi_init();
 
 	pr_info("\tPCB revision:\t%d\n", fpga_read_reg(PCBRR) & 0xf);
 

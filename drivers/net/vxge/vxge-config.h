@@ -314,9 +314,9 @@ struct vxge_hw_ring_config {
 #define VXGE_HW_RING_DEFAULT					1
 
 	u32				ring_blocks;
-#define VXGE_HW_MIN_RING_BLOCKS				1
-#define VXGE_HW_MAX_RING_BLOCKS				128
-#define VXGE_HW_DEF_RING_BLOCKS				2
+#define VXGE_HW_MIN_RING_BLOCKS					1
+#define VXGE_HW_MAX_RING_BLOCKS					128
+#define VXGE_HW_DEF_RING_BLOCKS					2
 
 	u32				buffer_mode;
 #define VXGE_HW_RING_RXD_BUFFER_MODE_1				1
@@ -700,7 +700,7 @@ struct __vxge_hw_virtualpath {
  *
  * This structure is used to store the callback information.
  */
-struct __vxge_hw_vpath_handle{
+struct __vxge_hw_vpath_handle {
 	struct list_head	item;
 	struct __vxge_hw_virtualpath	*vpath;
 };
@@ -815,8 +815,8 @@ struct vxge_hw_device_hw_info {
 	u8		serial_number[VXGE_HW_INFO_LEN];
 	u8		part_number[VXGE_HW_INFO_LEN];
 	u8		product_desc[VXGE_HW_INFO_LEN];
-	u8 (mac_addrs)[VXGE_HW_MAX_VIRTUAL_PATHS][ETH_ALEN];
-	u8 (mac_addr_masks)[VXGE_HW_MAX_VIRTUAL_PATHS][ETH_ALEN];
+	u8 mac_addrs[VXGE_HW_MAX_VIRTUAL_PATHS][ETH_ALEN];
+	u8 mac_addr_masks[VXGE_HW_MAX_VIRTUAL_PATHS][ETH_ALEN];
 };
 
 /**
@@ -863,17 +863,7 @@ struct vxge_hw_device_attr {
 				loc, \
 				offset, \
 				&val64);			\
-								\
 	if (status != VXGE_HW_OK)				\
-		return status;						\
-}
-
-#define VXGE_HW_VPATH_STATS_PIO_READ(offset) {				\
-	status = __vxge_hw_vpath_stats_access(vpath, \
-			VXGE_HW_STATS_OP_READ, \
-			offset, \
-			&val64);					\
-	if (status != VXGE_HW_OK)					\
 		return status;						\
 }
 
@@ -1148,7 +1138,7 @@ struct __vxge_hw_non_offload_db_wrapper {
  *             lookup to determine the transmit port.
  *             01: Send on physical Port1.
  *             10: Send on physical Port0.
-	*	       11: Send on both ports.
+ *	       11: Send on both ports.
  *             Bits 18 to 21 - Reserved
  *             Bits 22 to 23 - Gather_Code. This field is set by the host and
  *             is used to describe how individual buffers comprise a frame.
@@ -1927,6 +1917,15 @@ out:
 	return vaddr;
 }
 
+static inline void vxge_os_dma_free(struct pci_dev *pdev, const void *vaddr,
+			struct pci_dev **p_dma_acch)
+{
+	unsigned long misaligned = *(unsigned long *)p_dma_acch;
+	u8 *tmp = (u8 *)vaddr;
+	tmp -= misaligned;
+	kfree((void *)tmp);
+}
+
 /*
  * __vxge_hw_mempool_item_priv - will return pointer on per item private space
  */
@@ -1995,7 +1994,6 @@ enum vxge_hw_status vxge_hw_vpath_mtu_set(
 
 void
 vxge_hw_vpath_rx_doorbell_init(struct __vxge_hw_vpath_handle *vp);
-
 
 #ifndef readq
 static inline u64 readq(void __iomem *addr)

@@ -351,7 +351,7 @@ extern int nfs_refresh_inode(struct inode *, struct nfs_fattr *);
 extern int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
-extern int nfs_permission(struct inode *, int);
+extern int nfs_permission(struct inode *, int, unsigned int);
 extern int nfs_open(struct inode *, struct file *);
 extern int nfs_release(struct inode *, struct file *);
 extern int nfs_attribute_timeout(struct inode *inode);
@@ -401,6 +401,7 @@ extern const struct inode_operations nfs3_file_inode_operations;
 #endif /* CONFIG_NFS_V3 */
 extern const struct file_operations nfs_file_operations;
 extern const struct address_space_operations nfs_file_aops;
+extern const struct address_space_operations nfs_dir_aops;
 
 static inline struct nfs_open_context *nfs_file_open_context(struct file *filp)
 {
@@ -592,12 +593,6 @@ nfs_fileid_to_ino_t(u64 fileid)
 		ino ^= fileid >> (sizeof(u64)-sizeof(ino_t)) * 8;
 	return ino;
 }
-
-#define nfs_wait_event(clnt, wq, condition)				\
-({									\
-	int __retval = wait_event_killable(wq, condition);		\
-	__retval;							\
-})
 
 #define NFS_JUKEBOX_RETRY_TIME (5 * HZ)
 

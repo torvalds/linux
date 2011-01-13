@@ -12,9 +12,8 @@ config DVB_FE_CUSTOMISE
 
 	  If unsure say N.
 
-if DVB_FE_CUSTOMISE
-
 menu "Customise DVB Frontends"
+	visible if DVB_FE_CUSTOMISE
 
 comment "Multistandard (satellite) frontends"
 	depends on DVB_CORE
@@ -498,7 +497,7 @@ comment "ISDB-T (terrestrial) frontends"
 	depends on DVB_CORE
 
 config DVB_S921
-	tristate "Sharp S921 tuner"
+	tristate "Sharp S921 frontend"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help
@@ -511,6 +510,14 @@ config DVB_DIB8000
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A driver for DiBcom's DiB8000 ISDB-T/ISDB-Tsb demodulator.
+	  Say Y when you want to support this frontend.
+
+config DVB_MB86A20S
+	tristate "Fujitsu mb86a20s"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for Fujitsu mb86a20s ISDB-T/ISDB-Tsb demodulator.
 	  Say Y when you want to support this frontend.
 
 comment "Digital terrestrial only tuners/PLL"
@@ -619,5 +626,3 @@ config DVB_DUMMY_FE
 	tristate "Dummy frontend driver"
 	default n
 endmenu
-
-endif

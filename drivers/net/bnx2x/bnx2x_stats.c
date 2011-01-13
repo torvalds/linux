@@ -160,7 +160,7 @@ static void bnx2x_storm_stats_post(struct bnx2x *bp)
 
 		ramrod_data.drv_counter = bp->stats_counter++;
 		ramrod_data.collect_port = bp->port.pmf ? 1 : 0;
-		for_each_queue(bp, i)
+		for_each_eth_queue(bp, i)
 			ramrod_data.ctr_id_vector |= (1 << bp->fp[i].cl_id);
 
 		rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_STAT_QUERY, 0,
@@ -766,7 +766,7 @@ static int bnx2x_storm_stats_update(struct bnx2x *bp)
 	estats->no_buff_discard_hi = 0;
 	estats->no_buff_discard_lo = 0;
 
-	for_each_queue(bp, i) {
+	for_each_eth_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 		int cl_id = fp->cl_id;
 		struct tstorm_per_client_stats *tclient =
@@ -996,7 +996,7 @@ static void bnx2x_net_stats_update(struct bnx2x *bp)
 	nstats->tx_bytes = bnx2x_hilo(&estats->total_bytes_transmitted_hi);
 
 	tmp = estats->mac_discard;
-	for_each_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		tmp += le32_to_cpu(bp->fp[i].old_tclient.checksum_discard);
 	nstats->rx_dropped = tmp;
 
@@ -1087,7 +1087,7 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 		       bp->dev->name,
 		       estats->brb_drop_lo, estats->brb_truncate_lo);
 
-		for_each_queue(bp, i) {
+		for_each_eth_queue(bp, i) {
 			struct bnx2x_fastpath *fp = &bp->fp[i];
 			struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
 
@@ -1101,7 +1101,7 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 			       fp->rx_calls, fp->rx_pkt);
 		}
 
-		for_each_queue(bp, i) {
+		for_each_eth_queue(bp, i) {
 			struct bnx2x_fastpath *fp = &bp->fp[i];
 			struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
 			struct netdev_queue *txq =
@@ -1381,7 +1381,8 @@ void bnx2x_stats_init(struct bnx2x *bp)
 		memset(&fp->eth_q_stats, 0, sizeof(struct bnx2x_eth_q_stats));
 	}
 
-	for_each_queue(bp, i) {
+	/* FW stats are currently collected for ETH clients only */
+	for_each_eth_queue(bp, i) {
 		/* Set initial stats counter in the stats ramrod data to -1 */
 		int cl_id = bp->fp[i].cl_id;
 

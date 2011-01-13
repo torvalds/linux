@@ -32,7 +32,7 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"1.4.1.6"
+#define DRV_VERSION		"1.4.1.10"
 #define DRV_COPYRIGHT		"Copyright 2008-2010 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
@@ -61,6 +61,8 @@ struct enic_port_profile {
 	char name[PORT_PROFILE_MAX];
 	u8 instance_uuid[PORT_UUID_MAX];
 	u8 host_uuid[PORT_UUID_MAX];
+	u8 vf_mac[ETH_ALEN];
+	u8 mac_addr[ETH_ALEN];
 };
 
 /* Per-instance private data structure */
@@ -78,8 +80,10 @@ struct enic {
 	spinlock_t devcmd_lock;
 	u8 mac_addr[ETH_ALEN];
 	u8 mc_addr[ENIC_MULTICAST_PERFECT_FILTERS][ETH_ALEN];
+	u8 uc_addr[ENIC_UNICAST_PERFECT_FILTERS][ETH_ALEN];
 	unsigned int flags;
 	unsigned int mc_count;
+	unsigned int uc_count;
 	int csum_rx_enabled;
 	u32 port_mtu;
 	u32 rx_coalesce_usecs;

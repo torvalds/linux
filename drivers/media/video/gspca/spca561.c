@@ -597,7 +597,7 @@ static void setgain(struct gspca_dev *gspca_dev)
 	else if (sd->gain < 128)
 		gspca_dev->usb_buf[0] = (sd->gain / 2) | 0x40;
 	else
-		gspca_dev->usb_buf[0] = (sd->gain / 4) | 0xC0;
+		gspca_dev->usb_buf[0] = (sd->gain / 4) | 0xc0;
 
 	gspca_dev->usb_buf[1] = 0;
 	reg_w_buf(gspca_dev, 0x8335, 2);

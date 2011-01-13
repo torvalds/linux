@@ -52,8 +52,10 @@ struct sym_priv {
 struct events_stats {
 	u64 total_period;
 	u64 total_lost;
+	u64 total_invalid_chains;
 	u32 nr_events[PERF_RECORD_HEADER_MAX];
 	u32 nr_unknown_events;
+	u32 nr_invalid_chains;
 };
 
 enum hist_column {

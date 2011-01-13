@@ -54,9 +54,14 @@
 #define IXGBE_DEV_ID_82599_T3_LOM        0x151C
 #define IXGBE_DEV_ID_82599_CX4           0x10F9
 #define IXGBE_DEV_ID_82599_SFP           0x10FB
+#define IXGBE_DEV_ID_82599_BACKPLANE_FCOE       0x152a
+#define IXGBE_DEV_ID_82599_SFP_FCOE      0x1529
+#define IXGBE_SUBDEV_ID_82599_SFP        0x11A9
 #define IXGBE_DEV_ID_82599_SFP_EM        0x1507
 #define IXGBE_DEV_ID_82599_XAUI_LOM      0x10FC
 #define IXGBE_DEV_ID_82599_COMBO_BACKPLANE 0x10F8
+#define IXGBE_SUBDEV_ID_82599_KX4_KR_MEZZ  0x000C
+#define IXGBE_DEV_ID_X540T               0x1528
 
 /* General Registers */
 #define IXGBE_CTRL      0x00000
@@ -225,6 +230,7 @@
 #define IXGBE_VT_CTL    0x051B0
 #define IXGBE_VFRE(_i)  (0x051E0 + ((_i) * 4))
 #define IXGBE_VFTE(_i)  (0x08110 + ((_i) * 4))
+#define IXGBE_VMECM(_i) (0x08790 + ((_i) * 4))
 #define IXGBE_QDE       0x2F04
 #define IXGBE_VMOLR(_i) (0x0F000 + ((_i) * 4)) /* 64 total */
 #define IXGBE_UTA(_i)   (0x0F400 + ((_i) * 4))
@@ -279,7 +285,8 @@
 #define IXGBE_TDWBAH(_i) (0x0603C + ((_i) * 0x40))
 #define IXGBE_DTXCTL    0x07E00
 
-#define IXGBE_DMATXCTL  0x04A80
+#define IXGBE_DMATXCTL      0x04A80
+#define IXGBE_PFVFSPOOF(_i) (0x08200 + ((_i) * 4)) /* 8 of these 0 - 7 */
 #define IXGBE_PFDTXGSWC     0x08220
 #define IXGBE_DTXMXSZRQ     0x08100
 #define IXGBE_DTXTCPFLGL    0x04A88
@@ -293,6 +300,13 @@
 #define IXGBE_DMATXCTL_VT_SHIFT 16  /* VLAN EtherType */
 
 #define IXGBE_PFDTXGSWC_VT_LBEN 0x1 /* Local L2 VT switch enable */
+
+/* Anti-spoofing defines */
+#define IXGBE_SPOOF_MACAS_MASK          0xFF
+#define IXGBE_SPOOF_VLANAS_MASK         0xFF00
+#define IXGBE_SPOOF_VLANAS_SHIFT        8
+#define IXGBE_PFVFSPOOF_REG_COUNT       8
+
 #define IXGBE_DCA_TXCTRL(_i)    (0x07200 + ((_i) * 4)) /* 16 of these (0-15) */
 /* Tx DCA Control register : 128 of these (0-127) */
 #define IXGBE_DCA_TXCTRL_82599(_i)  (0x0600C + ((_i) * 0x40))
@@ -994,8 +1008,10 @@
 /* PHY IDs*/
 #define TN1010_PHY_ID    0x00A19410
 #define TNX_FW_REV       0xB
+#define X540_PHY_ID      0x01540200
 #define QT2022_PHY_ID    0x0043A400
 #define ATH_PHY_ID       0x03429050
+#define AQ_FW_REV        0x20
 
 /* PHY Types */
 #define IXGBE_M88E1145_E_PHY_ID  0x01410CD0
@@ -1463,6 +1479,8 @@
 #define IXGBE_ANLP1_PAUSE               0x0C00
 #define IXGBE_ANLP1_SYM_PAUSE           0x0400
 #define IXGBE_ANLP1_ASM_PAUSE           0x0800
+#define IXGBE_ANLP1_AN_STATE_MASK       0x000f0000
+
 
 /* SW Semaphore Register bitmasks */
 #define IXGBE_SWSM_SMBI 0x00000001 /* Driver Semaphore bit */
@@ -1491,6 +1509,7 @@
 #define IXGBE_EEC_PRES      0x00000100 /* EEPROM Present */
 #define IXGBE_EEC_ARD       0x00000200 /* EEPROM Auto Read Done */
 #define IXGBE_EEC_FLUP      0x00800000 /* Flash update command */
+#define IXGBE_EEC_SEC1VAL   0x02000000 /* Sector 1 Valid */
 #define IXGBE_EEC_FLUDONE   0x04000000 /* Flash update done */
 /* EEPROM Addressing bits based on type (0-small, 1-large) */
 #define IXGBE_EEC_ADDR_SIZE 0x00000400
@@ -1500,12 +1519,18 @@
 #define IXGBE_EEPROM_WORD_SIZE_SHIFT  6
 #define IXGBE_EEPROM_OPCODE_BITS      8
 
+/* Part Number String Length */
+#define IXGBE_PBANUM_LENGTH 11
+
 /* Checksum and EEPROM pointers */
+#define IXGBE_PBANUM_PTR_GUARD  0xFAFA
 #define IXGBE_EEPROM_CHECKSUM   0x3F
 #define IXGBE_EEPROM_SUM        0xBABA
 #define IXGBE_PCIE_ANALOG_PTR   0x03
 #define IXGBE_ATLAS0_CONFIG_PTR 0x04
+#define IXGBE_PHY_PTR           0x04
 #define IXGBE_ATLAS1_CONFIG_PTR 0x05
+#define IXGBE_OPTION_ROM_PTR    0x05
 #define IXGBE_PCIE_GENERAL_PTR  0x06
 #define IXGBE_PCIE_CONFIG0_PTR  0x07
 #define IXGBE_PCIE_CONFIG1_PTR  0x08
@@ -2113,6 +2138,14 @@ typedef u32 ixgbe_physical_layer;
 #define IXGBE_PHYSICAL_LAYER_10GBASE_XAUI 0x1000
 #define IXGBE_PHYSICAL_LAYER_SFP_ACTIVE_DA 0x2000
 
+/* Flow Control Macros */
+#define PAUSE_RTT	8
+#define PAUSE_MTU(MTU)	((MTU + 1024 - 1) / 1024)
+
+#define FC_HIGH_WATER(MTU) ((((PAUSE_RTT + PAUSE_MTU(MTU)) * 144) + 99) / 100 +\
+				PAUSE_MTU(MTU))
+#define FC_LOW_WATER(MTU)  (2 * (2 * PAUSE_MTU(MTU) + PAUSE_RTT))
+
 /* Software ATR hash keys */
 #define IXGBE_ATR_BUCKET_HASH_KEY    0xE214AD3D
 #define IXGBE_ATR_SIGNATURE_HASH_KEY 0x14364D17
@@ -2164,6 +2197,7 @@ struct ixgbe_atr_input_masks {
 enum ixgbe_eeprom_type {
 	ixgbe_eeprom_uninitialized = 0,
 	ixgbe_eeprom_spi,
+	ixgbe_flash,
 	ixgbe_eeprom_none /* No NVM support */
 };
 
@@ -2171,12 +2205,14 @@ enum ixgbe_mac_type {
 	ixgbe_mac_unknown = 0,
 	ixgbe_mac_82598EB,
 	ixgbe_mac_82599EB,
+	ixgbe_mac_X540,
 	ixgbe_num_macs
 };
 
 enum ixgbe_phy_type {
 	ixgbe_phy_unknown = 0,
 	ixgbe_phy_tn,
+	ixgbe_phy_aq,
 	ixgbe_phy_cu_unknown,
 	ixgbe_phy_qt,
 	ixgbe_phy_xaui,
@@ -2405,6 +2441,7 @@ struct ixgbe_eeprom_operations {
 	s32 (*write)(struct ixgbe_hw *, u16, u16);
 	s32 (*validate_checksum)(struct ixgbe_hw *, u16 *);
 	s32 (*update_checksum)(struct ixgbe_hw *);
+	u16 (*calc_checksum)(struct ixgbe_hw *);
 };
 
 struct ixgbe_mac_operations {
@@ -2454,6 +2491,8 @@ struct ixgbe_mac_operations {
 	s32 (*clear_vfta)(struct ixgbe_hw *);
 	s32 (*set_vfta)(struct ixgbe_hw *, u32, u32, bool);
 	s32 (*init_uta_tables)(struct ixgbe_hw *);
+	void (*set_mac_anti_spoofing)(struct ixgbe_hw *, bool, int);
+	void (*set_vlan_anti_spoofing)(struct ixgbe_hw *, bool, int);
 
 	/* Flow Control */
 	s32 (*fc_enable)(struct ixgbe_hw *, s32);
@@ -2574,6 +2613,7 @@ struct ixgbe_hw {
 	u16				subsystem_vendor_id;
 	u8				revision_id;
 	bool				adapter_stopped;
+	bool				force_full_reset;
 };
 
 struct ixgbe_info {
@@ -2614,6 +2654,9 @@ struct ixgbe_info {
 #define IXGBE_ERR_NO_SPACE                      -25
 #define IXGBE_ERR_OVERTEMP                      -26
 #define IXGBE_ERR_RAR_INDEX                     -27
+#define IXGBE_ERR_SFP_SETUP_NOT_COMPLETE        -30
+#define IXGBE_ERR_PBA_SECTION                   -31
+#define IXGBE_ERR_INVALID_ARGUMENT              -32
 #define IXGBE_NOT_IMPLEMENTED                   0x7FFFFFFF
 
 #endif /* _IXGBE_TYPE_H_ */

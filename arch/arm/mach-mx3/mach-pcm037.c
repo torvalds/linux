@@ -27,7 +27,6 @@
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 #include <linux/irq.h>
-#include <linux/fsl_devices.h>
 #include <linux/can/platform/sja1000.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
@@ -43,10 +42,8 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx3.h>
 #include <mach/ipu.h>
-#include <mach/mmc.h>
 #include <mach/mx3_camera.h>
 #include <mach/mx3fb.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx31.h"
@@ -399,7 +396,7 @@ static void pcm970_sdhc1_exit(struct device *dev, void *data)
 	gpio_free(SDHC1_GPIO_WP);
 }
 
-static struct imxmmc_platform_data sdhc_pdata = {
+static const struct imxmmc_platform_data sdhc_pdata __initconst = {
 #ifdef PCM970_SDHC_RW_SWITCH
 	.get_ro = pcm970_sdhc1_get_ro,
 #endif
@@ -441,7 +438,6 @@ static int __init pcm037_camera_alloc_dma(const size_t buf_size)
 static struct platform_device *devices[] __initdata = {
 	&pcm037_flash,
 	&pcm037_sram_device,
-	&imx_wdt_device0,
 	&pcm037_mt9t031,
 	&pcm037_mt9v022,
 };
@@ -538,18 +534,18 @@ static struct platform_device pcm970_sja1000 = {
 };
 
 #if defined(CONFIG_USB_ULPI)
-static struct mxc_usbh_platform_data otg_pdata = {
+static struct mxc_usbh_platform_data otg_pdata __initdata = {
 	.portsc	= MXC_EHCI_MODE_ULPI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
-static struct mxc_usbh_platform_data usbh2_pdata = {
+static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.portsc	= MXC_EHCI_MODE_ULPI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 #endif
 
-static struct fsl_usb2_platform_data otg_device_pdata = {
+static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
 	.phy_mode       = FSL_USB2_PHY_ULPI,
 };
@@ -607,12 +603,13 @@ static void __init mxc_board_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
+	imx31_add_imx2_wdt(NULL);
 	imx31_add_imx_uart0(&uart_pdata);
 	/* XXX: should't this have .flags = 0 (i.e. no RTSCTS) on PCM037_EET? */
 	imx31_add_imx_uart1(&uart_pdata);
 	imx31_add_imx_uart2(&uart_pdata);
 
-	mxc_register_device(&mxc_w1_master_device, NULL);
+	imx31_add_mxc_w1(NULL);
 
 	/* LAN9217 IRQ pin */
 	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1), "lan9217-irq");
@@ -632,7 +629,7 @@ static void __init mxc_board_init(void)
 	imx31_add_imx_i2c2(&pcm037_i2c2_data);
 
 	imx31_add_mxc_nand(&pcm037_nand_board_info);
-	mxc_register_device(&mxcsdhc_device0, &sdhc_pdata);
+	imx31_add_mxc_mmc(0, &sdhc_pdata);
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
 	mxc_register_device(&mx3_fb, &mx3fb_pdata);
 
@@ -654,16 +651,16 @@ static void __init mxc_board_init(void)
 		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-		mxc_register_device(&mxc_otg_host, &otg_pdata);
+		imx31_add_mxc_ehci_otg(&otg_pdata);
 	}
 
 	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+	imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
 #endif
 	if (!otg_mode_host)
-		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
+		imx31_add_fsl_usb2_udc(&otg_device_pdata);
 
 }
 

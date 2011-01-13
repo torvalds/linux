@@ -515,7 +515,7 @@ static void xemaclite_update_address(struct net_local *drvdata,
  */
 static int xemaclite_set_mac_address(struct net_device *dev, void *address)
 {
-	struct net_local *lp = (struct net_local *) netdev_priv(dev);
+	struct net_local *lp = netdev_priv(dev);
 	struct sockaddr *addr = address;
 
 	if (netif_running(dev))
@@ -534,7 +534,7 @@ static int xemaclite_set_mac_address(struct net_device *dev, void *address)
  */
 static void xemaclite_tx_timeout(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *) netdev_priv(dev);
+	struct net_local *lp = netdev_priv(dev);
 	unsigned long flags;
 
 	dev_err(&lp->ndev->dev, "Exceeded transmit timeout of %lu ms\n",
@@ -578,7 +578,7 @@ static void xemaclite_tx_timeout(struct net_device *dev)
  */
 static void xemaclite_tx_handler(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *) netdev_priv(dev);
+	struct net_local *lp = netdev_priv(dev);
 
 	dev->stats.tx_packets++;
 	if (lp->deferred_skb) {
@@ -605,7 +605,7 @@ static void xemaclite_tx_handler(struct net_device *dev)
  */
 static void xemaclite_rx_handler(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *) netdev_priv(dev);
+	struct net_local *lp = netdev_priv(dev);
 	struct sk_buff *skb;
 	unsigned int align;
 	u32 len;
@@ -661,7 +661,7 @@ static irqreturn_t xemaclite_interrupt(int irq, void *dev_id)
 {
 	bool tx_complete = 0;
 	struct net_device *dev = dev_id;
-	struct net_local *lp = (struct net_local *) netdev_priv(dev);
+	struct net_local *lp = netdev_priv(dev);
 	void __iomem *base_addr = lp->base_addr;
 	u32 tx_status;
 
@@ -918,7 +918,7 @@ void xemaclite_adjust_link(struct net_device *ndev)
  */
 static int xemaclite_open(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *) netdev_priv(dev);
+	struct net_local *lp = netdev_priv(dev);
 	int retval;
 
 	/* Just to be safe, stop the device first */
@@ -987,7 +987,7 @@ static int xemaclite_open(struct net_device *dev)
  */
 static int xemaclite_close(struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *) netdev_priv(dev);
+	struct net_local *lp = netdev_priv(dev);
 
 	netif_stop_queue(dev);
 	xemaclite_disable_interrupts(lp);
@@ -998,21 +998,6 @@ static int xemaclite_close(struct net_device *dev)
 	lp->phy_dev = NULL;
 
 	return 0;
-}
-
-/**
- * xemaclite_get_stats - Get the stats for the net_device
- * @dev:	Pointer to the network device
- *
- * This function returns the address of the 'net_device_stats' structure for the
- * given network device. This structure holds usage statistics for the network
- * device.
- *
- * Return:	Pointer to the net_device_stats structure.
- */
-static struct net_device_stats *xemaclite_get_stats(struct net_device *dev)
-{
-	return &dev->stats;
 }
 
 /**
@@ -1031,7 +1016,7 @@ static struct net_device_stats *xemaclite_get_stats(struct net_device *dev)
  */
 static int xemaclite_send(struct sk_buff *orig_skb, struct net_device *dev)
 {
-	struct net_local *lp = (struct net_local *) netdev_priv(dev);
+	struct net_local *lp = netdev_priv(dev);
 	struct sk_buff *new_skb;
 	unsigned int len;
 	unsigned long flags;
@@ -1068,7 +1053,7 @@ static int xemaclite_send(struct sk_buff *orig_skb, struct net_device *dev)
 static void xemaclite_remove_ndev(struct net_device *ndev)
 {
 	if (ndev) {
-		struct net_local *lp = (struct net_local *) netdev_priv(ndev);
+		struct net_local *lp = netdev_priv(ndev);
 
 		if (lp->base_addr)
 			iounmap((void __iomem __force *) (lp->base_addr));
@@ -1245,7 +1230,7 @@ static int __devexit xemaclite_of_remove(struct platform_device *of_dev)
 	struct device *dev = &of_dev->dev;
 	struct net_device *ndev = dev_get_drvdata(dev);
 
-	struct net_local *lp = (struct net_local *) netdev_priv(ndev);
+	struct net_local *lp = netdev_priv(ndev);
 
 	/* Un-register the mii_bus, if configured */
 	if (lp->has_mdio) {
@@ -1285,7 +1270,6 @@ static struct net_device_ops xemaclite_netdev_ops = {
 	.ndo_start_xmit		= xemaclite_send,
 	.ndo_set_mac_address	= xemaclite_set_mac_address,
 	.ndo_tx_timeout		= xemaclite_tx_timeout,
-	.ndo_get_stats		= xemaclite_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = xemaclite_poll_controller,
 #endif

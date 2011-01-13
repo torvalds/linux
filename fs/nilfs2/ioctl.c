@@ -337,6 +337,7 @@ static int nilfs_ioctl_move_blocks(struct super_block *sb,
 				   struct nilfs_argv *argv, void *buf)
 {
 	size_t nmembs = argv->v_nmembs;
+	struct the_nilfs *nilfs = NILFS_SB(sb)->s_nilfs;
 	struct inode *inode;
 	struct nilfs_vdesc *vdesc;
 	struct buffer_head *bh, *n;
@@ -349,10 +350,21 @@ static int nilfs_ioctl_move_blocks(struct super_block *sb,
 		ino = vdesc->vd_ino;
 		cno = vdesc->vd_cno;
 		inode = nilfs_iget_for_gc(sb, ino, cno);
-		if (unlikely(inode == NULL)) {
-			ret = -ENOMEM;
+		if (IS_ERR(inode)) {
+			ret = PTR_ERR(inode);
 			goto failed;
 		}
+		if (list_empty(&NILFS_I(inode)->i_dirty)) {
+			/*
+			 * Add the inode to GC inode list. Garbage Collection
+			 * is serialized and no two processes manipulate the
+			 * list simultaneously.
+			 */
+			igrab(inode);
+			list_add(&NILFS_I(inode)->i_dirty,
+				 &nilfs->ns_gc_inodes);
+		}
+
 		do {
 			ret = nilfs_ioctl_move_inode_block(inode, vdesc,
 							   &buffers);

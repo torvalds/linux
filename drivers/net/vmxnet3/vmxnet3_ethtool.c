@@ -151,44 +151,42 @@ vmxnet3_get_stats(struct net_device *netdev)
 	struct UPT1_TxStats *devTxStats;
 	struct UPT1_RxStats *devRxStats;
 	struct net_device_stats *net_stats = &netdev->stats;
+	int i;
 
 	adapter = netdev_priv(netdev);
 
 	/* Collect the dev stats into the shared area */
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_GET_STATS);
 
-	/* Assuming that we have a single queue device */
-	devTxStats = &adapter->tqd_start->stats;
-	devRxStats = &adapter->rqd_start->stats;
-
-	/* Get access to the driver stats per queue */
-	drvTxStats = &adapter->tx_queue.stats;
-	drvRxStats = &adapter->rx_queue.stats;
-
 	memset(net_stats, 0, sizeof(*net_stats));
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		devTxStats = &adapter->tqd_start[i].stats;
+		drvTxStats = &adapter->tx_queue[i].stats;
+		net_stats->tx_packets += devTxStats->ucastPktsTxOK +
+					devTxStats->mcastPktsTxOK +
+					devTxStats->bcastPktsTxOK;
+		net_stats->tx_bytes += devTxStats->ucastBytesTxOK +
+				      devTxStats->mcastBytesTxOK +
+				      devTxStats->bcastBytesTxOK;
+		net_stats->tx_errors += devTxStats->pktsTxError;
+		net_stats->tx_dropped += drvTxStats->drop_total;
+	}
 
-	net_stats->rx_packets = devRxStats->ucastPktsRxOK +
-				devRxStats->mcastPktsRxOK +
-				devRxStats->bcastPktsRxOK;
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		devRxStats = &adapter->rqd_start[i].stats;
+		drvRxStats = &adapter->rx_queue[i].stats;
+		net_stats->rx_packets += devRxStats->ucastPktsRxOK +
+					devRxStats->mcastPktsRxOK +
+					devRxStats->bcastPktsRxOK;
 
-	net_stats->tx_packets = devTxStats->ucastPktsTxOK +
-				devTxStats->mcastPktsTxOK +
-				devTxStats->bcastPktsTxOK;
+		net_stats->rx_bytes += devRxStats->ucastBytesRxOK +
+				      devRxStats->mcastBytesRxOK +
+				      devRxStats->bcastBytesRxOK;
 
-	net_stats->rx_bytes = devRxStats->ucastBytesRxOK +
-			      devRxStats->mcastBytesRxOK +
-			      devRxStats->bcastBytesRxOK;
-
-	net_stats->tx_bytes = devTxStats->ucastBytesTxOK +
-			      devTxStats->mcastBytesTxOK +
-			      devTxStats->bcastBytesTxOK;
-
-	net_stats->rx_errors = devRxStats->pktsRxError;
-	net_stats->tx_errors = devTxStats->pktsTxError;
-	net_stats->rx_dropped = drvRxStats->drop_total;
-	net_stats->tx_dropped = drvTxStats->drop_total;
-	net_stats->multicast =  devRxStats->mcastPktsRxOK;
-
+		net_stats->rx_errors += devRxStats->pktsRxError;
+		net_stats->rx_dropped += drvRxStats->drop_total;
+		net_stats->multicast +=  devRxStats->mcastPktsRxOK;
+	}
 	return net_stats;
 }
 
@@ -307,24 +305,26 @@ vmxnet3_get_ethtool_stats(struct net_device *netdev,
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	u8 *base;
 	int i;
+	int j = 0;
 
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_GET_STATS);
 
 	/* this does assume each counter is 64-bit wide */
+/* TODO change this for multiple queues */
 
-	base = (u8 *)&adapter->tqd_start->stats;
+	base = (u8 *)&adapter->tqd_start[j].stats;
 	for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_dev_stats); i++)
 		*buf++ = *(u64 *)(base + vmxnet3_tq_dev_stats[i].offset);
 
-	base = (u8 *)&adapter->tx_queue.stats;
+	base = (u8 *)&adapter->tx_queue[j].stats;
 	for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_driver_stats); i++)
 		*buf++ = *(u64 *)(base + vmxnet3_tq_driver_stats[i].offset);
 
-	base = (u8 *)&adapter->rqd_start->stats;
+	base = (u8 *)&adapter->rqd_start[j].stats;
 	for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_dev_stats); i++)
 		*buf++ = *(u64 *)(base + vmxnet3_rq_dev_stats[i].offset);
 
-	base = (u8 *)&adapter->rx_queue.stats;
+	base = (u8 *)&adapter->rx_queue[j].stats;
 	for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_driver_stats); i++)
 		*buf++ = *(u64 *)(base + vmxnet3_rq_driver_stats[i].offset);
 
@@ -339,6 +339,7 @@ vmxnet3_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	u32 *buf = p;
+	int i = 0;
 
 	memset(p, 0, vmxnet3_get_regs_len(netdev));
 
@@ -347,28 +348,29 @@ vmxnet3_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 	/* Update vmxnet3_get_regs_len if we want to dump more registers */
 
 	/* make each ring use multiple of 16 bytes */
-	buf[0] = adapter->tx_queue.tx_ring.next2fill;
-	buf[1] = adapter->tx_queue.tx_ring.next2comp;
-	buf[2] = adapter->tx_queue.tx_ring.gen;
+/* TODO change this for multiple queues */
+	buf[0] = adapter->tx_queue[i].tx_ring.next2fill;
+	buf[1] = adapter->tx_queue[i].tx_ring.next2comp;
+	buf[2] = adapter->tx_queue[i].tx_ring.gen;
 	buf[3] = 0;
 
-	buf[4] = adapter->tx_queue.comp_ring.next2proc;
-	buf[5] = adapter->tx_queue.comp_ring.gen;
-	buf[6] = adapter->tx_queue.stopped;
+	buf[4] = adapter->tx_queue[i].comp_ring.next2proc;
+	buf[5] = adapter->tx_queue[i].comp_ring.gen;
+	buf[6] = adapter->tx_queue[i].stopped;
 	buf[7] = 0;
 
-	buf[8] = adapter->rx_queue.rx_ring[0].next2fill;
-	buf[9] = adapter->rx_queue.rx_ring[0].next2comp;
-	buf[10] = adapter->rx_queue.rx_ring[0].gen;
+	buf[8] = adapter->rx_queue[i].rx_ring[0].next2fill;
+	buf[9] = adapter->rx_queue[i].rx_ring[0].next2comp;
+	buf[10] = adapter->rx_queue[i].rx_ring[0].gen;
 	buf[11] = 0;
 
-	buf[12] = adapter->rx_queue.rx_ring[1].next2fill;
-	buf[13] = adapter->rx_queue.rx_ring[1].next2comp;
-	buf[14] = adapter->rx_queue.rx_ring[1].gen;
+	buf[12] = adapter->rx_queue[i].rx_ring[1].next2fill;
+	buf[13] = adapter->rx_queue[i].rx_ring[1].next2comp;
+	buf[14] = adapter->rx_queue[i].rx_ring[1].gen;
 	buf[15] = 0;
 
-	buf[16] = adapter->rx_queue.comp_ring.next2proc;
-	buf[17] = adapter->rx_queue.comp_ring.gen;
+	buf[16] = adapter->rx_queue[i].comp_ring.next2proc;
+	buf[17] = adapter->rx_queue[i].comp_ring.gen;
 	buf[18] = 0;
 	buf[19] = 0;
 }
@@ -435,8 +437,10 @@ vmxnet3_get_ringparam(struct net_device *netdev,
 	param->rx_mini_max_pending = 0;
 	param->rx_jumbo_max_pending = 0;
 
-	param->rx_pending = adapter->rx_queue.rx_ring[0].size;
-	param->tx_pending = adapter->tx_queue.tx_ring.size;
+	param->rx_pending = adapter->rx_queue[0].rx_ring[0].size *
+			    adapter->num_rx_queues;
+	param->tx_pending = adapter->tx_queue[0].tx_ring.size *
+			    adapter->num_tx_queues;
 	param->rx_mini_pending = 0;
 	param->rx_jumbo_pending = 0;
 }
@@ -480,8 +484,8 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 							   sz) != 0)
 		return -EINVAL;
 
-	if (new_tx_ring_size == adapter->tx_queue.tx_ring.size &&
-			new_rx_ring_size == adapter->rx_queue.rx_ring[0].size) {
+	if (new_tx_ring_size == adapter->tx_queue[0].tx_ring.size &&
+	    new_rx_ring_size == adapter->rx_queue[0].rx_ring[0].size) {
 		return 0;
 	}
 
@@ -498,11 +502,12 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 
 		/* recreate the rx queue and the tx queue based on the
 		 * new sizes */
-		vmxnet3_tq_destroy(&adapter->tx_queue, adapter);
-		vmxnet3_rq_destroy(&adapter->rx_queue, adapter);
+		vmxnet3_tq_destroy_all(adapter);
+		vmxnet3_rq_destroy_all(adapter);
 
 		err = vmxnet3_create_queues(adapter, new_tx_ring_size,
 			new_rx_ring_size, VMXNET3_DEF_RX_RING_SIZE);
+
 		if (err) {
 			/* failed, most likely because of OOM, try default
 			 * size */
@@ -535,6 +540,66 @@ out:
 }
 
 
+static int
+vmxnet3_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
+		  void *rules)
+{
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	switch (info->cmd) {
+	case ETHTOOL_GRXRINGS:
+		info->data = adapter->num_rx_queues;
+		return 0;
+	}
+	return -EOPNOTSUPP;
+}
+
+#ifdef VMXNET3_RSS
+static int
+vmxnet3_get_rss_indir(struct net_device *netdev,
+		      struct ethtool_rxfh_indir *p)
+{
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
+	unsigned int n = min_t(unsigned int, p->size, rssConf->indTableSize);
+
+	p->size = rssConf->indTableSize;
+	while (n--)
+		p->ring_index[n] = rssConf->indTable[n];
+	return 0;
+
+}
+
+static int
+vmxnet3_set_rss_indir(struct net_device *netdev,
+		      const struct ethtool_rxfh_indir *p)
+{
+	unsigned int i;
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
+
+	if (p->size != rssConf->indTableSize)
+		return -EINVAL;
+	for (i = 0; i < rssConf->indTableSize; i++) {
+		/*
+		 * Return with error code if any of the queue indices
+		 * is out of range
+		 */
+		if (p->ring_index[i] < 0 ||
+		    p->ring_index[i] >= adapter->num_rx_queues)
+			return -EINVAL;
+	}
+
+	for (i = 0; i < rssConf->indTableSize; i++)
+		rssConf->indTable[i] = p->ring_index[i];
+
+	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
+			       VMXNET3_CMD_UPDATE_RSSIDT);
+
+	return 0;
+
+}
+#endif
+
 static struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_settings      = vmxnet3_get_settings,
 	.get_drvinfo       = vmxnet3_get_drvinfo,
@@ -558,6 +623,11 @@ static struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_ethtool_stats = vmxnet3_get_ethtool_stats,
 	.get_ringparam     = vmxnet3_get_ringparam,
 	.set_ringparam     = vmxnet3_set_ringparam,
+	.get_rxnfc         = vmxnet3_get_rxnfc,
+#ifdef VMXNET3_RSS
+	.get_rxfh_indir    = vmxnet3_get_rss_indir,
+	.set_rxfh_indir    = vmxnet3_set_rss_indir,
+#endif
 };
 
 void vmxnet3_set_ethtool_ops(struct net_device *netdev)

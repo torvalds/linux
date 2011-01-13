@@ -343,9 +343,16 @@ static struct inode *openprom_alloc_inode(struct super_block *sb)
 	return &oi->vfs_inode;
 }
 
+static void openprom_i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_cache_free(op_inode_cachep, OP_I(inode));
+}
+
 static void openprom_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(op_inode_cachep, OP_I(inode));
+	call_rcu(&inode->i_rcu, openprom_i_callback);
 }
 
 static struct inode *openprom_iget(struct super_block *sb, ino_t ino)
@@ -418,7 +425,7 @@ out_no_root:
 static struct dentry *openprom_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	return mount_single(fs_type, flags, data, openprom_fill_super)
+	return mount_single(fs_type, flags, data, openprom_fill_super);
 }
 
 static struct file_system_type openprom_fs_type = {

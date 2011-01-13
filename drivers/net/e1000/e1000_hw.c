@@ -4892,11 +4892,11 @@ static s32 e1000_get_cable_length(struct e1000_hw *hw, u16 *min_length,
 	} else if (hw->phy_type == e1000_phy_igp) {	/* For IGP PHY */
 		u16 cur_agc_value;
 		u16 min_agc_value = IGP01E1000_AGC_LENGTH_TABLE_SIZE;
-		u16 agc_reg_array[IGP01E1000_PHY_CHANNEL_NUM] =
-		    { IGP01E1000_PHY_AGC_A,
-			IGP01E1000_PHY_AGC_B,
-			IGP01E1000_PHY_AGC_C,
-			IGP01E1000_PHY_AGC_D
+		static const u16 agc_reg_array[IGP01E1000_PHY_CHANNEL_NUM] = {
+		       IGP01E1000_PHY_AGC_A,
+		       IGP01E1000_PHY_AGC_B,
+		       IGP01E1000_PHY_AGC_C,
+		       IGP01E1000_PHY_AGC_D
 		};
 		/* Read the AGC registers for all channels */
 		for (i = 0; i < IGP01E1000_PHY_CHANNEL_NUM; i++) {
@@ -5071,11 +5071,11 @@ static s32 e1000_config_dsp_after_link_change(struct e1000_hw *hw, bool link_up)
 {
 	s32 ret_val;
 	u16 phy_data, phy_saved_data, speed, duplex, i;
-	u16 dsp_reg_array[IGP01E1000_PHY_CHANNEL_NUM] =
-	    { IGP01E1000_PHY_AGC_PARAM_A,
-		IGP01E1000_PHY_AGC_PARAM_B,
-		IGP01E1000_PHY_AGC_PARAM_C,
-		IGP01E1000_PHY_AGC_PARAM_D
+	static const u16 dsp_reg_array[IGP01E1000_PHY_CHANNEL_NUM] = {
+	       IGP01E1000_PHY_AGC_PARAM_A,
+	       IGP01E1000_PHY_AGC_PARAM_B,
+	       IGP01E1000_PHY_AGC_PARAM_C,
+	       IGP01E1000_PHY_AGC_PARAM_D
 	};
 	u16 min_length, max_length;
 
