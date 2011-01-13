@@ -2076,10 +2076,16 @@ config OLPC_OPENFIRMWARE
 	bool "Support for OLPC's Open Firmware"
 	depends on !X86_64 && !X86_PAE
 	default n
+	select OF
 	help
 	  This option adds support for the implementation of Open Firmware
 	  that is used on the OLPC XO-1 Children's Machine.
 	  If unsure, say N here.
+
+config OLPC_OPENFIRMWARE_DT
+	bool
+	default y if OLPC_OPENFIRMWARE && PROC_DEVICETREE
+	select OF_PROMTREE
 
 endif # X86_32
 
