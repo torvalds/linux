@@ -1890,37 +1890,42 @@ static int soc_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int soc_cleanup_card_resources(struct snd_soc_card *card)
+{
+	struct platform_device *pdev = to_platform_device(card->dev);
+	int i;
+
+	/* make sure any delayed work runs */
+	for (i = 0; i < card->num_rtd; i++) {
+		struct snd_soc_pcm_runtime *rtd = &card->rtd[i];
+		flush_delayed_work_sync(&rtd->delayed_work);
+	}
+
+	/* remove auxiliary devices */
+	for (i = 0; i < card->num_aux_devs; i++)
+		soc_remove_aux_dev(card, i);
+
+	/* remove and free each DAI */
+	for (i = 0; i < card->num_rtd; i++)
+		soc_remove_dai_link(card, i);
+
+	soc_cleanup_card_debugfs(card);
+
+	/* remove the card */
+	if (card->remove)
+		card->remove(pdev);
+
+	kfree(card->rtd);
+	snd_card_free(card->snd_card);
+	return 0;
+
+}
+
 /* removes a socdev */
 static int soc_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
-	int i;
 
-	if (card->instantiated) {
-
-		/* make sure any delayed work runs */
-		for (i = 0; i < card->num_rtd; i++) {
-			struct snd_soc_pcm_runtime *rtd = &card->rtd[i];
-			flush_delayed_work_sync(&rtd->delayed_work);
-		}
-
-		/* remove auxiliary devices */
-		for (i = 0; i < card->num_aux_devs; i++)
-			soc_remove_aux_dev(card, i);
-
-		/* remove and free each DAI */
-		for (i = 0; i < card->num_rtd; i++)
-			soc_remove_dai_link(card, i);
-
-		soc_cleanup_card_debugfs(card);
-
-		/* remove the card */
-		if (card->remove)
-			card->remove(pdev);
-
-		kfree(card->rtd);
-		snd_card_free(card->snd_card);
-	}
 	snd_soc_unregister_card(card);
 	return 0;
 }
@@ -3153,6 +3158,8 @@ static int snd_soc_register_card(struct snd_soc_card *card)
  */
 static int snd_soc_unregister_card(struct snd_soc_card *card)
 {
+	if (card->instantiated)
+		soc_cleanup_card_resources(card);
 	mutex_lock(&client_mutex);
 	list_del(&card->list);
 	mutex_unlock(&client_mutex);
