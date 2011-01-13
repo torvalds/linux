@@ -440,7 +440,6 @@ static int gfs2_lookup_root(struct super_block *sb, struct dentry **dptr,
 		iput(inode);
 		return -ENOMEM;
 	}
-	d_set_d_op(dentry, &gfs2_dops);
 	*dptr = dentry;
 	return 0;
 }
@@ -1106,6 +1105,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 
 	sb->s_magic = GFS2_MAGIC;
 	sb->s_op = &gfs2_super_ops;
+	sb->s_d_op = &gfs2_dops;
 	sb->s_export_op = &gfs2_export_ops;
 	sb->s_xattr = gfs2_xattr_handlers;
 	sb->s_qcop = &gfs2_quotactl_ops;

@@ -1004,7 +1004,6 @@ struct file *create_write_pipe(int flags)
 		goto err_inode;
 	path.mnt = mntget(pipe_mnt);
 
-	d_set_d_op(path.dentry, &pipefs_dentry_operations);
 	d_instantiate(path.dentry, inode);
 
 	err = -ENFILE;
@@ -1266,7 +1265,8 @@ static const struct super_operations pipefs_ops = {
 static struct dentry *pipefs_mount(struct file_system_type *fs_type,
 			 int flags, const char *dev_name, void *data)
 {
-	return mount_pseudo(fs_type, "pipe:", &pipefs_ops, PIPEFS_MAGIC);
+	return mount_pseudo(fs_type, "pipe:", &pipefs_ops,
+			&pipefs_dentry_operations, PIPEFS_MAGIC);
 }
 
 static struct file_system_type pipe_fs_type = {

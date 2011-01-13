@@ -28,10 +28,9 @@
 #include <linux/vmalloc.h>
 
 #include <linux/coda.h>
-#include <linux/coda_linux.h>
 #include <linux/coda_psdev.h>
-#include <linux/coda_fs_i.h>
-#include <linux/coda_cache.h>
+#include "coda_linux.h"
+#include "coda_cache.h"
 
 #include "coda_int.h"
 
@@ -193,6 +192,7 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = 12;
 	sb->s_magic = CODA_SUPER_MAGIC;
 	sb->s_op = &coda_super_operations;
+	sb->s_d_op = &coda_dentry_operations;
 	sb->s_bdi = &vc->bdi;
 
 	/* get root fid from Venus: this needs the root inode */

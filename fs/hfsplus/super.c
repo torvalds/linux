@@ -444,13 +444,13 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 		err = PTR_ERR(root);
 		goto cleanup;
 	}
+	sb->s_d_op = &hfsplus_dentry_operations;
 	sb->s_root = d_alloc_root(root);
 	if (!sb->s_root) {
 		iput(root);
 		err = -ENOMEM;
 		goto cleanup;
 	}
-	d_set_d_op(sb->s_root, &hfsplus_dentry_operations);
 
 	str.len = sizeof(HFSP_HIDDENDIR_NAME) - 1;
 	str.name = HFSP_HIDDENDIR_NAME;

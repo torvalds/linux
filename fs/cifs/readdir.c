@@ -102,11 +102,6 @@ cifs_readdir_lookup(struct dentry *parent, struct qstr *name,
 		return NULL;
 	}
 
-	if (cifs_sb_master_tcon(CIFS_SB(sb))->nocase)
-		d_set_d_op(dentry, &cifs_ci_dentry_ops);
-	else
-		d_set_d_op(dentry, &cifs_dentry_ops);
-
 	alias = d_materialise_unique(dentry, inode);
 	if (alias != NULL) {
 		dput(dentry);

@@ -477,12 +477,16 @@ got_root:
 		goto out_error_noinode;
 	}
 
+	if (AFFS_SB(sb)->s_flags & SF_INTL)
+		sb->s_d_op = &affs_intl_dentry_operations;
+	else
+		sb->s_d_op = &affs_dentry_operations;
+
 	sb->s_root = d_alloc_root(root_inode);
 	if (!sb->s_root) {
 		printk(KERN_ERR "AFFS: Get root inode failed\n");
 		goto out_error;
 	}
-	d_set_d_op(sb->s_root, &affs_dentry_operations);
 
 	pr_debug("AFFS: s_flags=%lX\n",sb->s_flags);
 	return 0;

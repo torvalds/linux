@@ -130,17 +130,6 @@ cifs_bp_rename_retry:
 	return full_path;
 }
 
-static void setup_cifs_dentry(struct cifsTconInfo *tcon,
-			      struct dentry *direntry,
-			      struct inode *newinode)
-{
-	if (tcon->nocase)
-		d_set_d_op(direntry, &cifs_ci_dentry_ops);
-	else
-		d_set_d_op(direntry, &cifs_dentry_ops);
-	d_instantiate(direntry, newinode);
-}
-
 /* Inode operations in similar order to how they appear in Linux file fs.h */
 
 int
@@ -327,7 +316,7 @@ cifs_create_get_file_info:
 
 cifs_create_set_dentry:
 	if (rc == 0)
-		setup_cifs_dentry(tcon, direntry, newinode);
+		d_instantiate(direntry, newinode);
 	else
 		cFYI(1, "Create worked, get_inode_info failed rc = %d", rc);
 
@@ -418,10 +407,6 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 
 		rc = cifs_get_inode_info_unix(&newinode, full_path,
 						inode->i_sb, xid);
-		if (pTcon->nocase)
-			d_set_d_op(direntry, &cifs_ci_dentry_ops);
-		else
-			d_set_d_op(direntry, &cifs_dentry_ops);
 
 		if (rc == 0)
 			d_instantiate(direntry, newinode);
@@ -601,10 +586,6 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 				parent_dir_inode->i_sb, xid, NULL);
 
 	if ((rc == 0) && (newInode != NULL)) {
-		if (pTcon->nocase)
-			d_set_d_op(direntry, &cifs_ci_dentry_ops);
-		else
-			d_set_d_op(direntry, &cifs_dentry_ops);
 		d_add(direntry, newInode);
 		if (posix_open) {
 			filp = lookup_instantiate_filp(nd, direntry,
@@ -631,10 +612,6 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	} else if (rc == -ENOENT) {
 		rc = 0;
 		direntry->d_time = jiffies;
-		if (pTcon->nocase)
-			d_set_d_op(direntry, &cifs_ci_dentry_ops);
-		else
-			d_set_d_op(direntry, &cifs_dentry_ops);
 		d_add(direntry, NULL);
 	/*	if it was once a directory (but how can we tell?) we could do
 		shrink_dcache_parent(direntry); */

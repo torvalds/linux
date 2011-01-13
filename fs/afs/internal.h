@@ -486,6 +486,7 @@ extern bool afs_cm_incoming_call(struct afs_call *);
  * dir.c
  */
 extern const struct inode_operations afs_dir_inode_operations;
+extern const struct dentry_operations afs_fs_dentry_operations;
 extern const struct file_operations afs_dir_file_operations;
 
 /*

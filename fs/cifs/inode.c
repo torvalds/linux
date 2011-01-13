@@ -1324,10 +1324,6 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 /*BB check (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID ) to see if need
 	to set uid/gid */
 			inc_nlink(inode);
-			if (pTcon->nocase)
-				d_set_d_op(direntry, &cifs_ci_dentry_ops);
-			else
-				d_set_d_op(direntry, &cifs_dentry_ops);
 
 			cifs_unix_basic_to_fattr(&fattr, pInfo, cifs_sb);
 			cifs_fill_uniqueid(inode->i_sb, &fattr);
@@ -1368,10 +1364,6 @@ mkdir_get_info:
 			rc = cifs_get_inode_info(&newinode, full_path, NULL,
 						 inode->i_sb, xid, NULL);
 
-		if (pTcon->nocase)
-			d_set_d_op(direntry, &cifs_ci_dentry_ops);
-		else
-			d_set_d_op(direntry, &cifs_dentry_ops);
 		d_instantiate(direntry, newinode);
 		 /* setting nlink not necessary except in cases where we
 		  * failed to get it from the server or was set bogus */

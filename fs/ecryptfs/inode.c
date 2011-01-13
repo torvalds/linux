@@ -441,7 +441,6 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	struct qstr lower_name;
 	int rc = 0;
 
-	d_set_d_op(ecryptfs_dentry, &ecryptfs_dops);
 	if ((ecryptfs_dentry->d_name.len == 1
 	     && !strcmp(ecryptfs_dentry->d_name.name, "."))
 	    || (ecryptfs_dentry->d_name.len == 2
