@@ -632,8 +632,8 @@ wl_iw_set_country_code(struct net_device *dev, char *ccode)
 	if (ccode && (country_code[0] != 0)) {
 #ifdef CONFIG_US_NON_DFS_CHANNELS_ONLY
 		if (use_non_dfs_channels && !strncmp(country_code, "US", 2))
-			strncpy(country_code, "US/69", WLC_CNTRY_BUF_SZ);
-		if (!use_non_dfs_channels && !strncmp(country_code, "US/69", 2))
+			strncpy(country_code, "Q2", WLC_CNTRY_BUF_SZ);
+		if (!use_non_dfs_channels && !strncmp(country_code, "Q2", 2))
 			strncpy(country_code, "US", WLC_CNTRY_BUF_SZ);
 #endif
 		ret = dev_wlc_ioctl(dev, WLC_SET_COUNTRY, &country_code, sizeof(country_code));
