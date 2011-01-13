@@ -89,8 +89,26 @@ static int tegra_fb_open(struct fb_info *info, int user)
 static int tegra_fb_release(struct fb_info *info, int user)
 {
 	struct tegra_fb_info *tegra_fb = info->par;
+	struct fb_var_screeninfo *var = &info->var;
 
 	flush_workqueue(tegra_fb->flip_wq);
+
+	if (tegra_fb->win->cur_handle) {
+		nvmap_unpin(tegra_fb->fb_nvmap, tegra_fb->win->cur_handle);
+		nvmap_free(tegra_fb->fb_nvmap, tegra_fb->win->cur_handle);
+
+		tegra_fb->win->cur_handle = NULL;
+
+		tegra_fb->win->x = 0;
+		tegra_fb->win->y = 0;
+		tegra_fb->win->w = var->xres;
+		tegra_fb->win->h = var->yres;
+		tegra_fb->win->out_x = 0;
+		tegra_fb->win->out_y = 0;
+		tegra_fb->win->out_w = var->xres;
+		tegra_fb->win->out_h = var->yres;
+		tegra_fb->win->flags = TEGRA_WIN_FLAG_ENABLED;
+	}
 
 	if (tegra_fb->user_nvmap) {
 		nvmap_client_put(tegra_fb->user_nvmap);
@@ -247,25 +265,21 @@ static int tegra_fb_pan_display(struct fb_var_screeninfo *var,
 	char __iomem *flush_end;
 	u32 addr;
 
-	flush_start = info->screen_base + (var->yoffset * info->fix.line_length);
-	flush_end = flush_start + (var->yres * info->fix.line_length);
+	if (!tegra_fb->win->cur_handle) {
+		flush_start = info->screen_base + (var->yoffset * info->fix.line_length);
+		flush_end = flush_start + (var->yres * info->fix.line_length);
 
-	info->var.xoffset = var->xoffset;
-	info->var.yoffset = var->yoffset;
+		info->var.xoffset = var->xoffset;
+		info->var.yoffset = var->yoffset;
 
-	addr = info->fix.smem_start + (var->yoffset * info->fix.line_length) +
-		(var->xoffset * (var->bits_per_pixel/8));
+		addr = info->fix.smem_start + (var->yoffset * info->fix.line_length) +
+			(var->xoffset * (var->bits_per_pixel/8));
 
-	tegra_fb->win->phys_addr = addr;
-	/* TODO: update virt_addr */
+		tegra_fb->win->phys_addr = addr;
+		/* TODO: update virt_addr */
 
-	tegra_dc_update_windows(&tegra_fb->win, 1);
-	tegra_dc_sync_windows(&tegra_fb->win, 1);
-
-	if (WARN_ON(tegra_fb->win->cur_handle)) {
-		nvmap_unpin(tegra_fb->fb_nvmap, tegra_fb->win->cur_handle);
-		nvmap_free(tegra_fb->fb_nvmap, tegra_fb->win->cur_handle);
-		tegra_fb->win->cur_handle = NULL;
+		tegra_dc_update_windows(&tegra_fb->win, 1);
+		tegra_dc_sync_windows(&tegra_fb->win, 1);
 	}
 
 	return 0;

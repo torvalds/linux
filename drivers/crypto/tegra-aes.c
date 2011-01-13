@@ -32,7 +32,6 @@
 #include <linux/mutex.h>
 #include <linux/interrupt.h>
 #include <linux/completion.h>
-#include <linux/delay.h>
 #include <linux/workqueue.h>
 
 #include <mach/arb_sema.h>
@@ -198,7 +197,8 @@ static DEFINE_SPINLOCK(list_lock);
 static DEFINE_MUTEX(aes_lock);
 
 static void aes_workqueue_handler(struct work_struct *work);
-static DECLARE_WORK(aes_wq, aes_workqueue_handler);
+static DECLARE_WORK(aes_work, aes_workqueue_handler);
+static struct workqueue_struct *aes_wq;
 
 extern unsigned long long tegra_chip_uid(void);
 
@@ -229,8 +229,22 @@ static int aes_hw_init(struct tegra_aes_dev *dd)
 		return ret;
 	}
 
+	ret = clk_set_rate(dd->iclk, 240000000);
+	if (ret) {
+		dev_err(dd->dev, "%s: iclk set_rate fail(%d)\n", __func__, ret);
+		clk_disable(dd->iclk);
+		clk_disable(dd->pclk);
+		return ret;
+	}
+
 	aes_writel(dd, 0x33, INT_ENB);
 	return ret;
+}
+
+static void aes_hw_deinit(struct tegra_aes_dev *dd)
+{
+	clk_disable(dd->iclk);
+	clk_disable(dd->pclk);
 }
 
 static int aes_start_crypt(struct tegra_aes_dev *dd, u32 in_addr, u32 out_addr,
@@ -239,12 +253,6 @@ static int aes_start_crypt(struct tegra_aes_dev *dd, u32 in_addr, u32 out_addr,
 	u32 cmdq[AES_HW_MAX_ICQ_LENGTH];
 	int qlen = 0, i, eng_busy, icq_empty, dma_busy, ret = 0;
 	u32 value;
-
-	ret = aes_hw_init(dd);
-	if (ret < 0) {
-		dev_err(dd->dev, "%s: hw init fail(%d)\n", __func__, ret);
-		return ret;
-	}
 
 	cmdq[qlen++] = UCQOPCODE_DMASETUP << ICQBITSHIFT_OPCODE;
 	cmdq[qlen++] = in_addr;
@@ -325,8 +333,6 @@ static int aes_start_crypt(struct tegra_aes_dev *dd, u32 in_addr, u32 out_addr,
 	if (ret == 0) {
 		dev_err(dd->dev, "timed out (0x%x)\n",
 			aes_readl(dd, INTR_STATUS));
-		clk_disable(dd->iclk);
-		clk_disable(dd->pclk);
 		return -ETIMEDOUT;
 	}
 
@@ -338,8 +344,6 @@ static int aes_start_crypt(struct tegra_aes_dev *dd, u32 in_addr, u32 out_addr,
 		dma_busy = value & (0x1<<23);
 	} while (eng_busy & (!icq_empty) & dma_busy);
 
-	clk_disable(dd->iclk);
-	clk_disable(dd->pclk);
 	return 0;
 }
 
@@ -374,7 +378,7 @@ static int aes_set_key(struct tegra_aes_dev *dd)
 {
 	u32 value, cmdq[2];
 	struct tegra_aes_ctx *ctx = dd->ctx;
-	int i, eng_busy, icq_empty, dma_busy, ret = 0;
+	int i, eng_busy, icq_empty, dma_busy;
 	bool use_ssk = false;
 
 	if (!ctx) {
@@ -387,12 +391,6 @@ static int aes_set_key(struct tegra_aes_dev *dd)
 		dev_dbg(dd->dev, "using ssk");
 		dd->ctx->slot = &ssk;
 		use_ssk = true;
-	}
-
-	ret = aes_hw_init(dd);
-	if (ret < 0) {
-		dev_err(dd->dev, "%s: hw init fail(%d)\n", __func__, ret);
-		return ret;
 	}
 
 	/* disable key read from hw */
@@ -446,8 +444,6 @@ static int aes_set_key(struct tegra_aes_dev *dd)
 	} while (eng_busy & (!icq_empty));
 
 out:
-	clk_disable(dd->iclk);
-	clk_disable(dd->pclk);
 	return 0;
 }
 
@@ -531,6 +527,12 @@ static int tegra_aes_handle_req(struct tegra_aes_dev *dd)
 		return -EBUSY;
 	}
 
+	ret = aes_hw_init(dd);
+	if (ret < 0) {
+		dev_err(dd->dev, "%s: hw init fail(%d)\n", __func__, ret);
+		goto fail;
+	}
+
 	aes_set_key(dd);
 
 	/* set iv to the aes hw slot */
@@ -594,6 +596,9 @@ static int tegra_aes_handle_req(struct tegra_aes_dev *dd)
 	}
 
 out:
+	aes_hw_deinit(dd);
+
+fail:
 	/* release the hardware semaphore */
 	tegra_arb_mutex_unlock(dd->res_id);
 
@@ -698,7 +703,7 @@ static int tegra_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
 	spin_unlock_irqrestore(&dd->lock, flags);
 
 	if (!busy)
-		schedule_work(&aes_wq);
+		queue_work(aes_wq, &aes_work);
 
 	return err;
 }
@@ -741,6 +746,13 @@ static int tegra_aes_get_random(struct crypto_rng *tfm, u8 *rdata,
 		return -EBUSY;
 	}
 
+	ret = aes_hw_init(dd);
+	if (ret < 0) {
+		dev_err(dd->dev, "%s: hw init fail(%d)\n", __func__, ret);
+		dlen = ret;
+		goto fail;
+	}
+
 	ctx->dd = dd;
 	dd->ctx = ctx;
 	dd->flags = FLAGS_ENCRYPT | FLAGS_RNG;
@@ -765,6 +777,9 @@ static int tegra_aes_get_random(struct crypto_rng *tfm, u8 *rdata,
 	}
 
 out:
+	aes_hw_deinit(dd);
+
+fail:
 	/* release the hardware semaphore */
 	tegra_arb_mutex_unlock(dd->res_id);
 	mutex_unlock(&aes_lock);
@@ -830,6 +845,12 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 		return -EBUSY;
 	}
 
+	ret = aes_hw_init(dd);
+	if (ret < 0) {
+		dev_err(dd->dev, "%s: hw init fail(%d)\n", __func__, ret);
+		goto fail;
+	}
+
 	aes_set_key(dd);
 
 	/* set seed to the aes hw slot */
@@ -857,6 +878,9 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 	memcpy(dd->dt, dt, DEFAULT_RNG_BLK_SZ);
 
 out:
+	aes_hw_deinit(dd);
+
+fail:
 	/* release the hardware semaphore */
 	tegra_arb_mutex_unlock(dd->res_id);
 	mutex_unlock(&aes_lock);
@@ -874,7 +898,7 @@ static int tegra_aes_cra_init(struct crypto_tfm *tfm)
 
 static struct crypto_alg algs[] = {
 	{
-		.cra_name = "ecb(aes)",
+		.cra_name = "disabled_ecb(aes)",
 		.cra_driver_name = "ecb-aes-tegra",
 		.cra_priority = 100,
 		.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
@@ -892,7 +916,7 @@ static struct crypto_alg algs[] = {
 			.decrypt = tegra_aes_ecb_decrypt,
 		},
 	}, {
-		.cra_name = "cbc(aes)",
+		.cra_name = "disabled_cbc(aes)",
 		.cra_driver_name = "cbc-aes-tegra",
 		.cra_priority = 100,
 		.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
@@ -911,7 +935,7 @@ static struct crypto_alg algs[] = {
 			.decrypt = tegra_aes_cbc_decrypt,
 		}
 	}, {
-		.cra_name = "ansi_cprng",
+		.cra_name = "disabled_ansi_cprng",
 		.cra_driver_name = "rng-aes-tegra",
 		.cra_priority = 100,
 		.cra_flags = CRYPTO_ALG_TYPE_RNG,
@@ -1019,6 +1043,11 @@ static int tegra_aes_probe(struct platform_device *pdev)
 	}
 
 	init_completion(&dd->op_complete);
+	aes_wq = alloc_workqueue("aes_wq", WQ_HIGHPRI, 16);
+	if (!aes_wq) {
+		dev_err(dev, "alloc_workqueue failed\n");
+		goto out;
+	}
 
 	/* get the irq */
 	err = request_irq(INT_VDE_BSE_V, aes_irq, IRQF_TRIGGER_HIGH,
@@ -1067,7 +1096,8 @@ out:
 		clk_put(dd->iclk);
 	if (dd->pclk)
 		clk_put(dd->pclk);
-
+	if (aes_wq)
+		destroy_workqueue(aes_wq);
 	free_irq(INT_VDE_BSE_V, dd);
 	spin_lock(&list_lock);
 	list_del(&dev_list);
@@ -1089,7 +1119,8 @@ static int __devexit tegra_aes_remove(struct platform_device *pdev)
 	if (!dd)
 		return -ENODEV;
 
-	cancel_work_sync(&aes_wq);
+	cancel_work_sync(&aes_work);
+	destroy_workqueue(aes_wq);
 	free_irq(INT_VDE_BSE_V, dd);
 	spin_lock(&list_lock);
 	list_del(&dev_list);
