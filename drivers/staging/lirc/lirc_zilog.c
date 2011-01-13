@@ -1195,9 +1195,8 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int ret;
 	int have_rx = 0, have_tx = 0;
 
-	dprintk("%s: adapter name (%s) nr %d, i2c_device_id name (%s), "
-		"client addr=0x%02x\n",
-		__func__, adap->name, adap->nr, id->name, client->addr);
+	dprintk("%s: %s on i2c-%d (%s), client addr=0x%02x\n",
+		__func__, id->name, adap->nr, adap->name, client->addr);
 
 	/*
 	 * FIXME - This probe function probes both the Tx and Rx
