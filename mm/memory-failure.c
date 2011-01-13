@@ -203,7 +203,7 @@ static int kill_proc_ao(struct task_struct *t, unsigned long addr, int trapno,
 #ifdef __ARCH_SI_TRAPNO
 	si.si_trapno = trapno;
 #endif
-	si.si_addr_lsb = compound_order(compound_head(page)) + PAGE_SHIFT;
+	si.si_addr_lsb = compound_trans_order(compound_head(page)) + PAGE_SHIFT;
 	/*
 	 * Don't use force here, it's convenient if the signal
 	 * can be temporarily blocked.
@@ -930,7 +930,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 static void set_page_hwpoison_huge_page(struct page *hpage)
 {
 	int i;
-	int nr_pages = 1 << compound_order(hpage);
+	int nr_pages = 1 << compound_trans_order(hpage);
 	for (i = 0; i < nr_pages; i++)
 		SetPageHWPoison(hpage + i);
 }
@@ -938,7 +938,7 @@ static void set_page_hwpoison_huge_page(struct page *hpage)
 static void clear_page_hwpoison_huge_page(struct page *hpage)
 {
 	int i;
-	int nr_pages = 1 << compound_order(hpage);
+	int nr_pages = 1 << compound_trans_order(hpage);
 	for (i = 0; i < nr_pages; i++)
 		ClearPageHWPoison(hpage + i);
 }
@@ -968,7 +968,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 		return 0;
 	}
 
-	nr_pages = 1 << compound_order(hpage);
+	nr_pages = 1 << compound_trans_order(hpage);
 	atomic_long_add(nr_pages, &mce_bad_pages);
 
 	/*
@@ -1166,7 +1166,7 @@ int unpoison_memory(unsigned long pfn)
 		return 0;
 	}
 
-	nr_pages = 1 << compound_order(page);
+	nr_pages = 1 << compound_trans_order(page);
 
 	if (!get_page_unless_zero(page)) {
 		/*
@@ -1304,7 +1304,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
 	}
 done:
 	if (!PageHWPoison(hpage))
-		atomic_long_add(1 << compound_order(hpage), &mce_bad_pages);
+		atomic_long_add(1 << compound_trans_order(hpage), &mce_bad_pages);
 	set_page_hwpoison_huge_page(hpage);
 	dequeue_hwpoisoned_huge_page(hpage);
 	/* keep elevated page count for bad page */

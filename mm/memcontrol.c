@@ -1027,10 +1027,6 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
 {
 	struct page_cgroup *pc;
 	struct mem_cgroup_per_zone *mz;
-	int page_size = PAGE_SIZE;
-
-	if (PageTransHuge(page))
-		page_size <<= compound_order(page);
 
 	if (mem_cgroup_disabled())
 		return NULL;
@@ -2286,8 +2282,10 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 	int ret;
 	int page_size = PAGE_SIZE;
 
-	if (PageTransHuge(page))
+	if (PageTransHuge(page)) {
 		page_size <<= compound_order(page);
+		VM_BUG_ON(!PageTransHuge(page));
+	}
 
 	pc = lookup_page_cgroup(page);
 	/* can happen at boot */
@@ -2558,8 +2556,10 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	if (PageSwapCache(page))
 		return NULL;
 
-	if (PageTransHuge(page))
+	if (PageTransHuge(page)) {
 		page_size <<= compound_order(page);
+		VM_BUG_ON(!PageTransHuge(page));
+	}
 
 	count = page_size >> PAGE_SHIFT;
 	/*
