@@ -522,6 +522,9 @@ static inline int INIT process_bit1(struct writer *wr, struct rc *rc,
 			cst->rep0 = pos_slot;
 		if (++(cst->rep0) == 0)
 			return 0;
+		if (cst->rep0 > wr->header->dict_size
+				|| cst->rep0 > get_pos(wr))
+			return -1;
 	}
 
 	len += LZMA_MATCH_MIN_LEN;
