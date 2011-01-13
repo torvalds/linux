@@ -830,8 +830,10 @@ long pwc_video_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 					set_current_state(TASK_RUNNING);
 					return -ERESTARTSYS;
 				}
+				mutex_unlock(&pdev->modlock);
 				schedule();
 				set_current_state(TASK_INTERRUPTIBLE);
+				mutex_lock(&pdev->modlock);
 			}
 			remove_wait_queue(&pdev->frameq, &wait);
 			set_current_state(TASK_RUNNING);
