@@ -16,6 +16,9 @@
 #include <linux/sysfs.h>
 #include "internal.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/compaction.h>
+
 /*
  * compact_control is used to track pages being migrated and the free pages
  * they are being migrated to during memory compaction. The free_pfn starts
@@ -60,7 +63,7 @@ static unsigned long isolate_freepages_block(struct zone *zone,
 				struct list_head *freelist)
 {
 	unsigned long zone_end_pfn, end_pfn;
-	int total_isolated = 0;
+	int nr_scanned = 0, total_isolated = 0;
 	struct page *cursor;
 
 	/* Get the last PFN we should scan for free pages at */
@@ -81,6 +84,7 @@ static unsigned long isolate_freepages_block(struct zone *zone,
 
 		if (!pfn_valid_within(blockpfn))
 			continue;
+		nr_scanned++;
 
 		if (!PageBuddy(page))
 			continue;
@@ -100,6 +104,7 @@ static unsigned long isolate_freepages_block(struct zone *zone,
 		}
 	}
 
+	trace_mm_compaction_isolate_freepages(nr_scanned, total_isolated);
 	return total_isolated;
 }
 
@@ -234,6 +239,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
 					struct compact_control *cc)
 {
 	unsigned long low_pfn, end_pfn;
+	unsigned long nr_scanned = 0, nr_isolated = 0;
 	struct list_head *migratelist = &cc->migratepages;
 
 	/* Do not scan outside zone boundaries */
@@ -266,6 +272,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
 		struct page *page;
 		if (!pfn_valid_within(low_pfn))
 			continue;
+		nr_scanned++;
 
 		/* Get the page and skip if free */
 		page = pfn_to_page(low_pfn);
@@ -280,6 +287,7 @@ static unsigned long isolate_migratepages(struct zone *zone,
 		del_page_from_lru_list(zone, page, page_lru(page));
 		list_add(&page->lru, migratelist);
 		cc->nr_migratepages++;
+		nr_isolated++;
 
 		/* Avoid isolating too much */
 		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX)
@@ -290,6 +298,8 @@ static unsigned long isolate_migratepages(struct zone *zone,
 
 	spin_unlock_irq(&zone->lru_lock);
 	cc->migrate_pfn = low_pfn;
+
+	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
 
 	return cc->nr_migratepages;
 }
@@ -401,6 +411,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 		count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
 		if (nr_remaining)
 			count_vm_events(COMPACTPAGEFAILED, nr_remaining);
+		trace_mm_compaction_migratepages(nr_migrate - nr_remaining,
+						nr_remaining);
 
 		/* Release LRU pages not migrated */
 		if (!list_empty(&cc->migratepages)) {
