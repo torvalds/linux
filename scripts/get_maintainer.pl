@@ -13,7 +13,7 @@
 use strict;
 
 my $P = $0;
-my $V = '0.26-beta6';
+my $V = '0.26';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -40,7 +40,7 @@ my $email_use_mailmap = 1;
 my $output_multiline = 1;
 my $output_separator = ", ";
 my $output_roles = 0;
-my $output_rolestats = 0;
+my $output_rolestats = 1;
 my $scm = 0;
 my $web = 0;
 my $subsystem = 0;
@@ -720,7 +720,8 @@ Other options:
   --help => show this help information
 
 Default options:
-  [--email --git --m --n --l --multiline --pattern-depth=0 --remove-duplicates]
+  [--email --nogit --git-fallback --m --n --l --multiline -pattern-depth=0
+   --remove-duplicates --rolestats]
 
 Notes:
   Using "-f directory" may give unexpected results:
