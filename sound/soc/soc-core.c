@@ -1879,8 +1879,6 @@ static int soc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&card->paths);
 	INIT_LIST_HEAD(&card->dapm_list);
 
-	soc_init_card_debugfs(card);
-
 	ret = snd_soc_register_card(card);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to register card\n");
@@ -3122,6 +3120,8 @@ static int snd_soc_register_card(struct snd_soc_card *card)
 
 	if (!card->name || !card->dev)
 		return -EINVAL;
+
+	soc_init_card_debugfs(card);
 
 	card->rtd = kzalloc(sizeof(struct snd_soc_pcm_runtime) *
 			    (card->num_links + card->num_aux_devs),
