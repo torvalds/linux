@@ -3126,7 +3126,7 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 		char nm[20];
 		if (rdev->raid_disk < 0)
 			continue;
-		if (rdev->new_raid_disk > mddev->raid_disks)
+		if (rdev->new_raid_disk >= mddev->raid_disks)
 			rdev->new_raid_disk = -1;
 		if (rdev->new_raid_disk == rdev->raid_disk)
 			continue;
