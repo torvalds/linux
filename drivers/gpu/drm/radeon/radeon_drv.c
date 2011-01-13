@@ -104,6 +104,7 @@ int radeon_tv = 1;
 int radeon_audio = 1;
 int radeon_disp_priority = 0;
 int radeon_hw_i2c = 0;
+int radeon_pcie_gen2 = 0;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -146,6 +147,9 @@ module_param_named(disp_priority, radeon_disp_priority, int, 0444);
 
 MODULE_PARM_DESC(hw_i2c, "hw i2c engine enable (0 = disable)");
 module_param_named(hw_i2c, radeon_hw_i2c, int, 0444);
+
+MODULE_PARM_DESC(pcie_gen2, "PCIE Gen2 mode (1 = enable)");
+module_param_named(pcie_gen2, radeon_pcie_gen2, int, 0444);
 
 static int radeon_suspend(struct drm_device *dev, pm_message_t state)
 {

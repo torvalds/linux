@@ -3158,6 +3158,9 @@ static void evergreen_pcie_gen2_enable(struct radeon_device *rdev)
 {
 	u32 link_width_cntl, speed_cntl;
 
+	if (radeon_pcie_gen2 == 0)
+		return;
+
 	if (rdev->flags & RADEON_IS_IGP)
 		return;
 
