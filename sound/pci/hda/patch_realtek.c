@@ -1714,6 +1714,7 @@ enum {
 enum {
 	ALC_FIXUP_ACT_PRE_PROBE,
 	ALC_FIXUP_ACT_PROBE,
+	ALC_FIXUP_ACT_INIT,
 };
 
 static void alc_apply_fixup(struct hda_codec *codec, int action)
@@ -3909,6 +3910,8 @@ static int alc_init(struct hda_codec *codec)
 
 	if (spec->init_hook)
 		spec->init_hook(codec);
+
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_INIT);
 
 	hda_call_check_power_status(codec, 0x01);
 	return 0;
@@ -14871,7 +14874,7 @@ static void alc269_fixup_hweq(struct hda_codec *codec,
 {
 	int coef;
 
-	if (action != ALC_FIXUP_ACT_PROBE)
+	if (action != ALC_FIXUP_ACT_INIT)
 		return;
 	coef = alc_read_coef_idx(codec, 0x1e);
 	alc_write_coef_idx(codec, 0x1e, coef | 0x80);
