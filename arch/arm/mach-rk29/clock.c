@@ -2249,6 +2249,10 @@ static void __init rk29_clock_common_init(void)
 
 static void __init clk_enable_init_clocks(void)
 {
+	clk_enable_nolock(&hclk_cpu);
+	clk_enable_nolock(&pclk_cpu);
+	clk_enable_nolock(&hclk_periph);
+	clk_enable_nolock(&pclk_periph);
 	clk_enable_nolock(&clk_nandc);
 	clk_enable_nolock(&clk_aclk_cpu_peri);
 	clk_enable_nolock(&clk_aclk_ddr_peri);
