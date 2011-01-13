@@ -1323,6 +1323,10 @@ scaled linearly with /proc/<pid>/oom_score_adj.
 Writing to /proc/<pid>/oom_score_adj or /proc/<pid>/oom_adj will change the
 other with its scaled value.
 
+The value of /proc/<pid>/oom_score_adj may be reduced no lower than the last
+value set by a CAP_SYS_RESOURCE process. To reduce the value any lower
+requires CAP_SYS_RESOURCE.
+
 NOTICE: /proc/<pid>/oom_adj is deprecated and will be removed, please see
 Documentation/feature-removal-schedule.txt.
 
