@@ -994,20 +994,6 @@ ks8695_wan_nwayreset(struct net_device *ndev)
 }
 
 /**
- *	ks8695_wan_get_link - Retrieve link status of network interface
- *	@ndev: The network interface to retrive the link status of.
- */
-static u32
-ks8695_wan_get_link(struct net_device *ndev)
-{
-	struct ks8695_priv *ksp = netdev_priv(ndev);
-	u32 ctrl;
-
-	ctrl = readl(ksp->phyiface_regs + KS8695_WMC);
-	return ctrl & WMC_WLS;
-}
-
-/**
  *	ks8695_wan_get_pause - Retrieve network pause/flow-control advertising
  *	@ndev: The device to retrieve settings from
  *	@param: The structure to fill out with the information
@@ -1058,7 +1044,7 @@ static const struct ethtool_ops ks8695_wan_ethtool_ops = {
 	.get_settings	= ks8695_wan_get_settings,
 	.set_settings	= ks8695_wan_set_settings,
 	.nway_reset	= ks8695_wan_nwayreset,
-	.get_link	= ks8695_wan_get_link,
+	.get_link	= ethtool_op_get_link,
 	.get_pauseparam = ks8695_wan_get_pause,
 	.get_drvinfo	= ks8695_get_drvinfo,
 };
