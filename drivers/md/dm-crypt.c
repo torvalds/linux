@@ -101,10 +101,9 @@ enum flags { DM_CRYPT_SUSPENDED, DM_CRYPT_KEY_VALID };
  */
 struct crypt_cpu {
 	struct ablkcipher_request *req;
-	struct crypto_ablkcipher *tfm;
-
 	/* ESSIV: struct crypto_cipher *essiv_tfm */
 	void *iv_private;
+	struct crypto_ablkcipher *tfms[0];
 };
 
 /*
@@ -143,6 +142,7 @@ struct crypt_config {
 	 * per_cpu_ptr() only.
 	 */
 	struct crypt_cpu __percpu *cpu;
+	unsigned tfms_count;
 
 	/*
 	 * Layout of each crypto request:
@@ -161,6 +161,7 @@ struct crypt_config {
 
 	unsigned long flags;
 	unsigned int key_size;
+	unsigned int key_parts;
 	u8 key[0];
 };
 
@@ -184,7 +185,7 @@ static struct crypt_cpu *this_crypt_config(struct crypt_config *cc)
  */
 static struct crypto_ablkcipher *any_tfm(struct crypt_config *cc)
 {
-	return __this_cpu_ptr(cc->cpu)->tfm;
+	return __this_cpu_ptr(cc->cpu)->tfms[0];
 }
 
 /*
@@ -567,11 +568,12 @@ static void crypt_alloc_req(struct crypt_config *cc,
 			    struct convert_context *ctx)
 {
 	struct crypt_cpu *this_cc = this_crypt_config(cc);
+	unsigned key_index = ctx->sector & (cc->tfms_count - 1);
 
 	if (!this_cc->req)
 		this_cc->req = mempool_alloc(cc->req_pool, GFP_NOIO);
 
-	ablkcipher_request_set_tfm(this_cc->req, this_cc->tfm);
+	ablkcipher_request_set_tfm(this_cc->req, this_cc->tfms[key_index]);
 	ablkcipher_request_set_callback(this_cc->req,
 	    CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 	    kcryptd_async_done, dmreq_of_req(cc, this_cc->req));
@@ -1097,15 +1099,48 @@ static void crypt_encode_key(char *hex, u8 *key, unsigned int size)
 	}
 }
 
+static void crypt_free_tfms(struct crypt_config *cc, int cpu)
+{
+	struct crypt_cpu *cpu_cc = per_cpu_ptr(cc->cpu, cpu);
+	unsigned i;
+
+	for (i = 0; i < cc->tfms_count; i++)
+		if (cpu_cc->tfms[i] && !IS_ERR(cpu_cc->tfms[i])) {
+			crypto_free_ablkcipher(cpu_cc->tfms[i]);
+			cpu_cc->tfms[i] = NULL;
+		}
+}
+
+static int crypt_alloc_tfms(struct crypt_config *cc, int cpu, char *ciphermode)
+{
+	struct crypt_cpu *cpu_cc = per_cpu_ptr(cc->cpu, cpu);
+	unsigned i;
+	int err;
+
+	for (i = 0; i < cc->tfms_count; i++) {
+		cpu_cc->tfms[i] = crypto_alloc_ablkcipher(ciphermode, 0, 0);
+		if (IS_ERR(cpu_cc->tfms[i])) {
+			err = PTR_ERR(cpu_cc->tfms[i]);
+			crypt_free_tfms(cc, cpu);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
 static int crypt_setkey_allcpus(struct crypt_config *cc)
 {
-	int cpu, err = 0, r;
+	unsigned subkey_size = cc->key_size >> ilog2(cc->tfms_count);
+	int cpu, err = 0, i, r;
 
 	for_each_possible_cpu(cpu) {
-		r = crypto_ablkcipher_setkey(per_cpu_ptr(cc->cpu, cpu)->tfm,
-					       cc->key, cc->key_size);
-		if (r)
-			err = r;
+		for (i = 0; i < cc->tfms_count; i++) {
+			r = crypto_ablkcipher_setkey(per_cpu_ptr(cc->cpu, cpu)->tfms[i],
+						     cc->key + (i * subkey_size), subkey_size);
+			if (r)
+				err = r;
+		}
 	}
 
 	return err;
@@ -1158,8 +1193,7 @@ static void crypt_dtr(struct dm_target *ti)
 			cpu_cc = per_cpu_ptr(cc->cpu, cpu);
 			if (cpu_cc->req)
 				mempool_free(cpu_cc->req, cc->req_pool);
-			if (cpu_cc->tfm)
-				crypto_free_ablkcipher(cpu_cc->tfm);
+			crypt_free_tfms(cc, cpu);
 		}
 
 	if (cc->bs)
@@ -1192,8 +1226,7 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 			    char *cipher_in, char *key)
 {
 	struct crypt_config *cc = ti->private;
-	struct crypto_ablkcipher *tfm;
-	char *tmp, *cipher, *chainmode, *ivmode, *ivopts;
+	char *tmp, *cipher, *chainmode, *ivmode, *ivopts, *keycount;
 	char *cipher_api = NULL;
 	int cpu, ret = -EINVAL;
 
@@ -1209,10 +1242,20 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 
 	/*
 	 * Legacy dm-crypt cipher specification
-	 * cipher-mode-iv:ivopts
+	 * cipher[:keycount]-mode-iv:ivopts
 	 */
 	tmp = cipher_in;
-	cipher = strsep(&tmp, "-");
+	keycount = strsep(&tmp, "-");
+	cipher = strsep(&keycount, ":");
+
+	if (!keycount)
+		cc->tfms_count = 1;
+	else if (sscanf(keycount, "%u", &cc->tfms_count) != 1 ||
+		 !is_power_of_2(cc->tfms_count)) {
+		ti->error = "Bad cipher key count specification";
+		return -EINVAL;
+	}
+	cc->key_parts = cc->tfms_count;
 
 	cc->cipher = kstrdup(cipher, GFP_KERNEL);
 	if (!cc->cipher)
@@ -1225,7 +1268,9 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 	if (tmp)
 		DMWARN("Ignoring unexpected additional cipher options");
 
-	cc->cpu = alloc_percpu(struct crypt_cpu);
+	cc->cpu = __alloc_percpu(sizeof(*(cc->cpu)) +
+				 cc->tfms_count * sizeof(*(cc->cpu->tfms)),
+				 __alignof__(struct crypt_cpu));
 	if (!cc->cpu) {
 		ti->error = "Cannot allocate per cpu state";
 		goto bad_mem;
@@ -1258,13 +1303,11 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 
 	/* Allocate cipher */
 	for_each_possible_cpu(cpu) {
-		tfm = crypto_alloc_ablkcipher(cipher_api, 0, 0);
-		if (IS_ERR(tfm)) {
-			ret = PTR_ERR(tfm);
+		ret = crypt_alloc_tfms(cc, cpu, cipher_api);
+		if (ret < 0) {
 			ti->error = "Error allocating crypto tfm";
 			goto bad;
 		}
-		per_cpu_ptr(cc->cpu, cpu)->tfm = tfm;
 	}
 
 	/* Initialize and set key */
@@ -1587,7 +1630,7 @@ static int crypt_iterate_devices(struct dm_target *ti,
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 9, 0},
+	.version = {1, 10, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,
