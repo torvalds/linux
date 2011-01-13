@@ -187,8 +187,8 @@ STATIC inline int INIT unlzo(u8 *input, int in_len,
 			}
 		}
 
-		if (flush)
-			flush(out_buf, dst_len);
+		if (flush && flush(out_buf, dst_len) != dst_len)
+			goto exit_2;
 		if (output)
 			out_buf += dst_len;
 		if (posp)
