@@ -1492,16 +1492,14 @@ static int
 fec_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
-	struct fec_enet_private *fep;
+	struct fec_enet_private *fep = netdev_priv(ndev);
 
-	if (ndev) {
-		fep = netdev_priv(ndev);
-		if (netif_running(ndev)) {
-			fec_stop(ndev);
-			netif_device_detach(ndev);
-		}
-		clk_disable(fep->clk);
+	if (netif_running(ndev)) {
+		fec_stop(ndev);
+		netif_device_detach(ndev);
 	}
+	clk_disable(fep->clk);
+
 	return 0;
 }
 
@@ -1509,16 +1507,14 @@ static int
 fec_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
-	struct fec_enet_private *fep;
+	struct fec_enet_private *fep = netdev_priv(ndev);
 
-	if (ndev) {
-		fep = netdev_priv(ndev);
-		clk_enable(fep->clk);
-		if (netif_running(ndev)) {
-			fec_restart(ndev, fep->full_duplex);
-			netif_device_attach(ndev);
-		}
+	clk_enable(fep->clk);
+	if (netif_running(ndev)) {
+		fec_restart(ndev, fep->full_duplex);
+		netif_device_attach(ndev);
 	}
+
 	return 0;
 }
 
