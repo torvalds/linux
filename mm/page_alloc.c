@@ -427,18 +427,10 @@ static inline void rmv_page_order(struct page *page)
  *
  * Assumption: *_mem_map is contiguous at least up to MAX_ORDER
  */
-static inline struct page *
-__page_find_buddy(struct page *page, unsigned long page_idx, unsigned int order)
-{
-	unsigned long buddy_idx = page_idx ^ (1 << order);
-
-	return page + (buddy_idx - page_idx);
-}
-
 static inline unsigned long
-__find_combined_index(unsigned long page_idx, unsigned int order)
+__find_buddy_index(unsigned long page_idx, unsigned int order)
 {
-	return (page_idx & ~(1 << order));
+	return page_idx ^ (1 << order);
 }
 
 /*
@@ -500,6 +492,7 @@ static inline void __free_one_page(struct page *page,
 {
 	unsigned long page_idx;
 	unsigned long combined_idx;
+	unsigned long uninitialized_var(buddy_idx);
 	struct page *buddy;
 
 	if (unlikely(PageCompound(page)))
@@ -514,7 +507,8 @@ static inline void __free_one_page(struct page *page,
 	VM_BUG_ON(bad_range(zone, page));
 
 	while (order < MAX_ORDER-1) {
-		buddy = __page_find_buddy(page, page_idx, order);
+		buddy_idx = __find_buddy_index(page_idx, order);
+		buddy = page + (buddy_idx - page_idx);
 		if (!page_is_buddy(page, buddy, order))
 			break;
 
@@ -522,7 +516,7 @@ static inline void __free_one_page(struct page *page,
 		list_del(&buddy->lru);
 		zone->free_area[order].nr_free--;
 		rmv_page_order(buddy);
-		combined_idx = __find_combined_index(page_idx, order);
+		combined_idx = buddy_idx & page_idx;
 		page = page + (combined_idx - page_idx);
 		page_idx = combined_idx;
 		order++;
@@ -539,9 +533,10 @@ static inline void __free_one_page(struct page *page,
 	 */
 	if ((order < MAX_ORDER-2) && pfn_valid_within(page_to_pfn(buddy))) {
 		struct page *higher_page, *higher_buddy;
-		combined_idx = __find_combined_index(page_idx, order);
-		higher_page = page + combined_idx - page_idx;
-		higher_buddy = __page_find_buddy(higher_page, combined_idx, order + 1);
+		combined_idx = buddy_idx & page_idx;
+		higher_page = page + (combined_idx - page_idx);
+		buddy_idx = __find_buddy_index(combined_idx, order + 1);
+		higher_buddy = page + (buddy_idx - combined_idx);
 		if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
 			list_add_tail(&page->lru,
 				&zone->free_area[order].free_list[migratetype]);
