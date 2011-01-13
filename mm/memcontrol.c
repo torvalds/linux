@@ -1600,7 +1600,8 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
  * possibility of race condition. If there is, we take a lock.
  */
 
-static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
+void mem_cgroup_update_page_stat(struct page *page,
+				 enum mem_cgroup_page_stat_item idx, int val)
 {
 	struct mem_cgroup *mem;
 	struct page_cgroup *pc = lookup_page_cgroup(page);
@@ -1623,18 +1624,19 @@ static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
 			goto out;
 	}
 
-	this_cpu_add(mem->stat->count[idx], val);
-
 	switch (idx) {
-	case MEM_CGROUP_STAT_FILE_MAPPED:
+	case MEMCG_NR_FILE_MAPPED:
 		if (val > 0)
 			SetPageCgroupFileMapped(pc);
 		else if (!page_mapped(page))
 			ClearPageCgroupFileMapped(pc);
+		idx = MEM_CGROUP_STAT_FILE_MAPPED;
 		break;
 	default:
 		BUG();
 	}
+
+	this_cpu_add(mem->stat->count[idx], val);
 
 out:
 	if (unlikely(need_unlock))
@@ -1642,11 +1644,7 @@ out:
 	rcu_read_unlock();
 	return;
 }
-
-void mem_cgroup_update_file_mapped(struct page *page, int val)
-{
-	mem_cgroup_update_file_stat(page, MEM_CGROUP_STAT_FILE_MAPPED, val);
-}
+EXPORT_SYMBOL(mem_cgroup_update_page_stat);
 
 /*
  * size of first charge trial. "32" comes from vmscan.c's magic value.
