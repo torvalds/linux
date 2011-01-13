@@ -1021,13 +1021,15 @@ static int cdc_ncm_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in)
 		    (temp > CDC_NCM_MAX_DATAGRAM_SIZE) || (temp < ETH_HLEN)) {
 			pr_debug("invalid frame detected (ignored)"
 				"offset[%u]=%u, length=%u, skb=%p\n",
-							x, offset, temp, skb);
+							x, offset, temp, skb_in);
 			if (!x)
 				goto error;
 			break;
 
 		} else {
 			skb = skb_clone(skb_in, GFP_ATOMIC);
+			if (!skb)
+				goto error;
 			skb->len = temp;
 			skb->data = ((u8 *)skb_in->data) + offset;
 			skb_set_tail_pointer(skb, temp);
