@@ -90,9 +90,6 @@ extern struct vm_struct *__get_vm_area_caller(unsigned long size,
 					unsigned long flags,
 					unsigned long start, unsigned long end,
 					void *caller);
-extern struct vm_struct *get_vm_area_node(unsigned long size,
-					  unsigned long flags, int node,
-					  gfp_t gfp_mask);
 extern struct vm_struct *remove_vm_area(const void *addr);
 
 extern int map_vm_area(struct vm_struct *area, pgprot_t prot,

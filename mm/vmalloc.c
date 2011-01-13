@@ -1315,13 +1315,6 @@ struct vm_struct *get_vm_area_caller(unsigned long size, unsigned long flags,
 						-1, GFP_KERNEL, caller);
 }
 
-struct vm_struct *get_vm_area_node(unsigned long size, unsigned long flags,
-				   int node, gfp_t gfp_mask)
-{
-	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
-				  node, gfp_mask, __builtin_return_address(0));
-}
-
 static struct vm_struct *find_vm_area(const void *addr)
 {
 	struct vmap_area *va;
