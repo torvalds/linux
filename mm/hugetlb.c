@@ -1363,6 +1363,7 @@ static ssize_t nr_hugepages_show_common(struct kobject *kobj,
 
 	return sprintf(buf, "%lu\n", nr_huge_pages);
 }
+
 static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
 			struct kobject *kobj, struct kobj_attribute *attr,
 			const char *buf, size_t len)
@@ -1375,11 +1376,16 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
 
 	err = strict_strtoul(buf, 10, &count);
 	if (err) {
-		NODEMASK_FREE(nodes_allowed);
-		return 0;
+		err = 0;		/* This seems wrong */
+		goto out;
 	}
 
 	h = kobj_to_hstate(kobj, &nid);
+	if (h->order >= MAX_ORDER) {
+		err = -EINVAL;
+		goto out;
+	}
+
 	if (nid == NUMA_NO_NODE) {
 		/*
 		 * global hstate attribute
@@ -1405,6 +1411,9 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
 		NODEMASK_FREE(nodes_allowed);
 
 	return len;
+out:
+	NODEMASK_FREE(nodes_allowed);
+	return err;
 }
 
 static ssize_t nr_hugepages_show(struct kobject *kobj,
@@ -1447,12 +1456,16 @@ static ssize_t nr_overcommit_hugepages_show(struct kobject *kobj,
 	struct hstate *h = kobj_to_hstate(kobj, NULL);
 	return sprintf(buf, "%lu\n", h->nr_overcommit_huge_pages);
 }
+
 static ssize_t nr_overcommit_hugepages_store(struct kobject *kobj,
 		struct kobj_attribute *attr, const char *buf, size_t count)
 {
 	int err;
 	unsigned long input;
 	struct hstate *h = kobj_to_hstate(kobj, NULL);
+
+	if (h->order >= MAX_ORDER)
+		return -EINVAL;
 
 	err = strict_strtoul(buf, 10, &input);
 	if (err)
@@ -1864,6 +1877,9 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
 	if (!write)
 		tmp = h->max_huge_pages;
 
+	if (write && h->order >= MAX_ORDER)
+		return -EINVAL;
+
 	table->data = &tmp;
 	table->maxlen = sizeof(unsigned long);
 	ret = proc_doulongvec_minmax(table, write, buffer, length, ppos);
@@ -1926,6 +1942,9 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
 
 	if (!write)
 		tmp = h->nr_overcommit_huge_pages;
+
+	if (write && h->order >= MAX_ORDER)
+		return -EINVAL;
 
 	table->data = &tmp;
 	table->maxlen = sizeof(unsigned long);
