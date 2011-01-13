@@ -4308,7 +4308,7 @@ static int got_BlockAck(struct drbd_conf *mdev, struct p_header80 *h)
 
 	update_peer_seq(mdev, be32_to_cpu(p->seq_num));
 
-	if (is_syncer_block_id(p->block_id)) {
+	if (p->block_id == ID_SYNCER) {
 		drbd_set_in_sync(mdev, sector, blksize);
 		dec_rs_pending(mdev);
 		return true;
@@ -4349,7 +4349,7 @@ static int got_NegAck(struct drbd_conf *mdev, struct p_header80 *h)
 
 	update_peer_seq(mdev, be32_to_cpu(p->seq_num));
 
-	if (is_syncer_block_id(p->block_id)) {
+	if (p->block_id == ID_SYNCER) {
 		dec_rs_pending(mdev);
 		drbd_rs_failed_io(mdev, sector, size);
 		return true;

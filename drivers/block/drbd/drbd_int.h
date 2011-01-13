@@ -87,17 +87,10 @@ extern char usermode_helper[];
  */
 #define DRBD_SIGKILL SIGHUP
 
-/* All EEs on the free list should have ID_VACANT (== 0)
- * freshly allocated EEs get !ID_VACANT (== 1)
- * so if it says "cannot dereference null pointer at address 0x00000001",
- * it is most likely one of these :( */
-
 #define ID_IN_SYNC      (4711ULL)
 #define ID_OUT_OF_SYNC  (4712ULL)
-
 #define ID_SYNCER (-1ULL)
-#define ID_VACANT 0
-#define is_syncer_block_id(id) ((id) == ID_SYNCER)
+
 #define UUID_NEW_BM_OFFSET ((u64)0x0001000000000000ULL)
 
 struct drbd_conf;
