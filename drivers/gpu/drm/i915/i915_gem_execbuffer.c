@@ -464,8 +464,6 @@ i915_gem_execbuffer_relocate(struct drm_device *dev,
 	int ret;
 
 	list_for_each_entry(obj, objects, exec_list) {
-		obj->base.pending_read_domains = 0;
-		obj->base.pending_write_domain = 0;
 		ret = i915_gem_execbuffer_relocate_object(obj, eb);
 		if (ret)
 			return ret;
@@ -505,6 +503,9 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			list_move(&obj->exec_list, &ordered_objects);
 		else
 			list_move_tail(&obj->exec_list, &ordered_objects);
+
+		obj->base.pending_read_domains = 0;
+		obj->base.pending_write_domain = 0;
 	}
 	list_splice(&ordered_objects, objects);
 
@@ -712,8 +713,6 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 
 	list_for_each_entry(obj, objects, exec_list) {
 		int offset = obj->exec_entry - exec;
-		obj->base.pending_read_domains = 0;
-		obj->base.pending_write_domain = 0;
 		ret = i915_gem_execbuffer_relocate_object_slow(obj, eb,
 							       reloc + reloc_offset[offset]);
 		if (ret)
