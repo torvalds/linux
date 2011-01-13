@@ -9,7 +9,7 @@ Supported chips:
                http://focus.ti.com/lit/ds/symlink/ads7828.pdf
 
 Authors:
-        Steve Hardy <steve@linuxrealtime.co.uk>
+        Steve Hardy <shardy@redhat.com>
 
 Module Parameters
 -----------------
