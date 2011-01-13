@@ -870,7 +870,8 @@ static int __init lp5523_init_led(struct lp5523_led *led, struct device *dev,
 			return -EINVAL;
 		}
 
-		snprintf(name, 32, "lp5523:channel%d", chan);
+		snprintf(name, sizeof(name), "%s:channel%d",
+			pdata->label ?: "lp5523", chan);
 
 		led->cdev.name = name;
 		led->cdev.brightness_set = lp5523_set_brightness;
