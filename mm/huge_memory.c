@@ -620,11 +620,26 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
 	return ret;
 }
 
+static inline gfp_t alloc_hugepage_gfpmask(int defrag)
+{
+	return GFP_TRANSHUGE & ~(defrag ? 0 : __GFP_WAIT);
+}
+
+static inline struct page *alloc_hugepage_vma(int defrag,
+					      struct vm_area_struct *vma,
+					      unsigned long haddr)
+{
+	return alloc_pages_vma(alloc_hugepage_gfpmask(defrag),
+			       HPAGE_PMD_ORDER, vma, haddr);
+}
+
+#ifndef CONFIG_NUMA
 static inline struct page *alloc_hugepage(int defrag)
 {
-	return alloc_pages(GFP_TRANSHUGE & ~(defrag ? 0 : __GFP_WAIT),
+	return alloc_pages(alloc_hugepage_gfpmask(defrag),
 			   HPAGE_PMD_ORDER);
 }
+#endif
 
 int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			       unsigned long address, pmd_t *pmd,
@@ -639,7 +654,8 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			return VM_FAULT_OOM;
 		if (unlikely(khugepaged_enter(vma)))
 			return VM_FAULT_OOM;
-		page = alloc_hugepage(transparent_hugepage_defrag(vma));
+		page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+					  vma, haddr);
 		if (unlikely(!page))
 			goto out;
 		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
@@ -862,7 +878,8 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	if (transparent_hugepage_enabled(vma) &&
 	    !transparent_hugepage_debug_cow())
-		new_page = alloc_hugepage(transparent_hugepage_defrag(vma));
+		new_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+					      vma, haddr);
 	else
 		new_page = NULL;
 
@@ -1661,7 +1678,11 @@ static void collapse_huge_page(struct mm_struct *mm,
 	unsigned long hstart, hend;
 
 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+#ifndef CONFIG_NUMA
 	VM_BUG_ON(!*hpage);
+#else
+	VM_BUG_ON(*hpage);
+#endif
 
 	/*
 	 * Prevent all access to pagetables with the exception of
@@ -1699,9 +1720,17 @@ static void collapse_huge_page(struct mm_struct *mm,
 	if (!pmd_present(*pmd) || pmd_trans_huge(*pmd))
 		goto out;
 
+#ifndef CONFIG_NUMA
 	new_page = *hpage;
-	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL)))
+#else
+	new_page = alloc_hugepage_vma(khugepaged_defrag(), vma, address);
+	if (unlikely(!new_page)) {
+		*hpage = ERR_PTR(-ENOMEM);
 		goto out;
+	}
+#endif
+	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL)))
+		goto out_put_page;
 
 	anon_vma_lock(vma->anon_vma);
 
@@ -1730,7 +1759,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 		spin_unlock(&mm->page_table_lock);
 		anon_vma_unlock(vma->anon_vma);
 		mem_cgroup_uncharge_page(new_page);
-		goto out;
+		goto out_put_page;
 	}
 
 	/*
@@ -1765,10 +1794,19 @@ static void collapse_huge_page(struct mm_struct *mm,
 	mm->nr_ptes--;
 	spin_unlock(&mm->page_table_lock);
 
+#ifndef CONFIG_NUMA
 	*hpage = NULL;
+#endif
 	khugepaged_pages_collapsed++;
 out:
 	up_write(&mm->mmap_sem);
+	return;
+
+out_put_page:
+#ifdef CONFIG_NUMA
+	put_page(new_page);
+#endif
+	goto out;
 }
 
 static int khugepaged_scan_pmd(struct mm_struct *mm,
@@ -2001,11 +2039,16 @@ static void khugepaged_do_scan(struct page **hpage)
 	while (progress < pages) {
 		cond_resched();
 
+#ifndef CONFIG_NUMA
 		if (!*hpage) {
 			*hpage = alloc_hugepage(khugepaged_defrag());
 			if (unlikely(!*hpage))
 				break;
 		}
+#else
+		if (IS_ERR(*hpage))
+			break;
+#endif
 
 		spin_lock(&khugepaged_mm_lock);
 		if (!khugepaged_scan.mm_slot)
@@ -2020,37 +2063,55 @@ static void khugepaged_do_scan(struct page **hpage)
 	}
 }
 
+static void khugepaged_alloc_sleep(void)
+{
+	DEFINE_WAIT(wait);
+	add_wait_queue(&khugepaged_wait, &wait);
+	schedule_timeout_interruptible(
+		msecs_to_jiffies(
+			khugepaged_alloc_sleep_millisecs));
+	remove_wait_queue(&khugepaged_wait, &wait);
+}
+
+#ifndef CONFIG_NUMA
 static struct page *khugepaged_alloc_hugepage(void)
 {
 	struct page *hpage;
 
 	do {
 		hpage = alloc_hugepage(khugepaged_defrag());
-		if (!hpage) {
-			DEFINE_WAIT(wait);
-			add_wait_queue(&khugepaged_wait, &wait);
-			schedule_timeout_interruptible(
-				msecs_to_jiffies(
-					khugepaged_alloc_sleep_millisecs));
-			remove_wait_queue(&khugepaged_wait, &wait);
-		}
+		if (!hpage)
+			khugepaged_alloc_sleep();
 	} while (unlikely(!hpage) &&
 		 likely(khugepaged_enabled()));
 	return hpage;
 }
+#endif
 
 static void khugepaged_loop(void)
 {
 	struct page *hpage;
 
+#ifdef CONFIG_NUMA
+	hpage = NULL;
+#endif
 	while (likely(khugepaged_enabled())) {
+#ifndef CONFIG_NUMA
 		hpage = khugepaged_alloc_hugepage();
 		if (unlikely(!hpage))
 			break;
+#else
+		if (IS_ERR(hpage)) {
+			khugepaged_alloc_sleep();
+			hpage = NULL;
+		}
+#endif
 
 		khugepaged_do_scan(&hpage);
+#ifndef CONFIG_NUMA
 		if (hpage)
 			put_page(hpage);
+#endif
 		if (khugepaged_has_work()) {
 			DEFINE_WAIT(wait);
 			if (!khugepaged_scan_sleep_millisecs)
