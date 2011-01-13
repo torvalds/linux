@@ -75,6 +75,9 @@ struct wireless_dev;
 #define NET_RX_SUCCESS		0	/* keep 'em coming, baby */
 #define NET_RX_DROP		1	/* packet dropped */
 
+/* Initial net device group. All devices belong to group 0 by default. */
+#define INIT_NETDEV_GROUP	0
+
 /*
  * Transmit return codes: transmit return codes originate from three different
  * namespaces:
@@ -1153,6 +1156,9 @@ struct net_device {
 
 	/* phy device may attach itself for hardware timestamping */
 	struct phy_device *phydev;
+
+	/* group the device belongs to */
+	int group;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
@@ -1844,6 +1850,7 @@ extern int		dev_set_alias(struct net_device *, const char *, size_t);
 extern int		dev_change_net_namespace(struct net_device *,
 						 struct net *, const char *);
 extern int		dev_set_mtu(struct net_device *, int);
+extern void		dev_set_group(struct net_device *, int);
 extern int		dev_set_mac_address(struct net_device *,
 					    struct sockaddr *);
 extern int		dev_hard_start_xmit(struct sk_buff *skb,
