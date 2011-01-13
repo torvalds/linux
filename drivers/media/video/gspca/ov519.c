@@ -488,7 +488,6 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 #define R511_SNAP_PXDIV			0x1c
 #define R511_SNAP_LNDIV			0x1d
 #define R511_SNAP_UV_EN			0x1e
-#define R511_SNAP_UV_EN			0x1e
 #define R511_SNAP_OPTS			0x1f
 
 #define R511_DRAM_FLOW_CTL		0x20
@@ -1847,8 +1846,7 @@ static const struct ov_i2c_regvals norm_7670[] = {
 	{ 0x6c, 0x0a },
 	{ 0x6d, 0x55 },
 	{ 0x6e, 0x11 },
-	{ 0x6f, 0x9f },
-					/* "9e for advance AWB" */
+	{ 0x6f, 0x9f },			/* "9e for advance AWB" */
 	{ 0x6a, 0x40 },
 	{ OV7670_R01_BLUE, 0x40 },
 	{ OV7670_R02_RED, 0x60 },
@@ -3054,7 +3052,7 @@ static void ov519_configure(struct sd *sd)
 {
 	static const struct ov_regvals init_519[] = {
 		{ 0x5a, 0x6d }, /* EnableSystem */
-		{ 0x53, 0x9b },
+		{ 0x53, 0x9b }, /* don't enable the microcontroller */
 		{ OV519_R54_EN_CLK1, 0xff }, /* set bit2 to enable jpeg */
 		{ 0x5d, 0x03 },
 		{ 0x49, 0x01 },
