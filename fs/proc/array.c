@@ -535,15 +535,15 @@ int proc_tgid_stat(struct seq_file *m, struct pid_namespace *ns,
 int proc_pid_statm(struct seq_file *m, struct pid_namespace *ns,
 			struct pid *pid, struct task_struct *task)
 {
-	int size = 0, resident = 0, shared = 0, text = 0, lib = 0, data = 0;
+	unsigned long size = 0, resident = 0, shared = 0, text = 0, data = 0;
 	struct mm_struct *mm = get_task_mm(task);
 
 	if (mm) {
 		size = task_statm(mm, &shared, &text, &data, &resident);
 		mmput(mm);
 	}
-	seq_printf(m, "%d %d %d %d %d %d %d\n",
-			size, resident, shared, text, lib, data, 0);
+	seq_printf(m, "%lu %lu %lu %lu 0 %lu 0\n",
+			size, resident, shared, text, data);
 
 	return 0;
 }
