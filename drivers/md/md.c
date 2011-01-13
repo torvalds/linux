@@ -765,7 +765,7 @@ void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 	 */
 	struct bio *bio = bio_alloc_mddev(GFP_NOIO, 1, mddev);
 
-	bio->bi_bdev = rdev->bdev;
+	bio->bi_bdev = rdev->meta_bdev ? rdev->meta_bdev : rdev->bdev;
 	bio->bi_sector = sector;
 	bio_add_page(bio, page, size, 0);
 	bio->bi_private = rdev;
@@ -803,7 +803,8 @@ int sync_page_io(mdk_rdev_t *rdev, sector_t sector, int size,
 
 	rw |= REQ_SYNC | REQ_UNPLUG;
 
-	bio->bi_bdev = rdev->bdev;
+	bio->bi_bdev = (metadata_op && rdev->meta_bdev) ?
+		rdev->meta_bdev : rdev->bdev;
 	if (metadata_op)
 		bio->bi_sector = sector + rdev->sb_start;
 	else
@@ -4435,7 +4436,9 @@ int md_run(mddev_t *mddev)
 		 * We don't want the data to overlap the metadata,
 		 * Internal Bitmap issues have been handled elsewhere.
 		 */
-		if (rdev->data_offset < rdev->sb_start) {
+		if (rdev->meta_bdev) {
+			/* Nothing to check */;
+		} else if (rdev->data_offset < rdev->sb_start) {
 			if (mddev->dev_sectors &&
 			    rdev->data_offset + mddev->dev_sectors
 			    > rdev->sb_start) {
@@ -5532,7 +5535,6 @@ static int update_size(mddev_t *mddev, sector_t num_sectors)
 	 * sb_start or, if that is <data_offset, it must fit before the size
 	 * of each device.  If num_sectors is zero, we find the largest size
 	 * that fits.
-
 	 */
 	if (mddev->sync_thread)
 		return -EBUSY;

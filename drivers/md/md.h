@@ -60,6 +60,12 @@ struct mdk_rdev_s
 	mddev_t *mddev;			/* RAID array if running */
 	int last_events;		/* IO event timestamp */
 
+	/*
+	 * If meta_bdev is non-NULL, it means that a separate device is
+	 * being used to store the metadata (superblock/bitmap) which
+	 * would otherwise be contained on the same device as the data (bdev).
+	 */
+	struct block_device *meta_bdev;
 	struct block_device *bdev;	/* block device handle */
 
 	struct page	*sb_page;

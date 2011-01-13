@@ -264,14 +264,18 @@ static mdk_rdev_t *next_active_rdev(mdk_rdev_t *rdev, mddev_t *mddev)
 static int write_sb_page(struct bitmap *bitmap, struct page *page, int wait)
 {
 	mdk_rdev_t *rdev = NULL;
+	struct block_device *bdev;
 	mddev_t *mddev = bitmap->mddev;
 
 	while ((rdev = next_active_rdev(rdev, mddev)) != NULL) {
 		int size = PAGE_SIZE;
 		loff_t offset = mddev->bitmap_info.offset;
+
+		bdev = (rdev->meta_bdev) ? rdev->meta_bdev : rdev->bdev;
+
 		if (page->index == bitmap->file_pages-1)
 			size = roundup(bitmap->last_page_size,
-				       bdev_logical_block_size(rdev->bdev));
+				       bdev_logical_block_size(bdev));
 		/* Just make sure we aren't corrupting data or
 		 * metadata
 		 */
