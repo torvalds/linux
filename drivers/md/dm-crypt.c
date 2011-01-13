@@ -108,7 +108,7 @@ struct crypt_config {
 	struct workqueue_struct *crypt_queue;
 
 	char *cipher;
-	char *cipher_mode;
+	char *cipher_string;
 
 	struct crypt_iv_operations *iv_gen_ops;
 	union {
@@ -1030,7 +1030,7 @@ static void crypt_dtr(struct dm_target *ti)
 		dm_put_device(ti, cc->dev);
 
 	kzfree(cc->cipher);
-	kzfree(cc->cipher_mode);
+	kzfree(cc->cipher_string);
 
 	/* Must zero key material before freeing */
 	kzfree(cc);
@@ -1050,6 +1050,10 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 		return -EINVAL;
 	}
 
+	cc->cipher_string = kstrdup(cipher_in, GFP_KERNEL);
+	if (!cc->cipher_string)
+		goto bad_mem;
+
 	/*
 	 * Legacy dm-crypt cipher specification
 	 * cipher-mode-iv:ivopts
@@ -1061,12 +1065,6 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 	if (!cc->cipher)
 		goto bad_mem;
 
-	if (tmp) {
-		cc->cipher_mode = kstrdup(tmp, GFP_KERNEL);
-		if (!cc->cipher_mode)
-			goto bad_mem;
-	}
-
 	chainmode = strsep(&tmp, "-");
 	ivopts = strsep(&tmp, "-");
 	ivmode = strsep(&ivopts, ":");
@@ -1074,10 +1072,11 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 	if (tmp)
 		DMWARN("Ignoring unexpected additional cipher options");
 
-	/* Compatibility mode for old dm-crypt mappings */
+	/*
+	 * For compatibility with the original dm-crypt mapping format, if
+	 * only the cipher name is supplied, use cbc-plain.
+	 */
 	if (!chainmode || (!strcmp(chainmode, "plain") && !ivmode)) {
-		kfree(cc->cipher_mode);
-		cc->cipher_mode = kstrdup("cbc-plain", GFP_KERNEL);
 		chainmode = "cbc";
 		ivmode = "plain";
 	}
@@ -1307,10 +1306,7 @@ static int crypt_status(struct dm_target *ti, status_type_t type,
 		break;
 
 	case STATUSTYPE_TABLE:
-		if (cc->cipher_mode)
-			DMEMIT("%s-%s ", cc->cipher, cc->cipher_mode);
-		else
-			DMEMIT("%s ", cc->cipher);
+		DMEMIT("%s ", cc->cipher_string);
 
 		if (cc->key_size > 0) {
 			if ((maxlen - sz) < ((cc->key_size << 1) + 1))
@@ -1422,7 +1418,7 @@ static int crypt_iterate_devices(struct dm_target *ti,
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 7, 0},
+	.version = {1, 8, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,
