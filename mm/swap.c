@@ -479,6 +479,43 @@ void __pagevec_release(struct pagevec *pvec)
 
 EXPORT_SYMBOL(__pagevec_release);
 
+/* used by __split_huge_page_refcount() */
+void lru_add_page_tail(struct zone* zone,
+		       struct page *page, struct page *page_tail)
+{
+	int active;
+	enum lru_list lru;
+	const int file = 0;
+	struct list_head *head;
+
+	VM_BUG_ON(!PageHead(page));
+	VM_BUG_ON(PageCompound(page_tail));
+	VM_BUG_ON(PageLRU(page_tail));
+	VM_BUG_ON(!spin_is_locked(&zone->lru_lock));
+
+	SetPageLRU(page_tail);
+
+	if (page_evictable(page_tail, NULL)) {
+		if (PageActive(page)) {
+			SetPageActive(page_tail);
+			active = 1;
+			lru = LRU_ACTIVE_ANON;
+		} else {
+			active = 0;
+			lru = LRU_INACTIVE_ANON;
+		}
+		update_page_reclaim_stat(zone, page_tail, file, active);
+		if (likely(PageLRU(page)))
+			head = page->lru.prev;
+		else
+			head = &zone->lru[lru].list;
+		__add_page_to_lru_list(zone, page_tail, lru, head);
+	} else {
+		SetPageUnevictable(page_tail);
+		add_page_to_lru_list(zone, page_tail, LRU_UNEVICTABLE);
+	}
+}
+
 /*
  * Add the passed pages to the LRU, then drop the caller's refcount
  * on them.  Reinitialises the caller's pagevec.

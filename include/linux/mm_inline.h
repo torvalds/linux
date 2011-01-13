@@ -20,11 +20,18 @@ static inline int page_is_file_cache(struct page *page)
 }
 
 static inline void
-add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list l)
+__add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list l,
+		       struct list_head *head)
 {
-	list_add(&page->lru, &zone->lru[l].list);
+	list_add(&page->lru, head);
 	__inc_zone_state(zone, NR_LRU_BASE + l);
 	mem_cgroup_add_lru_list(page, l);
+}
+
+static inline void
+add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list l)
+{
+	__add_page_to_lru_list(zone, page, l, &zone->lru[l].list);
 }
 
 static inline void
