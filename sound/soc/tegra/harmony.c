@@ -107,6 +107,36 @@ static struct snd_soc_ops harmony_asoc_ops = {
 	.hw_params = harmony_asoc_hw_params,
 };
 
+static const struct snd_soc_dapm_widget harmony_dapm_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_MIC("Mic Jack", NULL),
+};
+
+static const struct snd_soc_dapm_route harmony_audio_map[] = {
+	{"Headphone Jack", NULL, "HPOUTR"},
+	{"Headphone Jack", NULL, "HPOUTL"},
+	{"Mic Bias", NULL, "Mic Jack"},
+	{"IN1L", NULL, "Mic Bias"},
+};
+
+static int harmony_asoc_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+
+	snd_soc_dapm_new_controls(dapm, harmony_dapm_widgets,
+					ARRAY_SIZE(harmony_dapm_widgets));
+
+	snd_soc_dapm_add_routes(dapm, harmony_audio_map,
+				ARRAY_SIZE(harmony_audio_map));
+
+	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
+	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
+	snd_soc_dapm_sync(dapm);
+
+	return 0;
+}
+
 static struct snd_soc_dai_link harmony_wm8903_dai = {
 	.name = "WM8903",
 	.stream_name = "WM8903 PCM",
@@ -114,6 +144,7 @@ static struct snd_soc_dai_link harmony_wm8903_dai = {
 	.platform_name = "tegra-pcm-audio",
 	.cpu_dai_name = "tegra-i2s.0",
 	.codec_dai_name = "wm8903-hifi",
+	.init = harmony_asoc_init,
 	.ops = &harmony_asoc_ops,
 };
 
