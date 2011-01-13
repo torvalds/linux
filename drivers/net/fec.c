@@ -284,7 +284,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (((unsigned long) bufaddr) & FEC_ALIGNMENT) {
 		unsigned int index;
 		index = bdp - fep->tx_bd_base;
-		memcpy(fep->tx_bounce[index], (void *)skb->data, skb->len);
+		memcpy(fep->tx_bounce[index], skb->data, skb->len);
 		bufaddr = fep->tx_bounce[index];
 	}
 
