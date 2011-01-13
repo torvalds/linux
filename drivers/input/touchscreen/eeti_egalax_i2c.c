@@ -42,7 +42,7 @@
 #include <mach/board.h>
 
 //#define DEBUG
-#ifdef DEBUG
+#ifdef CONFIG_EETI_EGALAX_DEBUG
 	#define TS_DEBUG(fmt,args...)  printk( KERN_DEBUG "[egalax_i2c]: " fmt, ## args)
 	#define DBG() printk("[%s]:%d => \n",__FUNCTION__,__LINE__)
 #else
@@ -399,8 +399,8 @@ static struct input_dev * allocate_Input_Dev(void)
 	
 	set_bit(EV_ABS, pInputDev->evbit);
 
-	input_set_abs_params(pInputDev, ABS_MT_POSITION_X, 0, 1080, 0, 0);
-	input_set_abs_params(pInputDev, ABS_MT_POSITION_Y, 0, 800, 0, 0);
+	input_set_abs_params(pInputDev, ABS_MT_POSITION_X, 0, CONFIG_EETI_EGALAX_MAX_X, 0, 0);
+	input_set_abs_params(pInputDev, ABS_MT_POSITION_Y, 0, CONFIG_EETI_EGALAX_MAX_Y, 0, 0);
 	input_set_abs_params(pInputDev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(pInputDev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(pInputDev, ABS_MT_TRACKING_ID, 0, 10, 0, 0);

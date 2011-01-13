@@ -611,7 +611,27 @@ config EETI_EGALAX
 
           To compile this driver as a module, choose M here: the
           module will be called eeti_egalax_ts.
+	
+        config EETI_EGALAX_MAX_X
+                int "EETI_EGALAX_MAX_X"
+                depends on EETI_EGALAX
+                default 2047
+                help
+                  RK29 EETI_EGALAX touch max X size
 
+        config EETI_EGALAX_MAX_Y
+                int "EETI_EGALAX_MAX_Y"
+                depends on EETI_EGALAX
+                default 2047
+                help
+                  RK29 EETI_EGALAX touch max Y size
+
+        config EETI_EGALAX_DEBUG
+                bool "EETI_EGALAX debug"
+                depends on EETI_EGALAX
+                default n
+                help
+                  RK29 EETI_EGALAX touch debug
 
 config TOUCHSCREEN_IT7260
 	tristate "IT7260 based touchscreens: IT7260 Interface"
