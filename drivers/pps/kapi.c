@@ -32,11 +32,11 @@
 #include <linux/slab.h>
 
 /*
- * Global variables
+ * Local variables
  */
 
-DEFINE_SPINLOCK(pps_idr_lock);
-DEFINE_IDR(pps_idr);
+static DEFINE_SPINLOCK(pps_idr_lock);
+static DEFINE_IDR(pps_idr);
 
 /*
  * Local functions
@@ -60,60 +60,6 @@ static void pps_add_offset(struct pps_ktime *ts, struct pps_ktime *offset)
  * Exported functions
  */
 
-/* pps_get_source - find a PPS source
- * @source: the PPS source ID.
- *
- * This function is used to find an already registered PPS source into the
- * system.
- *
- * The function returns NULL if found nothing, otherwise it returns a pointer
- * to the PPS source data struct (the refcounter is incremented by 1).
- */
-
-struct pps_device *pps_get_source(int source)
-{
-	struct pps_device *pps;
-	unsigned long flags;
-
-	spin_lock_irqsave(&pps_idr_lock, flags);
-
-	pps = idr_find(&pps_idr, source);
-	if (pps != NULL)
-		atomic_inc(&pps->usage);
-
-	spin_unlock_irqrestore(&pps_idr_lock, flags);
-
-	return pps;
-}
-
-/* pps_put_source - free the PPS source data
- * @pps: a pointer to the PPS source.
- *
- * This function is used to free a PPS data struct if its refcount is 0.
- */
-
-void pps_put_source(struct pps_device *pps)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&pps_idr_lock, flags);
-	BUG_ON(atomic_read(&pps->usage) == 0);
-
-	if (!atomic_dec_and_test(&pps->usage)) {
-		pps = NULL;
-		goto exit;
-	}
-
-	/* No more reference to the PPS source. We can safely remove the
-	 * PPS data struct.
-	 */
-	idr_remove(&pps_idr, pps->id);
-
-exit:
-	spin_unlock_irqrestore(&pps_idr_lock, flags);
-	kfree(pps);
-}
-
 /* pps_register_source - add a PPS source in the system
  * @info: the PPS info struct
  * @default_params: the default PPS parameters of the new source
@@ -122,10 +68,11 @@ exit:
  * source is described by info's fields and it will have, as default PPS
  * parameters, the ones specified into default_params.
  *
- * The function returns, in case of success, the PPS source ID.
+ * The function returns, in case of success, the PPS device. Otherwise NULL.
  */
 
-int pps_register_source(struct pps_source_info *info, int default_params)
+struct pps_device *pps_register_source(struct pps_source_info *info,
+		int default_params)
 {
 	struct pps_device *pps;
 	int id;
@@ -168,7 +115,6 @@ int pps_register_source(struct pps_source_info *info, int default_params)
 
 	init_waitqueue_head(&pps->queue);
 	spin_lock_init(&pps->lock);
-	atomic_set(&pps->usage, 1);
 
 	/* Get new ID for the new PPS source */
 	if (idr_pre_get(&pps_idr, GFP_KERNEL) == 0) {
@@ -211,7 +157,7 @@ int pps_register_source(struct pps_source_info *info, int default_params)
 
 	pr_info("new PPS source %s at ID %d\n", info->name, id);
 
-	return id;
+	return pps;
 
 free_idr:
 	spin_lock_irq(&pps_idr_lock);
@@ -224,38 +170,33 @@ kfree_pps:
 pps_register_source_exit:
 	printk(KERN_ERR "pps: %s: unable to register source\n", info->name);
 
-	return err;
+	return NULL;
 }
 EXPORT_SYMBOL(pps_register_source);
 
 /* pps_unregister_source - remove a PPS source from the system
- * @source: the PPS source ID
+ * @pps: the PPS source
  *
  * This function is used to remove a previously registered PPS source from
  * the system.
  */
 
-void pps_unregister_source(int source)
+void pps_unregister_source(struct pps_device *pps)
 {
-	struct pps_device *pps;
-
-	spin_lock_irq(&pps_idr_lock);
-	pps = idr_find(&pps_idr, source);
-
-	if (!pps) {
-		BUG();
-		spin_unlock_irq(&pps_idr_lock);
-		return;
-	}
-	spin_unlock_irq(&pps_idr_lock);
+	unsigned int id = pps->id;
 
 	pps_unregister_cdev(pps);
-	pps_put_source(pps);
+
+	spin_lock_irq(&pps_idr_lock);
+	idr_remove(&pps_idr, pps->id);
+	spin_unlock_irq(&pps_idr_lock);
+
+	kfree(pps);
 }
 EXPORT_SYMBOL(pps_unregister_source);
 
 /* pps_event - register a PPS event into the system
- * @source: the PPS source ID
+ * @pps: the PPS device
  * @ts: the event timestamp
  * @event: the event type
  * @data: userdef pointer
@@ -263,30 +204,24 @@ EXPORT_SYMBOL(pps_unregister_source);
  * This function is used by each PPS client in order to register a new
  * PPS event into the system (it's usually called inside an IRQ handler).
  *
- * If an echo function is associated with the PPS source it will be called
+ * If an echo function is associated with the PPS device it will be called
  * as:
- *	pps->info.echo(source, event, data);
+ *	pps->info.echo(pps, event, data);
  */
-
-void pps_event(int source, struct pps_event_time *ts, int event, void *data)
+void pps_event(struct pps_device *pps, struct pps_event_time *ts, int event,
+		void *data)
 {
-	struct pps_device *pps;
 	unsigned long flags;
 	int captured = 0;
 	struct pps_ktime ts_real;
 
 	if ((event & (PPS_CAPTUREASSERT | PPS_CAPTURECLEAR)) == 0) {
-		printk(KERN_ERR "pps: unknown event (%x) for source %d\n",
-			event, source);
+		dev_err(pps->dev, "unknown event (%x)\n", event);
 		return;
 	}
 
-	pps = pps_get_source(source);
-	if (!pps)
-		return;
-
-	pr_debug("PPS event on source %d at %ld.%09ld\n",
-			pps->id, ts->ts_real.tv_sec, ts->ts_real.tv_nsec);
+	dev_dbg(pps->dev, "PPS event at %ld.%09ld\n",
+			ts->ts_real.tv_sec, ts->ts_real.tv_nsec);
 
 	timespec_to_pps_ktime(&ts_real, ts->ts_real);
 
@@ -294,7 +229,7 @@ void pps_event(int source, struct pps_event_time *ts, int event, void *data)
 
 	/* Must call the echo function? */
 	if ((pps->params.mode & (PPS_ECHOASSERT | PPS_ECHOCLEAR)))
-		pps->info.echo(source, event, data);
+		pps->info.echo(pps, event, data);
 
 	/* Check the event */
 	pps->current_mode = pps->params.mode;
@@ -308,8 +243,8 @@ void pps_event(int source, struct pps_event_time *ts, int event, void *data)
 		/* Save the time stamp */
 		pps->assert_tu = ts_real;
 		pps->assert_sequence++;
-		pr_debug("capture assert seq #%u for source %d\n",
-			pps->assert_sequence, source);
+		dev_dbg(pps->dev, "capture assert seq #%u\n",
+			pps->assert_sequence);
 
 		captured = ~0;
 	}
@@ -323,8 +258,8 @@ void pps_event(int source, struct pps_event_time *ts, int event, void *data)
 		/* Save the time stamp */
 		pps->clear_tu = ts_real;
 		pps->clear_sequence++;
-		pr_debug("capture clear seq #%u for source %d\n",
-			pps->clear_sequence, source);
+		dev_dbg(pps->dev, "capture clear seq #%u\n",
+			pps->clear_sequence);
 
 		captured = ~0;
 	}
@@ -338,8 +273,5 @@ void pps_event(int source, struct pps_event_time *ts, int event, void *data)
 	}
 
 	spin_unlock_irqrestore(&pps->lock, flags);
-
-	/* Now we can release the PPS source for (possible) deregistration */
-	pps_put_source(pps);
 }
 EXPORT_SYMBOL(pps_event);

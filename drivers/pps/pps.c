@@ -204,12 +204,6 @@ static int pps_cdev_open(struct inode *inode, struct file *file)
 {
 	struct pps_device *pps = container_of(inode->i_cdev,
 						struct pps_device, cdev);
-	int found;
-
-	found = pps_get_source(pps->id) != 0;
-	if (!found)
-		return -ENODEV;
-
 	file->private_data = pps;
 
 	return 0;
@@ -217,11 +211,6 @@ static int pps_cdev_open(struct inode *inode, struct file *file)
 
 static int pps_cdev_release(struct inode *inode, struct file *file)
 {
-	struct pps_device *pps = file->private_data;
-
-	/* Free the PPS source and wake up (possible) deregistration */
-	pps_put_source(pps);
-
 	return 0;
 }
 
@@ -242,22 +231,23 @@ static const struct file_operations pps_cdev_fops = {
 int pps_register_cdev(struct pps_device *pps)
 {
 	int err;
+	dev_t devt;
 
-	pps->devno = MKDEV(MAJOR(pps_devt), pps->id);
+	devt = MKDEV(MAJOR(pps_devt), pps->id);
+
 	cdev_init(&pps->cdev, &pps_cdev_fops);
 	pps->cdev.owner = pps->info.owner;
 
-	err = cdev_add(&pps->cdev, pps->devno, 1);
+	err = cdev_add(&pps->cdev, devt, 1);
 	if (err) {
 		printk(KERN_ERR "pps: %s: failed to add char device %d:%d\n",
 				pps->info.name, MAJOR(pps_devt), pps->id);
 		return err;
 	}
-	pps->dev = device_create(pps_class, pps->info.dev, pps->devno, NULL,
+	pps->dev = device_create(pps_class, pps->info.dev, devt, pps,
 							"pps%d", pps->id);
 	if (IS_ERR(pps->dev))
 		goto del_cdev;
-	dev_set_drvdata(pps->dev, pps);
 
 	pr_debug("source %s got cdev (%d:%d)\n", pps->info.name,
 			MAJOR(pps_devt), pps->id);
@@ -272,7 +262,7 @@ del_cdev:
 
 void pps_unregister_cdev(struct pps_device *pps)
 {
-	device_destroy(pps_class, pps->devno);
+	device_destroy(pps_class, pps->dev->devt);
 	cdev_del(&pps->cdev);
 }
 

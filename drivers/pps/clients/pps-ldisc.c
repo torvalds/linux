@@ -29,7 +29,7 @@
 static void pps_tty_dcd_change(struct tty_struct *tty, unsigned int status,
 				struct pps_event_time *ts)
 {
-	int id = (long)tty->disc_data;
+	struct pps_device *pps = (struct pps_device *)tty->disc_data;
 	struct pps_event_time __ts;
 
 	/* First of all we get the time stamp... */
@@ -39,12 +39,14 @@ static void pps_tty_dcd_change(struct tty_struct *tty, unsigned int status,
 	if (!ts)	/* No. Do it ourself! */
 		ts = &__ts;
 
-	/* Now do the PPS event report */
-	pps_event(id, ts, status ? PPS_CAPTUREASSERT : PPS_CAPTURECLEAR,
-			NULL);
+	BUG_ON(pps == NULL);
 
-	pr_debug("PPS %s at %lu on source #%d\n",
-			status ? "assert" : "clear", jiffies, id);
+	/* Now do the PPS event report */
+	pps_event(pps, ts, status ? PPS_CAPTUREASSERT :
+			PPS_CAPTURECLEAR, NULL);
+
+	dev_dbg(pps->dev, "PPS %s at %lu\n",
+			status ? "assert" : "clear", jiffies);
 }
 
 static int (*alias_n_tty_open)(struct tty_struct *tty);
@@ -54,6 +56,7 @@ static int pps_tty_open(struct tty_struct *tty)
 	struct pps_source_info info;
 	struct tty_driver *drv = tty->driver;
 	int index = tty->index + drv->name_base;
+	struct pps_device *pps;
 	int ret;
 
 	info.owner = THIS_MODULE;
@@ -64,34 +67,42 @@ static int pps_tty_open(struct tty_struct *tty)
 			PPS_OFFSETASSERT | PPS_OFFSETCLEAR | \
 			PPS_CANWAIT | PPS_TSFMT_TSPEC;
 
-	ret = pps_register_source(&info, PPS_CAPTUREBOTH | \
+	pps = pps_register_source(&info, PPS_CAPTUREBOTH | \
 				PPS_OFFSETASSERT | PPS_OFFSETCLEAR);
-	if (ret < 0) {
+	if (pps == NULL) {
 		pr_err("cannot register PPS source \"%s\"\n", info.path);
-		return ret;
+		return -ENOMEM;
 	}
-	tty->disc_data = (void *)(long)ret;
+	tty->disc_data = pps;
 
 	/* Should open N_TTY ldisc too */
 	ret = alias_n_tty_open(tty);
-	if (ret < 0)
-		pps_unregister_source((long)tty->disc_data);
+	if (ret < 0) {
+		pr_err("cannot open tty ldisc \"%s\"\n", info.path);
+		goto err_unregister;
+	}
 
-	pr_info("PPS source #%d \"%s\" added\n", ret, info.path);
+	dev_info(pps->dev, "source \"%s\" added\n", info.path);
 
 	return 0;
+
+err_unregister:
+	tty->disc_data = NULL;
+	pps_unregister_source(pps);
+	return ret;
 }
 
 static void (*alias_n_tty_close)(struct tty_struct *tty);
 
 static void pps_tty_close(struct tty_struct *tty)
 {
-	int id = (long)tty->disc_data;
+	struct pps_device *pps = (struct pps_device *)tty->disc_data;
 
-	pps_unregister_source(id);
 	alias_n_tty_close(tty);
 
-	pr_info("PPS source #%d removed\n", id);
+	tty->disc_data = NULL;
+	dev_info(pps->dev, "removed\n");
+	pps_unregister_source(pps);
 }
 
 static struct tty_ldisc_ops pps_ldisc_ops;
