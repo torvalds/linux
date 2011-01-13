@@ -20,7 +20,6 @@
 #include <sound/ac97_codec.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include "wm9712.h"
 
 #define WM9712_VERSION "0.4"
@@ -432,10 +431,11 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int wm9712_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_new_controls(codec, wm9712_dapm_widgets,
-				  ARRAY_SIZE(wm9712_dapm_widgets));
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_new_controls(dapm, wm9712_dapm_widgets,
+				  ARRAY_SIZE(wm9712_dapm_widgets));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	return 0;
 }
@@ -570,7 +570,7 @@ static int wm9712_set_bias_level(struct snd_soc_codec *codec,
 		ac97_write(codec, AC97_POWERDOWN, 0xffff);
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 

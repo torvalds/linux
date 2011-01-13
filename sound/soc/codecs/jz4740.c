@@ -22,7 +22,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
-#include <sound/soc-dapm.h>
 #include <sound/soc.h>
 
 #define JZ4740_REG_CODEC_1 0x0
@@ -266,7 +265,7 @@ static int jz4740_codec_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* The only way to clear the suspend flag is to reset the codec */
-		if (codec->bias_level == SND_SOC_BIAS_OFF)
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
 			jz4740_codec_wakeup(codec);
 
 		mask = JZ4740_CODEC_1_VREF_DISABLE |
@@ -288,23 +287,25 @@ static int jz4740_codec_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 
 	return 0;
 }
 
 static int jz4740_codec_dev_probe(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+
 	snd_soc_update_bits(codec, JZ4740_REG_CODEC_1,
 			JZ4740_CODEC_1_SW2_ENABLE, JZ4740_CODEC_1_SW2_ENABLE);
 
 	snd_soc_add_controls(codec, jz4740_codec_controls,
 		ARRAY_SIZE(jz4740_codec_controls));
 
-	snd_soc_dapm_new_controls(codec, jz4740_codec_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, jz4740_codec_dapm_widgets,
 		ARRAY_SIZE(jz4740_codec_dapm_widgets));
 
-	snd_soc_dapm_add_routes(codec, jz4740_codec_dapm_routes,
+	snd_soc_dapm_add_routes(dapm, jz4740_codec_dapm_routes,
 		ARRAY_SIZE(jz4740_codec_dapm_routes));
 
 	snd_soc_dapm_new_widgets(codec);

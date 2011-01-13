@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
