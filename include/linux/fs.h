@@ -662,6 +662,7 @@ struct block_device {
 	void *			bd_claiming;
 	void *			bd_holder;
 	int			bd_holders;
+	bool			bd_write_holder;
 #ifdef CONFIG_SYSFS
 	struct gendisk *	bd_holder_disk;	/* for sysfs slave linkng */
 #endif

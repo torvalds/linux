@@ -40,7 +40,7 @@ typedef struct scsi_cd {
 	unsigned xa_flag:1;	/* CD has XA sectors ? */
 	unsigned readcd_known:1;	/* drive supports READ_CD (0xbe) */
 	unsigned readcd_cdda:1;	/* reading audio data using READ_CD */
-	unsigned previous_state:1;	/* media has changed */
+	unsigned media_present:1;	/* media is present */
 	struct cdrom_device_info cdi;
 	/* We hold gendisk and scsi_device references on probe and use
 	 * the refs on this kref to decide when to release them */
@@ -61,7 +61,6 @@ int sr_select_speed(struct cdrom_device_info *cdi, int speed);
 int sr_audio_ioctl(struct cdrom_device_info *, unsigned int, void *);
 
 int sr_is_xa(Scsi_CD *);
-int sr_test_unit_ready(struct scsi_device *sdev, struct scsi_sense_hdr *sshdr);
 
 /* sr_vendor.c */
 void sr_vendor_init(Scsi_CD *);

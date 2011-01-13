@@ -948,10 +948,11 @@ int check_disk_change(struct block_device *bdev)
 {
 	struct gendisk *disk = bdev->bd_disk;
 	const struct block_device_operations *bdops = disk->fops;
+	unsigned int events;
 
-	if (!bdops->media_changed)
-		return 0;
-	if (!bdops->media_changed(bdev->bd_disk))
+	events = disk_clear_events(disk, DISK_EVENT_MEDIA_CHANGE |
+				   DISK_EVENT_EJECT_REQUEST);
+	if (!(events & DISK_EVENT_MEDIA_CHANGE))
 		return 0;
 
 	flush_disk(bdev);
@@ -1158,9 +1159,10 @@ int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 
 	if (whole) {
 		/* finish claiming */
+		mutex_lock(&bdev->bd_mutex);
 		spin_lock(&bdev_lock);
 
-		if (res == 0) {
+		if (!res) {
 			BUG_ON(!bd_may_claim(bdev, whole, holder));
 			/*
 			 * Note that for a whole device bd_holders
@@ -1180,6 +1182,20 @@ int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 		wake_up_bit(&whole->bd_claiming, 0);
 
 		spin_unlock(&bdev_lock);
+
+		/*
+		 * Block event polling for write claims.  Any write
+		 * holder makes the write_holder state stick until all
+		 * are released.  This is good enough and tracking
+		 * individual writeable reference is too fragile given
+		 * the way @mode is used in blkdev_get/put().
+		 */
+		if (!res && (mode & FMODE_WRITE) && !bdev->bd_write_holder) {
+			bdev->bd_write_holder = true;
+			disk_block_events(bdev->bd_disk);
+		}
+
+		mutex_unlock(&bdev->bd_mutex);
 		bdput(whole);
 	}
 
@@ -1353,12 +1369,23 @@ int blkdev_put(struct block_device *bdev, fmode_t mode)
 
 		spin_unlock(&bdev_lock);
 
-		/* if this was the last claim, holder link should go too */
-		if (bdev_free)
+		/*
+		 * If this was the last claim, remove holder link and
+		 * unblock evpoll if it was a write holder.
+		 */
+		if (bdev_free) {
 			bd_unlink_disk_holder(bdev);
+			if (bdev->bd_write_holder) {
+				disk_unblock_events(bdev->bd_disk);
+				bdev->bd_write_holder = false;
+			} else
+				disk_check_events(bdev->bd_disk);
+		}
 
 		mutex_unlock(&bdev->bd_mutex);
-	}
+	} else
+		disk_check_events(bdev->bd_disk);
+
 	return __blkdev_put(bdev, mode, 0);
 }
 EXPORT_SYMBOL(blkdev_put);
