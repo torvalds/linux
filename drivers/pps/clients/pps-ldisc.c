@@ -32,14 +32,6 @@ static void pps_tty_dcd_change(struct tty_struct *tty, unsigned int status,
 				struct pps_event_time *ts)
 {
 	struct pps_device *pps = (struct pps_device *)tty->disc_data;
-	struct pps_event_time __ts;
-
-	/* First of all we get the time stamp... */
-	pps_get_ts(&__ts);
-
-	/* Does caller give us a timestamp? */
-	if (!ts)	/* No. Do it ourself! */
-		ts = &__ts;
 
 	BUG_ON(pps == NULL);
 
