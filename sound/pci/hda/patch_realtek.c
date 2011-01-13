@@ -19366,7 +19366,10 @@ static void alc662_auto_init(struct hda_codec *codec)
 }
 
 static void alc272_fixup_mario(struct hda_codec *codec,
-			       const struct alc_fixup *fix, int pre_init) {
+			       const struct alc_fixup *fix, int pre_init)
+{
+	if (!pre_init)
+		return;
 	if (snd_hda_override_amp_caps(codec, 0x2, HDA_OUTPUT,
 				      (0x3b << AC_AMPCAP_OFFSET_SHIFT) |
 				      (0x3b << AC_AMPCAP_NUM_STEPS_SHIFT) |
