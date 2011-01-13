@@ -1373,7 +1373,7 @@ static int f10_match_to_this_node(struct amd64_pvt *pvt, int range,
 {
 	int cs_found = -EINVAL;
 	u64 chan_addr;
-	u32 tmp, dct_sel_base;
+	u32 dct_sel_base;
 	u8 channel;
 	bool high_range = false;
 
@@ -1411,19 +1411,27 @@ static int f10_match_to_this_node(struct amd64_pvt *pvt, int range,
 		chan_addr = ((chan_addr >> (12 + hweight8(intlv_en))) << 12) |
 			    (chan_addr & 0xfff);
 
-	/* remove channel interleave and hash */
+	/* remove channel interleave */
 	if (dct_interleave_enabled(pvt) &&
 	   !dct_high_range_enabled(pvt) &&
 	   !dct_ganging_enabled(pvt)) {
-		if (dct_sel_interleave_addr(pvt) != 1)
-			chan_addr = (chan_addr >> 1) & GENMASK(6, 63);
-		else {
-			tmp = chan_addr & 0xFC0;
-			chan_addr = ((chan_addr & GENMASK(14, 63)) >> 1) | tmp;
-		}
+
+		if (dct_sel_interleave_addr(pvt) != 1) {
+			if (dct_sel_interleave_addr(pvt) == 0x3)
+				/* hash 9 */
+				chan_addr = ((chan_addr >> 10) << 9) |
+					     (chan_addr & 0x1ff);
+			else
+				/* A[6] or hash 6 */
+				chan_addr = ((chan_addr >> 7) << 6) |
+					     (chan_addr & 0x3f);
+		} else
+			/* A[12] */
+			chan_addr = ((chan_addr >> 13) << 12) |
+				     (chan_addr & 0xfff);
 	}
 
-	debugf1("   (ChannelAddrLong=0x%llx)\n", chan_addr);
+	debugf1("   Normalized DCT addr: 0x%llx\n", chan_addr);
 
 	cs_found = f10_lookup_addr_in_dct(chan_addr, node_id, channel);
 
