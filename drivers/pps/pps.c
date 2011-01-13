@@ -19,6 +19,7 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -67,7 +68,7 @@ static long pps_cdev_ioctl(struct file *file,
 
 	switch (cmd) {
 	case PPS_GETPARAMS:
-		pr_debug("PPS_GETPARAMS: source %d\n", pps->id);
+		dev_dbg(pps->dev, "PPS_GETPARAMS\n");
 
 		spin_lock_irq(&pps->lock);
 
@@ -83,7 +84,7 @@ static long pps_cdev_ioctl(struct file *file,
 		break;
 
 	case PPS_SETPARAMS:
-		pr_debug("PPS_SETPARAMS: source %d\n", pps->id);
+		dev_dbg(pps->dev, "PPS_SETPARAMS\n");
 
 		/* Check the capabilities */
 		if (!capable(CAP_SYS_TIME))
@@ -93,14 +94,14 @@ static long pps_cdev_ioctl(struct file *file,
 		if (err)
 			return -EFAULT;
 		if (!(params.mode & (PPS_CAPTUREASSERT | PPS_CAPTURECLEAR))) {
-			pr_debug("capture mode unspecified (%x)\n",
+			dev_dbg(pps->dev, "capture mode unspecified (%x)\n",
 								params.mode);
 			return -EINVAL;
 		}
 
 		/* Check for supported capabilities */
 		if ((params.mode & ~pps->info.mode) != 0) {
-			pr_debug("unsupported capabilities (%x)\n",
+			dev_dbg(pps->dev, "unsupported capabilities (%x)\n",
 								params.mode);
 			return -EINVAL;
 		}
@@ -113,7 +114,7 @@ static long pps_cdev_ioctl(struct file *file,
 		/* Restore the read only parameters */
 		if ((params.mode & (PPS_TSFMT_TSPEC | PPS_TSFMT_NTPFP)) == 0) {
 			/* section 3.3 of RFC 2783 interpreted */
-			pr_debug("time format unspecified (%x)\n",
+			dev_dbg(pps->dev, "time format unspecified (%x)\n",
 								params.mode);
 			pps->params.mode |= PPS_TSFMT_TSPEC;
 		}
@@ -126,7 +127,7 @@ static long pps_cdev_ioctl(struct file *file,
 		break;
 
 	case PPS_GETCAP:
-		pr_debug("PPS_GETCAP: source %d\n", pps->id);
+		dev_dbg(pps->dev, "PPS_GETCAP\n");
 
 		err = put_user(pps->info.mode, iuarg);
 		if (err)
@@ -138,7 +139,7 @@ static long pps_cdev_ioctl(struct file *file,
 		struct pps_fdata fdata;
 		unsigned int ev;
 
-		pr_debug("PPS_FETCH: source %d\n", pps->id);
+		dev_dbg(pps->dev, "PPS_FETCH\n");
 
 		err = copy_from_user(&fdata, uarg, sizeof(struct pps_fdata));
 		if (err)
@@ -153,7 +154,7 @@ static long pps_cdev_ioctl(struct file *file,
 		else {
 			unsigned long ticks;
 
-			pr_debug("timeout %lld.%09d\n",
+			dev_dbg(pps->dev, "timeout %lld.%09d\n",
 					(long long) fdata.timeout.sec,
 					fdata.timeout.nsec);
 			ticks = fdata.timeout.sec * HZ;
@@ -171,7 +172,7 @@ static long pps_cdev_ioctl(struct file *file,
 
 		/* Check for pending signals */
 		if (err == -ERESTARTSYS) {
-			pr_debug("pending signal caught\n");
+			dev_dbg(pps->dev, "pending signal caught\n");
 			return -EINTR;
 		}
 
@@ -240,7 +241,7 @@ int pps_register_cdev(struct pps_device *pps)
 
 	err = cdev_add(&pps->cdev, devt, 1);
 	if (err) {
-		printk(KERN_ERR "pps: %s: failed to add char device %d:%d\n",
+		pr_err("%s: failed to add char device %d:%d\n",
 				pps->info.name, MAJOR(pps_devt), pps->id);
 		return err;
 	}
@@ -282,14 +283,14 @@ static int __init pps_init(void)
 
 	pps_class = class_create(THIS_MODULE, "pps");
 	if (!pps_class) {
-		printk(KERN_ERR "pps: failed to allocate class\n");
+		pr_err("failed to allocate class\n");
 		return -ENOMEM;
 	}
 	pps_class->dev_attrs = pps_attrs;
 
 	err = alloc_chrdev_region(&pps_devt, 0, PPS_MAX_SOURCES, "pps");
 	if (err < 0) {
-		printk(KERN_ERR "pps: failed to allocate char device region\n");
+		pr_err("failed to allocate char device region\n");
 		goto remove_class;
 	}
 
