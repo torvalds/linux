@@ -8,7 +8,11 @@
 #include <unistd.h>
 #include <sys/mman.h>
 
+#include <linux/bitops.h>
+#include <linux/hash.h>
+
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
+#define SID(e, x, y) xyarray__entry(e->id, x, y)
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 {
@@ -29,6 +33,12 @@ int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 	return evsel->fd != NULL ? 0 : -ENOMEM;
 }
 
+int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads)
+{
+	evsel->id = xyarray__new(ncpus, nthreads, sizeof(struct perf_sample_id));
+	return evsel->id != NULL ? 0 : -ENOMEM;
+}
+
 int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus)
 {
 	evsel->counts = zalloc((sizeof(*evsel->counts) +
@@ -42,6 +52,12 @@ void perf_evsel__free_fd(struct perf_evsel *evsel)
 	evsel->fd = NULL;
 }
 
+void perf_evsel__free_id(struct perf_evsel *evsel)
+{
+	xyarray__delete(evsel->id);
+	evsel->id = NULL;
+}
+
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	int cpu, thread;
@@ -53,32 +69,29 @@ void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 		}
 }
 
-void perf_evsel__munmap(struct perf_evsel *evsel, int ncpus, int nthreads)
+void perf_evlist__munmap(struct perf_evlist *evlist, int ncpus)
 {
-	struct perf_mmap *mm;
-	int cpu, thread;
+	int cpu;
 
-	for (cpu = 0; cpu < ncpus; cpu++)
-		for (thread = 0; thread < nthreads; ++thread) {
-			mm = xyarray__entry(evsel->mmap, cpu, thread);
-			if (mm->base != NULL) {
-				munmap(mm->base, evsel->mmap_len);
-				mm->base = NULL;
-			}
+	for (cpu = 0; cpu < ncpus; cpu++) {
+		if (evlist->mmap[cpu].base != NULL) {
+			munmap(evlist->mmap[cpu].base, evlist->mmap_len);
+			evlist->mmap[cpu].base = NULL;
 		}
+	}
 }
 
-int perf_evsel__alloc_mmap(struct perf_evsel *evsel, int ncpus, int nthreads)
+int perf_evlist__alloc_mmap(struct perf_evlist *evlist, int ncpus)
 {
-	evsel->mmap = xyarray__new(ncpus, nthreads, sizeof(struct perf_mmap));
-	return evsel->mmap != NULL ? 0 : -ENOMEM;
+	evlist->mmap = zalloc(ncpus * sizeof(struct perf_mmap));
+	return evlist->mmap != NULL ? 0 : -ENOMEM;
 }
 
 void perf_evsel__delete(struct perf_evsel *evsel)
 {
 	assert(list_empty(&evsel->node));
 	xyarray__delete(evsel->fd);
-	xyarray__delete(evsel->mmap);
+	xyarray__delete(evsel->id);
 	free(evsel);
 }
 
@@ -235,47 +248,110 @@ int perf_evsel__open_per_thread(struct perf_evsel *evsel,
 	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads, group, inherit);
 }
 
-int perf_evsel__mmap(struct perf_evsel *evsel, struct cpu_map *cpus,
-		     struct thread_map *threads, int pages,
-		     struct perf_evlist *evlist)
+static int __perf_evlist__mmap(struct perf_evlist *evlist, int cpu, int prot,
+			       int mask, int fd)
+{
+	evlist->mmap[cpu].prev = 0;
+	evlist->mmap[cpu].mask = mask;
+	evlist->mmap[cpu].base = mmap(NULL, evlist->mmap_len, prot,
+				      MAP_SHARED, fd, 0);
+	if (evlist->mmap[cpu].base == MAP_FAILED)
+		return -1;
+
+	perf_evlist__add_pollfd(evlist, fd);
+	return 0;
+}
+
+static int perf_evlist__id_hash(struct perf_evlist *evlist, struct perf_evsel *evsel,
+			       int cpu, int thread, int fd)
+{
+	struct perf_sample_id *sid;
+	u64 read_data[4] = { 0, };
+	int hash, id_idx = 1; /* The first entry is the counter value */
+
+	if (!(evsel->attr.read_format & PERF_FORMAT_ID) ||
+	    read(fd, &read_data, sizeof(read_data)) == -1)
+		return -1;
+
+	if (evsel->attr.read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		++id_idx;
+	if (evsel->attr.read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		++id_idx;
+
+	sid = SID(evsel, cpu, thread);
+	sid->id = read_data[id_idx];
+	sid->evsel = evsel;
+	hash = hash_64(sid->id, PERF_EVLIST__HLIST_BITS);
+	hlist_add_head(&sid->node, &evlist->heads[hash]);
+	return 0;
+}
+
+/** perf_evlist__mmap - Create per cpu maps to receive events
+ *
+ * @evlist - list of events
+ * @cpus - cpu map being monitored
+ * @threads - threads map being monitored
+ * @pages - map length in pages
+ * @overwrite - overwrite older events?
+ *
+ * If overwrite is false the user needs to signal event consuption using:
+ *
+ *	struct perf_mmap *m = &evlist->mmap[cpu];
+ *	unsigned int head = perf_mmap__read_head(m);
+ *
+ *	perf_mmap__write_tail(m, head)
+ */
+int perf_evlist__mmap(struct perf_evlist *evlist, struct cpu_map *cpus,
+		      struct thread_map *threads, int pages, bool overwrite)
 {
 	unsigned int page_size = sysconf(_SC_PAGE_SIZE);
 	int mask = pages * page_size - 1, cpu;
-	struct perf_mmap *mm;
-	int thread;
+	struct perf_evsel *first_evsel, *evsel;
+	int thread, prot = PROT_READ | (overwrite ? 0 : PROT_WRITE);
 
-	if (evsel->mmap == NULL &&
-	    perf_evsel__alloc_mmap(evsel, cpus->nr, threads->nr) < 0)
+	if (evlist->mmap == NULL &&
+	    perf_evlist__alloc_mmap(evlist, cpus->nr) < 0)
 		return -ENOMEM;
 
-	evsel->mmap_len = (pages + 1) * page_size;
+	if (evlist->pollfd == NULL &&
+	    perf_evlist__alloc_pollfd(evlist, cpus->nr, threads->nr) < 0)
+		return -ENOMEM;
 
-	for (cpu = 0; cpu < cpus->nr; cpu++) {
-		for (thread = 0; thread < threads->nr; thread++) {
-			mm = xyarray__entry(evsel->mmap, cpu, thread);
-			mm->prev = 0;
-			mm->mask = mask;
-			mm->base = mmap(NULL, evsel->mmap_len, PROT_READ,
-					MAP_SHARED, FD(evsel, cpu, thread), 0);
-			if (mm->base == MAP_FAILED)
-				goto out_unmap;
+	evlist->mmap_len = (pages + 1) * page_size;
+	first_evsel = list_entry(evlist->entries.next, struct perf_evsel, node);
 
-			if (evlist != NULL)
-				 perf_evlist__add_pollfd(evlist, FD(evsel, cpu, thread));
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
+		    evsel->id == NULL &&
+		    perf_evsel__alloc_id(evsel, cpus->nr, threads->nr) < 0)
+			return -ENOMEM;
+
+		for (cpu = 0; cpu < cpus->nr; cpu++) {
+			for (thread = 0; thread < threads->nr; thread++) {
+				int fd = FD(evsel, cpu, thread);
+
+				if (evsel->idx || thread) {
+					if (ioctl(fd, PERF_EVENT_IOC_SET_OUTPUT,
+						  FD(first_evsel, cpu, 0)) != 0)
+						goto out_unmap;
+				} else if (__perf_evlist__mmap(evlist, cpu, prot, mask, fd) < 0)
+					goto out_unmap;
+
+				if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
+				    perf_evlist__id_hash(evlist, evsel, cpu, thread, fd) < 0)
+					goto out_unmap;
+			}
 		}
 	}
 
 	return 0;
 
 out_unmap:
-	do {
-		while (--thread >= 0) {
-			mm = xyarray__entry(evsel->mmap, cpu, thread);
-			munmap(mm->base, evsel->mmap_len);
-			mm->base = NULL;
+	for (cpu = 0; cpu < cpus->nr; cpu++) {
+		if (evlist->mmap[cpu].base != NULL) {
+			munmap(evlist->mmap[cpu].base, evlist->mmap_len);
+			evlist->mmap[cpu].base = NULL;
 		}
-		thread = threads->nr;
-	} while (--cpu >= 0);
-
+	}
 	return -1;
 }

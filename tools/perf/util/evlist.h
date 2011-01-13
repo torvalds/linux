@@ -2,13 +2,20 @@
 #define __PERF_EVLIST_H 1
 
 #include <linux/list.h>
+#include "../perf.h"
 
 struct pollfd;
 
+#define PERF_EVLIST__HLIST_BITS 8
+#define PERF_EVLIST__HLIST_SIZE (1 << PERF_EVLIST__HLIST_BITS)
+
 struct perf_evlist {
 	struct list_head entries;
+	struct hlist_head heads[PERF_EVLIST__HLIST_SIZE];
 	int		 nr_entries;
 	int		 nr_fds;
+	int		 mmap_len;
+	struct perf_mmap *mmap;
 	struct pollfd	 *pollfd;
 };
 
@@ -22,5 +29,7 @@ int perf_evlist__add_default(struct perf_evlist *evlist);
 
 int perf_evlist__alloc_pollfd(struct perf_evlist *evlist, int ncpus, int nthreads);
 void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);
+
+struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
 
 #endif /* __PERF_EVLIST_H */

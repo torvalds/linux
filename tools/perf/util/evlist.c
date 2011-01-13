@@ -3,11 +3,18 @@
 #include "evsel.h"
 #include "util.h"
 
+#include <linux/bitops.h>
+#include <linux/hash.h>
+
 struct perf_evlist *perf_evlist__new(void)
 {
 	struct perf_evlist *evlist = zalloc(sizeof(*evlist));
 
 	if (evlist != NULL) {
+		int i;
+
+		for (i = 0; i < PERF_EVLIST__HLIST_SIZE; ++i)
+			INIT_HLIST_HEAD(&evlist->heads[i]);
 		INIT_LIST_HEAD(&evlist->entries);
 	}
 
@@ -29,6 +36,7 @@ static void perf_evlist__purge(struct perf_evlist *evlist)
 void perf_evlist__delete(struct perf_evlist *evlist)
 {
 	perf_evlist__purge(evlist);
+	free(evlist->mmap);
 	free(evlist->pollfd);
 	free(evlist);
 }
@@ -67,4 +75,23 @@ void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd)
 	evlist->pollfd[evlist->nr_fds].fd = fd;
 	evlist->pollfd[evlist->nr_fds].events = POLLIN;
 	evlist->nr_fds++;
+}
+
+struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
+{
+	struct hlist_head *head;
+	struct hlist_node *pos;
+	struct perf_sample_id *sid;
+	int hash;
+
+	if (evlist->nr_entries == 1)
+		return list_entry(evlist->entries.next, struct perf_evsel, node);
+
+	hash = hash_64(id, PERF_EVLIST__HLIST_BITS);
+	head = &evlist->heads[hash];
+
+	hlist_for_each_entry(sid, pos, head, node)
+		if (sid->id == id)
+			return sid->evsel;
+	return NULL;
 }

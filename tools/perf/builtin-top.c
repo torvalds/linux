@@ -78,7 +78,7 @@ static struct cpu_map		*cpus;
 static int			realtime_prio			=      0;
 static bool			group				=  false;
 static unsigned int		page_size;
-static unsigned int		mmap_pages			=     16;
+static unsigned int		mmap_pages			=    128;
 static int			freq				=   1000; /* 1 KHz */
 
 static int			delay_secs			=      2;
@@ -991,8 +991,7 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 
 static void event__process_sample(const event_t *self,
 				  struct sample_data *sample,
-				  struct perf_session *session,
-				  struct perf_evsel *evsel)
+				  struct perf_session *session)
 {
 	u64 ip = self->ip.ip;
 	struct sym_entry *syme;
@@ -1085,8 +1084,12 @@ static void event__process_sample(const event_t *self,
 
 	syme = symbol__priv(al.sym);
 	if (!syme->skip) {
-		syme->count[evsel->idx]++;
+		struct perf_evsel *evsel;
+
 		syme->origin = origin;
+		evsel = perf_evlist__id2evsel(evsel_list, sample->id);
+		assert(evsel != NULL);
+		syme->count[evsel->idx]++;
 		record_precise_ip(syme, evsel->idx, ip);
 		pthread_mutex_lock(&active_symbols_lock);
 		if (list_empty(&syme->node) || !syme->node.next)
@@ -1095,11 +1098,9 @@ static void event__process_sample(const event_t *self,
 	}
 }
 
-static void perf_session__mmap_read_counter(struct perf_session *self,
-					    struct perf_evsel *evsel,
-					    int cpu, int thread_idx)
+static void perf_session__mmap_read_cpu(struct perf_session *self, int cpu)
 {
-	struct perf_mmap *md = xyarray__entry(evsel->mmap, cpu, thread_idx);
+	struct perf_mmap *md = &evsel_list->mmap[cpu];
 	unsigned int head = perf_mmap__read_head(md);
 	unsigned int old = md->prev;
 	unsigned char *data = md->base + page_size;
@@ -1153,7 +1154,7 @@ static void perf_session__mmap_read_counter(struct perf_session *self,
 
 		event__parse_sample(event, self, &sample);
 		if (event->header.type == PERF_RECORD_SAMPLE)
-			event__process_sample(event, &sample, self, evsel);
+			event__process_sample(event, &sample, self);
 		else
 			event__process(event, &sample, self);
 		old += size;
@@ -1164,19 +1165,10 @@ static void perf_session__mmap_read_counter(struct perf_session *self,
 
 static void perf_session__mmap_read(struct perf_session *self)
 {
-	struct perf_evsel *counter;
-	int i, thread_index;
+	int i;
 
-	for (i = 0; i < cpus->nr; i++) {
-		list_for_each_entry(counter, &evsel_list->entries, node) {
-			for (thread_index = 0;
-				thread_index < threads->nr;
-				thread_index++) {
-				perf_session__mmap_read_counter(self,
-					counter, i, thread_index);
-			}
-		}
-	}
+	for (i = 0; i < cpus->nr; i++)
+		perf_session__mmap_read_cpu(self, i);
 }
 
 static void start_counters(struct perf_evlist *evlist)
@@ -1192,6 +1184,11 @@ static void start_counters(struct perf_evlist *evlist)
 			attr->sample_type |= PERF_SAMPLE_PERIOD;
 			attr->freq	  = 1;
 			attr->sample_freq = freq;
+		}
+
+		if (evlist->nr_entries > 1) {
+			attr->sample_type |= PERF_SAMPLE_ID;
+			attr->read_format |= PERF_FORMAT_ID;
 		}
 
 		attr->mmap = 1;
@@ -1225,15 +1222,16 @@ try_again:
 			die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 			exit(-1);
 		}
-
-		if (perf_evsel__mmap(counter, cpus, threads, mmap_pages, evlist) < 0)
-			die("failed to mmap with %d (%s)\n", errno, strerror(errno));
 	}
+
+	if (perf_evlist__mmap(evlist, cpus, threads, mmap_pages, true) < 0)
+		die("failed to mmap with %d (%s)\n", errno, strerror(errno));
 }
 
 static int __cmd_top(void)
 {
 	pthread_t thread;
+	struct perf_evsel *first;
 	int ret;
 	/*
 	 * FIXME: perf_session__new should allow passing a O_MMAP, so that all this
@@ -1249,6 +1247,8 @@ static int __cmd_top(void)
 		event__synthesize_threads(event__process, session);
 
 	start_counters(evsel_list);
+	first = list_entry(evsel_list->entries.next, struct perf_evsel, node);
+	perf_session__set_sample_type(session, first->attr.sample_type);
 
 	/* Wait for a minimal set of events before starting the snapshot */
 	poll(evsel_list->pollfd, evsel_list->nr_fds, 100);
@@ -1394,8 +1394,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(top_usage, options);
 
 	list_for_each_entry(pos, &evsel_list->entries, node) {
-		if (perf_evsel__alloc_mmap(pos, cpus->nr, threads->nr) < 0 ||
-		    perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
+		if (perf_evsel__alloc_fd(pos, cpus->nr, threads->nr) < 0)
 			goto out_free_fd;
 		/*
 		 * Fill in the ones not specifically initialized via -c:
@@ -1406,7 +1405,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		pos->attr.sample_period = default_interval;
 	}
 
-	if (perf_evlist__alloc_pollfd(evsel_list, cpus->nr, threads->nr) < 0)
+	if (perf_evlist__alloc_pollfd(evsel_list, cpus->nr, threads->nr) < 0 ||
+	    perf_evlist__alloc_mmap(evsel_list, cpus->nr) < 0)
 		goto out_free_fd;
 
 	sym_evsel = list_entry(evsel_list->entries.next, struct perf_evsel, node);
